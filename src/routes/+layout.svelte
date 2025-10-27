@@ -6,6 +6,7 @@
 </script>
 
 <svelte:head>
+    <link rel="icon" type="image/png" sizes="32x32" href="/logo_mitv.32.maskable.png">
 	<title>MiGallery (minimal)</title>
 </svelte:head>
 

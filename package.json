@@ -18,7 +18,7 @@
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
 		"typescript": "^5.9.2",
-		"vite": "^7.1.7"
+		"vite": "^7.1.12"
 	},
 	"dependencies": {
 		"@auth/core": "^0.41.0",
