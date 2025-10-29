@@ -4,14 +4,14 @@
 	"version": "0.0.1",
 	"description": "MiGallery, by MiTV",
 	"type": "module",
-	"author": "DeMASKe <>",
+	"author": "DeMASKe",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/DeMASKe/MiGallery.git"
+		"url": "https://github.com/emse-students/MiGallery.git"
 	},
-	"homepage": "https://github.com/DeMASKe/MiGallery#readme",
-	"keywords": ["sveltekit","svelte","vite","bun","gallery"],
+	"homepage": "https://github.com/emse-students/MiGallery#readme",
+	"keywords": ["sveltekit", "svelte", "vite", "bun", "gallery"],
 	"files": ["build/", "src/", "README.md"],
 	"engines": {
 		"node": ">=18.0.0",
