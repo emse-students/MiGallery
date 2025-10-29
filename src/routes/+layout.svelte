@@ -7,7 +7,7 @@
 
 <svelte:head>
     <link rel="icon" type="image/png" sizes="32x32" href="/logo_mitv.32.maskable.png">
-	<title>MiGallery (minimal)</title>
+	<title>MiGallery</title>
 </svelte:head>
 
 <nav>
@@ -17,7 +17,7 @@
 
 	<span style="margin-left:auto">
 		{#if page.data?.session?.user}
-			<span>{page.data.session.user?.name ?? page.data.session.user.email}</span>
+			<span>{page.data.session.user?.prenom} {page.data.session.user?.nom}</span>
 			<button onclick={() => signOut()}>Déconnexion</button>
 		{:else}
 			<button onclick={() => signIn('cas-emse')}>Connexion</button>
