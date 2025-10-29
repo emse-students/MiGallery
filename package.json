@@ -2,14 +2,37 @@
 	"name": "migallery",
 	"private": true,
 	"version": "0.0.1",
+	"description": "MiGallery, by MiTV",
 	"type": "module",
+	"author": "DeMASKe <>",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/DeMASKe/MiGallery.git"
+	},
+	"homepage": "https://github.com/DeMASKe/MiGallery#readme",
+	"keywords": ["sveltekit","svelte","vite","bun","gallery"],
+	"files": ["build/", "src/", "README.md"],
+	"engines": {
+		"node": ">=18.0.0",
+		"bun": "*"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		
+		"deps:install": "npm install",
+		"deps:install:pnpm": "pnpm install",
+		"deps:install:bun": "bun install",
+		"ci:install": "npm ci",
+		"ci:build": "npm ci && npm run build",
+		"package": "bun run build && bun ./scripts/pack-bun.js",
+		"package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
+		"version:show": "node -e \"console.log(require('./package.json').version)\""
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.1.0",
@@ -18,15 +41,15 @@
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
 		"typescript": "^5.9.2",
-		"vite": "^7.1.12"
+		"vite": "^7.1.12",
+		"tar": "^6.1.11"
 	},
 	"dependencies": {
 		"@auth/core": "^0.41.0",
 		"@auth/sveltekit": "^1.11.0",
 		"bun-types": "^1.3.0",
 		"dotenv": "^17.2.3",
-		"svelte-adapter-bun": "^1.0.0",
-		"vitest": "^3.2.4"
+		"svelte-adapter-bun": "^1.0.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.0"
