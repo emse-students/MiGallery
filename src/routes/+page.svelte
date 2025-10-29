@@ -13,5 +13,6 @@
     <li><a href="/mes-photos">Mes photos</a></li>
     <li><a href="/albums">Albums</a></li>
   </ul>
+  <p>Test</p>
 </main>
 
