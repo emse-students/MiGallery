@@ -1,15 +1,15 @@
 import { getDatabase } from "$lib/db/database";
 import type { User } from "$lib/db/database";
 
-export const load = async ({ locals }) => {
+export const load = async ({ locals, cookies }) => {
 
     /*const session = await locals.auth();
     return {
         session
     };*/
 
-    // User par défaut en attendant l'auth
-    const userId = "jolan.boudin";
+    // Lire l'utilisateur depuis le cookie, sinon utiliser l'utilisateur par défaut
+    const userId = cookies.get('current_user_id') || "jolan.boudin";
     
     // Requête SQL pour récupérer toutes les infos de l'utilisateur
     const db = getDatabase();

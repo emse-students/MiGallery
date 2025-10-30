@@ -8,7 +8,7 @@ MiGallery est une application front-end basée sur SvelteKit et Vite. Bun est ut
 
 ## Prérequis
 
-- Bun (ou Node/npm)
+- Bun (recommandé) ou Node/npm
 
 Vérifier Bun :
 ```sh
@@ -73,12 +73,16 @@ Migallery/              — racine du projet
    ├─ lib/              — bibliothèques utilitaires et composants réutilisables
    │  ├─ components/    — composants Svelte réutilisables (boutons, modals, cartes...)
    │  ├─ stores/        — Svelte stores (état global de l'application)
-   │  └─ auth.ts        — helpers d'authentification (exemples/abstractions)
+   │  ├─ auth.ts        — helpers d'authentification (exemples/abstractions)
+   │  └─ immich/        — adaptateurs et helpers pour l'intégration Immich (API de gestion d'images)
+   │     └─ download.ts — helper client pour demander les archives ZIP à Immich (supporte lecture en streaming et callback de progression)
    └─ routes/           — routes SvelteKit (routing basé sur fichiers)
       ├─ +layout.svelte — layout global (barre de navigation, footer, providers)
       ├─ +page.svelte   — page racine
       └─ api/           — endpoints serveur (ex: proxys, API internes)
          └─ ...         — fichiers .ts/.js exportant handlers GET/POST/PUT/DELETE
+         └─ immich/     — proxy générique vers une instance Immich
+            └─ [...path]/+server.ts — proxy SvelteKit qui relaie les requêtes vers la variable d'environnement IMMICH_BASE_URL et transmet la clé API (IMMICH_API_KEY)
 ```
 
 ---
