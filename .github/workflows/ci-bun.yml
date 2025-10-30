@@ -1,0 +1,38 @@
+name: CI (Bun)
+
+on:
+  push:
+    branches: ["main","master","fork"]
+  pull_request:
+    branches: ["main","master","fork"]
+
+jobs:
+  build:
+    name: Build / Test / Package (Bun)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: stable
+
+      - name: Install dependencies (bun)
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      # Tests removed from repository — skipping test step
+
+      - name: Package (create artifact)
+        run: |
+          bun run package || npm run package
+
+      - name: Upload artifact (.tgz)
+        uses: actions/upload-artifact@v4
+        with:
+          name: migallery-artifact
+          path: build/artifacts/*.tgz
