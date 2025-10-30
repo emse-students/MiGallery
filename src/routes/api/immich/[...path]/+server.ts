@@ -47,21 +47,31 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
-	const init: RequestInit = {
-		method: request.method,
-		headers: outgoingHeaders,
-		body: bodyToForward,
-	};
+		const init: RequestInit = {
+			method: request.method,
+			headers: outgoingHeaders,
+			body: bodyToForward,
+		};
+
+		// resolved upstream URL (used for forwarding)
+		// if the client asked for endpoints/* we forward to ${base}/endpoints/..., otherwise to ${base}/api/...
+		const resolvedRemoteUrl = path.startsWith("endpoints/") ? `${base}/${path}${search}` : `${base}/api/${path}${search}`;
+
+		// production: forward without debug helpers or extra logging
 
 	try {
-		const res = await fetch(remoteUrl, init);
+		// use resolvedRemoteUrl (special-cases endpoints/*) when forwarding the request
+		const res = await fetch(resolvedRemoteUrl, init);
 
 		const contentType = res.headers.get("content-type") || "application/json";
 
+		// Treat images, videos and archive/octet binary responses as binary so we can stream them
 		const isBinary =
 			contentType.startsWith("image/") ||
 			contentType.startsWith("video/") ||
-			contentType.startsWith("application/octet-stream");
+			contentType.startsWith("application/octet-stream") ||
+			contentType.includes("zip") ||
+			contentType.includes("octet-stream");
 
 		if (isBinary) {
 			const headers = new Headers();

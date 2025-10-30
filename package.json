@@ -24,15 +24,15 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"db:init": "bun run scripts/init-db.ts",
-		"deps:install": "npm install",
+		"deps:install": "bun install",
 		"deps:install:pnpm": "pnpm install",
-		"deps:install:bun": "bun install",
-		"ci:install": "npm ci",
-		"ci:build": "npm ci && npm run build",
+		"ci:install": "bun install --production",
+		"ci:build": "bun install --production && npm run build",
+		"start": "bun run dev",
 		"package": "bun run build && bun ./scripts/pack-bun.js",
 		"package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
-		"version:show": "node -e \"console.log(require('./package.json').version)\""
+		"version:show": "node -e \"console.log(require('./package.json').version)\"",
+		"db:init": "node ./scripts/init-db.cjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.1.0",

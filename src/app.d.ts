@@ -13,6 +13,8 @@ declare global {
 					nom: string;
 					id_photos: string | null;
 					first_login: number;
+					role?: 'admin' | 'mitviste' | 'user' | string;
+					promo_year?: number | null;
 				} | null;
 			};
 		}

@@ -5,13 +5,15 @@
 
   type Asset = { id: string; originalFileName?: string };
 
-  let assets: Asset[] = [];
-  let loading = false;
-  let error: string | null = null;
-  let imageUrl: string | null = null;
-  let _prevImageUrl: string | null = null;
-  let personName: string = '';
-  let peopleId: string = '';
+  let assets = $state<Asset[]>([]);
+  let selectedAssets = $state<string[]>([]);
+  let selecting = $state(false);
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+  let imageUrl = $state<string | null>(null);
+  let _prevImageUrl = $state<string | null>(null);
+  let personName = $state<string>('');
+  let peopleId = $state<string>('');
 
   async function loadPerson(id: string) {
     if (!id) {
@@ -65,13 +67,112 @@
         ? data.assets.items 
         : (Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []));
       
-      assets = items.map((it: any) => ({ id: it.id, originalFileName: it.originalFileName }));
+      assets = items.map((it: any) => ({
+        id: it.id,
+        originalFileName: it.originalFileName,
+        // prefer takenAt or fileCreatedAt if present
+        date: it.takenAt || it.fileCreatedAt || it.createdAt || it.updatedAt || null
+  })).filter((a: any) => !!a.id);
     } catch (e) {
       error = (e as Error).message;
     } finally {
       loading = false;
     }
   }
+
+  function formatDayLabel(dateStr: string | null) {
+    if (!dateStr) return 'Sans date';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 'Sans date';
+    const today = new Date();
+    const diff = Math.floor((+today - +d) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return 'Aujourd\'hui';
+    if (diff === 1) return 'Hier';
+    return d.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function groupByDay(list: any[]) {
+    const out: Record<string, any[]> = {};
+    for (const a of list) {
+      const key = formatDayLabel(a.date || null);
+      if (!out[key]) out[key] = [];
+      out[key].push(a);
+    }
+    return out;
+  }
+
+  function toggleSelect(id: string, checked: boolean) {
+    if (checked) {
+      if (!selectedAssets.includes(id)) selectedAssets = [...selectedAssets, id];
+    } else {
+      selectedAssets = selectedAssets.filter(x => x !== id);
+    }
+  }
+
+  async function downloadSingle(id: string) {
+    try {
+      const asset = assets.find(x => x.id === id);
+      const res = await fetch(`/api/immich/assets/${id}/original`);
+      if (!res.ok) throw new Error('Erreur téléchargement');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = asset?.originalFileName || id;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Erreur lors du téléchargement: ' + (e as Error).message);
+    }
+  }
+
+  import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+  let isDownloading = $state(false);
+  let downloadProgress = $state(0);
+  let currentDownloadController: AbortController | null = null;
+
+  // override downloadSelected to use helper so we show loading
+  async function downloadSelected() {
+    if (selectedAssets.length === 0) return alert('Aucune image sélectionnée');
+    if (!confirm(`Télécharger ${selectedAssets.length} image(s) sous forme d'archive ?`)) return;
+    // prepare abort controller
+    if (currentDownloadController) {
+      try { currentDownloadController.abort(); } catch (e) {}
+      currentDownloadController = null;
+    }
+    const controller = new AbortController();
+    currentDownloadController = controller;
+    isDownloading = true;
+    downloadProgress = 0;
+    try {
+      const blob = await fetchArchive(selectedAssets, {
+        onProgress: (p) => { downloadProgress = p; },
+        signal: controller.signal,
+      });
+      saveBlobAs(blob, `mes-photos.zip`);
+      selectedAssets = [];
+      selecting = false;
+    } catch (e) {
+      if ((e as any)?.name === 'AbortError') {
+        console.info('Téléchargement annulé');
+      } else {
+        alert('Erreur: ' + (e as Error).message);
+      }
+    } finally {
+      isDownloading = false;
+      downloadProgress = 0;
+      currentDownloadController = null;
+    }
+  }
+
+  onDestroy(() => {
+    if (currentDownloadController) {
+      try { currentDownloadController.abort(); } catch (e) {}
+      currentDownloadController = null;
+    }
+  });
 
   onDestroy(() => {
     if (_prevImageUrl) {
@@ -110,19 +211,7 @@
     padding: 20px;
   }
 
-  nav {
-    margin-bottom: 30px;
-  }
-
-  nav a {
-    text-decoration: none;
-    color: #3498db;
-    font-size: 1.1em;
-  }
-
-  nav a:hover {
-    text-decoration: underline;
-  }
+  /* nav link removed from template; styles omitted */
 
   .user-info {
     background: #f8f9fa;
@@ -209,10 +298,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* small spinner used for indeterminate download state */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 
 <main>
-  <nav><a href="/">← Accueil</a></nav>
+  <!-- back link removed - not needed (albums already links to top-level) -->
 
   {#if imageUrl && personName}
     <div class="user-info">
@@ -234,23 +337,51 @@
   {/if}
 
   {#if assets.length > 0}
-    <div class="photos-count">
-      <strong>{assets.length}</strong> photo{assets.length > 1 ? 's' : ''} trouvée{assets.length > 1 ? 's' : ''}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+      <div class="photos-count"><strong>{assets.length}</strong> photo{assets.length > 1 ? 's' : ''} trouvée{assets.length > 1 ? 's' : ''}</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        {#if selecting}
+          <button onclick={() => downloadSelected()} disabled={isDownloading} style="padding:8px 10px;border-radius:8px;background:#2ecc71;color:white;border:none;cursor:pointer">
+            {#if isDownloading}
+              {#if downloadProgress >= 0}
+                ⏳ {Math.round(downloadProgress * 100)}% Téléchargement...
+              {:else}
+                <span class="spinner" aria-hidden="true"></span> Téléchargement...
+              {/if}
+            {:else}
+              ⬇️ Télécharger sélection ({selectedAssets.length})
+            {/if}
+          </button>
+          <button onclick={() => { selectedAssets = []; selecting = false; }} style="padding:8px 10px;border-radius:8px;background:#95a5a6;color:white;border:none;cursor:pointer">Annuler</button>
+        {:else}
+          <button onclick={() => { selecting = true; selectedAssets = []; }} style="padding:8px 10px;border-radius:8px;background:#3498db;color:white;border:none;cursor:pointer">Sélectionner</button>
+        {/if}
+      </div>
     </div>
 
-    <div class="photos-grid">
-      {#each assets as a}
-        <div class="photo-card">
-          <img 
-            alt={a.originalFileName || a.id} 
-            src={`/api/immich/assets/${a.id}/thumbnail?size=thumbnail&t=${Date.now()}`} 
-          />
-          <div class="photo-info" title={a.originalFileName || a.id}>
-            {a.originalFileName || a.id}
+    <!-- Group by day -->
+    {#each Object.entries(groupByDay(assets)) as [dayLabel, items]}
+      <h3 style="margin-top:18px;color:#556">{dayLabel}</h3>
+      <div class="photos-grid">
+        {#each items as a}
+          <div class="photo-card" style="position:relative;">
+            {#if selecting}
+              <label style="position:absolute;left:8px;top:8px;z-index:3;background:rgba(255,255,255,0.9);padding:4px;border-radius:4px;">
+                <input type="checkbox" checked={selectedAssets.includes(a.id)} onchange={(e) => toggleSelect(a.id, (e.target as HTMLInputElement).checked)} />
+              </label>
+            {/if}
+            <button title="Télécharger" onclick={() => downloadSingle(a.id)} style="position:absolute;right:8px;top:8px;z-index:3;background:rgba(0,0,0,0.6);color:white;border:none;padding:6px;border-radius:6px;">⬇️</button>
+            <img 
+              alt={a.originalFileName || a.id} 
+              src={`/api/immich/assets/${a.id}/thumbnail?size=thumbnail&t=${Date.now()}`} 
+            />
+            <div class="photo-info" title={a.originalFileName || a.id}>
+              {a.originalFileName || a.id}
+            </div>
           </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/each}
   {:else if !loading && !error}
     <div class="loading">Aucune photo trouvée</div>
   {/if}
