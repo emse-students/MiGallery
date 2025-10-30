@@ -29,5 +29,6 @@ export interface User {
   email: string;
   prenom: string;
   nom: string;
-  id_photos: string;
+  id_photos: string | null;
+  first_login: number;
 }

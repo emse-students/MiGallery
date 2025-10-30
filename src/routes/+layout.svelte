@@ -17,7 +17,7 @@
 
 	<span style="margin-left:auto">
 		{#if page.data?.session?.user}
-			<span>{page.data.session.user?.prenom} {page.data.session.user?.nom}</span>
+			<span>{(page.data.session.user as any)?.prenom} {(page.data.session.user as any)?.nom}</span>
 			<button onclick={() => signOut()}>Déconnexion</button>
 		{:else}
 			<button onclick={() => signIn('cas-emse')}>Connexion</button>
