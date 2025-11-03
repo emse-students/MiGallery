@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import Icon from "$lib/components/Icon.svelte";
 
   let uploadStatus = $state<string>("");
   let assetId = $state<string | null>(null);
@@ -297,21 +298,21 @@
         const updateResult = await updateResponse.json();
         
         if (updateResult.success) {
-          uploadStatus = `✅ Terminé ! id_photos = ${personId}`;
+          uploadStatus = `Terminé ! id_photos = ${personId}`;
           alert("Photo de profil configurée ! Rechargement de la page...");
           window.location.reload();
         } else {
-          uploadStatus = `⚠️ Personne détectée mais erreur mise à jour BDD: ${updateResult.error}`;
+          uploadStatus = `Personne détectée mais erreur mise à jour BDD: ${updateResult.error}`;
         }
       } else if (people.length === 0) {
-        uploadStatus = "❌ Aucune personne détectée sur cette photo.";
+        uploadStatus = "Aucune personne détectée sur cette photo.";
         canRetry = true;
       } else {
-        uploadStatus = `❌ Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`;
+        uploadStatus = `Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`;
         needsNewPhoto = true;
       }
     } catch (error) {
-      uploadStatus = `❌ Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+      uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur lors de la vérification des personnes:", error);
     }
   }
@@ -364,7 +365,7 @@
       await checkForPeople();
 
     } catch (error) {
-      uploadStatus = `❌ Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+      uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur import photo:", error);
     } finally {
       isProcessing = false;
@@ -375,172 +376,19 @@
 
 <svelte:head>
   <title>Paramètres - MiGallery</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-  </style>
 </svelte:head>
 
-<style>
-  main {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px;
-  }
+<main class="settings-main">
+  <h1><Icon name="settings" size={32} /> Paramètres</h1>
 
-  /* nav link removed from template; styles omitted */
-
-  h1 {
-    color: #2c3e50;
-    margin-bottom: 30px;
-  }
-
-  h2 {
-    color: #2c3e50;
-    margin-top: 40px;
-    margin-bottom: 20px;
-  }
-
-  .section {
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    margin-bottom: 30px;
-  }
-
-  .user-section {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 20px;
-    border-radius: 12px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-  }
-
-  .user-section h3 {
-    margin-top: 0;
-  }
-
-  .user-section p {
-    margin: 8px 0;
-  }
-
-  .user-section input {
-    margin-left: 10px;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 6px;
-    width: 220px;
-  }
-
-  .user-section button {
-    margin-left: 10px;
-    padding: 8px 16px;
-    background: white;
-    color: #667eea;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: transform 0.2s;
-  }
-
-  .user-section button:hover {
-    transform: scale(1.05);
-  }
-
-  button {
-    padding: 10px 20px;
-    background: #3498db;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background 0.2s;
-  }
-  button:hover {
-    background: #2980b9;
-  }
-
-  button:disabled {
-    background: #95a5a6;
-    cursor: not-allowed;
-  }
-
-  .status-box {
-    padding: 15px;
-    margin: 15px 0;
-    background: #f0f0f0;
-    border-radius: 8px;
-    border-left: 4px solid #3498db;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 20px 0;
-  }
-
-  th, td {
-    border: 1px solid #ddd;
-    padding: 12px;
-    text-align: left;
-  }
-
-  th {
-    background: #f0f0f0;
-    font-weight: bold;
-  }
-
-  .form-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    max-width: 600px;
-    margin: 20px 0;
-  }
-
-  .form-grid label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: 500;
-  }
-
-  .form-grid input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-  }
-
-  .full-width {
-    grid-column: 1 / -1;
-  }
-
-  .success-button {
-    background: #4CAF50;
-  }
-
-  .success-button:hover {
-    background: #45a049;
-  }
-</style>
-
-<main>
-  <h1>⚙️ Paramètres</h1>
-
-  <!-- Utilisateur actuel -->
   <div class="user-section">
-    <h3>👤 Utilisateur actuel</h3>
+    <h3><Icon name="user" size={24} /> Utilisateur actuel</h3>
     <p><strong>ID:</strong> {(page.data.session?.user as any)?.id_user || "Non connecté"}</p>
     <p><strong>Nom:</strong> {(page.data.session?.user as any)?.prenom} {(page.data.session?.user as any)?.nom}</p>
     <p><strong>Email:</strong> {page.data.session?.user?.email}</p>
     <p><strong>ID Photos:</strong> {(page.data.session?.user as any)?.id_photos || "Non configuré"}</p>
     
-    <div style="margin-top: 15px;">
+    <div class="mt-4">
       <label>
         Changer d'utilisateur (id_user):
         <input 
@@ -550,17 +398,16 @@
         />
       </label>
       <button onclick={changeCurrentUser}>
-        ✓ Changer
+        <Icon name="check" size={20} /> Changer
       </button>
     </div>
   </div>
 
-  <!-- Import photo de profil -->
   <div class="section">
-    <h2>📸 Photo de profil</h2>
+    <h2><Icon name="image" size={28} /> Photo de profil</h2>
     <p>Importez une photo pour configurer votre reconnaissance faciale et accéder à "Mes photos".</p>
     
-    <div style="margin: 20px 0;">
+    <div class="my-5">
       <input 
         type="file" 
         accept="image/*"
@@ -568,7 +415,7 @@
         disabled={isProcessing}
       />
       {#if isProcessing}
-        <span style="margin-left: 10px;">⏳ Traitement en cours...</span>
+        <span class="ml-2"><Icon name="loader" size={20} /> Traitement en cours...</span>
       {/if}
     </div>
 
@@ -580,16 +427,16 @@
 
     {#if canRetry}
       <button onclick={retryRecognition} disabled={isProcessing}>
-        🔄 Réessayer la reconnaissance
+        <Icon name="refresh" size={20} /> Réessayer la reconnaissance
       </button>
-      <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+      <p class="text-slate-600 text-sm mt-2.5">
         La reconnaissance peut prendre du temps. Vous pouvez attendre un peu puis réessayer.
       </p>
     {/if}
 
     {#if needsNewPhoto}
-      <p style="color: #e74c3c; font-weight: bold;">
-        ⚠️ Veuillez choisir une photo avec une seule personne visible.
+      <p class="text-red-600 font-bold">
+        <Icon name="alert-circle" size={20} /> Veuillez choisir une photo avec une seule personne visible.
       </p>
     {/if}
 
@@ -606,16 +453,16 @@
   <div class="section">
     <button 
       onclick={() => showDbManager = !showDbManager}
-      style="width: 100%;"
+      class="w-full"
     >
-      {showDbManager ? '▼' : '▶'} Gestionnaire de base de données (Admin)
+      <Icon name={showDbManager ? 'chevron-down' : 'chevron-right'} size={20} /> Gestionnaire de base de données (Admin)
     </button>
 
     {#if showDbManager}
-      <div style="margin-top: 20px;">
+  <div class="mt-5">
         
         <!-- Affichage des utilisateurs -->
-        <h3>📋 Utilisateurs dans la base de données</h3>
+        <h3 class="mb-4 mt-6"><Icon name="users" size={24} /> Utilisateurs dans la base de données</h3>
         {#if allUsers.length > 0}
           <table>
             <thead>
@@ -651,7 +498,7 @@
                       </td>
                       <td>
                         <button onclick={saveUserEdit} class="success-button">Save</button>
-                        <button onclick={cancelEditUser} style="margin-left:8px;">Cancel</button>
+                        <button onclick={cancelEditUser} class="ml-2">Cancel</button>
                       </td>
                     {:else}
                       <td>{user.id_user}</td>
@@ -664,7 +511,7 @@
                       <td>{user.promo_year ?? '-'}</td>
                       <td>
                         <button onclick={() => startEditUser(user)}>Edit</button>
-                        <button onclick={() => deleteUser(user.id_user)} style="margin-left:8px;">Delete</button>
+                        <button onclick={() => deleteUser(user.id_user)} class="ml-2">Delete</button>
                       </td>
                     {/if}
                   </tr>
@@ -676,7 +523,7 @@
         {/if}
 
         <!-- Formulaire d'ajout -->
-        <h3>➕ Ajouter un utilisateur</h3>
+        <h3 class="mt-8 mb-4"><Icon name="plus" size={24} /> Ajouter un utilisateur</h3>
         <div class="form-grid">
           <div>
             <label for="newUser_id_user">ID User *</label>
@@ -728,24 +575,24 @@
           onclick={addUser}
           class="success-button"
         >
-          ➕ Ajouter l'utilisateur
+          <Icon name="plus" size={20} /> Ajouter l'utilisateur
         </button>
       </div>
     {/if}
   </div>
   <!-- Albums manager -->
   <div class="section">
-    <button onclick={() => showAlbumManager = !showAlbumManager} style="width:100%">
-      {showAlbumManager ? '▼' : '▶'} Gestion des albums
+    <button onclick={() => showAlbumManager = !showAlbumManager} class="w-full">
+      <Icon name={showAlbumManager ? 'chevron-down' : 'chevron-right'} size={20} /> Gestion des albums
     </button>
 
     {#if showAlbumManager}
-      <div style="margin-top: 20px;">
-        <h3>Gestion des albums (via Immich)</h3>
-        <p>Les albums proviennent d'Immich. Utilisez le bouton ci-dessous pour synchroniser la liste locale avec Immich. La création d'albums manuelle n'est pas nécessaire.</p>
-        <button onclick={importAlbumsFromImmich} style="margin-top:12px; background:#6c757d;">Importer depuis Immich</button>
+      <div class="mt-5">
+        <h3 class="mb-4 mt-6">Gestion des albums (via Immich)</h3>
+        <p class="mb-4">Les albums proviennent d'Immich. Utilisez le bouton ci-dessous pour synchroniser la liste locale avec Immich. La création d'albums manuelle n'est pas nécessaire.</p>
+        <button onclick={importAlbumsFromImmich} class="mb-6 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded">Importer depuis Immich</button>
 
-        <h3 style="margin-top:20px;">📚 Albums existants</h3>
+  <h3 class="mb-4 mt-8"><Icon name="folder" size={24} /> Albums existants</h3>
         {#if albums.length > 0}
           <table>
             <thead>
@@ -775,13 +622,13 @@
                       </select>
                     </td>
                     <td>
-                      <label style="display:flex;align-items:center;gap:8px;">
+                      <label class="flex items-center gap-2">
                         <input type="checkbox" bind:checked={editingAlbumData.visible} />
                       </label>
                     </td>
                     <td>
                       <button onclick={saveAlbumEdit} class="success-button">Save</button>
-                      <button onclick={cancelEditAlbum} style="margin-left:8px;">Cancel</button>
+                      <button onclick={cancelEditAlbum} class="ml-2">Cancel</button>
                     </td>
                   {:else}
                     <td>{a.id}</td>
@@ -792,21 +639,21 @@
                     <td>{a.visible ? 'Oui' : 'Non'}</td>
                     <td>
                       <button onclick={() => window.open(`/albums/${a.id}`, '_blank')}>Open</button>
-                      <button onclick={() => startEditAlbum(a)} style="margin-left:8px;">Edit</button>
-                      <button onclick={() => deleteAlbum(a.id)} style="margin-left:8px;">Delete</button>
+                      <button onclick={() => startEditAlbum(a)} class="ml-2">Edit</button>
+                      <button onclick={() => deleteAlbum(a.id)} class="ml-2">Delete</button>
                     </td>
                   {/if}
                 </tr>
                 {#if editingAlbumId === a.id}
                   <tr>
                     <td colspan="7">
-                      <div style="display:flex;gap:12px;align-items:center;">
-                        <label for={"editingAlbum_tags_" + a.id} style="min-width:80px;">Tags:</label>
-                        <input id={"editingAlbum_tags_" + a.id} type="text" style="flex:1;" bind:value={editingAlbumData.tags} placeholder="Ex: Promo 2024, VIP" />
-                        <label for={"editingAlbum_allowed_" + a.id} style="min-width:120px;">Allowed users (comma):</label>
-                        <input id={"editingAlbum_allowed_" + a.id} type="text" style="flex:1;" bind:value={editingAlbumData.allowed_users} placeholder="ex: alice.bob, john.doe" />
+                      <div class="flex gap-3 items-center">
+                        <label for={"editingAlbum_tags_" + a.id} class="min-w-[80px]">Tags:</label>
+                        <input id={"editingAlbum_tags_" + a.id} type="text" class="flex-1" bind:value={editingAlbumData.tags} placeholder="Ex: Promo 2024, VIP" />
+                        <label for={"editingAlbum_allowed_" + a.id} class="min-w-[120px]">Allowed users (comma):</label>
+                        <input id={"editingAlbum_allowed_" + a.id} type="text" class="flex-1" bind:value={editingAlbumData.allowed_users} placeholder="ex: alice.bob, john.doe" />
                       </div>
-                      <p style="margin:8px 0 0 0;color:#666;font-size:0.9em;">Ajoutez des tags (séparés par des virgules) et des id_user autorisés. Cliquez sur Save pour appliquer.</p>
+                      <p class="mt-2 text-gray-600 text-sm">Ajoutez des tags (séparés par des virgules) et des id_user autorisés. Cliquez sur Save pour appliquer.</p>
                     </td>
                   </tr>
                 {/if}

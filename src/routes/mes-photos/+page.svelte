@@ -2,8 +2,10 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from 'svelte';
+  import Icon from '$lib/components/Icon.svelte';
+  import LazyImage from '$lib/components/LazyImage.svelte';
 
-  type Asset = { id: string; originalFileName?: string };
+  type Asset = { id: string; originalFileName?: string; type?: string };
 
   let assets = $state<Asset[]>([]);
   let selectedAssets = $state<string[]>([]);
@@ -24,18 +26,15 @@
     loading = true; error = null; assets = []; imageUrl = null; personName = '';
     
     try {
-      // Récupérer les infos de la personne
       const personRes = await fetch(`/api/immich/people/${id}`);
       if (personRes.ok) {
         const personData = await personRes.json();
         personName = personData.name || 'Sans nom';
       }
 
-      // Récupérer la miniature de la personne
       const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
       if (thumb.ok) {
         const blob = await thumb.blob();
-        // revoke previous blob URL if any
         if (_prevImageUrl) {
           try { URL.revokeObjectURL(_prevImageUrl); } catch (e) {}
           _prevImageUrl = null;
@@ -45,7 +44,6 @@
         _prevImageUrl = url;
       }
 
-      // Récupérer toutes les photos de cette personne
       const res = await fetch('/api/immich/search/metadata', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -70,9 +68,9 @@
       assets = items.map((it: any) => ({
         id: it.id,
         originalFileName: it.originalFileName,
-        // prefer takenAt or fileCreatedAt if present
-        date: it.takenAt || it.fileCreatedAt || it.createdAt || it.updatedAt || null
-  })).filter((a: any) => !!a.id);
+        date: it.takenAt || it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+        type: it.type
+      })).filter((a: any) => !!a.id);
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -103,10 +101,33 @@
 
   function toggleSelect(id: string, checked: boolean) {
     if (checked) {
-      if (!selectedAssets.includes(id)) selectedAssets = [...selectedAssets, id];
+      if (!selectedAssets.includes(id)) {
+        selectedAssets = [...selectedAssets, id];
+        if (!selecting) selecting = true;
+      }
     } else {
       selectedAssets = selectedAssets.filter(x => x !== id);
+      if (selectedAssets.length === 0) selecting = false;
     }
+  }
+
+  function handlePhotoClick(id: string, event: Event) {
+    if (selecting) {
+      event.preventDefault();
+      const isSelected = selectedAssets.includes(id);
+      toggleSelect(id, !isSelected);
+    } else {
+      window.location.href = `/asset/${id}`;
+    }
+  }
+  
+  function selectAll() {
+    selectedAssets = assets.map(a => a.id);
+  }
+  
+  function deselectAll() {
+    selectedAssets = [];
+    selecting = false;
   }
 
   async function downloadSingle(id: string) {
@@ -133,11 +154,10 @@
   let downloadProgress = $state(0);
   let currentDownloadController: AbortController | null = null;
 
-  // override downloadSelected to use helper so we show loading
   async function downloadSelected() {
     if (selectedAssets.length === 0) return alert('Aucune image sélectionnée');
     if (!confirm(`Télécharger ${selectedAssets.length} image(s) sous forme d'archive ?`)) return;
-    // prepare abort controller
+    
     if (currentDownloadController) {
       try { currentDownloadController.abort(); } catch (e) {}
       currentDownloadController = null;
@@ -182,10 +202,8 @@
   });
 
   onMount(() => {
-    // Vérifier si l'utilisateur a un id_photos configuré
     const user = page.data.session?.user as any;
     if (!user || !user.id_photos) {
-      // Rediriger vers la page d'accueil si pas d'id_photos
       goto('/');
       return;
     }
@@ -197,131 +215,15 @@
 
 <svelte:head>
   <title>Mes photos - MiGallery</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-  </style>
 </svelte:head>
 
-<style>
-  main {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-
-  /* nav link removed from template; styles omitted */
-
-  .user-info {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 30px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .user-portrait {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid #3498db;
-  }
-
-  .user-details h2 {
-    margin: 0 0 10px 0;
-    color: #2c3e50;
-  }
-
-  .user-details p {
-    margin: 5px 0;
-    color: #7f8c8d;
-  }
-
-  .loading, .error {
-    padding: 20px;
-    text-align: center;
-    font-size: 1.1em;
-  }
-
-  .loading {
-    color: #3498db;
-  }
-
-  .error {
-    color: #e74c3c;
-    background: #fadbd8;
-    border-radius: 8px;
-  }
-
-  .photos-count {
-    margin: 20px 0;
-    font-size: 1.2em;
-    color: #2c3e50;
-  }
-
-  .photos-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-    margin-top: 20px;
-  }
-
-  .photo-card {
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-
-  .photo-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  }
-
-  .photo-card img {
-    width: 100%;
-    height: 250px;
-    object-fit: cover;
-    display: block;
-  }
-
-  .photo-info {
-    padding: 12px;
-    font-size: 0.9em;
-    color: #7f8c8d;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  /* small spinner used for indeterminate download state */
-  .spinner {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
-
-<main>
-  <!-- back link removed - not needed (albums already links to top-level) -->
+<main class="mesphotos-main">
 
   {#if imageUrl && personName}
     <div class="user-info">
       <img src={imageUrl} alt="Portrait" class="user-portrait" />
       <div class="user-details">
-        <h2>📸 Photos de {personName}</h2>
+        <h2><Icon name="image" size={24} /> Photos de {personName}</h2>
         <p><strong>Utilisateur:</strong> {(page.data.session?.user as any)?.prenom} {(page.data.session?.user as any)?.nom}</p>
         <p><strong>ID Person:</strong> <code>{peopleId}</code></p>
       </div>
@@ -329,51 +231,73 @@
   {/if}
 
   {#if error}
-    <div class="error">❌ {error}</div>
+    <div class="error"><Icon name="x-circle" size={20} /> {error}</div>
   {/if}
 
   {#if loading}
-    <div class="loading">⏳ Chargement des photos...</div>
+    <div class="loading"><Icon name="loader" size={20} /> Chargement des photos...</div>
   {/if}
 
   {#if assets.length > 0}
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-      <div class="photos-count"><strong>{assets.length}</strong> photo{assets.length > 1 ? 's' : ''} trouvée{assets.length > 1 ? 's' : ''}</div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        {#if selecting}
-          <button onclick={() => downloadSelected()} disabled={isDownloading} style="padding:8px 10px;border-radius:8px;background:#2ecc71;color:white;border:none;cursor:pointer">
+    {#if selecting}
+      <div class="selection-toolbar">
+        <div class="selection-count">
+          <Icon name="check-square" size={18} />
+          {selectedAssets.length} sélectionné{selectedAssets.length > 1 ? 's' : ''}
+        </div>
+        <div class="selection-actions">
+          <button onclick={selectAll} class="px-2 py-2">
+            <Icon name="check-square" size={16} />
+            Tout sélectionner
+          </button>
+          <button onclick={deselectAll} class="px-2 py-2 bg-gray-400">
+            <Icon name="square" size={16} />
+            Tout désélectionner
+          </button>
+          <button onclick={downloadSelected} disabled={isDownloading || selectedAssets.length === 0} class="px-2 py-2 bg-emerald-500">
             {#if isDownloading}
               {#if downloadProgress >= 0}
-                ⏳ {Math.round(downloadProgress * 100)}% Téléchargement...
+                <Icon name="download" size={16} />
+                {Math.round(downloadProgress * 100)}%
               {:else}
-                <span class="spinner" aria-hidden="true"></span> Téléchargement...
+                <span class="spinner" aria-hidden="true"></span>
+                Téléchargement...
               {/if}
             {:else}
-              ⬇️ Télécharger sélection ({selectedAssets.length})
+              <Icon name="download" size={16} />
+              Télécharger ({selectedAssets.length})
             {/if}
           </button>
-          <button onclick={() => { selectedAssets = []; selecting = false; }} style="padding:8px 10px;border-radius:8px;background:#95a5a6;color:white;border:none;cursor:pointer">Annuler</button>
-        {:else}
-          <button onclick={() => { selecting = true; selectedAssets = []; }} style="padding:8px 10px;border-radius:8px;background:#3498db;color:white;border:none;cursor:pointer">Sélectionner</button>
-        {/if}
+        </div>
       </div>
-    </div>
+    {:else}
+      <div class="photos-count"><strong>{assets.length}</strong> photo{assets.length > 1 ? 's' : ''} trouvée{assets.length > 1 ? 's' : ''}</div>
+    {/if}
 
-    <!-- Group by day -->
     {#each Object.entries(groupByDay(assets)) as [dayLabel, items]}
-      <h3 style="margin-top:18px;color:#556">{dayLabel}</h3>
-      <div class="photos-grid">
+      <h3 class="mt-4 text-slate-600">{dayLabel}</h3>
+      <div class="photos-grid {selecting ? 'selection-mode' : ''}">
         {#each items as a}
-          <div class="photo-card" style="position:relative;">
-            {#if selecting}
-              <label style="position:absolute;left:8px;top:8px;z-index:3;background:rgba(255,255,255,0.9);padding:4px;border-radius:4px;">
-                <input type="checkbox" checked={selectedAssets.includes(a.id)} onchange={(e) => toggleSelect(a.id, (e.target as HTMLInputElement).checked)} />
-              </label>
+          <div 
+            class="photo-card {selectedAssets.includes(a.id) ? 'selected' : ''}" 
+            role="button"
+            tabindex="0"
+            onclick={(e) => handlePhotoClick(a.id, e)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePhotoClick(a.id, e); } }}
+          >
+            <div class="selection-checkbox {selectedAssets.includes(a.id) ? 'checked' : ''}">
+              <input type="checkbox" checked={selectedAssets.includes(a.id)} onchange={(e) => toggleSelect(a.id, (e.target as HTMLInputElement).checked)} onclick={(e) => e.stopPropagation()} />
+            </div>
+            {#if !selecting}
+              <button class="download-btn" title="Télécharger" onclick={(e) => { e.stopPropagation(); downloadSingle(a.id); }}>
+                <Icon name="download" size={18} />
+              </button>
             {/if}
-            <button title="Télécharger" onclick={() => downloadSingle(a.id)} style="position:absolute;right:8px;top:8px;z-index:3;background:rgba(0,0,0,0.6);color:white;border:none;padding:6px;border-radius:6px;">⬇️</button>
-            <img 
-              alt={a.originalFileName || a.id} 
-              src={`/api/immich/assets/${a.id}/thumbnail?size=thumbnail&t=${Date.now()}`} 
+            <LazyImage 
+              src={`/api/immich/assets/${a.id}/thumbnail?size=thumbnail`}
+              alt={a.originalFileName || 'Photo'}
+              aspectRatio="1"
+              isVideo={a.type === 'VIDEO'}
             />
             <div class="photo-info" title={a.originalFileName || a.id}>
               {a.originalFileName || a.id}
@@ -383,6 +307,9 @@
       </div>
     {/each}
   {:else if !loading && !error}
-    <div class="loading">Aucune photo trouvée</div>
+    <div class="loading">
+      <Icon name="image" size={48} />
+      <p>Aucune photo trouvée</p>
+    </div>
   {/if}
 </main>
