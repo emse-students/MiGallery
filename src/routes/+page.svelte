@@ -1,51 +1,60 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import Icon from "$lib/components/Icon.svelte";
 
-  let idPhotos = $state<string | null>(null);
-
-  async function getIdPhotos() {
-    const userId = page.data.session?.user?.id_user;
-    
-    if (!userId) {
-      alert("Pas d'utilisateur connecté");
-      return;
-    }
-
-    const response = await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sql: "SELECT id_photos FROM users WHERE id_user = ?",
-        params: [userId]
-      })
-    });
-
-    const result = await response.json();
-    
-    if (result.success && result.data.length > 0) {
-      idPhotos = result.data[0].id_photos;
-    }
-  }
+  // Vérifier si l'utilisateur a un id_photos configuré
+  $: hasIdPhotos = !!((page.data.session?.user as any)?.id_photos);
+  $: isFirstLogin = (page.data.session?.user as any)?.first_login === 1;
 </script>
 
 <svelte:head>
-  <title>MiGallery</title>
+  <title>MiGallery - Accueil</title>
 </svelte:head>
 
-<main>
-  <h1>MiGallery</h1>
-  <p>Navigation :</p>
-  <ul>
-    <li><a href="/mes-photos">Mes photos</a></li>
-    <li><a href="/albums">Albums</a></li>
-  </ul>
+<!-- Styles moved to src/app.css -->
 
-  <hr>
+<main class="home-main">
+  <div class="header">
+    <img src="/MiGallery.png" alt="MiGallery Logo" class="logo" />
+    <h1>MiGallery</h1>
+    <p class="tagline">by MiTV</p>
+  </div>
   
-  <button onclick={getIdPhotos}>Récupérer mon id_photos</button>
-  
-  {#if idPhotos}
-    <p>Votre id_photos : <strong>{idPhotos}</strong></p>
+  <!-- Bannière de première connexion -->
+  {#if isFirstLogin}
+    <div class="first-login-banner">
+      <div class="banner-content">
+        <h2><Icon name="user" size={32} /> Bienvenue !</h2>
+        <p>Pour profiter pleinement de MiGallery, veuillez configurer votre profil dans les paramètres.</p>
+        <a href="/parametres" class="banner-button">Configurer mon profil</a>
+      </div>
+    </div>
   {/if}
+
+  <!-- Section utilisateur actuel -->
+  {#if page.data.session?.user}
+    <div class="user-section">
+      <h3><Icon name="user" size={24} /> Utilisateur actuel</h3>
+      <p><strong>Nom:</strong> {(page.data.session.user as any).prenom} {(page.data.session.user as any).nom}</p>
+      <p><strong>Email:</strong> {page.data.session.user.email}</p>
+    </div>
+  {/if}
+
+  <div class="nav-section">
+    <p>Navigation :</p>
+    <ul>
+      {#if hasIdPhotos}
+        <li><a href="/mes-photos"><Icon name="image" size={20} /> Mes photos</a></li>
+      {:else}
+        <li>
+          <span class="disabled-link" title="Configurez votre profil dans les paramètres pour accéder à vos photos">
+            <Icon name="image" size={20} /> Mes photos (non disponible)
+          </span>
+        </li>
+      {/if}
+      <li><a href="/albums"><Icon name="folder" size={20} /> Albums</a></li>
+      <li><a href="/parametres"><Icon name="settings" size={20} /> Paramètres</a></li>
+    </ul>
+  </div>
 </main>
 
