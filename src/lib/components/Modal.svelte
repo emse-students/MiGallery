@@ -103,7 +103,10 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div 
     class="modal-content {wide ? 'modal-content-wide' : ''}"
+    role="group"
+    tabindex="-1"
     onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
   >
     {#if title || displayIcon}
       <h2 class="modal-title">
