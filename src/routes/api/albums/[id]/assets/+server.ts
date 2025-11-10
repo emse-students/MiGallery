@@ -1,6 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { IMMICH_BASE_URL, IMMICH_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
+const IMMICH_API_KEY = env.IMMICH_API_KEY;
 
 /**
  * PUT /api/albums/[id]/assets
@@ -13,7 +15,8 @@ export const PUT: RequestHandler = async ({ params, request, fetch }) => {
 		const { id } = params;
 		const body = await request.json();
 		
-		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
+	if (!IMMICH_BASE_URL) throw error(500, 'IMMICH_BASE_URL not configured');
+	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
 			method: 'PUT',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
@@ -49,7 +52,8 @@ export const DELETE: RequestHandler = async ({ params, request, fetch }) => {
 		const { id } = params;
 		const body = await request.json();
 		
-		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
+	if (!IMMICH_BASE_URL) throw error(500, 'IMMICH_BASE_URL not configured');
+	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
 			method: 'DELETE',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,

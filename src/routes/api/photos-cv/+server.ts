@@ -1,6 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { IMMICH_BASE_URL, IMMICH_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
+const IMMICH_API_KEY = env.IMMICH_API_KEY;
 
 const PHOTOCV_ALBUM_NAME = 'PhotoCV';
 
@@ -18,6 +20,7 @@ async function getOrCreatePhotoCVAlbum(fetchFn: typeof fetch): Promise<string> {
 	}
 
 	// Rechercher l'album existant
+	if (!IMMICH_BASE_URL) throw new Error('IMMICH_BASE_URL not configured');
 	const searchRes = await fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
 		headers: {
 			'x-api-key': IMMICH_API_KEY,
