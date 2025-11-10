@@ -65,7 +65,7 @@
       class="lazy-image"
       class:loaded={isLoaded}
       onload={handleLoad}
-      loading="lazy"
+      loading="eager"
       decoding="async"
     />
     {#if isVideo}

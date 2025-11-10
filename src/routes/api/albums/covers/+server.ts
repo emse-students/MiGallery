@@ -1,6 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { IMMICH_BASE_URL, IMMICH_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
+const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
+const IMMICH_API_KEY = env.IMMICH_API_KEY;
 
 /**
  * POST /api/albums/covers
@@ -27,6 +29,10 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			await Promise.all(
 				batch.map(async (albumId) => {
 					try {
+						if (!IMMICH_BASE_URL) {
+							covers[albumId] = null;
+							return;
+						}
 						const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
 							headers: {
 								'x-api-key': IMMICH_API_KEY,
