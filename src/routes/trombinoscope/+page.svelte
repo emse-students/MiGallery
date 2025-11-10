@@ -395,9 +395,33 @@
   {/if}
 
   {#if showEditUserModal}
-    <div class="modal-overlay" onclick={() => showEditUserModal = false} role="dialog" aria-modal="true">
-      <div class="modal-content modal-content-wide" onclick={(e) => e.stopPropagation()}>
-        <h2>
+    <div
+      class="modal-overlay"
+      onclick={() => showEditUserModal = false}
+      role="button"
+      tabindex="0"
+      aria-label="Fermer la boîte de dialogue"
+      onkeydown={(e: KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          showEditUserModal = false;
+        }
+      }}
+    >
+      <div
+        class="modal-content modal-content-wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
+        tabindex="-1"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            showEditUserModal = false;
+          }
+        }}
+      >
+        <h2 id="dialog-title">
           <Icon name={editMode === 'add' ? 'plus' : 'edit'} size={24} />
           {editMode === 'add' ? 'Ajouter un utilisateur' : 'Modifier l\'utilisateur'}
         </h2>
