@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from "$app/state";
 	import Icon from "$lib/components/Icon.svelte";
+	import Spinner from "$lib/components/Spinner.svelte";
 
 	let assetId = $derived(page.params.id);
 	let asset = $state<any | null>(null);
@@ -27,12 +28,16 @@
 				// Pour les vidéos, on stream directement sans télécharger
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 			} else {
-				// Pour les images, on télécharge et crée un blob URL
-				const mediaRes = await fetch(`/api/immich/assets/${id}/original`);
-				if (mediaRes.ok) {
-					const blob = await mediaRes.blob();
-					mediaUrl = URL.createObjectURL(blob);
+				// Pour les images, charger une grande miniature adaptée au viewport
+				let size = 'preview';
+				try {
+					const vw = window.innerWidth || 1024;
+					if (vw < 600) size = 'thumbnail';
+					else size = 'preview';
+				} catch (e) {
+					size = 'preview';
 				}
+				mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}&t=${Date.now()}`;
 			}
 		} catch (e) {
 			error = (e as Error).message;
@@ -59,10 +64,10 @@
 	</nav>
 
 	{#if loading}
-		<div style="display: flex; align-items: center; justify-content: center; min-height: 400px; gap: 0.75rem; color: var(--text-secondary);">
-			<Icon name="loader" size={24} />
-			Chargement...
-		</div>
+	    <div style="display: flex; align-items: center; justify-content: center; min-height: 400px; gap: 0.75rem; color: var(--text-secondary);">
+		    <Spinner size={24} />
+		    Chargement...
+	    </div>
 	{:else if error}
 		<div style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius); color: var(--error);">
 			<Icon name="x-circle" size={20} />

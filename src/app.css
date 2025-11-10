@@ -46,6 +46,46 @@
 }
 
 /* =============================================
+   VIEW TRANSITIONS
+   ============================================= */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+::view-transition-old(root) {
+  animation-name: slide-out-fade;
+}
+
+::view-transition-new(root) {
+  animation-name: slide-in-fade;
+}
+
+@keyframes slide-out-fade {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes slide-in-fade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =============================================
    BASE STYLES
    ============================================= */
 
@@ -70,6 +110,11 @@
     color: var(--text-primary);
     font-size: 15px;
     line-height: 1.6;
+    transition: filter 0.3s ease;
+  }
+
+  body.modal-open {
+    overflow: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -159,9 +204,25 @@
   
   .topbar .links {
     display: flex;
-    gap: 0.5rem;
+    gap: 2rem;
     align-items: center;
     margin-left: 2rem;
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .topbar .links-left,
+  .topbar .links-right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .topbar .nav-separator {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin: 0 0.5rem;
   }
   
   .topbar .links a {
@@ -553,6 +614,63 @@
     gap: 2rem;
     max-width: 800px;
     margin: 4rem auto;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .home-main .page-background {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .home-main .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    animation: float 25s ease-in-out infinite;
+  }
+
+  .home-main .blob-1 {
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.6) 0%, transparent 70%);
+    top: -100px;
+    right: 5%;
+    animation-delay: 0s;
+  }
+
+  .home-main .blob-2 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
+    bottom: -50px;
+    left: 10%;
+    animation-delay: -8s;
+  }
+
+  .home-main .blob-3 {
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, transparent 70%);
+    top: 40%;
+    left: 50%;
+    animation-delay: -16s;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(30px, -30px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
   }
   
   .home-main .header {
@@ -875,6 +993,51 @@
   .settings-main {
     max-width: 1400px;
     margin: 0 auto;
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .settings-main .page-background {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .settings-main .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(110px);
+    opacity: 0.14;
+    animation: float 24s ease-in-out infinite;
+  }
+
+  .settings-main .blob-1 {
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.6) 0%, transparent 70%);
+    top: -100px;
+    left: 10%;
+    animation-delay: 0s;
+  }
+
+  .settings-main .blob-2 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.5) 0%, transparent 70%);
+    bottom: -150px;
+    right: 5%;
+    animation-delay: -10s;
+  }
+
+  .settings-main .blob-3 {
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, rgba(217, 70, 239, 0.4) 0%, transparent 70%);
+    top: 40%;
+    right: 30%;
+    animation-delay: -18s;
   }
 
   .settings-main h3 {
@@ -976,6 +1139,54 @@
   }
   
   /* Albums page */
+  .albums-main {
+    position: relative;
+    min-height: 100vh;
+  }
+
+  .albums-main .page-background {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .albums-main .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(115px);
+    opacity: 0.13;
+    animation: float 23s ease-in-out infinite;
+  }
+
+  .albums-main .blob-1 {
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle, rgba(251, 146, 60, 0.6) 0%, transparent 70%);
+    top: -150px;
+    right: 5%;
+    animation-delay: 0s;
+  }
+
+  .albums-main .blob-2 {
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.5) 0%, transparent 70%);
+    bottom: -100px;
+    left: 15%;
+    animation-delay: -9s;
+  }
+
+  .albums-main .blob-3 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(234, 179, 8, 0.4) 0%, transparent 70%);
+    top: 35%;
+    left: 45%;
+    animation-delay: -17s;
+  }
+  
   .albums-main h1 {
     margin-bottom: 2rem;
   }
@@ -1130,6 +1341,40 @@
     to {
       transform: rotate(360deg);
     }
+  }
+
+  /* Photos CV page background - already defined in component but ensure consistency */
+  .mesphotos-main .page-background {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .mesphotos-main .page-background::before,
+  .mesphotos-main .page-background::after {
+    content: '';
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.15;
+    animation: float 22s ease-in-out infinite;
+  }
+
+  .mesphotos-main .page-background::before {
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%);
+    top: -300px;
+    right: -200px;
+    animation-delay: -7s;
+  }
+
+  .mesphotos-main .page-background::after {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, transparent 70%);
+    bottom: -250px;
+    left: -200px;
   }
   
   /* Responsive */
