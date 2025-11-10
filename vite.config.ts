@@ -5,5 +5,17 @@ export default defineConfig({
 	plugins: [sveltekit()],
 	resolve: {
 		conditions: ['browser']
+	},
+	build: {
+		minify: 'esbuild',
+		rollupOptions: {
+			output: {
+				manualChunks: (id) => {
+					if (id.includes('node_modules')) {
+						return 'vendor';
+					}
+				}
+			}
+		}
 	}
 });

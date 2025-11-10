@@ -1,9 +1,15 @@
 <script lang="ts">
   import { page } from "$app/state";
   import Icon from "$lib/components/Icon.svelte";
+  import Spinner from '$lib/components/Spinner.svelte';
+
+  let isAdmin = $derived((page.data.session?.user as any)?.role === 'admin');
 
   let uploadStatus = $state<string>("");
   let assetId = $state<string | null>(null);
+  let tagAssetId = $state<string>("");
+  let tagOpStatus = $state<string>("");
+  let assetDescription = $state<string>('');
   let personId = $state<string | null>(null);
 
   let isProcessing = $state<boolean>(false);
@@ -106,7 +112,7 @@
       body: JSON.stringify({ userId: currentUserId })
     });
       if (response.ok) {
-        alert("Utilisateur changé ! Rechargement de la page...");
+        // Reload silently without showing an alert
         window.location.reload();
       } else {
         alert("Erreur lors du changement d'utilisateur");
@@ -299,7 +305,7 @@
         
         if (updateResult.success) {
           uploadStatus = `Terminé ! id_photos = ${personId}`;
-          alert("Photo de profil configurée ! Rechargement de la page...");
+          // Reload silently after successful profile photo setup
           window.location.reload();
         } else {
           uploadStatus = `Personne détectée mais erreur mise à jour BDD: ${updateResult.error}`;
@@ -314,6 +320,30 @@
     } catch (error) {
       uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur lors de la vérification des personnes:", error);
+    }
+  }
+
+  // ===== Photo CV description management =====
+  async function loadAssetDescription(id: string) {
+    tagOpStatus = '';
+    assetDescription = '';
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/immich/assets/${id}`);
+      if (!res.ok) throw new Error('Erreur récupération asset');
+      const info = await res.json();
+      // Try several shapes where description might be stored
+      if (typeof info.description === 'string' && info.description.trim()) {
+        assetDescription = info.description;
+      } else if (info.metadata && typeof info.metadata.description === 'string' && info.metadata.description.trim()) {
+        assetDescription = info.metadata.description;
+      } else if (info.description && typeof info.description === 'object' && typeof info.description.value === 'string') {
+        assetDescription = info.description.value;
+      } else {
+        assetDescription = '';
+      }
+    } catch (e) {
+      tagOpStatus = (e as Error).message;
     }
   }
 
@@ -379,6 +409,12 @@
 </svelte:head>
 
 <main class="settings-main">
+  <div class="page-background">
+    <div class="gradient-blob blob-1"></div>
+    <div class="gradient-blob blob-2"></div>
+    <div class="gradient-blob blob-3"></div>
+  </div>
+  
   <h1><Icon name="settings" size={32} /> Paramètres</h1>
 
   <div class="user-section">
@@ -415,7 +451,7 @@
         disabled={isProcessing}
       />
       {#if isProcessing}
-        <span class="ml-2"><Icon name="loader" size={20} /> Traitement en cours...</span>
+        <span class="ml-2"><Spinner size={20} /> Traitement en cours...</span>
       {/if}
     </div>
 
@@ -449,7 +485,8 @@
     {/if}
   </div>
 
-  <!-- Gestionnaire de base de données -->
+  <!-- Gestionnaire de base de données (Admin seulement) -->
+  {#if isAdmin}
   <div class="section">
     <button 
       onclick={() => showDbManager = !showDbManager}
@@ -511,7 +548,7 @@
                       <td>{user.promo_year ?? '-'}</td>
                       <td>
                         <button onclick={() => startEditUser(user)}>Edit</button>
-                        <button onclick={() => deleteUser(user.id_user)} class="ml-2">Delete</button>
+                        <button onclick={() => deleteUser(user.id_user)} class="ml-2 bg-red-600 text-white">Delete</button>
                       </td>
                     {/if}
                   </tr>
@@ -580,7 +617,10 @@
       </div>
     {/if}
   </div>
-  <!-- Albums manager -->
+  {/if}
+  
+  <!-- Albums manager (Admin seulement) -->
+  {#if isAdmin}
   <div class="section">
     <button onclick={() => showAlbumManager = !showAlbumManager} class="w-full">
       <Icon name={showAlbumManager ? 'chevron-down' : 'chevron-right'} size={20} /> Gestion des albums
@@ -640,7 +680,7 @@
                     <td>
                       <button onclick={() => window.open(`/albums/${a.id}`, '_blank')}>Open</button>
                       <button onclick={() => startEditAlbum(a)} class="ml-2">Edit</button>
-                      <button onclick={() => deleteAlbum(a.id)} class="ml-2">Delete</button>
+                      <button onclick={() => deleteAlbum(a.id)} class="ml-2 bg-red-600 text-white">Delete</button>
                     </td>
                   {/if}
                 </tr>
@@ -666,4 +706,5 @@
       </div>
     {/if}
   </div>
+  {/if}
 </main>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import ImageSkeleton from './ImageSkeleton.svelte';
 
   interface Props {
     src: string;
@@ -13,6 +14,7 @@
 
   let isLoaded = $state(false);
   let isInView = $state(false);
+  let hasStartedLoading = $state(false);
   let imgElement: HTMLImageElement | null = $state(null);
   let containerElement: HTMLDivElement | null = $state(null);
 
@@ -24,6 +26,7 @@
         entries.forEach((entry) => {
           if (entry.isIntersecting && !isInView) {
             isInView = true;
+            hasStartedLoading = true;
             observer.disconnect();
           }
         });
@@ -40,14 +43,19 @@
   });
 
   function handleLoad() {
-    isLoaded = true;
+    // Wait a tiny bit to ensure the image is fully rendered
+    requestAnimationFrame(() => {
+      isLoaded = true;
+    });
   }
 </script>
 
 <div
   bind:this={containerElement}
   class="lazy-image-container {className}"
-  style="aspect-ratio: {aspectRatio}"
+  class:auto-ratio={aspectRatio === 'auto'}
+  class:loaded={isLoaded}
+  style={aspectRatio !== 'auto' ? `aspect-ratio: ${aspectRatio}` : ''}
 >
   {#if isInView}
     <img
@@ -68,9 +76,9 @@
       </div>
     {/if}
   {/if}
-  {#if !isLoaded}
+  {#if !isLoaded && hasStartedLoading}
     <div class="lazy-image-placeholder">
-      <div class="lazy-image-spinner"></div>
+      <ImageSkeleton {aspectRatio} />
     </div>
   {/if}
 </div>
@@ -81,8 +89,44 @@
     width: 100%;
     background: var(--bg-tertiary);
     overflow: hidden;
+    opacity: 0;
+    animation: fadeInUp 0.4s ease-out forwards;
   }
 
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .lazy-image-container.loaded {
+    animation: none;
+    opacity: 1;
+  }
+
+  /* Mode auto: l'image dicte la hauteur */
+  .lazy-image-container.auto-ratio {
+    display: block;
+  }
+
+  .lazy-image-container.auto-ratio .lazy-image {
+    position: relative;
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .lazy-image-container.auto-ratio .lazy-image-placeholder {
+    position: relative;
+    min-height: 200px;
+  }
+
+  /* Mode avec aspect-ratio fixe */
   .lazy-image {
     position: absolute;
     top: 0;
@@ -104,19 +148,6 @@
     left: 0;
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--bg-tertiary);
-  }
-
-  .lazy-image-spinner {
-    width: 24px;
-    height: 24px;
-    border: 2px solid var(--text-muted);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
   }
 
   .video-indicator {
