@@ -5,7 +5,7 @@ import type { User } from '$lib/types';
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ cookies }) => {
-  // require authenticated users
+  // Require authenticated users (not admin-only)
   const userId = cookies.get('current_user_id');
   if (!userId) {
     throw redirect(303, '/');

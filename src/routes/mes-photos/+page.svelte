@@ -3,213 +3,102 @@
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
-  import LazyImage from '$lib/components/LazyImage.svelte';
+  import Spinner from '$lib/components/Spinner.svelte';
+  import PhotosGrid from '$lib/components/PhotosGrid.svelte';
+  import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
+  import { PhotosState } from '$lib/photos.svelte';
+  import { toast } from '$lib/toast';
 
-  type Asset = { id: string; originalFileName?: string; type?: string };
+  const photosState = new PhotosState();
 
-  let assets = $state<Asset[]>([]);
-  let selectedAssets = $state<string[]>([]);
-  let selecting = $state(false);
-  let loading = $state(false);
-  let error = $state<string | null>(null);
-  let imageUrl = $state<string | null>(null);
-  let _prevImageUrl = $state<string | null>(null);
-  let personName = $state<string>('');
-  let peopleId = $state<string>('');
+  let showChangePhotoModal = $state(false);
+  let targetUserId = $state<string | null>(null); // Store target user ID
+  let targetUserName = $state<string | null>(null);
 
-  async function loadPerson(id: string) {
-    if (!id) {
-      error = "Aucun id_photos configuré pour cet utilisateur";
+  function openChangePhotoModal() {
+    showChangePhotoModal = true;
+  }
+
+  function closeChangePhotoModal() {
+    showChangePhotoModal = false;
+  }
+
+  async function handlePhotoSelected(assetId: string) {
+    // Use the target user's id_photos (from photosState)
+    const targetIdPhotos = photosState.peopleId;
+    if (!targetIdPhotos) throw new Error('Utilisateur non configuré');
+
+    // Mettre à jour la personne côté serveur
+    const updateRes = await fetch(`/api/immich/people/${targetIdPhotos}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ featureFaceAssetId: assetId })
+    });
+    if (!updateRes.ok) {
+      const txt = await updateRes.text().catch(() => updateRes.statusText);
+      throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
+    }
+
+    // Recharger les infos de la personne pour rafraîchir la vignette
+    await photosState.loadPerson(targetIdPhotos);
+    toast.success('Photo de profil mise à jour !');
+  }
+
+  onDestroy(() => photosState.cleanup());
+
+  onMount(() => {
+    // Check for userId parameter (from trombinoscope)
+    const urlParams = new URLSearchParams(window.location.search);
+    const userIdParam = urlParams.get('userId');
+    
+    const user = page.data.session?.user as any;
+    
+    // If userId is provided, only admins are allowed to view another user's photos
+    if (userIdParam) {
+      if (!(user?.role === 'admin')) {
+        // not allowed
+        goto('/');
+        return;
+      }
+
+      // allowed: admin
+      targetUserId = userIdParam;
+      // Fetch the target user's id_photos from database
+      fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sql: 'SELECT id_photos, prenom, nom FROM users WHERE id_user = ?',
+          params: [userIdParam]
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const targetUser = data.data?.[0] || data.rows?.[0];
+        if (targetUser?.id_photos) {
+          photosState.peopleId = targetUser.id_photos;
+          // Use local DB name for header
+          targetUserName = (targetUser.prenom || '') + (targetUser.nom ? (' ' + targetUser.nom) : '');
+          photosState.loadPerson(targetUser.id_photos);
+        } else {
+          goto('/');
+        }
+      })
+      .catch(() => goto('/'));
       return;
     }
     
-    loading = true; error = null; assets = []; imageUrl = null; personName = '';
-    
-    try {
-      const personRes = await fetch(`/api/immich/people/${id}`);
-      if (personRes.ok) {
-        const personData = await personRes.json();
-        personName = personData.name || 'Sans nom';
-      }
-
-      const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
-      if (thumb.ok) {
-        const blob = await thumb.blob();
-        if (_prevImageUrl) {
-          try { URL.revokeObjectURL(_prevImageUrl); } catch (e) {}
-          _prevImageUrl = null;
-        }
-        const url = URL.createObjectURL(blob);
-        imageUrl = url;
-        _prevImageUrl = url;
-      }
-
-      const res = await fetch('/api/immich/search/metadata', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ personIds: [id], type: 'IMAGE', page: 1, size: 1000 })
-      });
-      
-      if (!res.ok) {
-        const text = await res.text().catch(() => res.statusText);
-        try {
-          const parsed = JSON.parse(text);
-          throw new Error(parsed?.error || parsed?.message || String(text));
-        } catch {
-          throw new Error(text || res.statusText);
-        }
-      }
-      
-      const data = await res.json();
-      const items = (data && data.assets && Array.isArray(data.assets.items)) 
-        ? data.assets.items 
-        : (Array.isArray(data) ? data : (Array.isArray(data.data) ? data.data : []));
-      
-      assets = items.map((it: any) => ({
-        id: it.id,
-        originalFileName: it.originalFileName,
-        date: it.takenAt || it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-        type: it.type
-      })).filter((a: any) => !!a.id);
-    } catch (e) {
-      error = (e as Error).message;
-    } finally {
-      loading = false;
-    }
-  }
-
-  function formatDayLabel(dateStr: string | null) {
-    if (!dateStr) return 'Sans date';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 'Sans date';
-    const today = new Date();
-    const diff = Math.floor((+today - +d) / (1000 * 60 * 60 * 24));
-    if (diff === 0) return 'Aujourd\'hui';
-    if (diff === 1) return 'Hier';
-    return d.toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' });
-  }
-
-  function groupByDay(list: any[]) {
-    const out: Record<string, any[]> = {};
-    for (const a of list) {
-      const key = formatDayLabel(a.date || null);
-      if (!out[key]) out[key] = [];
-      out[key].push(a);
-    }
-    return out;
-  }
-
-  function toggleSelect(id: string, checked: boolean) {
-    if (checked) {
-      if (!selectedAssets.includes(id)) {
-        selectedAssets = [...selectedAssets, id];
-        if (!selecting) selecting = true;
-      }
-    } else {
-      selectedAssets = selectedAssets.filter(x => x !== id);
-      if (selectedAssets.length === 0) selecting = false;
-    }
-  }
-
-  function handlePhotoClick(id: string, event: Event) {
-    if (selecting) {
-      event.preventDefault();
-      const isSelected = selectedAssets.includes(id);
-      toggleSelect(id, !isSelected);
-    } else {
-      window.location.href = `/asset/${id}`;
-    }
-  }
-  
-  function selectAll() {
-    selectedAssets = assets.map(a => a.id);
-  }
-  
-  function deselectAll() {
-    selectedAssets = [];
-    selecting = false;
-  }
-
-  async function downloadSingle(id: string) {
-    try {
-      const asset = assets.find(x => x.id === id);
-      const res = await fetch(`/api/immich/assets/${id}/original`);
-      if (!res.ok) throw new Error('Erreur téléchargement');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = asset?.originalFileName || id;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      alert('Erreur lors du téléchargement: ' + (e as Error).message);
-    }
-  }
-
-  import { fetchArchive, saveBlobAs } from '$lib/immich/download';
-  let isDownloading = $state(false);
-  let downloadProgress = $state(0);
-  let currentDownloadController: AbortController | null = null;
-
-  async function downloadSelected() {
-    if (selectedAssets.length === 0) return alert('Aucune image sélectionnée');
-    if (!confirm(`Télécharger ${selectedAssets.length} image(s) sous forme d'archive ?`)) return;
-    
-    if (currentDownloadController) {
-      try { currentDownloadController.abort(); } catch (e) {}
-      currentDownloadController = null;
-    }
-    const controller = new AbortController();
-    currentDownloadController = controller;
-    isDownloading = true;
-    downloadProgress = 0;
-    try {
-      const blob = await fetchArchive(selectedAssets, {
-        onProgress: (p) => { downloadProgress = p; },
-        signal: controller.signal,
-      });
-      saveBlobAs(blob, `mes-photos.zip`);
-      selectedAssets = [];
-      selecting = false;
-    } catch (e) {
-      if ((e as any)?.name === 'AbortError') {
-        console.info('Téléchargement annulé');
-      } else {
-        alert('Erreur: ' + (e as Error).message);
-      }
-    } finally {
-      isDownloading = false;
-      downloadProgress = 0;
-      currentDownloadController = null;
-    }
-  }
-
-  onDestroy(() => {
-    if (currentDownloadController) {
-      try { currentDownloadController.abort(); } catch (e) {}
-      currentDownloadController = null;
-    }
-  });
-
-  onDestroy(() => {
-    if (_prevImageUrl) {
-      try { URL.revokeObjectURL(_prevImageUrl); } catch (e) {}
-      _prevImageUrl = null;
-    }
-  });
-
-  onMount(() => {
-    const user = page.data.session?.user as any;
-    if (!user || !user.id_photos) {
+    // Default: load current user's photos
+    targetUserId = null;
+    if (!user?.id_photos) {
       goto('/');
       return;
     }
+    // Use local DB name for current user header
+    targetUserName = (user?.prenom || '') + (user?.nom ? (' ' + user.nom) : '');
 
-    peopleId = user.id_photos;
-    loadPerson(peopleId);
+    photosState.peopleId = user.id_photos;
+    photosState.loadPerson(user.id_photos);
   });
 </script>
 
@@ -218,98 +107,225 @@
 </svelte:head>
 
 <main class="mesphotos-main">
-
-  {#if imageUrl && personName}
-    <div class="user-info">
-      <img src={imageUrl} alt="Portrait" class="user-portrait" />
-      <div class="user-details">
-        <h2><Icon name="image" size={24} /> Photos de {personName}</h2>
-        <p><strong>Utilisateur:</strong> {(page.data.session?.user as any)?.prenom} {(page.data.session?.user as any)?.nom}</p>
-        <p><strong>ID Person:</strong> <code>{peopleId}</code></p>
-      </div>
-    </div>
-  {/if}
-
-  {#if error}
-    <div class="error"><Icon name="x-circle" size={20} /> {error}</div>
-  {/if}
-
-  {#if loading}
-    <div class="loading"><Icon name="loader" size={20} /> Chargement des photos...</div>
-  {/if}
-
-  {#if assets.length > 0}
-    {#if selecting}
-      <div class="selection-toolbar">
-        <div class="selection-count">
-          <Icon name="check-square" size={18} />
-          {selectedAssets.length} sélectionné{selectedAssets.length > 1 ? 's' : ''}
+  <div class="page-background">
+    <div class="gradient-blob blob-1"></div>
+    <div class="gradient-blob blob-2"></div>
+    <div class="gradient-blob blob-3"></div>
+  </div>
+  
+  {#if photosState.personName && photosState.imageUrl}
+    <div class="header-section">
+      <button 
+        class="profile-photo-btn" 
+        onclick={openChangePhotoModal}
+        title="Changer la photo de profil"
+      >
+        <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo" />
+        <div class="photo-overlay">
+          <Icon name="camera" size={32} />
+          <span class="change-photo-text">Changer de photo</span>
         </div>
-        <div class="selection-actions">
-          <button onclick={selectAll} class="px-2 py-2">
-            <Icon name="check-square" size={16} />
-            Tout sélectionner
-          </button>
-          <button onclick={deselectAll} class="px-2 py-2 bg-gray-400">
-            <Icon name="square" size={16} />
-            Tout désélectionner
-          </button>
-          <button onclick={downloadSelected} disabled={isDownloading || selectedAssets.length === 0} class="px-2 py-2 bg-emerald-500">
-            {#if isDownloading}
-              {#if downloadProgress >= 0}
-                <Icon name="download" size={16} />
-                {Math.round(downloadProgress * 100)}%
-              {:else}
-                <span class="spinner" aria-hidden="true"></span>
-                Téléchargement...
-              {/if}
-            {:else}
-              <Icon name="download" size={16} />
-              Télécharger ({selectedAssets.length})
-            {/if}
-          </button>
-        </div>
-      </div>
-    {:else}
-      <div class="photos-count"><strong>{assets.length}</strong> photo{assets.length > 1 ? 's' : ''} trouvée{assets.length > 1 ? 's' : ''}</div>
-    {/if}
-
-    {#each Object.entries(groupByDay(assets)) as [dayLabel, items]}
-      <h3 class="mt-4 text-slate-600">{dayLabel}</h3>
-      <div class="photos-grid {selecting ? 'selection-mode' : ''}">
-        {#each items as a}
-          <div 
-            class="photo-card {selectedAssets.includes(a.id) ? 'selected' : ''}" 
-            role="button"
-            tabindex="0"
-            onclick={(e) => handlePhotoClick(a.id, e)}
-            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePhotoClick(a.id, e); } }}
-          >
-            <div class="selection-checkbox {selectedAssets.includes(a.id) ? 'checked' : ''}">
-              <input type="checkbox" checked={selectedAssets.includes(a.id)} onchange={(e) => toggleSelect(a.id, (e.target as HTMLInputElement).checked)} onclick={(e) => e.stopPropagation()} />
-            </div>
-            {#if !selecting}
-              <button class="download-btn" title="Télécharger" onclick={(e) => { e.stopPropagation(); downloadSingle(a.id); }}>
-                <Icon name="download" size={18} />
-              </button>
-            {/if}
-            <LazyImage 
-              src={`/api/immich/assets/${a.id}/thumbnail?size=thumbnail`}
-              alt={a.originalFileName || 'Photo'}
-              aspectRatio="1"
-              isVideo={a.type === 'VIDEO'}
-            />
-            <div class="photo-info" title={a.originalFileName || a.id}>
-              {a.originalFileName || a.id}
-            </div>
-          </div>
-        {/each}
-      </div>
-    {/each}
-  {:else if !loading && !error}
-    <div class="loading">
-      <Icon name="image" size={48} />
-      <p>Aucune photo trouvée</p>
+      </button>
+      <h1 class="page-title">
+        {targetUserName ?? photosState.personName}
+      </h1>
     </div>
+  {:else if photosState.personName}
+    <h1 class="page-title-center">
+      {targetUserName ?? photosState.personName}
+    </h1>
+  {/if}
+
+  {#if photosState.error}
+    <div class="error"><Icon name="x-circle" size={20} /> {photosState.error}</div>
+  {/if}
+
+  {#if photosState.loading}
+    <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
+  {/if}
+
+  <PhotosGrid state={photosState} />
+
+  {#if showChangePhotoModal}
+    <ChangePhotoModal 
+      currentPhotoUrl={photosState.imageUrl || undefined}
+      peopleId={photosState.peopleId ?? undefined}
+      onPhotoSelected={handlePhotoSelected}
+      onClose={closeChangePhotoModal}
+    />
   {/if}
 </main>
+
+<style>
+  .mesphotos-main {
+    position: relative;
+  }
+
+  .page-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .mesphotos-main .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(105px);
+    opacity: 0.13;
+    animation: float 21s ease-in-out infinite;
+  }
+
+  .mesphotos-main .blob-1 {
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.6) 0%, transparent 70%);
+    top: -150px;
+    left: 20%;
+    animation-delay: 0s;
+  }
+
+  .mesphotos-main .blob-2 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(20, 184, 166, 0.5) 0%, transparent 70%);
+    bottom: -100px;
+    right: 10%;
+    animation-delay: -8s;
+  }
+
+  .mesphotos-main .blob-3 {
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle, rgba(147, 51, 234, 0.4) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    animation-delay: -15s;
+  }
+
+  .header-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0 3rem;
+    flex-wrap: wrap;
+  }
+
+  .page-title {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+
+  .page-title-center {
+    text-align: center;
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 2rem 0 3rem;
+    color: var(--text-primary);
+    background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+
+  .profile-photo-btn {
+    position: relative;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .profile-photo-btn::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6, #ec4899);
+    border-radius: 50%;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .profile-photo-btn:hover::before {
+    opacity: 1;
+  }
+
+  .profile-photo-btn:hover {
+    transform: scale(1.08);
+  }
+
+  .profile-photo {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 5px solid var(--bg-primary);
+    transition: border-color 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .photo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 50%;
+    color: white;
+    backdrop-filter: blur(8px);
+  }
+
+  .change-photo-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .profile-photo-btn:hover .photo-overlay {
+    opacity: 1;
+  }
+
+  @media (max-width: 640px) {
+    .header-section {
+      flex-direction: column;
+      gap: 1.5rem;
+      margin: 1.5rem 0 2rem;
+    }
+
+    .page-title,
+    .page-title-center {
+      font-size: 2rem;
+      text-align: center;
+    }
+
+    .profile-photo {
+      width: 120px;
+      height: 120px;
+    }
+  }
+</style>

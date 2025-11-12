@@ -1,14 +1,47 @@
 <script lang="ts">
 	import { page } from "$app/state";
+	import { beforeNavigate } from "$app/navigation";
 	import { signIn, signOut } from "@auth/sveltekit/client";
+	import { activeOperations } from "$lib/operations";
+	import ToastContainer from "$lib/components/ToastContainer.svelte";
+	import Modal from "$lib/components/Modal.svelte";
 	import "../app.css";
 
-	let u: any = null;
-	$: u = (page.data?.session?.user) as any;
+	let u = $derived((page.data?.session?.user) as any);
+	let isAdmin = $derived(u?.role === 'admin');
+	let isMitviste = $derived(u?.role === 'mitviste');
+	let canManagePhotos = $derived(isAdmin || isMitviste);
+	let hasPhoto = $derived(!!u?.id_photos);
+	let isAuthenticated = $derived(!!u);
+	
+	let { children } = $props();
+
+	// Avertissement avant navigation pendant une opération
+	let showNavigationWarning = $state(false);
+
+	beforeNavigate(() => {
+		// Juste afficher un avertissement si des opérations sont en cours
+		// Le vrai blocage se fait via beforeunload dans operations.ts
+		if ($activeOperations.size > 0) {
+			showNavigationWarning = true;
+		}
+	});
+
+	function confirmNavigation() {
+		activeOperations.clear();
+		showNavigationWarning = false;
+		// La navigation se fera automatiquement si l'utilisateur clique sur un lien à nouveau
+	}
+
+	function cancelNavigation() {
+		showNavigationWarning = false;
+	}
 </script>
 
 <svelte:head>
 	<link rel="icon" type="image/png" sizes="32x32" href="/MiGallery.png">
+	<meta name="description" content="MiGallery - Galerie photo des étudiants EMSE">
+	<meta name="theme-color" content="#3b82f6">
 	<title>MiGallery</title>
 </svelte:head>
 
@@ -19,10 +52,32 @@
 	</div>
 
 	<div class="links">
-		<a href="/mes-photos">Mes photos</a>
-		<a href="/albums">Albums</a>
-		<a href="/parametres">Paramètres</a>
+		<div class="links-left">
+			{#if isAuthenticated}
+				<a href="/albums">Albums</a>
+			{/if}
+			{#if hasPhoto}
+				<a href="/mes-photos">Mes photos</a>
+			{/if}
+			{#if hasPhoto}
+				<a href="/photos-cv">Photos CV</a>
+			{/if}
+		</div>
+		
+		<div class="links-right">
+			{#if isAdmin}
+				<a href="/trombinoscope">Trombinoscope</a>
+			{/if}
+			{#if canManagePhotos}
+				<a href="/corbeille">Corbeille</a>
+			{/if}
+			{#if isAuthenticated}
+				<a href="/parametres">Paramètres</a>
+			{/if}
+		</div>
 	</div>
+
+	<div class="nav-separator"></div>
 
 	<div class="user">
 		{#if u}
@@ -42,6 +97,24 @@
 </nav>
 
 <main>
-	<slot />
+	{@render children()}
 </main>
+
+<ToastContainer />
+
+<Modal
+	bind:show={showNavigationWarning}
+	title="Opération en cours"
+	type="warning"
+	confirmText="Quitter quand même"
+	cancelText="Continuer l'opération"
+	onConfirm={confirmNavigation}
+	onCancel={cancelNavigation}
+>
+	{#snippet children()}
+		<p>Des opérations sont en cours (uploads, suppressions, etc.).</p>
+		<p>Si vous quittez maintenant, ces opérations seront annulées.</p>
+		<p><strong>Voulez-vous vraiment quitter ?</strong></p>
+	{/snippet}
+</Modal>
 
