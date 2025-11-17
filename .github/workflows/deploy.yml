@@ -2,7 +2,7 @@ name: Deploy to production
 
 on:
   workflow_run:
-    workflows: ["Build / Test / Package (Bun)"]
+    workflows: ["CI (Bun)"]
     types:
       - completed
     branches:
