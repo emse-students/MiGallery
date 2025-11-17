@@ -50,22 +50,14 @@
     users = [];
 
     try {
-      // Récupérer tous les utilisateurs depuis la BDD locale
-      const res = await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sql: 'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users ORDER BY promo_year DESC, nom, prenom'
-        })
-      });
-
+      // Récupérer tous les utilisateurs via l'API dédiée
+      const res = await fetch('/api/users');
       if (!res.ok) {
         const errText = await res.text().catch(() => res.statusText);
         throw new Error(errText || 'Erreur lors du chargement');
       }
-
       const data = await res.json();
-      users = data.data || data.rows || [];
+      users = data.users || [];
     } catch (e) {
       error = (e as Error).message;
     } finally {
@@ -184,51 +176,45 @@
       }
 
       if (editMode === 'add') {
-        // Ajouter l'utilisateur
-        const res = await fetch('/api/db', {
+        // Ajouter l'utilisateur via API dédiée
+        const res = await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sql: 'INSERT INTO users (id_user, email, prenom, nom, role, promo_year, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            params: [
-              editUserData.id_user,
-              editUserData.email,
-              editUserData.prenom,
-              editUserData.nom,
-              editUserData.role,
-              editUserData.promo_year,
-              finalIdPhotos,
-              finalIdPhotos ? 0 : 1
-            ]
+            id_user: editUserData.id_user,
+            email: editUserData.email,
+            prenom: editUserData.prenom,
+            nom: editUserData.nom,
+            role: editUserData.role,
+            promo_year: editUserData.promo_year,
+            id_photos: finalIdPhotos
           })
         });
 
         if (!res.ok) {
-          throw new Error('Erreur lors de l\'ajout de l\'utilisateur');
+          const txt = await res.text().catch(() => res.statusText);
+          throw new Error(txt || 'Erreur lors de l\'ajout de l\'utilisateur');
         }
 
         await fetchUsers();
       } else {
-        // Modifier l'utilisateur
-        const res = await fetch('/api/db', {
-          method: 'POST',
+        // Modifier l'utilisateur via API dédiée
+        const res = await fetch(`/api/users/${encodeURIComponent(editUserData.id_user)}`, {
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sql: 'UPDATE users SET email = ?, prenom = ?, nom = ?, role = ?, promo_year = ?, id_photos = ? WHERE id_user = ?',
-            params: [
-              editUserData.email,
-              editUserData.prenom,
-              editUserData.nom,
-              editUserData.role,
-              editUserData.promo_year,
-              finalIdPhotos,
-              editUserData.id_user
-            ]
+            email: editUserData.email,
+            prenom: editUserData.prenom,
+            nom: editUserData.nom,
+            role: editUserData.role,
+            promo_year: editUserData.promo_year,
+            id_photos: finalIdPhotos
           })
         });
 
         if (!res.ok) {
-          throw new Error('Erreur lors de la modification de l\'utilisateur');
+          const txt = await res.text().catch(() => res.statusText);
+          throw new Error(txt || 'Erreur lors de la modification de l\'utilisateur');
         }
 
         await fetchUsers();
@@ -256,19 +242,11 @@
     }
 
     try {
-      const res = await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sql: 'DELETE FROM users WHERE id_user = ?',
-          params: [user.id_user]
-        })
-      });
-
+      const res = await fetch(`/api/users/${encodeURIComponent(user.id_user)}`, { method: 'DELETE' });
       if (!res.ok) {
-        throw new Error('Erreur lors de la suppression');
+        const txt = await res.text().catch(() => res.statusText);
+        throw new Error(txt || 'Erreur lors de la suppression');
       }
-
       await fetchUsers();
     } catch (e) {
       alert('Erreur: ' + (e as Error).message);

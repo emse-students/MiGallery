@@ -13,6 +13,7 @@
 	let canManagePhotos = $derived(isAdmin || isMitviste);
 	let hasPhoto = $derived(!!u?.id_photos);
 	let isAuthenticated = $derived(!!u);
+	let isHomePage = $derived(page.url.pathname === '/');
 	
 	let { children } = $props();
 
@@ -36,6 +37,16 @@
 	function cancelNavigation() {
 		showNavigationWarning = false;
 	}
+	
+	async function handleSignOut() {
+		// Clear the signed cookie before calling signOut
+		await fetch('/api/change-user', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ userId: null })
+		});
+		await signOut();
+	}
 </script>
 
 <svelte:head>
@@ -52,29 +63,27 @@
 	</div>
 
 	<div class="links">
-		<div class="links-left">
-			{#if isAuthenticated}
+		{#if isAuthenticated}
+			<div class="links-left">
 				<a href="/albums">Albums</a>
-			{/if}
-			{#if hasPhoto}
-				<a href="/mes-photos">Mes photos</a>
-			{/if}
-			{#if hasPhoto}
-				<a href="/photos-cv">Photos CV</a>
-			{/if}
-		</div>
-		
-		<div class="links-right">
-			{#if isAdmin}
-				<a href="/trombinoscope">Trombinoscope</a>
-			{/if}
-			{#if canManagePhotos}
-				<a href="/corbeille">Corbeille</a>
-			{/if}
-			{#if isAuthenticated}
+				{#if hasPhoto}
+					<a href="/mes-photos">Mes photos</a>
+				{/if}
+				{#if hasPhoto || canManagePhotos}
+					<a href="/photos-cv">Photos CV</a>
+				{/if}
+			</div>
+			
+			<div class="links-right">
+				{#if isAdmin}
+					<a href="/trombinoscope">Trombinoscope</a>
+				{/if}
+				{#if canManagePhotos}
+					<a href="/corbeille">Corbeille</a>
+				{/if}
 				<a href="/parametres">Paramètres</a>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</div>
 
 	<div class="nav-separator"></div>
@@ -83,13 +92,13 @@
 		{#if u}
 			<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
 				{#if u.id_photos}
-					<img src={`/api/immich/people/${u.id_photos}/thumbnail?t=${Date.now()}`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+					<img src={`/api/immich/people/${u.id_photos}/thumbnail`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
 				{:else}
 					<span class="initials">{(u.prenom || 'U').charAt(0)}{(u.nom || '').charAt(0) || 'U'}</span>
 				{/if}
 			</div>
 			<span class="user-name">{u.prenom} {u.nom}</span>
-			<button class="btn-logout" onclick={() => signOut()}>Déconnexion</button>
+			<button class="btn-logout" onclick={handleSignOut}>Déconnexion</button>
 		{:else}
 			<button class="btn-login" onclick={() => signIn('cas-emse')}>Connexion</button>
 		{/if}

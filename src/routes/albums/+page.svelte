@@ -6,7 +6,9 @@
 	import CreateAlbumModal from '$lib/components/CreateAlbumModal.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 
-	let loading = $state(false);
+	// Marquer comme en cours de chargement jusqu'à réception des données
+	let loading = $state(true);
+	let loadingCovers = $state(false);
 	let error = $state<string | null>(null);
 	let albums = $state<{ id: string; name: string; visibility?: string; date?: string }[]>([]);
 	let showCreateAlbumModal = $state(false);
@@ -25,8 +27,14 @@
 	let canCreateAlbum = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	$effect(() => {
-		if ($page.data?.albums) {
-			albums = ($page.data.albums as any[]).map(a => ({ id: a.id, name: a.name, visibility: a.visibility, date: a.date }));
+		// Lorsque la page fournie par le load server est prête, on met à jour la liste
+		if (typeof $page.data !== 'undefined') {
+			if ($page.data?.albums) {
+				albums = ($page.data.albums as any[]).map(a => ({ id: a.id, name: a.name, visibility: a.visibility, date: a.date }));
+			} else {
+				albums = [];
+			}
+			loading = false;
 		}
 	});
 
@@ -56,6 +64,7 @@
 
 	$effect(() => {
 		if (albums.length > 0) {
+			loadingCovers = true;
 			(async () => {
 				try {
 					// Utiliser le nouvel endpoint optimisé pour les covers
@@ -83,6 +92,8 @@
 					}
 				} catch (e) {
 					console.warn('Error loading album covers', e);
+				} finally {
+					loadingCovers = false;
 				}
 			})();
 		}
@@ -217,7 +228,7 @@
 		<div class="error"><Icon name="x-circle" size={20} /> Erreur: {error}</div>
 	{/if}
 	
-	{#if loading}
+	{#if loading || loadingCovers}
 		<div class="loading"><Spinner size={20} /> Chargement des albums...</div>
 	{/if}
 	
@@ -227,7 +238,7 @@
 		</div>
 	{/if}
 	
-	{#if albums.length > 0}
+	{#if !loading && !loadingCovers && albums.length > 0}
 		{#each Object.entries(groupAlbumsByMonth(albums)) as [month, items]}
 			<h3 class="mt-4 text-slate-600">{month}</h3>
 			<ul class="album-list">

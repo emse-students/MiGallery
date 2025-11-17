@@ -27,26 +27,24 @@
 			if (isVideo) {
 				// Pour les vidéos, on stream directement sans télécharger
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
-			} else {
-				// Pour les images, charger une grande miniature adaptée au viewport
-				let size = 'preview';
-				try {
-					const vw = window.innerWidth || 1024;
-					if (vw < 600) size = 'thumbnail';
-					else size = 'preview';
-				} catch (e) {
-					size = 'preview';
-				}
-				mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}&t=${Date.now()}`;
+		} else {
+			// Pour les images, charger une grande miniature adaptée au viewport
+			let size = 'preview';
+			try {
+				const vw = window.innerWidth || 1024;
+				if (vw < 600) size = 'thumbnail';
+				else size = 'preview';
+			} catch (e) {
+				size = 'preview';
 			}
-		} catch (e) {
-			error = (e as Error).message;
-		} finally {
-			loading = false;
+			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
 		}
+	} catch (e) {
+		error = (e as Error).message;
+	} finally {
+		loading = false;
 	}
-
-	$effect(() => {
+}	$effect(() => {
 		if (assetId) loadAsset(assetId);
 	});
 </script>

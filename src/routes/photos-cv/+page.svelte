@@ -17,6 +17,7 @@
   // Vérifier le rôle de l'utilisateur
   let userRole = $derived((page.data.session?.user as any)?.role || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
+  let hasIdPhotos = $derived(!!(page.data.session?.user as any)?.id_photos);
   let currentView = $state<'my' | 'all'>('my'); // Vue par défaut : mes photos
   let personId = $state<string>(''); // ID de la personne connectée
 
@@ -130,14 +131,32 @@
 
   onMount(() => {
     const user = page.data.session?.user as any;
-    if (!user?.id_photos) {
+    
+    // Admin/mitviste peuvent accéder même sans id_photos (pour gérer les imports)
+    if (!user) {
       goto('/');
       return;
     }
 
-    personId = user.id_photos;
-    myPhotosState.peopleId = user.id_photos;
-    myPhotosState.loadMyPhotosCV(user.id_photos);
+    const hasIdPhotos = !!user.id_photos;
+    const isManager = user.role === 'admin' || user.role === 'mitviste';
+    
+    // Rediriger seulement si ni id_photos ni manager
+    if (!hasIdPhotos && !isManager) {
+      goto('/');
+      return;
+    }
+
+    // Si l'utilisateur a un id_photos, charger ses photos personnelles
+    if (hasIdPhotos) {
+      personId = user.id_photos;
+      myPhotosState.peopleId = user.id_photos;
+      myPhotosState.loadMyPhotosCV(user.id_photos);
+    } else if (isManager) {
+      // Si manager sans id_photos, basculer directement sur la vue "all"
+      currentView = 'all';
+      allPhotosState.loadAllPhotosCV();
+    }
   });
 </script>
 
@@ -156,13 +175,15 @@
 
   <!-- Onglets de navigation -->
   <div class="tabs">
-    <button 
-      class="tab {currentView === 'my' ? 'active' : ''}" 
-      onclick={() => switchView('my')}
-    >
-      <Icon name="user" size={18} />
-      Mes photos CV
-    </button>
+    {#if hasIdPhotos}
+      <button 
+        class="tab {currentView === 'my' ? 'active' : ''}" 
+        onclick={() => switchView('my')}
+      >
+        <Icon name="user" size={18} />
+        Mes photos CV
+      </button>
+    {/if}
     {#if canManagePhotos}
       <button 
         class="tab {currentView === 'all' ? 'active' : ''}" 
@@ -175,7 +196,7 @@
   </div>
 
   <!-- Vue : Mes photos CV -->
-  {#if currentView === 'my'}
+  {#if currentView === 'my' && hasIdPhotos}
     {#if myPhotosState.personName}
       <h2 class="section-title">{myPhotosState.personName}</h2>
     {/if}

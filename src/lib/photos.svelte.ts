@@ -95,8 +95,8 @@ export class PhotosState {
         this._prevImageUrl = url;
       }
 
-      // Utiliser l'endpoint qui filtre les photos HORS album PhotoCV
-      const res = await fetch(`/api/photos-cv?action=my-photos&personId=${id}`);
+  // Utiliser l'endpoint RESTful qui filtre les photos HORS album PhotoCV
+  const res = await fetch(`/api/photos-cv/people/${encodeURIComponent(id)}/photos?in_album=false`);
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
@@ -135,8 +135,8 @@ export class PhotosState {
     this.assets = [];
     
     try {
-      // Utiliser l'endpoint qui filtre les photos DANS l'album PhotoCV pour cette personne
-      const res = await fetch(`/api/photos-cv?action=album-photos&personId=${id}`);
+  // Utiliser l'endpoint RESTful qui filtre les photos DANS l'album PhotoCV pour cette personne
+  const res = await fetch(`/api/photos-cv/people/${encodeURIComponent(id)}/photos?in_album=true`);
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
@@ -170,8 +170,8 @@ export class PhotosState {
     this.assets = [];
     
     try {
-      // Utiliser l'endpoint qui récupère TOUTES les photos de l'album PhotoCV
-      const res = await fetch(`/api/photos-cv?action=all-album-photos`);
+  // Utiliser l'endpoint RESTful qui récupère TOUTES les photos de l'album PhotoCV
+  const res = await fetch(`/api/photos-cv/album`);
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);

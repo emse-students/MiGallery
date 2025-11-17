@@ -44,22 +44,6 @@
     </div>
   {/if}
 
-  <div class="nav-section">
-    <p>Navigation :</p>
-    <ul>
-      {#if hasIdPhotos}
-        <li><a href="/mes-photos"><Icon name="image" size={20} /> Mes photos</a></li>
-      {:else}
-        <li>
-          <span class="disabled-link" title="Configurez votre profil dans les paramètres pour accéder à vos photos">
-            <Icon name="image" size={20} /> Mes photos (non disponible)
-          </span>
-        </li>
-      {/if}
-      <li><a href="/photos-cv"><Icon name="image" size={20} /> Photos CV</a></li>
-      <li><a href="/albums"><Icon name="folder" size={20} /> Albums</a></li>
-      <li><a href="/parametres"><Icon name="settings" size={20} /> Paramètres</a></li>
-    </ul>
-  </div>
+  <!-- Navigation section removed from home page as requested -->
 </main>
 
