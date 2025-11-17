@@ -1,9 +1,11 @@
 name: CI (Bun)
 on:
   push:
-    branches: ["main","master","fork"]
+    branches:
+      - main
   pull_request:
-    branches: ["main","master","fork"]
+    branches:
+      - main
 jobs:
   build:
     name: Build / Test / Package (Bun)
@@ -19,11 +21,6 @@ jobs:
         run: bun install
       - name: Build
         run: bun run build
-      - name: Package (create artifact)
-        run: |
-          bun run package || npm run package
-      - name: Upload artifact (.tgz)
-        uses: actions/upload-artifact@v4
-        with:
-          name: migallery-artifact
-          path: build/artifacts/*.tgz
+
+      - name: Run tests
+        run: bun run test

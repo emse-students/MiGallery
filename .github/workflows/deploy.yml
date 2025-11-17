@@ -1,0 +1,39 @@
+name: Deploy to production
+
+on:
+  workflow_run:
+    workflows: ["Build / Test / Package (Bun)"]
+    types:
+      - completed
+    branches:
+      - main
+jobs:
+    deploy:
+        name: Deploy to production
+        runs-on: self-hosted
+        if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+        steps:
+
+          - name: Checkout
+            uses: actions/checkout@v4
+          - name: Install Bun
+            uses: oven-sh/setup-bun@v2
+            with:
+              bun-version: latest
+        
+    
+          - name: Setup dependencies
+            run: bun install
+
+          - name: build project
+            run: bun run build
+
+          - name: Paste files to server
+            run: |
+              cd ~/MiGallery
+              find . -mindepth 1 -maxdepth 1  -not -name '.env' -exec rm -rf {} +
+              cp -r ~/actions-runner/_work/MiGallery/MiGallery/* .
+
+          - name: Restart server
+            run: |
+              pm2 restart migallery || pm2 start bun --name migallery -- run ./build/index.js
