@@ -24,7 +24,7 @@
 			rgba(255, 255, 255, 0.1) 50%,
 			rgba(255, 255, 255, 0.05) 100%
 		);
-		border-radius: 8px;
+		border-radius: 0px;
 		overflow: hidden;
 		position: relative;
 	}
@@ -39,7 +39,7 @@
 		background: linear-gradient(
 			90deg,
 			transparent 0%,
-			rgba(255, 255, 255, 0.15) 50%,
+			rgba(30, 29, 29, 0.655),
 			transparent 100%
 		);
 		animation: shimmer 2s infinite;
