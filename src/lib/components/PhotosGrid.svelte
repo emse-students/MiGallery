@@ -246,9 +246,9 @@
 
   .photos-grid {
     position: relative;
-    display: grid;
-    grid-template-columns: repeat(4, 2fr);
-    gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
     margin-bottom: 2rem;
   }
 
