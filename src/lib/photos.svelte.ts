@@ -1,4 +1,5 @@
 import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+import { consumeNDJSONStream } from '$lib/streaming';
 
 export type Asset = { 
   id: string; 
@@ -95,27 +96,47 @@ export class PhotosState {
         this._prevImageUrl = url;
       }
 
-  // Utiliser l'endpoint RESTful qui filtre les photos HORS album PhotoCV
-  const res = await fetch(`/api/photos-cv/people/${encodeURIComponent(id)}/photos?in_album=false`);
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => res.statusText);
-        throw new Error(text || `HTTP ${res.status}`);
-      }
+      // Utiliser le streaming pour charger progressivement
+      const res = await fetch(`/api/photos-cv/people/${encodeURIComponent(id)}/photos-stream?in_album=false`);
       
-      const data = await res.json();
-      const allAssets = data.assets || [];
+      const assetsMap = new Map<string, any>();
 
-      this.assets = allAssets.map((it: any) => ({
-        id: it.id,
-        originalFileName: it.originalFileName,
-        date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-        type: it.type,
-        _raw: it
-      }));
+      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: any }>(
+        res,
+        ({ phase, asset }) => {
+          if (phase === 'minimal') {
+            // Phase 1: Installer les skeletons
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: null,
+              exifInfo: asset.width && asset.height ? {
+                exifImageWidth: asset.width,
+                exifImageHeight: asset.height
+              } : null,
+              _raw: asset
+            });
+            
+            // Dès qu'on reçoit la première photo, masquer le "Chargement"
+            if (assetsMap.size === 1) {
+              this.loading = false;
+            }
+          } else if (phase === 'full') {
+            // Phase 2: Enrichir avec les données complètes
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+              _raw: asset
+            });
+          }
+          
+          // Mettre à jour la liste affichée
+          this.assets = Array.from(assetsMap.values());
+        }
+      );
+
+      this.loading = false;
     } catch (e) {
       this.error = (e as Error).message;
-    } finally {
       this.loading = false;
     }
   }
@@ -147,10 +168,8 @@ export class PhotosState {
       const allAssets = data.assets || [];
 
       this.assets = allAssets.map((it: any) => ({
-        id: it.id,
-        originalFileName: it.originalFileName,
+        ...it,
         date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-        type: it.type,
         _raw: it
       }));
     } catch (e) {
@@ -182,10 +201,8 @@ export class PhotosState {
       const allAssets = data.assets || [];
 
       this.assets = allAssets.map((it: any) => ({
-        id: it.id,
-        originalFileName: it.originalFileName,
+        ...it,
         date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-        type: it.type,
         _raw: it
       }));
     } catch (e) {

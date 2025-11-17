@@ -5,10 +5,12 @@
 	import LazyImage from '$lib/components/LazyImage.svelte';
 	import CreateAlbumModal from '$lib/components/CreateAlbumModal.svelte';
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+	import AlbumCardSkeleton from '$lib/components/AlbumCardSkeleton.svelte';
+	import { consumeNDJSONStream } from '$lib/streaming';
+	import { clientCache } from '$lib/client-cache';
 
 	// Marquer comme en cours de chargement jusqu'à réception des données
 	let loading = $state(true);
-	let loadingCovers = $state(false);
 	let error = $state<string | null>(null);
 	let albums = $state<{ id: string; name: string; visibility?: string; date?: string }[]>([]);
 	let showCreateAlbumModal = $state(false);
@@ -64,36 +66,53 @@
 
 	$effect(() => {
 		if (albums.length > 0) {
-			loadingCovers = true;
+			// Ne pas bloquer l'affichage - on charge les covers en arrière-plan
 			(async () => {
 				try {
-					// Utiliser le nouvel endpoint optimisé pour les covers
+					// D'abord, essayer de charger depuis le cache
 					const albumIds = albums.map(a => a.id);
+					const cachedCovers: Record<string, { id: string; type?: string }> = {};
+					
+					for (const albumId of albumIds) {
+						const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
+						if (cached) {
+							cachedCovers[albumId] = cached;
+						}
+					}
+					
+					// Afficher immédiatement les covers en cache
+					if (Object.keys(cachedCovers).length > 0) {
+						albumCovers = { ...albumCovers, ...cachedCovers };
+					}
+
+					// Utiliser le nouvel endpoint streamé pour les covers
 					const res = await fetch('/api/albums/covers', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ albumIds })
 					});
-					
-					if (res.ok) {
-						const covers = await res.json();
-						const mapped: Record<string, { id: string; type?: string }> = {};
-						
-						for (const [albumId, cover] of Object.entries(covers)) {
+
+					await consumeNDJSONStream<{ albumId: string; cover: { assetId: string; type: string } }>(
+						res,
+						({ albumId, cover }) => {
 							if (cover && typeof cover === 'object' && 'assetId' in cover) {
-								mapped[albumId] = {
-									id: (cover as any).assetId,
-									type: (cover as any).type
+								const coverData = {
+									id: cover.assetId,
+									type: cover.type
 								};
+								
+								albumCovers = {
+									...albumCovers,
+									[albumId]: coverData
+								};
+								
+								// Stocker en cache
+								clientCache.set('album-covers', albumId, coverData);
 							}
 						}
-						
-						albumCovers = { ...albumCovers, ...mapped };
-					}
+					);
 				} catch (e) {
 					console.warn('Error loading album covers', e);
-				} finally {
-					loadingCovers = false;
 				}
 			})();
 		}
@@ -181,6 +200,10 @@
 						})
 					});
 
+					// Invalider le cache pour cet album
+					await clientCache.delete('album-covers', immichId);
+					await clientCache.delete('albums', immichId);
+
 					// Rafraîchir la liste
 					albums = albums.filter(a => a.id !== immichId);
 				} catch (e) {
@@ -215,7 +238,7 @@
 	</div>
 	
 	<div class="header-with-actions">
-		<h1><Icon name="folder" size={28} /> Albums</h1>
+		<h1>Albums</h1>
 		{#if canCreateAlbum}
 			<button class="btn-create-album" onclick={() => showCreateAlbumModal = true}>
 				<Icon name="plus" size={20} />
@@ -228,7 +251,7 @@
 		<div class="error"><Icon name="x-circle" size={20} /> Erreur: {error}</div>
 	{/if}
 	
-	{#if loading || loadingCovers}
+	{#if loading}
 		<div class="loading"><Spinner size={20} /> Chargement des albums...</div>
 	{/if}
 	
@@ -238,7 +261,7 @@
 		</div>
 	{/if}
 	
-	{#if !loading && !loadingCovers && albums.length > 0}
+	{#if !loading && albums.length > 0}
 		{#each Object.entries(groupAlbumsByMonth(albums)) as [month, items]}
 			<h3 class="mt-4 text-slate-600">{month}</h3>
 			<ul class="album-list">
@@ -254,9 +277,7 @@
 								isVideo={albumCovers[a.id].type === 'VIDEO'}
 							/>
 						{:else}
-							<div class="album-cover-placeholder">
-								<Icon name="folder" size={48} />
-							</div>
+							<AlbumCardSkeleton />
 						{/if}
 						<div class="album-overlay">
 							<div class="album-info">
@@ -329,6 +350,14 @@
 		margin-bottom: 2rem;
 		gap: 1rem;
 		flex-wrap: wrap;
+	}
+
+	.header-with-actions h1 {
+		margin: 0;
+		text-align: center;
+		flex: 1;
+		font-size: 3rem;
+		font-weight: 700;
 	}
 
 	.btn-create-album {

@@ -1,12 +1,41 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
+import { verifySigned } from '$lib/auth/cookies';
+import type { User } from '$lib/db/database';
 
-export const GET: RequestHandler = async ({ locals }) => {
+async function getUserFromLocals(locals: any, cookies: any): Promise<User | null> {
+  const db = getDatabase();
+  
+  // Try cookie first (fast path)
+  const cookieSigned = cookies.get('current_user_id');
+  if (cookieSigned) {
+    const verified = verifySigned(cookieSigned);
+    if (verified) {
+      const userInfo = db.prepare("SELECT * FROM users WHERE id_user = ? LIMIT 1").get(verified) as User | null;
+      if (userInfo) return userInfo;
+    }
+  }
+  
+  // Fallback to auth provider
+  if (locals && typeof locals.auth === 'function') {
+    const session = await locals.auth();
+    if (session?.user) {
+      const providerId = (session.user as any).id || (session.user as any).preferred_username || (session.user as any).sub;
+      if (providerId) {
+        const userInfo = db.prepare("SELECT * FROM users WHERE id_user = ? LIMIT 1").get(providerId) as User | null;
+        if (userInfo) return userInfo;
+      }
+    }
+  }
+  
+  return null;
+}
+
+export const GET: RequestHandler = async ({ locals, cookies }) => {
   // list users - admin only
   try {
-    const session = await locals.auth();
-    const user = session?.user as any | undefined;
+    const user = await getUserFromLocals(locals, cookies);
     if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
     if ((user.role || 'user') !== 'admin') return json({ error: 'Forbidden' }, { status: 403 });
 
@@ -19,11 +48,10 @@ export const GET: RequestHandler = async ({ locals }) => {
   }
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, cookies }) => {
   // create user - admin only
   try {
-    const session = await locals.auth();
-    const user = session?.user as any | undefined;
+    const user = await getUserFromLocals(locals, cookies);
     if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
     if ((user.role || 'user') !== 'admin') return json({ error: 'Forbidden' }, { status: 403 });
 

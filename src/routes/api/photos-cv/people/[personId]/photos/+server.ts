@@ -35,7 +35,29 @@ async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: type
     const isInAnySystem = systemAssetIds.has(asset.id);
     return inAlbum ? isInAnySystem : !isInAnySystem;
   });
-  return filtered;
+
+  const enrichedAssets = await Promise.all(
+    filtered.map(async (asset) => {
+      try {
+        const detailRes = await fetchFn(`${IMMICH_BASE_URL}/api/assets/${asset.id}`, {
+          headers: {
+            'x-api-key': IMMICH_API_KEY,
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!detailRes.ok) {
+          return asset;
+        }
+        
+        return await detailRes.json();
+      } catch (err) {
+        return asset;
+      }
+    })
+  );
+  
+  return enrichedAssets;
 }
 
 export const GET: RequestHandler = async ({ params, url, fetch }) => {

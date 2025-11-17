@@ -2,6 +2,8 @@
   import { page } from "$app/state";
   import Icon from "$lib/components/Icon.svelte";
   import Spinner from '$lib/components/Spinner.svelte';
+  import { theme } from '$lib/theme';
+  import { clientCache } from '$lib/client-cache';
 
   let isAdmin = $derived((page.data.session?.user as any)?.role === 'admin');
 
@@ -15,6 +17,32 @@
   let isProcessing = $state<boolean>(false);
   let canRetry = $state<boolean>(false);
   let needsNewPhoto = $state<boolean>(false);
+
+  // État pour le cache
+  let cacheStats = $state<{ storeName: string; count: number }[]>([]);
+  let isLoadingCacheStats = $state(false);
+
+  async function loadCacheStats() {
+    isLoadingCacheStats = true;
+    try {
+      cacheStats = await clientCache.getStats();
+    } catch (e) {
+      console.error('Erreur chargement stats cache:', e);
+    } finally {
+      isLoadingCacheStats = false;
+    }
+  }
+
+  async function clearCache() {
+    if (!confirm('Vider tout le cache ? Les données seront rechargées depuis le serveur.')) return;
+    try {
+      await clientCache.clearAll();
+      await loadCacheStats();
+      alert('Cache vidé avec succès !');
+    } catch (e) {
+      alert('Erreur lors du vidage du cache: ' + (e as Error).message);
+    }
+  }
 
   // État pour la gestion de la BDD et de l'utilisateur
   let allUsers = $state<any[]>([]);
@@ -417,6 +445,61 @@
   
   <h1><Icon name="settings" size={32} /> Paramètres</h1>
 
+  <div class="section">
+    <h3><Icon name="palette" size={24} /> Thème</h3>
+    <p>Choisissez entre le thème clair et sombre selon vos préférences.</p>
+    <button 
+      onclick={() => theme.toggle()} 
+      class="theme-toggle px-4 py-2 rounded flex items-center gap-2 bg-accent-primary text-white hover:bg-accent-secondary transition-colors"
+      aria-label="Basculer le thème"
+    >
+      {#if $theme === 'dark'}
+        <Icon name="sun" size={20} /> Passer au mode clair
+      {:else}
+        <Icon name="moon" size={20} /> Passer au mode sombre
+      {/if}
+    </button>
+  </div>
+
+  <div class="section">
+    <h3><Icon name="folder" size={24} /> Cache</h3>
+    <p>Gérez le cache local pour améliorer les performances.</p>
+    
+    <div class="cache-controls">
+      <button 
+        onclick={loadCacheStats} 
+        class="btn-secondary"
+        disabled={isLoadingCacheStats}
+      >
+        {#if isLoadingCacheStats}
+          <Spinner size={16} /> Chargement...
+        {:else}
+          Voir les statistiques
+        {/if}
+      </button>
+      
+      <button 
+        onclick={clearCache} 
+        class="btn-danger"
+      >
+        <Icon name="trash" size={16} /> Vider le cache
+      </button>
+    </div>
+
+    {#if cacheStats.length > 0}
+      <div class="cache-stats">
+        <h4>Statistiques du cache:</h4>
+        <ul>
+          {#each cacheStats as stat}
+            <li>
+              <strong>{stat.storeName}:</strong> {stat.count} entrée{stat.count !== 1 ? 's' : ''}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+  </div>
+
   <div class="user-section">
     <h3><Icon name="user" size={24} /> Utilisateur actuel</h3>
     <p><strong>ID:</strong> {(page.data.session?.user as any)?.id_user || "Non connecté"}</p>
@@ -708,3 +791,82 @@
   </div>
   {/if}
 </main>
+
+<style>
+  .cache-controls {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-secondary {
+    padding: 0.5rem 1rem;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-danger {
+    padding: 0.5rem 1rem;
+    background: rgba(220, 38, 38, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-danger:hover {
+    background: rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .cache-stats {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .cache-stats h4 {
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  .cache-stats ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .cache-stats li {
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+  }
+
+  .cache-stats strong {
+    color: var(--text-primary);
+  }
+</style>

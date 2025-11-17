@@ -244,18 +244,18 @@
     margin-top: 0;
   }
 
-  /* Flexbox pour remplir chaque ligne au maximum */
   .photos-grid {
     position: relative;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
     margin-bottom: 2rem;
-    align-items: flex-start;
   }
 
-  .photos-grid > :global(*) {
-    flex: 1 1 280px;
+  /* Élément fantôme pour empêcher l'étirement de la dernière ligne */
+  .photos-grid::after {
+    content: '';
+    flex-grow: 999999;
   }
 
   .btn-primary {
@@ -287,22 +287,10 @@
     font-size: 1.125rem;
   }
 
-  /* Responsive - ajustement des colonnes */
- @media (max-width: 1200px) { /* Pour passer à 3 colonnes sur des écrans un peu plus petits */
-    .photos-grid {
-      grid-template-columns: repeat(3, 1fr); 
-    }
-  }
-
+  /* Responsive - ajustement de la hauteur des cartes */
   @media (max-width: 768px) {
     .photos-grid {
-      grid-template-columns: repeat(2, 1fr); /* 2 colonnes sur tablette */
-    }
-  }
-
-  @media (max-width: 480px) {
-    .photos-grid {
-      grid-template-columns: repeat(2, 1fr); /* 2 colonnes sur mobile */
+      gap: 3px;
     }
   }
 </style>

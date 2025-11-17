@@ -270,10 +270,7 @@
   <div class="page-background"></div>
   
   <div class="header-with-actions">
-    <h1 class="page-title">
-      <Icon name="users" size={40} />
-      Trombinoscope
-    </h1>
+    <h1 class="page-title">Trombinoscope</h1>
     
     <button class="btn-add-user" onclick={openAddUserModal}>
       <Icon name="plus" size={20} />
@@ -548,11 +545,6 @@
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
   }
 
   .header-with-actions {
@@ -562,6 +554,11 @@
     margin: 2rem 0 3rem;
     gap: 1rem;
     flex-wrap: wrap;
+  }
+
+  .header-with-actions .page-title {
+    margin: 0;
+    flex: 1;
   }
 
   .btn-add-user {

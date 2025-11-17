@@ -249,10 +249,7 @@
 <main class="corbeille-main">
   <div class="page-background"></div>
   
-  <h1 class="page-title">
-    <Icon name="trash" size={40} />
-    Corbeille
-  </h1>
+  <h1 class="page-title">Corbeille</h1>
 
   {#if error}
     <div class="error"><Icon name="x-circle" size={20} /> Erreur: {error}</div>
@@ -412,11 +409,6 @@
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 0 40px rgba(220, 38, 38, 0.3);
   }
 
   .toolbar {

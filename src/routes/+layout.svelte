@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { page } from "$app/state";
 	import { beforeNavigate } from "$app/navigation";
 	import { signIn, signOut } from "@auth/sveltekit/client";
 	import { activeOperations } from "$lib/operations";
+	import { theme } from "$lib/theme";
+	import Icon from "$lib/components/Icon.svelte";
 	import ToastContainer from "$lib/components/ToastContainer.svelte";
 	import Modal from "$lib/components/Modal.svelte";
 	import "../app.css";
@@ -16,6 +19,11 @@
 	let isHomePage = $derived(page.url.pathname === '/');
 	
 	let { children } = $props();
+
+	// Initialiser le thème au montage
+	onMount(() => {
+		theme.initialize();
+	});
 
 	// Avertissement avant navigation pendant une opération
 	let showNavigationWarning = $state(false);
@@ -65,23 +73,41 @@
 	<div class="links">
 		{#if isAuthenticated}
 			<div class="links-left">
-				<a href="/albums">Albums</a>
+				<a href="/albums" data-sveltekit-preload-data>
+					<Icon name="folder" size={18} />
+					<span class="link-text">Albums</span>
+				</a>
 				{#if hasPhoto}
-					<a href="/mes-photos">Mes photos</a>
+					<a href="/mes-photos" data-sveltekit-preload-data>
+						<Icon name="user" size={18} />
+						<span class="link-text">Mes photos</span>
+					</a>
 				{/if}
 				{#if hasPhoto || canManagePhotos}
-					<a href="/photos-cv">Photos CV</a>
+					<a href="/photos-cv" data-sveltekit-preload-data>
+						<Icon name="camera" size={18} />
+						<span class="link-text">Photos CV</span>
+					</a>
 				{/if}
 			</div>
 			
 			<div class="links-right">
 				{#if isAdmin}
-					<a href="/trombinoscope">Trombinoscope</a>
+					<a href="/trombinoscope">
+						<Icon name="users" size={18} />
+						<span class="link-text">Trombinoscope</span>
+					</a>
 				{/if}
 				{#if canManagePhotos}
-					<a href="/corbeille">Corbeille</a>
+					<a href="/corbeille">
+						<Icon name="trash" size={18} />
+						<span class="link-text">Corbeille</span>
+					</a>
 				{/if}
-				<a href="/parametres">Paramètres</a>
+				<a href="/parametres">
+					<Icon name="settings" size={18} />
+					<span class="link-text">Paramètres</span>
+				</a>
 			</div>
 		{/if}
 	</div>
