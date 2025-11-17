@@ -163,21 +163,27 @@
     background: transparent;
     max-width: 90vw;
     max-height: 90vh;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
   }
 
   .modal-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
   }
 
   .modal-content {
-    background: white;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: 0.75rem;
     padding: 1.5rem;
     min-width: 400px;
     max-width: 600px;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
-                0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--shadow-lg);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
   }
 
   .modal-content-wide {
@@ -192,12 +198,12 @@
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0 0 1rem 0;
-    color: #1f2937;
+    color: var(--text-primary);
   }
 
   .modal-body {
     margin-bottom: 1.5rem;
-    color: #4b5563;
+    color: var(--text-secondary);
   }
 
   .modal-actions {
@@ -217,21 +223,21 @@
   }
 
   .btn-primary {
-    background: #3b82f6;
+    background: var(--accent);
     color: white;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #2563eb;
+    background: var(--accent-hover);
   }
 
   .btn-secondary {
-    background: #e5e7eb;
-    color: #374151;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background: #d1d5db;
+    background: var(--bg-quaternary);
   }
 
   .btn-primary:disabled,

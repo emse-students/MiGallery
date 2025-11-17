@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import LazyImage from './LazyImage.svelte';
+	import PhotoSkeleton from './PhotoSkeleton.svelte';
 
 	interface Props {
 		asset: any; // Asset object from Immich
@@ -25,33 +26,42 @@
 	}: Props = $props();
 
 	// Déterminer le ratio d'aspect de l'image
-	function getAspectRatioString(): string {
-		// Essayer d'obtenir les dimensions depuis exifInfo
+	function getAspectRatio(): number {
 		if (asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight) {
-			const w = Math.round(asset.exifInfo.exifImageWidth);
-			const h = Math.round(asset.exifInfo.exifImageHeight) || 1;
-			return `${w}/${h}`;
+			return asset.exifInfo.exifImageWidth / asset.exifInfo.exifImageHeight;
 		}
 
-		// Essayer _raw.exifInfo
 		if (asset._raw?.exifInfo?.exifImageWidth && asset._raw?.exifInfo?.exifImageHeight) {
-			const w = Math.round(asset._raw.exifInfo.exifImageWidth);
-			const h = Math.round(asset._raw.exifInfo.exifImageHeight) || 1;
-			return `${w}/${h}`;
+			return asset._raw.exifInfo.exifImageWidth / asset._raw.exifInfo.exifImageHeight;
 		}
 
-		// Essayer width/height direct dans _raw
 		if (asset._raw?.width && asset._raw?.height) {
-			const w = Math.round(asset._raw.width);
-			const h = Math.round(asset._raw.height) || 1;
-			return `${w}/${h}`;
+			return asset._raw.width / asset._raw.height;
 		}
 
-		// Par défaut, ratio 3:2 (paysage)
-		return '3/2';
+		return 3 / 2;
 	}
 
-	function handleCardClick(e: MouseEvent) {
+	function getAspectRatioString(): string {
+		const ratio = getAspectRatio();
+		// Convertir en fraction approximative pour CSS
+		const width = Math.round(ratio * 100);
+		const height = 100;
+		return `${width}/${height}`;
+	}
+
+	// Exposer un ratio utilisable par LazyImage (même format string "W/H")
+	const aspectRatioString = getAspectRatioString();
+	const aspectRatio = getAspectRatio();
+	
+	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px) et largeur variable
+	const flexBasis = aspectRatio * 220;
+	const flexGrow = aspectRatio * 100;
+
+	// Vérifier si l'asset a les données complètes (pas juste les métadonnées minimales)
+	const isFullyLoaded = $derived(
+		asset.originalFileName !== undefined && asset.originalFileName !== null
+	);	function handleCardClick(e: MouseEvent) {
 		if (onCardClick) {
 			onCardClick(asset.id, e);
 		}
@@ -87,7 +97,7 @@
 <!-- Photo Card Container -->
 <div
 	class="photo-card {isSelected ? 'selected' : ''}"
-	style="aspect-ratio: {getAspectRatioString()};"
+	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
 	role="button"
 	tabindex="0"
 	onclick={handleCardClick}
@@ -108,58 +118,64 @@
 		/>
 	</div>
 
-	<!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
-	{#if !isSelecting}
-		<button
-			class="download-btn"
-			title="Télécharger"
-			onclick={handleDownloadClick}
-			aria-label="Download {fileName}"
-		>
-			<Icon name="download" size={18} />
-		</button>
-
-		<!-- Delete Button (only if user can delete) -->
-		{#if canDelete}
+	{#if isFullyLoaded}
+		<!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
+		{#if !isSelecting}
 			<button
-				class="delete-btn"
-				title="Mettre à la corbeille"
-				onclick={handleDeleteClick}
-				aria-label="Delete {fileName}"
+				class="download-btn"
+				title="Télécharger"
+				onclick={handleDownloadClick}
+				aria-label="Download {fileName}"
 			>
-				<Icon name="trash" size={18} />
+				<Icon name="download" size={18} />
 			</button>
+
+			<!-- Delete Button (only if user can delete) -->
+			{#if canDelete}
+				<button
+					class="delete-btn"
+					title="Mettre à la corbeille"
+					onclick={handleDeleteClick}
+					aria-label="Delete {fileName}"
+				>
+					<Icon name="trash" size={18} />
+				</button>
+			{/if}
 		{/if}
+
+		<!-- Image/Video Thumbnail -->
+		<LazyImage
+			src={thumbnailUrl}
+			alt={fileName}
+			class="photo-img-wrapper"
+			aspectRatio={aspectRatioString}
+			{isVideo}
+		/>
+
+		<!-- File Name Info (shown on hover) -->
+		<div class="photo-info" title={fileName}>
+			{fileName}
+		</div>
+	{:else}
+		<!-- Skeleton pendant le chargement des détails -->
+		<PhotoSkeleton aspectRatio={aspectRatio} />
 	{/if}
-
-	<!-- Image/Video Thumbnail -->
-	<LazyImage
-		src={thumbnailUrl}
-		alt={fileName}
-		class="photo-img-wrapper"
-		{isVideo}
-	/>
-
-	<!-- File Name Info (shown on hover) -->
-	<div class="photo-info" title={fileName}>
-		{fileName}
-	</div>
 </div>
 
 <style>
 	.photo-card {
 		position: relative;
-		background: var(--bg-elevated);;
-		border-radius: var(--radius-xs);
+		height: 220px;
+		background: var(--bg-elevated);
+		border-radius: 6px;
 		overflow: hidden;
 		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		cursor: pointer;
 		user-select: none;
-		border: 5px solid transparent;
 		will-change: transform;
 		opacity: 0;
-        height: 210px;
 		animation: photoFadeIn 0.5s ease-out forwards;
+		max-width: 400px;
 	}
 
 	@keyframes photoFadeIn {
@@ -174,17 +190,14 @@
 	}
 
 	.photo-card:hover {
-		transform: translateY(-6px) scale(1.02);
-		box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 
-		            0 10px 25px rgba(0, 0, 0, 0.5);
-		border-color: rgba(255, 255, 255, 0.5);
+		transform: translateY(-2px);
+		box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
 		z-index: 10;
 	}
 
 	.photo-card.selected {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3),
-		            0 8px 25px rgba(59, 130, 246, 0.2);
+		outline: 3px solid var(--accent);
+		outline-offset: -3px;
 	}
 
 	.photo-card :global(.lazy-image-container) {
@@ -197,7 +210,8 @@
 
 	.photo-card :global(.lazy-image) {
 		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		object-fit: contain;
+		/* cover permet de remplir la carte en respectant le ratio; avoid letterbox */
+		object-fit: cover;
 	}
 
 	.photo-card:hover :global(.lazy-image) {
@@ -309,5 +323,11 @@
 
 	.photo-card:hover .photo-info {
 		opacity: 1;
+	}
+
+	@media (max-width: 768px) {
+		.photo-card {
+			height: 160px;
+		}
 	}
 </style>

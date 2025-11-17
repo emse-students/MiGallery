@@ -9,6 +9,8 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
   import { PhotosState } from '$lib/photos.svelte';
+  import { consumeNDJSONStream } from '$lib/streaming';
+  import { clientCache } from '$lib/client-cache';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -48,22 +50,63 @@
         return;
       }
 
-      // Utiliser le nouvel endpoint optimisé
-      const res = await fetch(`/api/albums/${immichId}`);
-      if (!res.ok) {
-        const errText = await res.text().catch(() => res.statusText);
-        throw new Error(errText);
+      // Afficher immédiatement le titre
+      title = localAlbumName || 'Album';
+
+      // Essayer de charger depuis le cache
+      const cachedAssets = await clientCache.get<any[]>('albums', `${immichId}-assets`);
+      if (cachedAssets && cachedAssets.length > 0) {
+        photosState.assets = cachedAssets;
+        photosState.loading = false;
       }
+
+      // Utiliser le streaming pour charger progressivement les assets
+      const res = await fetch(`/api/albums/${immichId}/assets-stream`);
       
-      const data = await res.json();
-      title = data.albumName || localAlbumName || 'Album';
-      photosState.assets = (data.assets || []).map((a: any) => ({
-        ...a,
-        date: a.fileModifiedAt || a.createdAt || null
-      }));
+      const assetsMap = new Map<string, any>();
+
+      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: any }>(
+        res,
+        ({ phase, asset }) => {
+          if (phase === 'minimal') {
+            // Phase 1: Installer les skeletons avec dimensions
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: null,
+              exifInfo: asset.width && asset.height ? {
+                exifImageWidth: asset.width,
+                exifImageHeight: asset.height
+              } : null
+            });
+            
+            // Dès qu'on reçoit la première photo, masquer le "Chargement"
+            if (assetsMap.size === 1) {
+              photosState.loading = false;
+            }
+          } else if (phase === 'full') {
+            // Phase 2: Enrichir avec les données complètes
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileModifiedAt || asset.createdAt || null
+            });
+            
+            // Mettre à jour le titre si disponible
+            if (asset.albumName) {
+              title = asset.albumName;
+            }
+          }
+          
+          // Mettre à jour la liste affichée
+          photosState.assets = Array.from(assetsMap.values());
+        }
+      );
+
+      // Stocker en cache les assets finaux
+      await clientCache.set('albums', `${immichId}-assets`, photosState.assets);
+
+      photosState.loading = false;
     } catch (e) {
       photosState.error = (e as Error).message;
-    } finally {
       photosState.loading = false;
     }
   }

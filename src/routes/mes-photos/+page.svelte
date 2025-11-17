@@ -217,11 +217,6 @@
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-    background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
   }
 
   .page-title-center {
@@ -230,11 +225,6 @@
     font-weight: 700;
     margin: 2rem 0 3rem;
     color: var(--text-primary);
-    background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.7) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    text-shadow: 0 0 40px rgba(59, 130, 246, 0.3);
   }
 
   .profile-photo-btn {
