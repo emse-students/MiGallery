@@ -44,6 +44,22 @@ export function getDatabase(): Database.Database {
         } catch (e) {
           try { console.warn('DB migration (albums.visible) notice:', (e as Error).message); } catch {}
         }
+        // Ensure api_keys table exists for external API key management
+        try {
+          const apiKeysExist = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'").get();
+          if (!apiKeysExist) {
+            db.prepare(`CREATE TABLE api_keys (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              key_hash TEXT NOT NULL UNIQUE,
+              label TEXT,
+              scopes TEXT,
+              revoked INTEGER NOT NULL DEFAULT 0,
+              created_at INTEGER NOT NULL
+            )`).run();
+          }
+        } catch (e) {
+          try { console.warn('DB migration (api_keys) notice:', (e as Error).message); } catch {}
+        }
       } catch (e) {
         // If users table doesn't exist yet (fresh DB), ignore - schema.sql will create it
         // If ALTER fails for some reason, log it for debugging

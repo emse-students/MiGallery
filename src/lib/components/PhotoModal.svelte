@@ -77,27 +77,25 @@
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 				imageLoaded = true;
 			} else {
-				// Choisir dynamiquement la taille de la miniature selon la taille du conteneur
-				// Utiliser preview pour les écrans larges, thumbnail pour les petits écrans
-				let size = 'preview';
-				try {
-					const containerWidth = containerElement ? containerElement.clientWidth : window.innerWidth;
-					if (containerWidth < 600) size = 'thumbnail';
-					else size = 'preview';
-				} catch (e) {
-					size = 'preview';
-				}
-
-				mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}&t=${Date.now()}`;
+			// Choisir dynamiquement la taille de la miniature selon la taille du conteneur
+			// Utiliser preview pour les écrans larges, thumbnail pour les petits écrans
+			let size = 'preview';
+			try {
+				const containerWidth = containerElement ? containerElement.clientWidth : window.innerWidth;
+				if (containerWidth < 600) size = 'thumbnail';
+				else size = 'preview';
+			} catch (e) {
+				size = 'preview';
 			}
-		} catch (e) {
-			console.error('Erreur chargement asset:', e);
-		} finally {
-			loading = false;
-		}
-	}
 
-	$effect(() => {
+			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
+		}
+	} catch (e) {
+		console.error('Erreur chargement asset:', e);
+	} finally {
+		loading = false;
+	}
+}	$effect(() => {
 		if (assetId) {
 			loadAsset(assetId);
 			// Reset zoom and position when changing photo

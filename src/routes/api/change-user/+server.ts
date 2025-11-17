@@ -1,19 +1,24 @@
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "@sveltejs/kit";
+import { signId } from "$lib/auth/cookies";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
   try {
     const { userId } = await request.json();
     
-    if (!userId) {
-      return json({ error: "userId manquant" }, { status: 400 });
+    // Si userId est null, on supprime le cookie (déconnexion)
+    if (userId === null || userId === undefined) {
+      cookies.delete('current_user_id', { path: '/' });
+      return json({ success: true });
     }
 
-    // Stocker l'ID utilisateur dans un cookie
-    cookies.set('current_user_id', userId, {
+    // Signer l'ID utilisateur et stocker dans un cookie
+    const signed = signId(String(userId));
+    cookies.set('current_user_id', signed, {
       path: '/',
       httpOnly: true,
       sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 60 * 60 * 24 * 30 // 30 jours
     });
 

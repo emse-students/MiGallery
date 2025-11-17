@@ -1,3 +1,49 @@
+<script module lang="ts">
+  // Cache partagé en mémoire pour éviter de re-télécharger les mêmes thumbnails
+  // clef: src (chemin relatif), valeur: objectURL
+  export const imageUrlCache = new Map<string, string>();
+
+  // Taille maximale du cache (nombre d'objectURLs). Ajustez selon mémoire/dispositif.
+  const MAX_CACHE_SIZE = 200;
+
+  function revokeUrl(url: string | undefined) {
+    try {
+      if (url) URL.revokeObjectURL(url);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  export function getCached(src: string) {
+    const v = imageUrlCache.get(src);
+    if (!v) return undefined;
+    // simple LRU: remettre l'entrée à la fin pour marquer comme récemment utilisée
+    imageUrlCache.delete(src);
+    imageUrlCache.set(src, v);
+    return v;
+  }
+
+  export function setCached(src: string, objectUrl: string) {
+    imageUrlCache.set(src, objectUrl);
+    // si on dépasse la taille, supprimer les plus vieux
+    while (imageUrlCache.size > MAX_CACHE_SIZE) {
+      const firstKey = imageUrlCache.keys().next().value as string | undefined;
+      if (!firstKey) break;
+      const val = imageUrlCache.get(firstKey);
+      imageUrlCache.delete(firstKey);
+      revokeUrl(val);
+    }
+  }
+
+  // Révoquer tout au déchargement (prévenir fuite mémoire si SPA navigue longuement)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+      for (const v of imageUrlCache.values()) revokeUrl(v);
+      imageUrlCache.clear();
+    });
+  }
+</script>
+
 <script lang="ts">
   import { onMount } from 'svelte';
   import ImageSkeleton from './ImageSkeleton.svelte';
@@ -17,6 +63,8 @@
   let hasStartedLoading = $state(false);
   let imgElement: HTMLImageElement | null = $state(null);
   let containerElement: HTMLDivElement | null = $state(null);
+  // Source réellement utilisée par l'<img>. Permet d'utiliser un objectURL cache
+  let displaySrc = $state(src);
 
   onMount(() => {
     if (!containerElement) return;
@@ -48,6 +96,45 @@
       isLoaded = true;
     });
   }
+
+  $effect(() => {
+    // Lorsque l'image doit commencer à charger en lazy, utiliser le cache si applicable
+    if (isInView && hasStartedLoading) {
+      // Par défaut, on affiche directement la source fournie
+      displaySrc = src;
+
+      try {
+        // Si la source est un thumbnail Immich (proxy local), on va la fetcher en blob
+        // et stocker un objectURL dans le cache pour réutilisation.
+        if (typeof src === 'string' && src.includes('/api/immich') && src.includes('thumbnail')) {
+          const cached = getCached(src);
+          if (cached) {
+            displaySrc = cached;
+          } else {
+            // fetch le binaire et créer un objectURL
+            fetch(src)
+              .then(r => {
+                if (!r.ok) throw new Error('fetch error');
+                return r.blob();
+              })
+              .then(b => {
+                const url = URL.createObjectURL(b);
+                setCached(src, url);
+                displaySrc = url;
+              })
+              .catch(() => {
+                // si erreur, retomber sur la source originale
+                displaySrc = src;
+              });
+          }
+        } else {
+          displaySrc = src;
+        }
+      } catch (e) {
+        displaySrc = src;
+      }
+    }
+  });
 </script>
 
 <div
@@ -60,7 +147,7 @@
   {#if isInView}
     <img
       bind:this={imgElement}
-      src={src}
+      src={displaySrc}
       {alt}
       class="lazy-image"
       class:loaded={isLoaded}

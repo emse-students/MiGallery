@@ -63,18 +63,14 @@
 
       // allowed: admin
       targetUserId = userIdParam;
-      // Fetch the target user's id_photos from database
-      fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sql: 'SELECT id_photos, prenom, nom FROM users WHERE id_user = ?',
-          params: [userIdParam]
-        })
+      // Fetch the target user's id_photos via API users endpoint
+      fetch(`/api/users/${encodeURIComponent(userIdParam)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+        return res.json();
       })
-      .then(res => res.json())
       .then(data => {
-        const targetUser = data.data?.[0] || data.rows?.[0];
+        const targetUser = data.user;
         if (targetUser?.id_photos) {
           photosState.peopleId = targetUser.id_photos;
           // Use local DB name for header
