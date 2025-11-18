@@ -8,7 +8,19 @@
 
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
+
+// Detect runtime and load appropriate database driver
+function isBunRuntime() {
+  return typeof Bun !== 'undefined';
+}
+
+let Database;
+if (isBunRuntime()) {
+  Database = require('bun:sqlite').Database;
+} else {
+  Database = require('better-sqlite3');
+}
+
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const REPAIR_MODE = process.argv.includes('--repair');

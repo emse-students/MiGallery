@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
+
+// Detect runtime and load appropriate database driver
+function isBunRuntime() {
+  return typeof Bun !== 'undefined';
+}
+
+let Database;
+if (isBunRuntime()) {
+  Database = require('bun:sqlite').Database;
+} else {
+  Database = require('better-sqlite3');
+}
 
 console.log('🚀 Initialisation de la base de données...');
+console.log(`   Runtime: ${isBunRuntime() ? 'Bun (bun:sqlite)' : 'Node.js (better-sqlite3)'}`);
+
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const dir = path.dirname(DB_PATH);
