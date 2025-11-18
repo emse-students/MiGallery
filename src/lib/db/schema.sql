@@ -13,11 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     promo_year INTEGER
 );
 
--- Insertion de vos données (uniquement si pas déjà présent)
--- Insère un utilisateur d'exemple uniquement s'il n'existe pas déjà
-INSERT INTO users (id_user, email, prenom, nom, id_photos, first_login)
-SELECT 'jolan.boudin', 'jolan.boudin@etu.emse.fr', 'Jolan', 'BOUDIN', '031b39ea-7c35-4d52-bc00-46ff0d927afa', 0
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE id_user = 'jolan.boudin');
+-- No example users inserted by default. If you want to seed test users,
+-- add them explicitly in your deployment scripts or a separate seed file.
 
 -- Albums table: stores album metadata and visibility
 -- Use Immich UUID as the canonical primary key (id)

@@ -41,8 +41,8 @@ export const API_ENDPOINTS = [
     description: 'Endpoints PhotoCV (personnes & album système PhotoCV)',
     items: [
       { method: 'GET', path: '/api/photos-cv/people/{personId}/photos', summary: 'Photos d\'une personne (non PhotoCV)', exampleCurl: `curl -H "x-api-key: <YOUR_API_KEY>" "http://localhost:5173/api/photos-cv/people/123/photos"` },
-      { method: 'GET', path: '/api/photos-cv/person/{id}/my-photos', summary: 'Mes photos (exclut system albums)', exampleCurl: `curl "http://localhost:5173/api/photos-cv/person/jolan.boudin/my-photos"` },
-      { method: 'GET', path: '/api/photos-cv/person/{id}/album-photos', summary: 'Photos de la personne dans l\'album PhotoCV', exampleCurl: `curl "http://localhost:5173/api/photos-cv/person/jolan.boudin/album-photos"` },
+  { method: 'GET', path: '/api/photos-cv/person/{id}/my-photos', summary: 'Mes photos (exclut system albums)', exampleCurl: `curl "http://localhost:5173/api/photos-cv/person/<user_id>/my-photos"` },
+  { method: 'GET', path: '/api/photos-cv/person/{id}/album-photos', summary: 'Photos de la personne dans l\'album PhotoCV', exampleCurl: `curl "http://localhost:5173/api/photos-cv/person/<user_id>/album-photos"` },
       { method: 'GET', path: '/api/photos-cv/album/{albumId}/assets', summary: 'Lister les assets d\'un album PhotoCV', exampleCurl: `curl "http://localhost:5173/api/photos-cv/album/ALBUM_ID/assets"` },
       { method: 'PUT', path: '/api/photos-cv/album/assets', summary: 'Ajouter des assets à l\'album PhotoCV (body: { assetIds: [] })', exampleCurl: `curl -X PUT -H "Content-Type: application/json" -d '{"assetIds":["id1","id2"]}' http://localhost:5173/api/photos-cv/album/assets` },
       { method: 'DELETE', path: '/api/photos-cv/album/assets', summary: 'Retirer des assets de l\'album PhotoCV (body: { assetIds: [] })', exampleCurl: `curl -X DELETE -H "Content-Type: application/json" -d '{"assetIds":["id1"]}' http://localhost:5173/api/photos-cv/album/assets` }
@@ -54,7 +54,7 @@ export const API_ENDPOINTS = [
     description: 'Gestion des utilisateurs locaux via endpoints REST sécurisés (admin required)',
     items: [
       { method: 'GET', path: '/api/users', summary: 'Lister tous les utilisateurs (admin only)', exampleCurl: `curl -H "Authorization: Bearer <SESSION_COOKIE>" http://localhost:5173/api/users`, noteAuth: 'Cet endpoint nécessite des privilèges admin. Utilisez la session provider ou un token admin si configuré.' },
-      { method: 'GET', path: '/api/users/{id}', summary: 'Récupérer un utilisateur par id_user', exampleCurl: `curl -H "x-api-key: <YOUR_API_KEY>" "http://localhost:5173/api/users/jolan.boudin"` }
+  { method: 'GET', path: '/api/users/{id}', summary: 'Récupérer un utilisateur par id_user', exampleCurl: `curl -H "x-api-key: <YOUR_API_KEY>" "http://localhost:5173/api/users/<user_id>"` }
     ]
   },
 

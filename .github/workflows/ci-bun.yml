@@ -19,8 +19,26 @@ jobs:
           bun-version: latest
       - name: Install dependencies (bun)
         run: bun install
+      
       - name: Build
         run: bun run build
 
+      - name: Setup test database
+        run: |
+          mkdir -p data
+          bun run db:init || echo "Database already exists or init failed"
+
+      - name: Start server in background
+        run: |
+          bun run build/index.js &
+          echo "Server started, waiting for it to be ready..."
+          sleep 5
+
       - name: Run tests
-        run: bun run vitest
+        run: bun run test
+        env:
+          API_BASE_URL: http://localhost:3000
+          
+      - name: Stop server
+        if: always()
+        run: pkill -f "bun run build/index.js" || true

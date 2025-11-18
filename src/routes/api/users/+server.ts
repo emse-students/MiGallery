@@ -47,7 +47,9 @@ export const GET: RequestHandler = async ({ locals, cookies, request }) => {
     }
 
     const db = getDatabase();
-    const rows = db.prepare('SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users ORDER BY promo_year DESC, nom, prenom').all();
+    // Filtrer les utilisateurs système (promo_year IS NULL) pour le trombinoscope
+    // Les admins peuvent voir tous les utilisateurs via d'autres routes si nécessaire
+    const rows = db.prepare('SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE promo_year IS NOT NULL ORDER BY promo_year DESC, nom, prenom').all();
     return json({ success: true, users: rows });
   } catch (e) {
     console.error('GET /api/users error', e);

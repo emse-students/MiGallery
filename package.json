@@ -35,7 +35,11 @@
 		"db:init": "node ./scripts/init-db.cjs",
 		"db:backup": "node ./scripts/backup-db.cjs",
 		"db:inspect": "node ./scripts/inspect-db.cjs",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"test:api": "node ./scripts/test-api.cjs",
+		"test:api:vitest": "vitest run tests/api.test.ts",
+		"test:api:full": "node scripts/test-with-server.mjs",
 		"generate:secret": "node ./scripts/generate_cookie_secret.cjs"
 	},
 	"devDependencies": {

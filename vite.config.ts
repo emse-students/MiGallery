@@ -5,7 +5,7 @@ export default defineConfig({
     plugins: [sveltekit()],
     preview: {
         host: '0.0.0.0',                 
-        port: 4173,                      
+        port: 5173,                      
         allowedHosts: ['gallery.mitv.fr']
     }
 });

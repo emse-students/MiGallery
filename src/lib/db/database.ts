@@ -1,5 +1,6 @@
 import { readFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
+import { createRequire } from "module";
 
 const DB_PATH = process.env.DATABASE_PATH || "./data/migallery.db";
 
@@ -28,6 +29,10 @@ export function getDatabase(): DatabaseInstance {
 
     // Create database with appropriate driver
     let dbInstance: DatabaseInstance;
+    
+    // Use createRequire for both Bun and Node.js to avoid ESM issues
+    const require = createRequire(import.meta.url);
+    
     if (isBunRuntime()) {
       // Use bun:sqlite (native, built into Bun)
       const { Database } = require('bun:sqlite');
