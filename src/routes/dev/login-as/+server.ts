@@ -7,9 +7,14 @@ import { redirect } from '@sveltejs/kit';
 /**
  * Dev-only helper: set the signed `current_user_id` cookie so you can act as a local user.
  * Usage (dev only): GET /dev/login-as?u=jolan.boudin
+ * 
+ * En production: nécessite ENABLE_DEV_ROUTES=true dans .env
  */
 export const GET: RequestHandler = async ({ url, cookies }) => {
-    if (!dev) {
+    // Allow dev routes if in dev mode OR if explicitly enabled in production
+    const allowDevRoutes = dev || process.env.ENABLE_DEV_ROUTES === 'true';
+    
+    if (!allowDevRoutes) {
         return new Response('Not found', { status: 404 });
     }
 
