@@ -1,6 +1,6 @@
 import { getDatabase } from '$lib/db/database';
 import { signId } from '$lib/auth/cookies';
-import { ensureAdmin } from '$lib/server/auth-helpers';
+import { ensureAdmin } from '$lib/server/auth';
 import type { RequestHandler } from './$types';
 import { redirect } from '@sveltejs/kit';
 
@@ -11,7 +11,10 @@ import { redirect } from '@sveltejs/kit';
  */
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
     // Vérifier que l'utilisateur actuel est admin
-    await ensureAdmin(locals);
+    const admin = await ensureAdmin({ locals, cookies });
+    if (!admin) {
+        return new Response('Forbidden: Admin access required', { status: 403 });
+    }
 
     const username = url.searchParams.get('u');
     if (!username) {
