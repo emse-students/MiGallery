@@ -6,7 +6,7 @@ import { redirect } from '@sveltejs/kit';
 
 /**
  * Admin-only helper: set the signed `current_user_id` cookie to impersonate another user.
- * Usage: GET /admin/login-as?u=jolan.boudin
+ * Usage: GET /admin/login-as?u=<user_id>
  * Requires: Current user must be admin
  */
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
