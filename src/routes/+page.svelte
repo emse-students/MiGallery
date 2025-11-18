@@ -35,14 +35,7 @@
     </div>
   {/if}
 
-  <!-- Section utilisateur actuel -->
-  {#if page.data.session?.user}
-    <div class="user-section">
-      <h3><Icon name="user" size={24} /> Utilisateur actuel</h3>
-      <p><strong>Nom:</strong> {(page.data.session.user as any).prenom} {(page.data.session.user as any).nom}</p>
-      <p><strong>Email:</strong> {page.data.session.user.email}</p>
-    </div>
-  {/if}
+  <!-- Section 'Utilisateur actuel' retirée : gestion limitée à la page Paramètres/admin et au point de debug /dev/login-as -->
 
   <!-- Navigation section removed from home page as requested -->
 </main>

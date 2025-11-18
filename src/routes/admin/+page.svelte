@@ -17,7 +17,11 @@
 <main>
   <div class="header-row">
     <h1>Documentation interne</h1>
-    <div class="actions"><a href="/admin/api-docs">API Reference</a> · <a href="/admin/api-keys">Gérer les clés API</a></div>
+    <div class="actions">
+      <a href="/admin/database">🗄️ Base de données</a> ·
+      <a href="/admin/api-docs">📚 API Reference</a> ·
+      <a href="/admin/api-keys">🔑 Gérer les clés API</a>
+    </div>
   </div>
 
   <section class="card docs">

@@ -3,20 +3,19 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 
-console.log('🚀 Initialisation de la base de données (fresh create)...');
+console.log('🚀 Initialisation de la base de données...');
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const dir = path.dirname(DB_PATH);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-// Remove existing DB to start fresh
-try {
-  if (fs.existsSync(DB_PATH)) {
-    fs.unlinkSync(DB_PATH);
-    console.log('Existing DB removed:', DB_PATH);
-  }
-} catch (e) {
-  console.warn('Could not remove existing DB:', e && e.message ? e.message : e);
+// Vérifier si la DB existe déjà
+const dbExists = fs.existsSync(DB_PATH);
+if (dbExists) {
+  console.log('⚠️  Base de données déjà existante:', DB_PATH);
+  console.log('Script d\'initialisation annulé (la DB existe déjà).');
+  console.log('Pour réinitialiser, supprimez d\'abord le fichier DB.');
+  process.exit(0);
 }
 
 const db = new Database(DB_PATH);
@@ -28,8 +27,18 @@ try {
   const schema = fs.readFileSync(schemaPath, 'utf8');
   db.exec(schema);
 
-  // Insert demo user if not present
-  db.prepare("INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role) VALUES (?, ?, ?, ?, ?, ?, ?)").run('jolan.boudin', 'jolan.boudin@etu.emse.fr', 'Jolan', 'BOUDIN', '031b39ea-7c35-4d52-bc00-46ff0d927afa', 0, 'user');
+  // Insert system admin user (ne doit pas apparaître sur le trombinoscope)
+  db.prepare("INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
+    'les.roots', 
+    'les.roots@etu.emse.fr', 
+    'System', 
+    'Admin', 
+    null, 
+    0, 
+    'admin',
+    null // promo_year null pour ne pas apparaître sur le trombinoscope
+  );
+  console.log('✅ Utilisateur système admin créé: les.roots');
 
   // If IMMICH configured, import albums (id = immich id)
   const base = process.env.IMMICH_BASE_URL;
