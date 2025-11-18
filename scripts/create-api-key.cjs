@@ -2,7 +2,19 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const Database = require('better-sqlite3');
+
+// Detect runtime and load appropriate database driver
+function isBunRuntime() {
+  return typeof Bun !== 'undefined';
+}
+
+let Database;
+if (isBunRuntime()) {
+  Database = require('bun:sqlite').Database;
+} else {
+  Database = require('better-sqlite3');
+}
+
 
 function generateRawKey() {
   return crypto.randomBytes(32).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
