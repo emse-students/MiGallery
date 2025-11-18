@@ -6,7 +6,7 @@
   const stats = data.stats;
   const backups = data.backups || [];
   
-  let uploadFile: File | null = null;
+  let uploadFile = $state<File | null>(null);
   let importing = $state(false);
   let exporting = $state(false);
   let backing = $state(false);
