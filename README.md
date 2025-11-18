@@ -1,105 +1,365 @@
-# MiGallery
-
-## Vue d'ensemble
-
-MiGallery est une application front-end basée sur SvelteKit et Vite. Bun est utilisé comme gestionnaire de paquets et runtime recommandé pour les commandes de développement et de build pour ses performances.
+<div align="center">
+  <img src="static/MiGallery.png" alt="MiGallery Logo" width="200"/>
+  
+  # MiGallery
+  **by MiTV**
+  
+  [![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
+  [![Powered by Bun](https://img.shields.io/badge/Powered%20by-Bun-000000?logo=bun)](https://bun.sh/)
+</div>
 
 ---
 
-## Prérequis
+## 📋 Vue d'ensemble
 
-- Bun (recommandé) ou Node/npm
+MiGallery est une application web moderne de gestion de galeries photos, développée avec **SvelteKit** et optimisée pour **Bun**. Elle permet de gérer des albums, des permissions utilisateurs, et s'intègre avec Immich pour la gestion avancée des photos.
+
+### ✨ Fonctionnalités principales
+
+- 🖼️ **Gestion d'albums** - Création et organisation d'albums avec métadonnées
+- 👥 **Gestion des utilisateurs** - Système d'authentification et de rôles (admin, mitviste, user)
+- 🔒 **Permissions granulaires** - Contrôle d'accès par utilisateur ou par tag (ex: promo)
+- 🎨 **Interface moderne** - Design responsive avec Tailwind CSS
+- 📸 **Intégration Immich** - Synchronisation avec une instance Immich
+- 💾 **Base de données SQLite** - Stockage local performant avec better-sqlite3
+- 📦 **Déploiement facile** - Packaging complet pour déploiement simplifié
+- 🔧 **Interface admin** - Gestion de la DB via navigateur (export/import/sauvegarde)
+
+---
+
+## 🚀 Installation
+
+### Prérequis
+
+- **Bun** (recommandé) ou Node.js >= 18
+- SQLite (inclus avec better-sqlite3)
 
 Vérifier Bun :
-```sh
+```bash
 bun --version
 ```
 
----
+### Étapes d'installation
 
-## Commandes courantes
+1. **Cloner le dépôt**
+```bash
+git clone https://github.com/emse-students/MiGallery.git
+cd MiGallery
+```
 
-Installer les dépendances :
-```sh
+2. **Installer les dépendances**
+```bash
 bun install
 ```
 
-Lancer le serveur de développement (HMR fourni par Vite) :
-```sh
+3. **Configurer l'environnement**
+
+Créez un fichier `.env` à la racine :
+```env
+# Générer un secret pour les cookies
+COOKIE_SECRET=<générer avec: bun run generate:secret>
+
+# Base de données
+DATABASE_PATH=./data/migallery.db
+
+# Intégration Immich
+IMMICH_BASE_URL=http://votre-immich-url:2283
+IMMICH_API_KEY=votre_api_key
+```
+
+4. **Initialiser la base de données**
+```bash
+bun run db:init
+```
+
+Cela crée automatiquement :
+- La structure des tables (users, albums, permissions)
+- Un utilisateur système admin : **les.roots@etu.emse.fr** (n'apparaît pas sur le trombinoscope)
+
+5. **Lancer le serveur de développement**
+```bash
 bun run dev
 ```
 
-Build de production :
-```sh
+L'application sera accessible sur `http://localhost:5173`
+
+---
+
+## 🔧 Fonctionnement
+
+### Développement
+
+```bash
+# Lancer le serveur de développement avec HMR
+bun run dev
+
+# Vérifier les types TypeScript et Svelte
+bun run check
+```
+
+### Production
+
+```bash
+# Compiler l'application pour la production
 bun run build
+
+# Prévisualiser la version de production
 bun run preview
 ```
 
-Packaging (création d'un artefact tar.gz via le script Bun natif fourni) :
-```sh
-bun run package
+---
+
+## 🗄️ Maintenance de la base de données
+
+### Initialisation
+
+```bash
+# Initialiser une nouvelle base de données (si elle n'existe pas)
+bun run db:init
 ```
+
+### Sauvegardes
+
+#### Sauvegarde manuelle
+```bash
+# Créer une sauvegarde de la base de données
+bun run db:backup
+```
+
+Les sauvegardes sont stockées dans `data/backups/` et seules les **10 dernières** sont conservées.
+
+#### Sauvegardes automatiques
+
+Pour configurer des sauvegardes automatiques quotidiennes à minuit :
+
+**Sur Linux/Mac (cron)** :
+```bash
+crontab -e
+# Ajouter cette ligne :
+0 0 * * * cd /chemin/vers/MiGallery && bun run db:backup
+```
+
+**Sur Windows (Planificateur de tâches)** :
+1. Ouvrir le Planificateur de tâches
+2. Créer une tâche de base
+3. Déclencheur : Quotidien à 00:00
+4. Action : Démarrer un programme
+   - Programme : `bun`
+   - Arguments : `run db:backup`
+   - Répertoire : `C:\chemin\vers\MiGallery`
+
+Consultez `src/lib/docs/CRON_SETUP.md` pour plus de détails.
+
+### Inspection et réparation
+
+```bash
+# Inspecter la base de données et détecter les erreurs
+bun run db:inspect
+
+# Tenter de réparer les erreurs automatiquement
+bun run db:inspect -- --repair
+```
+
+### Gestion via l'interface admin
+
+L'interface d'administration (`/admin/database`) permet de :
+- ✅ Exporter la base de données
+- ✅ Importer une base de données
+- ✅ Créer une sauvegarde manuelle
+- ✅ Restaurer une sauvegarde
+- ✅ Inspecter l'intégrité de la DB
+- ✅ Voir les statistiques (utilisateurs, albums, taille)
 
 ---
 
-## Arborescence détaillée et rôle des fichiers
+## 📜 Utilisation des scripts
 
-Ci‑dessous une arborescence simplifiée, accompagnée d'explications sur le rôle de chaque élément. Les commentaires indiquent le type courant de contenu et pourquoi il est important.
+### Scripts de développement
+
+| Commande | Description |
+|----------|-------------|
+| `bun run dev` | Lance le serveur de développement avec HMR |
+| `bun run build` | Compile l'application pour la production |
+| `bun run preview` | Prévisualise la version de production |
+| `bun run check` | Vérifie les types TypeScript et Svelte |
+
+### Scripts de base de données
+
+| Commande | Description |
+|----------|-------------|
+| `bun run db:init` | Initialise une nouvelle base de données |
+| `bun run db:backup` | Crée une sauvegarde de la base de données |
+| `bun run db:inspect` | Inspecte la base de données |
+| `bun run db:inspect -- --repair` | Répare les erreurs détectées |
+
+### Scripts utilitaires
+
+| Commande | Description |
+|----------|-------------|
+| `bun run generate:secret` | Génère un secret cryptographique pour les cookies |
+| `bun run test:api` | Lance les tests unitaires de l'API |
+| `bun run package` | Crée un package complet (.tgz) avec DB, .env, etc. |
+
+### Tests de l'API
+
+```bash
+# Tests avec l'URL par défaut (localhost:5173)
+bun run test:api
+
+# Tests avec une URL personnalisée et API Key
+API_BASE_URL=http://mon-serveur:3000 API_KEY=ma_cle bun run test:api
 ```
-Migallery/              — racine du projet
-├─ .git/                — métadonnées Git (ne pas modifier manuellement)
-├─ .env                 — variables d'environnement locales (non committées)
-├─ package.json         — scripts, dépendances et métadonnées du projet
-    - scripts importants :
-      - dev : lance vite (serveur de dev + HMR)
-      - build : compilation production
-      - preview : prévisualisation de la build
-      - package / package:legacy : empaquetage / fallback npm
-├─ bun.lock             — lockfile créé par Bun (verrouille versions pour Bun)
-├─ package-lock.json    — lockfile npm (si npm est utilisé)
-├─ README.md            — documentation (ce fichier)
-├─ svelte.config.js     — configuration Svelte/SvelteKit (adapteur, preprocess)
-├─ tsconfig.json        — configuration TypeScript (paths, target, strictness)
-├─ vite.config.ts       — configuration Vite (serveur dev, plugins, alias)
-├─ build/               — sortie de la compilation (artefacts production)
-├─ build/artifacts/     — artefacts packagés (ex: migallery-<version>.tgz)
-├─ scripts/             — scripts utilitaires (packager, helpers)
-│  └─ pack-bun.js       — script Bun natif pour empaqueter la sortie build
-├─ static/              — fichiers statiques servis tels quels (robots.txt, images publiques, favicon...)
-└─ src/                 — code source de l'application (SvelteKit)
-   ├─ app.html          — template HTML principal injecté par SvelteKit
-   ├─ hooks.server.ts   — hooks côté serveur (authentification globale, session, etc.)
-   ├─ env.d.ts          — définitions/types pour import.meta.env ou variables d'environnement
-   ├─ lib/              — bibliothèques utilitaires et composants réutilisables
-   │  ├─ components/    — composants Svelte réutilisables (boutons, modals, cartes...)
-   │  ├─ stores/        — Svelte stores (état global de l'application)
-   │  ├─ auth.ts        — helpers d'authentification (exemples/abstractions)
-   │  └─ immich/        — adaptateurs et helpers pour l'intégration Immich (API de gestion d'images)
-   │     └─ download.ts — helper client pour demander les archives ZIP à Immich (supporte lecture en streaming et callback de progression)
-   └─ routes/           — routes SvelteKit (routing basé sur fichiers)
-      ├─ +layout.svelte — layout global (barre de navigation, footer, providers)
-      ├─ +page.svelte   — page racine
-      └─ api/           — endpoints serveur (ex: proxys, API internes)
-         └─ ...         — fichiers .ts/.js exportant handlers GET/POST/PUT/DELETE
-         └─ immich/     — proxy générique vers une instance Immich
-            └─ [...path]/+server.ts — proxy SvelteKit qui relaie les requêtes vers la variable d'environnement IMMICH_BASE_URL et transmet la clé API (IMMICH_API_KEY)
-```
+
+Les tests vérifient :
+- ✅ Albums (listing, détails)
+- ✅ Users (listing, récupération)
+- ✅ Photos-CV (personnes, albums)
+- ✅ API Keys (admin)
+- ✅ Assets (proxy Immich)
+- ✅ Health checks
 
 ---
 
-## Packaging et distribution
+## 📦 Packaging et déploiement
 
-Le script `package` (Bun-native) :
-- exécute la build,
-- crée une archive tar.gz (build/artifacts/migallery-<version>.tgz) via `scripts/pack-bun.js`.
+### Créer un package complet
 
-Exemples :
-```sh
+Le script `package` crée une archive `.tgz` incluant :
+- Le build compilé
+- La base de données (`data/`)
+- Le fichier de configuration (`.env`)
+- Les scripts utilitaires
+- La documentation
+
+```bash
 bun run build
 bun run package
 ```
 
----
+Le package sera créé dans `build/artifacts/migallery-<version>-full.tgz`
+
+### Déployer sur une nouvelle machine
+
+1. **Copier le package** sur la machine cible
+
+2. **Extraire l'archive**
+```bash
+tar -xzf migallery-x.x.x-full.tgz
+cd migallery
+```
+
+3. **Installer les dépendances**
+```bash
+bun install --production
+```
+
+4. **Vérifier/Modifier la configuration**
+```bash
+nano .env  # Adapter les URLs et chemins si nécessaire
+```
+
+5. **Lancer l'application**
+```bash
+bun run build/index.js
+```
+
 ---
 
-Si vous voulez que je mette à jour ce fichier README.md directement dans le dépôt (création d'un commit/PR), dites‑moi et je peux préparer et pousser la modification. 
+## 🏗️ Structure du projet
+
+```
+MiGallery/
+├─ .env                    # Configuration (non committé)
+├─ package.json            # Dépendances et scripts
+├─ svelte.config.js        # Configuration SvelteKit
+├─ vite.config.ts          # Configuration Vite
+├─ build/                  # Build de production
+│  ├─ artifacts/           # Packages (.tgz)
+│  └─ ...
+├─ data/                   # Base de données
+│  ├─ migallery.db         # Base SQLite
+│  └─ backups/             # Sauvegardes automatiques
+├─ scripts/                # Scripts utilitaires
+│  ├─ init-db.cjs          # Initialisation DB
+│  ├─ backup-db.cjs        # Sauvegarde DB
+│  ├─ inspect-db.cjs       # Inspection/réparation DB
+│  ├─ test-api.cjs         # Tests unitaires API
+│  ├─ generate_cookie_secret.cjs  # Génération secret
+│  └─ pack-bun.js          # Packaging complet
+├─ static/                 # Fichiers statiques
+└─ src/                    # Code source
+   ├─ app.html             # Template HTML principal
+   ├─ hooks.server.ts      # Hooks serveur (auth, session...)
+   ├─ lib/                 # Bibliothèques et composants
+   │  ├─ components/       # Composants Svelte réutilisables
+   │  ├─ db/               # Schéma et accès DB
+   │  ├─ auth/             # Système d'authentification
+   │  ├─ immich/           # Intégration Immich
+   │  └─ docs/             # Documentation complète
+   └─ routes/              # Routes SvelteKit
+      ├─ +layout.svelte    # Layout global
+      ├─ +page.svelte      # Page d'accueil
+      ├─ admin/            # Interface admin
+      ├─ albums/           # Gestion des albums
+      ├─ trombinoscope/    # Page trombinoscope
+      └─ api/              # Endpoints API
+```
+
+---
+
+## 👤 Utilisateur système
+
+Un utilisateur système admin est créé automatiquement lors de l'initialisation :
+
+- **ID** : `les.roots`
+- **Email** : `les.roots@etu.emse.fr`
+- **Rôle** : `admin`
+- **Particularité** : N'apparaît pas sur le trombinoscope (promo_year = null)
+
+Cet utilisateur est destiné à l'administration système et ne doit pas être supprimé.
+
+---
+
+## 🔧 Technologies utilisées
+
+- **[SvelteKit](https://kit.svelte.dev/)** - Framework web moderne et performant
+- **[Svelte 5](https://svelte.dev/)** - Framework UI réactif
+- **[Vite](https://vitejs.dev/)** - Build tool ultra-rapide
+- **[Bun](https://bun.sh/)** - Runtime JavaScript performant
+- **[Tailwind CSS](https://tailwindcss.com/)** - Framework CSS utilitaire
+- **[Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)** - Base de données SQLite synchrone
+- **[Auth.js](https://authjs.dev/)** - Authentification flexible
+- **[TypeScript](https://www.typescriptlang.org/)** - Typage statique
+
+---
+
+## 📚 Documentation complète
+
+La documentation complète se trouve dans `src/lib/docs/` :
+
+- **SCRIPTS.md** - Documentation détaillée de tous les scripts
+- **CRON_SETUP.md** - Configuration des sauvegardes automatiques
+- **NAVBAR_ACCESS_MATRIX.md** - Barre de navigation
+
+---
+
+## 📄 Licence
+
+Ce projet est sous licence **MIT**.
+
+---
+
+## 👨‍💻 Auteur
+
+Développé avec ❤️ par **DeMASKe**(https://github.com/DeMASKe) et **gd-pnjj**(https://github.com/gd-pnjj)pour **MiTV**
+
+- **Repository** : [github.com/emse-students/MiGallery](https://github.com/emse-students/MiGallery)
+- **Organisation** : EMSE Students
+
+---
+
+<div align="center">
+  
+**by MiTV @ EMSE**
+
+</div>

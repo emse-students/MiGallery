@@ -48,7 +48,7 @@
   let allUsers = $state<any[]>([]);
   let editingUserId = $state<string | null>(null);
   let editingUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '', role: 'user', promo_year: null });
-  let currentUserId = $state<string>("");
+  
   let newUserData = $state({
     id_user: "",
     email: "",
@@ -128,25 +128,7 @@
     await loadAllUsers();
   }
 
-  async function changeCurrentUser() {
-    if (!currentUserId) {
-      alert("Veuillez entrer un ID utilisateur");
-      return;
-    }
-
-    const response = await fetch('/api/change-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: currentUserId })
-    });
-      if (response.ok) {
-        // Reload silently without showing an alert
-        window.location.reload();
-      } else {
-        alert("Erreur lors du changement d'utilisateur");
-      }
-
-  }
+  
 
   // ===== Albums management state & helpers =====
   let albums: any[] = $state<any[]>([]);
@@ -500,27 +482,7 @@
     {/if}
   </div>
 
-  <div class="user-section">
-    <h3><Icon name="user" size={24} /> Utilisateur actuel</h3>
-    <p><strong>ID:</strong> {(page.data.session?.user as any)?.id_user || "Non connecté"}</p>
-    <p><strong>Nom:</strong> {(page.data.session?.user as any)?.prenom} {(page.data.session?.user as any)?.nom}</p>
-    <p><strong>Email:</strong> {page.data.session?.user?.email}</p>
-    <p><strong>ID Photos:</strong> {(page.data.session?.user as any)?.id_photos || "Non configuré"}</p>
-    
-    <div class="mt-4">
-      <label>
-        Changer d'utilisateur (id_user):
-        <input 
-          type="text" 
-          bind:value={currentUserId}
-          placeholder="ex: jolan.boudin"
-        />
-      </label>
-      <button onclick={changeCurrentUser}>
-        <Icon name="check" size={20} /> Changer
-      </button>
-    </div>
-  </div>
+  <!-- Section 'Utilisateur actuel' supprimée : utilisation réservée à /dev/login-as pour le développement -->
 
   <div class="section">
     <h2><Icon name="image" size={28} /> Photo de profil</h2>

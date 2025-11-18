@@ -32,16 +32,25 @@ async function getUserFromLocals(locals: any, cookies: any): Promise<User | null
   return null;
 }
 
-export const GET: RequestHandler = async ({ params, locals, cookies }) => {
+export const GET: RequestHandler = async ({ params, locals, cookies, request }) => {
   // get user by id - admin or self
   try {
-    const caller = await getUserFromLocals(locals, cookies);
-    if (!caller) return json({ error: 'Unauthorized' }, { status: 401 });
+    // allow admin via API key header
+    const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
+    let caller = null;
+    if (apiKeyHeader) {
+      const { verifyRawKeyWithScope } = await import('$lib/db/api-keys');
+      if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) return json({ error: 'Unauthorized' }, { status: 401 });
+      // caller remains null but admin privileges allowed via API key
+    } else {
+      caller = await getUserFromLocals(locals, cookies);
+      if (!caller) return json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const targetId = params.id as string;
     if (!targetId) return json({ error: 'Bad Request' }, { status: 400 });
 
-    if ((caller.role || 'user') !== 'admin' && caller.id_user !== targetId) {
+    if (caller && (caller.role || 'user') !== 'admin' && caller.id_user !== targetId) {
       return json({ error: 'Forbidden' }, { status: 403 });
     }
 

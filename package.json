@@ -32,7 +32,11 @@
 		"package": "bun run build && bun ./scripts/pack-bun.js",
 		"package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
 		"version:show": "node -e \"console.log(require('./package.json').version)\"",
-		"db:init": "node ./scripts/init-db.cjs"
+		"db:init": "node ./scripts/init-db.cjs",
+		"db:backup": "node ./scripts/backup-db.cjs",
+		"db:inspect": "node ./scripts/inspect-db.cjs",
+		"test:api": "node ./scripts/test-api.cjs",
+		"generate:secret": "node ./scripts/generate_cookie_secret.cjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.1.1",

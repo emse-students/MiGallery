@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
+import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 import type { User } from '$lib/db/database';
 
 async function getUserFromLocals(locals: any, cookies: any): Promise<User | null> {
@@ -32,12 +33,18 @@ async function getUserFromLocals(locals: any, cookies: any): Promise<User | null
   return null;
 }
 
-export const GET: RequestHandler = async ({ locals, cookies }) => {
+export const GET: RequestHandler = async ({ locals, cookies, request }) => {
   // list users - admin only
   try {
-    const user = await getUserFromLocals(locals, cookies);
-    if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
-    if ((user.role || 'user') !== 'admin') return json({ error: 'Forbidden' }, { status: 403 });
+    // accept admin via x-api-key header as well
+    const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
+    if (apiKeyHeader) {
+      if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) return json({ error: 'Unauthorized' }, { status: 401 });
+    } else {
+      const user = await getUserFromLocals(locals, cookies);
+      if (!user) return json({ error: 'Unauthorized' }, { status: 401 });
+      if ((user.role || 'user') !== 'admin') return json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const db = getDatabase();
     const rows = db.prepare('SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users ORDER BY promo_year DESC, nom, prenom').all();
