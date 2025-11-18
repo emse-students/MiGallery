@@ -59,3 +59,15 @@ jobs:
           - name: Restart server
             run: |
               pm2 restart migallery || pm2 start bun --name migallery -- run ./build/index.js
+
+          - name: Wait for server to be ready
+            run: |
+              echo "Attente du démarrage du serveur..."
+              sleep 10
+              
+          - name: Run API tests on production
+            run: |
+              cd ~/MiGallery
+              bun run test || echo "⚠️  Les tests ont échoué mais le déploiement continue"
+            env:
+              API_BASE_URL: http://localhost:3000
