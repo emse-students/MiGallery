@@ -95,9 +95,7 @@
         <div class="auth-method">
           <h3>2️⃣ Cookie de session</h3>
           <p>Automatique quand vous êtes connecté via l'interface web.</p>
-          <pre>fetch('/api/albums', {
-  credentials: 'include'
-})</pre>
+          <pre>{'fetch(\'/api/albums\', {\n  credentials: \'include\'\n})'}</pre>
           <div class="info-note">
             ℹ️ Uniquement pour les requêtes depuis le navigateur
           </div>
@@ -164,11 +162,7 @@
 
       <h4>Scopes cumulatifs</h4>
       <p>Une clé peut avoir plusieurs scopes :</p>
-      <pre>POST /api/admin/api-keys
-{
-  "label": "Service upload",
-  "scopes": ["read", "write"]
-}</pre>
+      <pre>{'POST /api/admin/api-keys\n{\n  "label": "Service upload",\n  "scopes": ["read", "write"]\n}'}</pre>
     </section>
 
     <!-- Endpoints -->
@@ -317,102 +311,28 @@
       
       <div class="example-group">
         <h3>🟨 JavaScript / Node.js</h3>
-        <pre>{@html `const API_KEY = 'mg_votre_cle_api';
-const BASE_URL = 'https://gallery.mitv.fr';
+        <pre><code>const API_KEY = 'votre_cle'
+const BASE_URL = 'https://gallery.mitv.fr'
 
-// Récupérer la liste des albums
-async function getAlbums() {
-  const res = await fetch(\`\${BASE_URL}/api/albums\`, {
-    headers: { 'x-api-key': API_KEY }
-  });
-  return await res.json();
-}
-
-// Créer un album
-async function createAlbum(data) {
-  const res = await fetch(\`\${BASE_URL}/api/albums\`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY
-    },
-    body: JSON.stringify(data)
-  });
-  return await res.json();
-}
-
-// Modifier un album
-async function updateAlbum(id, data) {
-  const res = await fetch(\`\${BASE_URL}/api/albums/\${id}\`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': API_KEY
-    },
-    body: JSON.stringify(data)
-  });
-  return await res.json();
-}`.replace(/'/g, '&#39;')}</pre>
+fetch(BASE_URL + '/api/albums', {'{'}
+  headers: {'{'}x-api-key: API_KEY{'}'}
+{'}'})</code></pre>
       </div>
 
       <div class="example-group">
         <h3>🐍 Python</h3>
-        <pre>{@html `import requests
-
-API_KEY = 'mg_votre_cle_api'
-BASE_URL = 'https://gallery.mitv.fr'
-headers = {'x-api-key': API_KEY}
-
-# Récupérer la liste des albums
-def get_albums():
-    r = requests.get(f'{BASE_URL}/api/albums', headers=headers)
-    return r.json()
-
-# Créer un album
-def create_album(data):
-    r = requests.post(
-        f'{BASE_URL}/api/albums',
-        headers={**headers, 'Content-Type': 'application/json'},
-        json=data
-    )
-    return r.json()
-
-# Télécharger un avatar
-def get_avatar(username):
-    r = requests.get(
-        f'{BASE_URL}/api/users/{username}/avatar',
-        headers=headers
-    )
-    if r.status_code == 200:
-        with open(f'{username}_avatar.jpg', 'wb') as f:
-            f.write(r.content)
-    return r.status_code`.replace(/'/g, '&#39;')}</pre>
+        <pre><code>import requests
+headers = {'{'}x-api-key: 'votre_cle'{'}'}
+requests.get(
+  'https://gallery.mitv.fr/api/albums',
+  headers=headers
+)</code></pre>
       </div>
 
       <div class="example-group">
-        <h3>💻 cURL (Terminal)</h3>
-        <pre># Lister les albums
-curl -H "x-api-key: mg_votre_cle" \
-  https://gallery.mitv.fr/api/albums
-
-# Créer un album
-curl -X POST \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: mg_votre_cle" \
-  -d '{"albumName":"Forum 2025","date":"2025-11-04"}' \
-  https://gallery.mitv.fr/api/albums
-
-# Modifier un album
-curl -X PATCH \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: mg_votre_cle" \
-  -d '{"name":"Forum","tags":["Promo 2024"]}' \
-  https://gallery.mitv.fr/api/albums/ALBUM_ID
-
-# Télécharger un avatar
-curl -H "x-api-key: mg_votre_cle" \
-  https://gallery.mitv.fr/api/users/jolan.boudin/avatar \
-  -o avatar.jpg</pre>
+        <h3>💻 cURL</h3>
+        <pre><code>curl -H "x-api-key: votre_cle" \
+  https://gallery.mitv.fr/api/albums</code></pre>
       </div>
     </section>
 
@@ -525,11 +445,6 @@ curl -H "x-api-key: mg_votre_cle" \
     list-style: none;
     padding: 0;
     margin: 0;
-  }
-
-  .toc ul ul {
-    padding-left: 1.5rem;
-    margin-top: 0.5rem;
   }
 
   .toc li {
