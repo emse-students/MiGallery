@@ -61,7 +61,7 @@ export const API_ENDPOINTS = [
     items: [
       { method: 'GET', path: '/api/users', summary: 'Lister tous les utilisateurs (admin only)', exampleCurl: `curl -H "Authorization: Bearer <SESSION_COOKIE>" http://localhost:5173/api/users`, noteAuth: 'Cet endpoint nécessite des privilèges admin.' },
       { method: 'GET', path: '/api/users/{id}', summary: 'Récupérer un utilisateur par id_user', exampleCurl: `curl "http://localhost:5173/api/users/USER_ID"` },
-      { method: 'GET', path: '/api/users/{id_user}/avatar', summary: 'Photo de profil d\'un utilisateur (par id_user)', exampleCurl: `curl -H "Cookie: current_user_id=<SESSION>" "http://localhost:5173/api/users/jolan.boudin/avatar"`, noteAuth: 'Authentification requise (session cookie ou auth provider). L\'utilisateur doit avoir un id_photos configuré.' }
+      { method: 'GET', path: '/api/users/{id_user}/avatar', summary: 'Photo de profil d\'un utilisateur (par id_user)', exampleCurl: `curl -H "x-api-key: <API_KEY>" "http://localhost:5173/api/users/jolan.boudin/avatar"`, noteAuth: 'Authentification requise : session cookie, auth provider, ou clé API avec scope "read". L\'utilisateur doit avoir un id_photos configuré (sinon 404).' }
     ]
   },
 
