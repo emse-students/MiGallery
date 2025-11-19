@@ -8,12 +8,13 @@ import { spawn } from 'child_process';
 import { setTimeout } from 'timers/promises';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-const SERVER_STARTUP_DELAY = 5000; // 5 secondes
+const SERVER_STARTUP_DELAY = 7000; // 7 secondes (donne un peu plus de marge au serveur)
 
 console.log('🚀 Démarrage du serveur de test...\n');
 
-// Démarrer le serveur
-const server = spawn('bun', ['run', 'build/index.js'], {
+// Démarrer le serveur (exécuter le fichier build avec bun)
+// Utiliser './build/index.js' pour invoquer directement le bundle Bun.
+const server = spawn('bun', ['./build/index.js'], {
   stdio: 'inherit',
   detached: false
 });
