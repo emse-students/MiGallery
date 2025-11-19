@@ -335,11 +335,21 @@ Cet utilisateur est destiné à l'administration système et ne doit pas être s
 
 ## 📚 Documentation complète
 
-La documentation complète se trouve dans `src/lib/docs/` :
+La documentation complète se trouve dans le dossier `docs/` :
 
+### 📖 Guides généraux
 - **SCRIPTS.md** - Documentation détaillée de tous les scripts
 - **CRON_SETUP.md** - Configuration des sauvegardes automatiques
-- **NAVBAR_ACCESS_MATRIX.md** - Barre de navigation
+- **NAVBAR_ACCESS_MATRIX.md** - Matrice de contrôle d'accès de la barre de navigation
+
+### 🔐 Documentation API
+- **API_SECURITY.md** - **[NOUVEAU]** Guide complet de sécurité API (scopes, permissions, exemples)
+- **POSTMAN_AVATAR.md** - **[NOUVEAU]** Guide Postman pour l'endpoint avatar
+- Interface web : `/admin/api-docs` - Documentation interactive des endpoints
+
+### 📝 Ressources additionnelles
+- **tests/README.md** - Guide des tests automatisés (Vitest)
+- `src/lib/admin/endpoints.ts` - Définition TypeScript de tous les endpoints API
 
 ---
 

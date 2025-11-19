@@ -112,32 +112,124 @@ export const DELETE: RequestHandler = async ({ params, fetch }) => {
 
 /**
  * PATCH /api/albums/[id]
- * Met à jour un album
+ * Met à jour les métadonnées locales d'un album dans la BDD
+ * (date, location, visibility, visible, tags, users autorisés)
  * 
- * Body: { albumName?: string, description?: string }
+ * Les albums Immich et notre BDD sont indépendants (liés uniquement par ID)
+ * 
+ * Body: {
+ *   name?: string,
+ *   date?: string | null,
+ *   location?: string | null,
+ *   visibility?: 'private' | 'authenticated' | 'unlisted',
+ *   visible?: boolean,
+ *   tags?: string[],
+ *   allowedUsers?: string[]
+ * }
  */
-export const PATCH: RequestHandler = async ({ params, request, fetch }) => {
+export const PATCH: RequestHandler = async ({ params, request }) => {
 	try {
 		const { id } = params;
 		const body = await request.json();
+		const { name, date, location, visibility, visible, tags, allowedUsers } = body;
 		
-	if (!IMMICH_BASE_URL) throw error(500, 'IMMICH_BASE_URL not configured');
-	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
-			method: 'PATCH',
-			headers: {
-				'x-api-key': IMMICH_API_KEY,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(body)
-		});
-
-		if (!res.ok) {
-			const errorText = await res.text();
-			throw error(res.status, `Failed to update album: ${errorText}`);
+		const db = getDatabase();
+		
+		// Vérifier que l'album existe dans la BDD locale
+		const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id) as any;
+		if (!existing) {
+			throw error(404, 'Album non trouvé dans la base locale');
 		}
 
-		const album = await res.json();
-		return json(album);
+		// Mettre à jour les métadonnées locales
+		if (name !== undefined || date !== undefined || location !== undefined || visibility !== undefined || visible !== undefined) {
+			// Construire dynamiquement la query pour ne mettre à jour que les champs fournis
+			const updates: string[] = [];
+			const values: any[] = [];
+
+			if (name !== undefined) {
+				updates.push('name = ?');
+				values.push(name);
+			}
+			if (date !== undefined) {
+				updates.push('date = ?');
+				values.push(date);
+			}
+			if (location !== undefined) {
+				updates.push('location = ?');
+				values.push(location);
+			}
+			if (visibility !== undefined) {
+				updates.push('visibility = ?');
+				values.push(visibility);
+			}
+			if (visible !== undefined) {
+				updates.push('visible = ?');
+				values.push(visible ? 1 : 0);
+			}
+
+			if (updates.length > 0) {
+				values.push(id); // Pour la clause WHERE
+				const stmt = db.prepare(`UPDATE albums SET ${updates.join(', ')} WHERE id = ?`);
+				stmt.run(...values);
+			}
+		}
+
+		// Gérer les tags
+		if (tags && Array.isArray(tags)) {
+			// Récupérer les tags existants
+			const existingTags = db.prepare(
+				'SELECT tag FROM album_tag_permissions WHERE album_id = ?'
+			).all(id) as any[];
+			const existingTagNames = existingTags.map((t: any) => t.tag);
+
+			// Tags à ajouter
+			const tagsToAdd = tags.filter(t => !existingTagNames.includes(t));
+			for (const tag of tagsToAdd) {
+				db.prepare('INSERT INTO album_tag_permissions (album_id, tag) VALUES (?, ?)')
+					.run(id, tag);
+			}
+
+			// Tags à supprimer
+			const tagsToRemove = existingTagNames.filter(t => !tags.includes(t));
+			for (const tag of tagsToRemove) {
+				db.prepare('DELETE FROM album_tag_permissions WHERE album_id = ? AND tag = ?')
+					.run(id, tag);
+			}
+		}
+
+		// Gérer les utilisateurs autorisés
+		if (allowedUsers && Array.isArray(allowedUsers)) {
+			// Récupérer les utilisateurs existants
+			const existingUsers = db.prepare(
+				'SELECT id_user FROM album_user_permissions WHERE album_id = ?'
+			).all(id) as any[];
+			const existingUserIds = existingUsers.map((u: any) => u.id_user);
+
+			// Utilisateurs à ajouter
+			const usersToAdd = allowedUsers.filter(u => !existingUserIds.includes(u));
+			for (const userId of usersToAdd) {
+				db.prepare('INSERT INTO album_user_permissions (album_id, id_user) VALUES (?, ?)')
+					.run(id, userId);
+			}
+
+			// Utilisateurs à supprimer
+			const usersToRemove = existingUserIds.filter(u => !allowedUsers.includes(u));
+			for (const userId of usersToRemove) {
+				db.prepare('DELETE FROM album_user_permissions WHERE album_id = ? AND id_user = ?')
+					.run(id, userId);
+			}
+		}
+
+		// Retourner les données mises à jour
+		const updated = db.prepare(
+			'SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?'
+		).get(id);
+
+		return json({
+			success: true,
+			album: updated
+		});
 	} catch (err) {
 		console.error(`Error in /api/albums/${params.id} PATCH:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {

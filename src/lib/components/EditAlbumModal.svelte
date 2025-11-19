@@ -82,12 +82,12 @@
 		error = null;
 
 		try {
-			// Mettre à jour l'album via l'API
-			const res = await fetch(`/api/immich/albums/${safeAlbumId}`, {
-				method: 'PUT',
+			// Mettre à jour l'album via PATCH (métadonnées locales uniquement)
+			const res = await fetch(`/api/albums/${safeAlbumId}`, {
+				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					albumName: albumName.trim(),
+					name: albumName.trim(),
 					date: albumDate || null,
 					location: albumLocation.trim() || null,
 					visibility: albumVisibility,
@@ -98,8 +98,8 @@
 			});
 
 			if (!res.ok) {
-				const errText = await res.text().catch(() => res.statusText);
-				throw new Error(errText || 'Erreur lors de la mise à jour de l\'album');
+				const errData = await res.json().catch(() => ({}));
+				throw new Error(errData.error || 'Erreur lors de la mise à jour de l\'album');
 			}
 
 			// Succès
@@ -397,6 +397,16 @@
 		border-radius: 8px;
 		font-size: 0.875rem;
 		transition: all 0.2s ease;
+	}
+
+	.form-group select {
+		background: rgba(30, 30, 40, 0.95);
+	}
+
+	.form-group select option {
+		background: rgba(30, 30, 40, 1);
+		color: white;
+		padding: 0.5rem;
 	}
 
 	.form-group input:focus,

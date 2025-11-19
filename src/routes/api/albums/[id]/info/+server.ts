@@ -13,24 +13,16 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
       return json({ error: "Album ID manquant" }, { status: 400 });
     }
 
-    if (!IMMICH_BASE_URL) throw error(500, 'IMMICH_BASE_URL not configured');
-    
-    // Récupérer l'album depuis Immich
-    const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
-      headers: {
-        'x-api-key': IMMICH_API_KEY,
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!res.ok) {
-      return json({ error: 'Album non trouvé' }, { status: 404 });
-    }
-
-    const album = await res.json();
-
-    // Récupérer les données locales (BDD)
     const db = getDatabase();
+
+    // Récupérer d'abord l'album depuis notre BDD locale (source de vérité)
+    const albumRow = db.prepare(
+      'SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?'
+    ).get(id) as any;
+
+    if (!albumRow) {
+      return json({ error: 'Album non trouvé dans la base locale' }, { status: 404 });
+    }
 
     // Charger les tags
     const tagsStmt = db.prepare('SELECT tag FROM album_tag_permissions WHERE album_id = ?');
@@ -43,12 +35,12 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
     return json({
       success: true,
       album: {
-        id: album.id,
-        name: album.albumName,
-        date: album.startDate || null,
-        location: album.location || null,
-        visibility: 'private', // Immich n'a pas ce champ, utiliser une valeur par défaut
-        visible: 1
+        id: albumRow.id,
+        name: albumRow.name,
+        date: albumRow.date || null,
+        location: albumRow.location || null,
+        visibility: albumRow.visibility || 'private',
+        visible: albumRow.visible
       },
       tags: tags.map((r: any) => r.tag),
       users: users.map((r: any) => r.id_user)

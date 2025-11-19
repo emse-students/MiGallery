@@ -13,356 +13,776 @@
   <p>Accès réservé aux administrateurs.</p>
 {:else}
   <main>
-    <h1>Documentation API</h1>
-    <p class="subtitle">Intégration et utilisation de l'API MiGallery</p>
+    <div class="header">
+      <h1>📡 Documentation API MiGallery</h1>
+      <p class="subtitle">Guide complet d'intégration et référence des endpoints</p>
+      
+      <div class="quick-links">
+        <a href="/admin/api-keys" class="btn-link">
+          🔑 Gérer les clés API
+        </a>
+        <a href="https://www.postman.com/" target="_blank" class="btn-link secondary">
+          📮 Tester avec Postman
+        </a>
+      </div>
+    </div>
 
-    <!-- Authentication Section -->
-    <section class="card">
+    <!-- Table of Contents -->
+    <nav class="toc">
+      <h3>📑 Sommaire</h3>
+      <ul>
+        <li><a href="#overview">🌟 Aperçu</a></li>
+        <li><a href="#auth">🔑 Authentification</a></li>
+        <li><a href="#scopes">🔐 Scopes & Permissions</a></li>
+        <li><a href="#endpoints">📡 Endpoints</a></li>
+        <li><a href="#errors">❌ Codes d'erreur</a></li>
+        <li><a href="#examples">💻 Exemples</a></li>
+      </ul>
+    </nav>
+
+    <!-- Overview -->
+    <section class="card highlight" id="overview">
+      <h2>🌟 Aperçu</h2>
+      <p>MiGallery expose une API REST complète pour gérer albums, utilisateurs, médias et permissions.</p>
+      
+      <div class="features-grid">
+        <div class="feature">
+          <strong>📚 Albums</strong>
+          <p>Créer, modifier et supprimer des albums avec métadonnées</p>
+        </div>
+        <div class="feature">
+          <strong>👥 Utilisateurs</strong>
+          <p>Gérer les utilisateurs et leurs permissions d'accès</p>
+        </div>
+        <div class="feature">
+          <strong>🖼️ Médias</strong>
+          <p>Uploader et organiser des photos/vidéos</p>
+        </div>
+        <div class="feature">
+          <strong>🔐 Sécurité</strong>
+          <p>Contrôle d'accès granulaire par scopes</p>
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <strong>💡 Démarrage rapide :</strong>
+        <ol>
+          <li><a href="/admin/api-keys">Créez une clé API</a> avec les scopes appropriés</li>
+          <li>Testez vos requêtes avec cURL ou Postman</li>
+          <li>Intégrez dans votre application</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Authentication -->
+    <section class="card" id="auth">
       <h2>🔑 Authentification</h2>
-      <p>L'API supporte deux méthodes d'authentification :</p>
-      <ul>
-        <li><strong>Clés API :</strong> Créez une clé dans <a href="/admin/api-keys">Gestion des clés API</a> et incluez-la dans l'en-tête <code>X-API-Key</code></li>
-        <li><strong>Cookie de session :</strong> Pour les requêtes navigateur authentifiées (admin uniquement)</li>
-      </ul>
-      <pre>curl -H "X-API-Key: YOUR_API_KEY" https://migallery.example.com/api/...</pre>
-    </section>
-
-    <!-- PortailEtu Album API -->
-    <section class="card highlight">
-      <h2>📚 API Album PortailEtu</h2>
-      <p>L'album <strong>PortailEtu</strong> est un stockage système pour les médias du portail étudiant. Il est accessible via une API dédiée pour importer, récupérer et gérer les fichiers.</p>
-
-      <!-- Upload Media -->
-      <div class="api-endpoint">
-        <div class="endpoint-header">
-          <span class="method post">POST</span>
-          <code>/api/albums/PortailEtu/media</code>
+      <p>Deux méthodes d'authentification sont supportées :</p>
+      
+      <div class="auth-methods">
+        <div class="auth-method">
+          <h3>1️⃣ Clé API (Recommandé)</h3>
+          <p>Ajoutez le header <code>x-api-key</code> à vos requêtes.</p>
+          <pre>curl -H "x-api-key: mg_votre_cle_api" \
+  https://gallery.mitv.fr/api/albums</pre>
+          <div class="pros">
+            ✅ Idéal pour scripts et services externes<br>
+            ✅ Pas besoin de cookie ou session<br>
+            ✅ Facile à tester avec Postman
+          </div>
         </div>
-        <p>Importe un fichier dans l'album PortailEtu.</p>
-        <h4>Paramètres</h4>
-        <table class="api-table">
-          <thead><tr><th>Paramètre</th><th>Type</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>file</code></td><td>FormData</td><td>Fichier image/vidéo (max 500 MB)</td></tr>
-            <tr><td><code>metadata</code></td><td>JSON</td><td>Optionnel : <code>{'{"title": "...", "description": "..."}'}</code></td></tr>
-          </tbody>
-        </table>
-        <div class="example-label">Exemple</div>
-        <pre>curl -X POST -H "X-API-Key: YOUR_KEY" \
-  -F "file=@photo.jpg" \
-  -F 'metadata={{"title": "Photo"}}' \
-  https://migallery.example.com/api/albums/PortailEtu/media</pre>
+
+        <div class="auth-method">
+          <h3>2️⃣ Cookie de session</h3>
+          <p>Automatique quand vous êtes connecté via l'interface web.</p>
+          <pre>fetch('/api/albums', {
+  credentials: 'include'
+})</pre>
+          <div class="info-note">
+            ℹ️ Uniquement pour les requêtes depuis le navigateur
+          </div>
+        </div>
       </div>
 
-      <!-- Get Media List -->
-      <div class="api-endpoint">
-        <div class="endpoint-header">
-          <span class="method get">GET</span>
-          <code>/api/albums/PortailEtu/media</code>
-        </div>
-        <p>Liste les médias de l'album PortailEtu avec pagination.</p>
-        <h4>Paramètres de requête</h4>
-        <table class="api-table">
-          <thead><tr><th>Paramètre</th><th>Type</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td><code>limit</code></td><td>Entier</td><td>Max résultats (défaut: 50, max: 100)</td></tr>
-            <tr><td><code>offset</code></td><td>Entier</td><td>Décalage pagination (défaut: 0)</td></tr>
-            <tr><td><code>sort</code></td><td>String</td><td>Tri : created_asc | created_desc (défaut: created_desc)</td></tr>
-          </tbody>
-        </table>
-        <div class="example-label">Exemple</div>
-        <pre>curl -H "X-API-Key: YOUR_KEY" \
-  'https://migallery.example.com/api/albums/PortailEtu/media?limit=20'</pre>
-      </div>
-
-      <!-- Get Single Media -->
-      <div class="api-endpoint">
-        <div class="endpoint-header">
-          <span class="method get">GET</span>
-          <code>/api/albums/PortailEtu/media/:media_id</code>
-        </div>
-        <p>Récupère les détails d'un média spécifique.</p>
-        <div class="example-label">Exemple</div>
-        <pre>curl -H "X-API-Key: YOUR_KEY" \
-  https://migallery.example.com/api/albums/PortailEtu/media/uuid-xxx</pre>
-      </div>
-
-      <!-- Delete Single Media -->
-      <div class="api-endpoint">
-        <div class="endpoint-header">
-          <span class="method delete">DELETE</span>
-          <code>/api/albums/PortailEtu/media/:media_id</code>
-        </div>
-        <p>Supprime un média de l'album PortailEtu. <strong>Action irréversible.</strong></p>
-        <div class="example-label">Exemple</div>
-        <pre>curl -X DELETE -H "X-API-Key: YOUR_KEY" \
-  https://migallery.example.com/api/albums/PortailEtu/media/uuid-xxx</pre>
-      </div>
-
-      <!-- Delete All Media -->
-      <div class="api-endpoint">
-        <div class="endpoint-header">
-          <span class="method delete">DELETE</span>
-          <code>/api/albums/PortailEtu/media</code>
-        </div>
-        <p><strong>⚠️ Supprime tous les médias de PortailEtu.</strong> Requiert une confirmation explicite.</p>
-        <h4>Corps de la requête</h4>
-        <pre>{{ "confirm": true, "reason": "Nettoyage annuel" }}</pre>
-        <div class="example-label">Exemple</div>
-        <pre>curl -X DELETE -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{{"confirm": true}}' \
-  https://migallery.example.com/api/albums/PortailEtu/media</pre>
+      <div class="warning-box">
+        <strong>⚠️ Bonnes pratiques :</strong>
+        <ul>
+          <li>Ne jamais exposer les clés API dans le code client (frontend)</li>
+          <li>Révoquer immédiatement toute clé compromise</li>
+          <li>Utiliser HTTPS en production</li>
+          <li>Rotation régulière des clés pour les services critiques</li>
+        </ul>
       </div>
     </section>
 
-    <!-- Scopes Section -->
-    <section class="card">
+    <!-- Scopes -->
+    <section class="card" id="scopes">
       <h2>🔐 Scopes et Permissions</h2>
-      <p>Les clés API peuvent être restreintes par scopes :</p>
-      <ul>
-        <li><code>read</code> — Lecture seule (GET)</li>
-        <li><code>write</code> — Écriture (POST)</li>
-        <li><code>delete</code> — Suppression (DELETE)</li>
-        <li><code>admin</code> — Accès complet</li>
-      </ul>
-      <p><strong>Exemple :</strong> Une clé avec scopes <code>read,write</code> permet les uploads et lectures, mais pas les suppressions.</p>
-    </section>
-
-    <!-- Error Codes -->
-    <section class="card">
-      <h2>❌ Codes d'erreur</h2>
-      <table class="api-table">
-        <thead><tr><th>Code</th><th>Description</th></tr></thead>
+      <p>Les clés API utilisent des <strong>scopes</strong> pour contrôler l'accès :</p>
+      
+      <table class="scopes-table">
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Description</th>
+            <th>HTTP</th>
+            <th>Exemples</th>
+          </tr>
+        </thead>
         <tbody>
-          <tr><td><code>400</code></td><td>Requête malformée (paramètres manquants)</td></tr>
-          <tr><td><code>401</code></td><td>Non authentifié (clé API invalide)</td></tr>
-          <tr><td><code>403</code></td><td>Accès refusé (scope insuffisant)</td></tr>
-          <tr><td><code>404</code></td><td>Ressource non trouvée</td></tr>
-          <tr><td><code>413</code></td><td>Fichier trop volumineux</td></tr>
-          <tr><td><code>500</code></td><td>Erreur serveur</td></tr>
+          <tr>
+            <td><span class="scope-badge read">read</span></td>
+            <td>Lecture seule</td>
+            <td><code>GET</code></td>
+            <td><code>/api/albums</code>, <code>/api/users/{'{'}id{'}'}/avatar</code></td>
+          </tr>
+          <tr>
+            <td><span class="scope-badge write">write</span></td>
+            <td>Création & modification</td>
+            <td><code>POST</code>, <code>PATCH</code>, <code>PUT</code></td>
+            <td><code>/api/albums</code>, <code>/api/external/media</code></td>
+          </tr>
+          <tr>
+            <td><span class="scope-badge delete">delete</span></td>
+            <td>Suppression</td>
+            <td><code>DELETE</code></td>
+            <td><code>/api/albums/{'{'}id{'}'}</code></td>
+          </tr>
+          <tr>
+            <td><span class="scope-badge admin">admin</span></td>
+            <td>Administration complète</td>
+            <td>Tous</td>
+            <td><code>/api/users</code>, <code>/api/admin/api-keys</code></td>
+          </tr>
         </tbody>
       </table>
+
+      <div class="info-box">
+        <strong>💡 Principe du moindre privilège :</strong> 
+        N'accordez que les scopes nécessaires. Par exemple, une clé pour lire les avatars n'a besoin que de <code>read</code>.
+      </div>
+
+      <h4>Scopes cumulatifs</h4>
+      <p>Une clé peut avoir plusieurs scopes :</p>
+      <pre>POST /api/admin/api-keys
+{
+  "label": "Service upload",
+  "scopes": ["read", "write"]
+}</pre>
     </section>
 
-    <!-- Existing Endpoints from Server -->
-    {#if endpoints.length > 0}
-      <section class="card">
-        <h2>📡 Endpoints supplémentaires</h2>
+    <!-- Endpoints -->
+    <section class="card" id="endpoints">
+      <h2>📡 Référence des Endpoints</h2>
+      
+      {#if endpoints.length > 0}
         {#each endpoints as group}
-          <div class="endpoint-group" id={group.group}>
-            <h3>{group.group}</h3>
+          <div class="endpoint-group">
+            <h3 class="group-title">
+              {#if group.group === 'Albums'}📚
+              {:else if group.group === 'Users'}👥
+              {:else if group.group === 'Assets'}🖼️
+              {:else if group.group === 'People & Photos-CV'}📸
+              {:else if group.group === 'External uploads'}📤
+              {:else if group.group === 'API Keys (Administration)'}🔑
+              {:else}📌
+              {/if}
+              {group.group}
+            </h3>
             {#if group.description}
-              <p class="muted">{group.description}</p>
+              <p class="group-description">{group.description}</p>
             {/if}
+            
             <div class="endpoints">
-              {#each group.items as it}
+              {#each group.items as endpoint}
                 <article class="endpoint">
-                  <div class="endpoint-header">
-                    <span class="method">{it.method}</span>
-                    <code class="path">{it.path}</code>
+                  <div class="endpoint-top">
+                    <div class="endpoint-header">
+                      <span class="method {endpoint.method.toLowerCase()}">{endpoint.method}</span>
+                      <code class="path">{endpoint.path}</code>
+                    </div>
+                    {#if endpoint.requiredScopes && endpoint.requiredScopes.length > 0}
+                      <div class="required-scopes">
+                        {#each endpoint.requiredScopes as scope}
+                          <span class="scope-badge {scope}">{scope}</span>
+                        {/each}
+                      </div>
+                    {/if}
                   </div>
-                  {#if it.summary}
-                    <div class="summary">{it.summary}</div>
+                  
+                  {#if endpoint.summary}
+                    <div class="summary">{endpoint.summary}</div>
                   {/if}
-                  {#if it.params}
-                    <div class="params"><strong>Params:</strong>
+                  
+                  {#if endpoint.notes}
+                    <div class="notes">📝 {endpoint.notes}</div>
+                  {/if}
+                  
+                  {#if endpoint.params && endpoint.params.length > 0}
+                    <div class="params">
+                      <strong>Paramètres :</strong>
                       <ul>
-                        {#each it.params as p}
-                          <li><strong>{p.name}</strong> — {p.desc}</li>
+                        {#each endpoint.params as param}
+                          <li>
+                            <code>{param.name}</code> 
+                            <span class="param-type">({param.in})</span> — {param.desc}
+                          </li>
                         {/each}
                       </ul>
                     </div>
                   {/if}
-                  {#if it.exampleCurl}
-                    <div class="example">
-                      <div class="example-label">Exemple curl</div>
-                      <pre>{@html esc(it.exampleCurl)}</pre>
-                    </div>
+                  
+                  {#if endpoint.exampleCurl}
+                    <details class="example-details">
+                      <summary>📋 Exemple cURL</summary>
+                      <pre>{@html esc(endpoint.exampleCurl)}</pre>
+                    </details>
                   {/if}
-                  {#if it.noteAuth}
-                    <div class="note">{it.noteAuth}</div>
+                  
+                  {#if endpoint.noteAuth}
+                    <div class="auth-note">
+                      🔒 {endpoint.noteAuth}
+                    </div>
                   {/if}
                 </article>
               {/each}
             </div>
           </div>
         {/each}
-      </section>
-    {/if}
+      {/if}
+    </section>
 
-    <!-- Integration Examples -->
-    <section class="card">
+    <!-- Error Codes -->
+    <section class="card" id="errors">
+      <h2>❌ Codes d'erreur</h2>
+      <table class="error-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Signification</th>
+            <th>Cause</th>
+            <th>Solution</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>400</code></td>
+            <td>Bad Request</td>
+            <td>Paramètres manquants ou invalides</td>
+            <td>Vérifiez la structure de votre requête</td>
+          </tr>
+          <tr>
+            <td><code>401</code></td>
+            <td>Unauthorized</td>
+            <td>Clé API invalide ou absente</td>
+            <td>Ajoutez le header <code>x-api-key</code></td>
+          </tr>
+          <tr>
+            <td><code>403</code></td>
+            <td>Forbidden</td>
+            <td>Scope insuffisant</td>
+            <td>Utilisez une clé avec les scopes requis</td>
+          </tr>
+          <tr>
+            <td><code>404</code></td>
+            <td>Not Found</td>
+            <td>Ressource inexistante</td>
+            <td>Vérifiez l'ID ou le chemin</td>
+          </tr>
+          <tr>
+            <td><code>413</code></td>
+            <td>Payload Too Large</td>
+            <td>Fichier trop volumineux</td>
+            <td>Réduisez la taille (max 500 MB)</td>
+          </tr>
+          <tr>
+            <td><code>500</code></td>
+            <td>Internal Server Error</td>
+            <td>Erreur serveur</td>
+            <td>Contactez l'administrateur</td>
+          </tr>
+          <tr>
+            <td><code>502</code></td>
+            <td>Bad Gateway</td>
+            <td>Immich API inaccessible</td>
+            <td>Vérifiez la connexion à Immich</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Examples -->
+    <section class="card" id="examples">
       <h2>💻 Exemples d'intégration</h2>
       
-      <h3>JavaScript / Node.js</h3>
-      <pre>{@html `const apiKey = 'YOUR_API_KEY';
+      <div class="example-group">
+        <h3>🟨 JavaScript / Node.js</h3>
+        <pre>{@html `const API_KEY = 'mg_votre_cle_api';
+const BASE_URL = 'https://gallery.mitv.fr';
 
-// Importer un fichier
-async function uploadMedia(file) {
-  const form = new FormData();
-  form.append('file', file);
-  const res = await fetch('/api/albums/PortailEtu/media', {
-    method: 'POST',
-    headers: {'X-API-Key': apiKey},
-    body: form
+// Récupérer la liste des albums
+async function getAlbums() {
+  const res = await fetch(\`\${BASE_URL}/api/albums\`, {
+    headers: { 'x-api-key': API_KEY }
   });
   return await res.json();
 }
 
-// Récupérer les médias
-async function getMedia() {
-  const res = await fetch('/api/albums/PortailEtu/media', {
-    headers: {'X-API-Key': apiKey}
+// Créer un album
+async function createAlbum(data) {
+  const res = await fetch(\`\${BASE_URL}/api/albums\`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY
+    },
+    body: JSON.stringify(data)
+  });
+  return await res.json();
+}
+
+// Modifier un album
+async function updateAlbum(id, data) {
+  const res = await fetch(\`\${BASE_URL}/api/albums/\${id}\`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': API_KEY
+    },
+    body: JSON.stringify(data)
   });
   return await res.json();
 }`.replace(/'/g, '&#39;')}</pre>
+      </div>
 
-      <h3>Python</h3>
-      <pre>{@html `import requests
+      <div class="example-group">
+        <h3>🐍 Python</h3>
+        <pre>{@html `import requests
 
-API_KEY = 'YOUR_API_KEY'
+API_KEY = 'mg_votre_cle_api'
+BASE_URL = 'https://gallery.mitv.fr'
+headers = {'x-api-key': API_KEY}
 
-# Importer
-with open('photo.jpg', 'rb') as f:
-  files = {'file': f}
-  headers = {'X-API-Key': API_KEY}
-  r = requests.post('/api/albums/PortailEtu/media', files=files, headers=headers)
-  print(r.json())
+# Récupérer la liste des albums
+def get_albums():
+    r = requests.get(f'{BASE_URL}/api/albums', headers=headers)
+    return r.json()
 
-# Récupérer
-headers = {'X-API-Key': API_KEY}
-r = requests.get('/api/albums/PortailEtu/media', headers=headers)
-print(r.json())`.replace(/'/g, '&#39;')}</pre>
+# Créer un album
+def create_album(data):
+    r = requests.post(
+        f'{BASE_URL}/api/albums',
+        headers={**headers, 'Content-Type': 'application/json'},
+        json=data
+    )
+    return r.json()
+
+# Télécharger un avatar
+def get_avatar(username):
+    r = requests.get(
+        f'{BASE_URL}/api/users/{username}/avatar',
+        headers=headers
+    )
+    if r.status_code == 200:
+        with open(f'{username}_avatar.jpg', 'wb') as f:
+            f.write(r.content)
+    return r.status_code`.replace(/'/g, '&#39;')}</pre>
+      </div>
+
+      <div class="example-group">
+        <h3>💻 cURL (Terminal)</h3>
+        <pre># Lister les albums
+curl -H "x-api-key: mg_votre_cle" \
+  https://gallery.mitv.fr/api/albums
+
+# Créer un album
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: mg_votre_cle" \
+  -d '{"albumName":"Forum 2025","date":"2025-11-04"}' \
+  https://gallery.mitv.fr/api/albums
+
+# Modifier un album
+curl -X PATCH \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: mg_votre_cle" \
+  -d '{"name":"Forum","tags":["Promo 2024"]}' \
+  https://gallery.mitv.fr/api/albums/ALBUM_ID
+
+# Télécharger un avatar
+curl -H "x-api-key: mg_votre_cle" \
+  https://gallery.mitv.fr/api/users/jolan.boudin/avatar \
+  -o avatar.jpg</pre>
+      </div>
     </section>
 
     <!-- Help -->
     <section class="card info">
-      <h3>💡 Besoin d'aide ?</h3>
-      <p>Utilisez <a href="https://www.postman.com/" target="_blank">Postman</a> pour tester l'API ou <a href="https://curl.se/" target="_blank">curl</a> en ligne de commande.</p>
-      <p>Créez une clé API sur <a href="/admin/api-keys">cette page</a> pour commencer.</p>
+      <h2>💡 Besoin d'aide ?</h2>
+      
+      <div class="help-grid">
+        <div class="help-item">
+          <h4>📚 Documentation complète</h4>
+          <ul>
+            <li><code>docs/API_SECURITY.md</code> — Sécurité API</li>
+            <li><code>docs/POSTMAN_AVATAR.md</code> — Guide Postman</li>
+            <li><code>tests/README.md</code> — Tests automatisés</li>
+          </ul>
+        </div>
+        
+        <div class="help-item">
+          <h4>🔧 Outils recommandés</h4>
+          <ul>
+            <li><a href="https://www.postman.com/" target="_blank">Postman</a> — Tester l'API</li>
+            <li><a href="https://curl.se/" target="_blank">cURL</a> — Ligne de commande</li>
+          </ul>
+        </div>
+        
+        <div class="help-item">
+          <h4>🚀 Démarrage rapide</h4>
+          <ol>
+            <li><a href="/admin/api-keys">Créez une clé API</a></li>
+            <li>Testez avec cURL ou Postman</li>
+            <li>Intégrez dans votre app</li>
+          </ol>
+        </div>
+      </div>
     </section>
   </main>
 {/if}
 
 <style>
-  main { display: block; }
-  
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
   h1 {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
     margin: 0 0 0.5rem 0;
+    background: linear-gradient(90deg, var(--accent), #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .subtitle {
     color: var(--text-muted);
-    font-size: 0.9375rem;
+    font-size: 1.125rem;
     margin: 0 0 1.5rem 0;
   }
-  
-  .card { 
-    background: var(--bg-tertiary); 
-    border: 1px solid var(--border); 
-    padding: 1.5rem; 
-    border-radius: var(--radius-sm); 
-    margin-bottom: 1.5rem;
+
+  .quick-links {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(90deg, var(--accent), #8b5cf6);
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform 0.2s;
+  }
+
+  .btn-link.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--border);
+  }
+
+  .btn-link:hover {
+    transform: translateY(-2px);
+  }
+
+  .toc {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 2rem;
+  }
+
+  .toc h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.125rem;
+  }
+
+  .toc ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .toc ul ul {
+    padding-left: 1.5rem;
+    margin-top: 0.5rem;
+  }
+
+  .toc li {
+    margin-bottom: 0.5rem;
+  }
+
+  .toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .toc a:hover {
+    color: var(--accent);
+  }
+
+  .card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    padding: 2rem;
+    border-radius: var(--radius-sm);
+    margin-bottom: 2rem;
   }
 
   .card.highlight {
     border-color: var(--accent);
-    background: rgba(59, 130, 246, 0.02);
+    background: rgba(59, 130, 246, 0.03);
   }
 
   .card.info {
     background: rgba(59, 130, 246, 0.05);
     border-color: rgba(59, 130, 246, 0.2);
   }
-  
+
   .card h2 {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     font-weight: 600;
-    margin: 0 0 1rem 0;
-    color: var(--text-primary);
-    padding-bottom: 0.5rem;
+    margin: 0 0 1.5rem 0;
+    padding-bottom: 0.75rem;
     border-bottom: 2px solid var(--border);
   }
 
   .card h3 {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 600;
-    margin: 1.5rem 0 0.75rem 0;
-    color: var(--text-primary);
+    margin: 1.5rem 0 1rem 0;
   }
 
   .card h4 {
-    font-size: 0.875rem;
+    font-size: 1rem;
     font-weight: 600;
     margin: 1rem 0 0.5rem 0;
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  
-  .card > p, .card > ul {
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin: 0.5rem 0 1rem 0;
   }
 
-  .card ul {
-    list-style: disc;
-    padding-left: 1.5rem;
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
   }
 
-  .card ul li {
-    margin-bottom: 0.5rem;
-  }
-  
-  .card a {
-    color: var(--accent);
-    text-decoration: none;
-    font-weight: 500;
-  }
-  
-  .card a:hover {
-    text-decoration: underline;
-  }
-  
-  .muted {
-    color: var(--text-muted);
-    font-size: 0.9375rem;
-  }
-
-  .api-endpoint {
+  .feature {
     padding: 1rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-xs);
-    margin-bottom: 1rem;
+  }
+
+  .feature strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  .feature p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  .info-box, .warning-box {
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-xs);
+    margin: 1.5rem 0;
+  }
+
+  .info-box {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--accent);
+  }
+
+  .warning-box {
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid #ef4444;
+  }
+
+  .info-box strong, .warning-box strong {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .info-box ol, .warning-box ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+  }
+
+  .auth-methods {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .auth-method {
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+  }
+
+  .auth-method h3 {
+    margin-top: 0;
+  }
+
+  .pros {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(34, 197, 94, 0.1);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .info-note {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  .scopes-table, .error-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+  }
+
+  .scopes-table th, .error-table th {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .scopes-table td, .error-table td {
+    border: 1px solid var(--border);
+    padding: 0.75rem;
+    vertical-align: top;
+  }
+
+  .scopes-table tr:nth-child(even), .error-table tr:nth-child(even) {
+    background: var(--bg-secondary);
+  }
+
+  .scope-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .scope-badge.read {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+  }
+
+  .scope-badge.write {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+
+  .scope-badge.delete {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  .scope-badge.admin {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+  }
+
+  .endpoint-group {
+    margin-bottom: 2.5rem;
+  }
+
+  .group-title {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .group-description {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .endpoints {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .endpoint {
+    padding: 1.25rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    transition: border-color 0.2s;
+  }
+
+  .endpoint:hover {
+    border-color: var(--accent);
+  }
+
+  .endpoint-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .endpoint-header {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin-bottom: 0.75rem;
-    font-family: 'Courier New', monospace;
   }
 
   .method {
-    display: inline-block;
-    padding: 0.3rem 0.6rem;
+    padding: 0.375rem 0.75rem;
     border-radius: 4px;
     font-weight: 700;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    white-space: nowrap;
-  }
-
-  .method.post {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
   }
 
   .method.get {
@@ -370,9 +790,122 @@ print(r.json())`.replace(/'/g, '&#39;')}</pre>
     color: #3b82f6;
   }
 
+  .method.post {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+
+  .method.patch, .method.put {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+  }
+
   .method.delete {
     background: rgba(239, 68, 68, 0.2);
     color: #ef4444;
+  }
+
+  .path {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+    color: var(--accent);
+  }
+
+  .required-scopes {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .summary {
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+  }
+
+  .notes {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(59, 130, 246, 0.05);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px;
+  }
+
+  .params {
+    margin: 0.75rem 0;
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+  }
+
+  .params ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+  }
+
+  .params li {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+  }
+
+  .param-type {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .example-details {
+    margin-top: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .example-details summary {
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+    user-select: none;
+  }
+
+  .example-details summary:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .example-details pre {
+    margin: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .auth-note {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(168, 85, 247, 0.1);
+    border-left: 2px solid #a855f7;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
+
+  .example-group {
+    margin-bottom: 2rem;
+  }
+
+  .example-group h3 {
+    margin-top: 0;
+  }
+
+  pre {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: var(--radius-xs);
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    font-family: 'Courier New', monospace;
   }
 
   code {
@@ -380,130 +913,67 @@ print(r.json())`.replace(/'/g, '&#39;')}</pre>
     padding: 0.2rem 0.4rem;
     border-radius: 3px;
     font-family: 'Courier New', monospace;
-    font-size: 0.9em;
+    font-size: 0.875em;
     color: var(--accent);
   }
 
-  .path {
-    font-weight: 500;
-    color: var(--accent);
-    background: transparent;
-    padding: 0;
+  .help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
   }
 
-  .summary {
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
-    margin-top: 0.5rem;
-  }
-
-  .params {
-    margin: 0.75rem 0;
-    padding: 0.75rem;
-    background: var(--bg-primary);
-    border-radius: var(--radius-xs);
+  .help-item {
+    padding: 1.25rem;
+    background: var(--bg-secondary);
     border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
   }
-  
-  .params strong {
-    color: var(--text-primary);
+
+  .help-item h4 {
+    margin-top: 0;
   }
-  
-  .params ul { 
-    margin: 0.5rem 0 0 1.5rem;
-    color: var(--text-secondary);
+
+  .help-item ul {
+    margin: 0;
+    padding-left: 1.5rem;
   }
-  
-  .params li {
-    margin-bottom: 0.25rem;
-  }
-  
-  .example {
-    margin-top: 0.75rem;
-  }
-  
-  .example-label { 
-    font-weight: 600;
+
+  .help-item li {
     margin-bottom: 0.5rem;
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  
-  pre { 
-    background: var(--bg-primary); 
-    padding: 1rem; 
-    border-radius: var(--radius-xs); 
-    overflow-x: auto;
-    border: 1px solid var(--border);
-    font-size: 0.875rem;
-    line-height: 1.5;
-    color: var(--text-secondary);
-    font-family: 'Courier New', monospace;
-  }
-  
-  .note { 
-    margin-top: 0.75rem;
-    padding: 0.625rem 0.875rem;
-    background: rgba(59, 130, 246, 0.1);
-    border-left: 3px solid var(--accent);
-    border-radius: 4px;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
   }
 
-  .api-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1rem 0;
+  .help-item ol {
+    margin: 0;
+    padding-left: 1.5rem;
   }
 
-  .api-table th {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    padding: 0.75rem;
-    text-align: left;
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    vertical-align: middle;
+  .help-item a {
+    color: var(--accent);
+    text-decoration: none;
   }
 
-  .api-table td {
-    border: 1px solid var(--border);
-    padding: 0.75rem;
-    color: var(--text-secondary);
-    vertical-align: middle;
+  .help-item a:hover {
+    text-decoration: underline;
   }
 
-  .api-table tr:nth-child(even) {
-    background: var(--bg-secondary);
-  }
+  @media (max-width: 768px) {
+    main {
+      padding: 1rem;
+    }
 
-  .endpoints {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+    h1 {
+      font-size: 2rem;
+    }
 
-  .endpoint {
-    padding: 1rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-xs);
-    background: var(--bg-secondary);
-  }
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
 
-  .endpoint:hover {
-    border-color: var(--accent);
-  }
-
-  .endpoint-group {
-    margin-bottom: 1.5rem;
-  }
-
-  .endpoint-group h3 {
-    border-bottom: 2px solid var(--border);
-    padding-bottom: 0.5rem;
+    .endpoint-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 </style>
