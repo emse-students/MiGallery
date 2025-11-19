@@ -6,7 +6,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY;
 import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
 
 /**
- * GET /api/photos-cv/people/[personId]/photos-stream
+ * GET /api/people/people/[personId]/photos-stream
  * Streame les photos d'une personne en NDJSON
  * Phase 1: Métadonnées minimales (id, type, dimensions)
  * Phase 2: Enrichissement avec détails complets
@@ -125,7 +125,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
       }
     });
   } catch (err) {
-    console.error('Error in /api/photos-cv/people/[personId]/photos-stream GET:', err);
+    console.error('Error in /api/people/people/[personId]/photos-stream GET:', err);
     throw error(500, err instanceof Error ? err.message : 'Internal server error');
   }
 };

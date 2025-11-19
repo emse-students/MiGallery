@@ -351,7 +351,7 @@ describe('Users CRUD (Admin)', () => {
 describe('Photos-CV API', () => {
   it('devrait lister les personnes', async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/photos-cv/people`, {
+      const response = await fetch(`${API_BASE_URL}/api/people/people`, {
         headers: getAuthHeaders(),
         signal: AbortSignal.timeout(10000) // 10s timeout
       });

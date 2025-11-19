@@ -23,7 +23,7 @@ export const PUT: RequestHandler = async ({ request, fetch }) => {
     const data = await res.json();
     return json({ success: true, added: data });
   } catch (err) {
-    console.error('Error in /api/photos-cv/album/assets PUT:', err);
+    console.error('Error in /api/people/album/assets PUT:', err);
     throw error(500, err instanceof Error ? err.message : 'Internal server error');
   }
 };
@@ -46,7 +46,7 @@ export const DELETE: RequestHandler = async ({ request, fetch }) => {
     const data = await res.json();
     return json({ success: true, removed: data });
   } catch (err) {
-    console.error('Error in /api/photos-cv/album/assets DELETE:', err);
+    console.error('Error in /api/people/album/assets DELETE:', err);
     throw error(500, err instanceof Error ? err.message : 'Internal server error');
   }
 };

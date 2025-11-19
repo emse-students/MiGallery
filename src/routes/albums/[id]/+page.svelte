@@ -5,15 +5,14 @@
   import Icon from '$lib/components/Icon.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import UploadZone from '$lib/components/UploadZone.svelte';
   import EditAlbumModal from '$lib/components/EditAlbumModal.svelte';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
-  import UploadZone from '$lib/components/UploadZone.svelte';
   import { PhotosState } from '$lib/photos.svelte';
-  import { consumeNDJSONStream } from '$lib/streaming';
-  import { clientCache } from '$lib/client-cache';
+  import { toast } from '$lib/toast';
+  import { handleAlbumUpload } from '$lib/album-operations';
+  import { fetchArchive, saveBlobAs } from '$lib/immich/download';
 
-  let loading = $state(false);
-  let error = $state<string | null>(null);
   let title = $state('');
   let showEditAlbumModal = $state(false);
 
@@ -30,88 +29,11 @@
   let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
-  // PhotosState pour gérer les photos de l'album
-  let photosState = new PhotosState();
-
-  // Debug: afficher le rôle dans la console
-  $effect(() => {
-    console.log('User role:', userRole, 'Can manage:', canManagePhotos, 'Full user:', $page.data.session?.user);
-  });
-
-  async function fetchAlbum(immichId: string | null, localAlbumName?: string) {
-    photosState.loading = true;
-    photosState.error = null;
-    title = '';
-    photosState.assets = [];
-    
-    try {
-      if (!immichId) {
-        photosState.error = 'Album non lié à Immich (aucun id Immich)';
-        return;
-      }
-
-      // Afficher immédiatement le titre
-      title = localAlbumName || 'Album';
-
-      // Essayer de charger depuis le cache
-      const cachedAssets = await clientCache.get<any[]>('albums', `${immichId}-assets`);
-      if (cachedAssets && cachedAssets.length > 0) {
-        photosState.assets = cachedAssets;
-        photosState.loading = false;
-      }
-
-      // Utiliser le streaming pour charger progressivement les assets
-      const res = await fetch(`/api/albums/${immichId}/assets-stream`);
-      
-      const assetsMap = new Map<string, any>();
-
-      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: any }>(
-        res,
-        ({ phase, asset }) => {
-          if (phase === 'minimal') {
-            // Phase 1: Installer les skeletons avec dimensions
-            assetsMap.set(asset.id, {
-              ...asset,
-              date: null,
-              exifInfo: asset.width && asset.height ? {
-                exifImageWidth: asset.width,
-                exifImageHeight: asset.height
-              } : null
-            });
-            
-            // Dès qu'on reçoit la première photo, masquer le "Chargement"
-            if (assetsMap.size === 1) {
-              photosState.loading = false;
-            }
-          } else if (phase === 'full') {
-            // Phase 2: Enrichir avec les données complètes
-            assetsMap.set(asset.id, {
-              ...asset,
-              date: asset.fileModifiedAt || asset.createdAt || null
-            });
-            
-            // Mettre à jour le titre si disponible
-            if (asset.albumName) {
-              title = asset.albumName;
-            }
-          }
-          
-          // Mettre à jour la liste affichée
-          photosState.assets = Array.from(assetsMap.values());
-        }
-      );
-
-      // Stocker en cache les assets finaux
-      await clientCache.set('albums', `${immichId}-assets`, photosState.assets);
-
-      photosState.loading = false;
-    } catch (e) {
-      photosState.error = (e as Error).message;
-      photosState.loading = false;
-    }
-  }
-
-  import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+  // PhotosState pour gérer les photos de l'album - instancier directement
+  const photosState = new PhotosState();
+  console.log('✓ [albums/[id]] PhotosState créé directement');
+  
+  console.log('✓ [albums/[id]] Script chargé');
 
   async function downloadAll() {
     if (!confirm(`Télécharger ${photosState.assets.length} image(s) de cet album au format ZIP ?`)) return;
@@ -127,7 +49,7 @@
     photosState.downloadProgress = 0;
     
     try {
-      const assetIds = photosState.assets.map(a => a.id);
+      const assetIds = photosState.assets.map((a: any) => a.id);
       const blob = await fetchArchive(assetIds, {
         onProgress: (p) => { photosState.downloadProgress = p; },
         signal: controller.signal,
@@ -137,7 +59,7 @@
       if ((e as any)?.name === 'AbortError') {
         console.info('Téléchargement annulé');
       } else {
-        alert('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
+        toast.error('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
       }
     } finally {
       photosState.isDownloading = false;
@@ -166,9 +88,10 @@
           }
 
           // Retirer l'asset de la liste locale
-          photosState.assets = photosState.assets.filter(a => a.id !== assetId);
+          photosState.assets = photosState.assets.filter((a: any) => a.id !== assetId);
+          toast.success('Photo supprimée');
         } catch (e) {
-          alert('Erreur lors de la suppression: ' + (e as Error).message);
+          toast.error('Erreur lors de la suppression: ' + (e as Error).message);
         }
       }
     };
@@ -176,7 +99,11 @@
   }
 
   async function deleteAlbum() {
-    const albumId = $page.params.id as string;
+    const albumId = window.location.pathname.split('/')[2];
+    if (!albumId) {
+      toast.error('Album ID manquant');
+      return;
+    }
     const albumName = title || albumId;
     
     confirmModalConfig = {
@@ -186,7 +113,6 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
-          // Supprimer via le nouvel endpoint optimisé
           const res = await fetch(`/api/albums/${albumId}`, {
             method: 'DELETE'
           });
@@ -196,96 +122,44 @@
             throw new Error(errText || 'Erreur lors de la suppression de l\'album');
           }
 
-          // Supprimer de la BDD locale
-          await fetch('/api/db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sql: 'DELETE FROM albums WHERE id = ?',
-              params: [albumId]
-            })
-          });
-
+          toast.success('Album supprimé');
           // Rediriger vers la liste des albums
           goto('/albums');
         } catch (e) {
-          alert('Erreur lors de la suppression: ' + (e as Error).message);
+          toast.error('Erreur lors de la suppression: ' + (e as Error).message);
         }
       }
     };
     showConfirmModal = true;
   }
 
-  async function handleUpload(files: File[]) {
-    if (files.length === 0) return;
+  async function handleUpload(files: File[], onProgress?: (current: number, total: number) => void) {
+    // Capturer albumId au moment de l'appel
+    const albumId = String($page.params.id ?? '');
+    if (!albumId) {
+      toast.error('Album ID manquant');
+      return;
+    }
 
-    const albumId = $page.params.id as string;
-    
-    try {
-      // 1. Uploader les fichiers vers Immich
-      const formData = new FormData();
-      
-      // Ajouter chaque fichier au FormData
-      files.forEach((file) => {
-        formData.append('assetData', file);
-      });
-
-      // Upload via l'API Immich
-      const uploadRes = await fetch('/api/immich/assets', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text().catch(() => uploadRes.statusText);
-        throw new Error(`Erreur upload: ${errText}`);
-      }
-
-      const uploadResult = await uploadRes.json();
-      
-      // uploadResult peut être un objet avec { results: [...] } ou directement un tableau
-      const uploadedAssets = uploadResult.results || uploadResult;
-      
-      if (!Array.isArray(uploadedAssets)) {
-        throw new Error('Format de réponse inattendu de l\'API Immich');
-      }
-
-      // 2. Ajouter les assets uploadés à l'album
-      const assetIds = uploadedAssets
-        .filter((asset: any) => asset.id || asset.assetId)
-        .map((asset: any) => asset.id || asset.assetId);
-
-      if (assetIds.length > 0) {
-        const addRes = await fetch(`/api/albums/${albumId}/assets`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids: assetIds })
-        });
-
-        if (!addRes.ok) {
-          const errText = await addRes.text().catch(() => addRes.statusText);
-          throw new Error(`Erreur ajout à l'album: ${errText}`);
+    await handleAlbumUpload(files, albumId, photosState, {
+      onProgress,
+      isPhotosCV: false,
+      onSuccess: async () => {
+        // Recharger l'album avec les nouvelles photos
+        const immichId = String(($page.data as any)?.album?.id ?? '');
+        const name = String(($page.data as any)?.album?.name ?? '').trim();
+        if (immichId) {
+          await photosState.loadAlbumWithStreaming(immichId, name || undefined);
         }
       }
-
-      // 3. Recharger l'album pour afficher les nouvelles photos
-      const res = await fetch(`/api/albums/${albumId}`);
-      if (res.ok) {
-        const data = await res.json();
-        photosState.assets = (data.assets || []).map((a: any) => ({
-          ...a,
-          date: a.fileModifiedAt || a.createdAt || null
-        }));
-      }
-      
-      alert(`${files.length} fichier(s) uploadé(s) et ajouté(s) à l'album avec succès !`);
-    } catch (e) {
-      console.error('Upload error:', e);
-      alert('Erreur lors de l\'upload: ' + (e as Error).message);
-    }
+    });
   }
 
+  // Temporairement commenté
+
   import { onDestroy } from 'svelte';
+  console.log('✓ [albums/[id]] onDestroy importé');
+  
   onDestroy(() => {
     if (photosState.currentDownloadController) {
       try { photosState.currentDownloadController.abort(); } catch (e) {}
@@ -294,11 +168,21 @@
   });
 
   $effect(() => {
-    const id = $page.params.id as string | undefined;
+    console.log('⚡ [albums/[id]] $effect appelé');
+    const id = String($page.params.id ?? '');
     const album = ($page.data as any)?.album;
-    const immichId = album?.id ?? null;
-    if (id) {
-      fetchAlbum(immichId, album?.name || undefined);
+    console.log('  - albumId:', id);
+    console.log('  - album:', album);
+    const immichId = String(album?.id ?? '');
+    const name = String(album?.name ?? '').trim();
+    console.log('  - immichId:', immichId);
+    console.log('  - name:', name);
+    if (id && immichId) {
+      console.log('  ✓ Chargement album...');
+      title = name || 'Album';
+      photosState.loadAlbumWithStreaming(immichId, name || undefined);
+    } else {
+      console.log('  ✗ Album id ou immichId manquants');
     }
   });
 </script>
@@ -349,37 +233,35 @@
   </div>
   
   {#if photosState.error}
-    <div class="error"><Icon name="x-circle" size={20} /> Erreur: {photosState.error}</div>
-  {/if}
-  
-  {#if photosState.loading}
-    <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
-  {/if}
-  
-  {#if !photosState.loading && !photosState.error}
+      <div class="error"><Icon name="x-circle" size={20} /> Erreur: {photosState.error}</div>
+    {/if}
+    
     {#if canManagePhotos}
       <div class="upload-section">
-        <h2>Ajouter des photos à l'album</h2>
+        <h2>Ajouter des photos à cet album</h2>
         <UploadZone onUpload={handleUpload} />
       </div>
     {/if}
-  {/if}
-  
-  {#if !photosState.loading && !photosState.error && photosState.assets.length === 0}
-    <div class="empty-state">
-      <Icon name="image" size={48} />
-      <p>Aucune photo dans cet album</p>
-    </div>
-  {/if}
-  
-  {#if photosState.assets.length > 0}
-    <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
-    <PhotosGrid state={photosState} />
-  {/if}
+    
+    {#if photosState.loading}
+      <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
+    {/if}
+    
+    {#if !photosState.loading && !photosState.error && photosState.assets.length === 0}
+      <div class="empty-state">
+        <Icon name="image" size={48} />
+        <p>Aucune photo dans cet album</p>
+      </div>
+    {/if}
+    
+    {#if photosState.assets.length > 0}
+      <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
+      <PhotosGrid state={photosState} />
+    {/if}
 
   {#if showEditAlbumModal && $page.params.id}
     <EditAlbumModal 
-      albumId={$page.params.id}
+      albumId={String($page.params.id)}
       onClose={() => showEditAlbumModal = false}
       onAlbumUpdated={() => window.location.reload()}
     />
@@ -400,17 +282,6 @@
   .album-detail {
     position: relative;
     min-height: 100vh;
-  }
-
-  .upload-section {
-    margin: 2rem 0;
-  }
-
-  .upload-section h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--text-primary, #ffffff);
   }
 
   .page-background {
@@ -466,5 +337,18 @@
 
   :global(.btn-delete-album:hover:not(:disabled)) {
     background: #b91c1c !important;
+  }
+
+  .upload-section {
+    margin: 2rem auto;
+    max-width: 800px;
+  }
+
+  .upload-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary, #ffffff);
+    text-align: center;
   }
 </style>

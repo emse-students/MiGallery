@@ -21,6 +21,8 @@
     onCancel
   }: Props = $props();
 
+  console.log('✓ [ConfirmModal] Composant chargé');
+
   function handleConfirm() {
     onConfirm();
   }

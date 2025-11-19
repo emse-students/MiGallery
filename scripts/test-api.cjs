@@ -87,7 +87,7 @@ async function testEndpoint(config) {
   } catch (error) {
     // Special handling for fetch errors on Immich endpoints
     const isImmichEndpoint = path.includes('/api/albums') || 
-                             path.includes('/api/photos-cv') || 
+                             path.includes('/api/people') || 
                              path.includes('/api/immich');
     
     if (isImmichEndpoint && error.message === 'fetch failed') {
@@ -339,7 +339,7 @@ async function runTests() {
   log('\n📸 Tests Photos-CV', colors.cyan);
   
   await testEndpoint({
-    path: '/api/photos-cv/people',
+    path: '/api/people/people',
     description: 'Lister les personnes',
     expectedStatus: [200, 404, 500],
     validate: (data, response) => {

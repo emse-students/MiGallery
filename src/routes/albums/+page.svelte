@@ -32,7 +32,7 @@
 		// Lorsque la page fournie par le load server est prête, on met à jour la liste
 		if (typeof $page.data !== 'undefined') {
 			if ($page.data?.albums) {
-				albums = ($page.data.albums as any[]).map(a => ({ id: a.id, name: a.name, visibility: a.visibility, date: a.date }));
+				albums = ($page.data.albums as any[]).map(a => ({ id: a.id, name: a.name, visibility: a.visibility, date: a.date, visible: a.visible }));
 			} else {
 				albums = [];
 			}
@@ -266,7 +266,7 @@
 			<h3 class="mt-4 text-slate-600">{month}</h3>
 			<ul class="album-list">
 				{#each items as a}
-					<li class="album-item">
+					<li class="album-item" class:album-hidden={!a.visible && canCreateAlbum}>
 						<a href={`/albums/${a.id}`} class="album-link" onclick={(e) => { if (downloadingAlbumId) { e.preventDefault(); } }}>
 						{#if albumCovers[a.id]}
 							<LazyImage
@@ -281,7 +281,9 @@
 						{/if}
 						<div class="album-overlay">
 							<div class="album-info">
-								<span class="album-name" title={a.name}>{a.name}</span>
+								<span class="album-name" title={a.name}>
+									{a.name}
+								</span>
 								<div class="album-details">
 									{#if a.date}
 										<span class="album-date">{new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
@@ -410,6 +412,12 @@
 	.album-delete:hover {
 		background: rgba(220, 38, 38, 1) !important;
 		transform: scale(1.1);
+	}
+
+	.album-item.album-hidden {
+		opacity: 0.6;
+		filter: grayscale(30%);
+		position: relative;
 	}
 
 	@media (max-width: 640px) {

@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ fetch }) => {
     const albumData = await albumRes.json();
     return json({ id: albumData.id, name: albumData.albumName, assetCount: albumData.assetCount || 0 });
   } catch (err) {
-    console.error('Error in /api/photos-cv/album/info GET:', err);
+    console.error('Error in /api/people/album/info GET:', err);
     throw error(500, err instanceof Error ? err.message : 'Internal server error');
   }
 };

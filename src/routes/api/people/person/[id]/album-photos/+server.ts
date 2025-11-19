@@ -9,7 +9,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
     const assets = await getPersonAssets(personId, true, fetch);
     return json({ assets });
   } catch (e) {
-    console.error('GET /api/photos-cv/person/[id]/album-photos error', e);
+    console.error('GET /api/people/person/[id]/album-photos error', e);
     throw error(500, e instanceof Error ? e.message : 'Internal');
   }
 };

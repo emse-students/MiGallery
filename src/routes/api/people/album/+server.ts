@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ fetch }) => {
     const assets = albumData.assets || [];
     return json({ assets });
   } catch (err) {
-    console.error('Error in /api/photos-cv/album GET:', err);
+    console.error('Error in /api/people/album GET:', err);
     throw error(500, err instanceof Error ? err.message : 'Internal server error');
   }
 };

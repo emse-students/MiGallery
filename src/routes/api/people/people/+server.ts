@@ -6,7 +6,7 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY;
 
 /**
- * GET /api/photos-cv/people
+ * GET /api/people/people
  * Liste toutes les personnes reconnues par Immich
  */
 export const GET: RequestHandler = async ({ fetch }) => {
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ fetch }) => {
 		const people = await res.json();
 		return json({ people, total: people.length });
 	} catch (err) {
-		console.error('Error in /api/photos-cv/people GET:', err);
+		console.error('Error in /api/people/people GET:', err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
