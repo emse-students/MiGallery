@@ -3,6 +3,7 @@ import { getDatabase } from "$lib/db/database";
 import type { RequestHandler } from "@sveltejs/kit";
 import { env } from '$env/dynamic/private';
 import { verifySigned } from "$lib/auth/cookies";
+import { verifyRawKeyWithScope } from "$lib/db/api-keys";
 import type { User } from "$lib/db/database";
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -39,13 +40,24 @@ async function getUserFromLocals(locals: any, cookies: any): Promise<User | null
 /**
  * GET /api/users/[username]/avatar
  * Récupère la photo de profil d'un utilisateur par son id_user
- * Requires: authentification (permission 'read')
+ * Requires: authentification (session cookie, auth provider, ou clé API avec scope 'read')
  */
-export const GET: RequestHandler = async ({ params, fetch, locals, cookies }) => {
+export const GET: RequestHandler = async ({ params, fetch, locals, cookies, request }) => {
   try {
-    // Vérifier l'authentification
-    const caller = await getUserFromLocals(locals, cookies);
-    if (!caller) {
+    // Vérifier l'authentification via clé API ou session
+    const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
+    let authenticated = false;
+    
+    if (apiKeyHeader) {
+      // Vérifier la clé API avec scope 'read'
+      authenticated = verifyRawKeyWithScope(apiKeyHeader, 'read');
+    } else {
+      // Vérifier la session
+      const caller = await getUserFromLocals(locals, cookies);
+      authenticated = !!caller;
+    }
+    
+    if (!authenticated) {
       return error(401, 'Unauthorized');
     }
 
