@@ -53,7 +53,7 @@ Les tests Vitest couvrent les endpoints suivants :
 - `DELETE /api/users/:id` - Suppression (admin)
 
 ### ✅ Photos-CV
-- `GET /api/photos-cv/people` - Personnes reconnues
+- `GET /api/people/people` - Personnes reconnues
 
 ### ✅ Clés API
 - `GET /api/admin/api-keys` - Liste (admin)

@@ -15,4 +15,5 @@ export interface AlbumRow {
   date?: string | null;
   location?: string | null;
   visibility: 'private' | 'authenticated' | 'unlisted' | string;
+  visible?: number | boolean;
 }

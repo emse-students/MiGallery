@@ -68,7 +68,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     const assets = await getPersonAssets(personId, inAlbum, fetch);
     return json({ assets });
   } catch (err) {
-    console.error('Error in /api/photos-cv/people/[personId]/photos GET:', err);
+    console.error('Error in /api/people/people/[personId]/photos GET:', err);
     throw error(500, err instanceof Error ? err.message : 'Internal server error');
   }
 };

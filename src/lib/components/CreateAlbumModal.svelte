@@ -11,12 +11,20 @@
 	let { onClose, onAlbumCreated }: Props = $props();
 
 	let albumName = $state('');
-	let albumDate = $state('');
+	let albumDate = $state(getDefaultDate());
 	let albumLocation = $state('');
 	let albumVisibility = $state<'private' | 'authenticated' | 'unlisted'>('private');
 	let albumVisible = $state(true);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
+
+	function getDefaultDate() {
+		const today = new Date();
+		const year = today.getFullYear();
+		const month = String(today.getMonth() + 1).padStart(2, '0');
+		const day = String(today.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
@@ -37,7 +45,7 @@
 
 		try {
 			// Créer l'album via l'API
-			const res = await fetch('/api/immich/albums', {
+			const res = await fetch('/api/albums', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

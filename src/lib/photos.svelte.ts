@@ -45,18 +45,51 @@ export function groupByDay(list: Asset[]) {
 }
 
 export class PhotosState {
-  assets = $state<Asset[]>([]);
-  selectedAssets = $state<string[]>([]);
-  selecting = $state(false);
-  loading = $state(false);
-  error = $state<string | null>(null);
-  imageUrl = $state<string | null>(null);
-  _prevImageUrl = $state<string | null>(null);
-  personName = $state<string>('');
-  peopleId = $state<string>('');
-  isDownloading = $state(false);
-  downloadProgress = $state(0);
+  #assets = $state<Asset[]>([]);
+  #selectedAssets = $state<string[]>([]);
+  #selecting = $state(false);
+  #loading = $state(false);
+  #error = $state<string | null>(null);
+  #imageUrl = $state<string | null>(null);
+  #_prevImageUrl = $state<string | null>(null);
+  #personName = $state<string>('');
+  #peopleId = $state<string>('');
+  #isDownloading = $state(false);
+  #downloadProgress = $state(0);
   currentDownloadController: AbortController | null = null;
+  
+  get assets() { return this.#assets; }
+  set assets(value) { this.#assets = value; }
+  
+  get selectedAssets() { return this.#selectedAssets; }
+  set selectedAssets(value) { this.#selectedAssets = value; }
+  
+  get selecting() { return this.#selecting; }
+  set selecting(value) { this.#selecting = value; }
+  
+  get loading() { return this.#loading; }
+  set loading(value) { this.#loading = value; }
+  
+  get error() { return this.#error; }
+  set error(value) { this.#error = value; }
+  
+  get imageUrl() { return this.#imageUrl; }
+  set imageUrl(value) { this.#imageUrl = value; }
+  
+  get _prevImageUrl() { return this.#_prevImageUrl; }
+  set _prevImageUrl(value) { this.#_prevImageUrl = value; }
+  
+  get personName() { return this.#personName; }
+  set personName(value) { this.#personName = value; }
+  
+  get peopleId() { return this.#peopleId; }
+  set peopleId(value) { this.#peopleId = value; }
+  
+  get isDownloading() { return this.#isDownloading; }
+  set isDownloading(value) { this.#isDownloading = value; }
+  
+  get downloadProgress() { return this.#downloadProgress; }
+  set downloadProgress(value) { this.#downloadProgress = value; }
 
   /**
    * Charge TOUTES les photos d'une personne SAUF celles dans l'album PhotoCV
@@ -97,7 +130,7 @@ export class PhotosState {
       }
 
       // Utiliser le streaming pour charger progressivement
-      const res = await fetch(`/api/photos-cv/people/${encodeURIComponent(id)}/photos-stream?in_album=false`);
+      const res = await fetch(`/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=false`);
       
       const assetsMap = new Map<string, any>();
 
@@ -129,8 +162,8 @@ export class PhotosState {
             });
           }
           
-          // Mettre à jour la liste affichée
-          this.assets = Array.from(assetsMap.values());
+          // Mettre à jour la liste affichée - utiliser spread pour créer un nouveau tableau
+          this.assets = [...Array.from(assetsMap.values())];
         }
       );
 
@@ -146,8 +179,10 @@ export class PhotosState {
    * Utilisé par: page Photos CV (onglet "Mes photos CV")
    */
   async loadMyPhotosCV(id: string) {
+    console.log('📸 PhotosState.loadMyPhotosCV appelé:', id);
     if (!id) {
       this.error = "Aucun id_photos configuré pour cet utilisateur";
+      console.log('  ✗ Pas d\'id');
       return;
     }
     
@@ -157,7 +192,7 @@ export class PhotosState {
     
     try {
   // Utiliser l'endpoint RESTful qui filtre les photos DANS l'album PhotoCV pour cette personne
-  const res = await fetch(`/api/photos-cv/people/${encodeURIComponent(id)}/photos?in_album=true`);
+  const res = await fetch(`/api/people/people/${encodeURIComponent(id)}/photos?in_album=true`);
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
@@ -167,11 +202,23 @@ export class PhotosState {
       const data = await res.json();
       const allAssets = data.assets || [];
 
-      this.assets = allAssets.map((it: any) => ({
-        ...it,
-        date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-        _raw: it
-      }));
+      this.assets = allAssets.map((it: any) => {
+        // Nettoyer les proxies avec JSON parse/stringify
+        const clean = JSON.parse(JSON.stringify({
+          id: it.id,
+          originalFileName: it.originalFileName,
+          type: it.type,
+          width: it.width,
+          height: it.height,
+          fileCreatedAt: it.fileCreatedAt,
+          createdAt: it.createdAt,
+          updatedAt: it.updatedAt
+        }));
+        return {
+          ...clean,
+          date: clean.fileCreatedAt || clean.createdAt || clean.updatedAt || null
+        };
+      });
     } catch (e) {
       this.error = (e as Error).message;
     } finally {
@@ -184,13 +231,14 @@ export class PhotosState {
    * Utilisé par: page Photos CV (onglet "Toutes les photos CV" - mitvistes/admins uniquement)
    */
   async loadAllPhotosCV() {
+    console.log('📸 PhotosState.loadAllPhotosCV appelé');
     this.loading = true;
     this.error = null;
     this.assets = [];
     
     try {
   // Utiliser l'endpoint RESTful qui récupère TOUTES les photos de l'album PhotoCV
-  const res = await fetch(`/api/photos-cv/album`);
+  const res = await fetch(`/api/people/album`);
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
@@ -238,7 +286,7 @@ export class PhotosState {
   }
   
   selectAll() {
-    this.selectedAssets = this.assets.map(a => a.id);
+    this.selectedAssets = [...this.assets].map(a => a.id);
   }
   
   deselectAll() {
@@ -289,6 +337,69 @@ export class PhotosState {
       this.isDownloading = false;
       this.downloadProgress = 0;
       this.currentDownloadController = null;
+    }
+  }
+
+  /**
+   * Charge les assets d'un album avec streaming et cache client
+   * Utilisé par: /albums/[id]
+   */
+  async loadAlbumWithStreaming(albumId: string, albumName?: string) {
+    console.log('📸 PhotosState.loadAlbumWithStreaming appelé:', albumId, albumName);
+    this.loading = true;
+    this.error = null;
+    this.assets = [];
+    this.personName = albumName || 'Album';
+    
+    try {
+      console.log('  🔄 Récupération des assets via streaming...');
+      const res = await fetch(`/api/albums/${albumId}/assets-stream`);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      const assetsMap = new Map<string, any>();
+
+      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: any }>(
+        res,
+        ({ phase, asset }) => {
+          if (phase === 'minimal') {
+            // Phase 1: Installer les skeletons
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+              exifInfo: asset.width && asset.height ? {
+                exifImageWidth: asset.width,
+                exifImageHeight: asset.height
+              } : null,
+              _raw: asset
+            });
+            
+            // Dès qu'on reçoit la première photo, masquer le "Chargement"
+            if (assetsMap.size === 1) {
+              this.loading = false;
+            }
+          } else if (phase === 'full') {
+            // Phase 2: Enrichir avec les données complètes
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+              _raw: asset
+            });
+          }
+          
+          // Mettre à jour la liste affichée - utiliser spread pour créer un nouveau tableau
+          this.assets = [...Array.from(assetsMap.values())];
+        }
+      );
+
+      this.loading = false;
+      console.log('  ✓ Chargement complété, assets:', this.assets.length);
+    } catch (e) {
+      this.error = (e as Error).message;
+      this.loading = false;
+      console.log('  ✗ Erreur:', this.error);
     }
   }
 

@@ -49,7 +49,8 @@ export function getAlbumById(id: string): AlbumRow | null {
     name: row.name,
     date: row.date,
     location: row.location,
-    visibility: row.visibility
+    visibility: row.visibility,
+    visible: row.visible
   } as AlbumRow;
 }
 
@@ -58,7 +59,7 @@ export function listAllAlbums(): AlbumRow[] {
   // Only list albums that are marked visible in public listings
   // Order by date (newest first) then by name (ascending) for a chronological listing
   const rows = db.prepare("SELECT * FROM albums WHERE visible = 1 ORDER BY date DESC, name ASC").all() as any[];
-  return rows.map(r => ({ id: r.id, name: r.name, date: r.date, location: r.location, visibility: r.visibility } as AlbumRow));
+  return rows.map(r => ({ id: r.id, name: r.name, date: r.date, location: r.location, visibility: r.visibility, visible: r.visible } as any));
 }
 
 export function getAllAlbums() {

@@ -16,6 +16,8 @@
     disabled = false
   }: Props = $props();
 
+  console.log('✓ [UploadZone] Composant chargé');
+
   let isDragging = $state(false);
   let isUploading = $state(false);
   let uploadProgress = $state(0);
@@ -23,42 +25,68 @@
   let fileInputRef: HTMLInputElement;
 
   function handleDragOver(e: DragEvent) {
-    e.preventDefault();
-    if (!disabled && !isUploading) {
-      isDragging = true;
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!disabled && !isUploading) {
+        isDragging = true;
+      }
+    } catch (err) {
+      console.error('Error in handleDragOver:', err);
     }
   }
 
   function handleDragLeave(e: DragEvent) {
-    e.preventDefault();
-    isDragging = false;
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = false;
+    } catch (err) {
+      console.error('Error in handleDragLeave:', err);
+    }
   }
 
   async function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    isDragging = false;
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = false;
 
-    if (disabled || isUploading) return;
+      if (disabled || isUploading) return;
 
-    const items = e.dataTransfer?.items;
-    if (!items) return;
+      const items = e.dataTransfer?.items;
+      if (!items) return;
 
-    const files: File[] = [];
+      const files: File[] = [];
+      const promises: Promise<void>[] = [];
 
-    // Parcourir tous les items droppés
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      
-      if (item.kind === 'file') {
-        const entry = item.webkitGetAsEntry();
-        if (entry) {
-          await processEntry(entry, files);
+      // Collecter les promises de traitement
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        if (item.kind === 'file') {
+          const entry = item.webkitGetAsEntry();
+          if (entry) {
+            promises.push(processEntry(entry, files));
+          }
         }
       }
-    }
 
-    if (files.length > 0) {
-      await uploadFiles(files);
+      // Attendre que tous les entries soient traités
+      if (promises.length > 0) {
+        await Promise.all(promises);
+      }
+
+      // Nettoyer le dataTransfer ASAP pour éviter les problèmes de clonage
+      if (e.dataTransfer) {
+        e.dataTransfer.clearData();
+      }
+
+      if (files.length > 0) {
+        await uploadFiles(files);
+      }
+    } catch (err) {
+      console.error('Error in handleDrop:', err);
     }
   }
 
@@ -104,10 +132,12 @@
     uploadTotal = files.length;
 
     try {
-      await onUpload(files, (current, total) => {
+      const onProgressCallback = (current: number, total: number) => {
         uploadProgress = current;
         uploadTotal = total;
-      });
+      };
+
+      await onUpload(files, onProgressCallback);
     } catch (e) {
       console.error('Upload error:', e);
       alert('Erreur lors de l\'upload: ' + (e as Error).message);

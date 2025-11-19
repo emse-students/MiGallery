@@ -6,13 +6,14 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
-  import Modal from '$lib/components/Modal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
   import { toast } from '$lib/toast';
-  import { activeOperations } from '$lib/operations';
+  import { handleAlbumUpload } from '$lib/album-operations';
 
   const myPhotosState = new PhotosState();
   const allPhotosState = new PhotosState();
+  
+  console.log('✓ [photos-cv] Script chargé');
 
   // Vérifier le rôle de l'utilisateur
   let userRole = $derived((page.data.session?.user as any)?.role || 'user');
@@ -21,106 +22,37 @@
   let currentView = $state<'my' | 'all'>('my'); // Vue par défaut : mes photos
   let personId = $state<string>(''); // ID de la personne connectée
 
-  // Modal de confirmation
-  let showDeleteModal = $state(false);
-  let assetToDelete: any = null;
-
   /**
    * Upload et ajout automatique à l'album PhotoCV
    */
   async function handleUpload(files: File[], onProgress?: (current: number, total: number) => void) {
     if (files.length === 0) return;
     
-    const operationId = `upload-${Date.now()}`;
-    activeOperations.start(operationId);
+    // Capturer les valeurs au moment de l'appel pour éviter les problèmes de proxy
+    const view = currentView;
+    const person = personId;
     
-    try {
-      // 1. Upload files one-by-one
-      const uploadedAssets: any[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        // Mettre à jour la progression
-        if (onProgress) {
-          onProgress(i, files.length);
-        }
-        
-        const formData = new FormData();
-        formData.append('assetData', file);
-        formData.append('deviceAssetId', `${file.name}-${Date.now()}`);
-        formData.append('deviceId', 'MiGallery-Web');
-        formData.append('fileCreatedAt', new Date().toISOString());
-        formData.append('fileModifiedAt', new Date().toISOString());
-
-        const uploadRes = await fetch('/api/immich/assets', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!uploadRes.ok) {
-          const errText = await uploadRes.text().catch(() => uploadRes.statusText);
-          throw new Error(`Erreur upload: ${errText}`);
+    await handleAlbumUpload(files, 'photos-cv', allPhotosState, {
+      onProgress,
+      isPhotosCV: true,
+      onSuccess: async () => {
+        // 3. Recharger les vues
+        if (person) {
+          await myPhotosState.loadMyPhotosCV(person);
         }
 
-        const uploadResult = await uploadRes.json();
-        const assetsFromRes = uploadResult.results || (Array.isArray(uploadResult) ? uploadResult : [uploadResult]);
-        uploadedAssets.push(...assetsFromRes);
-
-        await new Promise((r) => setTimeout(r, 500));
-      }
-
-      // Marquer comme terminé
-      if (onProgress) {
-        onProgress(files.length, files.length);
-      }
-
-      // 2. Ajouter les assets à l'album PhotoCV via le nouvel endpoint
-      const assetIds = uploadedAssets
-        .map(asset => asset.id || asset.assetId)
-        .filter(Boolean);
-
-      if (assetIds.length > 0) {
-        const addRes = await fetch('/api/photos-cv', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'add-to-album',
-            assetIds
-          })
-        });
-
-        if (!addRes.ok) {
-          const errText = await addRes.text();
-          throw new Error(`Erreur ajout à l'album: ${errText}`);
+        if (view === 'all') {
+          await allPhotosState.loadAllPhotosCV();
         }
       }
-
-      // 3. Recharger les vues
-      if (personId) {
-        await myPhotosState.loadMyPhotosCV(personId);
-      }
-
-      if (currentView === 'all') {
-        await allPhotosState.loadAllPhotosCV();
-      }
-      
-      toast.success(`${files.length} fichier(s) uploadé(s) et ajouté(s) à l'album PhotoCV !`);
-    } catch (e) {
-      console.error('Upload error:', e);
-      toast.error('Erreur lors de l\'upload: ' + (e as Error).message);
-    } finally {
-      activeOperations.end(operationId);
-    }
+    });
   }
 
-  /**
-   * Changement de vue
-   */
   function switchView(view: 'my' | 'all') {
+    console.log('👁️ [photos-cv] switchView appelée:', view);
     currentView = view;
     if (view === 'all' && !allPhotosState.loading) {
-      allPhotosState.loadAllPhotosCV().catch((e) => console.warn('all loadAllPhotosCV error', e));
+      allPhotosState.loadAllPhotosCV().catch((e: any) => console.warn('all loadAllPhotosCV error', e));
     }
   }
 
@@ -130,29 +62,37 @@
   });
 
   onMount(() => {
+    console.log('🏄 [photos-cv] onMount appelé');
     const user = page.data.session?.user as any;
+    console.log('  - user:', user);
     
     // Admin/mitviste peuvent accéder même sans id_photos (pour gérer les imports)
     if (!user) {
+      console.log('  ✗ Pas d\'utilisateur, redirection');
       goto('/');
       return;
     }
 
     const hasIdPhotos = !!user.id_photos;
     const isManager = user.role === 'admin' || user.role === 'mitviste';
+    console.log('  - hasIdPhotos:', hasIdPhotos, '- isManager:', isManager);
     
     // Rediriger seulement si ni id_photos ni manager
     if (!hasIdPhotos && !isManager) {
+      console.log('  ✗ Pas de photos ni manager, redirection');
       goto('/');
       return;
     }
 
     // Si l'utilisateur a un id_photos, charger ses photos personnelles
     if (hasIdPhotos) {
-      personId = user.id_photos;
-      myPhotosState.peopleId = user.id_photos;
-      myPhotosState.loadMyPhotosCV(user.id_photos);
+      console.log('  ✓ Chargement photos personnelles:', user.id_photos);
+      // Convertir en string pour éviter les Proxy
+      personId = String(user.id_photos ?? '');
+      myPhotosState.peopleId = String(user.id_photos ?? '');
+      myPhotosState.loadMyPhotosCV(String(user.id_photos ?? ''));
     } else if (isManager) {
+      console.log('  ✓ Manager sans photos, chargement vue "all"');
       // Si manager sans id_photos, basculer directement sur la vue "all"
       currentView = 'all';
       allPhotosState.loadAllPhotosCV();

@@ -9,7 +9,16 @@
 		onAlbumUpdated?: () => void;
 	}
 
-	let { albumId, onClose, onAlbumUpdated }: Props = $props();
+	  let {
+    albumId,
+    onClose,
+    onAlbumUpdated
+  }: Props = $props();
+  
+  // S'assurer que albumId est une string pure, pas un Proxy
+  const safeAlbumId = String(albumId);
+
+  console.log('✓ [EditAlbumModal] Composant chargé');
 
 	let albumName = $state('');
 	let albumDate = $state('');
@@ -35,65 +44,27 @@
 		error = null;
 
 		try {
-			// Charger les données de l'album depuis la BDD locale
-			const res = await fetch('/api/db', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					sql: 'SELECT * FROM albums WHERE id = ?',
-					params: [albumId]
-				})
-			});
-
+			const res = await fetch(`/api/albums/${safeAlbumId}/info`);
+			
 			if (!res.ok) {
-				throw new Error('Erreur lors du chargement de l\'album');
+				const errorData = await res.json().catch(() => ({}));
+				throw new Error(errorData.error || 'Erreur lors du chargement de l\'album');
 			}
 
 			const result = await res.json();
-			if (!result.success || !result.data || result.data.length === 0) {
+			
+			if (!result.success || !result.album) {
 				throw new Error('Album non trouvé');
 			}
 
-			const album = result.data[0];
+			const album = result.album;
 			albumName = album.name || '';
 			albumDate = album.date || '';
 			albumLocation = album.location || '';
 			albumVisibility = album.visibility || 'private';
 			albumVisible = album.visible === 1;
-
-			// Charger les tags
-			const tagsRes = await fetch('/api/db', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					sql: 'SELECT tag FROM album_tag_permissions WHERE album_id = ?',
-					params: [albumId]
-				})
-			});
-
-			if (tagsRes.ok) {
-				const tagsResult = await tagsRes.json();
-				if (tagsResult.success && tagsResult.data) {
-					albumTags = tagsResult.data.map((r: any) => r.tag).join(', ');
-				}
-			}
-
-			// Charger les utilisateurs autorisés
-			const usersRes = await fetch('/api/db', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					sql: 'SELECT id_user FROM album_user_permissions WHERE album_id = ?',
-					params: [albumId]
-				})
-			});
-
-			if (usersRes.ok) {
-				const usersResult = await usersRes.json();
-				if (usersResult.success && usersResult.data) {
-					albumAllowedUsers = usersResult.data.map((r: any) => r.id_user).join(', ');
-				}
-			}
+			albumTags = (result.tags || []).join(', ');
+			albumAllowedUsers = (result.users || []).join(', ');
 		} catch (e) {
 			error = (e as Error).message;
 		} finally {
@@ -112,7 +83,7 @@
 
 		try {
 			// Mettre à jour l'album via l'API
-			const res = await fetch(`/api/immich/albums/${albumId}`, {
+			const res = await fetch(`/api/immich/albums/${safeAlbumId}`, {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

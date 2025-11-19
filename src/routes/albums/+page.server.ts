@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { getDatabase } from '$lib/db/database';
-import { listAllAlbums, checkAlbumAccess } from '$lib/albums';
+import { listAllAlbums, getAllAlbums, checkAlbumAccess } from '$lib/albums';
 import type { User } from '$lib/types';
 import { redirect } from '@sveltejs/kit';
 
@@ -13,7 +13,11 @@ export const load: PageServerLoad = async ({ parent }) => {
     throw redirect(303, '/');
   }
 
-  const albums = listAllAlbums();
+  // For admins/mitvistes, show all albums (including non-visible)
+  // For regular users, show only visible albums
+  const userRole = (user.role || '').toLowerCase();
+  const isStaff = userRole === 'admin' || userRole === 'mitviste';
+  const albums = isStaff ? getAllAlbums() : listAllAlbums();
   const allowed = albums.filter(a => checkAlbumAccess(user, a));
 
   return { albums: allowed };

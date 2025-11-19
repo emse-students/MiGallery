@@ -16,6 +16,8 @@
 
 	let { state: photosState }: Props = $props();
 
+	console.log('✓ [PhotosGrid] Composant chargé');
+
 	// Vérifier le rôle de l'utilisateur
 	let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
