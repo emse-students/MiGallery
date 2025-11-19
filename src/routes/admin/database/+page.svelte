@@ -1,11 +1,21 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import { page } from '$app/state';
   import type { PageData } from './$types';
-  
+
+  let isAdmin = $derived((page.data.session?.user as any)?.role === 'admin');
   const data = (page as any).data as PageData;
   const stats = data.stats;
   const backups = data.backups || [];
-  
+
+  // État pour la gestion des utilisateurs
+  let allUsers = $state<any[]>([]);
+  let editingUserId = $state<string | null>(null);
+  let editingUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '', role: 'user', promo_year: null });
+  let newUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '' });
+
+  // État pour la gestion de la BDD
   let uploadFile = $state<File | null>(null);
   let importing = $state(false);
   let exporting = $state(false);
@@ -13,14 +23,73 @@
   let inspecting = $state(false);
   let message = $state('');
   let messageType: 'success' | 'error' | 'info' = $state('info');
-  
+
+  async function loadAllUsers() {
+    const response = await fetch('/api/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: 'SELECT * FROM users' })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      allUsers = result.data;
+    }
+  }
+
+  async function addUser() {
+    if (!newUserData.id_user || !newUserData.email || !newUserData.prenom || !newUserData.nom) {
+      alert('Les champs id_user, email, prenom et nom sont requis !');
+      return;
+    }
+
+    const response = await fetch('/api/db', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql: 'INSERT INTO users (id_user, email, prenom, nom, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?)', params: [newUserData.id_user, newUserData.email, newUserData.prenom, newUserData.nom, newUserData.id_photos || null, newUserData.id_photos ? 0 : 1] })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      alert('Utilisateur ajouté avec succès !');
+      newUserData = { id_user: '', email: '', prenom: '', nom: '', id_photos: '' };
+      await loadAllUsers();
+    } else {
+      alert(`Erreur: ${result.error}`);
+    }
+  }
+
+  function startEditUser(user: any) {
+    editingUserId = user.id_user;
+    editingUserData = { id_user: user.id_user, email: user.email, prenom: user.prenom, nom: user.nom, id_photos: user.id_photos || '', role: user.role || 'user', promo_year: user.promo_year };
+  }
+
+  function cancelEditUser() { editingUserId = null; }
+
+  async function saveUserEdit() {
+    if (!editingUserId) return;
+    const res = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'UPDATE users SET email = ?, prenom = ?, nom = ?, id_photos = ?, role = ?, promo_year = ? WHERE id_user = ?', params: [editingUserData.email, editingUserData.prenom, editingUserData.nom, editingUserData.id_photos || null, editingUserData.role || 'user', editingUserData.promo_year || null, editingUserId] }) });
+    const j = await res.json();
+    if (j.success) {
+      editingUserId = null;
+      await loadAllUsers();
+    } else {
+      alert('Erreur mise à jour utilisateur: ' + (j.error || 'unknown'));
+    }
+  }
+
+  async function deleteUser(id_user: string) {
+    if (!confirm('Supprimer cet utilisateur ? Cette action est irréversible.')) return;
+    await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM users WHERE id_user = ?', params: [id_user] }) });
+    await loadAllUsers();
+  }
+
   function handleFileSelect(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       uploadFile = input.files[0];
     }
   }
-  
+
   async function exportDatabase() {
     exporting = true;
     message = '';
@@ -47,7 +116,7 @@
       exporting = false;
     }
   }
-  
+
   async function importDatabase() {
     if (!uploadFile) {
       message = '⚠️ Veuillez sélectionner un fichier';
@@ -89,7 +158,7 @@
       importing = false;
     }
   }
-  
+
   async function createBackup() {
     backing = true;
     message = '';
@@ -113,7 +182,7 @@
       backing = false;
     }
   }
-  
+
   async function inspectDatabase() {
     inspecting = true;
     message = '';
@@ -137,7 +206,7 @@
       inspecting = false;
     }
   }
-  
+
   async function restoreBackup(filename: string) {
     if (!confirm(`⚠️ Restaurer la sauvegarde "${filename}" ? Cela va remplacer la base actuelle.`)) {
       return;
@@ -164,7 +233,10 @@
       messageType = 'error';
     }
   }
+
+  onMount(() => { if (isAdmin) loadAllUsers(); });
 </script>
+
 
 <svelte:head>
   <title>Admin — Gestion de la base de données</title>

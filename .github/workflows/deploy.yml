@@ -36,7 +36,7 @@ jobs:
                 cp -r data /tmp/migallery-data-backup
               fi
               # Supprimer tout SAUF .env et data
-              find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'data' -exec rm -rf {} +
+              find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'data' -not -name '.svelte-kit' -exec rm -rf {} +
               # Copier les nouveaux fichiers
               cp -r ~/actions-runner/_work/MiGallery/MiGallery/* .
               # Restaurer le dossier data s'il avait été sauvegardé

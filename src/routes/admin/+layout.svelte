@@ -1,10 +1,13 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import './shared-admin.css';
   // simple nav links for admin
   const links = [
-    { href: '/admin', label: 'Docs' },
-    { href: '/admin/api-docs', label: 'API Reference' },
-    { href: '/admin/api-keys', label: 'API Keys' }
+    { href: '/admin', label: 'Documentation', icon: '📚' },
+    { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
+    { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
+    { href: '/admin/database', label: 'Base de données', icon: '🗄️' },
+    { href: '/admin/albums', label: 'Albums', icon: '📁' }
   ];
     // Svelte 5 children prop for {@render}
     let { children } = $props();
@@ -16,28 +19,23 @@
 
 <div class="admin-root">
   <aside class="sidebar">
-    <div class="brand">MiGallery Admin</div>
+    <div class="brand">🛠️ Admin</div>
     <nav>
       {#each links as l}
-        <a class:active={$page.url.pathname === l.href} href={l.href}>{l.label}</a>
+        <a class:active={$page.url.pathname === l.href} href={l.href}>
+          <span class="icon">{l.icon}</span>
+          <span>{l.label}</span>
+        </a>
       {/each}
     </nav>
     <div class="meta">
-      <small>Vous êtes dans la zone admin.</small>
+      <a href="/" class="back-home">← Retour au site</a>
+      <small>v1.0 • Admin Panel</small>
     </div>
   </aside>
 
   <main class="content">
-    <header class="topbar">
-      <h1>Administration</h1>
-      <div class="actions">
-        <a href="/">Retour au site</a>
-      </div>
-    </header>
-
-    <section class="panel">
-      {@render children()}
-    </section>
+    {@render children()}
   </main>
 </div>
 
@@ -57,6 +55,10 @@
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    position: sticky;
+    top: 0;
+    height: 100vh;
   }
   
   .brand { 
@@ -70,7 +72,9 @@
   nav { flex: 1; }
   
   nav a { 
-    display: block; 
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     padding: 0.75rem 1rem; 
     border-radius: var(--radius-sm);
     color: var(--text-secondary); 
@@ -78,6 +82,7 @@
     margin-bottom: 0.25rem;
     transition: all 0.2s var(--ease);
     font-weight: 500;
+    font-size: 0.9375rem;
   }
   
   nav a:hover {
@@ -90,6 +95,11 @@
     color: white;
     font-weight: 600;
   }
+
+  .icon {
+    font-size: 1.25rem;
+    min-width: 1.5rem;
+  }
   
   .meta { 
     margin-top: auto;
@@ -97,48 +107,32 @@
     border-top: 1px solid var(--border);
     color: var(--text-muted);
     font-size: 0.875rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .back-home {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s var(--ease);
+  }
+
+  .back-home:hover {
+    color: var(--text-primary);
   }
   
   .content { 
     flex: 1; 
-    padding: 2rem;
-    max-width: 1400px;
+    padding: 0;
+    max-width: 100%;
     overflow-y: auto;
   }
-  
-  .topbar { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .topbar h1 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0;
-  }
-  
-  .actions a {
-    color: var(--accent);
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-sm);
-    transition: all 0.2s var(--ease);
-    font-weight: 500;
-  }
-  
-  .actions a:hover {
-    background: var(--accent-light);
-  }
-  
-  .panel { 
-    background: var(--bg-secondary); 
-    border: 1px solid var(--border); 
-    padding: 1.5rem; 
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+
+  @media (max-width: 768px) {
+    .sidebar {
+      width: 200px;
+    }
   }
 </style>
