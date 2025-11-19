@@ -40,7 +40,8 @@
 		"test:api": "node ./scripts/test-api.cjs",
 		"test:api:vitest": "vitest run tests/api.test.ts",
 		"test:api:full": "node scripts/test-with-server.mjs",
-		"generate:secret": "node ./scripts/generate_cookie_secret.cjs"
+		"generate:secret": "node ./scripts/generate_cookie_secret.cjs",
+		"generate:auth-secret": "node ./scripts/generate-auth-secret.cjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^6.1.1",

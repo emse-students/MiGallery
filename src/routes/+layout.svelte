@@ -29,8 +29,6 @@
 	let showNavigationWarning = $state(false);
 
 	beforeNavigate(() => {
-		// Juste afficher un avertissement si des opérations sont en cours
-		// Le vrai blocage se fait via beforeunload dans operations.ts
 		if ($activeOperations.size > 0) {
 			showNavigationWarning = true;
 		}
@@ -39,7 +37,6 @@
 	function confirmNavigation() {
 		activeOperations.clear();
 		showNavigationWarning = false;
-		// La navigation se fera automatiquement si l'utilisateur clique sur un lien à nouveau
 	}
 
 	function cancelNavigation() {
@@ -47,13 +44,29 @@
 	}
 	
 	async function handleSignOut() {
-		// Clear the signed cookie before calling signOut
-		await fetch('/api/change-user', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ userId: null })
-		});
-		await signOut();
+		try {
+			await fetch('/api/change-user', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ userId: null })
+			});
+		} catch (e) {
+			console.warn('Failed to clear user cookie:', e);
+		}
+		
+		await signOut({ redirect: false });
+		
+		if (typeof window !== 'undefined') {
+			setTimeout(() => {
+				window.location.href = '/';
+			}, 100);
+		}
+	}
+
+	async function handleSignIn() {
+		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
+		// Sans callbackUrl, redirige vers la page d'origine après authentification
+		await signIn('cas-emse');
 	}
 </script>
 
@@ -124,9 +137,9 @@
 				{/if}
 			</div>
 			<span class="user-name">{u.prenom} {u.nom}</span>
-			<button class="btn-logout" onclick={handleSignOut}>Déconnexion</button>
+			<button class="btn-logout" onclick={() => handleSignOut()}>Déconnexion</button>
 		{:else}
-			<button class="btn-login" onclick={() => signIn('cas-emse')}>Connexion</button>
+			<button class="btn-login" onclick={() => handleSignIn()}>Connexion</button>
 		{/if}
 	</div>
 </nav>
