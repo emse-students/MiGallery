@@ -9,6 +9,8 @@ import { setTimeout } from 'timers/promises';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const SERVER_STARTUP_DELAY = 7000; // 7 secondes (donne un peu plus de marge au serveur)
+const READINESS_TIMEOUT = 30000; // 30s
+const READINESS_POLL_INTERVAL = 500; // 0.5s
 
 console.log('🚀 Démarrage du serveur de test...\n');
 
@@ -20,9 +22,35 @@ const server = spawn('bun', ['./build/index.js'], {
 });
 
 // Attendre que le serveur démarre
+// Attendre un délai initial, puis effectuer un polling actif sur /api/health
 await setTimeout(SERVER_STARTUP_DELAY);
 
-console.log(`\n✅ Serveur démarré sur ${API_BASE_URL}`);
+async function waitForReadiness(url, timeout = READINESS_TIMEOUT) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      // Si on obtient une réponse HTTP (quel que soit le code), considérer le service prêt
+      // Certaines routes peuvent retourner 404 si non configurées; l'important est que le serveur réponde.
+      return res;
+    } catch (e) {
+      // connexion refusée => serveur pas encore prêt
+      await setTimeout(READINESS_POLL_INTERVAL);
+    }
+  }
+  throw new Error(`Timeout waiting for readiness at ${url}`);
+}
+
+console.log(`\n✅ Serveur démarré sur ${API_BASE_URL} (en attente de disponibilité)`);
+try {
+  const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
+  await waitForReadiness(healthUrl);
+  console.log('✅ Endpoint /api/health répond — démarrage OK');
+} catch (err) {
+  console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
+  console.log('⚠️  Poursuite des tests malgré l\'échec de la probe (timeout)');
+}
+
 console.log('🧪 Lancement des tests...\n');
 
 // Lancer les tests
