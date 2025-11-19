@@ -60,3 +60,10 @@ export function listAllAlbums(): AlbumRow[] {
   const rows = db.prepare("SELECT * FROM albums WHERE visible = 1 ORDER BY date DESC, name ASC").all() as any[];
   return rows.map(r => ({ id: r.id, name: r.name, date: r.date, location: r.location, visibility: r.visibility } as AlbumRow));
 }
+
+export function getAllAlbums() {
+  const db = getDatabase();
+  // For admin, get all albums regardless of visibility
+  const rows = db.prepare("SELECT * FROM albums ORDER BY date DESC, name ASC").all() as any[];
+  return rows.map(r => ({ id: r.id, name: r.name, date: r.date, location: r.location, visibility: r.visibility, visible: r.visible } as any));
+}

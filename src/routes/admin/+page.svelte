@@ -17,11 +17,6 @@
 <main>
   <div class="header-row">
     <h1>Documentation interne</h1>
-    <div class="actions">
-      <a href="/admin/database">🗄️ Base de données</a> ·
-      <a href="/admin/api-docs">📚 API Reference</a> ·
-      <a href="/admin/api-keys">🔑 Gérer les clés API</a>
-    </div>
   </div>
 
   <section class="card docs">
@@ -59,22 +54,6 @@
     font-size: 1.75rem;
     font-weight: 700;
     margin: 0;
-  }
-  
-  .actions {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.875rem;
-  }
-  
-  .actions a { 
-    color: var(--accent); 
-    text-decoration: none;
-    font-weight: 500;
-  }
-  
-  .actions a:hover {
-    text-decoration: underline;
   }
   
   .card.docs { 
