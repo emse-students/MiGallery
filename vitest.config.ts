@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import path from 'path';
 
 export default defineConfig({
   test: {
@@ -8,5 +9,10 @@ export default defineConfig({
     hookTimeout: 30000, // 30 secondes pour les hooks (setup/teardown)
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+  },
+  resolve: {
+    alias: {
+      $lib: path.resolve('./src/lib'),
+    }
   }
 });

@@ -8,8 +8,8 @@ export const { handle } = SvelteKitAuth({
 			name: "CAS EMSE", // optional, used on the default login page as the button text.
 			type: "oidc", // or "oauth" for OAuth 2 providers
 			issuer: "https://cas.emse.fr/cas/oidc", // to infer the .well-known/openid-configuration URL
-			clientId: env.AUTH_CLIENT_ID, // from the provider's dashboard
-			clientSecret: env.AUTH_CLIENT_SECRET, // from the provider's dashboard
+			clientId: env.CAS_CLIENT_ID, // from the provider's dashboard
+			clientSecret: env.CAS_CLIENT_SECRET, // from the provider's dashboard
 			authorization: {
 				scope: "openid profile email",
 			},

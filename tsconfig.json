@@ -16,4 +16,6 @@
 	//
 	// To make changes to top-level options such as include and exclude, we recommend extending
 	// the generated config; see https://svelte.dev/docs/kit/configuration#typescript
+	//
+	// IMPORTANT: Pour les tests (Vitest), utiliser tsconfig.test.json qui ne dépend pas de .svelte-kit
 }
