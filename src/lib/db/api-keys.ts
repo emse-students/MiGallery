@@ -71,5 +71,12 @@ export function verifyRawKeyWithScope(raw?: string, requiredScope?: string): boo
 		.split(',')
 		.map((s: string) => s.trim())
 		.filter(Boolean);
+	// Treat 'admin' as a superset scope: admin can perform any scoped action
+	if (scopes.includes('admin')) {
+		return true;
+	}
+	if (!requiredScope) {
+		return true;
+	}
 	return scopes.includes(requiredScope);
 }
