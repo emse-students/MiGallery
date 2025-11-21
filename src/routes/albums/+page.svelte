@@ -8,11 +8,12 @@
 	import AlbumCardSkeleton from '$lib/components/AlbumCardSkeleton.svelte';
 	import { consumeNDJSONStream } from '$lib/streaming';
 	import { clientCache } from '$lib/client-cache';
+	import type { User, Album, ImmichAsset } from '$lib/types/api';
 
 	// Marquer comme en cours de chargement jusqu'à réception des données
 	let loading = $state(true);
 	let error = $state<string | null>(null);
-	let albums = $state<{ id: string; name: string; visibility?: string; date?: string }[]>([]);
+	let albums = $state<Album[]>([]);
 	let showCreateAlbumModal = $state(false);
 
 	// État du modal de confirmation
@@ -25,14 +26,14 @@
 	} | null>(null);
 
 	// Vérifier le rôle de l'utilisateur
-	let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
+	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canCreateAlbum = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	$effect(() => {
 		// Lorsque la page fournie par le load server est prête, on met à jour la liste
 		if (typeof $page.data !== 'undefined') {
 			if ($page.data?.albums) {
-				albums = ($page.data.albums as any[]).map(a => ({ id: a.id, name: a.name, visibility: a.visibility, date: a.date, visible: a.visible }));
+				albums = ($page.data.albums as Album[]);
 			} else {
 				albums = [];
 			}
@@ -40,17 +41,17 @@
 		}
 	});
 
-	function monthLabelFor(dateStr?: string) {
+	function monthLabelFor(dateStr?: string | null) {
 		if (!dateStr) return 'Sans date';
 		const d = new Date(dateStr);
 		if (isNaN(d.getTime())) return 'Sans date';
 		return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
 	}
 
-	function groupAlbumsByMonth(list: any[]) {
-		const out: Record<string, any[]> = {};
+	function groupAlbumsByMonth(list: Album[]) {
+		const out: Record<string, Album[]> = {};
 		for (const a of list) {
-			const key = monthLabelFor((a as any).date);
+			const key = monthLabelFor(a.date);
 			if (!out[key]) out[key] = [];
 			out[key].push(a);
 		}
@@ -72,14 +73,14 @@
 					// D'abord, essayer de charger depuis le cache
 					const albumIds = albums.map(a => a.id);
 					const cachedCovers: Record<string, { id: string; type?: string }> = {};
-					
+
 					for (const albumId of albumIds) {
 						const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
 						if (cached) {
 							cachedCovers[albumId] = cached;
 						}
 					}
-					
+
 					// Afficher immédiatement les covers en cache
 					if (Object.keys(cachedCovers).length > 0) {
 						albumCovers = { ...albumCovers, ...cachedCovers };
@@ -100,18 +101,18 @@
 									id: cover.assetId,
 									type: cover.type
 								};
-								
+
 								albumCovers = {
 									...albumCovers,
 									[albumId]: coverData
 								};
-								
+
 								// Stocker en cache
 								clientCache.set('album-covers', albumId, coverData);
 							}
 						}
 					);
-				} catch (e) {
+				} catch (e: unknown) {
 					console.warn('Error loading album covers', e);
 				}
 			})();
@@ -136,9 +137,9 @@
 		if (!confirm(`Télécharger toutes les images de l'album "${albumName || immichId}" au format ZIP ?`)) return;
 		downloadingAlbumId = immichId;
 		downloadingProgress = { ...downloadingProgress, [immichId]: 0 };
-		
+
 		if (currentDownloadController) {
-			try { currentDownloadController.abort(); } catch (e) {}
+			try { currentDownloadController.abort(); } catch (e: unknown) {}
 			currentDownloadController = null;
 		}
 		const controller = new AbortController();
@@ -146,8 +147,8 @@
 		try {
 			const res = await fetch(`/api/albums/${immichId}`);
 			if (!res.ok) throw new Error('Erreur récupération assets');
-			const data = await res.json();
-			const list: any[] = Array.isArray(data?.assets) ? data.assets : [];
+			const data = (await res.json()) as { assets: ImmichAsset[] };
+			const list: ImmichAsset[] = Array.isArray(data?.assets) ? data.assets : [];
 			const assetIds = list.map(x => x.id).filter(Boolean);
 			if (assetIds.length === 0) return alert('Aucun asset à télécharger');
 			const blob = await fetchArchive(assetIds, {
@@ -157,8 +158,8 @@
 				signal: controller.signal,
 			});
 			saveBlobAs(blob, `${albumName || immichId}.zip`);
-		} catch (e) {
-			if ((e as any)?.name === 'AbortError') {
+		} catch (e: unknown) {
+			if ((e as Error).name === 'AbortError') {
 				console.info('Téléchargement annulé');
 			} else {
 				alert('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
@@ -206,7 +207,7 @@
 
 					// Rafraîchir la liste
 					albums = albums.filter(a => a.id !== immichId);
-				} catch (e) {
+				} catch (e: unknown) {
 					alert('Erreur lors de la suppression: ' + (e as Error).message);
 				}
 			}
@@ -215,7 +216,7 @@
 	}	import { onDestroy } from 'svelte';
 	onDestroy(() => {
 		if (currentDownloadController) {
-			try { currentDownloadController.abort(); } catch (e) {}
+			try { currentDownloadController.abort(); } catch (e: unknown) {}
 			currentDownloadController = null;
 		}
 	});
@@ -236,7 +237,7 @@
 		<div class="gradient-blob blob-2"></div>
 		<div class="gradient-blob blob-3"></div>
 	</div>
-	
+
 	<div class="header-with-actions">
 		<h1>Albums</h1>
 		{#if canCreateAlbum}
@@ -246,21 +247,21 @@
 			</button>
 		{/if}
 	</div>
-	
+
 	{#if error}
 		<div class="error"><Icon name="x-circle" size={20} /> Erreur: {error}</div>
 	{/if}
-	
+
 	{#if loading}
 		<div class="loading"><Spinner size={20} /> Chargement des albums...</div>
 	{/if}
-	
+
 	{#if !loading && !error && albums.length === 0}
 		<div class="empty-state">
 			<p>Aucun album trouvé</p>
 		</div>
 	{/if}
-	
+
 	{#if !loading && albums.length > 0}
 		{#each Object.entries(groupAlbumsByMonth(albums)) as [month, items]}
 			<h3 class="mt-4 text-slate-600">{month}</h3>
@@ -295,10 +296,10 @@
 							</div>
 						</div>
 					</a>
-					<button 
-						onclick={(e) => { e.preventDefault(); downloadAlbumAssets(a.id, a.name); }} 
-						disabled={downloadingAlbumId === a.id} 
-						title="Télécharger toutes les images" 
+					<button
+						onclick={(e) => { e.preventDefault(); downloadAlbumAssets(a.id, a.name); }}
+						disabled={downloadingAlbumId === a.id}
+						title="Télécharger toutes les images"
 						class="btn-icon album-download"
 					>
 						{#if downloadingAlbumId === a.id}
@@ -312,9 +313,9 @@
 						{/if}
 					</button>
 					{#if canCreateAlbum}
-						<button 
+						<button
 							onclick={(e) => { e.preventDefault(); deleteAlbum(a.id, a.name); }}
-							title="Supprimer l'album" 
+							title="Supprimer l'album"
 							class="btn-icon album-delete"
 						>
 							<Icon name="trash" size={16} />
@@ -327,7 +328,7 @@
 	{/if}
 
 	{#if showCreateAlbumModal}
-		<CreateAlbumModal 
+		<CreateAlbumModal
 			onClose={() => showCreateAlbumModal = false}
 			onAlbumCreated={handleAlbumCreated}
 		/>

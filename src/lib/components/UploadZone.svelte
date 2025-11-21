@@ -31,7 +31,7 @@
       if (!disabled && !isUploading) {
         isDragging = true;
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error in handleDragOver:', err);
     }
   }
@@ -41,7 +41,7 @@
       e.preventDefault();
       e.stopPropagation();
       isDragging = false;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error in handleDragLeave:', err);
     }
   }
@@ -63,11 +63,11 @@
       // Collecter les promises de traitement
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        
+
         if (item.kind === 'file') {
-          const entry = item.webkitGetAsEntry();
+          const entry = items[i].webkitGetAsEntry();
           if (entry) {
-            promises.push(processEntry(entry, files));
+            promises.push(processEntry(entry as unknown as FileSystemEntry, files));
           }
         }
       }
@@ -85,12 +85,23 @@
       if (files.length > 0) {
         await uploadFiles(files);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error in handleDrop:', err);
     }
   }
 
-  async function processEntry(entry: any, files: File[]): Promise<void> {
+  interface FileSystemEntry {
+    isFile: boolean;
+    isDirectory: boolean;
+    file: (callback: (file: File) => void) => void;
+    createReader: () => FileSystemDirectoryReader;
+  }
+
+  interface FileSystemDirectoryReader {
+    readEntries: (callback: (entries: FileSystemEntry[]) => void) => void;
+  }
+
+  async function processEntry(entry: FileSystemEntry, files: File[]): Promise<void> {
     if (entry.isFile) {
       return new Promise((resolve) => {
         entry.file((file: File) => {
@@ -104,7 +115,7 @@
     } else if (entry.isDirectory) {
       const dirReader = entry.createReader();
       return new Promise((resolve) => {
-        dirReader.readEntries(async (entries: any[]) => {
+        dirReader.readEntries(async (entries: FileSystemEntry[]) => {
           for (const entry of entries) {
             await processEntry(entry, files);
           }
@@ -117,11 +128,11 @@
   function handleFileSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     const files = Array.from(input.files || []);
-    
+
     if (files.length > 0) {
       uploadFiles(files);
     }
-    
+
     // Reset input pour permettre de sélectionner les mêmes fichiers à nouveau
     input.value = '';
   }
@@ -138,7 +149,7 @@
       };
 
       await onUpload(files, onProgressCallback);
-    } catch (e) {
+    } catch (e: unknown) {
       console.error('Upload error:', e);
       alert('Erreur lors de l\'upload: ' + (e as Error).message);
     } finally {
@@ -155,7 +166,7 @@
   }
 </script>
 
-<div 
+<div
   class="upload-zone {isDragging ? 'dragging' : ''} {isUploading ? 'uploading' : ''} {disabled ? 'disabled' : ''}"
   ondragover={handleDragOver}
   ondragleave={handleDragLeave}

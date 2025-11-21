@@ -5,19 +5,20 @@
 	import { signIn, signOut } from "@auth/sveltekit/client";
 	import { activeOperations } from "$lib/operations";
 	import { theme } from "$lib/theme";
+	import type { User } from "$lib/types/api";
 	import Icon from "$lib/components/Icon.svelte";
 	import ToastContainer from "$lib/components/ToastContainer.svelte";
 	import Modal from "$lib/components/Modal.svelte";
 	import "../app.css";
 
-	let u = $derived((page.data?.session?.user) as any);
+	let u = $derived((page.data?.session?.user) as User);
 	let isAdmin = $derived(u?.role === 'admin');
 	let isMitviste = $derived(u?.role === 'mitviste');
 	let canManagePhotos = $derived(isAdmin || isMitviste);
 	let hasPhoto = $derived(!!u?.id_photos);
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
-	
+
 	let { children } = $props();
 
 	// Initialiser le thème au montage
@@ -42,7 +43,7 @@
 	function cancelNavigation() {
 		showNavigationWarning = false;
 	}
-	
+
 	async function handleSignOut() {
 		try {
 			await fetch('/api/change-user', {
@@ -50,12 +51,12 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ userId: null })
 			});
-		} catch (e) {
+		} catch (e: unknown) {
 			console.warn('Failed to clear user cookie:', e);
 		}
-		
+
 		await signOut({ redirect: false });
-		
+
 		if (typeof window !== 'undefined') {
 			setTimeout(() => {
 				window.location.href = '/';
@@ -103,7 +104,7 @@
 					</a>
 				{/if}
 			</div>
-			
+
 			<div class="links-right">
 				{#if isAdmin}
 					<a href="/trombinoscope">
@@ -165,4 +166,3 @@
 		<p><strong>Voulez-vous vraiment quitter ?</strong></p>
 	{/snippet}
 </Modal>
-

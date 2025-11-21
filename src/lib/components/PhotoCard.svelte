@@ -2,9 +2,10 @@
 	import Icon from './Icon.svelte';
 	import LazyImage from './LazyImage.svelte';
 	import PhotoSkeleton from './PhotoSkeleton.svelte';
+	import type { Asset } from '$lib/photos.svelte';
 
 	interface Props {
-		asset: any; // Asset object from Immich
+		asset: Asset;
 		isSelected?: boolean;
 		isSelecting?: boolean;
 		canDelete?: boolean;
@@ -53,7 +54,7 @@
 	// Exposer un ratio utilisable par LazyImage (même format string "W/H")
 	const aspectRatioString = getAspectRatioString();
 	const aspectRatio = getAspectRatio();
-	
+
 	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px) et largeur variable
 	const flexBasis = aspectRatio * 220;
 	const flexGrow = aspectRatio * 100;
@@ -61,9 +62,9 @@
 	// Vérifier si l'asset a les données complètes (pas juste les métadonnées minimales)
 	const isFullyLoaded = $derived(
 		asset.originalFileName !== undefined && asset.originalFileName !== null
-	);	function handleCardClick(e: MouseEvent) {
+	);	function handleCardClick(e: Event) {
 		if (onCardClick) {
-			onCardClick(asset.id, e);
+			onCardClick(asset.id, e as unknown as MouseEvent);
 		}
 	}
 
@@ -95,7 +96,7 @@
 </script>
 
 <!-- Photo Card Container -->
-<div
+	<div
 	class="photo-card {isSelected ? 'selected' : ''}"
 	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
 	role="button"
@@ -104,7 +105,7 @@
 	onkeydown={(e) => {
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
-			handleCardClick(e as any);
+			handleCardClick(e);
 		}
 	}}
 >

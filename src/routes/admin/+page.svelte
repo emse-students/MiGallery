@@ -1,11 +1,12 @@
 <script lang="ts">
   import { page } from '$app/state';
-  const docsRaw = (page as any).data?.docs || [];
-  const docs = docsRaw.slice().sort((a: any,b: any) => {
+  interface Doc { filename: string; title: string; content: string; name: string; html: string; }
+  const docsRaw = (page.data as { docs?: Doc[] }).docs || [];
+  const docs = docsRaw.slice().sort((a, b) => {
     const an = a.filename.toLowerCase();
     const bn = b.filename.toLowerCase();
-    if (an === 'api_endpoints.md' || an === 'api-endpoints.md') return -1;
-    if (bn === 'api_endpoints.md' || bn === 'api-endpoints.md') return 1;
+    if (an === 'api_endpoints.md' || an === 'api-endpoints.md') { return -1; }
+    if (bn === 'api_endpoints.md' || bn === 'api-endpoints.md') { return 1; }
     return a.name.localeCompare(b.name);
   });
 </script>
@@ -42,30 +43,30 @@
 
 <style>
   main { display: block; }
-  
-  .header-row { 
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
+
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1.5rem;
   }
-  
+
   .header-row h1 {
     font-size: 1.75rem;
     font-weight: 700;
     margin: 0;
   }
-  
-  .card.docs { 
-    display: grid; 
-    grid-template-columns: 260px 1fr; 
+
+  .card.docs {
+    display: grid;
+    grid-template-columns: 260px 1fr;
     gap: 1.5rem;
   }
-  
-  .toc { 
-    background: var(--bg-tertiary); 
-    padding: 1.25rem; 
-    border-radius: var(--radius-sm); 
+
+  .toc {
+    background: var(--bg-tertiary);
+    padding: 1.25rem;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
     position: sticky;
     top: 1rem;
@@ -73,7 +74,7 @@
     max-height: calc(100vh - 200px);
     overflow-y: auto;
   }
-  
+
   .toc h2 {
     font-size: 0.875rem;
     font-weight: 700;
@@ -82,59 +83,62 @@
     margin: 0 0 1rem 0;
     letter-spacing: 0.05em;
   }
-  
+
   .toc ul {
     list-style: none;
     padding: 0;
     margin: 0;
   }
-  
+
   .toc li {
     margin-bottom: 0.5rem;
   }
-  
+
   .toc a {
     color: var(--text-secondary);
     text-decoration: none;
     font-size: 0.875rem;
     transition: color 0.2s var(--ease);
   }
-  
+
   .toc a:hover {
     color: var(--accent);
   }
-  
-  .docs-list { 
+
+  .docs-list {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
-  
-  .doc { 
-    padding: 1.5rem; 
-    background: var(--bg-tertiary); 
-    border: 1px solid var(--border); 
+
+  .doc {
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
   }
-  
+
   .doc h2 {
     margin-top: 0;
     font-size: 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
   }
-  
+
   .doc small {
     color: var(--text-muted);
     font-weight: 400;
     font-size: 0.875rem;
   }
-  
+
   :global(.doc-body) {
     color: var(--text-secondary);
     line-height: 1.7;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
-  
+
   :global(.doc-body h1),
   :global(.doc-body h2),
   :global(.doc-body h3) {
@@ -142,44 +146,65 @@
     margin-top: 1.5rem;
     margin-bottom: 0.75rem;
   }
-  
-  :global(.doc-body pre) { 
-    background: var(--bg-primary); 
-    padding: 1rem; 
+
+  :global(.doc-body pre) {
+    background: var(--bg-primary);
+    padding: 1rem;
     border-radius: var(--radius-xs);
     overflow-x: auto;
     border: 1px solid var(--border);
     margin: 1rem 0;
+    max-width: 100%;
   }
-  
-  :global(.doc-body code) { 
-    background: var(--bg-primary); 
-    padding: 0.2rem 0.4rem; 
+
+  :global(.doc-body code) {
+    background: var(--bg-primary);
+    padding: 0.2rem 0.4rem;
     border-radius: 4px;
     font-size: 0.875em;
     color: var(--accent);
   }
-  
+
   :global(.doc-body pre code) {
     background: transparent;
     padding: 0;
     color: var(--text-secondary);
   }
-  
+
   :global(.doc-body ul),
   :global(.doc-body ol) {
     margin: 1rem 0;
     padding-left: 1.5rem;
   }
-  
+
   :global(.doc-body a) {
     color: var(--accent);
     text-decoration: none;
+    word-break: break-all;
   }
-  
+
   :global(.doc-body a:hover) {
     text-decoration: underline;
   }
+
+  :global(.doc-body table) {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    display: block;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+
+  :global(.doc-body th),
+  :global(.doc-body td) {
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+    text-align: left;
+  }
+
+  :global(.doc-body img) {
+    max-width: 100%;
+    height: auto;
+  }
 </style>
-
-

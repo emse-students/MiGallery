@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { aspectRatio = '1.5' }: { aspectRatio?: string | number } = $props();
+	const { aspectRatio = '1.5' }: { aspectRatio?: string | number } = $props();
 </script>
 
 <div class="photo-skeleton" style="aspect-ratio: {aspectRatio}">

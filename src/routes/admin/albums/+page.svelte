@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import type { Album } from '$lib/types/api';
 
   let { data } = $props();
 
-  let albums: any[] = $state<any[]>(data.albums || []);
+  let albums: Album[] = $state<Album[]>(data.albums || []);
   let editingAlbumId = $state<string | null>(null);
   let editingAlbumData = $state({ id: '', name: '', date: '', location: '', visibility: 'private', visible: false, tags: '', allowed_users: '' });
   let editingAlbumExistingTags = $state<string[]>([]);
@@ -12,20 +13,20 @@
 
   async function loadAlbums() {
     const res = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT * FROM albums ORDER BY date DESC, name ASC' }) });
-    const json = await res.json();
+    const json = (await res.json()) as { success: boolean; data: Album[] };
     if (json.success) albums = json.data;
   }
 
-  function startEditAlbum(a: any) {
+  function startEditAlbum(a: Album) {
     editingAlbumId = a.id;
     (async () => {
       const tagsRes = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT tag FROM album_tag_permissions WHERE album_id = ?', params: [a.id] }) });
-      const tagsJson = await tagsRes.json();
-      const tagsArr = tagsJson.success ? (tagsJson.data || []).map((r: any) => r.tag) : [];
+      const tagsJson = (await tagsRes.json()) as { success: boolean; data: { tag: string }[] };
+      const tagsArr = tagsJson.success ? (tagsJson.data || []).map((r) => r.tag) : [];
 
       const usersRes = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT id_user FROM album_user_permissions WHERE album_id = ?', params: [a.id] }) });
-      const usersJson = await usersRes.json();
-      const usersArr = usersJson.success ? (usersJson.data || []).map((r: any) => r.id_user) : [];
+      const usersJson = (await usersRes.json()) as { success: boolean; data: { id_user: string }[] };
+      const usersArr = usersJson.success ? (usersJson.data || []).map((r) => r.id_user) : [];
 
       editingAlbumExistingTags = tagsArr;
       editingAlbumExistingUsers = usersArr;
@@ -68,7 +69,7 @@
     try {
       const res = await fetch('/api/immich/albums');
       if (!res.ok) { alert(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`); return; }
-      const list = await res.json();
+      const list = (await res.json()) as any[];
       if (!Array.isArray(list)) { alert('Réponse Immich inattendue'); return; }
       let added = 0;
       for (const a of list) {
@@ -83,7 +84,7 @@
       }
       alert(`Import terminé : ${added} albums importés (visibilité=private)`);
       await loadAlbums();
-    } catch (err) { console.error('Import albums error', err); alert('Erreur lors de l\'import des albums. Voir la console.'); }
+    } catch (err: unknown) { console.error('Import albums error', err); alert('Erreur lors de l\'import des albums. Voir la console.'); }
   }
 
   onMount(() => { loadAlbums(); });
@@ -147,7 +148,7 @@
     overflow-x: auto !important;
   }
 
-  table { 
+  table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;

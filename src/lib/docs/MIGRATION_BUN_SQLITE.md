@@ -3,6 +3,7 @@
 ## Contexte
 
 MiGallery supporte maintenant **deux modes de runtime** :
+
 - **Bun** : utilise `bun:sqlite` (driver natif, plus performant)
 - **Node.js** : utilise `better-sqlite3` (compatible avec les versions existantes)
 
@@ -22,12 +23,15 @@ Error: better-sqlite3 is not yet supported in Bun
 ## Changements apportés
 
 ### 1. `src/lib/db/database.ts`
+
 - Ajout de la fonction `isBunRuntime()` pour détecter l'environnement
 - Chargement conditionnel de `bun:sqlite` ou `better-sqlite3`
 - Compatibilité API garantie entre les deux drivers
 
 ### 2. Scripts CLI (`.cjs`)
+
 Les scripts suivants ont été mis à jour pour supporter les deux runtimes :
+
 - `scripts/init-db.cjs`
 - `scripts/inspect-db.cjs`
 - `scripts/create-api-key.cjs`
@@ -56,12 +60,12 @@ IMMICH_API_KEY=your-immich-api-key
 
 ### Variables critiques
 
-| Variable | Requis | Description |
-|----------|--------|-------------|
-| `AUTH_SECRET` | ✅ Oui | Secret pour les cookies de session (généré par `generate_cookie_secret.cjs`) |
-| `AUTH_TRUST_HOST` | ✅ Oui | **Doit être `true` pour résoudre l'erreur `UntrustedHost`** |
-| `AUTH_URL` | ✅ Oui | URL publique de l'application (`https://gallery.mitv.fr`) |
-| `DATABASE_PATH` | ⚠️ Recommandé | Chemin vers la base de données (par défaut : `./data/migallery.db`) |
+| Variable          | Requis        | Description                                                                  |
+| ----------------- | ------------- | ---------------------------------------------------------------------------- |
+| `AUTH_SECRET`     | ✅ Oui        | Secret pour les cookies de session (généré par `generate_cookie_secret.cjs`) |
+| `AUTH_TRUST_HOST` | ✅ Oui        | **Doit être `true` pour résoudre l'erreur `UntrustedHost`**                  |
+| `AUTH_URL`        | ✅ Oui        | URL publique de l'application (`https://gallery.mitv.fr`)                    |
+| `DATABASE_PATH`   | ⚠️ Recommandé | Chemin vers la base de données (par défaut : `./data/migallery.db`)          |
 
 ## Déploiement
 
@@ -120,6 +124,7 @@ Vous devriez voir : `[DB] Runtime: Bun (bun:sqlite)`
 **Cause** : Auth.js refuse l'hôte `gallery.mitv.fr` car `AUTH_TRUST_HOST` n'est pas configuré.
 
 **Solution** :
+
 1. Ajoutez `AUTH_TRUST_HOST=true` dans `.env` sur le serveur
 2. Ajoutez `AUTH_URL=https://gallery.mitv.fr` dans `.env`
 3. Redémarrez l'application : `pm2 restart migallery`
@@ -129,6 +134,7 @@ Vous devriez voir : `[DB] Runtime: Bun (bun:sqlite)`
 **Cause** : Le code essaie toujours d'utiliser `better-sqlite3` au lieu de `bun:sqlite`.
 
 **Solution** :
+
 1. Vérifiez que les changements ont bien été déployés
 2. Vérifiez les logs pour confirmer le runtime détecté
 3. Si le problème persiste, essayez : `pm2 delete migallery && pm2 start ecosystem.config.cjs`
@@ -141,9 +147,9 @@ Vous devriez voir : `[DB] Runtime: Bun (bun:sqlite)`
 
 ## Compatibilité
 
-| Runtime | Driver | Statut |
-|---------|--------|--------|
-| Bun 1.3.2+ | `bun:sqlite` | ✅ Supporté |
+| Runtime     | Driver           | Statut      |
+| ----------- | ---------------- | ----------- |
+| Bun 1.3.2+  | `bun:sqlite`     | ✅ Supporté |
 | Node.js 18+ | `better-sqlite3` | ✅ Supporté |
 
 ## Tests en local

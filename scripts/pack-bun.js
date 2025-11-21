@@ -7,106 +7,104 @@
  * - Crée un package prêt à déployer
  */
 
-import fs from 'fs'
-import path from 'path'
-import * as tar from 'tar'
+import fs from 'fs';
+import path from 'path';
+import * as tar from 'tar';
 
-const pkgPath = path.resolve(process.cwd(), 'package.json')
-const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
-const version = pkg.version || '0.0.0'
-const name = pkg.name || 'package'
+const pkgPath = path.resolve(process.cwd(), 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+const version = pkg.version || '0.0.0';
+const name = pkg.name || 'package';
 
-const outDir = path.resolve(process.cwd(), 'build', 'artifacts')
-await fs.promises.mkdir(outDir, { recursive: true })
+const outDir = path.resolve(process.cwd(), 'build', 'artifacts');
+await fs.promises.mkdir(outDir, { recursive: true });
 
-const filename = `${name.replace(/[^a-z0-9.-]/gi, '_')}-${version}-full.tgz`
-const outPath = path.join(outDir, filename)
+const filename = `${name.replace(/[^a-z0-9.-]/gi, '_')}-${version}-full.tgz`;
+const outPath = path.join(outDir, filename);
 
-console.log('📦 Création du package complet de l\'application...')
-console.log(`📍 Destination: ${outPath}`)
-console.log('')
+console.log("📦 Création du package complet de l'application...");
+console.log(`📍 Destination: ${outPath}`);
+console.log('');
 
 // Liste des fichiers/dossiers à inclure
-const filesToInclude = []
+const filesToInclude = [];
 
 // 1. Build folder (obligatoire)
-const buildDir = path.resolve(process.cwd(), 'build')
+const buildDir = path.resolve(process.cwd(), 'build');
 if (!fs.existsSync(buildDir)) {
-  console.error('❌ Le dossier build/ n\'existe pas. Lancez d\'abord "npm run build".')
-  process.exit(1)
+	console.error('❌ Le dossier build/ n\'existe pas. Lancez d\'abord "npm run build".');
+	process.exit(1);
 }
-console.log('✅ build/ trouvé')
+console.log('✅ build/ trouvé');
 
 // 2. Data folder (base de données)
-const dataDir = path.resolve(process.cwd(), 'data')
+const dataDir = path.resolve(process.cwd(), 'data');
 if (fs.existsSync(dataDir)) {
-  console.log('✅ data/ trouvé (base de données)')
+	console.log('✅ data/ trouvé (base de données)');
 } else {
-  console.warn('⚠️  data/ non trouvé - le package n\'inclura pas de base de données')
+	console.warn("⚠️  data/ non trouvé - le package n'inclura pas de base de données");
 }
 
 // 3. .env file
-const envFile = path.resolve(process.cwd(), '.env')
+const envFile = path.resolve(process.cwd(), '.env');
 if (fs.existsSync(envFile)) {
-  console.log('✅ .env trouvé')
+	console.log('✅ .env trouvé');
 } else {
-  console.warn('⚠️  .env non trouvé - le package n\'inclura pas de configuration')
+	console.warn("⚠️  .env non trouvé - le package n'inclura pas de configuration");
 }
 
 // 4. package.json (pour info sur la version)
-console.log('✅ package.json')
+console.log('✅ package.json');
 
 // 5. README.md
-const readmeFile = path.resolve(process.cwd(), 'README.md')
+const readmeFile = path.resolve(process.cwd(), 'README.md');
 if (fs.existsSync(readmeFile)) {
-  console.log('✅ README.md')
+	console.log('✅ README.md');
 }
 
 // 6. Scripts (pour utilisation sur la machine cible)
-const scriptsDir = path.resolve(process.cwd(), 'scripts')
+const scriptsDir = path.resolve(process.cwd(), 'scripts');
 if (fs.existsSync(scriptsDir)) {
-  console.log('✅ scripts/')
+	console.log('✅ scripts/');
 }
 
-console.log('')
-console.log('🔄 Création de l\'archive...')
+console.log('');
+console.log("🔄 Création de l'archive...");
 
 // Créer une archive tar.gz incluant tous les éléments
 try {
-  await tar.create(
-    {
-      gzip: true,
-      file: outPath,
-      cwd: process.cwd()
-    },
-    [
-      'build',
-      fs.existsSync(dataDir) ? 'data' : null,
-      fs.existsSync(envFile) ? '.env' : null,
-      'package.json',
-      fs.existsSync(readmeFile) ? 'README.md' : null,
-      fs.existsSync(scriptsDir) ? 'scripts' : null,
-    ].filter(Boolean) // Enlever les null
-  )
+	await tar.create(
+		{
+			gzip: true,
+			file: outPath,
+			cwd: process.cwd()
+		},
+		[
+			'build',
+			fs.existsSync(dataDir) ? 'data' : null,
+			fs.existsSync(envFile) ? '.env' : null,
+			'package.json',
+			fs.existsSync(readmeFile) ? 'README.md' : null,
+			fs.existsSync(scriptsDir) ? 'scripts' : null
+		].filter(Boolean) // Enlever les null
+	);
 
-  const stats = fs.statSync(outPath)
-  const sizeMB = (stats.size / (1024 * 1024)).toFixed(2)
+	const stats = fs.statSync(outPath);
+	const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
 
-  console.log('')
-  console.log('✅ Package créé avec succès !')
-  console.log(`📦 Fichier: ${filename}`)
-  console.log(`📏 Taille: ${sizeMB} MB`)
-  console.log(`📍 Emplacement: ${outPath}`)
-  console.log('')
-  console.log('💡 Pour déployer sur une autre machine:')
-  console.log('   1. Copiez le fichier .tgz')
-  console.log('   2. Extrayez: tar -xzf ' + filename)
-  console.log('   3. Installez les dépendances: bun install --production')
-  console.log('   4. Configurez .env si nécessaire')
-  console.log('   5. Lancez: bun run build/index.js')
-
+	console.log('');
+	console.log('✅ Package créé avec succès !');
+	console.log(`📦 Fichier: ${filename}`);
+	console.log(`📏 Taille: ${sizeMB} MB`);
+	console.log(`📍 Emplacement: ${outPath}`);
+	console.log('');
+	console.log('💡 Pour déployer sur une autre machine:');
+	console.log('   1. Copiez le fichier .tgz');
+	console.log('   2. Extrayez: tar -xzf ' + filename);
+	console.log('   3. Installez les dépendances: bun install --production');
+	console.log('   4. Configurez .env si nécessaire');
+	console.log('   5. Lancez: bun run build/index.js');
 } catch (error) {
-  console.error('❌ Erreur lors de la création du package:', error.message)
-  process.exit(1)
+	console.error('❌ Erreur lors de la création du package:', error.message);
+	process.exit(1);
 }
-

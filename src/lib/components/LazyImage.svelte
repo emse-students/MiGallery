@@ -9,7 +9,7 @@
   function revokeUrl(url: string | undefined) {
     try {
       if (url) URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch (e: unknown) {
       // ignore
     }
   }
@@ -130,7 +130,7 @@
         } else {
           displaySrc = src;
         }
-      } catch (e) {
+      } catch (e: unknown) {
         displaySrc = src;
       }
     }

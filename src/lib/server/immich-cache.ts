@@ -4,7 +4,7 @@
  */
 
 interface CacheEntry {
-	data: any;
+	data: unknown;
 	timestamp: number;
 	etag?: string;
 }
@@ -12,41 +12,43 @@ interface CacheEntry {
 class ImmichCache {
 	private cache = new Map<string, CacheEntry>();
 	private defaultTTL = 60000; // 1 minute
-	
+
 	/**
 	 * TTL personnalisés par pattern d'URL
 	 */
 	private ttlRules: Array<{ pattern: RegExp; ttl: number }> = [
-		{ pattern: /^\/api\/people\/[^/]+$/, ttl: 300000 },          // 5 min - Profil personne
+		{ pattern: /^\/api\/people\/[^/]+$/, ttl: 300000 }, // 5 min - Profil personne
 		{ pattern: /^\/api\/people\/[^/]+\/thumbnail$/, ttl: 3600000 }, // 1h - Photo profil
-		{ pattern: /^\/api\/albums$/, ttl: 120000 },                 // 2 min - Liste albums
-		{ pattern: /^\/api\/albums\/[^/]+$/, ttl: 60000 },           // 1 min - Album détails
-		{ pattern: /^\/api\/search\/metadata/, ttl: 30000 },         // 30s - Recherche
-		{ pattern: /^\/api\/assets\/[^/]+$/, ttl: 120000 },          // 2 min - Asset détails
+		{ pattern: /^\/api\/albums$/, ttl: 120000 }, // 2 min - Liste albums
+		{ pattern: /^\/api\/albums\/[^/]+$/, ttl: 60000 }, // 1 min - Album détails
+		{ pattern: /^\/api\/search\/metadata/, ttl: 30000 }, // 30s - Recherche
+		{ pattern: /^\/api\/assets\/[^/]+$/, ttl: 120000 } // 2 min - Asset détails
 	];
 
 	/**
 	 * Patterns qui NE doivent PAS être mis en cache
 	 */
 	private noCachePatterns: RegExp[] = [
-		/^\/api\/assets$/,                    // POST upload
-		/^\/api\/assets\/.*\/thumbnail$/,     // Assets thumbnails (trop nombreux)
-		/^\/api\/search\/smart/,              // Recherche intelligente (contextuelle)
+		/^\/api\/assets$/, // POST upload
+		/^\/api\/assets\/.*\/thumbnail$/, // Assets thumbnails (trop nombreux)
+		/^\/api\/search\/smart/ // Recherche intelligente (contextuelle)
 	];
 
 	/**
 	 * Vérifie si une URL peut être mise en cache
 	 */
 	canCache(method: string, path: string): boolean {
-		if (method !== 'GET') return false;
-		return !this.noCachePatterns.some(pattern => pattern.test(path));
+		if (method !== 'GET') {
+			return false;
+		}
+		return !this.noCachePatterns.some((pattern) => pattern.test(path));
 	}
 
 	/**
 	 * Obtient le TTL approprié pour un chemin donné
 	 */
 	private getTTL(path: string): number {
-		const rule = this.ttlRules.find(r => r.pattern.test(path));
+		const rule = this.ttlRules.find((r) => r.pattern.test(path));
 		return rule ? rule.ttl : this.defaultTTL;
 	}
 
@@ -54,23 +56,27 @@ class ImmichCache {
 	 * Génère une clé de cache
 	 */
 	private getCacheKey(method: string, url: string, body?: string): string {
-		return `${method}:${url}${body ? ':' + body : ''}`;
+		return `${method}:${url}${body ? `:${body}` : ''}`;
 	}
 
 	/**
 	 * Récupère depuis le cache si disponible et valide
 	 */
-	get(method: string, path: string, url: string, body?: string): any | null {
-		if (!this.canCache(method, path)) return null;
+	get(method: string, path: string, url: string, body?: string): unknown {
+		if (!this.canCache(method, path)) {
+			return null;
+		}
 
 		const key = this.getCacheKey(method, url, body);
 		const entry = this.cache.get(key);
-		
-		if (!entry) return null;
+
+		if (!entry) {
+			return null;
+		}
 
 		const ttl = this.getTTL(path);
 		const age = Date.now() - entry.timestamp;
-		
+
 		if (age > ttl) {
 			this.cache.delete(key);
 			return null;
@@ -82,8 +88,10 @@ class ImmichCache {
 	/**
 	 * Ajoute au cache
 	 */
-	set(method: string, path: string, url: string, data: any, body?: string, etag?: string): void {
-		if (!this.canCache(method, path)) return;
+	set(method: string, path: string, url: string, data: unknown, body?: string, etag?: string): void {
+		if (!this.canCache(method, path)) {
+			return;
+		}
 
 		const key = this.getCacheKey(method, url, body);
 		this.cache.set(key, {
@@ -104,7 +112,7 @@ class ImmichCache {
 	 */
 	invalidate(patterns: RegExp[]): void {
 		for (const [key, _] of this.cache) {
-			if (patterns.some(p => p.test(key))) {
+			if (patterns.some((p) => p.test(key))) {
 				this.cache.delete(key);
 			}
 		}
@@ -134,10 +142,7 @@ class ImmichCache {
 	 * Invalide les entrées d'un album spécifique
 	 */
 	invalidateAlbum(albumId: string): void {
-		this.invalidate([
-			new RegExp(`/api/albums/${albumId}`),
-			new RegExp(`/api/albums$`)
-		]);
+		this.invalidate([new RegExp(`/api/albums/${albumId}`), new RegExp('/api/albums$')]);
 	}
 
 	/**
@@ -150,7 +155,7 @@ class ImmichCache {
 			const pathMatch = key.match(/:([^:]+)/);
 			const path = pathMatch ? pathMatch[1] : '';
 			const ttl = this.getTTL(path);
-			
+
 			if (now - entry.timestamp > ttl) {
 				this.cache.delete(key);
 			}
@@ -158,9 +163,8 @@ class ImmichCache {
 
 		// Si toujours trop, supprimer les plus anciennes
 		if (this.cache.size > 500) {
-			const entries = Array.from(this.cache.entries())
-				.sort((a, b) => a[1].timestamp - b[1].timestamp);
-			
+			const entries = Array.from(this.cache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+
 			const toDelete = entries.slice(0, this.cache.size - 400);
 			toDelete.forEach(([key]) => this.cache.delete(key));
 		}

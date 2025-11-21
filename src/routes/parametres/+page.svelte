@@ -3,8 +3,10 @@
   import Icon from "$lib/components/Icon.svelte";
   import Spinner from '$lib/components/Spinner.svelte';
   import { theme } from '$lib/theme';
+  import { asApiResponse } from '$lib/ts-utils';
+  import type { UserRow, Album, User } from '$lib/types/api';
 
-  let isAdmin = $derived((page.data.session?.user as any)?.role === 'admin');
+  let isAdmin = $derived((page.data.session?.user as User)?.role === 'admin');
 
   let uploadStatus = $state<string>("");
   let assetId = $state<string | null>(null);
@@ -18,10 +20,10 @@
   let needsNewPhoto = $state<boolean>(false);
 
   // État pour la gestion de la BDD et de l'utilisateur
-  let allUsers = $state<any[]>([]);
+  let allUsers = $state<UserRow[]>([]);
   let editingUserId = $state<string | null>(null);
-  let editingUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '', role: 'user', promo_year: null });
-  
+  let editingUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '', role: 'user' as 'admin' | 'mitviste' | 'user', promo_year: null as number | null });
+
   let newUserData = $state({
     id_user: "",
     email: "",
@@ -40,8 +42,9 @@
       })
     });
 
-    const result = await response.json();
-    if (result.success) {
+    const jsonData = await response.json();
+    const result = asApiResponse<UserRow[]>(jsonData);
+    if (result.success && result.data) {
       allUsers = result.data;
     }
   }
@@ -61,19 +64,20 @@
       })
     });
 
-    const result = await response.json();
+    const jsonData = await response.json();
+    const result = asApiResponse(jsonData);
     if (result.success) {
       alert("Utilisateur ajouté avec succès !");
       newUserData = { id_user: "", email: "", prenom: "", nom: "", id_photos: "" };
       await loadAllUsers();
     } else {
-      alert(`Erreur: ${result.error}`);
+      alert(`Erreur: ${result.error || 'Unknown error'}`);
     }
   }
 
-  async function startEditUser(user: any) {
+  async function startEditUser(user: UserRow) {
     editingUserId = user.id_user;
-    editingUserData = { id_user: user.id_user, email: user.email, prenom: user.prenom, nom: user.nom, id_photos: user.id_photos || '', role: user.role || 'user', promo_year: user.promo_year };
+    editingUserData = { id_user: user.id_user, email: user.email, prenom: user.prenom, nom: user.nom, id_photos: user.id_photos || '', role: (user.role as 'admin' | 'mitviste' | 'user') || 'user', promo_year: user.promo_year };
   }
 
   function cancelEditUser() {
@@ -86,12 +90,13 @@
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sql: 'UPDATE users SET email = ?, prenom = ?, nom = ?, id_photos = ?, role = ?, promo_year = ? WHERE id_user = ?', params: [editingUserData.email, editingUserData.prenom, editingUserData.nom, editingUserData.id_photos || null, editingUserData.role || 'user', editingUserData.promo_year || null, editingUserId] })
     });
-    const j = await res.json();
-    if (j.success) {
+    const jsonData = await res.json();
+    const result = asApiResponse(jsonData);
+    if (result.success) {
       editingUserId = null;
       await loadAllUsers();
     } else {
-      alert('Erreur mise à jour utilisateur: ' + (j.error || 'unknown'));
+      alert('Erreur mise à jour utilisateur: ' + (result.error || 'unknown'));
     }
   }
 
@@ -101,10 +106,10 @@
     await loadAllUsers();
   }
 
-  
+
 
   // ===== Albums management state & helpers =====
-  let albums: any[] = $state<any[]>([]);
+  let albums = $state<Album[]>([]);
   let showAlbumManager = $state<boolean>(false);
   let editingAlbumId = $state<string | null>(null);
   let editingAlbumData = $state({ id: '', name: '', date: '', location: '', visibility: 'private', visible: false, tags: '', allowed_users: '' });
@@ -117,29 +122,32 @@
       // order by date (newest first) then by name
       body: JSON.stringify({ sql: "SELECT * FROM albums ORDER BY date DESC, name ASC" })
     });
-    const json = await res.json();
-    if (json.success) albums = json.data;
+    const jsonData = await res.json();
+    const result = asApiResponse<Album[]>(jsonData);
+    if (result.success && result.data) { albums = result.data; }
   }
 
   // No manual album creation: albums are sourced from Immich. Use import button to sync.
 
-  async function startEditAlbum(a: any) {
+  async function startEditAlbum(a: Album) {
     editingAlbumId = a.id;
     // load tags and allowed users
     const tagsRes = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT tag FROM album_tag_permissions WHERE album_id = ?', params: [a.id] }) });
-    const tagsJson = await tagsRes.json();
-    const tagsArr = tagsJson.success ? (tagsJson.data || []).map((r: any) => r.tag) : [];
+    const tagsJsonData = await tagsRes.json();
+    const tagsResult = asApiResponse<Array<{ tag: string }>>(tagsJsonData);
+    const tagsArr = tagsResult.success && tagsResult.data ? tagsResult.data.map((r) => r.tag) : [];
     const tags = tagsArr.join(', ');
 
     const usersRes = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT id_user FROM album_user_permissions WHERE album_id = ?', params: [a.id] }) });
-    const usersJson = await usersRes.json();
-    const usersArr = usersJson.success ? (usersJson.data || []).map((r: any) => r.id_user) : [];
+    const usersJsonData = await usersRes.json();
+    const usersResult = asApiResponse<Array<{ id_user: string }>>(usersJsonData);
+    const usersArr = usersResult.success && usersResult.data ? usersResult.data.map((r) => r.id_user) : [];
     const users = usersArr.join(', ');
 
     editingAlbumExistingTags = tagsArr;
     editingAlbumExistingUsers = usersArr;
 
-  editingAlbumData = { id: a.id, name: a.name, date: a.date || '', location: a.location || '', visibility: a.visibility || 'private', visible: a.visible === 1, tags, allowed_users: users };
+  editingAlbumData = { id: a.id, name: a.name, date: a.date || '', location: a.location || '', visibility: a.visibility || 'private', visible: Boolean(a.visible), tags, allowed_users: users };
   }
 
   function cancelEditAlbum() {
@@ -208,7 +216,7 @@
         alert(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`);
         return;
       }
-      const list = await res.json();
+      const list = (await res.json()) as unknown;
       if (!Array.isArray(list)) {
         alert('Réponse Immich inattendue');
         return;
@@ -235,7 +243,7 @@
 
       alert(`Import terminé : ${added} albums importés (visibilité=private)`);
       await loadAlbums();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Import albums error', err);
       alert('Erreur lors de l\'import des albums. Voir la console.');
     }
@@ -243,30 +251,31 @@
 
   async function retryRecognition() {
     if (!assetId) return;
-    
+
     canRetry = false;
     isProcessing = true;
     uploadStatus = "Nouvelle tentative de reconnaissance...";
-    
+
     await checkForPeople();
-    
+
     isProcessing = false;
   }
 
   async function checkForPeople() {
-    const userId = (page.data.session?.user as any)?.id_user;
-    
+    const userId = (page.data.session?.user as User)?.id_user;
+
     if (!userId || !assetId) return;
 
     try {
       uploadStatus = "Récupération des personnes détectées...";
       const assetInfoResponse = await fetch(`/api/immich/assets/${assetId}`);
-      
+
       if (!assetInfoResponse.ok) {
         throw new Error(`Erreur récupération asset: ${assetInfoResponse.statusText}`);
       }
 
-      const assetInfo = await assetInfoResponse.json();
+      const assetInfoData = await assetInfoResponse.json();
+      const assetInfo = assetInfoData as { people?: Array<{ id: string }> };
       const people = assetInfo.people || [];
 
       uploadStatus = `${people.length} personne(s) détectée(s)`;
@@ -284,8 +293,9 @@
           })
         });
 
-        const updateResult = await updateResponse.json();
-        
+        const updateData = await updateResponse.json();
+        const updateResult = asApiResponse(updateData);
+
         if (updateResult.success) {
           uploadStatus = `Terminé ! id_photos = ${personId}`;
           // Reload silently after successful profile photo setup
@@ -300,7 +310,7 @@
         uploadStatus = `Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`;
         needsNewPhoto = true;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur lors de la vérification des personnes:", error);
     }
@@ -313,19 +323,23 @@
     if (!id) return;
     try {
       const res = await fetch(`/api/immich/assets/${id}`);
-      if (!res.ok) throw new Error('Erreur récupération asset');
-      const info = await res.json();
+      if (!res.ok) throw new Error('Érreur récupération asset');
+      const infoData = await res.json();
+      const info = infoData as {
+        description?: string | { value?: string };
+        metadata?: { description?: string };
+      };
       // Try several shapes where description might be stored
       if (typeof info.description === 'string' && info.description.trim()) {
         assetDescription = info.description;
       } else if (info.metadata && typeof info.metadata.description === 'string' && info.metadata.description.trim()) {
         assetDescription = info.metadata.description;
-      } else if (info.description && typeof info.description === 'object' && typeof info.description.value === 'string') {
+      } else if (info.description && typeof info.description === 'object' && 'value' in info.description && typeof info.description.value === 'string') {
         assetDescription = info.description.value;
       } else {
         assetDescription = '';
       }
-    } catch (e) {
+    } catch (e: unknown) {
       tagOpStatus = (e as Error).message;
     }
   }
@@ -333,11 +347,11 @@
   async function importPhoto(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    
+
     if (!file) return;
 
-    const userId = (page.data.session?.user as any)?.id_user;
-    
+    const userId = (page.data.session?.user as User)?.id_user;
+
     if (!userId) {
       alert("Pas d'utilisateur connecté");
       return;
@@ -368,7 +382,11 @@
         throw new Error(`Erreur upload: ${uploadResponse.statusText}`);
       }
 
-      const uploadResult = await uploadResponse.json();
+      const uploadData = await uploadResponse.json();
+      const uploadResult = uploadData as { id?: string };
+      if (!uploadResult.id) {
+        throw new Error('Upload réussi mais pas d\'ID retourné');
+      }
       assetId = uploadResult.id;
       uploadStatus = `Photo uploadée ! ID: ${assetId}`;
 
@@ -377,7 +395,7 @@
 
       await checkForPeople();
 
-    } catch (error) {
+    } catch (error: unknown) {
       uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur import photo:", error);
     } finally {
@@ -397,14 +415,14 @@
     <div class="gradient-blob blob-2"></div>
     <div class="gradient-blob blob-3"></div>
   </div>
-  
+
   <h1><Icon name="settings" size={32} /> Paramètres</h1>
 
   <div class="section">
     <h3><Icon name="palette" size={24} /> Thème</h3>
     <p>Choisissez entre le thème clair et sombre selon vos préférences.</p>
-    <button 
-      onclick={() => theme.toggle()} 
+    <button
+      onclick={() => theme.toggle()}
       class="theme-toggle px-4 py-2 rounded flex items-center gap-2 bg-accent-primary text-white hover:bg-accent-secondary transition-colors"
       aria-label="Basculer le thème"
     >
@@ -421,10 +439,10 @@
   <div class="section">
     <h2><Icon name="image" size={28} /> Photo de profil</h2>
     <p>Importez une photo pour configurer votre reconnaissance faciale et accéder à "Mes photos".</p>
-    
+
     <div class="my-5">
-      <input 
-        type="file" 
+      <input
+        type="file"
         accept="image/*"
         onchange={importPhoto}
         disabled={isProcessing}

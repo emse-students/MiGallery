@@ -3,4 +3,4 @@
 import { config } from 'dotenv';
 config({ override: true }); // Override existing vars to ensure .env takes precedence
 
-export { handle } from "$lib/auth";
+export { handle } from '$lib/auth';

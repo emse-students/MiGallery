@@ -1,0 +1,79 @@
+{
+	"root": true,
+	"parser": "@typescript-eslint/parser",
+	"parserOptions": {
+		"ecmaVersion": 2022,
+		"sourceType": "module",
+		"project": "./tsconfig.json"
+	},
+	"env": {
+		"browser": true,
+		"node": true,
+		"es2022": true
+	},
+	"extends": [
+		"eslint:recommended",
+		"plugin:@typescript-eslint/recommended",
+		"plugin:@typescript-eslint/recommended-type-checked",
+		"plugin:svelte/recommended",
+		"prettier"
+	],
+	"plugins": ["@typescript-eslint", "svelte"],
+	"rules": {
+		"@typescript-eslint/no-unused-vars": [
+			"error",
+			{
+				"argsIgnorePattern": "^_",
+				"varsIgnorePattern": "^_"
+			}
+		],
+		"@typescript-eslint/explicit-function-return-types": [
+			"warn",
+			{
+				"allowExpressions": true
+			}
+		],
+		"@typescript-eslint/no-explicit-any": "error",
+		"no-console": [
+			"warn",
+			{
+				"allow": ["warn", "error", "debug"]
+			}
+		],
+		"prefer-const": "error",
+		"no-var": "error",
+		"eqeqeq": ["error", "always"],
+		"curly": ["error", "all"],
+		"brace-style": ["error", "1tbs"],
+		"semi": ["error", "always"],
+		"quotes": [
+			"error",
+			"single",
+			{
+				"avoidEscape": true
+			}
+		],
+		"indent": ["error", "tab", { "SwitchCase": 1 }],
+		"comma-dangle": ["error", "never"],
+		"no-trailing-spaces": "error",
+		"no-multiple-empty-lines": [
+			"error",
+			{
+				"max": 2,
+				"maxEOF": 0
+			}
+		],
+		"object-shorthand": ["error", "always"],
+		"prefer-template": "error"
+	},
+	"overrides": [
+		{
+			"files": "*.svelte",
+			"parser": "svelte-eslint-parser",
+			"parserOptions": {
+				"parser": "@typescript-eslint/parser"
+			}
+		}
+	],
+	"ignorePatterns": ["build/", "dist/", "node_modules/", ".svelte-kit/"]
+}

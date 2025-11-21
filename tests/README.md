@@ -38,14 +38,17 @@ node ./scripts/test-api.cjs
 Les tests Vitest couvrent les endpoints suivants :
 
 ### ✅ Authentification
+
 - Détection de l'utilisateur système `les.roots`
 - Connexion via `/dev/login-as`
 - Création/suppression de clés API
 
 ### ✅ Albums
+
 - `GET /api/albums` - Liste des albums
 
 ### ✅ Utilisateurs
+
 - `GET /api/users` - Liste (admin)
 - `GET /api/users/:id` - Détails
 - `POST /api/users` - Création (admin)
@@ -53,20 +56,25 @@ Les tests Vitest couvrent les endpoints suivants :
 - `DELETE /api/users/:id` - Suppression (admin)
 
 ### ✅ Photos-CV
+
 - `GET /api/people/people` - Personnes reconnues
 
 ### ✅ Clés API
+
 - `GET /api/admin/api-keys` - Liste (admin)
 - `POST /api/admin/api-keys` - Création (admin)
 - `DELETE /api/admin/api-keys/:id` - Suppression (admin)
 
 ### ✅ Assets Immich
+
 - `GET /api/immich/assets` - Proxy Immich
 
 ### ✅ Médias externes
+
 - `GET /api/external/media` - Album PortailEtu
 
 ### ✅ Health
+
 - `GET /api/health` - Santé de l'API
 
 ## 🚀 CI/CD
@@ -76,6 +84,7 @@ Les tests Vitest couvrent les endpoints suivants :
 Les tests sont automatiquement exécutés dans deux workflows :
 
 #### 1. CI (Bun) - `.github/workflows/ci-bun.yml`
+
 - ✅ Build du projet
 - ✅ Initialisation de la base de données de test
 - ✅ Démarrage du serveur en background
@@ -83,6 +92,7 @@ Les tests sont automatiquement exécutés dans deux workflows :
 - ✅ Arrêt du serveur
 
 #### 2. Deploy - `.github/workflows/deploy.yml`
+
 - ✅ Déploiement sur le serveur de production
 - ✅ Redémarrage du serveur avec PM2
 - ✅ Exécution des tests de validation post-déploiement
@@ -102,6 +112,7 @@ DATABASE_PATH=./data/migallery.db
 ### Configuration Vitest
 
 Voir `vitest.config.ts` :
+
 - Timeout global : 30 secondes
 - Tests d'API avec timeout étendu : 15 secondes
 - Environnement : Node.js
@@ -111,20 +122,23 @@ Voir `vitest.config.ts` :
 ### Pour les tests locaux :
 
 1. **Base de données initialisée**
+
    ```bash
    bun run db:init
    ```
 
 2. **Utilisateur système créé** (`les.roots`)
+
    ```bash
    node scripts/create-system-user.cjs
    ```
 
 3. **Serveur en cours d'exécution**
+
    ```bash
    # Mode développement
    bun run dev
-   
+
    # ou mode production
    bun run build
    bun run build/index.js
@@ -143,20 +157,25 @@ Voir `vitest.config.ts` :
 ## 🐛 Dépannage
 
 ### Erreur: "Base de données introuvable"
+
 ```bash
 bun run db:init
 ```
 
 ### Erreur: "Utilisateur système les.roots introuvable"
+
 ```bash
 node scripts/create-system-user.cjs
 ```
 
 ### Timeouts sur les tests Immich
+
 C'est normal si Immich est down ou inaccessible. Les tests passent quand même avec un avertissement.
 
 ### Erreur: "Connection refused"
+
 Vérifiez que le serveur tourne sur le port 3000 :
+
 ```bash
 curl http://localhost:3000/api/health
 ```
