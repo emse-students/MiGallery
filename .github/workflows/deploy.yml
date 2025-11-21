@@ -26,6 +26,8 @@ jobs:
         run: bun install
 
       - name: Lint and check
+        env:
+          NODE_OPTIONS: "--max-old-space-size=16384"
         run: |
           bun run lint
           bun run check
