@@ -27,6 +27,9 @@ jobs:
       - name: Type check
         run: bun run check
 
+      - name: Generate SvelteKit config
+        run: bunx svelte-kit sync
+
       - name: Lint code
         env:
           NODE_OPTIONS: "--max-old-space-size=16384"
