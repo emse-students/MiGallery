@@ -17,8 +17,10 @@ import type {
 // Configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let API_KEY = '';
+let API_KEY_READ = '';
 let sessionCookie = '';
 let testApiKeyId: string | null = null;
+let testApiKeyReadId: string | null = null;
 let createdUserId: string | null = null;
 
 // ========================================
@@ -108,7 +110,7 @@ async function loginAsSystemUser(): Promise<boolean> {
 	}
 }
 
-async function createTestApiKey(): Promise<string | null> {
+async function createTestApiKey(scopes?: string[]): Promise<{ id: string; rawKey: string } | null> {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			method: 'POST',
@@ -118,16 +120,15 @@ async function createTestApiKey(): Promise<string | null> {
 			},
 			body: JSON.stringify({
 				label: 'Test API Key (auto-generated)',
-				scopes: ['admin']
+				scopes: scopes || ['admin']
 			})
 		});
 
 		if (response.status === 200 || response.status === 201) {
 			const data = (await response.json()) as ApiKeyResponse;
-			if (data.rawKey) {
-				API_KEY = data.rawKey;
-				console.debug(`✅ Clé API créée: ${data.rawKey.substring(0, 20)}...`);
-				return data.id ?? null;
+			if (data.rawKey && data.id) {
+				console.debug(`✅ Clé API créée (scopes: ${scopes?.join(',') || 'admin'}): ${data.rawKey.substring(0, 20)}...`);
+				return { id: data.id, rawKey: data.rawKey };
 			}
 		}
 
@@ -169,6 +170,14 @@ function getAuthHeaders() {
 	};
 }
 
+function getAuthHeadersWithReadScope() {
+	return {
+		'Content-Type': 'application/json',
+		...(API_KEY_READ && { 'x-api-key': API_KEY_READ }),
+		...(sessionCookie && { Cookie: sessionCookie })
+	};
+}
+
 // ========================================
 // Setup et Teardown
 // ========================================
@@ -181,7 +190,19 @@ beforeAll(async () => {
 	if (userExists) {
 		const loginSuccess = await loginAsSystemUser();
 		if (loginSuccess) {
-			testApiKeyId = await createTestApiKey();
+			// Créer une clé API avec scope 'admin' pour les tests admin
+			const adminKeyResult = await createTestApiKey(['admin']);
+			if (adminKeyResult) {
+				testApiKeyId = adminKeyResult.id;
+				API_KEY = adminKeyResult.rawKey;
+			}
+
+			// Créer une clé API avec scope 'read' pour les tests de lecture
+			const readKeyResult = await createTestApiKey(['read']);
+			if (readKeyResult) {
+				testApiKeyReadId = readKeyResult.id;
+				API_KEY_READ = readKeyResult.rawKey;
+			}
 		}
 	}
 });
@@ -203,13 +224,17 @@ afterAll(async () => {
 		}
 	}
 
-	// Supprimer la clé API de test
+	// Supprimer les clés API de test
 	if (testApiKeyId) {
 		await deleteApiKey(testApiKeyId);
+	}
+	if (testApiKeyReadId) {
+		await deleteApiKey(testApiKeyReadId);
 	}
 
 	sessionCookie = '';
 	API_KEY = '';
+	API_KEY_READ = '';
 	console.debug('✅ Nettoyage terminé\n');
 });
 
@@ -424,11 +449,11 @@ describe('Assets API (Immich proxy)', () => {
 	it('devrait lister les assets via proxy Immich', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
-				headers: getAuthHeaders(),
+				headers: getAuthHeadersWithReadScope(),
 				signal: AbortSignal.timeout(10000) // 10s timeout
 			});
 
-			// Immich peut être down ou non configuré, ou API inaccessible (401)
+			// Immich peut être down ou non configuré
 			expect([200, 401, 404, 500, 502]).toContain(response.status);
 		} catch (error: unknown) {
 			// Si fetch échoue (Immich down), c'est acceptable
