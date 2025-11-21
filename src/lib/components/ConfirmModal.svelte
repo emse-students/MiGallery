@@ -11,7 +11,7 @@
     onCancel: () => void;
   }
 
-  let { 
+  let {
     title = 'Confirmation',
     message,
     confirmText = 'Confirmer',
@@ -46,11 +46,11 @@
         <Icon name="x" size={20} />
       </button>
     </div>
-    
+
     <div class="modal-body">
       <p class="modal-message">{message}</p>
     </div>
-    
+
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick={handleCancel}>
         {cancelText}

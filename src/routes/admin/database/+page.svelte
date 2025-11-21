@@ -3,16 +3,18 @@
   import Icon from '$lib/components/Icon.svelte';
   import { page } from '$app/state';
   import type { PageData } from './$types';
+  import { asApiResponse, isRecord, hasProperty } from '$lib/ts-utils';
+  import type { UserRow } from '$lib/types/api';
 
-  let isAdmin = $derived((page.data.session?.user as any)?.role === 'admin');
-  const data = (page as any).data as PageData;
+  let isAdmin = $derived(page.data.session?.user?.role === 'admin');
+  const data = page.data as PageData;
   const stats = data.stats;
   const backups = data.backups || [];
 
   // État pour la gestion des utilisateurs
-  let allUsers = $state<any[]>([]);
+  let allUsers = $state<UserRow[]>([]);
   let editingUserId = $state<string | null>(null);
-  let editingUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '', role: 'user', promo_year: null });
+  let editingUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '', role: 'user' as 'admin' | 'mitviste' | 'user', promo_year: null as number | null });
   let newUserData = $state({ id_user: '', email: '', prenom: '', nom: '', id_photos: '' });
 
   // État pour la gestion de la BDD
@@ -31,8 +33,9 @@
       body: JSON.stringify({ sql: 'SELECT * FROM users' })
     });
 
-    const result = await response.json();
-    if (result.success) {
+    const jsonData = await response.json();
+    const result = asApiResponse<UserRow[]>(jsonData);
+    if (result.success && result.data) {
       allUsers = result.data;
     }
   }
@@ -48,19 +51,20 @@
       body: JSON.stringify({ sql: 'INSERT INTO users (id_user, email, prenom, nom, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?)', params: [newUserData.id_user, newUserData.email, newUserData.prenom, newUserData.nom, newUserData.id_photos || null, newUserData.id_photos ? 0 : 1] })
     });
 
-    const result = await response.json();
+    const jsonData = await response.json();
+    const result = asApiResponse(jsonData);
     if (result.success) {
       alert('Utilisateur ajouté avec succès !');
       newUserData = { id_user: '', email: '', prenom: '', nom: '', id_photos: '' };
       await loadAllUsers();
     } else {
-      alert(`Erreur: ${result.error}`);
+      alert(`Erreur: ${result.error || 'Unknown error'}`);
     }
   }
 
-  function startEditUser(user: any) {
+  function startEditUser(user: UserRow) {
     editingUserId = user.id_user;
-    editingUserData = { id_user: user.id_user, email: user.email, prenom: user.prenom, nom: user.nom, id_photos: user.id_photos || '', role: user.role || 'user', promo_year: user.promo_year };
+    editingUserData = { id_user: user.id_user, email: user.email, prenom: user.prenom, nom: user.nom, id_photos: user.id_photos || '', role: (user.role as 'admin' | 'mitviste' | 'user') || 'user', promo_year: user.promo_year };
   }
 
   function cancelEditUser() { editingUserId = null; }
@@ -68,12 +72,13 @@
   async function saveUserEdit() {
     if (!editingUserId) return;
     const res = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'UPDATE users SET email = ?, prenom = ?, nom = ?, id_photos = ?, role = ?, promo_year = ? WHERE id_user = ?', params: [editingUserData.email, editingUserData.prenom, editingUserData.nom, editingUserData.id_photos || null, editingUserData.role || 'user', editingUserData.promo_year || null, editingUserId] }) });
-    const j = await res.json();
-    if (j.success) {
+    const jsonData = await res.json();
+    const result = asApiResponse(jsonData);
+    if (result.success) {
       editingUserId = null;
       await loadAllUsers();
     } else {
-      alert('Erreur mise à jour utilisateur: ' + (j.error || 'unknown'));
+      alert('Erreur mise à jour utilisateur: ' + (result.error || 'unknown'));
     }
   }
 
@@ -96,7 +101,7 @@
     try {
       const response = await fetch('/api/admin/db-export');
       if (!response.ok) throw new Error('Échec de l\'export');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -106,10 +111,10 @@
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       message = '✅ Base de données exportée avec succès';
       messageType = 'success';
-    } catch (error) {
+    } catch (error: unknown) {
       message = `❌ Erreur lors de l'export: ${error}`;
       messageType = 'error';
     } finally {
@@ -123,35 +128,36 @@
       messageType = 'error';
       return;
     }
-    
+
     if (!confirm('⚠️ ATTENTION : Cette action va remplacer la base de données actuelle. Voulez-vous continuer ?')) {
       return;
     }
-    
+
     importing = true;
     message = '';
-    
+
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
-      
+
       const response = await fetch('/api/admin/db-import', {
         method: 'POST',
         body: formData
       });
-      
-      const result = await response.json();
-      
+
+      const jsonData = await response.json();
+      const result = asApiResponse(jsonData);
+
       if (!response.ok) throw new Error(result.error || 'Échec de l\'import');
-      
+
       message = '✅ Base de données importée avec succès. Rechargement de la page...';
       messageType = 'success';
-      
+
       setTimeout(() => {
         window.location.reload();
       }, 2000);
-      
-    } catch (error) {
+
+    } catch (error: unknown) {
       message = `❌ Erreur lors de l'import: ${error}`;
       messageType = 'error';
     } finally {
@@ -162,20 +168,21 @@
   async function createBackup() {
     backing = true;
     message = '';
-    
+
     try {
       const response = await fetch('/api/admin/db-backup', { method: 'POST' });
-      const result = await response.json();
-      
+      const jsonData = await response.json();
+      const result = asApiResponse(jsonData);
+
       if (!response.ok) throw new Error(result.error || 'Échec de la sauvegarde');
-      
-      message = `✅ ${result.message}`;
+
+      message = `✅ ${result.message || 'Sauvegarde créée'}`;
       messageType = 'success';
-      
+
       // Recharger la liste des sauvegardes
       setTimeout(() => window.location.reload(), 1500);
-      
-    } catch (error) {
+
+    } catch (error: unknown) {
       message = `❌ Erreur lors de la sauvegarde: ${error}`;
       messageType = 'error';
     } finally {
@@ -186,20 +193,21 @@
   async function inspectDatabase() {
     inspecting = true;
     message = '';
-    
+
     try {
       const response = await fetch('/api/admin/db-inspect');
-      const result = await response.json();
-      
-      if (result.hasErrors) {
-        message = `⚠️ Erreurs détectées: ${result.errors.join(', ')}`;
+      const jsonData = await response.json();
+      const result = asApiResponse<{ hasErrors?: boolean; errors?: string[] }>(jsonData);
+
+      if (result.data?.hasErrors) {
+        message = `⚠️ Erreurs détectées: ${result.data.errors?.join(', ') || 'Unknown'}`;
         messageType = 'error';
       } else {
         message = '✅ Base de données saine, aucune erreur détectée';
         messageType = 'success';
       }
-      
-    } catch (error) {
+
+    } catch (error: unknown) {
       message = `❌ Erreur lors de l'inspection: ${error}`;
       messageType = 'error';
     } finally {
@@ -211,24 +219,25 @@
     if (!confirm(`⚠️ Restaurer la sauvegarde "${filename}" ? Cela va remplacer la base actuelle.`)) {
       return;
     }
-    
+
     try {
       const response = await fetch('/api/admin/db-restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename })
       });
-      
-      const result = await response.json();
-      
+
+      const jsonData = await response.json();
+      const result = asApiResponse(jsonData);
+
       if (!response.ok) throw new Error(result.error || 'Échec de la restauration');
-      
+
       message = '✅ Sauvegarde restaurée avec succès. Rechargement...';
       messageType = 'success';
-      
+
       setTimeout(() => window.location.reload(), 2000);
-      
-    } catch (error) {
+
+    } catch (error: unknown) {
       message = `❌ Erreur lors de la restauration: ${error}`;
       messageType = 'error';
     }
@@ -247,13 +256,13 @@
     <h1>Gestion de la base de données</h1>
     <a href="/admin" class="back-link">← Retour à l'admin</a>
   </div>
-  
+
   {#if message}
     <div class="message {messageType}">
       {message}
     </div>
   {/if}
-  
+
   <!-- Statistiques -->
   <section class="card">
     <h2>📊 Statistiques</h2>
@@ -276,7 +285,7 @@
       </div>
     </div>
   </section>
-  
+
   <!-- Actions rapides -->
   <section class="card">
     <h2>⚡ Actions rapides</h2>
@@ -284,29 +293,29 @@
       <button class="btn btn-primary" onclick={exportDatabase} disabled={exporting}>
         {exporting ? '📥 Export en cours...' : '📥 Exporter la DB'}
       </button>
-      
+
       <button class="btn btn-success" onclick={createBackup} disabled={backing}>
         {backing ? '💾 Sauvegarde...' : '💾 Sauvegarder maintenant'}
       </button>
-      
+
       <button class="btn btn-info" onclick={inspectDatabase} disabled={inspecting}>
         {inspecting ? '🔍 Inspection...' : '🔍 Inspecter la DB'}
       </button>
     </div>
   </section>
-  
+
   <!-- Import -->
   <section class="card">
     <h2>📤 Importer une base de données</h2>
     <div class="import-section">
       <div class="warning">
-        ⚠️ <strong>Attention :</strong> L'import va remplacer complètement la base de données actuelle. 
+        ⚠️ <strong>Attention :</strong> L'import va remplacer complètement la base de données actuelle.
         Assurez-vous d'avoir créé une sauvegarde avant !
       </div>
-      
+
       <div class="file-input">
-        <input 
-          type="file" 
+        <input
+          type="file"
           accept=".db"
           onchange={handleFileSelect}
           disabled={importing}
@@ -315,21 +324,21 @@
           <p class="file-selected">Fichier sélectionné : {uploadFile.name}</p>
         {/if}
       </div>
-      
-      <button 
-        class="btn btn-danger" 
-        onclick={importDatabase} 
+
+      <button
+        class="btn btn-danger"
+        onclick={importDatabase}
         disabled={importing || !uploadFile}
       >
         {importing ? '📤 Import en cours...' : '📤 Importer la DB'}
       </button>
     </div>
   </section>
-  
+
   <!-- Sauvegardes -->
   <section class="card">
     <h2>💾 Sauvegardes disponibles ({backups.length}/10)</h2>
-    
+
     {#if backups.length === 0}
       <p class="no-backups">Aucune sauvegarde disponible. Créez-en une avec le bouton ci-dessus.</p>
     {:else}
@@ -343,8 +352,8 @@
                 <span>📏 {backup.size}</span>
               </div>
             </div>
-            <button 
-              class="btn btn-sm btn-secondary" 
+            <button
+              class="btn btn-sm btn-secondary"
               onclick={() => restoreBackup(backup.filename)}
             >
               🔄 Restaurer
@@ -354,7 +363,7 @@
       </div>
     {/if}
   </section>
-  
+
   <!-- Aide -->
   <section class="card help">
     <h2>💡 Aide</h2>
@@ -365,9 +374,9 @@
       <li><strong>Inspecter :</strong> Vérifie l'intégrité de la base de données</li>
       <li><strong>Restaurer :</strong> Remplace la DB actuelle par une sauvegarde</li>
     </ul>
-    
+
     <p>
-      <strong>📚 Pour plus d'informations :</strong> 
+      <strong>📚 Pour plus d'informations :</strong>
       Consultez la documentation dans <code>scripts/README.md</code>
     </p>
   </section>
@@ -379,55 +388,55 @@
     margin: 0 auto;
     padding: 2rem;
   }
-  
+
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
   }
-  
+
   .header h1 {
     font-size: 2rem;
     font-weight: 700;
     margin: 0;
   }
-  
+
   .back-link {
     color: var(--accent);
     text-decoration: none;
     font-weight: 500;
   }
-  
+
   .back-link:hover {
     text-decoration: underline;
   }
-  
+
   .message {
     padding: 1rem;
     border-radius: var(--radius-sm);
     margin-bottom: 1.5rem;
     font-weight: 500;
   }
-  
+
   .message.success {
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
   }
-  
+
   .message.error {
     background: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
   }
-  
+
   .message.info {
     background: #d1ecf1;
     color: #0c5460;
     border: 1px solid #bee5eb;
   }
-  
+
   .card {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -435,45 +444,45 @@
     padding: 1.5rem;
     margin-bottom: 1.5rem;
   }
-  
+
   .card h2 {
     margin-top: 0;
     margin-bottom: 1.5rem;
     font-size: 1.25rem;
     font-weight: 700;
   }
-  
+
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
   }
-  
+
   .stat {
     background: var(--bg-tertiary);
     padding: 1rem;
     border-radius: var(--radius-sm);
     text-align: center;
   }
-  
+
   .stat-label {
     font-size: 0.875rem;
     color: var(--text-muted);
     margin-bottom: 0.5rem;
   }
-  
+
   .stat-value {
     font-size: 2rem;
     font-weight: 700;
     color: var(--accent);
   }
-  
+
   .actions-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
   }
-  
+
   .btn {
     padding: 0.75rem 1.5rem;
     border: none;
@@ -483,53 +492,53 @@
     transition: all 0.2s var(--ease);
     font-size: 1rem;
   }
-  
+
   .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   .btn-primary {
     background: var(--accent);
     color: white;
   }
-  
+
   .btn-primary:hover:not(:disabled) {
     opacity: 0.9;
   }
-  
+
   .btn-success {
     background: #28a745;
     color: white;
   }
-  
+
   .btn-info {
     background: #17a2b8;
     color: white;
   }
-  
+
   .btn-danger {
     background: #dc3545;
     color: white;
   }
-  
+
   .btn-secondary {
     background: var(--bg-tertiary);
     color: var(--text-primary);
     border: 1px solid var(--border);
   }
-  
+
   .btn-sm {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
   }
-  
+
   .import-section {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .warning {
     background: #fff3cd;
     color: #856404;
@@ -537,7 +546,7 @@
     border-radius: var(--radius-sm);
     border: 1px solid #ffeaa7;
   }
-  
+
   .file-input input[type="file"] {
     width: 100%;
     padding: 0.75rem;
@@ -545,24 +554,24 @@
     border-radius: var(--radius-sm);
     cursor: pointer;
   }
-  
+
   .file-selected {
     color: var(--text-secondary);
     font-size: 0.875rem;
     margin-top: 0.5rem;
   }
-  
+
   .no-backups {
     color: var(--text-muted);
     font-style: italic;
   }
-  
+
   .backups-list {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
   .backup-item {
     display: flex;
     justify-content: space-between;
@@ -572,39 +581,39 @@
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
   }
-  
+
   .backup-info {
     flex: 1;
   }
-  
+
   .backup-name {
     font-weight: 600;
     margin-bottom: 0.25rem;
   }
-  
+
   .backup-meta {
     display: flex;
     gap: 1rem;
     font-size: 0.875rem;
     color: var(--text-muted);
   }
-  
+
   .help ul {
     margin: 0;
     padding-left: 1.5rem;
   }
-  
+
   .help li {
     margin-bottom: 0.5rem;
     line-height: 1.6;
   }
-  
+
   .help p {
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border);
   }
-  
+
   .help code {
     background: var(--bg-primary);
     padding: 0.2rem 0.4rem;

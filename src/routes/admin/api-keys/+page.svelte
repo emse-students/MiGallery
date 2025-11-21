@@ -32,9 +32,9 @@
     try {
       const res = await fetch('/api/admin/api-keys');
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-      const data = await res.json();
+      const data = (await res.json()) as { keys: KeyRow[] };
       keys = data.keys || [];
-    } catch (e) {
+    } catch (e: unknown) {
       error = (e as Error).message;
     } finally {
       loading = false;
@@ -47,13 +47,13 @@
       const body = { label: newLabel || undefined, scopes: newScopes ? newScopes.split(',').map(s=>s.trim()) : undefined };
       const res = await fetch('/api/admin/api-keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-      const data = await res.json();
+      const data = (await res.json()) as { id: number; rawKey: string };
       // rawKey is returned once; show it to admin
       alert('Clé créée:\nID: ' + data.id + '\nClé (copiez-la maintenant, elle ne sera plus affichée):\n' + data.rawKey);
       newLabel = '';
       newScopes = '';
       await loadKeys();
-    } catch (e) {
+    } catch (e: unknown) {
       alert('Erreur lors de la création: ' + (e as Error).message);
     } finally {
       creating = false;
@@ -66,7 +66,7 @@
       const res = await fetch(`/api/admin/api-keys/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
       await loadKeys();
-    } catch (e) {
+    } catch (e: unknown) {
       alert('Erreur: ' + (e as Error).message);
     }
   }

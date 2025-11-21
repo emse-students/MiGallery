@@ -1,9 +1,10 @@
+import { ensureError } from '$lib/ts-utils';
 /**
  * Cache client-side pour les données API
  * Utilise IndexedDB pour la persistance entre sessions
  */
 
-interface CacheEntry<T = any> {
+interface CacheEntry<T = unknown> {
 	data: T;
 	timestamp: number;
 	etag?: string;
@@ -23,10 +24,10 @@ const DEFAULT_CONFIG: CacheConfig = {
 	version: 1,
 	stores: [
 		{ name: 'album-covers', ttl: 3600000 }, // 1h - Couvertures d'albums
-		{ name: 'albums', ttl: 300000 },        // 5min - Détails albums
-		{ name: 'assets', ttl: 600000 },        // 10min - Métadonnées assets
-		{ name: 'people', ttl: 1800000 },       // 30min - Infos personnes
-		{ name: 'thumbnails', ttl: 86400000 },  // 24h - Miniatures (URLs blob)
+		{ name: 'albums', ttl: 300000 }, // 5min - Détails albums
+		{ name: 'assets', ttl: 600000 }, // 10min - Métadonnées assets
+		{ name: 'people', ttl: 1800000 }, // 30min - Infos personnes
+		{ name: 'thumbnails', ttl: 86400000 } // 24h - Miniatures (URLs blob)
 	]
 };
 
@@ -43,8 +44,12 @@ class ClientCache {
 	 * Initialise la base de données IndexedDB
 	 */
 	private async initDB(): Promise<IDBDatabase> {
-		if (this.db) return this.db;
-		if (this.dbPromise) return this.dbPromise;
+		if (this.db) {
+			return this.db;
+		}
+		if (this.dbPromise) {
+			return this.dbPromise;
+		}
 
 		this.dbPromise = new Promise((resolve, reject) => {
 			if (typeof indexedDB === 'undefined') {
@@ -62,7 +67,7 @@ class ClientCache {
 
 			request.onupgradeneeded = (event) => {
 				const db = (event.target as IDBOpenDBRequest).result;
-				
+
 				// Créer les object stores
 				for (const store of this.config.stores) {
 					if (!db.objectStoreNames.contains(store.name)) {
@@ -81,8 +86,10 @@ class ClientCache {
 	async get<T>(storeName: string, key: string): Promise<T | null> {
 		try {
 			const db = await this.initDB();
-			const store = this.config.stores.find(s => s.name === storeName);
-			if (!store) return null;
+			const store = this.config.stores.find((s) => s.name === storeName);
+			if (!store) {
+				return null;
+			}
 
 			return new Promise((resolve, reject) => {
 				const transaction = db.transaction(storeName, 'readonly');
@@ -92,7 +99,7 @@ class ClientCache {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => {
 					const entry = request.result as CacheEntry<T> | undefined;
-					
+
 					if (!entry) {
 						resolve(null);
 						return;
@@ -110,7 +117,8 @@ class ClientCache {
 					resolve(entry.data);
 				};
 			});
-		} catch (error) {
+		} catch (error: unknown) {
+			const _err = ensureError(error);
 			console.warn('Cache get error:', error);
 			return null;
 		}
@@ -122,11 +130,11 @@ class ClientCache {
 	async set<T>(storeName: string, key: string, data: T, etag?: string): Promise<void> {
 		try {
 			const db = await this.initDB();
-			
+
 			return new Promise((resolve, reject) => {
 				const transaction = db.transaction(storeName, 'readwrite');
 				const objectStore = transaction.objectStore(storeName);
-				
+
 				const entry: CacheEntry<T> = {
 					data,
 					timestamp: Date.now(),
@@ -138,7 +146,8 @@ class ClientCache {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => resolve();
 			});
-		} catch (error) {
+		} catch (error: unknown) {
+			const _err = ensureError(error);
 			console.warn('Cache set error:', error);
 		}
 	}
@@ -149,7 +158,7 @@ class ClientCache {
 	async delete(storeName: string, key: string): Promise<void> {
 		try {
 			const db = await this.initDB();
-			
+
 			return new Promise((resolve, reject) => {
 				const transaction = db.transaction(storeName, 'readwrite');
 				const objectStore = transaction.objectStore(storeName);
@@ -158,7 +167,8 @@ class ClientCache {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => resolve();
 			});
-		} catch (error) {
+		} catch (error: unknown) {
+			const _err = ensureError(error);
 			console.warn('Cache delete error:', error);
 		}
 	}
@@ -169,7 +179,7 @@ class ClientCache {
 	async clearStore(storeName: string): Promise<void> {
 		try {
 			const db = await this.initDB();
-			
+
 			return new Promise((resolve, reject) => {
 				const transaction = db.transaction(storeName, 'readwrite');
 				const objectStore = transaction.objectStore(storeName);
@@ -178,7 +188,8 @@ class ClientCache {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => resolve();
 			});
-		} catch (error) {
+		} catch (error: unknown) {
+			const _err = ensureError(error);
 			console.warn('Cache clear store error:', error);
 		}
 	}
@@ -214,7 +225,8 @@ class ClientCache {
 			}
 
 			return stats;
-		} catch (error) {
+		} catch (error: unknown) {
+			const _err = ensureError(error);
 			console.warn('Cache stats error:', error);
 			return [];
 		}
@@ -234,20 +246,21 @@ class ClientCache {
 
 				request.onsuccess = (event) => {
 					const cursor = (event.target as IDBRequest).result as IDBCursorWithValue | null;
-					
+
 					if (cursor) {
 						const entry = cursor.value as CacheEntry;
 						const age = Date.now() - entry.timestamp;
-						
+
 						if (age > storeConfig.ttl) {
 							cursor.delete();
 						}
-						
+
 						cursor.continue();
 					}
 				};
 			}
-		} catch (error) {
+		} catch (error: unknown) {
+			const _err = ensureError(error);
 			console.warn('Cache cleanup error:', error);
 		}
 	}
@@ -261,8 +274,8 @@ export const clientCache = new ClientCache();
  */
 export async function cachedFetch<T>(
 	url: string,
-	options?: RequestInit & { 
-		cacheStore?: string; 
+	options?: RequestInit & {
+		cacheStore?: string;
 		cacheKey?: string;
 		bypassCache?: boolean;
 	}
@@ -281,12 +294,12 @@ export async function cachedFetch<T>(
 
 	// Fetch depuis le serveur
 	const response = await fetch(url, options);
-	
+
 	if (!response.ok) {
 		throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 	}
 
-	const data = await response.json() as T;
+	const data = (await response.json()) as unknown as T;
 
 	// Stocker en cache
 	if (cacheStore) {

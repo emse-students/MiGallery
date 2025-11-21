@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Snippet } from 'svelte';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -11,7 +11,7 @@
     cancelText?: string;
     onConfirm?: () => void | Promise<void>;
     onCancel?: () => void;
-    children?: any;
+    children?: Snippet;
     wide?: boolean;
   }
 
@@ -51,14 +51,14 @@
 
   async function handleConfirm() {
     if (isProcessing) return;
-    
+
     try {
       isProcessing = true;
       if (onConfirm) {
         await onConfirm();
       }
       show = false;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erreur dans onConfirm:', error);
     } finally {
       isProcessing = false;
@@ -67,7 +67,7 @@
 
   function handleCancel() {
     if (isProcessing) return;
-    
+
     if (onCancel) {
       onCancel();
     }
@@ -101,7 +101,7 @@
   onclick={handleBackdropClick}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div 
+  <div
     class="modal-content {wide ? 'modal-content-wide' : ''}"
     role="group"
     tabindex="-1"

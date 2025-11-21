@@ -4,11 +4,11 @@
 		rounded?: boolean;
 	}
 
-	let { aspectRatio = '1', rounded = false }: Props = $props();
+	const { aspectRatio = '1', rounded = false }: Props = $props();
 </script>
 
-<div 
-	class="skeleton" 
+<div
+	class="skeleton"
 	class:rounded
 	style="aspect-ratio: {aspectRatio}"
 >

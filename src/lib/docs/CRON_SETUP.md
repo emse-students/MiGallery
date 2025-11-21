@@ -7,11 +7,13 @@ Ce document explique comment configurer les sauvegardes automatiques de la base 
 ### Installation de la tâche cron
 
 1. Ouvrir l'éditeur cron :
+
 ```bash
 crontab -e
 ```
 
 2. Ajouter cette ligne pour une sauvegarde quotidienne à minuit :
+
 ```bash
 0 0 * * * cd /chemin/absolu/vers/MiGallery && bun run db:backup >> /var/log/migallery-backup.log 2>&1
 ```
@@ -161,6 +163,7 @@ ls -lt data/backups/ | head -10
 ### Logs (Linux/Mac)
 
 Si vous avez redirigé la sortie vers un fichier log :
+
 ```bash
 tail -f /var/log/migallery-backup.log
 ```
@@ -179,12 +182,14 @@ tail -f /var/log/migallery-backup.log
 ### La tâche ne s'exécute pas
 
 1. **Vérifier que Bun est dans le PATH**
+
    ```bash
    which bun  # Linux/Mac
    where bun  # Windows
    ```
 
 2. **Tester manuellement**
+
    ```bash
    cd /chemin/vers/MiGallery
    bun run db:backup

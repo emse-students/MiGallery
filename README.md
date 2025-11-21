@@ -1,11 +1,13 @@
 <div align="center">
   <img src="static/MiGallery.png" alt="MiGallery Logo" width="200"/>
-  
-  # MiGallery
-  **by MiTV**
-  
-  [![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
-  [![Powered by Bun](https://img.shields.io/badge/Powered%20by-Bun-000000?logo=bun)](https://bun.sh/)
+
+# MiGallery
+
+**by MiTV**
+
+[![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
+[![Powered by Bun](https://img.shields.io/badge/Powered%20by-Bun-000000?logo=bun)](https://bun.sh/)
+
 </div>
 
 ---
@@ -35,6 +37,7 @@ MiGallery est une application web moderne de gestion de galeries photos, dévelo
 - SQLite (inclus avec better-sqlite3)
 
 Vérifier Bun :
+
 ```bash
 bun --version
 ```
@@ -42,12 +45,14 @@ bun --version
 ### Étapes d'installation
 
 1. **Cloner le dépôt**
+
 ```bash
 git clone https://github.com/emse-students/MiGallery.git
 cd MiGallery
 ```
 
 2. **Installer les dépendances**
+
 ```bash
 bun install
 ```
@@ -55,6 +60,7 @@ bun install
 3. **Configurer l'environnement**
 
 Créez un fichier `.env` à la racine :
+
 ```env
 # Générer un secret pour les cookies
 COOKIE_SECRET=<générer avec: bun run generate:secret>
@@ -68,15 +74,18 @@ IMMICH_API_KEY=votre_api_key
 ```
 
 4. **Initialiser la base de données**
+
 ```bash
 bun run db:init
 ```
 
 Cela crée automatiquement :
+
 - La structure des tables (users, albums, permissions)
 - Un utilisateur système admin : **les.roots@etu.emse.fr** (n'apparaît pas sur le trombinoscope)
 
 5. **Lancer le serveur de développement**
+
 ```bash
 bun run dev
 ```
@@ -121,6 +130,7 @@ bun run db:init
 ### Sauvegardes
 
 #### Sauvegarde manuelle
+
 ```bash
 # Créer une sauvegarde de la base de données
 bun run db:backup
@@ -133,6 +143,7 @@ Les sauvegardes sont stockées dans `data/backups/` et seules les **10 dernière
 Pour configurer des sauvegardes automatiques quotidiennes à minuit :
 
 **Sur Linux/Mac (cron)** :
+
 ```bash
 crontab -e
 # Ajouter cette ligne :
@@ -140,6 +151,7 @@ crontab -e
 ```
 
 **Sur Windows (Planificateur de tâches)** :
+
 1. Ouvrir le Planificateur de tâches
 2. Créer une tâche de base
 3. Déclencheur : Quotidien à 00:00
@@ -163,6 +175,7 @@ bun run db:inspect -- --repair
 ### Gestion via l'interface admin
 
 L'interface d'administration (`/admin/database`) permet de :
+
 - ✅ Exporter la base de données
 - ✅ Importer une base de données
 - ✅ Créer une sauvegarde manuelle
@@ -176,29 +189,29 @@ L'interface d'administration (`/admin/database`) permet de :
 
 ### Scripts de développement
 
-| Commande | Description |
-|----------|-------------|
-| `bun run dev` | Lance le serveur de développement avec HMR |
-| `bun run build` | Compile l'application pour la production |
-| `bun run preview` | Prévisualise la version de production |
-| `bun run check` | Vérifie les types TypeScript et Svelte |
+| Commande          | Description                                |
+| ----------------- | ------------------------------------------ |
+| `bun run dev`     | Lance le serveur de développement avec HMR |
+| `bun run build`   | Compile l'application pour la production   |
+| `bun run preview` | Prévisualise la version de production      |
+| `bun run check`   | Vérifie les types TypeScript et Svelte     |
 
 ### Scripts de base de données
 
-| Commande | Description |
-|----------|-------------|
-| `bun run db:init` | Initialise une nouvelle base de données |
-| `bun run db:backup` | Crée une sauvegarde de la base de données |
-| `bun run db:inspect` | Inspecte la base de données |
-| `bun run db:inspect -- --repair` | Répare les erreurs détectées |
+| Commande                         | Description                               |
+| -------------------------------- | ----------------------------------------- |
+| `bun run db:init`                | Initialise une nouvelle base de données   |
+| `bun run db:backup`              | Crée une sauvegarde de la base de données |
+| `bun run db:inspect`             | Inspecte la base de données               |
+| `bun run db:inspect -- --repair` | Répare les erreurs détectées              |
 
 ### Scripts utilitaires
 
-| Commande | Description |
-|----------|-------------|
-| `bun run generate:secret` | Génère un secret cryptographique pour les cookies |
-| `bun run test:api` | Lance les tests unitaires de l'API |
-| `bun run package` | Crée un package complet (.tgz) avec DB, .env, etc. |
+| Commande                  | Description                                        |
+| ------------------------- | -------------------------------------------------- |
+| `bun run generate:secret` | Génère un secret cryptographique pour les cookies  |
+| `bun run test:api`        | Lance les tests unitaires de l'API                 |
+| `bun run package`         | Crée un package complet (.tgz) avec DB, .env, etc. |
 
 ### Tests de l'API
 
@@ -211,6 +224,7 @@ API_BASE_URL=http://mon-serveur:3000 API_KEY=ma_cle bun run test:api
 ```
 
 Les tests vérifient :
+
 - ✅ Albums (listing, détails)
 - ✅ Users (listing, récupération)
 - ✅ Photos-CV (personnes, albums)
@@ -225,6 +239,7 @@ Les tests vérifient :
 ### Créer un package complet
 
 Le script `package` crée une archive `.tgz` incluant :
+
 - Le build compilé
 - La base de données (`data/`)
 - Le fichier de configuration (`.env`)
@@ -243,22 +258,26 @@ Le package sera créé dans `build/artifacts/migallery-<version>-full.tgz`
 1. **Copier le package** sur la machine cible
 
 2. **Extraire l'archive**
+
 ```bash
 tar -xzf migallery-x.x.x-full.tgz
 cd migallery
 ```
 
 3. **Installer les dépendances**
+
 ```bash
 bun install --production
 ```
 
 4. **Vérifier/Modifier la configuration**
+
 ```bash
 nano .env  # Adapter les URLs et chemins si nécessaire
 ```
 
 5. **Lancer l'application**
+
 ```bash
 bun run build/index.js
 ```
@@ -338,16 +357,19 @@ Cet utilisateur est destiné à l'administration système et ne doit pas être s
 La documentation complète se trouve dans le dossier `docs/` :
 
 ### 📖 Guides généraux
+
 - **SCRIPTS.md** - Documentation détaillée de tous les scripts
 - **CRON_SETUP.md** - Configuration des sauvegardes automatiques
 - **NAVBAR_ACCESS_MATRIX.md** - Matrice de contrôle d'accès de la barre de navigation
 
 ### 🔐 Documentation API
+
 - **API_SECURITY.md** - **[NOUVEAU]** Guide complet de sécurité API (scopes, permissions, exemples)
 - **POSTMAN_AVATAR.md** - **[NOUVEAU]** Guide Postman pour l'endpoint avatar
 - Interface web : `/admin/api-docs` - Documentation interactive des endpoints
 
 ### 📝 Ressources additionnelles
+
 - **tests/README.md** - Guide des tests automatisés (Vitest)
 - `src/lib/admin/endpoints.ts` - Définition TypeScript de tous les endpoints API
 
@@ -355,7 +377,28 @@ La documentation complète se trouve dans le dossier `docs/` :
 
 ## 📄 Licence
 
-Ce projet est sous licence **MIT**.
+Ce projet est sous licence **GNU GPL v3**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+---
+
+## 🛠️ Qualité du Code & Architecture
+
+### Système de Types
+
+Le projet utilise un système de types centralisé et rigoureux :
+
+- **Source unique** : Tous les types sont définis dans `src/lib/types/api.ts`
+- **Documentation** : Chaque interface est documentée avec JSDoc
+- **Sécurité** : Typage strict activé dans `tsconfig.json`
+
+### DevOps & Linting
+
+La qualité du code est assurée par une chaîne d'outils complète :
+
+- **ESLint** : Analyse statique du code (configuration stricte)
+- **Prettier** : Formatage automatique du code
+- **Husky** : Hooks git pour vérifier le code avant chaque commit
+- **CI/CD** : Scripts de vérification (`bun run check`, `bun run lint`)
 
 ---
 
@@ -369,7 +412,129 @@ Développé avec ❤️ par **DeMASKe**(https://github.com/DeMASKe) et **gd-pnjj
 ---
 
 <div align="center">
-  
+
 **by MiTV @ EMSE**
 
 </div>
+
+---
+
+## 🗂️ Annexes DevOps (fusionnées)
+
+Les documents DevOps originaux situés dans `.devops/` ont été consolidés ci-dessous pour centraliser la configuration et les commandes courantes. Utilisez les sections dépliables pour naviguer rapidement.
+
+<details>
+<summary><strong>Commandes rapides</strong></summary>
+
+```powershell
+# 1. Installer pre-commit
+pip install pre-commit
+
+# 2. Installer dépendances
+bun install
+
+# 3. Activer les hooks
+pre-commit install
+
+# 4. Tester
+pre-commit run --all-files
+
+# Vérifier les erreurs
+bun run lint
+
+# Corriger automatiquement
+bun run lint:fix
+bun run format
+
+# Commiter (hooks s'exécutent automatiquement)
+git add .
+git commit -m "message"
+```
+
+</details>
+
+<details>
+<summary><strong>Installation DevOps (résumé)</strong></summary>
+
+1. Vérifier Python :
+
+```powershell
+python --version
+# Doit afficher Python 3.x
+```
+
+2. Installation express (résumé) :
+
+```powershell
+bun install
+pre-commit install
+pre-commit run --all-files
+```
+
+3. Vérifier :
+
+```powershell
+pre-commit run --all-files
+bun run lint
+```
+
+</details>
+
+<details>
+<summary><strong>DevOps README (résumé)</strong></summary>
+
+Usage quotidien :
+
+```powershell
+bun run lint              # Vérifier les erreurs
+bun run lint:fix          # Corriger automatiquement
+bun run format            # Formater le code
+git commit -m "message"   # Les hooks s'exécutent automatiquement !
+```
+
+Fichiers de configuration importants :
+
+- `eslint.config.js` - Configuration ESLint
+- `.prettierrc` - Prettier
+- `.pre-commit-config.yaml` - pre-commit hooks
+- `.editorconfig` - configuration éditeur
+
+</details>
+
+<details>
+<summary><strong>Dépannage & Troubleshooting</strong></summary>
+
+Problèmes courants et solutions rapides :
+
+- `pre-commit: command not found`
+
+```powershell
+pip install --upgrade pre-commit
+pre-commit --version
+```
+
+- `bun: command not found` → Installez Bun depuis https://bun.sh
+
+- Les hooks ne s'exécutent pas :
+
+```powershell
+pre-commit uninstall
+pre-commit install
+```
+
+- Erreurs ESLint au linting :
+
+```powershell
+bun run lint:fix
+bun run format
+```
+
+- `Type tag 'typescript' is not recognized` :
+
+```powershell
+pip install --upgrade pre-commit identify
+```
+
+Si un commit échoue, corrigez les erreurs reportées par ESLint/Prettier puis réessayez.
+
+</details>

@@ -1,8 +1,30 @@
 <script lang="ts">
   import { page } from '$app/state';
-  const endpoints = (page as any).data?.endpoints || [];
-  function esc(s: string) { return s.replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-  let isAdmin = $derived((page.data.session?.user as any)?.role === 'admin');
+  interface Param {
+    name: string;
+    in: string;
+    desc: string;
+  }
+  interface Endpoint {
+    method: string;
+    path: string;
+    requiredScopes?: string[];
+    summary?: string;
+    notes?: string;
+    params?: Param[];
+    exampleCurl?: string;
+    noteAuth?: string;
+  }
+  interface EndpointGroup {
+    group: string;
+    description?: string;
+    items: Endpoint[];
+  }
+  const endpoints = (page.data as { endpoints?: EndpointGroup[] }).endpoints || [];
+  function esc(s: string) {
+  	return s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  const isAdmin = $derived(page.data.session?.user?.role === 'admin');
 </script>
 
 <svelte:head>
@@ -16,7 +38,7 @@
     <div class="header">
       <h1>📡 Documentation API MiGallery</h1>
       <p class="subtitle">Guide complet d'intégration et référence des endpoints</p>
-      
+
       <div class="quick-links">
         <a href="/admin/api-keys" class="btn-link">
           🔑 Gérer les clés API
@@ -44,7 +66,7 @@
     <section class="card highlight" id="overview">
       <h2>🌟 Aperçu</h2>
       <p>MiGallery expose une API REST complète pour gérer albums, utilisateurs, médias et permissions.</p>
-      
+
       <div class="features-grid">
         <div class="feature">
           <strong>📚 Albums</strong>
@@ -63,7 +85,7 @@
           <p>Contrôle d'accès granulaire par scopes</p>
         </div>
       </div>
-      
+
       <div class="info-box">
         <strong>💡 Démarrage rapide :</strong>
         <ol>
@@ -78,7 +100,7 @@
     <section class="card" id="auth">
       <h2>🔑 Authentification</h2>
       <p>Deux méthodes d'authentification sont supportées :</p>
-      
+
       <div class="auth-methods">
         <div class="auth-method">
           <h3>1️⃣ Clé API (Recommandé)</h3>
@@ -117,7 +139,7 @@
     <section class="card" id="scopes">
       <h2>🔐 Scopes et Permissions</h2>
       <p>Les clés API utilisent des <strong>scopes</strong> pour contrôler l'accès :</p>
-      
+
       <table class="scopes-table">
         <thead>
           <tr>
@@ -156,7 +178,7 @@
       </table>
 
       <div class="info-box">
-        <strong>💡 Principe du moindre privilège :</strong> 
+        <strong>💡 Principe du moindre privilège :</strong>
         N'accordez que les scopes nécessaires. Par exemple, une clé pour lire les avatars n'a besoin que de <code>read</code>.
       </div>
 
@@ -168,7 +190,7 @@
     <!-- Endpoints -->
     <section class="card" id="endpoints">
       <h2>📡 Référence des Endpoints</h2>
-      
+
       {#if endpoints.length > 0}
         {#each endpoints as group}
           <div class="endpoint-group">
@@ -186,7 +208,7 @@
             {#if group.description}
               <p class="group-description">{group.description}</p>
             {/if}
-            
+
             <div class="endpoints">
               {#each group.items as endpoint}
                 <article class="endpoint">
@@ -203,36 +225,36 @@
                       </div>
                     {/if}
                   </div>
-                  
+
                   {#if endpoint.summary}
                     <div class="summary">{endpoint.summary}</div>
                   {/if}
-                  
+
                   {#if endpoint.notes}
                     <div class="notes">📝 {endpoint.notes}</div>
                   {/if}
-                  
+
                   {#if endpoint.params && endpoint.params.length > 0}
                     <div class="params">
                       <strong>Paramètres :</strong>
                       <ul>
                         {#each endpoint.params as param}
                           <li>
-                            <code>{param.name}</code> 
+                            <code>{param.name}</code>
                             <span class="param-type">({param.in})</span> — {param.desc}
                           </li>
                         {/each}
                       </ul>
                     </div>
                   {/if}
-                  
+
                   {#if endpoint.exampleCurl}
                     <details class="example-details">
                       <summary>📋 Exemple cURL</summary>
                       <pre>{@html esc(endpoint.exampleCurl)}</pre>
                     </details>
                   {/if}
-                  
+
                   {#if endpoint.noteAuth}
                     <div class="auth-note">
                       🔒 {endpoint.noteAuth}
@@ -308,7 +330,7 @@
     <!-- Examples -->
     <section class="card" id="examples">
       <h2>💻 Exemples d'intégration</h2>
-      
+
       <div class="example-group">
         <h3>🟨 JavaScript / Node.js</h3>
         <pre><code>const API_KEY = 'votre_cle'
@@ -339,7 +361,7 @@ requests.get(
     <!-- Help -->
     <section class="card info">
       <h2>💡 Besoin d'aide ?</h2>
-      
+
       <div class="help-grid">
         <div class="help-item">
           <h4>📚 Documentation complète</h4>
@@ -349,7 +371,7 @@ requests.get(
             <li><code>tests/README.md</code> — Tests automatisés</li>
           </ul>
         </div>
-        
+
         <div class="help-item">
           <h4>🔧 Outils recommandés</h4>
           <ul>
@@ -357,7 +379,7 @@ requests.get(
             <li><a href="https://curl.se/" target="_blank">cURL</a> — Ligne de commande</li>
           </ul>
         </div>
-        
+
         <div class="help-item">
           <h4>🚀 Démarrage rapide</h4>
           <ol>

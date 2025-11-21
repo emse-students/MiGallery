@@ -1,6 +1,10 @@
-import type { RequestHandler } from "@sveltejs/kit";
-import { env } from "$env/dynamic/private";
-import { immichCache } from "$lib/server/immich-cache";
+import type { RequestHandler } from '@sveltejs/kit';
+
+import { ensureError } from '$lib/ts-utils';
+import { env } from '$env/dynamic/private';
+import { immichCache } from '$lib/server/immich-cache';
+import { verifyRawKeyWithScope } from '$lib/db/api-keys';
+import { getCurrentUser } from '$lib/server/auth';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY;
@@ -10,6 +14,20 @@ const handle: RequestHandler = async function (event) {
 	const path = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
+	// Autorisation pour GET: session utilisateur OU x-api-key avec scope "read"
+	if (request.method === 'GET') {
+		const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
+		if (!user) {
+			const raw = request.headers.get('x-api-key') || undefined;
+			if (!verifyRawKeyWithScope(raw, 'read')) {
+				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { 'content-type': 'application/json' }
+				});
+			}
+		}
+	}
+
 	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
 	// ensure we have a protocol; if user provided e.g. 10.0.0.4:2283, default to http://
 	if (base && !/^https?:\/\//i.test(base)) {
@@ -18,61 +36,69 @@ const handle: RequestHandler = async function (event) {
 	const remoteUrl = `${base}/api/${path}${search}`;
 
 	if (!baseUrlFromEnv) {
-		return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), { status: 500, headers: { 'content-type': 'application/json' } });
+		return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
+			status: 500,
+			headers: { 'content-type': 'application/json' }
+		});
 	}
 
 	// Vérifier le cache pour les requêtes GET
 	if (request.method === 'GET') {
 		const cached = immichCache.get('GET', `/api/${path}`, remoteUrl);
 		if (cached) {
-			console.log(`[Cache HIT] GET /api/${path}`);
+			console.warn(`[Cache HIT] GET /api/${path}`);
 			const headers = new Headers({ 'content-type': 'application/json', 'x-cache': 'HIT' });
 			return new Response(JSON.stringify(cached), { status: 200, headers });
 		}
 	}
 
 	const outgoingHeaders: Record<string, string> = {
-		"x-api-key": apiKey,
+		'x-api-key': apiKey,
 		// forward client's Accept header when present so we don't force JSON for images/etc
-		accept: request.headers.get('accept') || '*/*',
+		accept: request.headers.get('accept') || '*/*'
 	};
 
-	const contentType = request.headers.get("content-type");
-	
+	const contentType = request.headers.get('content-type');
+
 	let bodyToForward: BodyInit | undefined = undefined;
-	
-	if (!["GET", "HEAD"].includes(request.method)) {
+
+	if (!['GET', 'HEAD'].includes(request.method)) {
 		try {
 			// Pour les FormData (multipart/form-data), on transmet le body brut
 			if (contentType?.includes('multipart/form-data')) {
 				// Transmettre le content-type avec la boundary
-				outgoingHeaders["content-type"] = contentType;
+				outgoingHeaders['content-type'] = contentType;
 				// Utiliser arrayBuffer pour préserver les données binaires
 				bodyToForward = await request.arrayBuffer();
 			} else {
 				// Pour les autres types de contenu (JSON, etc.)
-				if (contentType) outgoingHeaders["content-type"] = contentType;
+				if (contentType) {
+					outgoingHeaders['content-type'] = contentType;
+				}
 				bodyToForward = await request.text();
 				if (bodyToForward && !outgoingHeaders['content-length']) {
 					outgoingHeaders['content-length'] = String(new TextEncoder().encode(bodyToForward).length);
 				}
 			}
-		} catch (e) {
-			console.error("Error processing request body:", e);
+		} catch (e: unknown) {
+			const _err = ensureError(e);
+			console.error('Error processing request body:', e);
 		}
 	}
 
-		const init: RequestInit = {
-			method: request.method,
-			headers: outgoingHeaders,
-			body: bodyToForward,
-		};
+	const init: RequestInit = {
+		method: request.method,
+		headers: outgoingHeaders,
+		body: bodyToForward
+	};
 
-		// resolved upstream URL (used for forwarding)
-		// if the client asked for endpoints/* we forward to ${base}/endpoints/..., otherwise to ${base}/api/...
-		const resolvedRemoteUrl = path.startsWith("endpoints/") ? `${base}/${path}${search}` : `${base}/api/${path}${search}`;
+	// resolved upstream URL (used for forwarding)
+	// if the client asked for endpoints/* we forward to ${base}/endpoints/..., otherwise to ${base}/api/...
+	const resolvedRemoteUrl = path.startsWith('endpoints/')
+		? `${base}/${path}${search}`
+		: `${base}/api/${path}${search}`;
 
-		// production: forward without debug helpers or extra logging
+	// production: forward without debug helpers or extra logging
 
 	try {
 		// use resolvedRemoteUrl (special-cases endpoints/*) when forwarding the request
@@ -83,29 +109,36 @@ const handle: RequestHandler = async function (event) {
 			try {
 				const clone = res.clone();
 				const snippet = await clone.text();
-				console.error(`Immich proxy upstream error for ${resolvedRemoteUrl}:`, { status: res.status, statusText: res.statusText, bodySnippet: snippet && snippet.slice ? snippet.slice(0, 200) : snippet });
-			} catch (e) {
+				console.error(`Immich proxy upstream error for ${resolvedRemoteUrl}:`, {
+					status: res.status,
+					statusText: res.statusText,
+					bodySnippet: snippet && snippet.slice ? snippet.slice(0, 200) : snippet
+				});
+			} catch (e: unknown) {
+				const _err = ensureError(e);
 				console.error('Immich proxy upstream error but failed to read body snippet', e);
 			}
 		}
 
-		const contentType = res.headers.get("content-type") || "application/json";
+		const contentType = res.headers.get('content-type') || 'application/json';
 
 		// Treat images, videos and archive/octet binary responses as binary so we can stream them
 		const isBinary =
-			contentType.startsWith("image/") ||
-			contentType.startsWith("video/") ||
-			contentType.startsWith("application/octet-stream") ||
-			contentType.includes("zip") ||
-			contentType.includes("octet-stream");
+			contentType.startsWith('image/') ||
+			contentType.startsWith('video/') ||
+			contentType.startsWith('application/octet-stream') ||
+			contentType.includes('zip') ||
+			contentType.includes('octet-stream');
 
 		if (isBinary) {
 			const headers = new Headers();
-			headers.set("content-type", contentType);
-			const safeForward = ["etag", "cache-control", "expires", "x-immich-cid", "content-length"];
+			headers.set('content-type', contentType);
+			const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid', 'content-length'];
 			for (const h of safeForward) {
 				const v = res.headers.get(h);
-				if (v) headers.set(h, v);
+				if (v) {
+					headers.set(h, v);
+				}
 			}
 			// 204 No Content ne peut pas avoir de body
 			if (res.status === 204) {
@@ -128,11 +161,12 @@ const handle: RequestHandler = async function (event) {
 		// Mettre en cache les réponses JSON réussies pour les GET
 		if (request.method === 'GET' && res.ok && contentType.includes('application/json')) {
 			try {
-				const jsonData = JSON.parse(textBody);
+				const jsonData: unknown = JSON.parse(textBody);
 				const etag = res.headers.get('etag') || undefined;
 				immichCache.set('GET', `/api/${path}`, remoteUrl, jsonData, undefined, etag);
-				console.log(`[Cache SET] GET /api/${path}`);
-			} catch (e) {
+				console.warn(`[Cache SET] GET /api/${path}`);
+			} catch (_e) {
+				void _e;
 				// Ignore JSON parse errors
 			}
 		}
@@ -146,24 +180,26 @@ const handle: RequestHandler = async function (event) {
 
 			if (assetIdMatch) {
 				immichCache.invalidateAsset(assetIdMatch[1]);
-				console.log(`[Cache INVALIDATE] Asset ${assetIdMatch[1]}`);
+				console.warn(`[Cache INVALIDATE] Asset ${assetIdMatch[1]}`);
 			}
 			if (albumIdMatch) {
 				immichCache.invalidateAlbum(albumIdMatch[1]);
-				console.log(`[Cache INVALIDATE] Album ${albumIdMatch[1]}`);
+				console.warn(`[Cache INVALIDATE] Album ${albumIdMatch[1]}`);
 			}
 			if (personIdMatch) {
 				immichCache.invalidatePerson(personIdMatch[1]);
-				console.log(`[Cache INVALIDATE] Person ${personIdMatch[1]}`);
+				console.warn(`[Cache INVALIDATE] Person ${personIdMatch[1]}`);
 			}
 		}
 
-		headers.set("content-type", contentType);
-		headers.set("x-cache", "MISS");
-		const safeForward = ["etag", "cache-control", "expires", "x-immich-cid"];
+		headers.set('content-type', contentType);
+		headers.set('x-cache', 'MISS');
+		const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
 		for (const h of safeForward) {
 			const v = res.headers.get(h);
-			if (v) headers.set(h, v);
+			if (v) {
+				headers.set(h, v);
+			}
 		}
 
 		// 204 No Content ne peut pas avoir de body
@@ -172,10 +208,11 @@ const handle: RequestHandler = async function (event) {
 		}
 
 		return new Response(textBody, { status: res.status, headers });
-	} catch (err) {
+	} catch (err: unknown) {
+		const _err = ensureError(err);
 		return new Response(JSON.stringify({ error: (err as Error).message }), {
 			status: 502,
-			headers: { "content-type": "application/json" },
+			headers: { 'content-type': 'application/json' }
 		});
 	}
 };

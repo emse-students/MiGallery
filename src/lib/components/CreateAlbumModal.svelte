@@ -65,7 +65,7 @@
 			// Succès
 			if (onAlbumCreated) await onAlbumCreated();
 			onClose();
-		} catch (e) {
+		} catch (e: unknown) {
 			error = (e as Error).message;
 		} finally {
 			loading = false;

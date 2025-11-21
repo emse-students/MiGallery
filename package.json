@@ -5,14 +5,24 @@
 	"description": "MiGallery, by MiTV",
 	"type": "module",
 	"author": "DeMASKe",
-	"license": "MIT",
+	"license": "GPL-3.0",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/emse-students/MiGallery.git"
 	},
 	"homepage": "https://github.com/emse-students/MiGallery#readme",
-	"keywords": ["sveltekit", "svelte", "vite", "bun", "gallery"],
-	"files": ["build/", "src/", "README.md"],
+	"keywords": [
+		"sveltekit",
+		"svelte",
+		"vite",
+		"bun",
+		"gallery"
+	],
+	"files": [
+		"build/",
+		"src/",
+		"README.md"
+	],
 	"engines": {
 		"node": ">=18.0.0",
 		"bun": "*"
@@ -21,9 +31,13 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"prepare": "svelte-kit sync || echo ''",
+		"prepare": "husky",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**'",
+		"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**' --fix",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
 		"deps:install": "bun install",
 		"deps:install:pnpm": "pnpm install",
 		"ci:install": "bun install --production",
@@ -37,6 +51,7 @@
 		"db:inspect": "node ./scripts/inspect-db.cjs",
 		"test": "vitest run",
 		"test:watch": "vitest",
+		"test:coverage": "vitest run --coverage",
 		"test:api": "node ./scripts/test-api.cjs",
 		"test:api:vitest": "vitest run tests/api.test.ts",
 		"test:api:full": "node scripts/test-with-server.mjs",
@@ -44,27 +59,38 @@
 		"generate:auth-secret": "node ./scripts/generate-auth-secret.cjs"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^6.1.1",
+		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.48.5",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"@tailwindcss/postcss": "^4.1.17",
 		"@types/better-sqlite3": "^7.6.13",
+		"@typescript-eslint/eslint-plugin": "^8.18.0",
+		"@typescript-eslint/parser": "^8.18.0",
+		"@vitest/coverage-v8": "^4.0.12",
 		"autoprefixer": "^10.4.22",
+		"eslint": "^9.19.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.13.0",
 		"postcss": "^8.5.6",
+		"prettier": "^3.4.2",
+		"prettier-plugin-svelte": "^3.2.6",
 		"svelte": "^5.43.8",
 		"svelte-check": "^4.3.4",
+		"svelte-eslint-parser": "^1.4.0",
 		"tailwindcss": "^4.1.17",
-		"tar": "^6.2.1",
+		"tar": "^7.5.2",
 		"typescript": "^5.9.3",
 		"vite": "^7.2.2"
 	},
 	"dependencies": {
 		"@auth/core": "^0.41.1",
 		"@auth/sveltekit": "^1.11.1",
+		"@eslint/js": "^9.39.1",
 		"better-sqlite3": "^12.4.1",
 		"bun-types": "^1.3.2",
 		"dotenv": "^17.2.3",
 		"svelte-adapter-bun": "^1.0.1",
+		"typescript-eslint": "^8.47.0",
 		"vitest": "^4.0.10"
 	},
 	"overrides": {

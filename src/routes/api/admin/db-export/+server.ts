@@ -1,28 +1,42 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { json, error } from '@sveltejs/kit';
+
+import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
-import type { User } from '$lib/db/database';
+import type { User } from '$lib/types/api';
 import fs from 'fs';
 import path from 'path';
 
-async function getUserFromLocals(locals: any, cookies: any): Promise<User | null> {
+async function getUserFromLocals(
+	locals: App.Locals,
+	cookies: { get: (name: string) => string | undefined }
+): Promise<User | null> {
 	const db = getDatabase();
 	const cookieSigned = cookies.get('current_user_id');
 	if (cookieSigned) {
 		const verified = verifySigned(cookieSigned);
 		if (verified) {
-			const userInfo = db.prepare("SELECT * FROM users WHERE id_user = ? LIMIT 1").get(verified) as User | null;
-			if (userInfo) return userInfo;
+			const userInfo = db
+				.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1')
+				.get(verified) as User | null;
+			if (userInfo) {
+				return userInfo;
+			}
 		}
 	}
 	if (locals && typeof locals.auth === 'function') {
 		const session = await locals.auth();
 		if (session?.user) {
-			const providerId = (session.user as any).id || (session.user as any).preferred_username || (session.user as any).sub;
+			const providerId = session.user.id || session.user.preferred_username || session.user.sub;
 			if (providerId) {
-				const userInfo = db.prepare("SELECT * FROM users WHERE id_user = ? LIMIT 1").get(providerId) as User | null;
-				if (userInfo) return userInfo;
+				const userInfo = db
+					.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1')
+					.get(providerId) as User | null;
+				if (userInfo) {
+					return userInfo;
+				}
 			}
 		}
 	}
@@ -31,7 +45,7 @@ async function getUserFromLocals(locals: any, cookies: any): Promise<User | null
 
 export const GET: RequestHandler = async ({ locals, cookies }) => {
 	const user = await getUserFromLocals(locals, cookies);
-	
+
 	if (!user?.role || user.role !== 'admin') {
 		throw error(403, 'Accès refusé');
 	}
@@ -53,8 +67,9 @@ export const GET: RequestHandler = async ({ locals, cookies }) => {
 				'Content-Length': dbBuffer.length.toString()
 			}
 		});
-	} catch (err) {
+	} catch (err: unknown) {
+		const _err = ensureError(err);
 		console.error('Error exporting database:', err);
-		throw error(500, 'Erreur lors de l\'export de la base de données');
+		throw error(500, "Erreur lors de l'export de la base de données");
 	}
 };

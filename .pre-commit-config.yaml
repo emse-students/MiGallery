@@ -1,0 +1,61 @@
+repos:
+ # Trailing whitespace and newline checks
+ - repo: https://github.com/pre-commit/pre-commit-hooks
+   rev: v4.5.0
+   hooks:
+    - id: trailing-whitespace
+      name: Trim trailing whitespace
+      description: Trim trailing whitespace
+      stages: [pre-commit]
+    - id: end-of-file-fixer
+      name: Fix end of files
+      description: Ensures that a file is either empty, or ends with one newline
+      stages: [pre-commit]
+    - id: check-yaml
+      name: Check YAML
+      description: Check YAML files
+      stages: [pre-commit]
+    - id: check-json
+      name: Check JSON
+      description: Check JSON files
+      stages: [pre-commit]
+    - id: check-merge-conflict
+      name: Check merge conflict
+      description: Check for merge conflicts in files
+      stages: [pre-commit]
+    - id: check-case-conflict
+      name: Check case conflict
+      description: Check for case conflicts in filenames
+      stages: [pre-commit]
+    - id: detect-private-key
+      name: Detect private key
+      description: Detect the presence of private keys
+      stages: [pre-commit]
+
+ # TypeScript/JavaScript linting with ESLint
+ - repo: local
+   hooks:
+    - id: eslint
+      name: ESLint
+      description: Run ESLint static code analysis
+      entry: bun run lint --
+      language: system
+      files: \.(js|jsx|ts|tsx|svelte)$
+      stages: [pre-commit]
+      pass_filenames: false
+      exclude: |
+       (?x)^(
+         build/|
+         dist/|
+         node_modules/|
+         .svelte-kit/
+       )
+
+ci:
+ autofix_commit_msg: |
+  [pre-commit.ci] Auto fixes from pre-commit.com hooks
+  for more information, see https://pre-commit.ci
+ autofix_prs: true
+ autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+ autoupdate_schedule: weekly
+ submodules: false

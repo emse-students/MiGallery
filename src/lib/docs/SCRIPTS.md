@@ -9,35 +9,42 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 ### 🗄️ Gestion de la base de données
 
 #### `init-db.cjs` - Initialisation de la base de données
+
 **Utilisation** : `bun run db:init` ou `node scripts/init-db.cjs`
 
-**Description** : 
+**Description** :
+
 - Crée une nouvelle base de données SQLite si elle n'existe pas
 - Applique le schéma complet (tables, contraintes, indexes)
 - Crée l'utilisateur système admin (`les.roots@etu.emse.fr`)
 - N'écrase PAS une base de données existante (sécurité)
 
 **Quand l'utiliser** :
+
 - ✅ Installation sur une nouvelle machine
 - ✅ Première configuration de l'application
 - ✅ Après avoir supprimé/corrompu la base de données
 
 **Important** :
+
 - Ce script refuse de s'exécuter si une base de données existe déjà
 - Pour réinitialiser, supprimez d'abord `data/migallery.db`
 
 ---
 
 #### `backup-db.cjs` - Sauvegarde de la base de données
+
 **Utilisation** : `bun run db:backup` ou `node scripts/backup-db.cjs`
 
 **Description** :
+
 - Crée une copie de la base de données avec timestamp
 - Conserve uniquement les 10 dernières sauvegardes
 - Supprime automatiquement les anciennes sauvegardes
 - Affiche la taille du fichier créé
 
 **Quand l'utiliser** :
+
 - ✅ Avant une mise à jour importante
 - ✅ Avant des modifications massives de données
 - ✅ Automatiquement via cron/tâche planifiée (recommandé)
@@ -52,11 +59,14 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 ---
 
 #### `inspect-db.cjs` - Inspection et réparation de la base de données
-**Utilisation** : 
+
+**Utilisation** :
+
 - Inspection : `bun run db:inspect`
 - Réparation : `bun run db:inspect -- --repair`
 
 **Description** :
+
 - Vérifie l'intégrité de la base de données (PRAGMA integrity_check)
 - Contrôle la présence de toutes les tables attendues
 - Vérifie les contraintes de clés étrangères
@@ -65,17 +75,20 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 - Peut tenter de réparer automatiquement certaines erreurs
 
 **Quand l'utiliser** :
+
 - ✅ En cas d'erreur suspecte dans l'application
 - ✅ Après une panne ou arrêt brutal
 - ✅ Pour vérifier la santé de la DB régulièrement
 - ✅ Avant une migration importante
 
 **Mode réparation** :
+
 - Recrée l'utilisateur système s'il est manquant
 - Corrige le rôle de l'utilisateur système
 - Propose de sauvegarder et réinitialiser en cas d'erreur irréparable
 
 **Erreurs détectées** :
+
 - ❌ Problèmes d'intégrité SQLite
 - ❌ Tables manquantes
 - ❌ Violations de clés étrangères
@@ -86,25 +99,30 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 ### 🔒 Sécurité
 
 #### `generate_cookie_secret.cjs` - Génération de secret cryptographique
+
 **Utilisation** : `bun run generate:secret` ou `node scripts/generate_cookie_secret.cjs`
 
 **Description** :
+
 - Génère un secret cryptographique sécurisé (32 bytes)
 - Utilise `crypto.randomBytes()` pour un vrai aléatoire
 - Encode en base64url (compatible avec les variables d'environnement)
 
 **Quand l'utiliser** :
+
 - ✅ Lors de la première installation
 - ✅ Pour renouveler le secret périodiquement (sécurité)
 - ✅ Après une compromission potentielle
 
 **Exemple d'utilisation** :
+
 ```bash
 # Générer et copier dans .env
 echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
 ```
 
 **Important** :
+
 - ⚠️ Changer le secret invalide toutes les sessions utilisateurs
 - ⚠️ Gardez ce secret confidentiel (ne jamais le committer)
 
@@ -113,15 +131,18 @@ echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
 ### 📦 Packaging et déploiement
 
 #### `pack-bun.js` - Création d'un package complet
+
 **Utilisation** : `bun run package` ou `bun scripts/pack-bun.js`
 
 **Description** :
+
 - Crée une archive `.tgz` complète de l'application
 - Inclut : build/, data/, .env, scripts/, README.md, package.json
 - Prêt pour un déploiement sur une autre machine
 - Génère un nom de fichier avec la version du package
 
 **Quand l'utiliser** :
+
 - ✅ Pour déployer sur un serveur de production
 - ✅ Pour créer une release
 - ✅ Pour sauvegarder l'état complet de l'application
@@ -130,10 +151,12 @@ echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
 **Fichier créé** : `build/artifacts/migallery-<version>-full.tgz`
 
 **Prérequis** :
+
 - Avoir exécuté `bun run build` au préalable
 - Avoir configuré `.env` et la base de données
 
 **Déploiement** :
+
 ```bash
 # Sur la machine cible
 tar -xzf migallery-x.x.x-full.tgz
@@ -224,12 +247,12 @@ bun run db:init
 
 Les scripts utilisent les variables d'environnement suivantes :
 
-| Variable | Description | Valeur par défaut | Utilisé par |
-|----------|-------------|-------------------|-------------|
-| `DATABASE_PATH` | Chemin de la base de données | `./data/migallery.db` | Tous les scripts DB |
-| `BACKUP_DIR` | Dossier des sauvegardes | `./data/backups` | backup-db.cjs |
-| `IMMICH_BASE_URL` | URL de l'instance Immich | - | init-db.cjs (optionnel) |
-| `IMMICH_API_KEY` | Clé API Immich | - | init-db.cjs (optionnel) |
+| Variable          | Description                  | Valeur par défaut     | Utilisé par             |
+| ----------------- | ---------------------------- | --------------------- | ----------------------- |
+| `DATABASE_PATH`   | Chemin de la base de données | `./data/migallery.db` | Tous les scripts DB     |
+| `BACKUP_DIR`      | Dossier des sauvegardes      | `./data/backups`      | backup-db.cjs           |
+| `IMMICH_BASE_URL` | URL de l'instance Immich     | -                     | init-db.cjs (optionnel) |
+| `IMMICH_API_KEY`  | Clé API Immich               | -                     | init-db.cjs (optionnel) |
 
 ---
 
@@ -257,12 +280,14 @@ En cas de problème avec les scripts :
 ## 🔐 Sécurité
 
 **Fichiers sensibles** (NE JAMAIS COMMITTER) :
+
 - `.env` - Configuration et secrets
 - `data/migallery.db` - Base de données
 - `data/backups/*.db` - Sauvegardes
 - `build/artifacts/*.tgz` - Packages incluant .env et DB
 
 Ajoutés au `.gitignore` :
+
 ```
 .env
 data/

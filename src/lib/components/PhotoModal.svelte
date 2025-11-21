@@ -3,10 +3,12 @@
 	import Icon from './Icon.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { page } from '$app/stores';
+	import type { ImmichAsset, User } from '$lib/types/api';
+	import type { Asset } from '$lib/photos.svelte';
 
 	interface Props {
 		assetId: string;
-		assets: any[];
+		assets: Asset[];
 		onClose: () => void;
 		onAssetDeleted?: (assetId: string) => void;
 	}
@@ -14,7 +16,7 @@
 	let { assetId = $bindable(), assets, onClose, onAssetDeleted }: Props = $props();
 
 	let currentIndex = $state(0);
-	let asset = $state<any | null>(null);
+	let asset = $state<Asset | null>(null);
 	let mediaUrl = $state<string | null>(null);
 	let loading = $state(false);
 	let isVideo = $state(false);
@@ -23,7 +25,7 @@
 	let minScale = $state(0.1); // will be recomputed to a dynamic value when the image loads
 
 	// Vérifier le rôle de l'utilisateur
-	let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
+	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	// État du modal de confirmation
@@ -65,14 +67,20 @@
 		asset = null;
 		mediaUrl = null;
 		isVideo = false;
-		
+
 		try {
 			const metaRes = await fetch(`/api/immich/assets/${id}`);
 			if (metaRes.ok) {
-				asset = await metaRes.json();
+				const rawAsset = (await metaRes.json()) as ImmichAsset;
+				asset = {
+					id: rawAsset.id,
+					originalFileName: rawAsset.originalFileName,
+					type: rawAsset.type,
+					_raw: rawAsset
+				};
 				isVideo = asset?.type === 'VIDEO';
 			}
-			
+
 			if (isVideo) {
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 				imageLoaded = true;
@@ -84,13 +92,13 @@
 				const containerWidth = containerElement ? containerElement.clientWidth : window.innerWidth;
 				if (containerWidth < 600) size = 'thumbnail';
 				else size = 'preview';
-			} catch (e) {
+			} catch (e: unknown) {
 				size = 'preview';
 			}
 
 			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
 		}
-	} catch (e) {
+	} catch (e: unknown) {
 		console.error('Erreur chargement asset:', e);
 	} finally {
 		loading = false;
@@ -108,45 +116,45 @@
 	function handleWheel(e: WheelEvent) {
 		if (!mediaUrl || isVideo) return;
 		e.preventDefault();
-		
+
 		const container = e.currentTarget as HTMLElement;
 		const rect = container.getBoundingClientRect();
-		
+
 		// Position du curseur par rapport au conteneur (0 à 1)
 		const mouseX = (e.clientX - rect.left) / rect.width;
 		const mouseY = (e.clientY - rect.top) / rect.height;
-		
+
 		const delta = e.deltaY > 0 ? -0.1 : 0.1;
 		const oldScale = scale;
 		const newScale = Math.min(Math.max(minScale, scale + delta), 3);
-		
+
 		if (newScale !== oldScale) {
 			// Calculer le nouveau translate pour garder le point sous le curseur fixe
 			const scaleChange = newScale / oldScale;
-			
+
 			// Convertir les coordonnées de la souris en position dans l'image
 			const imgCenterX = rect.width / 2;
 			const imgCenterY = rect.height / 2;
-			
+
 			// Distance du curseur au centre
 			const offsetX = (e.clientX - rect.left) - imgCenterX;
 			const offsetY = (e.clientY - rect.top) - imgCenterY;
-			
+
 			// Ajuster le translate
 			translate = {
 				x: translate.x * scaleChange + offsetX * (1 - scaleChange),
 				y: translate.y * scaleChange + offsetY * (1 - scaleChange)
 			};
-			
+
 			scale = newScale;
-			
+
 			// Contraindre le translate après le zoom
 			// Utiliser un petit délai pour que l'image ait le temps de se redimensionner
 			setTimeout(() => {
 				translate = constrainTranslate(translate);
 			}, 0);
 		}
-		
+
 		// Reset position if zoomed out completely
 		if (scale <= minScale) {
 			translate = { x: 0, y: 0 };
@@ -225,7 +233,7 @@
 		translate = constrainTranslate(newTranslate);
 	}
 
-    
+
 
 	function handleMouseUp() {
 		isDragging = false;
@@ -261,7 +269,7 @@
 				a.click();
 				URL.revokeObjectURL(url);
 			}
-		} catch (e) {
+		} catch (e: unknown) {
 			console.error('Erreur téléchargement:', e);
 		}
 	}
@@ -295,7 +303,7 @@
 
 				// Passer à la photo suivante ou fermer
 				const nextIndex = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
-				
+
 				if (nextIndex >= 0 && nextIndex < assets.length) {
 					// Passer à la photo suivante/précédente
 					assetId = assets[nextIndex].id;
@@ -303,7 +311,7 @@
 					// Plus de photos, fermer la visionneuse
 					onClose();
 				}
-			} catch (e) {
+			} catch (e: unknown) {
 				alert('Erreur lors de la suppression: ' + (e as Error).message);
 			}
 		};
@@ -409,8 +417,8 @@
 				</button>
 			{/if}
 
-			<div 
-				class="media-container" 
+			<div
+				class="media-container"
 				onwheel={handleWheel}
 				role="img"
 				tabindex="-1"
@@ -439,12 +447,12 @@
 							class:zoomed={scale > 1}
 							class:no-transition={isDragging}
 							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y / scale}px); cursor: {scale >= 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
-							onload={() => { 
-								imageLoaded = true; 
-								computeMinScale(); 
+							onload={() => {
+								imageLoaded = true;
+								computeMinScale();
 								// Apply minScale after computing it
 								scale = minScale;
-								setTimeout(() => { translate = constrainTranslate(translate); }, 0); 
+								setTimeout(() => { translate = constrainTranslate(translate); }, 0);
 							}}
 							onmousedown={handleMouseDown}
 							ondblclick={handleDoubleClick}

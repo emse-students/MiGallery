@@ -20,10 +20,10 @@
 		try {
 			const metaRes = await fetch(`/api/immich/assets/${id}`);
 			if (metaRes.ok) {
-				asset = await metaRes.json();
+				asset = (await metaRes.json()) as unknown;
 				isVideo = asset?.type === 'VIDEO';
 			}
-			
+
 			if (isVideo) {
 				// Pour les vidéos, on stream directement sans télécharger
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
@@ -34,12 +34,12 @@
 				const vw = window.innerWidth || 1024;
 				if (vw < 600) size = 'thumbnail';
 				else size = 'preview';
-			} catch (e) {
+			} catch (e: unknown) {
 				size = 'preview';
 			}
 			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
 		}
-	} catch (e) {
+	} catch (e: unknown) {
 		error = (e as Error).message;
 	} finally {
 		loading = false;
@@ -79,7 +79,7 @@
 					{asset.originalFileName}
 				</h2>
 			{/if}
-			
+
 			{#if isVideo}
 				<video
 					src={mediaUrl}

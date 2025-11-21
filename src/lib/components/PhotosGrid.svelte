@@ -5,6 +5,7 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { PhotosState } from '$lib/photos.svelte';
+	import type { User } from '$lib/types/api';
 	import { groupByDay } from '$lib/photos.svelte';
 	import { page } from '$app/stores';
 	import { toast } from '$lib/toast';
@@ -19,7 +20,7 @@
 	console.log('✓ [PhotosGrid] Composant chargé');
 
 	// Vérifier le rôle de l'utilisateur
-	let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
+	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	// État du modal
@@ -37,7 +38,7 @@
 		try {
 			await photosState.downloadSingle(id);
 			toast.success('Photo téléchargée !');
-		} catch (e) {
+		} catch (e: unknown) {
 			toast.error('Erreur lors du téléchargement: ' + (e as Error).message);
 		} finally {
 			activeOperations.end(operationId);
@@ -70,7 +71,7 @@
 			// Retirer l'asset de la liste locale
 			photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
 			toast.success('Photo mise à la corbeille !');
-		} catch (e) {
+		} catch (e: unknown) {
 			toast.error('Erreur lors de la suppression: ' + (e as Error).message);
 		} finally {
 			activeOperations.end(operationId);
@@ -154,9 +155,9 @@
 
 <!-- Modal de visualisation -->
 {#if showModal}
-	<PhotoModal 
+	<PhotoModal
 		bind:assetId={modalAssetId}
-		assets={photosState.assets} 
+		assets={photosState.assets}
 		onClose={() => {
 			showModal = false;
 		}}

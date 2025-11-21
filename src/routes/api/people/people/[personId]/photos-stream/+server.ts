@@ -1,6 +1,10 @@
 import { error } from '@sveltejs/kit';
+import type { ImmichAsset } from '$lib/types/api';
+import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { verifyRawKeyWithScope } from '$lib/db/api-keys';
+import { getCurrentUser } from '$lib/server/auth';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY;
 import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
@@ -11,121 +15,147 @@ import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
  * Phase 1: Métadonnées minimales (id, type, dimensions)
  * Phase 2: Enrichissement avec détails complets
  */
-export const GET: RequestHandler = async ({ params, url, fetch }) => {
-  const personId = params.personId;
-  if (!personId) throw error(400, 'personId required');
-  const inAlbum = url.searchParams.get('in_album') === 'true';
+export const GET: RequestHandler = async ({ params, url, fetch, request, locals, cookies }) => {
+	const personId = params.personId;
+	if (!personId) {
+		throw error(400, 'personId required');
+	}
+	const inAlbum = url.searchParams.get('in_album') === 'true';
 
-  try {
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          // Récupérer tous les assets de la personne
-          const allAssets: any[] = [];
-          let page = 1;
-          let hasNext = true;
+	// Autorisation: session utilisateur OU x-api-key avec scope "read"
+	const user = await getCurrentUser({ locals, cookies });
+	if (!user) {
+		const raw = request.headers.get('x-api-key') || undefined;
+		if (!verifyRawKeyWithScope(raw, 'read')) {
+			throw error(401, 'Unauthorized');
+		}
+	}
 
-          while (hasNext) {
-            const res = await fetch(`${IMMICH_BASE_URL}/api/search/metadata`, {
-              method: 'POST',
-              headers: {
-                'x-api-key': IMMICH_API_KEY,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 1000 })
-            });
+	try {
+		const encoder = new TextEncoder();
+		const stream = new ReadableStream({
+			async start(controller) {
+				try {
+					// Récupérer tous les assets de la personne
+					const allAssets: ImmichAsset[] = [];
+					let page = 1;
+					let hasNext = true;
 
-            if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
-            const data = await res.json();
-            const items = data.assets?.items || [];
-            if (items.length === 0) break;
-            allAssets.push(...items);
-            hasNext = data.assets?.nextPage !== null && data.assets?.nextPage !== undefined;
-            page++;
-            if (page > 10) break;
-          }
+					while (hasNext) {
+						const res = await fetch(`${IMMICH_BASE_URL}/api/search/metadata`, {
+							method: 'POST',
+							headers: {
+								'x-api-key': IMMICH_API_KEY,
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 1000 })
+						});
 
-          // Filtrer selon in_album
-          const systemAssetIds = new Set(await getAllAssetIdsInSystemAlbums(fetch));
-          const filtered = allAssets.filter(asset => {
-            const isInAnySystem = systemAssetIds.has(asset.id);
-            return inAlbum ? isInAnySystem : !isInAnySystem;
-          });
+						if (!res.ok) {
+							throw new Error(`Search failed: ${res.statusText}`);
+						}
+						const data = (await res.json()) as {
+							assets?: { items?: ImmichAsset[]; nextPage?: number | null };
+						};
+						const items = data.assets?.items || [];
+						if (items.length === 0) {
+							break;
+						}
+						allAssets.push(...items);
+						hasNext = data.assets?.nextPage !== null && data.assets?.nextPage !== undefined;
+						page++;
+						if (page > 10) {
+							break;
+						}
+					}
 
-          // Phase 1: Envoyer les métadonnées minimales
-          for (const asset of filtered) {
-            const minimalData = {
-              id: asset.id,
-              type: asset.type,
-              width: asset.exifInfo?.exifImageWidth || null,
-              height: asset.exifInfo?.exifImageHeight || null,
-              aspectRatio: null as number | null
-            };
+					// Filtrer selon in_album
+					const systemAssetIds = new Set(await getAllAssetIdsInSystemAlbums(fetch));
+					const filtered = allAssets.filter((asset) => {
+						const isInAnySystem = systemAssetIds.has(asset.id);
+						return inAlbum ? isInAnySystem : !isInAnySystem;
+					});
 
-            if (minimalData.width && minimalData.height) {
-              minimalData.aspectRatio = minimalData.width / minimalData.height;
-            }
+					// Phase 1: Envoyer les métadonnées minimales
+					for (const asset of filtered) {
+						const minimalData = {
+							id: asset.id,
+							type: asset.type,
+							width: asset.exifInfo?.exifImageWidth || null,
+							height: asset.exifInfo?.exifImageHeight || null,
+							aspectRatio: null as number | null
+						};
 
-            controller.enqueue(encoder.encode(JSON.stringify({
-              phase: 'minimal',
-              asset: minimalData
-            }) + '\n'));
-          }
+						if (minimalData.width && minimalData.height) {
+							minimalData.aspectRatio = minimalData.width / minimalData.height;
+						}
 
-          // Phase 2: Enrichir par batches
-          const batchSize = 10;
-          for (let i = 0; i < filtered.length; i += batchSize) {
-            const batch = filtered.slice(i, i + batchSize);
-            
-            const detailsPromises = batch.map(async (asset: any) => {
-              try {
-                const detailRes = await fetch(`${IMMICH_BASE_URL}/api/assets/${asset.id}`, {
-                  headers: {
-                    'x-api-key': IMMICH_API_KEY,
-                    'Accept': 'application/json'
-                  }
-                });
+						controller.enqueue(
+							encoder.encode(
+								`${JSON.stringify({
+									phase: 'minimal',
+									asset: minimalData
+								})}\n`
+							)
+						);
+					}
 
-                if (detailRes.ok) {
-                  const fullAsset = await detailRes.json();
-                  return {
-                    phase: 'full',
-                    asset: fullAsset
-                  };
-                }
-                return null;
-              } catch (e) {
-                console.warn(`Failed to fetch details for asset ${asset.id}:`, e);
-                return null;
-              }
-            });
+					// Phase 2: Enrichir par batches
+					const batchSize = 10;
+					for (let i = 0; i < filtered.length; i += batchSize) {
+						const batch = filtered.slice(i, i + batchSize);
 
-            const results = await Promise.allSettled(detailsPromises);
-            
-            for (const result of results) {
-              if (result.status === 'fulfilled' && result.value) {
-                controller.enqueue(encoder.encode(JSON.stringify(result.value) + '\n'));
-              }
-            }
-          }
+						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
+							try {
+								const detailRes = await fetch(`${IMMICH_BASE_URL}/api/assets/${asset.id}`, {
+									headers: {
+										'x-api-key': IMMICH_API_KEY,
+										Accept: 'application/json'
+									}
+								});
 
-          controller.close();
-        } catch (err) {
-          console.error('Error in photos stream:', err);
-          controller.error(err);
-        }
-      }
-    });
+								if (detailRes.ok) {
+									const fullAsset = (await detailRes.json()) as ImmichAsset;
+									return {
+										phase: 'full',
+										asset: fullAsset
+									};
+								}
+								return null;
+							} catch (e: unknown) {
+								const _err = ensureError(e);
+								console.warn(`Failed to fetch details for asset ${asset.id}:`, e);
+								return null;
+							}
+						});
 
-    return new Response(stream, {
-      headers: {
-        'Content-Type': 'application/x-ndjson',
-        'Cache-Control': 'no-cache'
-      }
-    });
-  } catch (err) {
-    console.error('Error in /api/people/people/[personId]/photos-stream GET:', err);
-    throw error(500, err instanceof Error ? err.message : 'Internal server error');
-  }
+						const results = await Promise.allSettled(detailsPromises);
+
+						for (const result of results) {
+							if (result.status === 'fulfilled' && result.value) {
+								controller.enqueue(encoder.encode(`${JSON.stringify(result.value)}\n`));
+							}
+						}
+					}
+
+					controller.close();
+				} catch (err: unknown) {
+					const _err = ensureError(err);
+					console.error('Error in photos stream:', err);
+					controller.error(err);
+				}
+			}
+		});
+
+		return new Response(stream, {
+			headers: {
+				'Content-Type': 'application/x-ndjson',
+				'Cache-Control': 'no-cache'
+			}
+		});
+	} catch (e: unknown) {
+		const err = ensureError(e);
+		console.error('Error in /api/people/people/[personId]/photos-stream GET:', err);
+		throw error(500, err.message);
+	}
 };

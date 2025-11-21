@@ -40,18 +40,18 @@
 </div>
 
 <style>
-  .admin-root { 
-    display: flex; 
-    min-height: 100vh; 
-    background: var(--bg-primary); 
+  .admin-root {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg-primary);
     color: var(--text-primary);
     gap: 0;
   }
-  
-  .sidebar { 
-    width: 260px; 
+
+  .sidebar {
+    width: 260px;
     padding: 1.5rem 1rem;
-    background: var(--bg-secondary); 
+    background: var(--bg-secondary);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -60,38 +60,38 @@
     top: 0;
     height: 100vh;
   }
-  
-  .brand { 
-    font-weight: 700; 
+
+  .brand {
+    font-weight: 700;
     font-size: 1.25rem;
     margin-bottom: 2rem;
     color: var(--accent);
     padding: 0.5rem;
   }
-  
+
   nav { flex: 1; }
-  
-  nav a { 
+
+  nav a {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1rem; 
+    padding: 0.75rem 1rem;
     border-radius: var(--radius-sm);
-    color: var(--text-secondary); 
+    color: var(--text-secondary);
     text-decoration: none;
     margin-bottom: 0.25rem;
     transition: all 0.2s var(--ease);
     font-weight: 500;
     font-size: 0.9375rem;
   }
-  
+
   nav a:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
   }
-  
-  nav a.active { 
-    background: var(--accent); 
+
+  nav a.active {
+    background: var(--accent);
     color: white;
     font-weight: 600;
   }
@@ -100,8 +100,8 @@
     font-size: 1.25rem;
     min-width: 1.5rem;
   }
-  
-  .meta { 
+
+  .meta {
     margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid var(--border);
@@ -122,9 +122,9 @@
   .back-home:hover {
     color: var(--text-primary);
   }
-  
-  .content { 
-    flex: 1; 
+
+  .content {
+    flex: 1;
     padding: 0;
     max-width: 100%;
     overflow-y: auto;

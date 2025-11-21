@@ -6,16 +6,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
-
-  interface User {
-    id_user: string;
-    email: string;
-    prenom: string;
-    nom: string;
-    role: string;
-    promo_year: number | null;
-    id_photos: string | null;
-  }
+  import type { User } from '$lib/types/api';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -40,8 +31,8 @@
   let uploadPhotoFile = $state<File | null>(null);
 
   // Vérifier le rôle de l'utilisateur
-  let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
-  let currentUserId = $derived(($page.data.session?.user as any)?.id_user);
+  let userRole = $derived((($page.data.session?.user as User)?.role) || 'user');
+  let currentUserId = $derived(($page.data.session?.user as User)?.id_user);
   let canAccess = $derived(userRole === 'admin');
 
   async function fetchUsers() {
@@ -56,9 +47,9 @@
         const errText = await res.text().catch(() => res.statusText);
         throw new Error(errText || 'Erreur lors du chargement');
       }
-      const data = await res.json();
+      const data = (await res.json()) as { users: User[] };
       users = data.users || [];
-    } catch (e) {
+    } catch (e: unknown) {
       error = (e as Error).message;
     } finally {
       loading = false;
@@ -117,10 +108,10 @@
     try {
       // Si on upload une photo, traiter la reconnaissance faciale d'abord
       let finalIdPhotos = editUserData.id_photos;
-      
+
       if (uploadPhotoFile) {
         uploadingPhoto = true;
-        
+
         // 1. Upload l'image vers Immich
         const formData = new FormData();
         formData.append('assetData', uploadPhotoFile);
@@ -128,7 +119,7 @@
         formData.append('deviceId', 'MiGallery-Web');
         formData.append('fileCreatedAt', new Date().toISOString());
         formData.append('fileModifiedAt', new Date().toISOString());
-        
+
         const uploadRes = await fetch('/api/immich/assets', {
           method: 'POST',
           body: formData
@@ -138,9 +129,9 @@
           throw new Error('Erreur lors de l\'upload de la photo');
         }
 
-        const uploadData = await uploadRes.json();
+        const uploadData = (await uploadRes.json()) as { id: string };
         const assetId = uploadData.id;
-        
+
         if (!assetId) {
           throw new Error('Asset ID non récupéré après upload');
         }
@@ -150,12 +141,12 @@
 
         // 3. Récupérer les informations de l'asset pour voir les personnes détectées
         const assetInfoRes = await fetch(`/api/immich/assets/${assetId}`);
-        
+
         if (!assetInfoRes.ok) {
           throw new Error('Erreur lors de la récupération des informations de l\'asset');
         }
 
-        const assetInfo = await assetInfoRes.json();
+        const assetInfo = (await assetInfoRes.json()) as { people: { id: string }[] };
         const people = assetInfo.people || [];
 
         if (people.length === 0) {
@@ -223,7 +214,7 @@
       showEditUserModal = false;
       selectedUser = null;
       uploadPhotoFile = null;
-    } catch (e) {
+    } catch (e: unknown) {
       uploadingPhoto = false;
       alert('Erreur: ' + (e as Error).message);
     }
@@ -231,7 +222,7 @@
 
   async function deleteUserConfirm(user: User, event: MouseEvent) {
     event.stopPropagation();
-    
+
     if (user.id_user === currentUserId) {
       alert('Vous ne pouvez pas supprimer votre propre compte.');
       return;
@@ -248,7 +239,7 @@
         throw new Error(txt || 'Erreur lors de la suppression');
       }
       await fetchUsers();
-    } catch (e) {
+    } catch (e: unknown) {
       alert('Erreur: ' + (e as Error).message);
     }
   }
@@ -268,10 +259,10 @@
 
 <main class="trombinoscope-main">
   <div class="page-background"></div>
-  
+
   <div class="header-with-actions">
     <h1 class="page-title">Trombinoscope</h1>
-    
+
     <button class="btn-add-user" onclick={openAddUserModal}>
       <Icon name="plus" size={20} />
       <span>Ajouter un utilisateur</span>
@@ -301,7 +292,7 @@
       if (!acc[promo]) acc[promo] = [];
       acc[promo].push(user);
       return acc;
-    }, {} as Record<string, any[]>)}
+    }, {} as Record<string, User[]>)}
 
     {#each Object.entries(usersByPromo).sort(([a], [b]) => {
       if (a === 'Sans promo') return 1;
@@ -311,32 +302,32 @@
       <h2 class="promo-label">{promo === 'Sans promo' ? 'Sans promo' : `Promo ${promo}`}</h2>
       <div class="users-grid">
         {#each promoUsers as user (user.id_user)}
-          <div 
-            class="user-card" 
+          <div
+            class="user-card"
             role="button"
             tabindex="0"
             onclick={() => handleUserClick(user.id_user)}
             onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleUserClick(user.id_user); } }}
           >
-            <button 
+            <button
               class="edit-user-btn"
               onclick={(e) => openEditUserModal(user, e)}
               title="Modifier l'utilisateur"
             >
               <Icon name="edit" size={16} />
             </button>
-            
-            <button 
+
+            <button
               class="delete-user-btn"
               onclick={(e) => deleteUserConfirm(user, e)}
               title="Supprimer l'utilisateur"
             >
               <Icon name="trash" size={16} />
             </button>
-            
+
             <div class="user-photo">
               {#if user.id_photos}
-                <img 
+                <img
                   src={`/api/immich/people/${user.id_photos}/thumbnail`}
                   alt={`${user.prenom} ${user.nom}`}
                   onerror={(e) => {
@@ -404,9 +395,9 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="id_user">ID utilisateur *</label>
-            <input 
+            <input
               id="id_user"
-              type="text" 
+              type="text"
               bind:value={editUserData.id_user}
               disabled={editMode === 'edit'}
               placeholder="ex: jean.dupont"
@@ -415,9 +406,9 @@
 
           <div class="form-group">
             <label for="email">Email *</label>
-            <input 
+            <input
               id="email"
-              type="email" 
+              type="email"
               bind:value={editUserData.email}
               placeholder="ex: jean.dupont@emse.fr"
             />
@@ -425,9 +416,9 @@
 
           <div class="form-group">
             <label for="prenom">Prénom *</label>
-            <input 
+            <input
               id="prenom"
-              type="text" 
+              type="text"
               bind:value={editUserData.prenom}
               placeholder="Jean"
             />
@@ -435,9 +426,9 @@
 
           <div class="form-group">
             <label for="nom">Nom *</label>
-            <input 
+            <input
               id="nom"
-              type="text" 
+              type="text"
               bind:value={editUserData.nom}
               placeholder="Dupont"
             />
@@ -445,9 +436,9 @@
 
           <div class="form-group">
             <label for="promo_year">Promo</label>
-            <input 
+            <input
               id="promo_year"
-              type="number" 
+              type="number"
               bind:value={editUserData.promo_year}
               placeholder="2025"
             />
@@ -476,8 +467,8 @@
             {/if}
           </p>
           <div class="upload-zone">
-            <input 
-              type="file" 
+            <input
+              type="file"
               accept="image/*"
               onchange={(e) => {
                 const target = e.target as HTMLInputElement;
@@ -527,7 +518,7 @@
     right: 0;
     bottom: 0;
     z-index: -1;
-    background: 
+    background:
       radial-gradient(ellipse 80% 50% at 50% -20%, rgba(168, 85, 247, 0.15), transparent),
       radial-gradient(ellipse 60% 50% at 0% 100%, rgba(236, 72, 153, 0.1), transparent),
       radial-gradient(ellipse 60% 50% at 100% 100%, rgba(59, 130, 246, 0.1), transparent);

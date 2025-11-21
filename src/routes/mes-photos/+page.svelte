@@ -8,6 +8,7 @@
   import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
   import { toast } from '$lib/toast';
+  import type { User } from '$lib/types/api';
 
   const photosState = new PhotosState();
 
@@ -50,9 +51,9 @@
     // Check for userId parameter (from trombinoscope)
     const urlParams = new URLSearchParams(window.location.search);
     const userIdParam = urlParams.get('userId');
-    
-    const user = page.data.session?.user as any;
-    
+
+    const user = page.data.session?.user as User;
+
     // If userId is provided, only admins are allowed to view another user's photos
     if (userIdParam) {
       if (!(user?.role === 'admin')) {
@@ -70,7 +71,7 @@
         return res.json();
       })
       .then(data => {
-        const targetUser = data.user;
+        const targetUser = data.user as User;
         if (targetUser?.id_photos) {
           photosState.peopleId = targetUser.id_photos;
           // Use local DB name for header
@@ -83,7 +84,7 @@
       .catch(() => goto('/'));
       return;
     }
-    
+
     // Default: load current user's photos
     targetUserId = null;
     if (!user?.id_photos) {
@@ -108,11 +109,11 @@
     <div class="gradient-blob blob-2"></div>
     <div class="gradient-blob blob-3"></div>
   </div>
-  
+
   {#if photosState.personName && photosState.imageUrl}
     <div class="header-section">
-      <button 
-        class="profile-photo-btn" 
+      <button
+        class="profile-photo-btn"
         onclick={openChangePhotoModal}
         title="Changer la photo de profil"
       >
@@ -143,7 +144,7 @@
   <PhotosGrid state={photosState} />
 
   {#if showChangePhotoModal}
-    <ChangePhotoModal 
+    <ChangePhotoModal
       currentPhotoUrl={photosState.imageUrl || undefined}
       peopleId={photosState.peopleId ?? undefined}
       onPhotoSelected={handlePhotoSelected}

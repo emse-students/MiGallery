@@ -8,10 +8,12 @@
   import PhotoModal from '$lib/components/PhotoModal.svelte';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import { groupByDay } from '$lib/photos.svelte';
+  import type { User, ImmichAsset } from '$lib/types/api';
+  import type { Asset } from '$lib/photos.svelte';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let assets = $state<any[]>([]);
+  let assets = $state<Asset[]>([]);
   let selectedAssets = $state<string[]>([]);
   let selecting = $state(false);
   let showPhotoModal = $state(false);
@@ -31,7 +33,7 @@
   } | null>(null);
 
   // Vérifier le rôle de l'utilisateur
-  let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
+  let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
   let canAccess = $derived(userRole === 'mitviste' || userRole === 'admin');
 
   async function fetchTrashedAssets() {
@@ -46,7 +48,7 @@
       const bucketsRes = await fetch('/api/immich/timeline/buckets?isTrashed=true&size=MONTH');
       if (!bucketsRes.ok) throw new Error(`Erreur lors du chargement des buckets: ${bucketsRes.statusText}`);
 
-      const buckets = await bucketsRes.json();
+      const buckets = (await bucketsRes.json()) as { timeBucket: string; count: number }[];
       if (!Array.isArray(buckets) || buckets.length === 0) {
         // Aucun élément supprimé
         assets = [];
@@ -62,11 +64,11 @@
             console.warn(`Erreur bucket ${bucket.timeBucket}:`, bucketRes.statusText);
             continue;
           }
-          const bucketData = await bucketRes.json();
+          const bucketData = (await bucketRes.json()) as { id: string[] };
           if (Array.isArray(bucketData.id) && bucketData.id.length > 0) {
             allAssetIds.push(...bucketData.id);
           }
-        } catch (e) {
+        } catch (e: unknown) {
           console.warn('Erreur lors de la récupération du bucket', bucket, e);
         }
       }
@@ -79,7 +81,7 @@
 
       // 3) Récupérer les assets avec un pool limité de requêtes pour éviter de surcharger le backend
       const concurrency = 8;
-      const results: any[] = [];
+      const results: ImmichAsset[] = [];
 
       for (let i = 0; i < allAssetIds.length; i += concurrency) {
         const batch = allAssetIds.slice(i, i + concurrency);
@@ -90,9 +92,9 @@
               console.warn('Asset fetch failed', id, res.status);
               return null;
             }
-            const data = await res.json();
+            const data = (await res.json()) as ImmichAsset;
             return data;
-          } catch (e) {
+          } catch (e: unknown) {
             console.warn('Asset fetch error', id, e);
             return null;
           } finally {
@@ -101,16 +103,16 @@
         });
 
         const batchResults = await Promise.all(promises);
-        results.push(...batchResults.filter(r => r));
+        results.push(...(batchResults.filter(r => r) as ImmichAsset[]));
       }
 
       // Normalize assets to include a `date` field used for grouping (similar to Mes photos)
-      assets = results.map((it: any) => ({
+      assets = results.map((it) => ({
         ...it,
         date: it.deletedAt || it.takenAt || it.fileCreatedAt || it.updatedAt || null
       }));
       console.log('Loaded trashed assets:', assets.length);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Error:', err);
       error = err instanceof Error ? err.message : 'Une erreur est survenue';
     } finally {
@@ -179,7 +181,7 @@
           selecting = false;
 
           alert(`${assetIds.length} élément(s) restauré(s) avec succès !`);
-        } catch (e) {
+        } catch (e: unknown) {
           alert('Erreur lors de la restauration: ' + (e as Error).message);
         }
       }
@@ -200,9 +202,9 @@
           const res = await fetch('/api/immich/assets', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               ids: assetIds,
-              force: true 
+              force: true
             })
           });
 
@@ -218,7 +220,7 @@
           selecting = false;
 
           alert(`${assetIds.length} élément(s) supprimé(s) définitivement.`);
-        } catch (e) {
+        } catch (e: unknown) {
           alert('Erreur lors de la suppression: ' + (e as Error).message);
         }
       }
@@ -226,9 +228,15 @@
     showConfirmModal = true;
   }
 
-  function getAspectRatio(asset: any): number {
+  function getAspectRatio(asset: Asset): number {
     if (asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight) {
       return asset.exifInfo.exifImageWidth / asset.exifInfo.exifImageHeight;
+    }
+    if (asset._raw?.exifInfo?.exifImageWidth && asset._raw?.exifInfo?.exifImageHeight) {
+      return asset._raw.exifInfo.exifImageWidth / asset._raw.exifInfo.exifImageHeight;
+    }
+    if (asset._raw?.width && asset._raw?.height) {
+      return asset._raw.width / asset._raw.height;
     }
     return 3 / 2;
   }
@@ -248,7 +256,7 @@
 
 <main class="corbeille-main">
   <div class="page-background"></div>
-  
+
   <h1 class="page-title">Corbeille</h1>
 
   {#if error}
@@ -266,12 +274,12 @@
     </div>
   {/if}
 
-  
+
 
   {#if assets.length > 0}
     <div class="toolbar">
       <div class="items-count"><strong>{assets.length}</strong> élément{assets.length > 1 ? 's' : ''} dans la corbeille</div>
-      
+
       <div class="toolbar-actions">
         <button onclick={() => selecting = !selecting} class="px-3 py-2 rounded-lg {selecting ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white border-0 cursor-pointer flex items-center gap-2">
           <Icon name={selecting ? 'x' : 'check-square'} size={16} />
@@ -314,8 +322,8 @@
           {@const aspectRatio = getAspectRatio(asset)}
           {@const flexBasis = aspectRatio * 220}
           {@const flexGrow = aspectRatio * 100}
-          <div 
-            class="photo-card {selectedAssets.includes(asset.id) ? 'selected' : ''}" 
+          <div
+            class="photo-card {selectedAssets.includes(asset.id) ? 'selected' : ''}"
             style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
             role="button"
             tabindex="0"
@@ -335,9 +343,9 @@
               </button>
             {/if}
 
-            <LazyImage 
+            <LazyImage
               src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
-              alt={asset.originalFileName || 'Photo'} 
+              alt={asset.originalFileName || 'Photo'}
               isVideo={asset.type === 'VIDEO'}
             />
 
@@ -391,7 +399,7 @@
     right: 0;
     bottom: 0;
     z-index: -1;
-    background: 
+    background:
       radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220, 38, 38, 0.15), transparent),
       radial-gradient(ellipse 60% 50% at 0% 100%, rgba(245, 158, 11, 0.1), transparent),
       radial-gradient(ellipse 60% 50% at 100% 100%, rgba(168, 85, 247, 0.1), transparent);
@@ -524,7 +532,7 @@
 
   .photo-card:hover {
     transform: translateY(-6px) scale(1.02);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7),
                 0 10px 25px rgba(0, 0, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.1);
     z-index: 10;

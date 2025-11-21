@@ -1,0 +1,7 @@
+build/
+dist/
+node_modules/
+.svelte-kit/
+.env*
+*.min.*
+cookies.txt

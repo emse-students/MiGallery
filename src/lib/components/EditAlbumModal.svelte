@@ -14,7 +14,7 @@
     onClose,
     onAlbumUpdated
   }: Props = $props();
-  
+
   // S'assurer que albumId est une string pure, pas un Proxy
   const safeAlbumId = String(albumId);
 
@@ -45,15 +45,21 @@
 
 		try {
 			const res = await fetch(`/api/albums/${safeAlbumId}/info`);
-			
-			if (!res.ok) {
-				const errorData = await res.json().catch(() => ({}));
-				throw new Error(errorData.error || 'Erreur lors du chargement de l\'album');
-			}
 
-			const result = await res.json();
-			
-			if (!result.success || !result.album) {
+		if (!res.ok) {
+			const errorData = (await res.json().catch(() => ({}))) as { error?: string };
+			throw new Error(errorData.error || 'Erreur lors du chargement de l\'album');
+		}
+
+		const jsonData = await res.json();
+		const result = jsonData as {
+			success?: boolean;
+			album?: { id: string; name: string; date?: string; location?: string; visibility?: string; visible?: number };
+			tags?: string[];
+			users?: string[];
+		};
+
+		if (!result.success || !result.album) {
 				throw new Error('Album non trouvé');
 			}
 
@@ -61,11 +67,11 @@
 			albumName = album.name || '';
 			albumDate = album.date || '';
 			albumLocation = album.location || '';
-			albumVisibility = album.visibility || 'private';
+			albumVisibility = (album.visibility as 'private' | 'authenticated' | 'unlisted') || 'private';
 			albumVisible = album.visible === 1;
 			albumTags = (result.tags || []).join(', ');
 			albumAllowedUsers = (result.users || []).join(', ');
-		} catch (e) {
+		} catch (e: unknown) {
 			error = (e as Error).message;
 		} finally {
 			loadingData = false;
@@ -98,14 +104,14 @@
 			});
 
 			if (!res.ok) {
-				const errData = await res.json().catch(() => ({}));
+				const errData = (await res.json().catch(() => ({}))) as { error?: string };
 				throw new Error(errData.error || 'Erreur lors de la mise à jour de l\'album');
 			}
 
 			// Succès
 			if (onAlbumUpdated) await onAlbumUpdated();
 			onClose();
-		} catch (e) {
+		} catch (e: unknown) {
 			error = (e as Error).message;
 		} finally {
 			loading = false;

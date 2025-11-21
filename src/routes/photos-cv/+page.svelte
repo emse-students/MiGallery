@@ -9,16 +9,17 @@
   import { PhotosState } from '$lib/photos.svelte';
   import { toast } from '$lib/toast';
   import { handleAlbumUpload } from '$lib/album-operations';
+  import type { User } from '$lib/types/api';
 
   const myPhotosState = new PhotosState();
   const allPhotosState = new PhotosState();
-  
+
   console.log('✓ [photos-cv] Script chargé');
 
   // Vérifier le rôle de l'utilisateur
-  let userRole = $derived((page.data.session?.user as any)?.role || 'user');
+  let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
-  let hasIdPhotos = $derived(!!(page.data.session?.user as any)?.id_photos);
+  let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.id_photos);
   let currentView = $state<'my' | 'all'>('my'); // Vue par défaut : mes photos
   let personId = $state<string>(''); // ID de la personne connectée
 
@@ -27,11 +28,11 @@
    */
   async function handleUpload(files: File[], onProgress?: (current: number, total: number) => void) {
     if (files.length === 0) return;
-    
+
     // Capturer les valeurs au moment de l'appel pour éviter les problèmes de proxy
     const view = currentView;
     const person = personId;
-    
+
     await handleAlbumUpload(files, 'photos-cv', allPhotosState, {
       onProgress,
       isPhotosCV: true,
@@ -52,7 +53,7 @@
     console.log('👁️ [photos-cv] switchView appelée:', view);
     currentView = view;
     if (view === 'all' && !allPhotosState.loading) {
-      allPhotosState.loadAllPhotosCV().catch((e: any) => console.warn('all loadAllPhotosCV error', e));
+      allPhotosState.loadAllPhotosCV().catch((e: unknown) => console.warn('all loadAllPhotosCV error', e));
     }
   }
 
@@ -63,9 +64,9 @@
 
   onMount(() => {
     console.log('🏄 [photos-cv] onMount appelé');
-    const user = page.data.session?.user as any;
+    const user = page.data.session?.user as User;
     console.log('  - user:', user);
-    
+
     // Admin/mitviste peuvent accéder même sans id_photos (pour gérer les imports)
     if (!user) {
       console.log('  ✗ Pas d\'utilisateur, redirection');
@@ -76,7 +77,7 @@
     const hasIdPhotos = !!user.id_photos;
     const isManager = user.role === 'admin' || user.role === 'mitviste';
     console.log('  - hasIdPhotos:', hasIdPhotos, '- isManager:', isManager);
-    
+
     // Rediriger seulement si ni id_photos ni manager
     if (!hasIdPhotos && !isManager) {
       console.log('  ✗ Pas de photos ni manager, redirection');
@@ -110,14 +111,14 @@
     <div class="gradient-blob blob-2"></div>
     <div class="gradient-blob blob-3"></div>
   </div>
-  
+
   <h1 class="page-title">Photos CV</h1>
 
   <!-- Onglets de navigation -->
   <div class="tabs">
     {#if hasIdPhotos}
-      <button 
-        class="tab {currentView === 'my' ? 'active' : ''}" 
+      <button
+        class="tab {currentView === 'my' ? 'active' : ''}"
         onclick={() => switchView('my')}
       >
         <Icon name="user" size={18} />
@@ -125,8 +126,8 @@
       </button>
     {/if}
     {#if canManagePhotos}
-      <button 
-        class="tab {currentView === 'all' ? 'active' : ''}" 
+      <button
+        class="tab {currentView === 'all' ? 'active' : ''}"
         onclick={() => switchView('all')}
       >
         <Icon name="users" size={18} />

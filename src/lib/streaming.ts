@@ -1,3 +1,4 @@
+import { ensureError } from '$lib/ts-utils';
 /**
  * Helper pour consommer un stream NDJSON (Newline Delimited JSON)
  * et appeler un callback pour chaque ligne parsée
@@ -18,7 +19,9 @@ export async function consumeNDJSONStream<T>(
 	try {
 		while (true) {
 			const { done, value } = await reader.read();
-			if (done) break;
+			if (done) {
+				break;
+			}
 
 			buffer += decoder.decode(value, { stream: true });
 			const lines = buffer.split('\n');
@@ -29,7 +32,8 @@ export async function consumeNDJSONStream<T>(
 					try {
 						const item = JSON.parse(line) as T;
 						onItem(item);
-					} catch (e) {
+					} catch (e: unknown) {
+						const _err = ensureError(e);
 						console.warn('Error parsing NDJSON line:', e);
 						if (onError) {
 							onError(e as Error);
@@ -38,7 +42,8 @@ export async function consumeNDJSONStream<T>(
 				}
 			}
 		}
-	} catch (e) {
+	} catch (e: unknown) {
+		const _err = ensureError(e);
 		console.error('Error reading stream:', e);
 		if (onError) {
 			onError(e as Error);

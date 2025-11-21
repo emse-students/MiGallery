@@ -3,6 +3,7 @@
 	import Icon from './Icon.svelte';
 	import LazyImage from './LazyImage.svelte';
 	import Spinner from './Spinner.svelte';
+	import type { ImmichAsset } from '$lib/types/api';
 
 	interface Props {
 		currentPhotoUrl?: string;
@@ -15,7 +16,7 @@
 
 	let selectedAssetId = $state<string | null>(null);
 	let loading = $state(false);
-	let assets = $state<any[]>([]);
+	let assets = $state<ImmichAsset[]>([]);
 	let loadingAssets = $state(true);
 	let error = $state<string | null>(null);
 
@@ -41,16 +42,14 @@
 				throw new Error(txt || 'Erreur lors du chargement des photos');
 			}
 
-			const data = await res.json();
+			const data = (await res.json()) as { assets: { items: ImmichAsset[] } };
 			const items = data?.assets?.items || [];
 			// Normaliser le format pour le rendu
-			assets = items.map((it: any) => ({
-				id: it.id,
-				originalFileName: it.originalFileName,
-				type: it.type,
+			assets = items.map((it) => ({
+				...it,
 				_raw: it
 			}));
-		} catch (e) {
+		} catch (e: unknown) {
 			console.error('Erreur chargement photos:', e);
 			error = (e as Error).message;
 		} finally {
@@ -84,7 +83,7 @@
 		try {
 			await onPhotoSelected(selectedAssetId);
 			onClose();
-		} catch (e) {
+		} catch (e: unknown) {
 			console.error('Erreur lors de la confirmation:', e);
 			error = (e as Error).message;
 		} finally {
