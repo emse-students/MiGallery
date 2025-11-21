@@ -34,7 +34,7 @@
 		"prepare": "husky install",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "eslint src/routes src/lib --ext .ts,.tsx,.js,.jsx --cache",
+		"lint": "eslint src/lib --ext .ts,.tsx,.js,.jsx --cache && eslint src/routes --ext .ts,.tsx,.js,.jsx --cache",
 		"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**' --fix",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
