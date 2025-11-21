@@ -25,12 +25,13 @@ jobs:
       - name: Setup dependencies
         run: bun install
 
-      - name: Lint and check
+      - name: Type check and generate SvelteKit config
+        run: bun run check && bunx svelte-kit sync
+
+      - name: Lint code
         env:
           NODE_OPTIONS: "--max-old-space-size=16384"
-        run: |
-          bun run lint
-          bun run check
+        run: bun run lint
 
       - name: Build project
         run: bun run build
