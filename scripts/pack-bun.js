@@ -46,9 +46,16 @@ if (fs.existsSync(dataDir)) {
 }
 
 // 3. .env file
+// NOTE: For safety we DO NOT include the local `.env` file by default in release packages.
+// If you really want to include it, set the environment variable `PACK_INCLUDE_ENV=true`.
 const envFile = path.resolve(process.cwd(), '.env');
-if (fs.existsSync(envFile)) {
-	console.log('✅ .env trouvé');
+const includeEnv = String(process.env.PACK_INCLUDE_ENV || '').toLowerCase() === 'true';
+if (fs.existsSync(envFile) && includeEnv) {
+	console.log('✅ .env trouvé et inclusion demandée via PACK_INCLUDE_ENV=true');
+} else if (fs.existsSync(envFile) && !includeEnv) {
+	console.warn(
+		"⚠️  .env trouvé mais NON inclus dans le package (sécurité). Si vous voulez l'inclure, exportez PACK_INCLUDE_ENV=true avant d'exécuter le script."
+	);
 } else {
 	console.warn("⚠️  .env non trouvé - le package n'inclura pas de configuration");
 }
@@ -82,7 +89,7 @@ try {
 		[
 			'build',
 			fs.existsSync(dataDir) ? 'data' : null,
-			fs.existsSync(envFile) ? '.env' : null,
+			fs.existsSync(envFile) && includeEnv ? '.env' : null,
 			'package.json',
 			fs.existsSync(readmeFile) ? 'README.md' : null,
 			fs.existsSync(scriptsDir) ? 'scripts' : null

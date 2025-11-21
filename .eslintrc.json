@@ -75,5 +75,15 @@
 			}
 		}
 	],
-	"ignorePatterns": ["build/", "dist/", "node_modules/", ".svelte-kit/"]
+	"ignorePatterns": [
+		"build/",
+		"dist/",
+		"node_modules/",
+		".svelte-kit/",
+		"server/",
+		"server/chunks/",
+		"client/_app/",
+		"client/_app/immutable/",
+		"static/"
+	]
 }
