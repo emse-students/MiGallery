@@ -4,7 +4,7 @@ import { env } from '$env/dynamic/private';
 import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY;
+const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 export const GET: RequestHandler = async ({ params, fetch, request }) => {
 	const providedKey =

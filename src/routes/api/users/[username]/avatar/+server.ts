@@ -9,7 +9,7 @@ import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 import type { User } from '$lib/types/api';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY;
+const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 async function getUserFromLocals(
 	locals: App.Locals,

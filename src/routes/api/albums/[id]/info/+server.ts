@@ -10,7 +10,7 @@ import { getCurrentUser } from '$lib/server/auth';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const IMMICH_API_KEY = env.IMMICH_API_KEY;
+const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 export const GET: RequestHandler = async ({ params, request, locals, cookies }) => {
 	try {
