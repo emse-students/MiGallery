@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ params, locals, cookies, request }) 
 	try {
 		// allow admin via API key header
 		const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-		let caller = null;
+		let caller: UserRow | null = null;
 		if (apiKeyHeader) {
 			const { verifyRawKeyWithScope } = await import('$lib/db/api-keys');
 			if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {

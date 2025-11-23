@@ -27,13 +27,13 @@
    * Upload et ajout automatique à l'album PhotoCV
    */
   async function handleUpload(files: File[], onProgress?: (current: number, total: number) => void) {
-    if (files.length === 0) return;
+    if (files.length === 0) return [];
 
     // Capturer les valeurs au moment de l'appel pour éviter les problèmes de proxy
     const view = currentView;
     const person = personId;
 
-    await handleAlbumUpload(files, 'photos-cv', allPhotosState, {
+    const results = await handleAlbumUpload(files, 'photos-cv', allPhotosState, {
       onProgress,
       isPhotosCV: true,
       onSuccess: async () => {
@@ -47,6 +47,8 @@
         }
       }
     });
+
+    return results || [];
   }
 
   function switchView(view: 'my' | 'all') {

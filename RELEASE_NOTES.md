@@ -10,6 +10,7 @@ Première version alpha publique de MiGallery pour tests fonctionnels et retours
 ## ✨ Fonctionnalités principales
 
 ### Core Features
+
 - 📸 Galerie photo moderne avec interface Svelte 5
 - 👤 Reconnaissance faciale via intégration Immich
 - 📁 Gestion d'albums personnalisés et partagés
@@ -18,12 +19,14 @@ Première version alpha publique de MiGallery pour tests fonctionnels et retours
 - 🗑️ Corbeille avec restauration
 
 ### API & Sécurité
+
 - ✅ API REST complète avec clés d'API et scopes (read/write/delete/admin)
 - ✅ Protection de tous les endpoints externes
 - ✅ Documentation API interactive (Swagger-like)
 - ✅ Tests unitaires avec Vitest (18+ tests)
 
 ### DevOps & Qualité
+
 - ✅ CI/CD GitHub Actions (lint, check, build, test, package, deploy)
 - ✅ Pre-commit hooks avec ESLint + TypeScript
 - ✅ Packaging automatique (.tgz avec build + data + .env)
@@ -78,6 +81,7 @@ Accédez à http://localhost:3000
 ## 🔄 Changelog complet
 
 ### Features
+
 - Intégration complète Immich avec proxy API
 - Système de permissions granulaires par album
 - Streaming NDJSON pour chargement optimisé des photos
@@ -85,12 +89,14 @@ Accédez à http://localhost:3000
 - Interface admin complète (utilisateurs, API keys, base de données)
 
 ### Fixes
+
 - ✅ Correction de 208 erreurs TypeScript
 - ✅ Consolidation des types API (`src/lib/types/api.ts`)
 - ✅ Sécurisation de tous les endpoints externes
 - ✅ Restauration du workflow CI après corruption
 
 ### Chore
+
 - Mise à jour des hooks pre-commit (lint + check)
 - Merge de la documentation DevOps dans le README
 - Création du script de packaging automatique

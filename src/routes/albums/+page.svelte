@@ -7,6 +7,8 @@
 	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
 	import AlbumCardSkeleton from '$lib/components/AlbumCardSkeleton.svelte';
 	import { consumeNDJSONStream } from '$lib/streaming';
+	import { showConfirm } from '$lib/confirm';
+	import { toast } from '$lib/toast';
 	import { clientCache } from '$lib/client-cache';
 	import type { User, Album, ImmichAsset } from '$lib/types/api';
 
@@ -134,7 +136,8 @@
 	}
 
 	async function downloadAlbumAssets(immichId: string, albumName?: string) {
-		if (!confirm(`Télécharger toutes les images de l'album "${albumName || immichId}" au format ZIP ?`)) return;
+		const ok = await showConfirm(`Télécharger toutes les images de l'album "${albumName || immichId}" au format ZIP ?`, 'Télécharger');
+		if (!ok) return;
 		downloadingAlbumId = immichId;
 		downloadingProgress = { ...downloadingProgress, [immichId]: 0 };
 
@@ -150,7 +153,10 @@
 			const data = (await res.json()) as { assets: ImmichAsset[] };
 			const list: ImmichAsset[] = Array.isArray(data?.assets) ? data.assets : [];
 			const assetIds = list.map(x => x.id).filter(Boolean);
-			if (assetIds.length === 0) return alert('Aucun asset à télécharger');
+			if (assetIds.length === 0) {
+				toast.info('Aucun asset à télécharger');
+				return;
+			}
 			const blob = await fetchArchive(assetIds, {
 				onProgress: (p) => {
 					downloadingProgress = { ...downloadingProgress, [immichId]: p };
@@ -162,7 +168,7 @@
 			if ((e as Error).name === 'AbortError') {
 				console.info('Téléchargement annulé');
 			} else {
-				alert('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
+				toast.error('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
 			}
 		} finally {
 			const copy = { ...downloadingProgress };
@@ -208,7 +214,7 @@
 					// Rafraîchir la liste
 					albums = albums.filter(a => a.id !== immichId);
 				} catch (e: unknown) {
-					alert('Erreur lors de la suppression: ' + (e as Error).message);
+					toast.error('Erreur lors de la suppression: ' + (e as Error).message);
 				}
 			}
 		};

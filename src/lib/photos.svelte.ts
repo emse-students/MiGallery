@@ -2,6 +2,8 @@ import { fetchArchive, saveBlobAs } from '$lib/immich/download';
 import type { ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import { consumeNDJSONStream } from '$lib/streaming';
+import { showConfirm } from '$lib/confirm';
+import { toast } from '$lib/toast';
 
 export type Asset = {
 	id: string;
@@ -378,12 +380,19 @@ export class PhotosState {
 		URL.revokeObjectURL(url);
 	}
 
-	async downloadSelected() {
+	async downloadSelected(skipConfirm?: boolean) {
 		if (this.selectedAssets.length === 0) {
-			return alert('Aucune image sélectionnée');
-		}
-		if (!confirm(`Télécharger ${this.selectedAssets.length} image(s) sous forme d'archive ?`)) {
+			toast.error('Aucune image sélectionnée');
 			return;
+		}
+		if (!skipConfirm) {
+			const ok = await showConfirm(
+				`Télécharger ${this.selectedAssets.length} image(s) sous forme d'archive ?`,
+				'Télécharger'
+			);
+			if (!ok) {
+return;
+}
 		}
 
 		if (this.currentDownloadController) {
@@ -408,7 +417,7 @@ export class PhotosState {
 			const _err = ensureError(e);
 			const err = e as { name?: string; message?: string };
 			if (err.name !== 'AbortError') {
-				alert(`Erreur: ${err.message || 'Erreur inconnue'}`);
+				toast.error(`Erreur: ${err.message || 'Erreur inconnue'}`);
 			}
 		} finally {
 			this.isDownloading = false;

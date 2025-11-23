@@ -127,7 +127,9 @@ async function createTestApiKey(scopes?: string[]): Promise<{ id: string; rawKey
 		if (response.status === 200 || response.status === 201) {
 			const data = (await response.json()) as ApiKeyResponse;
 			if (data.rawKey && data.id) {
-				console.debug(`✅ Clé API créée (scopes: ${scopes?.join(',') || 'admin'}): ${data.rawKey.substring(0, 20)}...`);
+				console.debug(
+					`✅ Clé API créée (scopes: ${scopes?.join(',') || 'admin'}): ${data.rawKey.substring(0, 20)}...`
+				);
 				return { id: data.id, rawKey: data.rawKey };
 			}
 		}

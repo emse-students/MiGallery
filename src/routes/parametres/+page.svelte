@@ -5,6 +5,8 @@
   import { theme } from '$lib/theme';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
+  import { showConfirm } from '$lib/confirm';
+  import { toast } from '$lib/toast';
 
   let isAdmin = $derived((page.data.session?.user as User)?.role === 'admin');
 
@@ -50,10 +52,10 @@
   }
 
   async function addUser() {
-    if (!newUserData.id_user || !newUserData.email || !newUserData.prenom || !newUserData.nom) {
-      alert("Les champs id_user, email, prenom et nom sont requis !");
-      return;
-    }
+      if (!newUserData.id_user || !newUserData.email || !newUserData.prenom || !newUserData.nom) {
+        toast.error("Les champs id_user, email, prenom et nom sont requis !");
+        return;
+      }
 
     const response = await fetch('/api/db', {
       method: 'POST',
@@ -67,11 +69,11 @@
     const jsonData = await response.json();
     const result = asApiResponse(jsonData);
     if (result.success) {
-      alert("Utilisateur ajouté avec succès !");
+      toast.success("Utilisateur ajouté avec succès !");
       newUserData = { id_user: "", email: "", prenom: "", nom: "", id_photos: "" };
       await loadAllUsers();
     } else {
-      alert(`Erreur: ${result.error || 'Unknown error'}`);
+      toast.error(`Erreur: ${result.error || 'Unknown error'}`);
     }
   }
 
@@ -96,12 +98,13 @@
       editingUserId = null;
       await loadAllUsers();
     } else {
-      alert('Erreur mise à jour utilisateur: ' + (result.error || 'unknown'));
+      toast.error('Erreur mise à jour utilisateur: ' + (result.error || 'unknown'));
     }
   }
 
   async function deleteUser(id_user: string) {
-    if (!confirm('Supprimer cet utilisateur ? Cette action est irréversible.')) return;
+    const ok = await showConfirm('Supprimer cet utilisateur ? Cette action est irréversible.', 'Supprimer l\'utilisateur');
+    if (!ok) return;
     await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM users WHERE id_user = ?', params: [id_user] }) });
     await loadAllUsers();
   }
@@ -193,7 +196,8 @@
   }
 
   async function deleteAlbum(albumId: string) {
-    if (!confirm('Supprimer cet album ? Cette action est irréversible.')) return;
+    const ok = await showConfirm('Supprimer cet album ? Cette action est irréversible.', 'Supprimer l\'album');
+    if (!ok) return;
     await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM albums WHERE id = ?', params: [albumId] }) });
     // cascade should remove permissions thanks to foreign key with ON DELETE CASCADE
     await loadAlbums();
@@ -213,12 +217,12 @@
     try {
       const res = await fetch('/api/immich/albums');
       if (!res.ok) {
-        alert(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`);
+        toast.error(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`);
         return;
       }
       const list = (await res.json()) as unknown;
       if (!Array.isArray(list)) {
-        alert('Réponse Immich inattendue');
+        toast.error('Réponse Immich inattendue');
         return;
       }
 
@@ -241,11 +245,11 @@
         added++;
       }
 
-      alert(`Import terminé : ${added} albums importés (visibilité=private)`);
+      toast.success(`Import terminé : ${added} albums importés (visibilité=private)`);
       await loadAlbums();
     } catch (err: unknown) {
       console.error('Import albums error', err);
-      alert('Erreur lors de l\'import des albums. Voir la console.');
+      toast.error('Erreur lors de l\'import des albums. Voir la console.');
     }
   }
 
@@ -353,7 +357,7 @@
     const userId = (page.data.session?.user as User)?.id_user;
 
     if (!userId) {
-      alert("Pas d'utilisateur connecté");
+      toast.error("Pas d'utilisateur connecté");
       return;
     }
 

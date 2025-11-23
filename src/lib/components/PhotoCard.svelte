@@ -90,7 +90,7 @@
 		}
 	}
 
-	const fileName = asset.originalFileName || asset.id;
+	const fileName = asset.originalFileName || asset._raw?.originalFileName || asset.id;
 	const thumbnailUrl = `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`;
 	const isVideo = asset.type === 'VIDEO';
 </script>
@@ -114,8 +114,9 @@
 		<input
 			type="checkbox"
 			checked={isSelected}
+			onclick={(e) => e.stopPropagation()}
 			onchange={handleCheckboxChange}
-			aria-label="Select {fileName}"
+			aria-label={`Select ${fileName}`}
 		/>
 	</div>
 

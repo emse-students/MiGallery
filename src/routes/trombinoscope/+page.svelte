@@ -7,6 +7,8 @@
   import LazyImage from '$lib/components/LazyImage.svelte';
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import type { User } from '$lib/types/api';
+  import { showConfirm } from '$lib/confirm';
+  import { toast } from '$lib/toast';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -101,7 +103,7 @@
   async function saveUser() {
     // Validation
     if (!editUserData.id_user || !editUserData.email || !editUserData.prenom || !editUserData.nom) {
-      alert('Les champs ID, email, prénom et nom sont requis.');
+      toast.error('Les champs ID, email, prénom et nom sont requis.');
       return;
     }
 
@@ -151,13 +153,13 @@
 
         if (people.length === 0) {
           uploadingPhoto = false;
-          alert('Aucune personne détectée sur cette photo. Veuillez choisir une photo avec un visage visible.');
+          toast.error('Aucune personne détectée sur cette photo. Veuillez choisir une photo avec un visage visible.');
           return;
         }
 
         if (people.length > 1) {
           uploadingPhoto = false;
-          alert(`Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`);
+          toast.error(`Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`);
           return;
         }
 
@@ -216,7 +218,7 @@
       uploadPhotoFile = null;
     } catch (e: unknown) {
       uploadingPhoto = false;
-      alert('Erreur: ' + (e as Error).message);
+      toast.error('Erreur: ' + (e as Error).message);
     }
   }
 
@@ -224,13 +226,12 @@
     event.stopPropagation();
 
     if (user.id_user === currentUserId) {
-      alert('Vous ne pouvez pas supprimer votre propre compte.');
+      toast.error('Vous ne pouvez pas supprimer votre propre compte.');
       return;
     }
 
-    if (!confirm(`Supprimer l'utilisateur ${user.prenom} ${user.nom} ?\n\nCette action est irréversible.`)) {
-      return;
-    }
+    const ok = await showConfirm(`Supprimer l'utilisateur ${user.prenom} ${user.nom} ?\n\nCette action est irréversible.`, 'Supprimer l\'utilisateur');
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/users/${encodeURIComponent(user.id_user)}`, { method: 'DELETE' });
@@ -240,7 +241,7 @@
       }
       await fetchUsers();
     } catch (e: unknown) {
-      alert('Erreur: ' + (e as Error).message);
+      toast.error('Erreur: ' + (e as Error).message);
     }
   }
 

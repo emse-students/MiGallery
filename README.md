@@ -419,9 +419,7 @@ Développé avec ❤️ par **DeMASKe**(https://github.com/DeMASKe) et **gd-pnjj
 
 ---
 
-## 🗂️ Annexes DevOps (fusionnées)
-
-Les documents DevOps originaux situés dans `.devops/` ont été consolidés ci-dessous pour centraliser la configuration et les commandes courantes. Utilisez les sections dépliables pour naviguer rapidement.
+## 🗂️ Annexes DevOps
 
 <details>
 <summary><strong>Commandes rapides</strong></summary>

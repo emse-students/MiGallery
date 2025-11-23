@@ -10,6 +10,7 @@
   import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
   import { toast } from '$lib/toast';
+  import { showConfirm } from '$lib/confirm';
   import { handleAlbumUpload } from '$lib/album-operations';
   import { fetchArchive, saveBlobAs } from '$lib/immich/download';
   import type { User, Album } from '$lib/types/api';
@@ -37,7 +38,8 @@
   console.log('✓ [albums/[id]] Script chargé');
 
   async function downloadAll() {
-    if (!confirm(`Télécharger ${photosState.assets.length} image(s) de cet album au format ZIP ?`)) return;
+    const ok = await showConfirm(`Télécharger ${photosState.assets.length} image(s) de cet album au format ZIP ?`, 'Télécharger');
+    if (!ok) return;
 
     if (photosState.currentDownloadController) {
       try { photosState.currentDownloadController.abort(); } catch (e: unknown) {}
@@ -139,10 +141,10 @@
     const albumId = String($page.params.id ?? '');
     if (!albumId) {
       toast.error('Album ID manquant');
-      return;
+      throw new Error('Album ID manquant');
     }
 
-    await handleAlbumUpload(files, albumId, photosState, {
+    const results = await handleAlbumUpload(files, albumId, photosState, {
       onProgress,
       isPhotosCV: false,
       onSuccess: async () => {
@@ -154,6 +156,8 @@
         }
       }
     });
+
+    return results || [];
   }
 
   // Temporairement commenté
