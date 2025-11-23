@@ -12,6 +12,8 @@
   let newLabel = $state('');
   let newScopes = $state('');
   let creating = $state(false);
+  import { showConfirm } from '$lib/confirm';
+  import { toast } from '$lib/toast';
 
   const REVOKED_RETENTION_DAYS = 30;
 
@@ -48,26 +50,27 @@
       const res = await fetch('/api/admin/api-keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
       const data = (await res.json()) as { id: number; rawKey: string };
-      // rawKey is returned once; show it to admin
-      alert('Clé créée:\nID: ' + data.id + '\nClé (copiez-la maintenant, elle ne sera plus affichée):\n' + data.rawKey);
+      // rawKey is returned once; show it to admin in a modal so they can copy it
+      await showConfirm('Clé créée:\nID: ' + data.id + '\n\nClé (copiez-la maintenant, elle ne sera plus affichée):\n' + data.rawKey, 'Clé créée');
       newLabel = '';
       newScopes = '';
       await loadKeys();
     } catch (e: unknown) {
-      alert('Erreur lors de la création: ' + (e as Error).message);
+      toast.error('Erreur lors de la création: ' + (e as Error).message);
     } finally {
       creating = false;
     }
   }
 
   async function revokeKey(id: number) {
-    if (!confirm('Révoquer cette clé ?')) return;
+    const ok = await showConfirm('Révoquer cette clé ?', 'Révoquer la clé');
+    if (!ok) return;
     try {
       const res = await fetch(`/api/admin/api-keys/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
       await loadKeys();
     } catch (e: unknown) {
-      alert('Erreur: ' + (e as Error).message);
+      toast.error('Erreur: ' + (e as Error).message);
     }
   }
 

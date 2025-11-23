@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import type { ImmichAsset, User } from '$lib/types/api';
 	import type { Asset } from '$lib/photos.svelte';
+	import { toast } from '$lib/toast';
 
 	interface Props {
 		assetId: string;
@@ -312,7 +313,7 @@
 					onClose();
 				}
 			} catch (e: unknown) {
-				alert('Erreur lors de la suppression: ' + (e as Error).message);
+				toast.error('Erreur lors de la suppression: ' + (e as Error).message);
 			}
 		};
 

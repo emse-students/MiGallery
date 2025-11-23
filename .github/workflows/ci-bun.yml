@@ -1,71 +1,71 @@
 name: CI (Bun)
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+ push:
+  branches:
+   - main
+ pull_request:
+  branches:
+   - main
 
 jobs:
-  build:
-    name: Build / Test / Lint / Package
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+ build:
+  name: Build / Test / Lint / Package
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
 
-      - name: Install dependencies
-        run: bun install
+   - name: Install dependencies
+     run: bun install
 
-      - name: Type check
-        run: bun run check
+   - name: Type check
+     run: bun run check
 
-      - name: Generate SvelteKit config
-        run: bunx svelte-kit sync
+   - name: Generate SvelteKit config
+     run: bunx svelte-kit sync
 
-      - name: Lint code
-        env:
-          NODE_OPTIONS: "--max-old-space-size=16384"
-        run: bun run lint
+   - name: Lint code
+     env:
+      NODE_OPTIONS: '--max-old-space-size=16384'
+     run: bun run lint
 
-      - name: Build
-        run: bun run build
+   - name: Build
+     run: bun run build
 
-      - name: Setup test database
-        run: |
-          mkdir -p data
-          bun run db:init || echo "Database already exists or init failed"
+   - name: Setup test database
+     run: |
+      mkdir -p data
+      bun run db:init || echo "Database already exists or init failed"
 
-      - name: Start server in background
-        run: |
-          bun run build/index.js &
-          echo "Server started, waiting for it to be ready..."
-          sleep 5
+   - name: Start server in background
+     run: |
+      bun run build/index.js &
+      echo "Server started, waiting for it to be ready..."
+      sleep 5
 
-      - name: Run tests
-        run: bun run test
-        env:
-          API_BASE_URL: http://localhost:3000
+   - name: Run tests
+     run: bun run test
+     env:
+      API_BASE_URL: http://localhost:3000
 
-      - name: Stop server
-        if: always()
-        run: pkill -f "bun run build/index.js" || true
+   - name: Stop server
+     if: always()
+     run: pkill -f "bun run build/index.js" || true
 
-      - name: Package application
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: bun run package
+   - name: Package application
+     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+     run: bun run package
 
-      - name: Upload artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: migallery-package
-          path: build/artifacts/*.tgz
-          retention-days: 30
+   - name: Upload artifact
+     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+     uses: actions/upload-artifact@v4
+     with:
+      name: migallery-package
+      path: build/artifacts/*.tgz
+      retention-days: 30

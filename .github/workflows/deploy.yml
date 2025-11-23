@@ -1,81 +1,81 @@
 name: Deploy to production
 
 on:
-  workflow_run:
-    workflows: ['CI (Bun)']
-    types:
-      - completed
-    branches:
-      - main
+ workflow_run:
+  workflows: ['CI (Bun)']
+  types:
+   - completed
+  branches:
+   - main
 
 jobs:
-  deploy:
-    name: Deploy to production
-    runs-on: self-hosted
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+ deploy:
+  name: Deploy to production
+  runs-on: self-hosted
+  if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+   - name: Install Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
 
-      - name: Setup dependencies
-        run: bun install
+   - name: Setup dependencies
+     run: bun install
 
-      - name: Type check and generate SvelteKit config
-        run: bun run check && bunx svelte-kit sync
+   - name: Type check and generate SvelteKit config
+     run: bun run check && bunx svelte-kit sync
 
-      - name: Lint code
-        env:
-          NODE_OPTIONS: "--max-old-space-size=16384"
-        run: bun run lint
+   - name: Lint code
+     env:
+      NODE_OPTIONS: '--max-old-space-size=16384'
+     run: bun run lint
 
-      - name: Build project
-        run: bun run build
+   - name: Build project
+     run: bun run build
 
-      - name: Paste files to server
-        run: |
-          cd ~/MiGallery
-          # Sauvegarder le dossier data avant de tout supprimer
-          if [ -d "data" ]; then
-            cp -r data /tmp/migallery-data-backup
-          fi
-          # Supprimer tout SAUF .env et data
-          find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'data' -not -name '.svelte-kit' -exec rm -rf {} +
-          # Copier les nouveaux fichiers
-          cp -r ~/actions-runner/_work/MiGallery/MiGallery/* .
-          # Restaurer le dossier data s'il avait été sauvegardé
-          if [ -d "/tmp/migallery-data-backup" ]; then
-            rm -rf data
-            cp -r /tmp/migallery-data-backup data
-            rm -rf /tmp/migallery-data-backup
-          fi
+   - name: Paste files to server
+     run: |
+      cd ~/MiGallery
+      # Sauvegarder le dossier data avant de tout supprimer
+      if [ -d "data" ]; then
+        cp -r data /tmp/migallery-data-backup
+      fi
+      # Supprimer tout SAUF .env et data
+      find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'data' -not -name '.svelte-kit' -exec rm -rf {} +
+      # Copier les nouveaux fichiers
+      cp -r ~/actions-runner/_work/MiGallery/MiGallery/* .
+      # Restaurer le dossier data s'il avait été sauvegardé
+      if [ -d "/tmp/migallery-data-backup" ]; then
+        rm -rf data
+        cp -r /tmp/migallery-data-backup data
+        rm -rf /tmp/migallery-data-backup
+      fi
 
-      - name: Initialize database if needed
-        run: |
-          cd ~/MiGallery
-          if [ ! -f "data/migallery.db" ]; then
-            echo "Base de données non trouvée, initialisation..."
-            bun run db:init
-          else
-            echo "Base de données existante trouvée, pas d'initialisation"
-          fi
+   - name: Initialize database if needed
+     run: |
+      cd ~/MiGallery
+      if [ ! -f "data/migallery.db" ]; then
+        echo "Base de données non trouvée, initialisation..."
+        bun run db:init
+      else
+        echo "Base de données existante trouvée, pas d'initialisation"
+      fi
 
-      - name: Restart server
-        run: |
-          pm2 restart migallery || pm2 start bun --name migallery -- run ./build/index.js
+   - name: Restart server
+     run: |
+      pm2 restart migallery || pm2 start bun --name migallery -- run ./build/index.js
 
-      - name: Wait for server to be ready
-        run: |
-          echo "Attente du démarrage du serveur..."
-          sleep 10
+   - name: Wait for server to be ready
+     run: |
+      echo "Attente du démarrage du serveur..."
+      sleep 10
 
-      - name: Run API tests on production
-        run: |
-          cd ~/MiGallery
-          bun run test || echo "⚠️  Les tests ont échoué mais le déploiement continue"
-        env:
-          API_BASE_URL: http://localhost:3000
+   - name: Run API tests on production
+     run: |
+      cd ~/MiGallery
+      bun run test || echo "⚠️  Les tests ont échoué mais le déploiement continue"
+     env:
+      API_BASE_URL: http://localhost:3000

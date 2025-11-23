@@ -5,6 +5,8 @@
   import type { PageData } from './$types';
   import { asApiResponse, isRecord, hasProperty } from '$lib/ts-utils';
   import type { UserRow } from '$lib/types/api';
+  import { showConfirm } from '$lib/confirm';
+  import { toast } from '$lib/toast';
 
   let isAdmin = $derived(page.data.session?.user?.role === 'admin');
   const data = page.data as PageData;
@@ -42,7 +44,7 @@
 
   async function addUser() {
     if (!newUserData.id_user || !newUserData.email || !newUserData.prenom || !newUserData.nom) {
-      alert('Les champs id_user, email, prenom et nom sont requis !');
+      toast.error('Les champs id_user, email, prenom et nom sont requis !');
       return;
     }
 
@@ -54,11 +56,11 @@
     const jsonData = await response.json();
     const result = asApiResponse(jsonData);
     if (result.success) {
-      alert('Utilisateur ajouté avec succès !');
+      toast.success('Utilisateur ajouté avec succès !');
       newUserData = { id_user: '', email: '', prenom: '', nom: '', id_photos: '' };
       await loadAllUsers();
     } else {
-      alert(`Erreur: ${result.error || 'Unknown error'}`);
+      toast.error(`Erreur: ${result.error || 'Unknown error'}`);
     }
   }
 
@@ -78,12 +80,13 @@
       editingUserId = null;
       await loadAllUsers();
     } else {
-      alert('Erreur mise à jour utilisateur: ' + (result.error || 'unknown'));
+      toast.error('Erreur mise à jour utilisateur: ' + (result.error || 'unknown'));
     }
   }
 
   async function deleteUser(id_user: string) {
-    if (!confirm('Supprimer cet utilisateur ? Cette action est irréversible.')) return;
+    const ok = await showConfirm('Supprimer cet utilisateur ? Cette action est irréversible.', 'Supprimer l\'utilisateur');
+    if (!ok) return;
     await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM users WHERE id_user = ?', params: [id_user] }) });
     await loadAllUsers();
   }
@@ -129,9 +132,8 @@
       return;
     }
 
-    if (!confirm('⚠️ ATTENTION : Cette action va remplacer la base de données actuelle. Voulez-vous continuer ?')) {
-      return;
-    }
+    const ok = await showConfirm('⚠️ ATTENTION : Cette action va remplacer la base de données actuelle. Voulez-vous continuer ?', 'Importer la DB');
+    if (!ok) return;
 
     importing = true;
     message = '';
@@ -216,9 +218,8 @@
   }
 
   async function restoreBackup(filename: string) {
-    if (!confirm(`⚠️ Restaurer la sauvegarde "${filename}" ? Cela va remplacer la base actuelle.`)) {
-      return;
-    }
+    const ok = await showConfirm(`⚠️ Restaurer la sauvegarde "${filename}" ? Cela va remplacer la base actuelle.`, 'Restaurer la sauvegarde');
+    if (!ok) return;
 
     try {
       const response = await fetch('/api/admin/db-restore', {

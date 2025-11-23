@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from "$app/state";
-	import { beforeNavigate } from "$app/navigation";
 	import { signIn, signOut } from "@auth/sveltekit/client";
 	import { activeOperations } from "$lib/operations";
+	import { navigationModalStore } from "$lib/navigation-store";
 	import { theme } from "$lib/theme";
 	import type { User } from "$lib/types/api";
 	import Icon from "$lib/components/Icon.svelte";
 	import ToastContainer from "$lib/components/ToastContainer.svelte";
 	import Modal from "$lib/components/Modal.svelte";
+	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import "../app.css";
 
 	let u = $derived((page.data?.session?.user) as User);
@@ -27,21 +28,20 @@
 	});
 
 	// Avertissement avant navigation pendant une opération
-	let showNavigationWarning = $state(false);
-
-	beforeNavigate(() => {
-		if ($activeOperations.size > 0) {
-			showNavigationWarning = true;
-		}
-	});
+	let navigationModal = $derived($navigationModalStore);
+	let showNavigationWarning = $derived.by(() => navigationModal?.show ?? false);
 
 	function confirmNavigation() {
-		activeOperations.clear();
-		showNavigationWarning = false;
+		if (navigationModal?.href) {
+			activeOperations.clear();
+			navigationModalStore.set(null);
+			// La navigation se fera via window.location.href
+			window.location.href = navigationModal.href;
+		}
 	}
 
 	function cancelNavigation() {
-		showNavigationWarning = false;
+		navigationModalStore.set(null);
 	}
 
 	async function handleSignOut() {
@@ -150,6 +150,8 @@
 </main>
 
 <ToastContainer />
+
+<ConfirmHost />
 
 <Modal
 	bind:show={showNavigationWarning}

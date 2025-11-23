@@ -10,6 +10,7 @@
   import { groupByDay } from '$lib/photos.svelte';
   import type { User, ImmichAsset } from '$lib/types/api';
   import type { Asset } from '$lib/photos.svelte';
+  import { toast } from '$lib/toast';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -180,9 +181,9 @@
           selectedAssets = [];
           selecting = false;
 
-          alert(`${assetIds.length} élément(s) restauré(s) avec succès !`);
+          toast.success(`${assetIds.length} élément(s) restauré(s) avec succès !`);
         } catch (e: unknown) {
-          alert('Erreur lors de la restauration: ' + (e as Error).message);
+          toast.error('Erreur lors de la restauration: ' + (e as Error).message);
         }
       }
     };
@@ -219,9 +220,9 @@
           selectedAssets = [];
           selecting = false;
 
-          alert(`${assetIds.length} élément(s) supprimé(s) définitivement.`);
+          toast.success(`${assetIds.length} élément(s) supprimé(s) définitivement.`);
         } catch (e: unknown) {
-          alert('Erreur lors de la suppression: ' + (e as Error).message);
+          toast.error('Erreur lors de la suppression: ' + (e as Error).message);
         }
       }
     };

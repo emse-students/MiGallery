@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import type { Album } from '$lib/types/api';
+  import { showConfirm } from '$lib/confirm';
+  import { toast } from '$lib/toast';
 
   let { data } = $props();
 
@@ -60,7 +62,8 @@
   }
 
   async function deleteAlbum(albumId: string) {
-    if (!confirm('Supprimer cet album ? Cette action est irréversible.')) return;
+    const ok = await showConfirm('Supprimer cet album ? Cette action est irréversible.', 'Supprimer l\'album');
+    if (!ok) return;
     await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM albums WHERE id = ?', params: [albumId] }) });
     await loadAlbums();
   }
@@ -68,9 +71,9 @@
   async function importAlbumsFromImmich() {
     try {
       const res = await fetch('/api/immich/albums');
-      if (!res.ok) { alert(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`); return; }
+      if (!res.ok) { toast.error(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`); return; }
       const list = (await res.json()) as any[];
-      if (!Array.isArray(list)) { alert('Réponse Immich inattendue'); return; }
+      if (!Array.isArray(list)) { toast.error('Réponse Immich inattendue'); return; }
       let added = 0;
       for (const a of list) {
         const immichId = a.id || a.albumId || a.album_id || a._id || null;
@@ -82,9 +85,9 @@
         await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'INSERT OR IGNORE INTO albums (id, name, date, location, visibility, visible) VALUES (?, ?, ?, ?, ?, ?)', params: [immichId, name, dateVal, null, 'private', 1] }) });
         added++;
       }
-      alert(`Import terminé : ${added} albums importés (visibilité=private)`);
+      toast.success(`Import terminé : ${added} albums importés (visibilité=private)`);
       await loadAlbums();
-    } catch (err: unknown) { console.error('Import albums error', err); alert('Erreur lors de l\'import des albums. Voir la console.'); }
+    } catch (err: unknown) { console.error('Import albums error', err); toast.error('Erreur lors de l\'import des albums. Voir la console.'); }
   }
 
   onMount(() => { loadAlbums(); });

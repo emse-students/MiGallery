@@ -168,6 +168,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
     margin: 0;
+    z-index: 10050;
   }
 
   .modal-dialog::backdrop {

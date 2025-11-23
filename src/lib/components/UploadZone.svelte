@@ -3,10 +3,17 @@
   import Spinner from './Spinner.svelte';
 
   interface Props {
-    onUpload: (files: File[], onProgress?: (current: number, total: number) => void) => Promise<void>;
+    onUpload: (files: File[], onProgress?: (current: number, total: number) => void) => Promise<Array<{ file: File; isDuplicate: boolean; assetId?: string }>>;
     accept?: string;
     multiple?: boolean;
     disabled?: boolean;
+  }
+
+  interface UploadFileStatus {
+    file: File;
+    status: 'pending' | 'uploading' | 'success' | 'error' | 'duplicate';
+    error?: string;
+    progress: number;
   }
 
   let {
@@ -20,9 +27,10 @@
 
   let isDragging = $state(false);
   let isUploading = $state(false);
-  let uploadProgress = $state(0);
-  let uploadTotal = $state(0);
+  let fileStatuses = $state<UploadFileStatus[]>([]);
   let fileInputRef: HTMLInputElement;
+  let globalProgress = $state(0); // Pourcentage global d'upload
+  let uploadedCount = $state(0); // Nombre total de fichiers uploadés (persistant)
 
   function handleDragOver(e: DragEvent) {
     try {
@@ -50,20 +58,18 @@
     try {
       e.preventDefault();
       e.stopPropagation();
-      isDragging = false;
-
-      if (disabled || isUploading) return;
 
       const items = e.dataTransfer?.items;
-      if (!items) return;
+      if (!items) {
+        Promise.resolve().then(() => { isDragging = false; });
+        return;
+      }
 
       const files: File[] = [];
       const promises: Promise<void>[] = [];
 
-      // Collecter les promises de traitement
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-
         if (item.kind === 'file') {
           const entry = items[i].webkitGetAsEntry();
           if (entry) {
@@ -72,21 +78,22 @@
         }
       }
 
-      // Attendre que tous les entries soient traités
-      if (promises.length > 0) {
-        await Promise.all(promises);
-      }
+      Promise.resolve().then(async () => {
+        isDragging = false;
 
-      // Nettoyer le dataTransfer ASAP pour éviter les problèmes de clonage
-      if (e.dataTransfer) {
-        e.dataTransfer.clearData();
-      }
+        if (disabled || isUploading) return;
 
-      if (files.length > 0) {
-        await uploadFiles(files);
-      }
+        if (promises.length > 0) {
+          await Promise.all(promises);
+        }
+
+        if (files.length > 0) {
+          await uploadFiles(files);
+        }
+      });
     } catch (err: unknown) {
       console.error('Error in handleDrop:', err);
+      Promise.resolve().then(() => { isDragging = false; });
     }
   }
 
@@ -105,7 +112,6 @@
     if (entry.isFile) {
       return new Promise((resolve) => {
         entry.file((file: File) => {
-          // Vérifier que c'est une image ou vidéo
           if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
             files.push(file);
           }
@@ -133,30 +139,95 @@
       uploadFiles(files);
     }
 
-    // Reset input pour permettre de sélectionner les mêmes fichiers à nouveau
     input.value = '';
   }
 
   async function uploadFiles(files: File[]) {
     isUploading = true;
-    uploadProgress = 0;
-    uploadTotal = files.length;
+    fileStatuses = files.map((file) => ({
+      file,
+      status: 'pending' as const,
+      progress: 0
+    }));
 
     try {
+      // Upload les fichiers valides
       const onProgressCallback = (current: number, total: number) => {
-        uploadProgress = current;
-        uploadTotal = total;
+        // Mettre à jour le pourcentage global
+        globalProgress = Math.round((current / total) * 100);
+
+        // Marquer tous les fichiers uploadés (current) comme success
+        if (current > 0 && current <= files.length) {
+          for (let i = 0; i < current; i++) {
+            const file = files[i];
+            const statusIndex = fileStatuses.findIndex((s) => s.file === file);
+            if (statusIndex >= 0 && fileStatuses[statusIndex].status === 'pending') {
+              fileStatuses[statusIndex].status = 'success';
+              fileStatuses[statusIndex].progress = 100;
+              // Incrémenter le compteur global de fichiers uploadés (uniquement une fois)
+              uploadedCount = uploadedCount + 1;
+
+              // Supprimer le fichier après 1 seconde
+              setTimeout(() => {
+                fileStatuses = fileStatuses.filter((s) => s.file !== file);
+              }, 1000);
+            }
+          }
+          fileStatuses = [...fileStatuses];
+        }
       };
 
-      await onUpload(files, onProgressCallback);
+      const results = await onUpload(files, onProgressCallback);
+
+      // Vérifier que results est un array
+      const uploadResults = Array.isArray(results) ? results : [];
+
+      // Traiter les doublons (les succès sont déjà gérés par le callback)
+      for (const result of uploadResults) {
+        if (result.isDuplicate) {
+          const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
+          if (statusIndex >= 0) {
+            fileStatuses[statusIndex].status = 'duplicate';
+            fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
+
+            // Supprimer le fichier après 1 seconde
+            setTimeout(() => {
+              fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
+            }, 1000);
+          }
+        }
+      }
     } catch (e: unknown) {
       console.error('Upload error:', e);
-      alert('Erreur lors de l\'upload: ' + (e as Error).message);
+      for (let i = 0; i < fileStatuses.length; i++) {
+        if (fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending') {
+          fileStatuses[i].status = 'error';
+          fileStatuses[i].error = (e as Error).message;
+        }
+      }
     } finally {
       isUploading = false;
-      uploadProgress = 0;
-      uploadTotal = 0;
+      globalProgress = 0; // Réinitialiser le pourcentage global
+
+      // Ne ferme le panneau que s'il n'y a pas d'erreurs
+      setTimeout(() => {
+        const hasErrors = fileStatuses.some((s) => s.status === 'error');
+        if (!hasErrors) {
+          fileStatuses = [];
+        }
+      }, 3000);
     }
+  }
+
+  function retryUpload(failedFiles: File[]) {
+    fileStatuses = fileStatuses.map((s) =>
+      failedFiles.includes(s.file) ? { ...s, status: 'pending' as const, error: undefined } : s
+    );
+    uploadFiles(failedFiles);
+  }
+
+  function clearStatuses() {
+    fileStatuses = [];
   }
 
   function openFileSelector() {
@@ -164,6 +235,11 @@
       fileInputRef?.click();
     }
   }
+
+  const successCount = $derived(uploadedCount);
+  const errorCount = $derived(fileStatuses.filter((s) => s.status === 'error').length);
+  const duplicateCount = $derived(fileStatuses.filter((s) => s.status === 'duplicate').length);
+  const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
 </script>
 
 <div
@@ -187,12 +263,77 @@
   />
 
   <div class="upload-content">
-    {#if isUploading}
-      <Spinner size={48} />
-      <p class="upload-text">Upload en cours...</p>
-      {#if uploadTotal > 0}
-        <p class="upload-progress">{uploadProgress} / {uploadTotal} fichiers</p>
-      {/if}
+    {#if fileStatuses.length > 0}
+      <div class="upload-summary">
+        {#if isUploading}
+          <div class="summary-item uploading">
+            <Spinner size={24} />
+            <span>Upload en cours...</span>
+          </div>
+          <div class="progress-bar global">
+            <div class="progress-fill" style="width: {globalProgress}%"></div>
+          </div>
+          <p class="progress-text">{globalProgress}%</p>
+        {/if}
+        {#if successCount > 0}
+          <div class="summary-item success">
+            <Icon name="check-circle" size={24} />
+            <span>{successCount} fichier{successCount > 1 ? 's' : ''} uploadé{successCount > 1 ? 's' : ''}</span>
+          </div>
+        {/if}
+        {#if errorCount > 0}
+          <div class="summary-item error">
+            <Icon name="x-circle" size={24} />
+            <span>{errorCount} erreur{errorCount > 1 ? 's' : ''}</span>
+          </div>
+        {/if}
+        {#if duplicateCount > 0}
+          <div class="summary-item duplicate">
+            <Icon name="alert-circle" size={24} />
+            <span>{duplicateCount} doublon{duplicateCount > 1 ? 's' : ''}</span>
+          </div>
+        {/if}
+
+        <div class="file-list">
+          {#each fileStatuses as item (item.file.name)}
+            <div class="file-item {item.status}">
+              <div class="file-header">
+                <div class="file-info">
+                  <span class="file-name">{item.file.name}</span>
+                  <span class="file-size">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                </div>
+                <div class="file-status">
+                  {#if item.status === 'success'}
+                    <Icon name="check" size={16} />
+                  {:else if item.status === 'error'}
+                    <Icon name="x" size={16} />
+                  {:else if item.status === 'duplicate'}
+                    <Icon name="alert" size={16} />
+                  {:else if item.status === 'uploading'}
+                    <Spinner size={16} />
+                  {/if}
+                </div>
+              </div>
+              {#if item.error}
+                <p class="error-message">{item.error}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
+
+        {#if errorCount > 0}
+          <button class="btn-retry" onclick={() => retryUpload(failedFiles)}>
+            <Icon name="refresh-cw" size={16} />
+            Réessayer les uploads échoués
+          </button>
+        {/if}
+
+        {#if !isUploading}
+          <button class="btn-clear" onclick={() => clearStatuses()}>
+            Fermer
+          </button>
+        {/if}
+      </div>
     {:else}
       <div class="upload-icon">
         <Icon name="upload" size={48} />
@@ -253,6 +394,7 @@
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
+    width: 100%;
   }
 
   .upload-icon {
@@ -287,9 +429,156 @@
     margin: 0;
   }
 
-  .upload-progress {
-    font-size: 0.9375rem;
+  .upload-summary {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
+  .summary-item.success {
+    background: rgba(34, 197, 94, 0.1);
+    color: rgb(134, 239, 172);
+  }
+
+  .summary-item.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: rgb(252, 165, 165);
+  }
+
+  .summary-item.duplicate {
+    background: rgba(217, 119, 6, 0.1);
+    color: rgb(253, 224, 71);
+  }
+
+  .file-list {
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .file-item {
+    padding: 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .file-item.success {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
+  }
+
+  .file-item.error {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.05);
+  }
+
+  .file-item.duplicate {
+    border-color: rgba(217, 119, 6, 0.3);
+    background: rgba(217, 119, 6, 0.05);
+  }
+
+  .file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .file-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .file-name {
+    font-weight: 500;
+    color: var(--text-primary, #ffffff);
+    word-break: break-all;
+  }
+
+  .file-size {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #a0a0a0);
+  }
+
+  .file-status {
+    display: flex;
+    align-items: center;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, rgb(59, 130, 246), rgb(34, 197, 94));
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    font-size: 0.75rem;
     color: var(--text-secondary, #a0a0a0);
     margin: 0;
+  }
+
+  .error-message {
+    font-size: 0.875rem;
+    color: rgb(252, 165, 165);
+    margin: 0;
+  }
+
+  .btn-retry {
+    padding: 0.75rem 1.5rem;
+    background: rgb(59, 130, 246);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background 0.2s ease;
+  }
+
+  .btn-retry:hover {
+    background: rgb(37, 99, 235);
+  }
+
+  .btn-clear {
+    padding: 0.75rem 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary, #ffffff);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.2s ease;
+  }
+
+  .btn-clear:hover {
+    background: rgba(255, 255, 255, 0.15);
   }
 </style>

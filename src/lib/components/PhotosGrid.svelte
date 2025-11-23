@@ -1,17 +1,15 @@
 <script lang="ts">
-	import Icon from '$lib/components/Icon.svelte';
-	import PhotoCard from '$lib/components/PhotoCard.svelte';
-	import PhotoModal from '$lib/components/PhotoModal.svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import type { PhotosState } from '$lib/photos.svelte';
-	import type { User } from '$lib/types/api';
-	import { groupByDay } from '$lib/photos.svelte';
-	import { page } from '$app/stores';
-	import { toast } from '$lib/toast';
-	import { activeOperations } from '$lib/operations';
-
-	interface Props {
+import Icon from '$lib/components/Icon.svelte';
+import PhotoCard from '$lib/components/PhotoCard.svelte';
+import PhotoModal from '$lib/components/PhotoModal.svelte';
+import Spinner from '$lib/components/Spinner.svelte';
+import Modal from '$lib/components/Modal.svelte';
+import type { PhotosState } from '$lib/photos.svelte';
+import { groupByDay } from '$lib/photos.svelte';
+import type { User } from '$lib/types/api';
+import { page } from '$app/stores';
+import { toast } from '$lib/toast';
+import { activeOperations } from '$lib/operations';	interface Props {
 		state: PhotosState;
 	}
 
@@ -31,6 +29,13 @@
 	let showDeleteModal = $state(false);
 	let assetToDelete = $state<string | null>(null);
 
+	// Modal pour suppression multiple
+	let showDeleteSelectedModal = $state(false);
+	let idsToDelete = $state<string[] | null>(null);
+
+	// Modal pour téléchargement multiple
+	let showDownloadSelectedModal = $state(false);
+
 	async function handleDownloadSingle(id: string) {
 		const operationId = `download-${id}-${Date.now()}`;
 		activeOperations.start(operationId);
@@ -48,6 +53,61 @@
 	async function handleDeleteAsset(assetId: string) {
 		assetToDelete = assetId;
 		showDeleteModal = true;
+	}
+
+	async function handleDeleteSelected() {
+		if (photosState.selectedAssets.length === 0) return;
+		idsToDelete = [...photosState.selectedAssets];
+		showDeleteSelectedModal = true;
+	}
+
+	async function confirmDeleteSelected() {
+		if (!idsToDelete || idsToDelete.length === 0) return;
+		const ids = idsToDelete;
+		const count = ids.length;
+		idsToDelete = null;
+		showDeleteSelectedModal = false;
+
+		const operationId = `delete-multiple-${Date.now()}`;
+		activeOperations.start(operationId);
+		try {
+			const res = await fetch(`/api/immich/assets`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ids })
+			});
+
+			if (!res.ok && res.status !== 204) {
+				const errText = await res.text().catch(() => res.statusText);
+				throw new Error(errText || 'Erreur lors de la suppression');
+			}
+
+			// Retirer les assets de la liste locale
+			photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
+			// Clear selection
+			photosState.selectedAssets = [];
+			photosState.selecting = false;
+			toast.success(`${count} photo(s) mise(s) à la corbeille !`);
+		} catch (e: unknown) {
+			toast.error('Erreur lors de la suppression: ' + (e as Error).message);
+		} finally {
+			activeOperations.end(operationId);
+		}
+	}
+
+	function handleDownloadSelectedClick() {
+		if (photosState.selectedAssets.length === 0) return;
+		showDownloadSelectedModal = true;
+	}
+
+	async function confirmDownloadSelected() {
+		showDownloadSelectedModal = false;
+		try {
+			// call downloadSelected with skipConfirm flag handled in PhotosState
+			await photosState.downloadSelected(true);
+		} catch (e: unknown) {
+			toast.error('Erreur lors du téléchargement: ' + (e as Error).message);
+		}
 	}
 
 	async function confirmDelete() {
@@ -107,7 +167,7 @@
 					<Icon name="square" size={16} />
 					Tout désélectionner
 				</button>
-				<button onclick={() => photosState.downloadSelected()} disabled={photosState.isDownloading || photosState.selectedAssets.length === 0} class="btn-primary">
+				<button onclick={handleDownloadSelectedClick} disabled={photosState.selectedAssets.length === 0} class="btn-primary">
 					{#if photosState.isDownloading}
 						{#if photosState.downloadProgress >= 0}
 							<Icon name="download" size={16} />
@@ -121,6 +181,16 @@
 						Télécharger ({photosState.selectedAssets.length})
 					{/if}
 				</button>
+				{#if canManagePhotos}
+					<button
+						onclick={() => handleDeleteSelected()}
+						disabled={photosState.selectedAssets.length === 0}
+						class="btn-delete-selection px-3 py-2 rounded-lg text-white border-0 cursor-pointer flex items-center gap-2"
+					>
+						<Icon name="trash" size={16} />
+						Supprimer ({photosState.selectedAssets.length})
+					</button>
+				{/if}
 			</div>
 		</div>
 	{:else}
@@ -178,6 +248,34 @@
 >
 	{#snippet children()}
 		<p>Voulez-vous vraiment mettre cette photo à la corbeille ?</p>
+	{/snippet}
+</Modal>
+
+<!-- Modal suppression multiple -->
+<Modal
+	bind:show={showDeleteSelectedModal}
+	title="Supprimer les photos sélectionnées"
+	type="confirm"
+	confirmText="Mettre à la corbeille"
+	cancelText="Annuler"
+	onConfirm={confirmDeleteSelected}
+>
+	{#snippet children()}
+		<p>Voulez-vous vraiment mettre {photosState.selectedAssets.length} photo(s) sélectionnée(s) à la corbeille ?</p>
+	{/snippet}
+</Modal>
+
+<!-- Modal téléchargement multiple -->
+<Modal
+	bind:show={showDownloadSelectedModal}
+	title="Télécharger les photos sélectionnées"
+	type="confirm"
+	confirmText="Télécharger"
+	cancelText="Annuler"
+	onConfirm={confirmDownloadSelected}
+>
+	{#snippet children()}
+		<p>Voulez-vous télécharger {photosState.selectedAssets.length} photo(s) sélectionnée(s) en une archive ?</p>
 	{/snippet}
 </Modal>
 
@@ -278,6 +376,16 @@
   .btn-secondary:hover {
     background: var(--bg-tertiary);
   }
+
+	:global(.btn-delete-selection) {
+		background: #dc2626 !important;
+		color: white !important;
+		border: 0;
+	}
+
+	:global(.btn-delete-selection:hover:not(:disabled)) {
+		background: #b91c1c !important;
+	}
 
   .empty-state {
     text-align: center;
