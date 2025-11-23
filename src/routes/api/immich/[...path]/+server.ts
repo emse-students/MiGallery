@@ -7,7 +7,7 @@ import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 import { getCurrentUser } from '$lib/server/auth';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
-const apiKey = env.IMMICH_API_KEY;
+const apiKey = env.IMMICH_API_KEY ?? '';
 
 const handle: RequestHandler = async function (event) {
 	const request = event.request;
@@ -52,37 +52,32 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
+	// Build outgoing headers but only attach the API key if it's configured.
 	const outgoingHeaders: Record<string, string> = {
-		'x-api-key': apiKey,
 		// forward client's Accept header when present so we don't force JSON for images/etc
 		accept: request.headers.get('accept') || '*/*'
 	};
+	if (apiKey) {
+		outgoingHeaders['x-api-key'] = apiKey;
+	}
 
 	const contentType = request.headers.get('content-type');
 
+	// Forward the request body as a stream when possible to avoid buffering large uploads
+	// and to allow the upstream/proxy to handle chunked transfer encoding.
 	let bodyToForward: BodyInit | undefined = undefined;
-
 	if (!['GET', 'HEAD'].includes(request.method)) {
 		try {
-			// Pour les FormData (multipart/form-data), on transmet le body brut
-			if (contentType?.includes('multipart/form-data')) {
-				// Transmettre le content-type avec la boundary
+			if (contentType) {
 				outgoingHeaders['content-type'] = contentType;
-				// Utiliser arrayBuffer pour préserver les données binaires
-				bodyToForward = await request.arrayBuffer();
-			} else {
-				// Pour les autres types de contenu (JSON, etc.)
-				if (contentType) {
-					outgoingHeaders['content-type'] = contentType;
-				}
-				bodyToForward = await request.text();
-				if (bodyToForward && !outgoingHeaders['content-length']) {
-					outgoingHeaders['content-length'] = String(new TextEncoder().encode(bodyToForward).length);
-				}
 			}
+
+			// Prefer forwarding the original request body stream instead of reading into memory.
+			// This keeps payload sizes lower in-memory and allows upstream to process chunked bodies.
+			bodyToForward = request.body ?? undefined;
 		} catch (e: unknown) {
 			const _err = ensureError(e);
-			console.error('Error processing request body:', e);
+			console.error('Error processing request body for immich proxy:', _err.message || _err);
 		}
 	}
 

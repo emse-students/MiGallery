@@ -8,7 +8,7 @@ import {
 } from '$lib/immich/system-albums';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY;
+const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 async function fetchAllPersonAssets(
 	personId: string,

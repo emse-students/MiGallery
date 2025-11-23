@@ -5,7 +5,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY;
+const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
 import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 import { getCurrentUser } from '$lib/server/auth';

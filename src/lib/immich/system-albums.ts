@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 import type { ImmichAlbum } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY;
+const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 // Albums systèmes centralisés
 export const SYSTEM_ALBUMS = ['PhotoCV', 'PortailEtu'];
