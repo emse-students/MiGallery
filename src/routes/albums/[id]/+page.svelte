@@ -136,6 +136,25 @@
     showConfirmModal = true;
   }
 
+  async function shareAlbum() {
+    try {
+      const url = window.location.href;
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: title || 'Album', url });
+        toast.success('Album partagé');
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        toast.success('Lien copié dans le presse-papiers');
+      } else {
+        // Fallback: show the URL so the user can copy it
+        // eslint-disable-next-line no-alert
+        window.prompt('Copiez ce lien pour partager l\'album', url);
+      }
+    } catch (e: unknown) {
+      toast.error('Impossible de partager: ' + ((e as Error)?.message ?? String(e)));
+    }
+  }
+
   async function handleUpload(files: File[], onProgress?: (current: number, total: number) => void) {
     // Capturer albumId au moment de l'appel
     const albumId = String($page.params.id ?? '');
@@ -147,12 +166,13 @@
     const results = await handleAlbumUpload(files, albumId, photosState, {
       onProgress,
       isPhotosCV: false,
-      onSuccess: async () => {
+        onSuccess: async () => {
         // Recharger l'album avec les nouvelles photos
         const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
         const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
+        const visibility = String(($page.data as { album?: Album }).album?.visibility ?? '');
         if (immichId) {
-          await photosState.loadAlbumWithStreaming(immichId, name || undefined);
+          await photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined);
         }
       }
     });
@@ -172,6 +192,8 @@
     }
   });
 
+  let visibility = $state('');
+
   $effect(() => {
     console.log('⚡ [albums/[id]] $effect appelé');
     const id = String($page.params.id ?? '');
@@ -182,14 +204,17 @@
     const name = String(album?.name ?? '').trim();
     console.log('  - immichId:', immichId);
     console.log('  - name:', name);
-    if (id && immichId) {
+      if (id && immichId) {
       console.log('  ✓ Chargement album...');
       title = name || 'Album';
-      photosState.loadAlbumWithStreaming(immichId, name || undefined);
+      visibility = String(album?.visibility ?? '');
+      photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined);
     } else {
       console.log('  ✗ Album id ou immichId manquants');
     }
   });
+
+  let albumLocalId = String($page.params.id ?? '');
 </script>
 
 <svelte:head>
@@ -220,6 +245,11 @@
           Supprimer l'album
         </button>
       {/if}
+      <button onclick={() => shareAlbum()} class="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white border-0 cursor-pointer flex items-center gap-2">
+        <Icon name="share" size={16} />
+        Partager
+      </button>
+
       <button onclick={() => downloadAll()} disabled={photosState.isDownloading} class="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white border-0 cursor-pointer">
         {#if photosState.isDownloading}
           {#if photosState.downloadProgress >= 0}
@@ -261,13 +291,14 @@
 
     {#if photosState.assets.length > 0}
       <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
-      <PhotosGrid state={photosState} onModalClose={() => {
+      <PhotosGrid state={photosState} visibility={visibility} albumId={albumLocalId} onModalClose={() => {
         console.debug('[albums/[id]] onModalClose invoked — will reload album');
         // Recharger l'album depuis la source après fermeture du modal
         const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
         const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
         if (immichId) {
-          photosState.loadAlbumWithStreaming(immichId, name || undefined).then(() => {
+          const visibility = String(($page.data as { album?: Album }).album?.visibility ?? '');
+          photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined).then(() => {
             console.debug('[albums/[id]] reload complete after modal close');
           }).catch((e) => {
             console.warn('Erreur reload album après fermeture modal:', e);

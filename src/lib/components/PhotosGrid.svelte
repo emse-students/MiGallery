@@ -13,9 +13,11 @@ import { activeOperations } from '$lib/operations';
 	interface Props {
 		state: PhotosState;
 		onModalClose?: () => void;
+		visibility?: string;
+		albumId?: string;
 	}
 
-	let { state: photosState, onModalClose }: Props = $props();
+	let { state: photosState, onModalClose, visibility, albumId }: Props = $props();
 
 	console.log('✓ [PhotosGrid] Composant chargé');
 
@@ -209,6 +211,8 @@ import { activeOperations } from '$lib/operations';
 					isSelected={photosState.selectedAssets.includes(a.id)}
 					isSelecting={photosState.selecting}
 					canDelete={canManagePhotos}
+					albumVisibility={visibility}
+					albumId={albumId}
 					onCardClick={() => handlePhotoCardClick(a.id)}
 					onDownload={() => handleDownloadSingle(a.id)}
 					onDelete={() => handleDeleteAsset(a.id)}

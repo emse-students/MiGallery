@@ -3,6 +3,7 @@ import type { ImmichAlbum, ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { getDatabase } from '$lib/db/database';
 import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 import { getCurrentUser } from '$lib/server/auth';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -18,26 +19,46 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 	try {
 		const { id } = params;
 
-		// Autorisation: session utilisateur OU x-api-key avec scope "read"
-		const user = await getCurrentUser({ locals, cookies });
-		if (!user) {
-			const raw = request.headers.get('x-api-key') || undefined;
-			if (!verifyRawKeyWithScope(raw, 'read')) {
-				throw error(401, 'Unauthorized');
-			}
-		}
-
+		// Récupérer d'abord l'album (le serveur a accès à IMMICH_API_KEY)
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Récupérer la liste des assets de l'album
-		const albumRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
+		// Fetch album directly from Immich using server API key when available
+		if (!IMMICH_BASE_URL) {
+			throw error(500, 'IMMICH_BASE_URL not configured');
+		}
+
+		const albumHeaders: Record<string, string> = { Accept: 'application/json' };
+		if (IMMICH_API_KEY) {
+			albumHeaders['x-api-key'] = IMMICH_API_KEY;
+		}
+
+		console.debug('[assets-stream] Fetching album via internal proxy', {
+			proxyUrl: `/api/immich/albums/${id}`,
+			hasKey: !!IMMICH_API_KEY
+		});
+		// Use internal proxy but present the internal key so the proxy allows the request
+		const albumRes = await fetch(`/api/immich/albums/${id}`, {
 			headers: {
-				'x-api-key': IMMICH_API_KEY,
+				'x-internal-immich-key': IMMICH_API_KEY,
 				Accept: 'application/json'
 			}
 		});
+
+		if (!albumRes.ok) {
+			try {
+				const snippet = await albumRes.clone().text();
+				console.error('[assets-stream] Immich album fetch failed', {
+					status: albumRes.status,
+					statusText: albumRes.statusText,
+					bodySnippet: snippet.slice(0, 400)
+				});
+			} catch (ie: unknown) {
+				const _ie = ensureError(ie);
+				console.error('[assets-stream] Immich album fetch failed and body could not be read', _ie.message || _ie);
+			}
+		}
 
 		if (!albumRes.ok) {
 			const errorText = await albumRes.text();
@@ -45,6 +66,60 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 		}
 
 		const album = (await albumRes.json()) as ImmichAlbum;
+		const albumVisibility = (album as unknown as { visibility?: string }).visibility;
+
+		console.debug('[assets-stream] album fetched', {
+			id: album.id,
+			visibility: albumVisibility,
+			assetsCount: Array.isArray(album.assets) ? album.assets.length : 0
+		});
+
+		// Autorisation: si l'album est 'unlisted' on permet l'accès anonyme.
+		// Accepter aussi le hint `visibility=unlisted` si le client le fournit (partage par lien).
+		let visibilityHint: string | null = null;
+		try {
+			const parsed = new URL(request.url);
+			visibilityHint = parsed.searchParams.get('visibility');
+		} catch {
+			visibilityHint = null;
+		}
+		if (visibilityHint) {
+			console.debug('[assets-stream] visibility hint from query', visibilityHint);
+		}
+		// Utiliser en priorité la visibilité de la BDD locale (notre source de vérité),
+		// puis fallback sur la visibilité fournie par Immich.
+		let localVisibility: string | undefined = undefined;
+		try {
+			const db = getDatabase();
+			const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(id) as
+				| { visibility?: string }
+				| undefined;
+			localVisibility = row?.visibility;
+			console.debug('[assets-stream] localVisibility for album', { id, localVisibility });
+		} catch (dbErr: unknown) {
+			const _dbErr = ensureError(dbErr);
+			console.warn('[assets-stream] failed to read local DB visibility', _dbErr.message || _dbErr);
+		}
+
+		const isUnlisted =
+			visibilityHint === 'unlisted' ||
+			localVisibility === 'unlisted' ||
+			albumVisibility === 'unlisted';
+		if (!isUnlisted) {
+			const user = await getCurrentUser({ locals, cookies });
+			if (!user) {
+				const raw = request.headers.get('x-api-key') || undefined;
+				if (!verifyRawKeyWithScope(raw, 'read')) {
+					throw error(401, 'Unauthorized');
+				}
+			}
+		}
+
+		if (!IMMICH_BASE_URL) {
+			throw error(500, 'IMMICH_BASE_URL not configured');
+		}
+
+		// Récupérer la liste des assets de l'album (album déjà lu ci-dessus)
 		const assets = Array.isArray(album?.assets) ? album.assets : [];
 
 		const encoder = new TextEncoder();
@@ -52,6 +127,7 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 			async start(controller) {
 				try {
 					// Étape 1: Envoyer rapidement les métadonnées minimales pour installer les skeletons
+					console.debug('[assets-stream] starting minimal phase, assets count', assets.length);
 					for (const asset of assets) {
 						const minimalData = {
 							id: asset.id,
@@ -79,17 +155,33 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 
 					// Étape 2: Enrichir avec les détails complets par batches
 					const batchSize = 10;
+					console.debug('[assets-stream] starting full phase, batchSize', batchSize);
 					for (let i = 0; i < assets.length; i += batchSize) {
 						const batch = assets.slice(i, i + batchSize);
 
 						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
 							try {
-								const detailRes = await fetch(`${IMMICH_BASE_URL}/api/assets/${asset.id}`, {
+								// Fetch asset details via internal proxy and include the internal key
+								console.debug('[assets-stream] fetching asset detail via proxy', { assetId: asset.id });
+								const detailRes = await fetch(`/api/immich/assets/${asset.id}`, {
 									headers: {
-										'x-api-key': IMMICH_API_KEY,
+										'x-internal-immich-key': IMMICH_API_KEY,
 										Accept: 'application/json'
 									}
 								});
+								if (!detailRes.ok) {
+									try {
+										const snippet = await detailRes.clone().text();
+										console.error('[assets-stream] asset detail proxy returned non-ok', {
+											assetId: asset.id,
+											status: detailRes.status,
+											snippet: snippet.slice(0, 400)
+										});
+									} catch (ie: unknown) {
+										const _ie = ensureError(ie);
+										console.error('[assets-stream] failed to read asset detail body', _ie.message || _ie);
+									}
+								}
 
 								if (detailRes.ok) {
 									const fullAsset = (await detailRes.json()) as ImmichAsset;
@@ -101,7 +193,7 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 								return null;
 							} catch (e: unknown) {
 								const _err = ensureError(e);
-								console.warn(`Failed to fetch details for asset ${asset.id}:`, e);
+								console.warn(`Failed to fetch details for asset ${asset.id}:`, _err.message || _err);
 								return null;
 							}
 						});
@@ -118,8 +210,23 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 					controller.close();
 				} catch (err: unknown) {
 					const _err = ensureError(err);
-					console.error('Error in assets stream:', err);
-					controller.error(err);
+					console.error('Error in assets stream (will send error message and close stream):', _err.message || _err);
+					try {
+						controller.enqueue(
+							encoder.encode(
+								`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`
+							)
+						);
+					} catch (e: unknown) {
+						const __err = ensureError(e);
+						console.error('Failed to enqueue error message on stream:', __err.message || __err);
+					}
+					try {
+						controller.close();
+					} catch (e: unknown) {
+						const __err = ensureError(e);
+						console.error('Failed to close stream after error:', __err.message || __err);
+					}
 				}
 			}
 		});
@@ -131,11 +238,11 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 			}
 		});
 	} catch (e: unknown) {
-		const err = ensureError(e);
-		console.error(`Error in /api/albums/${params.id}/assets-stream GET:`, err);
+		const _err = ensureError(e);
+		console.error(`Error in /api/albums/${params.id}/assets-stream GET:`, _err.message || _err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
-		throw error(500, err.message);
+		throw error(500, _err.message);
 	}
 };
