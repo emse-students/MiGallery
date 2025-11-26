@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import Icon from './Icon.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { page } from '$app/stores';
@@ -15,6 +15,7 @@
 	}
 
 	let { assetId = $bindable(), assets, onClose, onAssetDeleted }: Props = $props();
+	const dispatch = createEventDispatcher();
 
 	let currentIndex = $state(0);
 	let asset = $state<Asset | null>(null);
@@ -301,6 +302,8 @@
 				if (onAssetDeleted) {
 					onAssetDeleted(assetId);
 				}
+				// Émettre un événement Svelte au cas où le parent écoute via on:assetDeleted
+				dispatch('assetDeleted', assetId);
 
 				// Passer à la photo suivante ou fermer
 				const nextIndex = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;

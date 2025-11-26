@@ -9,11 +9,13 @@ import { groupByDay } from '$lib/photos.svelte';
 import type { User } from '$lib/types/api';
 import { page } from '$app/stores';
 import { toast } from '$lib/toast';
-import { activeOperations } from '$lib/operations';	interface Props {
+import { activeOperations } from '$lib/operations';
+	interface Props {
 		state: PhotosState;
+		onModalClose?: () => void;
 	}
 
-	let { state: photosState }: Props = $props();
+	let { state: photosState, onModalClose }: Props = $props();
 
 	console.log('✓ [PhotosGrid] Composant chargé');
 
@@ -228,12 +230,29 @@ import { activeOperations } from '$lib/operations';	interface Props {
 	<PhotoModal
 		bind:assetId={modalAssetId}
 		assets={photosState.assets}
-		onClose={() => {
-			showModal = false;
-		}}
+			onClose={() => {
+				showModal = false;
+				console.debug('[PhotosGrid] PhotoModal closed — running onClose handler');
+				// Force a shallow refresh of the assets array so the grid re-renders
+				photosState.assets = [...photosState.assets];
+				if (onModalClose) {
+					setTimeout(() => {
+						try {
+							console.debug('[PhotosGrid] Calling onModalClose callback');
+							onModalClose();
+						} catch (e) {
+							console.warn('[PhotosGrid] onModalClose threw:', e);
+						}
+					}, 0);
+				}
+			}}
 		onAssetDeleted={(id) => {
 			photosState.assets = photosState.assets.filter(a => a.id !== id);
 		}}
+			on:assetDeleted={(e) => {
+				const id = e.detail as string;
+				photosState.assets = photosState.assets.filter(a => a.id !== id);
+			}}
 	/>
 {/if}
 

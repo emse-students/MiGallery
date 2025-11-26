@@ -261,7 +261,21 @@
 
     {#if photosState.assets.length > 0}
       <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
-      <PhotosGrid state={photosState} />
+      <PhotosGrid state={photosState} onModalClose={() => {
+        console.debug('[albums/[id]] onModalClose invoked — will reload album');
+        // Recharger l'album depuis la source après fermeture du modal
+        const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
+        const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
+        if (immichId) {
+          photosState.loadAlbumWithStreaming(immichId, name || undefined).then(() => {
+            console.debug('[albums/[id]] reload complete after modal close');
+          }).catch((e) => {
+            console.warn('Erreur reload album après fermeture modal:', e);
+          });
+        } else {
+          console.warn('[albums/[id]] onModalClose: immichId missing, skipping reload');
+        }
+      }} />
     {/if}
 
   {#if showEditAlbumModal && $page.params.id}
