@@ -81,10 +81,15 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
-	const init: RequestInit = {
+	// Build RequestInit for forwarding. When forwarding a stream body in
+	// Node's fetch implementation we must set `duplex: 'half'` so the
+	// runtime allows streaming request bodies. TypeScript's RequestInit
+	// may not include `duplex`, so extend the type with the duplex field.
+	const init: RequestInit & { duplex?: 'half' } = {
 		method: request.method,
 		headers: outgoingHeaders,
-		body: bodyToForward
+		body: bodyToForward,
+		duplex: 'half'
 	};
 
 	// resolved upstream URL (used for forwarding)
