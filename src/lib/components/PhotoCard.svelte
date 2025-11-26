@@ -52,17 +52,17 @@
 	}
 
 	// Exposer un ratio utilisable par LazyImage (même format string "W/H")
-	const aspectRatioString = getAspectRatioString();
-	const aspectRatio = getAspectRatio();
+	let aspectRatio = $derived(getAspectRatio());
+	let aspectRatioString = $derived(getAspectRatioString());
 
 	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px) et largeur variable
-	const flexBasis = aspectRatio * 220;
-	const flexGrow = aspectRatio * 100;
+	let flexBasis = $derived(aspectRatio * 220);
+	let flexGrow = $derived(aspectRatio * 100);
 
 	// Vérifier si l'asset a les données complètes (pas juste les métadonnées minimales)
-	const isFullyLoaded = $derived(
-		asset.originalFileName !== undefined && asset.originalFileName !== null
-	);	function handleCardClick(e: Event) {
+	let isFullyLoaded = $derived(asset.originalFileName !== undefined && asset.originalFileName !== null);
+
+	function handleCardClick(e: Event) {
 		if (onCardClick) {
 			onCardClick(asset.id, e as unknown as MouseEvent);
 		}
@@ -90,9 +90,10 @@
 		}
 	}
 
-	const fileName = asset.originalFileName || asset._raw?.originalFileName || asset.id;
-	const thumbnailUrl = `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`;
-	const isVideo = asset.type === 'VIDEO';
+	// Nom du fichier et autres valeurs — réactifs pour suivre les mises à jour streaming
+	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
+	let thumbnailUrl = $derived(`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`);
+	let isVideo = $derived(asset.type === 'VIDEO');
 </script>
 
 <!-- Photo Card Container -->
