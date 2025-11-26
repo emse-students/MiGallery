@@ -2,8 +2,18 @@
   import Icon from './Icon.svelte';
   import Spinner from './Spinner.svelte';
 
+  interface FileResult {
+    file: File;
+    isDuplicate: boolean;
+    assetId?: string;
+  }
+
   interface Props {
-    onUpload: (files: File[], onProgress?: (current: number, total: number) => void) => Promise<Array<{ file: File; isDuplicate: boolean; assetId?: string }>>;
+    onUpload: (
+      files: File[],
+      onProgress?: (current: number, total: number) => void,
+      onFileResult?: (result: FileResult) => void
+    ) => Promise<Array<{ file: File; isDuplicate: boolean; assetId?: string }>>;
     accept?: string;
     multiple?: boolean;
     disabled?: boolean;
@@ -152,32 +162,35 @@
 
     try {
       // Upload les fichiers valides
+      // onProgress: only update global progress bar; per-file status will be set by onFileResult
       const onProgressCallback = (current: number, total: number) => {
-        // Mettre à jour le pourcentage global
         globalProgress = Math.round((current / total) * 100);
+      };
 
-        // Marquer tous les fichiers uploadés (current) comme success
-        if (current > 0 && current <= files.length) {
-          for (let i = 0; i < current; i++) {
-            const file = files[i];
-            const statusIndex = fileStatuses.findIndex((s) => s.file === file);
-            if (statusIndex >= 0 && fileStatuses[statusIndex].status === 'pending') {
-              fileStatuses[statusIndex].status = 'success';
-              fileStatuses[statusIndex].progress = 100;
-              // Incrémenter le compteur global de fichiers uploadés (uniquement une fois)
-              uploadedCount = uploadedCount + 1;
-
-              // Supprimer le fichier après 1 seconde
-              setTimeout(() => {
-                fileStatuses = fileStatuses.filter((s) => s.file !== file);
-              }, 1000);
-            }
+      const onFileResultCallback = (result: FileResult) => {
+        const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
+        if (statusIndex >= 0) {
+          if (result.isDuplicate) {
+            fileStatuses[statusIndex].status = 'duplicate';
+            fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
+            // keep visible a bit longer
+            setTimeout(() => {
+              fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
+            }, 3000);
+          } else {
+            fileStatuses[statusIndex].status = 'success';
+            fileStatuses[statusIndex].progress = 100;
+            uploadedCount = uploadedCount + 1;
+            // remove success after short delay
+            setTimeout(() => {
+              fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
+            }, 1000);
           }
           fileStatuses = [...fileStatuses];
         }
       };
 
-      const results = await onUpload(files, onProgressCallback);
+      const results = await onUpload(files, onProgressCallback, onFileResultCallback);
 
       // Vérifier que results est un array
       const uploadResults = Array.isArray(results) ? results : [];
@@ -190,10 +203,10 @@
             fileStatuses[statusIndex].status = 'duplicate';
             fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
 
-            // Supprimer le fichier après 1 seconde
+            // Laisser le message visible un peu plus longtemps pour que l'utilisateur le voie
             setTimeout(() => {
               fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
-            }, 1000);
+            }, 3000);
           }
         }
       }
@@ -295,7 +308,7 @@
         {/if}
 
         <div class="file-list">
-          {#each fileStatuses as item (item.file.name)}
+          {#each fileStatuses as item (item.file.name + '-' + item.file.size + '-' + item.file.lastModified)}
             <div class="file-item {item.status}">
               <div class="file-header">
                 <div class="file-info">
@@ -322,14 +335,14 @@
         </div>
 
         {#if errorCount > 0}
-          <button class="btn-retry" onclick={() => retryUpload(failedFiles)}>
+          <button class="btn-retry" onclick={(e) => { e.stopPropagation(); retryUpload(failedFiles); }}>
             <Icon name="refresh-cw" size={16} />
             Réessayer les uploads échoués
           </button>
         {/if}
 
         {#if !isUploading}
-          <button class="btn-clear" onclick={() => clearStatuses()}>
+          <button class="btn-clear" onclick={(e) => { e.stopPropagation(); clearStatuses(); }}>
             Fermer
           </button>
         {/if}

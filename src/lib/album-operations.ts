@@ -16,6 +16,8 @@ export async function handleAlbumUpload(
 	photosState: PhotosState,
 	options: {
 		onProgress?: (current: number, total: number) => void;
+		// callback called after each file upload with its result
+		onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void;
 		isPhotosCV?: boolean;
 		onSuccess?: () => void;
 	} = {}
@@ -106,35 +108,55 @@ export async function handleAlbumUpload(
 			const uploadResult = (await uploadRes.json()) as unknown;
 
 			// Normaliser en tableau typé AssetLike[] pour éviter les any
-			const assetsFromRes: AssetLike[] = ((): AssetLike[] => {
+			// Gérer différents formats renvoyés par Immich:
+			// - { status: 'duplicate', id: '...' }
+			// - { results: [...] }
+			// - un tableau d'objets
+			const assetsFromRes: AssetLike[] = (() => {
 				try {
-					if (uploadResult && typeof uploadResult === 'object') {
-						const maybeObj = uploadResult as Record<string, unknown>;
-						if (Array.isArray(maybeObj['results'])) {
-							return maybeObj['results'] as AssetLike[];
-						}
-					}
-
 					if (Array.isArray(uploadResult)) {
 						return uploadResult as AssetLike[];
 					}
 
-					return [uploadResult as AssetLike];
+					if (uploadResult && typeof uploadResult === 'object') {
+						const obj = uploadResult as Record<string, unknown>;
+
+						// Immich may return { status: 'duplicate', id: '...' }
+						if (obj.status === 'duplicate' && obj.id) {
+							return [{ duplicateId: String(obj.id), id: String(obj.id) }];
+						}
+
+						// Standard wrapper: { results: [...] }
+						if (Array.isArray(obj.results)) {
+							return obj.results as AssetLike[];
+						}
+
+						return [uploadResult as AssetLike];
+					}
+
+					return [] as AssetLike[];
 				} catch {
-					return [];
+					return [] as AssetLike[];
 				}
 			})();
 
 			// Enregistrer le résultat pour ce fichier
 			const assetData = assetsFromRes[0];
-			results.push({
-				file,
-				isDuplicate: !!assetData?.duplicateId,
-				assetId: assetData?.id || assetData?.assetId
-			});
+			const isDup = !!assetData?.duplicateId;
+			const aid = assetData?.id || assetData?.assetId;
+			results.push({ file, isDuplicate: isDup, assetId: aid });
 			uploadedAssets.push(...assetsFromRes);
 
-			// Appeler le callback après chaque fichier uploadé
+			// Appeler le callback par-fichier si fourni
+			if (options.onFileResult) {
+				try {
+					options.onFileResult({ file, isDuplicate: isDup, assetId: aid });
+				} catch (e) {
+					void e;
+				}
+			}
+
+			// Appeler le callback de progression global
 			if (onProgress) {
 				onProgress(i + 1, files.length);
 			}

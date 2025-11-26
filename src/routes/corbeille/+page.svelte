@@ -369,8 +369,14 @@
       onClose={() => {
         showPhotoModal = false;
         modalAssetId = '';
+        // Force re-render du canvas/photos list
+        assets = [...assets];
       }}
       onAssetDeleted={(id) => {
+        assets = assets.filter(a => a.id !== id);
+      }}
+      on:assetDeleted={(e) => {
+        const id = e.detail as string;
         assets = assets.filter(a => a.id !== id);
       }}
     />
