@@ -391,8 +391,8 @@ export class PhotosState {
 				'Télécharger'
 			);
 			if (!ok) {
-return;
-}
+				return;
+			}
 		}
 
 		if (this.currentDownloadController) {
@@ -430,7 +430,11 @@ return;
 	 * Charge les assets d'un album avec streaming et cache client
 	 * Utilisé par: /albums/[id]
 	 */
-	async loadAlbumWithStreaming(albumId: string, albumName?: string): Promise<void> {
+	async loadAlbumWithStreaming(
+		albumId: string,
+		albumName?: string,
+		visibility?: string
+	): Promise<void> {
 		console.warn('📸 PhotosState.loadAlbumWithStreaming appelé:', albumId, albumName);
 		this.loading = true;
 		this.error = null;
@@ -439,7 +443,8 @@ return;
 
 		try {
 			console.warn('  🔄 Récupération des assets via streaming...');
-			const res = await fetch(`/api/albums/${albumId}/assets-stream`);
+			const qp = visibility ? `?visibility=${encodeURIComponent(visibility)}` : '';
+			const res = await fetch(`/api/albums/${albumId}/assets-stream${qp}`);
 
 			if (!res.ok) {
 				throw new Error(`HTTP ${res.status}`);

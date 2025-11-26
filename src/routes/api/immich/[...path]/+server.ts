@@ -14,16 +14,37 @@ const handle: RequestHandler = async function (event) {
 	const path = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
+	// Diagnostic: log incoming proxy calls and whether an internal key was presented
+	try {
+		const internalKeyPresent = !!request.headers.get('x-internal-immich-key');
+		console.debug('[immich-proxy] incoming', { method: request.method, path, internalKeyPresent });
+	} catch {
+		// swallow logging errors
+		console.debug('[immich-proxy] incoming (logging failed)');
+	}
+
 	// Autorisation pour GET: session utilisateur OU x-api-key avec scope "read"
+	// We also accept an internal server-only header `x-internal-immich-key` matching our configured
+	// IMMICH API key to allow server-side code to call this proxy without requiring a user session.
 	if (request.method === 'GET') {
-		const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
-		if (!user) {
-			const raw = request.headers.get('x-api-key') || undefined;
-			if (!verifyRawKeyWithScope(raw, 'read')) {
-				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-					status: 401,
-					headers: { 'content-type': 'application/json' }
-				});
+		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
+		if (internalKey && internalKey === apiKey) {
+			console.debug('[immich-proxy] internal key matched - allowing internal GET');
+			// Internal trusted call, allow
+		} else {
+			if (internalKey) {
+				console.warn('[immich-proxy] internal key present but did not match server key');
+			}
+			const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
+			if (!user) {
+				const raw = request.headers.get('x-api-key') || undefined;
+				if (!verifyRawKeyWithScope(raw, 'read')) {
+					console.debug('[immich-proxy] rejecting GET - no user and no valid x-api-key');
+					return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+						status: 401,
+						headers: { 'content-type': 'application/json' }
+					});
+				}
 			}
 		}
 	}
@@ -116,7 +137,7 @@ const handle: RequestHandler = async function (event) {
 				});
 			} catch (e: unknown) {
 				const _err = ensureError(e);
-				console.error('Immich proxy upstream error but failed to read body snippet', e);
+				console.error('Immich proxy upstream error but failed to read body snippet', _err.message || _err);
 			}
 		}
 

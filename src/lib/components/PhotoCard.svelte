@@ -13,6 +13,8 @@
 		onDownload?: (assetId: string, event: Event) => void;
 		onDelete?: (assetId: string, event: Event) => void;
 		onSelectionToggle?: (assetId: string, selected: boolean) => void;
+		albumVisibility?: string;
+		albumId?: string;
 	}
 
 	let {
@@ -23,7 +25,9 @@
 		onCardClick,
 		onDownload,
 		onDelete,
-		onSelectionToggle
+		onSelectionToggle,
+		albumVisibility,
+		albumId
 	}: Props = $props();
 
 	// Déterminer le ratio d'aspect de l'image
@@ -92,7 +96,11 @@
 
 	// Nom du fichier et autres valeurs — réactifs pour suivre les mises à jour streaming
 	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
-	let thumbnailUrl = $derived(`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`);
+	let thumbnailUrl = $derived(
+		albumVisibility === 'unlisted' && albumId
+			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
+			: `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`
+	);
 	let isVideo = $derived(asset.type === 'VIDEO');
 </script>
 
