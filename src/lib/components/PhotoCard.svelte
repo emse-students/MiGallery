@@ -207,8 +207,17 @@
 	}
 
 	.photo-card.selected {
-		outline: 3px solid var(--accent);
-		outline-offset: -3px;
+		/* Make selection persistent and clearly visible */
+		outline: none;
+		box-shadow: 0 0 0 3px rgba(59,130,246,0.95); /* fallback accent color */
+		/* Keep the selected card above siblings so the frame is visible */
+		z-index: 20;
+		transform: translateY(-2px);
+	}
+
+	/* Ensure checkbox is visible when selected even without hover */
+	.photo-card.selected .selection-checkbox {
+		opacity: 1;
 	}
 
 	.photo-card :global(.lazy-image-container) {

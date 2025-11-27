@@ -234,6 +234,8 @@ import { activeOperations } from '$lib/operations';
 	<PhotoModal
 		bind:assetId={modalAssetId}
 		assets={photosState.assets}
+			albumVisibility={visibility}
+			albumId={albumId}
 			onClose={() => {
 				showModal = false;
 				console.debug('[PhotosGrid] PhotoModal closed — running onClose handler');

@@ -59,6 +59,16 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
+		else if (e.key === 'Enter') {
+			// If a photo is selected, confirm selection on Enter
+			const active = document.activeElement as HTMLElement | null;
+			const tag = active?.tagName?.toUpperCase() || '';
+			const isEditable = active?.isContentEditable;
+			if (!(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable) && selectedAssetId) {
+				e.preventDefault();
+				void confirmSelection();
+			}
+		}
 	}
 
 	function handleBackdropClick(e: MouseEvent) {

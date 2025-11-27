@@ -56,7 +56,10 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 				});
 			} catch (ie: unknown) {
 				const _ie = ensureError(ie);
-				console.error('[assets-stream] Immich album fetch failed and body could not be read', _ie.message || _ie);
+				console.error(
+					'[assets-stream] Immich album fetch failed and body could not be read',
+					_ie.message || _ie
+				);
 			}
 		}
 
@@ -210,7 +213,10 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 					controller.close();
 				} catch (err: unknown) {
 					const _err = ensureError(err);
-					console.error('Error in assets stream (will send error message and close stream):', _err.message || _err);
+					console.error(
+						'Error in assets stream (will send error message and close stream):',
+						_err.message || _err
+					);
 					try {
 						controller.enqueue(
 							encoder.encode(

@@ -12,9 +12,11 @@
 		assets: Asset[];
 		onClose: () => void;
 		onAssetDeleted?: (assetId: string) => void;
+		albumVisibility?: string;
+		albumId?: string;
 	}
 
-	let { assetId = $bindable(), assets, onClose, onAssetDeleted }: Props = $props();
+	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId }: Props = $props();
 	const dispatch = createEventDispatcher();
 
 	let currentIndex = $state(0);
@@ -55,6 +57,9 @@
 	let imgElement = $state<HTMLImageElement | null>(null);
 	let containerElement = $state<HTMLDivElement | null>(null);
 
+	// Prévenir les rechargements répétés de la même asset
+	let lastLoadedAssetId = $state<string | null>(null);
+
 	// Trouver l'index actuel
 	$effect(() => {
 		const index = assets.findIndex(a => a.id === assetId);
@@ -71,17 +76,32 @@
 		isVideo = false;
 
 		try {
-			const metaRes = await fetch(`/api/immich/assets/${id}`);
-			if (metaRes.ok) {
-				const rawAsset = (await metaRes.json()) as ImmichAsset;
-				asset = {
-					id: rawAsset.id,
-					originalFileName: rawAsset.originalFileName,
-					type: rawAsset.type,
-					_raw: rawAsset
-				};
-				isVideo = asset?.type === 'VIDEO';
-			}
+				// Si l'asset est présent dans la liste `assets`, réutiliser les données locales
+				const local = assets.find(a => a.id === id);
+				if (local) {
+					asset = local;
+					isVideo = asset?.type === 'VIDEO';
+				} else {
+					// Sinon, tenter de récupérer les métadonnées depuis l'API Immich.
+					// Pour les albums "unlisted" en accès anonyme, cette requête peut renvoyer 401,
+					// donc on la tente uniquement si nécessaire et on ignore les erreurs non fatales.
+					try {
+						const metaRes = await fetch(`/api/immich/assets/${id}`);
+						if (metaRes.ok) {
+							const rawAsset = (await metaRes.json()) as ImmichAsset;
+							asset = {
+								id: rawAsset.id,
+								originalFileName: rawAsset.originalFileName,
+								type: rawAsset.type,
+								_raw: rawAsset
+							};
+							isVideo = asset?.type === 'VIDEO';
+						}
+					} catch (err) {
+						// Ignorer les erreurs (ex: 401) — on garde les informations minimales si disponibles
+						console.debug('Meta fetch failed (ignored):', err);
+					}
+				}
 
 			if (isVideo) {
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
@@ -98,16 +118,24 @@
 				size = 'preview';
 			}
 
-			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
+				// Pour les albums en mode "unlisted" on utilise la route publique qui proxy la vignette
+				if (albumVisibility === 'unlisted' && albumId) {
+					mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${size}`;
+				} else {
+					mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
+				}
 		}
 	} catch (e: unknown) {
 		console.error('Erreur chargement asset:', e);
 	} finally {
 		loading = false;
 	}
-}	$effect(() => {
-		if (assetId) {
+}
+
+	$effect(() => {
+		if (assetId && assetId !== lastLoadedAssetId) {
 			loadAsset(assetId);
+			lastLoadedAssetId = assetId;
 			// Reset zoom and position when changing photo
 			// minScale will be set after image loads
 			scale = 1;
@@ -298,6 +326,11 @@
 					}
 				}
 
+				// Calculer la prochaine photo à afficher AVANT de notifier le parent
+				// (évite les conditions de course si le parent met à jour `assets` immédiatement)
+				const nextIndexSnapshot = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
+				const nextAssetId = (nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length) ? assets[nextIndexSnapshot].id : null;
+
 				// Notifier le parent
 				if (onAssetDeleted) {
 					onAssetDeleted(assetId);
@@ -305,14 +338,10 @@
 				// Émettre un événement Svelte au cas où le parent écoute via on:assetDeleted
 				dispatch('assetDeleted', assetId);
 
-				// Passer à la photo suivante ou fermer
-				const nextIndex = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
-
-				if (nextIndex >= 0 && nextIndex < assets.length) {
-					// Passer à la photo suivante/précédente
-					assetId = assets[nextIndex].id;
+				// Passer à la photo suivante (pré-calculée) ou fermer
+				if (nextAssetId) {
+					assetId = nextAssetId;
 				} else {
-					// Plus de photos, fermer la visionneuse
 					onClose();
 				}
 			} catch (e: unknown) {
