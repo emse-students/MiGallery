@@ -137,7 +137,10 @@ const handle: RequestHandler = async function (event) {
 				});
 			} catch (e: unknown) {
 				const _err = ensureError(e);
-				console.error('Immich proxy upstream error but failed to read body snippet', _err.message || _err);
+				console.error(
+					'Immich proxy upstream error but failed to read body snippet',
+					_err.message || _err
+				);
 			}
 		}
 

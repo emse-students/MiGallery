@@ -44,6 +44,20 @@
 
   // Gérer la touche Escape
   function handleKeydown(e: KeyboardEvent) {
+    const active = document.activeElement as HTMLElement | null;
+
+    // If Enter pressed and it's safe (no input focused), treat as confirm when available
+    if (e.key === 'Enter' && !isProcessing) {
+      const tag = active?.tagName?.toUpperCase() || '';
+      const isEditable = active?.isContentEditable;
+      const ignoreEnter = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable;
+      if (!ignoreEnter && typeof onConfirm === 'function') {
+        e.preventDefault();
+        void handleConfirm();
+        return;
+      }
+    }
+
     if (e.key === 'Escape' && !isProcessing) {
       handleCancel();
     }

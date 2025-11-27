@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import { onMount, onDestroy } from 'svelte';
 
   interface Props {
     title?: string;
@@ -36,6 +37,32 @@
       handleCancel();
     }
   }
+
+  function handleKeydown(e: KeyboardEvent) {
+    // Enter -> confirm, Escape -> cancel
+    const active = document.activeElement as HTMLElement | null;
+    const tag = active?.tagName?.toUpperCase() || '';
+    const isEditable = active?.isContentEditable;
+    const ignoreEnter = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable;
+
+    if (e.key === 'Enter') {
+      if (!ignoreEnter) {
+        e.preventDefault();
+        handleConfirm();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancel();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener('keydown', handleKeydown);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('keydown', handleKeydown);
+  });
 </script>
 
 <div class="modal-backdrop" onclick={handleBackdropClick} role="presentation">
