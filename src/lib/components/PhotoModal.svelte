@@ -289,7 +289,12 @@
 	async function downloadAsset() {
 		if (!assetId || !asset) return;
 		try {
-			const res = await fetch(`/api/immich/assets/${assetId}/original`);
+			// If this photo belongs to an unlisted album, use the public album proxy
+			let downloadUrl = `/api/immich/assets/${assetId}/original`;
+			if (albumVisibility === 'unlisted' && albumId) {
+				downloadUrl = `/api/albums/${albumId}/asset-original/${assetId}`;
+			}
+			const res = await fetch(downloadUrl);
 			if (res.ok) {
 				const blob = await res.blob();
 				const url = URL.createObjectURL(blob);
