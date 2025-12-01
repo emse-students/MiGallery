@@ -199,6 +199,14 @@
         showConfirmModal = false;
         try {
           console.log('Permanently deleting assets with IDs:', assetIds);
+          // Validate IDs
+          const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+          for (const id of assetIds) {
+            if (!uuidRe.test(id)) {
+              throw new Error('Invalid asset id in selection');
+            }
+          }
+
           // DELETE /assets avec force=true pour supprimer définitivement depuis la corbeille
           const res = await fetch('/api/immich/assets', {
             method: 'DELETE',

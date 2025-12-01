@@ -23,8 +23,8 @@ export const GET: RequestHandler = async ({ params, request, fetch, locals, cook
 		try {
 			const db = getDatabase();
 			const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(albumId) as
-        | { visibility?: string }
-        | undefined;
+				| { visibility?: string }
+				| undefined;
 			localVisibility = row?.visibility;
 		} catch (dbErr: unknown) {
 			const _dbErr = ensureError(dbErr);
@@ -71,7 +71,11 @@ export const GET: RequestHandler = async ({ params, request, fetch, locals, cook
 			} catch {
 				/* ignore */
 			}
-			console.error('[asset-original] upstream returned non-ok', { assetId, status: proxied.status, snippet: bodySnippet.slice(0, 400) });
+			console.error('[asset-original] upstream returned non-ok', {
+				assetId,
+				status: proxied.status,
+				snippet: bodySnippet.slice(0, 400)
+			});
 			return new Response(bodySnippet || proxied.statusText, { status: proxied.status });
 		}
 
@@ -98,7 +102,7 @@ export const GET: RequestHandler = async ({ params, request, fetch, locals, cook
 			// Re-throw objects that carry a numeric `status` so SvelteKit can handle them.
 			// Cast via `unknown` -> `ErrorLike` to avoid using `any` and satisfy ESLint.
 			type ErrorLike = { status: number; [key: string]: unknown };
-			throw (e as unknown as ErrorLike);
+			throw e as unknown as ErrorLike;
 		}
 		throw error(500, err.message);
 	}

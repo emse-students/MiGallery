@@ -89,17 +89,49 @@ export const GET: RequestHandler = async ({ params, locals, cookies, request }) 
 };
 
 export const PUT: RequestHandler = async ({ params, request, locals, cookies }) => {
-	// update user - admin only
+	// update user - admin or self (self can update non-sensitive fields)
 	try {
-		const caller = await getUserFromLocals(locals, cookies);
-		if (!caller) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
+		// Debug logs: trace incoming request to help diagnose 401/403
+		try {
+			const maskedCookie = (() => {
+				const c = cookies.get('current_user_id');
+				if (!c) {
+					return null;
+				}
+				const idx = c.indexOf('.');
+				return idx === -1 ? '[signed?]' : `${c.slice(0, Math.min(idx, 20))}...`;
+			})();
+			console.debug('[PUT /api/users/:id] start', {
+				paramsId: params?.id,
+				cookiePresent: !!cookies.get('current_user_id'),
+				cookieMasked: maskedCookie,
+				xApiKey: request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || null,
+				localsAuth: typeof locals?.auth === 'function'
+			});
+		} catch (logErr) {
+			// don't fail on logging
+			console.warn('[PUT /api/users/:id] logging error', logErr);
 		}
-		if ((caller.role || 'user') !== 'admin') {
-			return json({ error: 'Forbidden' }, { status: 403 });
+		const caller = await getUserFromLocals(locals, cookies);
+		console.debug('[PUT /api/users/:id] caller resolved', {
+			caller: caller ? { id_user: caller.id_user, role: caller.role } : null
+		});
+		if (!caller) {
+			console.warn('[PUT /api/users/:id] unauthorized: no caller');
+			return json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
 		const targetId = params.id;
+		if (!targetId) {
+			return json({ error: 'Bad Request' }, { status: 400 });
+		}
+
+		// Allow admins to update any user. Non-admins may update their own record,
+		// but are not allowed to change sensitive fields like `role` or `promo_year`.
+		if ((caller.role || 'user') !== 'admin' && caller.id_user !== targetId) {
+			return json({ error: 'Forbidden' }, { status: 403 });
+		}
+
 		const body = (await request.json()) as {
 			email?: string;
 			prenom?: string;
@@ -110,6 +142,17 @@ export const PUT: RequestHandler = async ({ params, request, locals, cookies }) 
 		};
 		const { email, prenom, nom, role, promo_year, id_photos } = body;
 
+		// If caller is not admin, prevent changing admin-only fields
+		if ((caller.role || 'user') !== 'admin') {
+			if (role !== undefined || promo_year !== undefined) {
+				console.warn(
+					'[PUT /api/users/:id] forbidden: non-admin attempted to change admin-only fields',
+					{ caller: caller.id_user, target: params.id }
+				);
+				return json({ error: 'Forbidden' }, { status: 403 });
+			}
+		}
+
 		const db = getDatabase();
 		const stmt = db.prepare(
 			'UPDATE users SET email = ?, prenom = ?, nom = ?, role = ?, promo_year = ?, id_photos = ? WHERE id_user = ?'
@@ -118,7 +161,13 @@ export const PUT: RequestHandler = async ({ params, request, locals, cookies }) 
 			email || null,
 			prenom || null,
 			nom || null,
-			role || 'user',
+			// keep existing role for non-admins (role must be provided by admin)
+			(caller.role || 'user') === 'admin'
+				? role || 'user'
+				: caller.id_user === targetId
+					? (body.role ??
+						(db.prepare('SELECT role FROM users WHERE id_user = ?').get(targetId)?.role || 'user'))
+					: role || 'user',
 			promo_year || null,
 			id_photos || null,
 			targetId

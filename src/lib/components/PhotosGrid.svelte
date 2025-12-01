@@ -87,7 +87,9 @@ import { activeOperations } from '$lib/operations';
 			}
 
 			// Retirer les assets de la liste locale
-			photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
+					photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
+					// force shallow copy to ensure reactivity everywhere
+					photosState.assets = [...photosState.assets];
 			// Clear selection
 			photosState.selectedAssets = [];
 			photosState.selecting = false;
@@ -133,7 +135,9 @@ import { activeOperations } from '$lib/operations';
 			}
 
 			// Retirer l'asset de la liste locale
-			photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
+					photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
+					// force shallow copy to ensure reactivity everywhere
+					photosState.assets = [...photosState.assets];
 			toast.success('Photo mise à la corbeille !');
 		} catch (e: unknown) {
 			toast.error('Erreur lors de la suppression: ' + (e as Error).message);

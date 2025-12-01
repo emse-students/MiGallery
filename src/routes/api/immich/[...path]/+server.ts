@@ -93,9 +93,28 @@ const handle: RequestHandler = async function (event) {
 				outgoingHeaders['content-type'] = contentType;
 			}
 
-			// Prefer forwarding the original request body stream instead of reading into memory.
-			// This keeps payload sizes lower in-memory and allows upstream to process chunked bodies.
-			bodyToForward = request.body ?? undefined;
+			// Special-case: for DELETE to /api/assets we want to log the JSON body to help
+			// debug invalid payloads (e.g. non-UUIDs or wrong shape). Read the body as text
+			// and forward the text. This sacrifices streaming for this small case only.
+			if (request.method === 'DELETE' && path === 'assets') {
+				try {
+					const txt = await request.text();
+					console.debug('[immich-proxy] DELETE /api/assets body:', txt);
+					bodyToForward = txt;
+				} catch (e: unknown) {
+					const _err = ensureError(e);
+					console.warn(
+						'[immich-proxy] failed to read DELETE /api/assets body for logging',
+						_err.message || _err
+					);
+					// fallback to streaming if possible
+					bodyToForward = request.body ?? undefined;
+				}
+			} else {
+				// Prefer forwarding the original request body stream instead of reading into memory.
+				// This keeps payload sizes lower in-memory and allows upstream to process chunked bodies.
+				bodyToForward = request.body ?? undefined;
+			}
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			console.error('Error processing request body for immich proxy:', _err.message || _err);
