@@ -180,6 +180,9 @@ export class PhotosState {
 		this.peopleId = id;
 
 		try {
+			// Charger les favoris en parallèle (on ne l'attend pas)
+			const favoritesPromise = this.loadFavoritesSet();
+
 			// Récupérer les infos de la personne
 			const personRes = await fetch(`/api/immich/people/${id}`);
 			if (personRes.ok) {
@@ -216,7 +219,7 @@ export class PhotosState {
 					assetsMap.set(asset.id, {
 						...asset,
 						date: null,
-						isFavorite: false, // Ignorer le favori Immich, sera chargé depuis la DB locale
+						isFavorite: false, // Sera mis à jour avec les favoris chargés en parallèle
 						exifInfo:
 							asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
 								? {
@@ -245,8 +248,12 @@ export class PhotosState {
 				this.assets = [...Array.from(assetsMap.values())];
 			});
 
-			// Charger les favoris de l'utilisateur
-			await this.loadFavorites();
+			// Attendre les favoris et les appliquer
+			const favoriteSet = await favoritesPromise;
+			this.assets = this.assets.map((a) => ({
+				...a,
+				isFavorite: favoriteSet.has(a.id)
+			}));
 
 			this.loading = false;
 		} catch (e: unknown) {
@@ -301,7 +308,9 @@ export class PhotosState {
 		} finally {
 			this.loading = false;
 		}
-	} /**
+	}
+
+	/**
 	 * Charge TOUTES les photos DANS l'album PhotoCV (toutes personnes confondues)
 	 * Utilisé par: page Photos CV (onglet "Toutes les photos CV" - mitvistes/admins uniquement)
 	 */
@@ -548,14 +557,33 @@ export class PhotosState {
 	}
 
 	/**
+	 * Charge les favoris de l'utilisateur et retourne un Set
+	 * Utile pour charger en parallèle du streaming
+	 */
+	async loadFavoritesSet(): Promise<Set<string>> {
+		try {
+			const res = await fetch('/api/favorites');
+			if (!res.ok) {
+				return new Set();
+			}
+
+			const data = (await res.json()) as { favorites: string[] };
+			return new Set(data.favorites);
+		} catch (e: unknown) {
+			console.warn('Erreur chargement favoris:', e);
+			return new Set();
+		}
+	}
+
+	/**
 	 * Charge les favoris de l'utilisateur et met à jour les assets
 	 */
 	async loadFavorites(): Promise<void> {
 		try {
 			const res = await fetch('/api/favorites');
 			if (!res.ok) {
-return;
-}
+				return;
+			}
 
 			const data = (await res.json()) as { favorites: string[] };
 			const favoriteSet = new Set(data.favorites);
