@@ -175,6 +175,11 @@ import { activeOperations } from '$lib/operations';
 	let nonFavoriteAssets = $derived(
 		showFavorites ? photosState.assets.filter(a => !a.isFavorite) : photosState.assets
 	);
+
+	// Computed: assets pour la visionneuse (favoris d'abord si showFavorites)
+	let assetsForModal = $derived(
+		showFavorites ? [...favoriteAssets, ...nonFavoriteAssets] : photosState.assets
+	);
 </script>
 
 <!-- Affichage principal -->
@@ -282,7 +287,7 @@ import { activeOperations } from '$lib/operations';
 {#if showModal}
 	<PhotoModal
 		bind:assetId={modalAssetId}
-		assets={photosState.assets}
+		assets={assetsForModal}
 			albumVisibility={visibility}
 			albumId={albumId}
 			showFavorite={showFavorites}
