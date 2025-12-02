@@ -6,8 +6,8 @@
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
-  import EditAlbumModal from '$lib/components/EditAlbumModal.svelte';
-  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+  import AlbumModal from '$lib/components/AlbumModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
   import { toast } from '$lib/toast';
   import { showConfirm } from '$lib/confirm';
@@ -16,7 +16,7 @@
   import type { User, Album } from '$lib/types/api';
 
   let title = $state('');
-  let showEditAlbumModal = $state(false);
+  let showAlbumModal = $state(false);
 
   // État du modal de confirmation
   let showConfirmModal = $state(false);
@@ -236,7 +236,7 @@
         </button>
       {/if}
       {#if canManagePhotos}
-        <button onclick={() => showEditAlbumModal = true} class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white border-0 cursor-pointer flex items-center gap-2">
+        <button onclick={() => showAlbumModal = true} class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white border-0 cursor-pointer flex items-center gap-2">
           <Icon name="edit" size={16} />
           Modifier l'album
         </button>
@@ -316,22 +316,27 @@
       }} />
     {/if}
 
-  {#if showEditAlbumModal && $page.params.id}
-    <EditAlbumModal
+  {#if showAlbumModal && $page.params.id}
+    <AlbumModal
       albumId={String($page.params.id)}
-      onClose={() => showEditAlbumModal = false}
-      onAlbumUpdated={() => window.location.reload()}
+      onClose={() => showAlbumModal = false}
+      onSuccess={() => window.location.reload()}
     />
   {/if}
 
   {#if showConfirmModal && confirmModalConfig}
-    <ConfirmModal
+    <Modal
+      bind:show={showConfirmModal}
       title={confirmModalConfig.title}
-      message={confirmModalConfig.message}
+      type="confirm"
       confirmText={confirmModalConfig.confirmText}
       onConfirm={confirmModalConfig.onConfirm}
       onCancel={() => showConfirmModal = false}
-    />
+    >
+      {#snippet children()}
+        <p style="white-space: pre-wrap;">{confirmModalConfig!.message}</p>
+      {/snippet}
+    </Modal>
   {/if}
 </main>
 

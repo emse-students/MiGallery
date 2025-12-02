@@ -6,7 +6,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
-  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { groupByDay } from '$lib/photos.svelte';
   import type { User, ImmichAsset } from '$lib/types/api';
   import type { Asset } from '$lib/photos.svelte';
@@ -391,13 +391,16 @@
   {/if}
 
   {#if showConfirmModal && confirmModalConfig}
-    <ConfirmModal
+    <Modal
+      bind:show={showConfirmModal}
       title={confirmModalConfig.title}
-      message={confirmModalConfig.message}
+      type="confirm"
       confirmText={confirmModalConfig.confirmText}
       onConfirm={confirmModalConfig.onConfirm}
       onCancel={() => showConfirmModal = false}
-    />
+    >
+      <p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
+    </Modal>
   {/if}
 </main>
 

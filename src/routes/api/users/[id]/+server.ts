@@ -166,7 +166,12 @@ export const PUT: RequestHandler = async ({ params, request, locals, cookies }) 
 				? role || 'user'
 				: caller.id_user === targetId
 					? (body.role ??
-						(db.prepare('SELECT role FROM users WHERE id_user = ?').get(targetId)?.role || 'user'))
+						((
+							db.prepare('SELECT role FROM users WHERE id_user = ?').get(targetId) as
+								| { role: string }
+								| undefined
+						)?.role ||
+							'user'))
 					: role || 'user',
 			promo_year || null,
 			id_photos || null,

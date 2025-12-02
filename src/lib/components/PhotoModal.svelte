@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import Icon from './Icon.svelte';
-	import ConfirmModal from './ConfirmModal.svelte';
+	import Modal from './Modal.svelte';
 	import { page } from '$app/stores';
 	import type { ImmichAsset, User } from '$lib/types/api';
 	import type { Asset } from '$lib/photos.svelte';
@@ -514,13 +514,16 @@
 </div>
 
 {#if showConfirmModal && confirmModalConfig}
-	<ConfirmModal
+	<Modal
+		bind:show={showConfirmModal}
 		title={confirmModalConfig.title}
-		message={confirmModalConfig.message}
+		type="confirm"
 		confirmText={confirmModalConfig.confirmText}
 		onConfirm={confirmModalConfig.onConfirm}
 		onCancel={() => showConfirmModal = false}
-	/>
+	>
+		<p>{confirmModalConfig.message}</p>
+	</Modal>
 {/if}
 
 <style>

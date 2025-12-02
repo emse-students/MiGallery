@@ -5,7 +5,6 @@
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
-  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import type { User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';

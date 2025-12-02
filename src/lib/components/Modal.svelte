@@ -13,6 +13,8 @@
     onCancel?: () => void;
     children?: Snippet;
     wide?: boolean;
+    confirmDisabled?: boolean;
+    showCloseButton?: boolean;
   }
 
   let {
@@ -25,7 +27,9 @@
     onConfirm,
     onCancel,
     children,
-    wide = false
+    wide = false,
+    confirmDisabled = false,
+    showCloseButton = false
   }: Props = $props();
 
   let dialogElement: HTMLDialogElement;
@@ -123,12 +127,19 @@
     onkeydown={(e) => e.stopPropagation()}
   >
     {#if title || displayIcon}
-      <h2 class="modal-title">
-        {#if displayIcon}
-          <Icon name={displayIcon} size={24} class={typeConfig.color} />
+      <div class="modal-header">
+        <h2 class="modal-title">
+          {#if displayIcon}
+            <Icon name={displayIcon} size={24} class={typeConfig.color} />
+          {/if}
+          {title}
+        </h2>
+        {#if showCloseButton}
+          <button class="close-btn" onclick={handleCancel} aria-label="Fermer">
+            <Icon name="x" size={20} />
+          </button>
         {/if}
-        {title}
-      </h2>
+      </div>
     {/if}
 
     <div class="modal-body">
@@ -150,7 +161,7 @@
         <button
           type="button"
           onclick={handleConfirm}
-          disabled={isProcessing}
+          disabled={isProcessing || confirmDisabled}
           class="btn-primary"
         >
           {isProcessing ? 'En cours...' : confirmText}
@@ -159,7 +170,7 @@
         <button
           type="button"
           onclick={handleConfirm}
-          disabled={isProcessing}
+          disabled={isProcessing || confirmDisabled}
           class="btn-primary"
         >
           {isProcessing ? 'En cours...' : confirmText}
@@ -199,11 +210,22 @@
     max-width: 600px;
     box-shadow: var(--shadow-lg);
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
   }
 
   .modal-content-wide {
     min-width: 600px;
     max-width: 800px;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
   }
 
   .modal-title {
@@ -212,19 +234,41 @@
     gap: 0.75rem;
     font-size: 1.25rem;
     font-weight: 600;
-    margin: 0 0 1rem 0;
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  .close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .close-btn:hover {
+    background: var(--bg-tertiary);
     color: var(--text-primary);
   }
 
   .modal-body {
     margin-bottom: 1.5rem;
     color: var(--text-secondary);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
   }
 
   .modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .btn-primary,
