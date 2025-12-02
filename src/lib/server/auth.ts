@@ -8,19 +8,29 @@ import type { Cookies } from '@sveltejs/kit';
  * Returns the DB row or null.
  */
 export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
-	const cookieSigned = cookies.get('current_user_id');
-	if (!cookieSigned) {
+	try {
+		const cookieSigned = cookies.get('current_user_id');
+		if (!cookieSigned) {
+			return null;
+		}
+		const verified = verifySigned(cookieSigned);
+		if (!verified) {
+			console.warn('[auth] current_user_id cookie failed verification');
+			return null;
+		}
+		const db = getDatabase();
+		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(verified) as
+			| UserRow
+			| undefined;
+		if (!user) {
+			console.warn('[auth] current_user_id cookie references unknown user', { id: verified });
+			return null;
+		}
+		return user || null;
+	} catch (e) {
+		console.warn('[auth] error while resolving signed cookie', e);
 		return null;
 	}
-	const verified = verifySigned(cookieSigned);
-	if (!verified) {
-		return null;
-	}
-	const db = getDatabase();
-	const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(verified) as
-		| UserRow
-		| undefined;
-	return user || null;
 }
 
 /**

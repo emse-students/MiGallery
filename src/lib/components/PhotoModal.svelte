@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import Icon from './Icon.svelte';
-	import ConfirmModal from './ConfirmModal.svelte';
+	import Modal from './Modal.svelte';
 	import { page } from '$app/stores';
 	import type { ImmichAsset, User } from '$lib/types/api';
 	import type { Asset } from '$lib/photos.svelte';
@@ -14,9 +14,11 @@
 		onAssetDeleted?: (assetId: string) => void;
 		albumVisibility?: string;
 		albumId?: string;
+		showFavorite?: boolean;
+		onFavoriteToggle?: (assetId: string) => Promise<void>;
 	}
 
-	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId }: Props = $props();
+	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId, showFavorite = false, onFavoriteToggle }: Props = $props();
 	const dispatch = createEventDispatcher();
 
 	let currentIndex = $state(0);
@@ -41,14 +43,10 @@
 		onConfirm: () => void;
 	} | null>(null);
 
-	function computeMinScale() {
-		if (!imgElement || !containerElement) return;
-		const imgRect = imgElement.getBoundingClientRect();
-		const containerRect = containerElement.getBoundingClientRect();
-		if (!imgRect.width || !imgRect.height) return;
-		const candidate = Math.min(containerRect.width / imgRect.width, containerRect.height / imgRect.height);
-		// permissive: allow dezoom but ensure image still touches at least one side
-		minScale = Math.min(1, candidate || 1);
+	function computeMinScale(): number {
+		// minScale permet un léger dézoom si l'utilisateur le souhaite
+		// scale=1 correspond à l'image qui remplit le conteneur (via CSS max-width/max-height)
+		return 0.5;
 	}
 	let isDragging = $state(false);
 	let dragStart = $state({ x: 0, y: 0 });
@@ -99,7 +97,7 @@
 						}
 					} catch (err) {
 						// Ignorer les erreurs (ex: 401) — on garde les informations minimales si disponibles
-						console.debug('Meta fetch failed (ignored):', err);
+						void err;
 					}
 				}
 
@@ -186,7 +184,7 @@
 		}
 
 		// Reset position if zoomed out completely
-		if (scale <= minScale) {
+		if (scale <= 1) {
 			translate = { x: 0, y: 0 };
 		}
 	}
@@ -198,8 +196,8 @@
 		const rect = (containerElement as HTMLElement).getBoundingClientRect();
 		const oldScale = scale;
 
-		// Toggle between a focused zoom (2x) and the minScale
-		const target = oldScale >= 2 ? minScale : Math.min(2, 3);
+		// Toggle between a focused zoom (2x) and scale 1 (fit)
+		const target = oldScale >= 2 ? 1 : Math.min(2, 3);
 		const newScale = Math.min(Math.max(minScale, target), 3);
 
 		if (newScale === oldScale) return;
@@ -222,11 +220,11 @@
 		// Constrain after zoom. Use timeout so layout updates first.
 		setTimeout(() => { translate = constrainTranslate(translate); }, 0);
 
-		if (scale <= minScale) translate = { x: 0, y: 0 };
+		if (scale <= 1) translate = { x: 0, y: 0 };
 	}
 
 	function handleMouseDown(e: MouseEvent) {
-		if (scale < 1) return; // Permettre le drag même à zoom 100% (scale === 1)
+		if (scale <= 1) return; // Pas de drag si pas zoomé
 		isDragging = true;
 		dragStart = { x: e.clientX - translate.x, y: e.clientY - translate.y };
 	}
@@ -236,20 +234,40 @@
 			return { x: 0, y: 0 };
 		}
 
-		const imgRect = imgElement.getBoundingClientRect();
 		const containerRect = containerElement.getBoundingClientRect();
-
-		// Dimensions de l'image zoomée
-		const imgWidth = imgRect.width;
-		const imgHeight = imgRect.height;
-
-		// Dimensions du conteneur
 		const containerWidth = containerRect.width;
 		const containerHeight = containerRect.height;
 
+		// Calculer la taille de l'image affichée avec object-fit: contain
+		// L'image est ajustée pour que le côté le plus long remplisse le conteneur
+		const imgNaturalWidth = imgElement.naturalWidth;
+		const imgNaturalHeight = imgElement.naturalHeight;
+		const imgAspect = imgNaturalWidth / imgNaturalHeight;
+		const containerAspect = containerWidth / containerHeight;
+
+		let displayedWidth: number;
+		let displayedHeight: number;
+
+		if (imgAspect > containerAspect) {
+			// Image plus large que le conteneur proportionnellement
+			// Elle est contrainte par la largeur
+			displayedWidth = containerWidth;
+			displayedHeight = containerWidth / imgAspect;
+		} else {
+			// Image plus haute que le conteneur proportionnellement
+			// Elle est contrainte par la hauteur
+			displayedHeight = containerHeight;
+			displayedWidth = containerHeight * imgAspect;
+		}
+
+		// Dimensions de l'image après zoom
+		const scaledWidth = displayedWidth * scale;
+		const scaledHeight = displayedHeight * scale;
+
 		// Calculer les limites maximales de déplacement
-		const maxTranslateX = Math.max(0, (imgWidth - containerWidth) / 2);
-		const maxTranslateY = Math.max(0, (imgHeight - containerHeight) / 2);
+		// On ne peut se déplacer que si l'image zoomée est plus grande que le conteneur
+		const maxTranslateX = Math.max(0, (scaledWidth - containerWidth) / 2);
+		const maxTranslateY = Math.max(0, (scaledHeight - containerHeight) / 2);
 
 		return {
 			x: Math.max(-maxTranslateX, Math.min(maxTranslateX, newTranslate.x)),
@@ -270,7 +288,7 @@
 	}
 
 	function resetZoom() {
-		scale = minScale;
+		scale = 1;
 		translate = { x: 0, y: 0 };
 	}
 
@@ -289,7 +307,12 @@
 	async function downloadAsset() {
 		if (!assetId || !asset) return;
 		try {
-			const res = await fetch(`/api/immich/assets/${assetId}/original`);
+			// If this photo belongs to an unlisted album, use the public album proxy
+			let downloadUrl = `/api/immich/assets/${assetId}/original`;
+			if (albumVisibility === 'unlisted' && albumId) {
+				downloadUrl = `/api/albums/${albumId}/asset-original/${assetId}`;
+			}
+			const res = await fetch(downloadUrl);
 			if (res.ok) {
 				const blob = await res.blob();
 				const url = URL.createObjectURL(blob);
@@ -386,10 +409,6 @@
 		window.addEventListener('keydown', handleKeydown);
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
-		window.addEventListener('resize', () => {
-			// recompute minScale on resize
-			if (imageLoaded) computeMinScale();
-		});
 		document.body.classList.add('modal-open');
 	});
 
@@ -427,6 +446,16 @@
 					</button>
 					<button class="btn-icon" onclick={resetZoom} title="Reset (100%)" disabled={scale === 1}>
 						<Icon name="refresh-cw" size={20} />
+					</button>
+				{/if}
+				{#if showFavorite && asset && onFavoriteToggle}
+					<button
+						class="btn-icon btn-favorite"
+						class:active={asset.isFavorite}
+						onclick={() => onFavoriteToggle(asset!.id)}
+						title={asset.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+					>
+						<Icon name={asset.isFavorite ? 'heart-filled' : 'heart'} size={20} />
 					</button>
 				{/if}
 				<button class="btn-icon" onclick={downloadAsset} title="Télécharger" disabled={!asset}>
@@ -479,13 +508,13 @@
 							class:loaded={imageLoaded}
 							class:zoomed={scale > 1}
 							class:no-transition={isDragging}
-							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y / scale}px); cursor: {scale >= 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
+							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y / scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
 							onload={() => {
+								// scale=1 = l'image remplit le conteneur grâce au CSS
+								minScale = computeMinScale();
+								scale = 1;
+								translate = { x: 0, y: 0 };
 								imageLoaded = true;
-								computeMinScale();
-								// Apply minScale after computing it
-								scale = minScale;
-								setTimeout(() => { translate = constrainTranslate(translate); }, 0);
 							}}
 							onmousedown={handleMouseDown}
 							ondblclick={handleDoubleClick}
@@ -509,13 +538,16 @@
 </div>
 
 {#if showConfirmModal && confirmModalConfig}
-	<ConfirmModal
+	<Modal
+		bind:show={showConfirmModal}
 		title={confirmModalConfig.title}
-		message={confirmModalConfig.message}
+		type="confirm"
 		confirmText={confirmModalConfig.confirmText}
 		onConfirm={confirmModalConfig.onConfirm}
 		onCancel={() => showConfirmModal = false}
-	/>
+	>
+		<p>{confirmModalConfig.message}</p>
+	</Modal>
 {/if}
 
 <style>
@@ -633,6 +665,23 @@
 		background: rgba(220, 38, 38, 1);
 	}
 
+	.btn-favorite {
+		color: #f87171;
+	}
+
+	.btn-favorite:hover:not(:disabled) {
+		background: rgba(239, 68, 68, 0.2);
+	}
+
+	.btn-favorite.active {
+		background: rgba(239, 68, 68, 0.9);
+		color: white;
+	}
+
+	.btn-favorite.active:hover:not(:disabled) {
+		background: rgba(220, 38, 38, 1);
+	}
+
 	.modal-body {
 		flex: 1;
 		display: flex;
@@ -640,15 +689,16 @@
 		justify-content: center;
 		position: relative;
 		min-height: 0;
+		overflow: hidden;
 	}
 
 	.media-container {
-		flex: 1;
+		width: 100%;
+		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		position: relative;
-		max-height: 100%;
 		overflow: hidden;
 		user-select: none;
 	}
@@ -656,14 +706,17 @@
 
 
 	.media {
-		max-width: 100%;
-		max-height: 100%;
+		/* Pour que l'image remplisse le conteneur en s'ajustant sur le côté le plus long */
+		width: 100%;
+		height: 100%;
 		object-fit: contain;
 		border-radius: 12px;
 		opacity: 0;
 		/* smooth transform for wheel/button/dblclick zooms */
 		transition: opacity 0.3s ease, transform 160ms cubic-bezier(0.2, 0, 0, 1);
 		will-change: transform;
+		/* Important: transform-origin au centre pour que le zoom soit centré */
+		transform-origin: center center;
 	}
 
 	.media.loaded {
@@ -723,16 +776,66 @@
 	}
 
 	@media (max-width: 768px) {
+		.modal-backdrop {
+			padding: 0;
+		}
+
 		.modal-content {
 			height: 100vh;
+			height: 100dvh; /* Dynamic viewport height pour mobile */
+			max-width: 100%;
 		}
 
 		.modal-header {
 			border-radius: 0;
+			padding: 0.75rem;
+			min-height: auto;
+		}
+
+		.modal-title span {
+			font-size: 0.8125rem;
+			max-width: 200px;
+		}
+
+		.modal-actions {
+			gap: 0.25rem;
+		}
+
+		.modal-actions .btn-icon {
+			padding: 0.375rem;
+		}
+
+		.zoom-level {
+			font-size: 0.75rem;
+			min-width: 40px;
+		}
+
+		.modal-body {
+			flex: 1;
+			min-height: 0;
+			overflow: hidden;
+			position: relative;
+		}
+
+		.media-container {
+			width: 100%;
+			height: 100%;
+		}
+
+		.media {
+			border-radius: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: contain;
 		}
 
 		.modal-footer {
 			border-radius: 0;
+			padding: 0.5rem;
+		}
+
+		.counter {
+			font-size: 0.8125rem;
 		}
 
 		.nav-button {

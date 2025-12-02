@@ -6,7 +6,7 @@
   import Spinner from '$lib/components/Spinner.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
-  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { groupByDay } from '$lib/photos.svelte';
   import type { User, ImmichAsset } from '$lib/types/api';
   import type { Asset } from '$lib/photos.svelte';
@@ -112,7 +112,6 @@
         ...it,
         date: it.deletedAt || it.takenAt || it.fileCreatedAt || it.updatedAt || null
       }));
-      console.log('Loaded trashed assets:', assets.length);
     } catch (err: unknown) {
       console.error('Error:', err);
       error = err instanceof Error ? err.message : 'Une erreur est survenue';
@@ -163,7 +162,6 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
-          console.log('Restoring assets with IDs:', assetIds);
           const res = await fetch('/api/immich/trash/restore/assets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -198,7 +196,14 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
-          console.log('Permanently deleting assets with IDs:', assetIds);
+          // Validate IDs
+          const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+          for (const id of assetIds) {
+            if (!uuidRe.test(id)) {
+              throw new Error('Invalid asset id in selection');
+            }
+          }
+
           // DELETE /assets avec force=true pour supprimer définitivement depuis la corbeille
           const res = await fetch('/api/immich/assets', {
             method: 'DELETE',
@@ -383,13 +388,16 @@
   {/if}
 
   {#if showConfirmModal && confirmModalConfig}
-    <ConfirmModal
+    <Modal
+      bind:show={showConfirmModal}
       title={confirmModalConfig.title}
-      message={confirmModalConfig.message}
+      type="confirm"
       confirmText={confirmModalConfig.confirmText}
       onConfirm={confirmModalConfig.onConfirm}
       onCancel={() => showConfirmModal = false}
-    />
+    >
+      <p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
+    </Modal>
   {/if}
 </main>
 

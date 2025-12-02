@@ -1,10 +1,9 @@
 <script lang="ts">
-  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { confirmStore, resolveConfirm } from '$lib/confirm';
+  import { onDestroy } from 'svelte';
 
   let state = $state({ show: false } as any);
-
-  import { onDestroy } from 'svelte';
 
   const unsubscribe = confirmStore.subscribe((s) => {
     state = s || { show: false };
@@ -24,12 +23,15 @@
 </script>
 
 {#if state?.show}
-  <ConfirmModal
+  <Modal
+    bind:show={state.show}
     title={state.title}
-    message={state.message}
+    type="confirm"
     confirmText={state.confirmText}
     cancelText={state.cancelText}
     onConfirm={onConfirm}
     onCancel={onCancel}
-  />
+  >
+    <p style="white-space: pre-wrap;">{state.message}</p>
+  </Modal>
 {/if}

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import LazyImage from './LazyImage.svelte';
-	import PhotoSkeleton from './PhotoSkeleton.svelte';
+	import Skeleton from './Skeleton.svelte';
 	import type { Asset } from '$lib/photos.svelte';
 
 	interface Props {
@@ -9,10 +9,12 @@
 		isSelected?: boolean;
 		isSelecting?: boolean;
 		canDelete?: boolean;
+		showFavorite?: boolean;
 		onCardClick?: (assetId: string, event: MouseEvent) => void;
 		onDownload?: (assetId: string, event: Event) => void;
 		onDelete?: (assetId: string, event: Event) => void;
 		onSelectionToggle?: (assetId: string, selected: boolean) => void;
+		onFavoriteToggle?: (assetId: string, event: Event) => void;
 		albumVisibility?: string;
 		albumId?: string;
 	}
@@ -22,10 +24,12 @@
 		isSelected = false,
 		isSelecting = false,
 		canDelete = false,
+		showFavorite = false,
 		onCardClick,
 		onDownload,
 		onDelete,
 		onSelectionToggle,
+		onFavoriteToggle,
 		albumVisibility,
 		albumId
 	}: Props = $props();
@@ -59,12 +63,50 @@
 	let aspectRatio = $derived(getAspectRatio());
 	let aspectRatioString = $derived(getAspectRatioString());
 
-	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px) et largeur variable
+	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px desktop, 120px mobile) et largeur variable
+	// On utilise une hauteur de base de 220px pour desktop
 	let flexBasis = $derived(aspectRatio * 220);
 	let flexGrow = $derived(aspectRatio * 100);
 
 	// Vérifier si l'asset a les données complètes (pas juste les métadonnées minimales)
 	let isFullyLoaded = $derived(asset.originalFileName !== undefined && asset.originalFileName !== null);
+
+	// État pour l'appui long sur mobile (affiche les boutons d'action)
+	let showMobileActions = $state(false);
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	const LONG_PRESS_DURATION = 500; // ms
+
+	function handleTouchStart(e: TouchEvent) {
+		// Ne pas déclencher si on touche un bouton
+		if ((e.target as HTMLElement).closest('button')) return;
+
+		longPressTimer = setTimeout(() => {
+			showMobileActions = true;
+			// Vibration haptique si disponible
+			if (navigator.vibrate) {
+				navigator.vibrate(50);
+			}
+		}, LONG_PRESS_DURATION);
+	}
+
+	function handleTouchEnd() {
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function handleTouchMove() {
+		// Annuler l'appui long si l'utilisateur bouge le doigt
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function closeMobileActions() {
+		showMobileActions = false;
+	}
 
 	function handleCardClick(e: Event) {
 		if (onCardClick) {
@@ -94,8 +136,18 @@
 		}
 	}
 
+	function handleFavoriteClick(e: Event) {
+		e.stopPropagation();
+		if (onFavoriteToggle) {
+			onFavoriteToggle(asset.id, e);
+		}
+	}
+
 	// Nom du fichier et autres valeurs — réactifs pour suivre les mises à jour streaming
 	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
+	// Ne PAS utiliser asset._raw?.isFavorite car c'est la valeur d'Immich (partagée entre utilisateurs)
+	// On utilise uniquement asset.isFavorite qui est chargé depuis notre base locale
+	let isFavorite = $derived(asset.isFavorite ?? false);
 	let thumbnailUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
 			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
@@ -105,8 +157,9 @@
 </script>
 
 <!-- Photo Card Container -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-	class="photo-card {isSelected ? 'selected' : ''}"
+	class="photo-card {isSelected ? 'selected' : ''} {showMobileActions ? 'mobile-actions-visible' : ''}"
 	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
 	role="button"
 	tabindex="0"
@@ -117,7 +170,18 @@
 			handleCardClick(e);
 		}
 	}}
+	ontouchstart={handleTouchStart}
+	ontouchend={handleTouchEnd}
+	ontouchmove={handleTouchMove}
+	ontouchcancel={handleTouchEnd}
 >
+	<!-- Overlay pour fermer les actions mobiles -->
+	{#if showMobileActions}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div class="mobile-actions-overlay" onclick={(e) => { e.stopPropagation(); closeMobileActions(); }}></div>
+	{/if}
+
 	<!-- Selection Checkbox -->
 	<div class="selection-checkbox {isSelected ? 'checked' : ''}">
 		<input
@@ -130,6 +194,18 @@
 	</div>
 
 	{#if isFullyLoaded}
+		<!-- Favorite Button (bottom left) -->
+		{#if showFavorite && !isSelecting}
+			<button
+				class="favorite-btn {isFavorite ? 'active' : ''}"
+				title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+				onclick={handleFavoriteClick}
+				aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+			>
+				<Icon name={isFavorite ? 'heart-filled' : 'heart'} size={18} />
+			</button>
+		{/if}
+
 		<!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
 		{#if !isSelecting}
 			<button
@@ -162,14 +238,13 @@
 			aspectRatio={aspectRatioString}
 			{isVideo}
 		/>
-
-		<!-- File Name Info (shown on hover) -->
-		<div class="photo-info" title={fileName}>
-			{fileName}
-		</div>
 	{:else}
 		<!-- Skeleton pendant le chargement des détails -->
-		<PhotoSkeleton aspectRatio={aspectRatio} />
+		<Skeleton aspectRatio={aspectRatioString}>
+			<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor" opacity="0.3"/>
+			</svg>
+		</Skeleton>
 	{/if}
 </div>
 
@@ -263,6 +338,43 @@
 		accent-color: var(--accent);
 	}
 
+	.favorite-btn {
+		position: absolute;
+		bottom: 0.625rem;
+		left: 0.625rem;
+		z-index: 5;
+		padding: 0.5rem;
+		width: 36px;
+		height: 36px;
+		background: rgba(0, 0, 0, 0.7);
+		backdrop-filter: blur(8px);
+		border: none;
+		border-radius: var(--radius-sm);
+		color: white;
+		cursor: pointer;
+		opacity: 0;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.favorite-btn.active {
+		opacity: 1;
+		color: white;
+		background: #ef4444;
+	}
+
+	.photo-card:hover .favorite-btn {
+		opacity: 1;
+	}
+
+	.favorite-btn:hover {
+		background: rgba(239, 68, 68, 0.3);
+		color: #ef4444;
+		transform: scale(1.1);
+	}
+
 	.download-btn {
 		position: absolute;
 		top: 0.625rem;
@@ -323,31 +435,52 @@
 		transform: scale(1.1);
 	}
 
-	.photo-info {
-		padding: 0.75rem;
-		font-size: 0.75rem;
-		color: white;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		pointer-events: none;
-		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-	}
-
-	.photo-card:hover .photo-info {
-		opacity: 1;
-	}
-
 	@media (max-width: 768px) {
 		.photo-card {
-			height: 160px;
+			height: auto;
+			aspect-ratio: 1;
+			/* 4 photos par ligne sur mobile: 100% / 4 = 25%, moins les gaps */
+			flex-basis: calc(25% - 3px) !important;
+			flex-grow: 0 !important;
+			max-width: calc(25% - 3px);
+		}
+
+		/* Cacher les boutons par défaut sur mobile (pas de hover) */
+		.download-btn,
+		.delete-btn,
+		.favorite-btn:not(.active) {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		/* Afficher les boutons après appui long */
+		.photo-card.mobile-actions-visible .download-btn,
+		.photo-card.mobile-actions-visible .delete-btn,
+		.photo-card.mobile-actions-visible .favorite-btn {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		/* Favoris actifs toujours visibles sur mobile */
+		.favorite-btn.active {
+			opacity: 1;
+			pointer-events: auto;
+		}
+	}
+
+	/* Overlay pour fermer les actions mobiles */
+	.mobile-actions-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 4;
+		background: transparent;
+	}
+
+	@media (max-width: 480px) {
+		.photo-card {
+			/* 4 photos par ligne: plus compact */
+			flex-basis: calc(25% - 2px) !important;
+			max-width: calc(25% - 2px);
 		}
 	}
 </style>

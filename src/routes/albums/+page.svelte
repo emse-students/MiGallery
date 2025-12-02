@@ -3,9 +3,9 @@
 	import Icon from '$lib/components/Icon.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
-	import CreateAlbumModal from '$lib/components/CreateAlbumModal.svelte';
-	import ConfirmModal from '$lib/components/ConfirmModal.svelte';
-	import AlbumCardSkeleton from '$lib/components/AlbumCardSkeleton.svelte';
+	import AlbumModal from '$lib/components/AlbumModal.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import Skeleton from '$lib/components/Skeleton.svelte';
 	import { consumeNDJSONStream } from '$lib/streaming';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
@@ -16,7 +16,7 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let albums = $state<Album[]>([]);
-	let showCreateAlbumModal = $state(false);
+	let showAlbumModal = $state(false);
 
 	// État du modal de confirmation
 	let showConfirmModal = $state(false);
@@ -166,7 +166,7 @@
 			saveBlobAs(blob, `${albumName || immichId}.zip`);
 		} catch (e: unknown) {
 			if ((e as Error).name === 'AbortError') {
-				console.info('Téléchargement annulé');
+				// Téléchargement annulé par l'utilisateur
 			} else {
 				toast.error('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
 			}
@@ -247,7 +247,7 @@
 	<div class="header-with-actions">
 		<h1>Albums</h1>
 		{#if canCreateAlbum}
-			<button class="btn-create-album" onclick={() => showCreateAlbumModal = true}>
+			<button class="btn-create-album" onclick={() => showAlbumModal = true}>
 				<Icon name="plus" size={20} />
 				<span>Créer un album</span>
 			</button>
@@ -284,7 +284,11 @@
 								isVideo={albumCovers[a.id].type === 'VIDEO'}
 							/>
 						{:else}
-							<AlbumCardSkeleton />
+							<Skeleton aspectRatio="1">
+								<svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+									<path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z" fill="currentColor" opacity="0.3"/>
+								</svg>
+							</Skeleton>
 						{/if}
 						<div class="album-overlay">
 							<div class="album-info">
@@ -333,21 +337,24 @@
 		{/each}
 	{/if}
 
-	{#if showCreateAlbumModal}
-		<CreateAlbumModal
-			onClose={() => showCreateAlbumModal = false}
-			onAlbumCreated={handleAlbumCreated}
+	{#if showAlbumModal}
+		<AlbumModal
+			onClose={() => showAlbumModal = false}
+			onSuccess={handleAlbumCreated}
 		/>
 	{/if}
 
 	{#if showConfirmModal && confirmModalConfig}
-		<ConfirmModal
+		<Modal
+			bind:show={showConfirmModal}
 			title={confirmModalConfig.title}
-			message={confirmModalConfig.message}
+			type="confirm"
 			confirmText={confirmModalConfig.confirmText}
 			onConfirm={confirmModalConfig.onConfirm}
 			onCancel={() => showConfirmModal = false}
-		/>
+		>
+			<p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
+		</Modal>
 	{/if}
 </main>
 

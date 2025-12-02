@@ -1,0 +1,372 @@
+<script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import Icon from './Icon.svelte';
+	import Spinner from './Spinner.svelte';
+	import Modal from './Modal.svelte';
+
+	interface Props {
+		albumId?: string; // If present, edit mode. If absent, create mode.
+		onClose: () => void;
+		onSuccess?: () => void; // Called after create or update
+	}
+
+	let { albumId, onClose, onSuccess }: Props = $props();
+
+	const isEditMode = $derived(!!albumId);
+	const safeAlbumId = $derived(albumId ? String(albumId) : '');
+
+	let show = $state(true);
+	let albumName = $state('');
+	let albumDate = $state(getDefaultDate());
+	let albumLocation = $state('');
+	let albumVisibility = $state<'private' | 'authenticated' | 'unlisted'>('private');
+	let albumVisible = $state(true);
+	let albumTags = $state('');
+	let albumAllowedUsers = $state('');
+
+	let loading = $state(false);
+	let loadingData = $state(false);
+	let error = $state<string | null>(null);
+
+	function getDefaultDate() {
+		const today = new Date();
+		const year = today.getFullYear();
+		const month = String(today.getMonth() + 1).padStart(2, '0');
+		const day = String(today.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
+
+	async function loadAlbumData() {
+		if (!safeAlbumId) return;
+		loadingData = true;
+		error = null;
+
+		try {
+			const res = await fetch(`/api/albums/${safeAlbumId}/info`);
+
+			if (!res.ok) {
+				const errorData = (await res.json().catch(() => ({}))) as { error?: string };
+				throw new Error(errorData.error || 'Erreur lors du chargement de l\'album');
+			}
+
+			const jsonData = await res.json();
+			const result = jsonData as {
+				success?: boolean;
+				album?: { id: string; name: string; date?: string; location?: string; visibility?: string; visible?: number };
+				tags?: string[];
+				users?: string[];
+			};
+
+			if (!result.success || !result.album) {
+				throw new Error('Album non trouvé');
+			}
+
+			const album = result.album;
+			albumName = album.name || '';
+			albumDate = album.date || '';
+			albumLocation = album.location || '';
+			albumVisibility = (album.visibility as 'private' | 'authenticated' | 'unlisted') || 'private';
+			albumVisible = album.visible === 1;
+			albumTags = (result.tags || []).join(', ');
+			albumAllowedUsers = (result.users || []).join(', ');
+		} catch (e: unknown) {
+			error = (e as Error).message;
+		} finally {
+			loadingData = false;
+		}
+	}
+
+	async function handleSubmit() {
+		if (!albumName.trim()) {
+			error = "Le nom de l'album est requis";
+			return;
+		}
+
+		loading = true;
+		error = null;
+
+		try {
+			if (isEditMode) {
+				// UPDATE
+				const res = await fetch(`/api/albums/${safeAlbumId}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						name: albumName.trim(),
+						date: albumDate || null,
+						location: albumLocation.trim() || null,
+						visibility: albumVisibility,
+						visible: albumVisible,
+						tags: albumTags.split(',').map(t => t.trim()).filter(Boolean),
+						allowedUsers: albumAllowedUsers.split(',').map(u => u.trim()).filter(Boolean)
+					})
+				});
+
+				if (!res.ok) {
+					const errData = (await res.json().catch(() => ({}))) as { error?: string };
+					throw new Error(errData.error || 'Erreur lors de la mise à jour de l\'album');
+				}
+			} else {
+				// CREATE
+				const res = await fetch('/api/albums', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						albumName: albumName.trim(),
+						date: albumDate || null,
+						location: albumLocation.trim() || null,
+						visibility: albumVisibility,
+						visible: albumVisible
+						// Note: tags and allowedUsers are not sent during creation as per original component
+					})
+				});
+
+				if (!res.ok) {
+					const errText = await res.text().catch(() => res.statusText);
+					throw new Error(errText || 'Erreur lors de la création de l\'album');
+				}
+			}
+
+			// Succès
+			if (onSuccess) await onSuccess();
+			onClose();
+		} catch (e: unknown) {
+			error = (e as Error).message;
+		} finally {
+			loading = false;
+		}
+	}
+
+	onMount(() => {
+		if (isEditMode) {
+			loadAlbumData();
+		}
+	});
+</script>
+
+<Modal
+	bind:show={show}
+	title={isEditMode ? "Modifier l'album" : "Créer un nouvel album"}
+	icon={isEditMode ? 'edit' : 'folder-plus'}
+	confirmText={isEditMode ? 'Enregistrer' : 'Créer l\'album'}
+	confirmDisabled={loading || loadingData}
+	showCloseButton={true}
+	onConfirm={handleSubmit}
+	onCancel={onClose}
+>
+	{#if error}
+		<div class="error-message">
+			<Icon name="alert-circle" size={20} />
+			<p>{error}</p>
+		</div>
+	{/if}
+
+	{#if loadingData}
+		<div class="loading-state">
+			<Spinner size={40} />
+			<p>Chargement des données...</p>
+		</div>
+	{:else}
+		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+			<div class="form-group">
+				<label for="albumName">Nom de l'album *</label>
+				<input
+					id="albumName"
+					type="text"
+					bind:value={albumName}
+					placeholder="Ex: Soirée Gala 2025"
+					required
+					disabled={loading}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="albumDate">Date (optionnel)</label>
+				<input
+					id="albumDate"
+					type="date"
+					bind:value={albumDate}
+					disabled={loading}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="albumLocation">Lieu (optionnel)</label>
+				<input
+					id="albumLocation"
+					type="text"
+					bind:value={albumLocation}
+					placeholder="Ex: Campus Mines Saint-Étienne"
+					disabled={loading}
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="albumVisibility">Visibilité</label>
+				<select id="albumVisibility" bind:value={albumVisibility} disabled={loading}>
+					<option value="private">Privé</option>
+					<option value="authenticated">Authentifié (tous les utilisateurs connectés)</option>
+					<option value="unlisted">Accès par lien</option>
+				</select>
+			</div>
+
+			<div class="form-group-checkbox">
+				<label>
+					<input type="checkbox" bind:checked={albumVisible} disabled={loading} />
+					<span>Visible dans la liste des albums</span>
+				</label>
+			</div>
+
+			{#if isEditMode}
+				<div class="form-group">
+					<label for="albumTags">
+						Tags (séparés par des virgules)
+						<span class="label-hint">Ex: Promo 2024, VIP, Soirée</span>
+					</label>
+					<input
+						id="albumTags"
+						type="text"
+						bind:value={albumTags}
+						placeholder="Promo 2024, VIP"
+						disabled={loading}
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="albumAllowedUsers">
+						Utilisateurs autorisés (id_user séparés par des virgules)
+						<span class="label-hint">Ex: alice.bob, john.doe</span>
+					</label>
+					<input
+						id="albumAllowedUsers"
+						type="text"
+						bind:value={albumAllowedUsers}
+						placeholder="alice.bob, john.doe"
+						disabled={loading}
+					/>
+				</div>
+			{/if}
+
+			<!-- Hidden submit button to enable Enter key submission -->
+			<button type="submit" style="display: none;" tabindex="-1" aria-hidden="true"></button>
+		</form>
+	{/if}
+</Modal>
+
+<style>
+	.loading-state {
+		text-align: center;
+		padding: 3rem 1rem;
+		color: var(--text-primary);
+	}
+
+	.loading-state p {
+		margin-top: 1rem;
+		color: var(--text-secondary);
+	}
+
+	.error-message {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1rem;
+		background: rgba(239, 68, 68, 0.1);
+		border: 1px solid rgba(239, 68, 68, 0.3);
+		border-radius: 8px;
+		color: rgba(255, 100, 100, 0.9);
+		margin-bottom: 1.5rem;
+	}
+
+	.error-message p {
+		margin: 0;
+		font-size: 0.875rem;
+	}
+
+	form {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.form-group {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.form-group label {
+		color: var(--text-primary);
+		font-weight: 500;
+		font-size: 0.875rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.label-hint {
+		color: var(--text-secondary);
+		font-weight: 400;
+		font-size: 0.75rem;
+	}
+
+	.form-group input,
+	.form-group select {
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border);
+		color: var(--text-primary);
+		padding: 0.75rem;
+		border-radius: 8px;
+		font-size: 0.875rem;
+		transition: all 0.2s ease;
+	}
+
+	.form-group select {
+		background: var(--bg-tertiary);
+	}
+
+	.form-group select option {
+		background: var(--bg-elevated);
+		color: var(--text-primary);
+		padding: 0.5rem;
+	}
+
+	.form-group input:focus,
+	.form-group select:focus {
+		outline: none;
+		border-color: var(--accent);
+		background: var(--bg-quaternary);
+	}
+
+	.form-group input::placeholder {
+		color: var(--text-secondary);
+		opacity: 0.7;
+	}
+
+	.form-group input:disabled,
+	.form-group select:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.form-group-checkbox {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.form-group-checkbox label {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		color: var(--text-primary);
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+
+	.form-group-checkbox input[type="checkbox"] {
+		width: 18px;
+		height: 18px;
+		cursor: pointer;
+		accent-color: var(--accent);
+	}
+</style>

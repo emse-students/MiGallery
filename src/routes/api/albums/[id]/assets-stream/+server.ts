@@ -34,10 +34,6 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 			albumHeaders['x-api-key'] = IMMICH_API_KEY;
 		}
 
-		console.debug('[assets-stream] Fetching album via internal proxy', {
-			proxyUrl: `/api/immich/albums/${id}`,
-			hasKey: !!IMMICH_API_KEY
-		});
 		// Use internal proxy but present the internal key so the proxy allows the request
 		const albumRes = await fetch(`/api/immich/albums/${id}`, {
 			headers: {
@@ -71,12 +67,6 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 		const album = (await albumRes.json()) as ImmichAlbum;
 		const albumVisibility = (album as unknown as { visibility?: string }).visibility;
 
-		console.debug('[assets-stream] album fetched', {
-			id: album.id,
-			visibility: albumVisibility,
-			assetsCount: Array.isArray(album.assets) ? album.assets.length : 0
-		});
-
 		// Autorisation: si l'album est 'unlisted' on permet l'accès anonyme.
 		// Accepter aussi le hint `visibility=unlisted` si le client le fournit (partage par lien).
 		let visibilityHint: string | null = null;
@@ -85,9 +75,6 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 			visibilityHint = parsed.searchParams.get('visibility');
 		} catch {
 			visibilityHint = null;
-		}
-		if (visibilityHint) {
-			console.debug('[assets-stream] visibility hint from query', visibilityHint);
 		}
 		// Utiliser en priorité la visibilité de la BDD locale (notre source de vérité),
 		// puis fallback sur la visibilité fournie par Immich.
@@ -98,7 +85,6 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 				| { visibility?: string }
 				| undefined;
 			localVisibility = row?.visibility;
-			console.debug('[assets-stream] localVisibility for album', { id, localVisibility });
 		} catch (dbErr: unknown) {
 			const _dbErr = ensureError(dbErr);
 			console.warn('[assets-stream] failed to read local DB visibility', _dbErr.message || _dbErr);
@@ -130,7 +116,6 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 			async start(controller) {
 				try {
 					// Étape 1: Envoyer rapidement les métadonnées minimales pour installer les skeletons
-					console.debug('[assets-stream] starting minimal phase, assets count', assets.length);
 					for (const asset of assets) {
 						const minimalData = {
 							id: asset.id,
@@ -158,14 +143,12 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 
 					// Étape 2: Enrichir avec les détails complets par batches
 					const batchSize = 10;
-					console.debug('[assets-stream] starting full phase, batchSize', batchSize);
 					for (let i = 0; i < assets.length; i += batchSize) {
 						const batch = assets.slice(i, i + batchSize);
 
 						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
 							try {
 								// Fetch asset details via internal proxy and include the internal key
-								console.debug('[assets-stream] fetching asset detail via proxy', { assetId: asset.id });
 								const detailRes = await fetch(`/api/immich/assets/${asset.id}`, {
 									headers: {
 										'x-internal-immich-key': IMMICH_API_KEY,

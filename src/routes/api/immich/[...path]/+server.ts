@@ -14,38 +14,35 @@ const handle: RequestHandler = async function (event) {
 	const path = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
-	// Diagnostic: log incoming proxy calls and whether an internal key was presented
-	try {
-		const internalKeyPresent = !!request.headers.get('x-internal-immich-key');
-		console.debug('[immich-proxy] incoming', { method: request.method, path, internalKeyPresent });
-	} catch {
-		// swallow logging errors
-		console.debug('[immich-proxy] incoming (logging failed)');
-	}
-
 	// Autorisation pour GET: session utilisateur OU x-api-key avec scope "read"
 	// We also accept an internal server-only header `x-internal-immich-key` matching our configured
 	// IMMICH API key to allow server-side code to call this proxy without requiring a user session.
 	if (request.method === 'GET') {
 		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
 		if (internalKey && internalKey === apiKey) {
-			console.debug('[immich-proxy] internal key matched - allowing internal GET');
 			// Internal trusted call, allow
 		} else {
-			if (internalKey) {
-				console.warn('[immich-proxy] internal key present but did not match server key');
-			}
 			const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
 			if (!user) {
 				const raw = request.headers.get('x-api-key') || undefined;
 				if (!verifyRawKeyWithScope(raw, 'read')) {
-					console.debug('[immich-proxy] rejecting GET - no user and no valid x-api-key');
 					return new Response(JSON.stringify({ error: 'Unauthorized' }), {
 						status: 401,
 						headers: { 'content-type': 'application/json' }
 					});
 				}
 			}
+		}
+	}
+
+	// Autorisation pour PUT/PATCH/POST/DELETE: session utilisateur requise
+	if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
+		const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
+		if (!user) {
+			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+				status: 401,
+				headers: { 'content-type': 'application/json' }
+			});
 		}
 	}
 
@@ -67,7 +64,6 @@ const handle: RequestHandler = async function (event) {
 	if (request.method === 'GET') {
 		const cached = immichCache.get('GET', `/api/${path}`, remoteUrl);
 		if (cached) {
-			console.warn(`[Cache HIT] GET /api/${path}`);
 			const headers = new Headers({ 'content-type': 'application/json', 'x-cache': 'HIT' });
 			return new Response(JSON.stringify(cached), { status: 200, headers });
 		}
@@ -93,9 +89,28 @@ const handle: RequestHandler = async function (event) {
 				outgoingHeaders['content-type'] = contentType;
 			}
 
-			// Prefer forwarding the original request body stream instead of reading into memory.
-			// This keeps payload sizes lower in-memory and allows upstream to process chunked bodies.
-			bodyToForward = request.body ?? undefined;
+			// Special-case: for DELETE to /api/assets we want to log the JSON body to help
+			// debug invalid payloads (e.g. non-UUIDs or wrong shape). Read the body as text
+			// and forward the text. This sacrifices streaming for this small case only.
+			if (request.method === 'DELETE' && path === 'assets') {
+				try {
+					const txt = await request.text();
+					console.debug('[immich-proxy] DELETE /api/assets body:', txt);
+					bodyToForward = txt;
+				} catch (e: unknown) {
+					const _err = ensureError(e);
+					console.warn(
+						'[immich-proxy] failed to read DELETE /api/assets body for logging',
+						_err.message || _err
+					);
+					// fallback to streaming if possible
+					bodyToForward = request.body ?? undefined;
+				}
+			} else {
+				// Prefer forwarding the original request body stream instead of reading into memory.
+				// This keeps payload sizes lower in-memory and allows upstream to process chunked bodies.
+				bodyToForward = request.body ?? undefined;
+			}
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			console.error('Error processing request body for immich proxy:', _err.message || _err);
@@ -188,7 +203,6 @@ const handle: RequestHandler = async function (event) {
 				const jsonData: unknown = JSON.parse(textBody);
 				const etag = res.headers.get('etag') || undefined;
 				immichCache.set('GET', `/api/${path}`, remoteUrl, jsonData, undefined, etag);
-				console.warn(`[Cache SET] GET /api/${path}`);
 			} catch (_e) {
 				void _e;
 				// Ignore JSON parse errors
@@ -204,15 +218,12 @@ const handle: RequestHandler = async function (event) {
 
 			if (assetIdMatch) {
 				immichCache.invalidateAsset(assetIdMatch[1]);
-				console.warn(`[Cache INVALIDATE] Asset ${assetIdMatch[1]}`);
 			}
 			if (albumIdMatch) {
 				immichCache.invalidateAlbum(albumIdMatch[1]);
-				console.warn(`[Cache INVALIDATE] Album ${albumIdMatch[1]}`);
 			}
 			if (personIdMatch) {
 				immichCache.invalidatePerson(personIdMatch[1]);
-				console.warn(`[Cache INVALIDATE] Person ${personIdMatch[1]}`);
 			}
 		}
 

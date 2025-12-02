@@ -12,14 +12,13 @@ import { toast } from '$lib/toast';
 import { activeOperations } from '$lib/operations';
 	interface Props {
 		state: PhotosState;
-		onModalClose?: () => void;
+		onModalClose?: (hasChanges: boolean) => void;
 		visibility?: string;
 		albumId?: string;
+		showFavorites?: boolean;
 	}
 
-	let { state: photosState, onModalClose, visibility, albumId }: Props = $props();
-
-	console.log('✓ [PhotosGrid] Composant chargé');
+	let { state: photosState, onModalClose, visibility, albumId, showFavorites = false }: Props = $props();
 
 	// Vérifier le rôle de l'utilisateur
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
@@ -28,6 +27,7 @@ import { activeOperations } from '$lib/operations';
 	// État du modal
 	let showModal = $state(false);
 	let modalAssetId = $state<string>('');
+	let hasChanges = $state(false);
 
 	// État du modal de confirmation de suppression
 	let showDeleteModal = $state(false);
@@ -87,7 +87,9 @@ import { activeOperations } from '$lib/operations';
 			}
 
 			// Retirer les assets de la liste locale
-			photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
+					photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
+					// force shallow copy to ensure reactivity everywhere
+					photosState.assets = [...photosState.assets];
 			// Clear selection
 			photosState.selectedAssets = [];
 			photosState.selecting = false;
@@ -133,7 +135,9 @@ import { activeOperations } from '$lib/operations';
 			}
 
 			// Retirer l'asset de la liste locale
-			photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
+					photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
+					// force shallow copy to ensure reactivity everywhere
+					photosState.assets = [...photosState.assets];
 			toast.success('Photo mise à la corbeille !');
 		} catch (e: unknown) {
 			toast.error('Erreur lors de la suppression: ' + (e as Error).message);
@@ -148,9 +152,29 @@ import { activeOperations } from '$lib/operations';
 			photosState.handlePhotoClick(id, new Event('click'));
 		} else {
 			modalAssetId = id;
+			hasChanges = false;
 			showModal = true;
 		}
 	}
+
+	async function handleFavoriteToggle(assetId: string) {
+		try {
+			const newValue = await photosState.toggleFavorite(assetId);
+			toast.success(newValue ? 'Ajouté aux favoris' : 'Retiré des favoris');
+		} catch (e: unknown) {
+			toast.error('Erreur: ' + (e as Error).message);
+		}
+	}
+
+	// Computed: assets favoris (à afficher en priorité)
+	let favoriteAssets = $derived(
+		showFavorites ? photosState.assets.filter(a => a.isFavorite) : []
+	);
+
+	// Computed: assets non-favoris (pour éviter les doublons)
+	let nonFavoriteAssets = $derived(
+		showFavorites ? photosState.assets.filter(a => !a.isFavorite) : photosState.assets
+	);
 </script>
 
 <!-- Affichage principal -->
@@ -201,8 +225,31 @@ import { activeOperations } from '$lib/operations';
 		<div class="photos-count"><strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''} trouvée{photosState.assets.length > 1 ? 's' : ''}</div>
 	{/if}
 
+	<!-- Section Favoris -->
+	{#if showFavorites && favoriteAssets.length > 0}
+		<h3 class="day-label favorites-label">⭐ Favoris</h3>
+		<div class="photos-grid">
+			{#each favoriteAssets as a}
+				<PhotoCard
+					asset={a}
+					isSelected={photosState.selectedAssets.includes(a.id)}
+					isSelecting={photosState.selecting}
+					canDelete={canManagePhotos}
+					albumVisibility={visibility}
+					albumId={albumId}
+					showFavorite={true}
+					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
+					onCardClick={() => handlePhotoCardClick(a.id)}
+					onDownload={() => handleDownloadSingle(a.id)}
+					onDelete={() => handleDeleteAsset(a.id)}
+					onSelectionToggle={(id, selected) => photosState.toggleSelect(id, selected)}
+				/>
+			{/each}
+		</div>
+	{/if}
+
 	<!-- Grille de photos groupées par jour -->
-	{#each Object.entries(groupByDay(photosState.assets)) as [dayLabel, items]}
+	{#each Object.entries(groupByDay(nonFavoriteAssets)) as [dayLabel, items]}
 		<h3 class="day-label">{dayLabel}</h3>
 		<div class="photos-grid">
 			{#each items as a}
@@ -213,6 +260,8 @@ import { activeOperations } from '$lib/operations';
 					canDelete={canManagePhotos}
 					albumVisibility={visibility}
 					albumId={albumId}
+					showFavorite={showFavorites}
+					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
 					onCardClick={() => handlePhotoCardClick(a.id)}
 					onDownload={() => handleDownloadSingle(a.id)}
 					onDelete={() => handleDeleteAsset(a.id)}
@@ -236,28 +285,30 @@ import { activeOperations } from '$lib/operations';
 		assets={photosState.assets}
 			albumVisibility={visibility}
 			albumId={albumId}
+			showFavorite={showFavorites}
+			onFavoriteToggle={handleFavoriteToggle}
 			onClose={() => {
 				showModal = false;
-				console.debug('[PhotosGrid] PhotoModal closed — running onClose handler');
 				// Force a shallow refresh of the assets array so the grid re-renders
 				photosState.assets = [...photosState.assets];
 				if (onModalClose) {
 					setTimeout(() => {
 						try {
-							console.debug('[PhotosGrid] Calling onModalClose callback');
-							onModalClose();
+							onModalClose(hasChanges);
 						} catch (e) {
-							console.warn('[PhotosGrid] onModalClose threw:', e);
+							// onModalClose threw silently
 						}
 					}, 0);
 				}
 			}}
 		onAssetDeleted={(id) => {
 			photosState.assets = photosState.assets.filter(a => a.id !== id);
+			hasChanges = true;
 		}}
 			on:assetDeleted={(e) => {
 				const id = e.detail as string;
 				photosState.assets = photosState.assets.filter(a => a.id !== id);
+				hasChanges = true;
 			}}
 	/>
 {/if}
@@ -370,6 +421,11 @@ import { activeOperations } from '$lib/operations';
     margin-top: 0;
   }
 
+  .favorites-label {
+    color: var(--accent);
+    opacity: 1;
+  }
+
   .photos-grid {
     position: relative;
     display: flex;
@@ -423,10 +479,43 @@ import { activeOperations } from '$lib/operations';
     font-size: 1.125rem;
   }
 
-  /* Responsive - ajustement de la hauteur des cartes */
+  /* Responsive - grille carrée sur mobile */
   @media (max-width: 768px) {
     .photos-grid {
       gap: 3px;
+    }
+
+    .selection-toolbar {
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    .selection-actions {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .selection-actions button {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    .day-label {
+      font-size: 0.8125rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .photos-count {
+      font-size: 0.8125rem;
+      margin-bottom: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .photos-grid {
+      gap: 2px;
     }
   }
 </style>

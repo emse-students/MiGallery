@@ -89,17 +89,24 @@ export const GET: RequestHandler = async ({ params, locals, cookies, request }) 
 };
 
 export const PUT: RequestHandler = async ({ params, request, locals, cookies }) => {
-	// update user - admin only
+	// update user - admin or self (self can update non-sensitive fields)
 	try {
 		const caller = await getUserFromLocals(locals, cookies);
 		if (!caller) {
 			return json({ error: 'Unauthorized' }, { status: 401 });
 		}
-		if ((caller.role || 'user') !== 'admin') {
+
+		const targetId = params.id;
+		if (!targetId) {
+			return json({ error: 'Bad Request' }, { status: 400 });
+		}
+
+		// Allow admins to update any user. Non-admins may update their own record,
+		// but are not allowed to change sensitive fields like `role` or `promo_year`.
+		if ((caller.role || 'user') !== 'admin' && caller.id_user !== targetId) {
 			return json({ error: 'Forbidden' }, { status: 403 });
 		}
 
-		const targetId = params.id;
 		const body = (await request.json()) as {
 			email?: string;
 			prenom?: string;
@@ -110,6 +117,13 @@ export const PUT: RequestHandler = async ({ params, request, locals, cookies }) 
 		};
 		const { email, prenom, nom, role, promo_year, id_photos } = body;
 
+		// If caller is not admin, prevent changing admin-only fields
+		if ((caller.role || 'user') !== 'admin') {
+			if (role !== undefined || promo_year !== undefined) {
+				return json({ error: 'Forbidden' }, { status: 403 });
+			}
+		}
+
 		const db = getDatabase();
 		const stmt = db.prepare(
 			'UPDATE users SET email = ?, prenom = ?, nom = ?, role = ?, promo_year = ?, id_photos = ? WHERE id_user = ?'
@@ -118,7 +132,18 @@ export const PUT: RequestHandler = async ({ params, request, locals, cookies }) 
 			email || null,
 			prenom || null,
 			nom || null,
-			role || 'user',
+			// keep existing role for non-admins (role must be provided by admin)
+			(caller.role || 'user') === 'admin'
+				? role || 'user'
+				: caller.id_user === targetId
+					? (body.role ??
+						((
+							db.prepare('SELECT role FROM users WHERE id_user = ?').get(targetId) as
+								| { role: string }
+								| undefined
+						)?.role ||
+							'user'))
+					: role || 'user',
 			promo_year || null,
 			id_photos || null,
 			targetId

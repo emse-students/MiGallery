@@ -14,7 +14,6 @@ function createOperationsStore() {
 				// Créer une nouvelle instance pour assurer la réactivité
 				const newOps = new Set(ops);
 				newOps.add(operationId);
-				console.debug(`[Operations] Start: ${operationId}, total:`, newOps.size);
 				return newOps;
 			});
 		},
@@ -23,13 +22,11 @@ function createOperationsStore() {
 				// Créer une nouvelle instance pour assurer la réactivité
 				const newOps = new Set(ops);
 				newOps.delete(operationId);
-				console.debug(`[Operations] End: ${operationId}, total:`, newOps.size);
 				return newOps;
 			});
 		},
 		clear() {
 			update(() => {
-				console.debug('[Operations] Clear all');
 				return new Set();
 			});
 		},
@@ -49,12 +46,10 @@ if (typeof window !== 'undefined') {
 
 	activeOperations.subscribe((ops) => {
 		currentOperations = new Set(ops); // Créer une copie pour éviter les problèmes de mutation
-		console.debug('[beforeunload] Operations updated:', currentOperations.size);
 	});
 
 	window.addEventListener('beforeunload', (e) => {
 		if (currentOperations.size > 0) {
-			console.warn('[beforeunload] Blocking navigation, active operations:', currentOperations.size);
 			e.preventDefault();
 			// Ces deux lignes doivent être présentes pour bloquer la navigation
 			e.returnValue = 'Des opérations sont en cours. Êtes-vous sûr de vouloir quitter ?';

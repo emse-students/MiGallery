@@ -46,7 +46,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ImageSkeleton from './ImageSkeleton.svelte';
+  import Skeleton from './Skeleton.svelte';
 
   interface Props {
     src: string;
@@ -165,7 +165,7 @@
   {/if}
   {#if !isLoaded && hasStartedLoading}
     <div class="lazy-image-placeholder">
-      <ImageSkeleton {aspectRatio} />
+      <Skeleton {aspectRatio} />
     </div>
   {/if}
 </div>

@@ -342,6 +342,43 @@ export const API_ENDPOINTS = [
 				requiredScopes: []
 			}
 		]
+	},
+
+	{
+		group: 'Favorites',
+		description: 'Gestion des favoris utilisateur (stockés localement, propres à chaque utilisateur)',
+		items: [
+			{
+				method: 'GET',
+				path: '/api/favorites',
+				summary: "Récupérer tous les favoris de l'utilisateur connecté",
+				exampleCurl: 'curl -H "Cookie: session=..." "http://localhost:5173/api/favorites"',
+				notes:
+					'Retourne { favorites: ["asset_id_1", "asset_id_2", ...] }. Les favoris sont propres à chaque utilisateur et ne sont pas partagés.',
+				requiredScopes: [],
+				noteAuth: 'Requiert une session utilisateur (cookie). Non accessible via x-api-key.'
+			},
+			{
+				method: 'POST',
+				path: '/api/favorites',
+				summary: 'Ajouter une photo aux favoris',
+				exampleCurl:
+					'curl -X POST -H "Content-Type: application/json" -H "Cookie: session=..." -d \'{"assetId":"ASSET_UUID"}\' "http://localhost:5173/api/favorites"',
+				notes: 'Body: { assetId: string }. Retourne { success: true, isFavorite: true }.',
+				requiredScopes: [],
+				noteAuth: 'Requiert une session utilisateur (cookie). Non accessible via x-api-key.'
+			},
+			{
+				method: 'DELETE',
+				path: '/api/favorites',
+				summary: 'Retirer une photo des favoris',
+				exampleCurl:
+					'curl -X DELETE -H "Content-Type: application/json" -H "Cookie: session=..." -d \'{"assetId":"ASSET_UUID"}\' "http://localhost:5173/api/favorites"',
+				notes: 'Body: { assetId: string }. Retourne { success: true, isFavorite: false }.',
+				requiredScopes: [],
+				noteAuth: 'Requiert une session utilisateur (cookie). Non accessible via x-api-key.'
+			}
+		]
 	}
 ];
 

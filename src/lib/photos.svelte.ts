@@ -15,6 +15,7 @@ export type Asset = {
 	fileCreatedAt?: string;
 	createdAt?: string;
 	updatedAt?: string;
+	isFavorite?: boolean;
 	exifInfo?: {
 		exifImageWidth?: number;
 		exifImageHeight?: number;
@@ -215,6 +216,7 @@ export class PhotosState {
 					assetsMap.set(asset.id, {
 						...asset,
 						date: null,
+						isFavorite: false, // Ignorer le favori Immich, sera chargé depuis la DB locale
 						exifInfo:
 							asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
 								? {
@@ -229,9 +231,12 @@ export class PhotosState {
 					}
 				} else if (phase === 'full') {
 					// Phase 2: Enrichir avec les données complètes
+					// Préserver le statut favori local
+					const existing = assetsMap.get(asset.id);
 					assetsMap.set(asset.id, {
 						...asset,
 						date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+						isFavorite: existing?.isFavorite ?? false,
 						_raw: asset
 					});
 				}
@@ -239,6 +244,9 @@ export class PhotosState {
 				// Mettre à jour la liste affichée - utiliser spread pour créer un nouveau tableau
 				this.assets = [...Array.from(assetsMap.values())];
 			});
+
+			// Charger les favoris de l'utilisateur
+			await this.loadFavorites();
 
 			this.loading = false;
 		} catch (e: unknown) {
@@ -284,6 +292,7 @@ export class PhotosState {
 				createdAt: it.createdAt,
 				updatedAt: it.updatedAt,
 				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+				isFavorite: false, // Ignorer le favori Immich
 				_raw: it
 			}));
 		} catch (e: unknown) {
@@ -317,6 +326,7 @@ export class PhotosState {
 			this.assets = allAssets.map((it) => ({
 				...it,
 				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+				isFavorite: false, // Ignorer le favori Immich
 				_raw: it
 			}));
 		} catch (e: unknown) {
@@ -461,6 +471,7 @@ export class PhotosState {
 					assetsMap.set(asset.id, {
 						...asset,
 						date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+						isFavorite: false, // Ignorer le favori Immich
 						exifInfo:
 							asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
 								? {
@@ -475,9 +486,12 @@ export class PhotosState {
 					}
 				} else if (phase === 'full') {
 					// Phase 2: Enrichir avec les données complètes
+					// Préserver le statut favori local
+					const existing = assetsMap.get(asset.id);
 					assetsMap.set(asset.id, {
 						...asset,
 						date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+						isFavorite: existing?.isFavorite ?? false,
 						_raw: asset
 					});
 				}
@@ -494,6 +508,80 @@ export class PhotosState {
 			this.loading = false;
 			console.warn('  ✗ Erreur:', this.error);
 		}
+	}
+
+	/**
+	 * Toggle le statut favori d'un asset (stocké localement par utilisateur)
+	 * @param assetId - ID de l'asset
+	 * @returns Le nouveau statut favori
+	 */
+	async toggleFavorite(assetId: string): Promise<boolean> {
+		const asset = this.assets.find((a) => a.id === assetId);
+		if (!asset) {
+			throw new Error('Asset non trouvé');
+		}
+
+		const newFavoriteStatus = !asset.isFavorite;
+
+		try {
+			const res = await fetch('/api/favorites', {
+				method: newFavoriteStatus ? 'POST' : 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ assetId })
+			});
+
+			if (!res.ok) {
+				const text = await res.text().catch(() => res.statusText);
+				throw new Error(text || `HTTP ${res.status}`);
+			}
+
+			// Mettre à jour l'asset localement
+			this.assets = this.assets.map((a) =>
+				a.id === assetId ? { ...a, isFavorite: newFavoriteStatus } : a
+			);
+
+			return newFavoriteStatus;
+		} catch (e: unknown) {
+			const err = ensureError(e);
+			throw err;
+		}
+	}
+
+	/**
+	 * Charge les favoris de l'utilisateur et met à jour les assets
+	 */
+	async loadFavorites(): Promise<void> {
+		try {
+			const res = await fetch('/api/favorites');
+			if (!res.ok) {
+return;
+}
+
+			const data = (await res.json()) as { favorites: string[] };
+			const favoriteSet = new Set(data.favorites);
+
+			// Mettre à jour le statut favori des assets
+			this.assets = this.assets.map((a) => ({
+				...a,
+				isFavorite: favoriteSet.has(a.id)
+			}));
+		} catch (e: unknown) {
+			console.warn('Erreur chargement favoris:', e);
+		}
+	}
+
+	/**
+	 * Retourne les assets favoris
+	 */
+	get favorites(): Asset[] {
+		return this.assets.filter((a) => a.isFavorite);
+	}
+
+	/**
+	 * Retourne les assets non-favoris
+	 */
+	get nonFavorites(): Asset[] {
+		return this.assets.filter((a) => !a.isFavorite);
 	}
 
 	cleanup() {
