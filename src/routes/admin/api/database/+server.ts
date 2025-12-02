@@ -13,7 +13,7 @@ const REQUIRED_TABLES = [
 /**
  * GET - Inspecter la structure de la base de données
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = () => {
 	try {
 		const db = getDatabase();
 
@@ -60,7 +60,7 @@ export const GET: RequestHandler = async () => {
 /**
  * POST - Créer/réparer les tables manquantes
  */
-export const POST: RequestHandler = async () => {
+export const POST: RequestHandler = () => {
 	try {
 		const db = getDatabase();
 
@@ -119,7 +119,7 @@ export const POST: RequestHandler = async () => {
 			}
 		];
 
-		const results = [];
+		const results: Array<{ table: string; success: boolean; message: string }> = [];
 
 		for (const migration of migrations) {
 			try {
