@@ -10,6 +10,7 @@
 	import ToastContainer from "$lib/components/ToastContainer.svelte";
 	import Modal from "$lib/components/Modal.svelte";
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
+	import MobileNav from '$lib/components/MobileNav.svelte';
 	import "../app.css";
 
 	let u = $derived((page.data?.session?.user) as User);
@@ -152,6 +153,8 @@
 <ToastContainer />
 
 <ConfirmHost />
+
+<MobileNav />
 
 <Modal
 	bind:show={showNavigationWarning}

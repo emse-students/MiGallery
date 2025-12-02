@@ -33,9 +33,6 @@
 
   // PhotosState pour gérer les photos de l'album - instancier directement
   const photosState = new PhotosState();
-  console.log('✓ [albums/[id]] PhotosState créé directement');
-
-  console.log('✓ [albums/[id]] Script chargé');
 
   async function downloadAll() {
     const ok = await showConfirm(`Télécharger ${photosState.assets.length} image(s) de cet album au format ZIP ?`, 'Télécharger');
@@ -183,7 +180,6 @@
   // Temporairement commenté
 
   import { onDestroy } from 'svelte';
-  console.log('✓ [albums/[id]] onDestroy importé');
 
   onDestroy(() => {
     if (photosState.currentDownloadController) {
@@ -195,22 +191,14 @@
   let visibility = $state('');
 
   $effect(() => {
-    console.log('⚡ [albums/[id]] $effect appelé');
     const id = String($page.params.id ?? '');
     const album = ($page.data as { album?: Album }).album;
-    console.log('  - albumId:', id);
-    console.log('  - album:', album);
     const immichId = String(album?.id ?? '');
     const name = String(album?.name ?? '').trim();
-    console.log('  - immichId:', immichId);
-    console.log('  - name:', name);
       if (id && immichId) {
-      console.log('  ✓ Chargement album...');
       title = name || 'Album';
       visibility = String(album?.visibility ?? '');
       photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined);
-    } else {
-      console.log('  ✗ Album id ou immichId manquants');
     }
   });
 
@@ -221,49 +209,78 @@
   <title>{title || 'Album'} - MiGallery</title>
 </svelte:head>
 
+{#snippet actionButtons(mobile = false)}
+  {#if canManagePhotos && photosState.assets.length > 0}
+    <button
+      onclick={() => (photosState.selecting = !photosState.selecting)}
+      class="action-btn {photosState.selecting ? 'active' : 'primary'}"
+      title={photosState.selecting ? 'Annuler la sélection' : 'Sélectionner des photos'}
+    >
+      <Icon name={photosState.selecting ? 'x' : 'check-square'} size={mobile ? 20 : 16} />
+      <span class="btn-label">{photosState.selecting ? 'Annuler' : 'Sélect.'}</span>
+    </button>
+  {/if}
+
+  {#if canManagePhotos}
+    <button
+      onclick={() => showAlbumModal = true}
+      class="action-btn edit"
+      title="Modifier l'album"
+    >
+      <Icon name="edit" size={mobile ? 20 : 16} />
+      <span class="btn-label">{mobile ? 'Modifier' : 'Modifier l\'album'}</span>
+    </button>
+    <button
+      onclick={() => deleteAlbum()}
+      class="action-btn delete"
+      title="Supprimer l'album"
+    >
+      <Icon name="trash" size={mobile ? 20 : 16} />
+      <span class="btn-label">{mobile ? 'Suppr.' : 'Supprimer l\'album'}</span>
+    </button>
+  {/if}
+
+  <button
+    onclick={() => shareAlbum()}
+    class="action-btn share"
+    title="Partager l'album"
+  >
+    <Icon name="share" size={mobile ? 20 : 16} />
+    <span class="btn-label">Partager</span>
+  </button>
+
+  <button
+    onclick={() => downloadAll()}
+    disabled={photosState.isDownloading}
+    class="action-btn download"
+    title="Télécharger tout"
+  >
+    {#if photosState.isDownloading}
+      {#if photosState.downloadProgress >= 0}
+        <Icon name="download" size={mobile ? 20 : 16} />
+        <span class="btn-label">{Math.round(photosState.downloadProgress * 100)}%</span>
+      {:else}
+        <Spinner size={mobile ? 20 : 18} />
+        <span class="btn-label">...</span>
+      {/if}
+    {:else}
+      <Icon name="download" size={mobile ? 20 : 16} />
+      <span class="btn-label">{mobile ? 'Téléch.' : 'Télécharger tout'}</span>
+    {/if}
+  </button>
+{/snippet}
+
 <main class="album-detail">
   <div class="page-background"></div>
 
-  <nav><a href="/albums"><Icon name="chevron-left" size={16} /> Retour aux albums</a></nav>
+  <nav class="top-nav"><a href="/albums"><Icon name="chevron-left" size={16} /> Retour aux albums</a></nav>
 
-  <div class="flex items-center gap-3 justify-between">
+  <div class="header-container">
     <h1 class="m-0">{title || 'Album'}</h1>
-    <div class="flex gap-2">
-      {#if canManagePhotos && photosState.assets.length > 0}
-        <button onclick={() => (photosState.selecting = !photosState.selecting)} class="px-3 py-2 rounded-lg {photosState.selecting ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white border-0 cursor-pointer flex items-center gap-2">
-          <Icon name={photosState.selecting ? 'x' : 'check-square'} size={16} />
-          {photosState.selecting ? 'Annuler' : 'Sélectionner'}
-        </button>
-      {/if}
-      {#if canManagePhotos}
-        <button onclick={() => showAlbumModal = true} class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white border-0 cursor-pointer flex items-center gap-2">
-          <Icon name="edit" size={16} />
-          Modifier l'album
-        </button>
-        <button onclick={() => deleteAlbum()} class="btn-delete-album px-3 py-2 rounded-lg text-white border-0 cursor-pointer flex items-center gap-2">
-          <Icon name="trash" size={16} />
-          Supprimer l'album
-        </button>
-      {/if}
-      <button onclick={() => shareAlbum()} class="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white border-0 cursor-pointer flex items-center gap-2">
-        <Icon name="share" size={16} />
-        Partager
-      </button>
 
-      <button onclick={() => downloadAll()} disabled={photosState.isDownloading} class="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white border-0 cursor-pointer">
-        {#if photosState.isDownloading}
-          {#if photosState.downloadProgress >= 0}
-            <Icon name="download" size={16} />
-            {Math.round(photosState.downloadProgress * 100)}%
-          {:else}
-            <Spinner size={18} />
-            Téléchargement...
-          {/if}
-        {:else}
-          <Icon name="download" size={16} />
-          Télécharger tout
-        {/if}
-      </button>
+    <!-- Desktop Actions -->
+    <div class="desktop-actions">
+      {@render actionButtons(false)}
     </div>
   </div>
 
@@ -292,26 +309,16 @@
     {#if photosState.assets.length > 0}
       <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
       <PhotosGrid state={photosState} visibility={visibility} albumId={albumLocalId} onModalClose={(hasChanges) => {
-        console.debug('[albums/[id]] onModalClose invoked. hasChanges:', hasChanges);
+        if (!hasChanges) return;
 
-        if (!hasChanges) {
-          console.debug('[albums/[id]] No changes detected, skipping reload');
-          return;
-        }
-
-        console.debug('[albums/[id]] Changes detected, reloading album');
         // Recharger l'album depuis la source après fermeture du modal
         const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
         const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
         if (immichId) {
           const visibility = String(($page.data as { album?: Album }).album?.visibility ?? '');
-          photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined).then(() => {
-            console.debug('[albums/[id]] reload complete after modal close');
-          }).catch((e) => {
+          photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined).catch((e) => {
             console.warn('Erreur reload album après fermeture modal:', e);
           });
-        } else {
-          console.warn('[albums/[id]] onModalClose: immichId missing, skipping reload');
         }
       }} />
     {/if}
@@ -338,12 +345,18 @@
       {/snippet}
     </Modal>
   {/if}
+
+  <!-- Mobile Bottom Bar -->
+  <div class="mobile-bottom-bar">
+    {@render actionButtons(true)}
+  </div>
 </main>
 
 <style>
   .album-detail {
     position: relative;
     min-height: 100vh;
+    padding-bottom: 80px; /* Space for bottom bar on mobile */
   }
 
   .page-background {
@@ -368,15 +381,15 @@
 
   .page-background::before {
     background: radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, transparent 70%);
-    top: -250px;
-    left: -250px;
+    top: -350px;
+    left: -350px;
     animation-delay: -6s;
   }
 
   .page-background::after {
     background: radial-gradient(circle, rgba(236, 72, 153, 0.4) 0%, transparent 70%);
-    bottom: -300px;
-    right: -250px;
+    top: 20%;
+    right: -350px;
     animation-delay: -12s;
   }
 
@@ -392,14 +405,73 @@
     }
   }
 
-  /* Styles pour les boutons de l'en-tête */
-  :global(.btn-delete-album) {
-    background: #dc2626 !important;
+  .header-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-bottom: 1rem;
   }
 
-  :global(.btn-delete-album:hover:not(:disabled)) {
-    background: #b91c1c !important;
+  .desktop-actions {
+    display: flex;
+    gap: 0.5rem;
   }
+
+  .mobile-bottom-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary, rgba(17, 24, 39, 0.95));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    padding: 0.75rem 1rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    justify-content: space-around;
+    align-items: center;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Action Buttons Styling */
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    color: white;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  .btn-label {
+    white-space: nowrap;
+  }
+
+  .action-btn.primary { background-color: #2563eb; }
+  .action-btn.primary:hover { background-color: #1d4ed8; }
+
+  .action-btn.active { background-color: #4b5563; }
+  .action-btn.active:hover { background-color: #374151; }
+
+  .action-btn.edit { background-color: #9333ea; }
+  .action-btn.edit:hover { background-color: #7e22ce; }
+
+  .action-btn.delete { background-color: #dc2626; }
+  .action-btn.delete:hover { background-color: #b91c1c; }
+
+  .action-btn.share { background-color: #0284c7; }
+  .action-btn.share:hover { background-color: #0369a1; }
+
+  .action-btn.download { background-color: #10b981; }
+  .action-btn.download:hover { background-color: #059669; }
+  .action-btn.download:disabled { opacity: 0.7; cursor: not-allowed; }
 
   .upload-section {
     margin: 2rem auto;
@@ -412,5 +484,49 @@
     margin-bottom: 1rem;
     color: var(--text-primary, #ffffff);
     text-align: center;
+  }
+
+  @media (max-width: 768px) {
+    .desktop-actions {
+      display: none;
+    }
+
+    .mobile-bottom-bar {
+      display: flex;
+    }
+
+    .action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 0.5rem;
+      min-width: 50px;
+      background-color: transparent !important;
+      color: var(--text-muted, #6b7280);
+      font-size: 0.625rem;
+      font-weight: 500;
+    }
+
+    .action-btn:hover, .action-btn:active {
+      color: var(--accent, #3b82f6);
+    }
+
+    .action-btn.delete { color: #f87171; }
+    .action-btn.delete:hover { color: #ef4444; }
+    .action-btn.download { color: #6ee7b7; }
+    .action-btn.download:hover { color: #34d399; }
+    .action-btn.edit { color: #c4b5fd; }
+    .action-btn.edit:hover { color: #a78bfa; }
+    .action-btn.share { color: #7dd3fc; }
+    .action-btn.share:hover { color: #38bdf8; }
+
+    .header-container h1 {
+      font-size: 1.5rem;
+    }
+
+    .upload-section h2 {
+      font-size: 1rem;
+    }
   }
 </style>

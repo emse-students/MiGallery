@@ -11,7 +11,6 @@ export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
 	try {
 		const cookieSigned = cookies.get('current_user_id');
 		if (!cookieSigned) {
-			console.debug('[auth] no current_user_id cookie');
 			return null;
 		}
 		const verified = verifySigned(cookieSigned);
@@ -27,7 +26,6 @@ export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
 			console.warn('[auth] current_user_id cookie references unknown user', { id: verified });
 			return null;
 		}
-		console.debug('[auth] resolved db user from cookie', { id: user.id_user, role: user.role });
 		return user || null;
 	} catch (e) {
 		console.warn('[auth] error while resolving signed cookie', e);

@@ -26,13 +26,8 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 		const sessionUser = session?.user as { role?: string; id?: string } | undefined;
 		// Resolve DB user (tries signed cookie first then provider mapping)
 		const dbUser = await getCurrentUser({ locals, cookies });
-		console.debug('[POST /api/db] sessionUser/dbUser', {
-			sessionUserId: sessionUser?.id,
-			dbUserId: dbUser?.id_user
-		});
 		// If neither provider session nor cookie-mapped db user is available, deny
 		if (!sessionUser && !dbUser) {
-			console.warn('[POST /api/db] no session user and no db user');
 			return json({ error: 'Unauthorized' }, { status: 401 });
 		}
 		const role = dbUser?.role || sessionUser?.role || 'user';
@@ -55,9 +50,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 			// If the query contains a WHERE id_user = ? placeholder, ensure params includes the current user id
 			const whereIdPlaceholder = /WHERE\s+id_user\s*=\s*\?/i.test(sql || '');
 			const containsLiteralId = new RegExp(
-				`\\bWHERE\\s+id_user\\s*=\\s*('|")?${
-					userId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
-				}('|")?`,
+				`\\bWHERE\\s+id_user\\s*=\\s*('|")?${userId.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}('|")?`,
 				'i'
 			);
 

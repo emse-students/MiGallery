@@ -40,9 +40,9 @@
       throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
     }
 
-    // Recharger les infos de la personne pour rafraîchir la vignette
-    await photosState.loadPerson(targetIdPhotos);
     toast.success('Photo de profil mise à jour !');
+    // Recharger la page pour mettre à jour tous les affichages (header, vignette, etc.)
+    window.location.reload();
   }
 
   onDestroy(() => photosState.cleanup());

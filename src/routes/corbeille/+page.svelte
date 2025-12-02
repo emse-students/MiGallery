@@ -112,7 +112,6 @@
         ...it,
         date: it.deletedAt || it.takenAt || it.fileCreatedAt || it.updatedAt || null
       }));
-      console.log('Loaded trashed assets:', assets.length);
     } catch (err: unknown) {
       console.error('Error:', err);
       error = err instanceof Error ? err.message : 'Une erreur est survenue';
@@ -163,7 +162,6 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
-          console.log('Restoring assets with IDs:', assetIds);
           const res = await fetch('/api/immich/trash/restore/assets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -198,7 +196,6 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
-          console.log('Permanently deleting assets with IDs:', assetIds);
           // Validate IDs
           const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
           for (const id of assetIds) {

@@ -33,8 +33,6 @@
     disabled = false
   }: Props = $props();
 
-  console.log('✓ [UploadZone] Composant chargé');
-
   let isDragging = $state(false);
   let isUploading = $state(false);
   let fileStatuses = $state<UploadFileStatus[]>([]);

@@ -166,7 +166,7 @@
 			saveBlobAs(blob, `${albumName || immichId}.zip`);
 		} catch (e: unknown) {
 			if ((e as Error).name === 'AbortError') {
-				console.info('Téléchargement annulé');
+				// Téléchargement annulé par l'utilisateur
 			} else {
 				toast.error('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
 			}

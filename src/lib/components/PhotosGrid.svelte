@@ -19,8 +19,6 @@ import { activeOperations } from '$lib/operations';
 
 	let { state: photosState, onModalClose, visibility, albumId }: Props = $props();
 
-	console.log('✓ [PhotosGrid] Composant chargé');
-
 	// Vérifier le rôle de l'utilisateur
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
@@ -244,16 +242,14 @@ import { activeOperations } from '$lib/operations';
 			albumId={albumId}
 			onClose={() => {
 				showModal = false;
-				console.debug('[PhotosGrid] PhotoModal closed — running onClose handler');
 				// Force a shallow refresh of the assets array so the grid re-renders
 				photosState.assets = [...photosState.assets];
 				if (onModalClose) {
 					setTimeout(() => {
 						try {
-							console.debug('[PhotosGrid] Calling onModalClose callback');
 							onModalClose(hasChanges);
 						} catch (e) {
-							console.warn('[PhotosGrid] onModalClose threw:', e);
+							// onModalClose threw silently
 						}
 					}, 0);
 				}
@@ -431,10 +427,43 @@ import { activeOperations } from '$lib/operations';
     font-size: 1.125rem;
   }
 
-  /* Responsive - ajustement de la hauteur des cartes */
+  /* Responsive - grille carrée sur mobile */
   @media (max-width: 768px) {
     .photos-grid {
       gap: 3px;
+    }
+
+    .selection-toolbar {
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+
+    .selection-actions {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .selection-actions button {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+    }
+
+    .day-label {
+      font-size: 0.8125rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .photos-count {
+      font-size: 0.8125rem;
+      margin-bottom: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .photos-grid {
+      gap: 2px;
     }
   }
 </style>

@@ -91,33 +91,8 @@ export const GET: RequestHandler = async ({ params, locals, cookies, request }) 
 export const PUT: RequestHandler = async ({ params, request, locals, cookies }) => {
 	// update user - admin or self (self can update non-sensitive fields)
 	try {
-		// Debug logs: trace incoming request to help diagnose 401/403
-		try {
-			const maskedCookie = (() => {
-				const c = cookies.get('current_user_id');
-				if (!c) {
-					return null;
-				}
-				const idx = c.indexOf('.');
-				return idx === -1 ? '[signed?]' : `${c.slice(0, Math.min(idx, 20))}...`;
-			})();
-			console.debug('[PUT /api/users/:id] start', {
-				paramsId: params?.id,
-				cookiePresent: !!cookies.get('current_user_id'),
-				cookieMasked: maskedCookie,
-				xApiKey: request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || null,
-				localsAuth: typeof locals?.auth === 'function'
-			});
-		} catch (logErr) {
-			// don't fail on logging
-			console.warn('[PUT /api/users/:id] logging error', logErr);
-		}
 		const caller = await getUserFromLocals(locals, cookies);
-		console.debug('[PUT /api/users/:id] caller resolved', {
-			caller: caller ? { id_user: caller.id_user, role: caller.role } : null
-		});
 		if (!caller) {
-			console.warn('[PUT /api/users/:id] unauthorized: no caller');
 			return json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
@@ -145,10 +120,6 @@ export const PUT: RequestHandler = async ({ params, request, locals, cookies }) 
 		// If caller is not admin, prevent changing admin-only fields
 		if ((caller.role || 'user') !== 'admin') {
 			if (role !== undefined || promo_year !== undefined) {
-				console.warn(
-					'[PUT /api/users/:id] forbidden: non-admin attempted to change admin-only fields',
-					{ caller: caller.id_user, target: params.id }
-				);
 				return json({ error: 'Forbidden' }, { status: 403 });
 			}
 		}

@@ -14,8 +14,6 @@
   const myPhotosState = new PhotosState();
   const allPhotosState = new PhotosState();
 
-  console.log('✓ [photos-cv] Script chargé');
-
   // Vérifier le rôle de l'utilisateur
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
@@ -52,7 +50,6 @@
   }
 
   function switchView(view: 'my' | 'all') {
-    console.log('👁️ [photos-cv] switchView appelée:', view);
     currentView = view;
     if (view === 'all' && !allPhotosState.loading) {
       allPhotosState.loadAllPhotosCV().catch((e: unknown) => console.warn('all loadAllPhotosCV error', e));
@@ -65,37 +62,30 @@
   });
 
   onMount(() => {
-    console.log('🏄 [photos-cv] onMount appelé');
     const user = page.data.session?.user as User;
-    console.log('  - user:', user);
 
     // Admin/mitviste peuvent accéder même sans id_photos (pour gérer les imports)
     if (!user) {
-      console.log('  ✗ Pas d\'utilisateur, redirection');
       goto('/');
       return;
     }
 
     const hasIdPhotos = !!user.id_photos;
     const isManager = user.role === 'admin' || user.role === 'mitviste';
-    console.log('  - hasIdPhotos:', hasIdPhotos, '- isManager:', isManager);
 
     // Rediriger seulement si ni id_photos ni manager
     if (!hasIdPhotos && !isManager) {
-      console.log('  ✗ Pas de photos ni manager, redirection');
       goto('/');
       return;
     }
 
     // Si l'utilisateur a un id_photos, charger ses photos personnelles
     if (hasIdPhotos) {
-      console.log('  ✓ Chargement photos personnelles:', user.id_photos);
       // Convertir en string pour éviter les Proxy
       personId = String(user.id_photos ?? '');
       myPhotosState.peopleId = String(user.id_photos ?? '');
       myPhotosState.loadMyPhotosCV(String(user.id_photos ?? ''));
     } else if (isManager) {
-      console.log('  ✓ Manager sans photos, chargement vue "all"');
       // Si manager sans id_photos, basculer directement sur la vue "all"
       currentView = 'all';
       allPhotosState.loadAllPhotosCV();

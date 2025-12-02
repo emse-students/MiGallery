@@ -59,7 +59,8 @@
 	let aspectRatio = $derived(getAspectRatio());
 	let aspectRatioString = $derived(getAspectRatioString());
 
-	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px) et largeur variable
+	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px desktop, 120px mobile) et largeur variable
+	// On utilise une hauteur de base de 220px pour desktop
 	let flexBasis = $derived(aspectRatio * 220);
 	let flexGrow = $derived(aspectRatio * 100);
 
@@ -162,11 +163,6 @@
 			aspectRatio={aspectRatioString}
 			{isVideo}
 		/>
-
-		<!-- File Name Info (shown on hover) -->
-		<div class="photo-info" title={fileName}>
-			{fileName}
-		</div>
 	{:else}
 		<!-- Skeleton pendant le chargement des détails -->
 		<Skeleton aspectRatio={aspectRatioString}>
@@ -327,31 +323,22 @@
 		transform: scale(1.1);
 	}
 
-	.photo-info {
-		padding: 0.75rem;
-		font-size: 0.75rem;
-		color: white;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		opacity: 0;
-		transition: opacity 0.3s ease;
-		pointer-events: none;
-		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-	}
-
-	.photo-card:hover .photo-info {
-		opacity: 1;
-	}
-
 	@media (max-width: 768px) {
 		.photo-card {
-			height: 160px;
+			height: auto;
+			aspect-ratio: 1;
+			/* 4 photos par ligne sur mobile: 100% / 4 = 25%, moins les gaps */
+			flex-basis: calc(25% - 3px) !important;
+			flex-grow: 0 !important;
+			max-width: calc(25% - 3px);
+		}
+	}
+
+	@media (max-width: 480px) {
+		.photo-card {
+			/* 4 photos par ligne: plus compact */
+			flex-basis: calc(25% - 2px) !important;
+			max-width: calc(25% - 2px);
 		}
 	}
 </style>
