@@ -12,7 +12,7 @@ import { toast } from '$lib/toast';
 import { activeOperations } from '$lib/operations';
 	interface Props {
 		state: PhotosState;
-		onModalClose?: () => void;
+		onModalClose?: (hasChanges: boolean) => void;
 		visibility?: string;
 		albumId?: string;
 	}
@@ -28,6 +28,7 @@ import { activeOperations } from '$lib/operations';
 	// État du modal
 	let showModal = $state(false);
 	let modalAssetId = $state<string>('');
+	let hasChanges = $state(false);
 
 	// État du modal de confirmation de suppression
 	let showDeleteModal = $state(false);
@@ -152,6 +153,7 @@ import { activeOperations } from '$lib/operations';
 			photosState.handlePhotoClick(id, new Event('click'));
 		} else {
 			modalAssetId = id;
+			hasChanges = false;
 			showModal = true;
 		}
 	}
@@ -249,7 +251,7 @@ import { activeOperations } from '$lib/operations';
 					setTimeout(() => {
 						try {
 							console.debug('[PhotosGrid] Calling onModalClose callback');
-							onModalClose();
+							onModalClose(hasChanges);
 						} catch (e) {
 							console.warn('[PhotosGrid] onModalClose threw:', e);
 						}
@@ -258,10 +260,12 @@ import { activeOperations } from '$lib/operations';
 			}}
 		onAssetDeleted={(id) => {
 			photosState.assets = photosState.assets.filter(a => a.id !== id);
+			hasChanges = true;
 		}}
 			on:assetDeleted={(e) => {
 				const id = e.detail as string;
 				photosState.assets = photosState.assets.filter(a => a.id !== id);
+				hasChanges = true;
 			}}
 	/>
 {/if}

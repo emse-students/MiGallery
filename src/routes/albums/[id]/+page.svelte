@@ -291,8 +291,15 @@
 
     {#if photosState.assets.length > 0}
       <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
-      <PhotosGrid state={photosState} visibility={visibility} albumId={albumLocalId} onModalClose={() => {
-        console.debug('[albums/[id]] onModalClose invoked — will reload album');
+      <PhotosGrid state={photosState} visibility={visibility} albumId={albumLocalId} onModalClose={(hasChanges) => {
+        console.debug('[albums/[id]] onModalClose invoked. hasChanges:', hasChanges);
+
+        if (!hasChanges) {
+          console.debug('[albums/[id]] No changes detected, skipping reload');
+          return;
+        }
+
+        console.debug('[albums/[id]] Changes detected, reloading album');
         // Recharger l'album depuis la source après fermeture du modal
         const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
         const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
