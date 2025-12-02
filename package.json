@@ -49,6 +49,7 @@
 		"db:init": "node ./scripts/init-db.cjs",
 		"db:backup": "node ./scripts/backup-db.cjs",
 		"db:inspect": "node ./scripts/inspect-db.cjs",
+		"db:migrate": "node ./scripts/migrate-db.cjs",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",

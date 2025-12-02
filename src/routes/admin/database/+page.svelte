@@ -25,6 +25,9 @@
   let exporting = $state(false);
   let backing = $state(false);
   let inspecting = $state(false);
+  let repairing = $state(false);
+  let databaseStatus = $state<any>(null);
+  let showRepairModal = $state(false);
   let message = $state('');
   let messageType: 'success' | 'error' | 'info' = $state('info');
 
@@ -197,23 +200,56 @@
     message = '';
 
     try {
-      const response = await fetch('/api/admin/db-inspect');
-      const jsonData = await response.json();
-      const result = asApiResponse<{ hasErrors?: boolean; errors?: string[] }>(jsonData);
+      const response = await fetch('/admin/api/database');
+      const result = await response.json();
 
-      if (result.data?.hasErrors) {
-        message = `⚠️ Erreurs détectées: ${result.data.errors?.join(', ') || 'Unknown'}`;
-        messageType = 'error';
+      if (result.success) {
+        databaseStatus = result;
+        if (result.status === 'healthy') {
+          message = '✅ Base de données en bon état - Toutes les tables sont présentes';
+          messageType = 'success';
+        } else {
+          message = `⚠️ Base de données incomplète - ${result.missingTables?.length || 0} table(s) manquante(s)`;
+          messageType = 'error';
+        }
       } else {
-        message = '✅ Base de données saine, aucune erreur détectée';
-        messageType = 'success';
+        message = `❌ Erreur lors de l'inspection: ${result.error}`;
+        messageType = 'error';
       }
-
     } catch (error: unknown) {
       message = `❌ Erreur lors de l'inspection: ${error}`;
       messageType = 'error';
     } finally {
       inspecting = false;
+    }
+  }
+
+  async function repairDatabase() {
+    repairing = true;
+    showRepairModal = false;
+    message = '';
+
+    try {
+      const response = await fetch('/admin/api/database', {
+        method: 'POST'
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        message = '✅ Base de données réparée avec succès!';
+        messageType = 'success';
+        databaseStatus = result.newStatus;
+        // Réinspecter après réparation
+        setTimeout(() => inspectDatabase(), 1000);
+      } else {
+        message = `❌ Erreur lors de la réparation: ${result.error}`;
+        messageType = 'error';
+      }
+    } catch (error: unknown) {
+      message = `❌ Erreur: ${error}`;
+      messageType = 'error';
+    } finally {
+      repairing = false;
     }
   }
 
@@ -302,8 +338,75 @@
       <button class="btn btn-info" onclick={inspectDatabase} disabled={inspecting}>
         {inspecting ? '🔍 Inspection...' : '🔍 Inspecter la DB'}
       </button>
+
+      {#if databaseStatus && databaseStatus.status !== 'healthy'}
+        <button class="btn btn-warning" onclick={() => (showRepairModal = true)} disabled={repairing}>
+          {repairing ? '🔧 Réparation...' : '🔧 Réparer la DB'}
+        </button>
+      {/if}
     </div>
   </section>
+
+  <!-- État de la base de données -->
+  {#if databaseStatus}
+    <section class="card">
+      <h2>📋 État de la base de données</h2>
+      <div class="db-status-container">
+        <div class="status-indicator {databaseStatus.status}">
+          {#if databaseStatus.status === 'healthy'}
+            ✅ Saine
+          {:else}
+            ⚠️ Incomplète
+          {/if}
+        </div>
+
+        <div class="tables-status">
+          <h3>Tables</h3>
+          <div class="table-list">
+            {#each databaseStatus.tables || [] as table}
+              <div class="table-item {table.exists ? 'exists' : 'missing'}">
+                <span class="table-icon">{table.exists ? '✅' : '❌'}</span>
+                <span class="table-name">{table.name}</span>
+                <span class="table-rows">{table.rowCount ?? 0} ligne(s)</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        {#if databaseStatus.missingTables && databaseStatus.missingTables.length > 0}
+          <div class="missing-tables">
+            <h3>Tables manquantes ({databaseStatus.missingTables.length})</h3>
+            <ul>
+              {#each databaseStatus.missingTables as table}
+                <li>{table}</li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+      </div>
+    </section>
+  {/if}
+
+  <!-- Modal de confirmation pour réparation -->
+  {#if showRepairModal}
+    <div class="modal-overlay" onclick={() => (showRepairModal = false)}>
+      <div class="modal" onclick={(e) => e.stopPropagation()}>
+        <h2>🔧 Réparer la base de données ?</h2>
+        <p>
+          Ceci va créer les tables manquantes dans votre base de données. Aucune donnée existante ne
+          sera affectée.
+        </p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick={() => (showRepairModal = false)}>
+            Annuler
+          </button>
+          <button class="btn btn-warning" onclick={repairDatabase} disabled={repairing}>
+            {repairing ? '⏳ Réparation...' : '🔧 Réparer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Import -->
   <section class="card">
@@ -518,6 +621,15 @@
     color: white;
   }
 
+  .btn-warning {
+    background: #ffc107;
+    color: #333;
+  }
+
+  .btn-warning:hover:not(:disabled) {
+    background: #ffb300;
+  }
+
   .btn-danger {
     background: #dc3545;
     color: white;
@@ -620,5 +732,148 @@
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
     font-size: 0.875em;
+  }
+
+  /* Database Status Styles */
+  .db-status-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .status-indicator {
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    text-align: center;
+    font-size: 1.1rem;
+  }
+
+  .status-indicator.healthy {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .status-indicator.incomplete {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+  }
+
+  .tables-status h3,
+  .missing-tables h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .table-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .table-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+
+  .table-item.exists {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.05);
+  }
+
+  .table-item.missing {
+    border-color: #dc3545;
+    background: rgba(220, 53, 69, 0.05);
+  }
+
+  .table-icon {
+    font-size: 1.1rem;
+    min-width: 1.5rem;
+  }
+
+  .table-name {
+    font-weight: 600;
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+
+  .table-rows {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+
+  .missing-tables {
+    padding: 1rem;
+    background: rgba(220, 53, 69, 0.05);
+    border: 1px solid #dc3545;
+    border-radius: var(--radius-sm);
+  }
+
+  .missing-tables ul {
+    margin: 0;
+    padding-left: 1.5rem;
+  }
+
+  .missing-tables li {
+    margin-bottom: 0.5rem;
+    font-family: monospace;
+    font-size: 0.9rem;
+  }
+
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .modal h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+
+  .modal p {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+  }
+
+  .modal-actions .btn {
+    flex: 1;
   }
 </style>
