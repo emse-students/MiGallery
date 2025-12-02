@@ -141,7 +141,7 @@
     <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
   {/if}
 
-  <PhotosGrid state={photosState} />
+  <PhotosGrid state={photosState} showFavorites={true} />
 
   {#if showChangePhotoModal}
     <ChangePhotoModal

@@ -44,3 +44,12 @@ CREATE TABLE IF NOT EXISTS album_tag_permissions (
     PRIMARY KEY (album_id, tag),
     FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
+
+-- User favorites: stores favorite photos per user (not shared with Immich)
+CREATE TABLE IF NOT EXISTS user_favorites (
+    user_id TEXT NOT NULL,
+    asset_id TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, asset_id),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);

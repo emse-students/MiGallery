@@ -14,9 +14,11 @@
 		onAssetDeleted?: (assetId: string) => void;
 		albumVisibility?: string;
 		albumId?: string;
+		showFavorite?: boolean;
+		onFavoriteToggle?: (assetId: string) => Promise<void>;
 	}
 
-	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId }: Props = $props();
+	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId, showFavorite = false, onFavoriteToggle }: Props = $props();
 	const dispatch = createEventDispatcher();
 
 	let currentIndex = $state(0);
@@ -446,6 +448,16 @@
 						<Icon name="refresh-cw" size={20} />
 					</button>
 				{/if}
+				{#if showFavorite && asset && onFavoriteToggle}
+					<button
+						class="btn-icon btn-favorite"
+						class:active={asset.isFavorite}
+						onclick={() => onFavoriteToggle(asset!.id)}
+						title={asset.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+					>
+						<Icon name={asset.isFavorite ? 'heart-filled' : 'heart'} size={20} />
+					</button>
+				{/if}
 				<button class="btn-icon" onclick={downloadAsset} title="Télécharger" disabled={!asset}>
 					<Icon name="download" size={20} />
 				</button>
@@ -650,6 +662,23 @@
 	}
 
 	.btn-delete:hover:not(:disabled) {
+		background: rgba(220, 38, 38, 1);
+	}
+
+	.btn-favorite {
+		color: #f87171;
+	}
+
+	.btn-favorite:hover:not(:disabled) {
+		background: rgba(239, 68, 68, 0.2);
+	}
+
+	.btn-favorite.active {
+		background: rgba(239, 68, 68, 0.9);
+		color: white;
+	}
+
+	.btn-favorite.active:hover:not(:disabled) {
 		background: rgba(220, 38, 38, 1);
 	}
 

@@ -486,7 +486,7 @@
     text-align: center;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1440px) {
     .desktop-actions {
       display: none;
     }

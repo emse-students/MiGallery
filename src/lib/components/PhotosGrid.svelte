@@ -15,9 +15,10 @@ import { activeOperations } from '$lib/operations';
 		onModalClose?: (hasChanges: boolean) => void;
 		visibility?: string;
 		albumId?: string;
+		showFavorites?: boolean;
 	}
 
-	let { state: photosState, onModalClose, visibility, albumId }: Props = $props();
+	let { state: photosState, onModalClose, visibility, albumId, showFavorites = false }: Props = $props();
 
 	// Vérifier le rôle de l'utilisateur
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
@@ -155,6 +156,25 @@ import { activeOperations } from '$lib/operations';
 			showModal = true;
 		}
 	}
+
+	async function handleFavoriteToggle(assetId: string) {
+		try {
+			const newValue = await photosState.toggleFavorite(assetId);
+			toast.success(newValue ? 'Ajouté aux favoris' : 'Retiré des favoris');
+		} catch (e: unknown) {
+			toast.error('Erreur: ' + (e as Error).message);
+		}
+	}
+
+	// Computed: assets favoris (à afficher en priorité)
+	let favoriteAssets = $derived(
+		showFavorites ? photosState.assets.filter(a => a.isFavorite) : []
+	);
+
+	// Computed: assets non-favoris (pour éviter les doublons)
+	let nonFavoriteAssets = $derived(
+		showFavorites ? photosState.assets.filter(a => !a.isFavorite) : photosState.assets
+	);
 </script>
 
 <!-- Affichage principal -->
@@ -205,8 +225,31 @@ import { activeOperations } from '$lib/operations';
 		<div class="photos-count"><strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''} trouvée{photosState.assets.length > 1 ? 's' : ''}</div>
 	{/if}
 
+	<!-- Section Favoris -->
+	{#if showFavorites && favoriteAssets.length > 0}
+		<h3 class="day-label favorites-label">⭐ Favoris</h3>
+		<div class="photos-grid">
+			{#each favoriteAssets as a}
+				<PhotoCard
+					asset={a}
+					isSelected={photosState.selectedAssets.includes(a.id)}
+					isSelecting={photosState.selecting}
+					canDelete={canManagePhotos}
+					albumVisibility={visibility}
+					albumId={albumId}
+					showFavorite={true}
+					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
+					onCardClick={() => handlePhotoCardClick(a.id)}
+					onDownload={() => handleDownloadSingle(a.id)}
+					onDelete={() => handleDeleteAsset(a.id)}
+					onSelectionToggle={(id, selected) => photosState.toggleSelect(id, selected)}
+				/>
+			{/each}
+		</div>
+	{/if}
+
 	<!-- Grille de photos groupées par jour -->
-	{#each Object.entries(groupByDay(photosState.assets)) as [dayLabel, items]}
+	{#each Object.entries(groupByDay(nonFavoriteAssets)) as [dayLabel, items]}
 		<h3 class="day-label">{dayLabel}</h3>
 		<div class="photos-grid">
 			{#each items as a}
@@ -217,6 +260,8 @@ import { activeOperations } from '$lib/operations';
 					canDelete={canManagePhotos}
 					albumVisibility={visibility}
 					albumId={albumId}
+					showFavorite={showFavorites}
+					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
 					onCardClick={() => handlePhotoCardClick(a.id)}
 					onDownload={() => handleDownloadSingle(a.id)}
 					onDelete={() => handleDeleteAsset(a.id)}
@@ -240,6 +285,8 @@ import { activeOperations } from '$lib/operations';
 		assets={photosState.assets}
 			albumVisibility={visibility}
 			albumId={albumId}
+			showFavorite={showFavorites}
+			onFavoriteToggle={handleFavoriteToggle}
 			onClose={() => {
 				showModal = false;
 				// Force a shallow refresh of the assets array so the grid re-renders
@@ -372,6 +419,11 @@ import { activeOperations } from '$lib/operations';
 
   .day-label:first-of-type {
     margin-top: 0;
+  }
+
+  .favorites-label {
+    color: var(--accent);
+    opacity: 1;
   }
 
   .photos-grid {

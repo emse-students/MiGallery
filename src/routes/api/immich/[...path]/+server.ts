@@ -35,6 +35,17 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
+	// Autorisation pour PUT/PATCH/POST/DELETE: session utilisateur requise
+	if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
+		const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
+		if (!user) {
+			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+				status: 401,
+				headers: { 'content-type': 'application/json' }
+			});
+		}
+	}
+
 	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
 	// ensure we have a protocol; if user provided e.g. 10.0.0.4:2283, default to http://
 	if (base && !/^https?:\/\//i.test(base)) {

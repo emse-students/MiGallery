@@ -9,10 +9,12 @@
 		isSelected?: boolean;
 		isSelecting?: boolean;
 		canDelete?: boolean;
+		showFavorite?: boolean;
 		onCardClick?: (assetId: string, event: MouseEvent) => void;
 		onDownload?: (assetId: string, event: Event) => void;
 		onDelete?: (assetId: string, event: Event) => void;
 		onSelectionToggle?: (assetId: string, selected: boolean) => void;
+		onFavoriteToggle?: (assetId: string, event: Event) => void;
 		albumVisibility?: string;
 		albumId?: string;
 	}
@@ -22,10 +24,12 @@
 		isSelected = false,
 		isSelecting = false,
 		canDelete = false,
+		showFavorite = false,
 		onCardClick,
 		onDownload,
 		onDelete,
 		onSelectionToggle,
+		onFavoriteToggle,
 		albumVisibility,
 		albumId
 	}: Props = $props();
@@ -67,6 +71,43 @@
 	// Vérifier si l'asset a les données complètes (pas juste les métadonnées minimales)
 	let isFullyLoaded = $derived(asset.originalFileName !== undefined && asset.originalFileName !== null);
 
+	// État pour l'appui long sur mobile (affiche les boutons d'action)
+	let showMobileActions = $state(false);
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	const LONG_PRESS_DURATION = 500; // ms
+
+	function handleTouchStart(e: TouchEvent) {
+		// Ne pas déclencher si on touche un bouton
+		if ((e.target as HTMLElement).closest('button')) return;
+
+		longPressTimer = setTimeout(() => {
+			showMobileActions = true;
+			// Vibration haptique si disponible
+			if (navigator.vibrate) {
+				navigator.vibrate(50);
+			}
+		}, LONG_PRESS_DURATION);
+	}
+
+	function handleTouchEnd() {
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function handleTouchMove() {
+		// Annuler l'appui long si l'utilisateur bouge le doigt
+		if (longPressTimer) {
+			clearTimeout(longPressTimer);
+			longPressTimer = null;
+		}
+	}
+
+	function closeMobileActions() {
+		showMobileActions = false;
+	}
+
 	function handleCardClick(e: Event) {
 		if (onCardClick) {
 			onCardClick(asset.id, e as unknown as MouseEvent);
@@ -95,8 +136,18 @@
 		}
 	}
 
+	function handleFavoriteClick(e: Event) {
+		e.stopPropagation();
+		if (onFavoriteToggle) {
+			onFavoriteToggle(asset.id, e);
+		}
+	}
+
 	// Nom du fichier et autres valeurs — réactifs pour suivre les mises à jour streaming
 	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
+	// Ne PAS utiliser asset._raw?.isFavorite car c'est la valeur d'Immich (partagée entre utilisateurs)
+	// On utilise uniquement asset.isFavorite qui est chargé depuis notre base locale
+	let isFavorite = $derived(asset.isFavorite ?? false);
 	let thumbnailUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
 			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
@@ -106,8 +157,9 @@
 </script>
 
 <!-- Photo Card Container -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-	class="photo-card {isSelected ? 'selected' : ''}"
+	class="photo-card {isSelected ? 'selected' : ''} {showMobileActions ? 'mobile-actions-visible' : ''}"
 	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
 	role="button"
 	tabindex="0"
@@ -118,7 +170,18 @@
 			handleCardClick(e);
 		}
 	}}
+	ontouchstart={handleTouchStart}
+	ontouchend={handleTouchEnd}
+	ontouchmove={handleTouchMove}
+	ontouchcancel={handleTouchEnd}
 >
+	<!-- Overlay pour fermer les actions mobiles -->
+	{#if showMobileActions}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div class="mobile-actions-overlay" onclick={(e) => { e.stopPropagation(); closeMobileActions(); }}></div>
+	{/if}
+
 	<!-- Selection Checkbox -->
 	<div class="selection-checkbox {isSelected ? 'checked' : ''}">
 		<input
@@ -131,6 +194,18 @@
 	</div>
 
 	{#if isFullyLoaded}
+		<!-- Favorite Button (bottom left) -->
+		{#if showFavorite && !isSelecting}
+			<button
+				class="favorite-btn {isFavorite ? 'active' : ''}"
+				title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+				onclick={handleFavoriteClick}
+				aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+			>
+				<Icon name={isFavorite ? 'heart-filled' : 'heart'} size={18} />
+			</button>
+		{/if}
+
 		<!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
 		{#if !isSelecting}
 			<button
@@ -263,6 +338,43 @@
 		accent-color: var(--accent);
 	}
 
+	.favorite-btn {
+		position: absolute;
+		bottom: 0.625rem;
+		left: 0.625rem;
+		z-index: 5;
+		padding: 0.5rem;
+		width: 36px;
+		height: 36px;
+		background: rgba(0, 0, 0, 0.7);
+		backdrop-filter: blur(8px);
+		border: none;
+		border-radius: var(--radius-sm);
+		color: white;
+		cursor: pointer;
+		opacity: 0;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.favorite-btn.active {
+		opacity: 1;
+		color: white;
+		background: #ef4444;
+	}
+
+	.photo-card:hover .favorite-btn {
+		opacity: 1;
+	}
+
+	.favorite-btn:hover {
+		background: rgba(239, 68, 68, 0.3);
+		color: #ef4444;
+		transform: scale(1.1);
+	}
+
 	.download-btn {
 		position: absolute;
 		top: 0.625rem;
@@ -332,6 +444,36 @@
 			flex-grow: 0 !important;
 			max-width: calc(25% - 3px);
 		}
+
+		/* Cacher les boutons par défaut sur mobile (pas de hover) */
+		.download-btn,
+		.delete-btn,
+		.favorite-btn:not(.active) {
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		/* Afficher les boutons après appui long */
+		.photo-card.mobile-actions-visible .download-btn,
+		.photo-card.mobile-actions-visible .delete-btn,
+		.photo-card.mobile-actions-visible .favorite-btn {
+			opacity: 1;
+			pointer-events: auto;
+		}
+
+		/* Favoris actifs toujours visibles sur mobile */
+		.favorite-btn.active {
+			opacity: 1;
+			pointer-events: auto;
+		}
+	}
+
+	/* Overlay pour fermer les actions mobiles */
+	.mobile-actions-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 4;
+		background: transparent;
 	}
 
 	@media (max-width: 480px) {
