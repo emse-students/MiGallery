@@ -269,7 +269,8 @@ export const API_ENDPOINTS = [
 
 	{
 		group: 'External uploads (PortailEtu)',
-		description: 'Endpoints pour intégration PortailEtu (protégés par x-api-key)',
+		description:
+			'Endpoints pour intégration PortailEtu (protégés par x-api-key). CORS activé pour requêtes cross-origin.',
 		items: [
 			{
 				method: 'POST',
@@ -278,7 +279,7 @@ export const API_ENDPOINTS = [
 				exampleCurl:
 					'curl -X POST -H "x-api-key: YOUR_KEY" -F \'file=@photo.jpg\' http://localhost:5173/api/external/media',
 				notes:
-					"Upload multipart/form-data vers Immich, puis ajoute automatiquement à l'album système PortailEtu",
+					"Upload multipart/form-data vers Immich, puis ajoute automatiquement à l'album système PortailEtu. CORS activé pour requêtes cross-origin (curl, navigateur, etc.)",
 				requiredScopes: ['write'],
 				noteAuth: 'Requiert header x-api-key avec scope "write"'
 			},
