@@ -14,6 +14,10 @@ const config = {
 		adapter: adapter(),
 		prerender: {
 			handleHttpError: 'warn'
+		},
+		// Configuration CSRF : désactiver pour les routes /api/external/* qui utilisent x-api-key
+		csrf: {
+			checkOrigin: true // Actif par défaut, mais on va l'overrider au niveau des routes
 		}
 	},
 	compilerOptions: {
