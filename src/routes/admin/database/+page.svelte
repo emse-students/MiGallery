@@ -389,8 +389,24 @@
 
   <!-- Modal de confirmation pour réparation -->
   {#if showRepairModal}
-    <div class="modal-overlay" onclick={() => (showRepairModal = false)}>
-      <div class="modal" onclick={(e) => e.stopPropagation()}>
+    <div
+      class="modal-overlay"
+      role="button"
+      tabindex="0"
+      onclick={() => (showRepairModal = false)}
+      onkeydown={(e) => (e.key === 'Escape' || e.key === 'Enter') && (showRepairModal = false)}
+    >
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => {
+          e.stopPropagation();
+          if (e.key === 'Escape') showRepairModal = false;
+        }}
+      >
         <h2>🔧 Réparer la base de données ?</h2>
         <p>
           Ceci va créer les tables manquantes dans votre base de données. Aucune donnée existante ne
