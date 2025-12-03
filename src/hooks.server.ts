@@ -112,11 +112,6 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 			'Content-Type, x-api-key, X-API-KEY, Authorization'
 		);
 		response.headers.set('Access-Control-Allow-Credentials', 'true');
-
-		// DEBUG: Comprendre le comportement CORS/CSRF
-		response.headers.set('X-Debug-Request-Origin', origin || 'null');
-		response.headers.set('X-Debug-Url-Origin', url.origin);
-		response.headers.set('X-Debug-Is-Exempt', isApiExternalRoute.toString());
 	}
 
 	return response;
