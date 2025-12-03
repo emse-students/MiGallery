@@ -270,18 +270,21 @@ export const API_ENDPOINTS = [
 	{
 		group: 'External uploads (PortailEtu)',
 		description:
-			'Endpoints pour intégration PortailEtu (protégés par x-api-key). CORS activé pour requêtes cross-origin.',
+			'Endpoints pour intégration PortailEtu (protégés par x-api-key). CORS et bypass CSRF activés pour requêtes cross-origin depuis domaines autorisés.',
 		items: [
 			{
 				method: 'POST',
 				path: '/api/external/media',
 				summary: "Uploader des médias vers l'album PortailEtu",
 				exampleCurl:
-					'curl -X POST -H "x-api-key: YOUR_KEY" -F \'file=@photo.jpg\' http://localhost:5173/api/external/media',
+					'curl -X POST -H "x-api-key: YOUR_KEY" -H "Origin: https://your-domain.fr" -F \'file=@photo.jpg\' https://gallery.mitv.fr/api/external/media',
 				notes:
-					"Upload multipart/form-data vers Immich, puis ajoute automatiquement à l'album système PortailEtu. CORS activé pour requêtes cross-origin (curl, navigateur, etc.)",
+					"Upload multipart/form-data vers Immich, puis ajoute automatiquement à l'album système PortailEtu.\n\n" +
+					'**CORS & CSRF:** Ces routes bypassent la vérification CSRF de SvelteKit pour autoriser les requêtes cross-origin (curl, navigateurs, Postman, etc.). ' +
+					"Cela est sécurisé car l'authentification se fait via x-api-key (pas cookies). Les origines autorisées sont configurées dans hooks.server.ts.\n\n" +
+					"**Important pour curl/scripts:** Ajoutez l'en-tête `Origin` pointant vers votre domaine ou `https://gallery.mitv.fr` pour que la requête soit acceptée.",
 				requiredScopes: ['write'],
-				noteAuth: 'Requiert header x-api-key avec scope "write"'
+				noteAuth: 'Requiert header x-api-key avec scope "write" et `Origin` matching domaine autorisé.'
 			},
 			{
 				method: 'GET',
