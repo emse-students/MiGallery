@@ -99,6 +99,9 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 				value: modifiedRequest,
 				writable: false
 			});
+
+			// @ts-expect-error - Ajout d'une propriété de debug
+			event.locals.debugRewritten = true;
 		} else if (origin !== url.origin) {
 			// Si l'origine n'est PAS autorisée, on la réécrit quand même pour éviter l'erreur CSRF
 			// mais on vérifierons l'autorisation après (dans la route handler)
@@ -117,6 +120,9 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 				value: modifiedRequest,
 				writable: false
 			});
+
+			// @ts-expect-error - Ajout d'une propriété de debug
+			event.locals.debugRewritten = true;
 		}
 	}
 
@@ -137,6 +143,15 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 			'Content-Type, x-api-key, X-API-KEY, Authorization'
 		);
 		response.headers.set('Access-Control-Allow-Credentials', 'true');
+
+		// DEBUG: Comprendre pourquoi le CSRF échoue
+		response.headers.set('X-Debug-Request-Origin', origin || 'null');
+		response.headers.set('X-Debug-Url-Origin', url.origin);
+		response.headers.set('X-Debug-Is-Exempt', isApiExternalRoute.toString());
+		// @ts-expect-error - Lecture de la propriété de debug
+		if (event.locals.debugRewritten) {
+			response.headers.set('X-Debug-Rewritten', 'true');
+		}
 	}
 
 	return response;
