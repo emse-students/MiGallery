@@ -13,6 +13,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * POST /api/external/media
  * - Upload multipart/form-data to Immich, add uploaded asset(s) to PortailEtu album
  * - Header: x-api-key: <key> (requires 'write' scope)
+ * - Form field: file (binary file data)
  * Returns: { success: true, assetIds: string[] }
  */
 export const POST: RequestHandler = async ({ request, fetch }) => {
@@ -26,34 +27,43 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
 
-	// Forward the multipart body to Immich upload endpoint
-	const contentType = request.headers.get('content-type') || '';
-	let body: BodyInit | undefined;
+	// Parse the multipart form data
+	let formData: FormData;
 	try {
-		if (contentType.includes('multipart/form-data')) {
-			body = await request.arrayBuffer();
-		} else {
-			// accept raw body as text/json
-			body = await request.text();
-		}
+		formData = await request.formData();
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error('Failed to read request body for external upload', e);
-		throw error(400, 'Invalid request body');
+		console.error('Failed to parse form data for external upload', e);
+		throw error(400, 'Invalid multipart form data');
 	}
 
-	const outgoingHeaders: Record<string, string> = {
-		'x-api-key': IMMICH_API_KEY || '',
-		accept: 'application/json'
-	};
-	if (contentType) {
-		outgoingHeaders['content-type'] = contentType;
+	// Extract the file from the form
+	const file = formData.get('file');
+	if (!file || !(file instanceof File)) {
+		throw error(400, 'Missing or invalid "file" field in multipart form data');
 	}
+
+	// Create new FormData for Immich with required fields
+	const immichFormData = new FormData();
+	immichFormData.append('assetData', file);
+
+	// Immich requires these metadata fields
+	const now = new Date().toISOString();
+	const deviceId = 'external-api'; // Generic device ID for external uploads
+	const deviceAssetId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`; // Unique ID
+
+	immichFormData.append('deviceId', deviceId);
+	immichFormData.append('deviceAssetId', deviceAssetId);
+	immichFormData.append('fileCreatedAt', now);
+	immichFormData.append('fileModifiedAt', now);
+	immichFormData.append('isFavorite', 'false');
 
 	const uploadRes = await fetch(`${IMMICH_BASE_URL}/api/assets`, {
 		method: 'POST',
-		headers: outgoingHeaders,
-		body
+		headers: {
+			'x-api-key': IMMICH_API_KEY || ''
+		},
+		body: immichFormData
 	});
 
 	if (!uploadRes.ok) {
