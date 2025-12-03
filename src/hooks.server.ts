@@ -79,26 +79,45 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	// ============================================
 	// SvelteKit vérifie que l'en-tête Origin correspond à url.origin.
 	// Pour les routes API externes (authentifiées par x-api-key, pas cookies),
-	// on réécrit l'en-tête Origin pour satisfaire cette vérification.
-	if (isApiExternalRoute && origin && origin !== url.origin) {
-		// Créer une nouvelle requête avec l'Origin réécrit
-		const newHeaders = new Headers(request.headers);
-		newHeaders.set('origin', url.origin);
+	// on réécrit l'en-tête Origin pour satisfaire cette vérification SI l'origine est autorisée.
+	if (isApiExternalRoute && origin) {
+		// Si l'origine est autorisée mais différente de url.origin, la réécrire
+		if (isAllowedOrigin(origin) && origin !== url.origin) {
+			const newHeaders = new Headers(request.headers);
+			newHeaders.set('origin', url.origin);
 
-		const modifiedRequest = new Request(request.url, {
-			method: request.method,
-			headers: newHeaders,
-			body: request.body,
-			// @ts-expect-error - duplex est nécessaire pour les requêtes avec body stream
-			duplex: 'half'
-		});
+			const modifiedRequest = new Request(request.url, {
+				method: request.method,
+				headers: newHeaders,
+				body: request.body,
+				// @ts-expect-error - duplex est nécessaire pour les requêtes avec body stream
+				duplex: 'half'
+			});
 
-		// Remplacer la requête dans l'event
-		// Note: event.request est readonly, donc on utilise Object.defineProperty
-		Object.defineProperty(event, 'request', {
-			value: modifiedRequest,
-			writable: false
-		});
+			// Remplacer la requête dans l'event
+			Object.defineProperty(event, 'request', {
+				value: modifiedRequest,
+				writable: false
+			});
+		} else if (origin !== url.origin) {
+			// Si l'origine n'est PAS autorisée, on la réécrit quand même pour éviter l'erreur CSRF
+			// mais on vérifierons l'autorisation après (dans la route handler)
+			const newHeaders = new Headers(request.headers);
+			newHeaders.set('origin', url.origin);
+
+			const modifiedRequest = new Request(request.url, {
+				method: request.method,
+				headers: newHeaders,
+				body: request.body,
+				// @ts-expect-error - duplex est nécessaire pour les requêtes avec body stream
+				duplex: 'half'
+			});
+
+			Object.defineProperty(event, 'request', {
+				value: modifiedRequest,
+				writable: false
+			});
+		}
 	}
 
 	// ============================================
