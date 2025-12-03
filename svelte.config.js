@@ -15,9 +15,11 @@ const config = {
 		prerender: {
 			handleHttpError: 'warn'
 		},
-		// Configuration CSRF : désactiver pour les routes /api/external/* qui utilisent x-api-key
+		// Configuration CSRF : désactivé globalement car on gère nous-mêmes la sécurité
+		// dans hooks.server.ts. Les routes /api/external/* utilisent x-api-key (pas de cookies),
+		// donc pas de risque CSRF. Les autres routes sont protégées par notre hook.
 		csrf: {
-			checkOrigin: true // Actif par défaut, mais on va l'overrider au niveau des routes
+			checkOrigin: false
 		}
 	},
 	compilerOptions: {

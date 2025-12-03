@@ -43,24 +43,26 @@ function isAllowedOrigin(origin: string | null): boolean {
 }
 
 /**
- * Hook principal pour gérer CORS et contourner CSRF pour les routes API externes.
+ * Hook principal pour gérer CORS et la sécurité CSRF.
  *
  * STRATÉGIE :
- * 1. Pour les requêtes OPTIONS (preflight CORS) : répondre immédiatement avec les headers CORS.
- * 2. Pour les routes /api/external/* : réécrire l'en-tête Origin pour satisfaire la vérification
- *    CSRF native de SvelteKit (qui compare Origin avec l'URL du serveur).
- * 3. Ajouter les headers CORS à toutes les réponses des routes API.
+ * - La vérification CSRF native de SvelteKit est DÉSACTIVÉE (svelte.config.js).
+ * - Ce hook implémente une vérification CSRF personnalisée :
+ *   1. Routes /api/external/* : Exemptées (authentifiées par x-api-key, pas cookies).
+ *   2. Autres routes avec mutation (POST, PUT, DELETE, PATCH) : Vérifier que l'Origin correspond.
+ * - Gère aussi les réponses CORS pour toutes les routes API.
  */
 const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	const { request, url } = event;
 	const origin = request.headers.get('origin');
 	const pathname = url.pathname;
 	const isApiExternalRoute = isCsrfExemptPath(pathname);
+	const method = request.method;
 
 	// ============================================
 	// 1. Gestion des requêtes OPTIONS (preflight)
 	// ============================================
-	if (request.method === 'OPTIONS') {
+	if (method === 'OPTIONS') {
 		const corsOrigin = isAllowedOrigin(origin) ? origin || '*' : 'null';
 		return new Response(null, {
 			status: 204,
@@ -75,54 +77,21 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	}
 
 	// ============================================
-	// 2. Contournement CSRF pour /api/external/*
+	// 2. Vérification CSRF pour les routes NON exemptées
 	// ============================================
-	// SvelteKit vérifie que l'en-tête Origin correspond à url.origin.
-	// Pour les routes API externes (authentifiées par x-api-key, pas cookies),
-	// on réécrit l'en-tête Origin pour satisfaire cette vérification SI l'origine est autorisée.
-	if (isApiExternalRoute && origin) {
-		// Si l'origine est autorisée mais différente de url.origin, la réécrire
-		if (isAllowedOrigin(origin) && origin !== url.origin) {
-			const newHeaders = new Headers(request.headers);
-			newHeaders.set('origin', url.origin);
+	// Pour les méthodes qui modifient des données, on vérifie que l'Origin correspond
+	// (sauf pour les routes /api/external/* qui utilisent x-api-key)
+	const isMutatingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
-			const modifiedRequest = new Request(request.url, {
-				method: request.method,
-				headers: newHeaders,
-				body: request.body,
-				// @ts-expect-error - duplex est nécessaire pour les requêtes avec body stream
-				duplex: 'half'
+	if (isMutatingMethod && !isApiExternalRoute && origin) {
+		// L'origine doit correspondre exactement à l'URL du serveur
+		if (origin !== url.origin) {
+			return new Response('Cross-site POST form submissions are forbidden', {
+				status: 403,
+				headers: {
+					'Content-Type': 'text/plain'
+				}
 			});
-
-			// Remplacer la requête dans l'event
-			Object.defineProperty(event, 'request', {
-				value: modifiedRequest,
-				writable: false
-			});
-
-			// @ts-expect-error - Ajout d'une propriété de debug
-			event.locals.debugRewritten = true;
-		} else if (origin !== url.origin) {
-			// Si l'origine n'est PAS autorisée, on la réécrit quand même pour éviter l'erreur CSRF
-			// mais on vérifierons l'autorisation après (dans la route handler)
-			const newHeaders = new Headers(request.headers);
-			newHeaders.set('origin', url.origin);
-
-			const modifiedRequest = new Request(request.url, {
-				method: request.method,
-				headers: newHeaders,
-				body: request.body,
-				// @ts-expect-error - duplex est nécessaire pour les requêtes avec body stream
-				duplex: 'half'
-			});
-
-			Object.defineProperty(event, 'request', {
-				value: modifiedRequest,
-				writable: false
-			});
-
-			// @ts-expect-error - Ajout d'une propriété de debug
-			event.locals.debugRewritten = true;
 		}
 	}
 
@@ -144,14 +113,10 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 		);
 		response.headers.set('Access-Control-Allow-Credentials', 'true');
 
-		// DEBUG: Comprendre pourquoi le CSRF échoue
+		// DEBUG: Comprendre le comportement CORS/CSRF
 		response.headers.set('X-Debug-Request-Origin', origin || 'null');
 		response.headers.set('X-Debug-Url-Origin', url.origin);
 		response.headers.set('X-Debug-Is-Exempt', isApiExternalRoute.toString());
-		// @ts-expect-error - Lecture de la propriété de debug
-		if (event.locals.debugRewritten) {
-			response.headers.set('X-Debug-Rewritten', 'true');
-		}
 	}
 
 	return response;
