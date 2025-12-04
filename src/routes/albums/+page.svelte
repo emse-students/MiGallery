@@ -306,31 +306,33 @@
 							</div>
 						</div>
 					</a>
-					<button
-						onclick={(e) => { e.preventDefault(); downloadAlbumAssets(a.id, a.name); }}
-						disabled={downloadingAlbumId === a.id}
-						title="Télécharger toutes les images"
-						class="btn-icon album-download"
-					>
-						{#if downloadingAlbumId === a.id}
-							{#if typeof downloadingProgress[a.id] === 'number' && downloadingProgress[a.id] >= 0}
-								{Math.round(downloadingProgress[a.id] * 100)}%
-							{:else}
-								<Spinner size={16} />
-							{/if}
-						{:else}
-							<Icon name="download" size={16} />
-						{/if}
-					</button>
-					{#if canCreateAlbum}
+					<div class="album-actions">
 						<button
-							onclick={(e) => { e.preventDefault(); deleteAlbum(a.id, a.name); }}
-							title="Supprimer l'album"
-							class="btn-icon album-delete"
+							onclick={(e) => { e.preventDefault(); downloadAlbumAssets(a.id, a.name); }}
+							disabled={downloadingAlbumId === a.id}
+							title="Télécharger toutes les images"
+							class="btn-icon album-download"
 						>
-							<Icon name="trash" size={16} />
+							{#if downloadingAlbumId === a.id}
+								{#if typeof downloadingProgress[a.id] === 'number' && downloadingProgress[a.id] >= 0}
+									{Math.round(downloadingProgress[a.id] * 100)}%
+								{:else}
+									<Spinner size={16} />
+								{/if}
+							{:else}
+								<Icon name="download" size={16} />
+							{/if}
 						</button>
-					{/if}
+						{#if canCreateAlbum}
+							<button
+								onclick={(e) => { e.preventDefault(); deleteAlbum(a.id, a.name); }}
+								title="Supprimer l'album"
+								class="btn-icon album-delete"
+							>
+								<Icon name="trash" size={16} />
+							</button>
+						{/if}
+					</div>
 					</li>
 				{/each}
 			</ul>
@@ -411,7 +413,7 @@
 
 	.album-delete {
 		position: absolute;
-		bottom: 0.75rem;
+		top: 3rem;
 		right: 0.75rem;
 		z-index: 10;
 		background: rgba(220, 38, 38, 0.9) !important;
@@ -423,9 +425,12 @@
 		opacity: 1;
 	}
 
-	.album-delete:hover {
-		background: rgba(220, 38, 38, 1) !important;
-		transform: scale(1.1);
+	.album-details {
+		position: sticky;
+		border: 1px;
+		background: rgba(124, 123, 123, 0.82);
+		border-radius: 15px;
+		padding: 0px 5px;
 	}
 
 	.album-item.album-hidden {
@@ -444,4 +449,29 @@
 			justify-content: center;
 		}
 	}
+
+	@media (max-width: 768px) {
+		.album-download {
+			opacity: 0;
+			padding: 0.5rem;
+			top: 0.25rem;
+			right: 0.25rem;
+			bottom: auto;
+		}
+
+		.album-delete {
+			opacity: 0;
+			padding: 0.5rem;
+			top: 2.25rem;
+			right: 0.25rem;
+			bottom: auto;
+		}
+
+		.album-download :global(svg),
+		.album-delete :global(svg) {
+			width: 12px !important;
+			height: 12px !important;
+		}
+	}
+
 </style>

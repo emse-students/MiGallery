@@ -1324,17 +1324,19 @@
 		color: inherit;
 		position: relative;
 		border-radius: inherit;
+		padding: 6px;
+		box-sizing: border-box;
 		overflow: hidden;
 	}
 
 	.album-cover {
 		width: 100%;
 		height: 100%;
-		border-radius: var(--radius-lg);
+		border-radius: calc(var(--radius-lg) - 6px);
 	}
 
 	.album-cover :global(.lazy-image-container) {
-		border-radius: var(--radius-lg);
+		border-radius: calc(var(--radius-lg) - 6px);
 	}
 
 	.album-cover-placeholder {

@@ -5,18 +5,17 @@
   import Icon from '$lib/components/Icon.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import EditAlbumModal from '$lib/components/EditAlbumModal.svelte';
+  import ConfirmModal from '$lib/components/ConfirmModal.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
-  import AlbumModal from '$lib/components/AlbumModal.svelte';
-  import Modal from '$lib/components/Modal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
-  import { toast } from '$lib/toast';
-  import { showConfirm } from '$lib/confirm';
-  import { handleAlbumUpload } from '$lib/album-operations';
-  import { fetchArchive, saveBlobAs } from '$lib/immich/download';
-  import type { User, Album } from '$lib/types/api';
+  import { consumeNDJSONStream } from '$lib/streaming';
+  import { clientCache } from '$lib/client-cache';
 
+  let loading = $state(false);
+  let error = $state<string | null>(null);
   let title = $state('');
-  let showAlbumModal = $state(false);
+  let showEditAlbumModal = $state(false);
 
   // État du modal de confirmation
   let showConfirmModal = $state(false);
@@ -28,18 +27,97 @@
   } | null>(null);
 
   // Vérifier le rôle de l'utilisateur
-  let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
+  let userRole = $derived(($page.data.session?.user as any)?.role || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
-  // PhotosState pour gérer les photos de l'album - instancier directement
-  const photosState = new PhotosState();
+  // PhotosState pour gérer les photos de l'album
+  let photosState = new PhotosState();
+
+  // Debug: afficher le rôle dans la console
+  $effect(() => {
+    console.log('User role:', userRole, 'Can manage:', canManagePhotos, 'Full user:', $page.data.session?.user);
+  });
+
+  async function fetchAlbum(immichId: string | null, localAlbumName?: string) {
+    photosState.loading = true;
+    photosState.error = null;
+    title = '';
+    photosState.assets = [];
+
+    try {
+      if (!immichId) {
+        photosState.error = 'Album non lié à Immich (aucun id Immich)';
+        return;
+      }
+
+      // Afficher immédiatement le titre
+      title = localAlbumName || 'Album';
+
+      // Essayer de charger depuis le cache
+      const cachedAssets = await clientCache.get<any[]>('albums', `${immichId}-assets`);
+      if (cachedAssets && cachedAssets.length > 0) {
+        photosState.assets = cachedAssets;
+        photosState.loading = false;
+      }
+
+      // Utiliser le streaming pour charger progressivement les assets
+      const res = await fetch(`/api/albums/${immichId}/assets-stream`);
+
+      const assetsMap = new Map<string, any>();
+
+      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: any }>(
+        res,
+        ({ phase, asset }) => {
+          if (phase === 'minimal') {
+            // Phase 1: Installer les skeletons avec dimensions
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: null,
+              exifInfo: asset.width && asset.height ? {
+                exifImageWidth: asset.width,
+                exifImageHeight: asset.height
+              } : null
+            });
+
+            // Dès qu'on reçoit la première photo, masquer le "Chargement"
+            if (assetsMap.size === 1) {
+              photosState.loading = false;
+            }
+          } else if (phase === 'full') {
+            // Phase 2: Enrichir avec les données complètes
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileModifiedAt || asset.createdAt || null
+            });
+
+            // Mettre à jour le titre si disponible
+            if (asset.albumName) {
+              title = asset.albumName;
+            }
+          }
+
+          // Mettre à jour la liste affichée
+          photosState.assets = Array.from(assetsMap.values());
+        }
+      );
+
+      // Stocker en cache les assets finaux
+      await clientCache.set('albums', `${immichId}-assets`, photosState.assets);
+
+      photosState.loading = false;
+    } catch (e) {
+      photosState.error = (e as Error).message;
+      photosState.loading = false;
+    }
+  }
+
+  import { fetchArchive, saveBlobAs } from '$lib/immich/download';
 
   async function downloadAll() {
-    const ok = await showConfirm(`Télécharger ${photosState.assets.length} image(s) de cet album au format ZIP ?`, 'Télécharger');
-    if (!ok) return;
+    if (!confirm(`Télécharger ${photosState.assets.length} image(s) de cet album au format ZIP ?`)) return;
 
     if (photosState.currentDownloadController) {
-      try { photosState.currentDownloadController.abort(); } catch (e: unknown) {}
+      try { photosState.currentDownloadController.abort(); } catch (e) {}
       photosState.currentDownloadController = null;
     }
 
@@ -49,17 +127,17 @@
     photosState.downloadProgress = 0;
 
     try {
-      const assetIds = photosState.assets.map((a) => a.id);
+      const assetIds = photosState.assets.map(a => a.id);
       const blob = await fetchArchive(assetIds, {
         onProgress: (p) => { photosState.downloadProgress = p; },
         signal: controller.signal,
       });
       saveBlobAs(blob, `${title || 'album'}.zip`);
-    } catch (e: unknown) {
-      if (e instanceof Error && e.name === 'AbortError') {
+    } catch (e) {
+      if ((e as any)?.name === 'AbortError') {
         console.info('Téléchargement annulé');
       } else {
-        toast.error('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
+        alert('Erreur lors du téléchargement en ZIP: ' + (e as Error).message);
       }
     } finally {
       photosState.isDownloading = false;
@@ -88,10 +166,9 @@
           }
 
           // Retirer l'asset de la liste locale
-          photosState.assets = photosState.assets.filter((a) => a.id !== assetId);
-          toast.success('Photo supprimée');
-        } catch (e: unknown) {
-          toast.error('Erreur lors de la suppression: ' + (e as Error).message);
+          photosState.assets = photosState.assets.filter(a => a.id !== assetId);
+        } catch (e) {
+          alert('Erreur lors de la suppression: ' + (e as Error).message);
         }
       }
     };
@@ -99,11 +176,7 @@
   }
 
   async function deleteAlbum() {
-    const albumId = window.location.pathname.split('/')[2];
-    if (!albumId) {
-      toast.error('Album ID manquant');
-      return;
-    }
+    const albumId = $page.params.id as string;
     const albumName = title || albumId;
 
     confirmModalConfig = {
@@ -113,6 +186,7 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
+          // Supprimer via le nouvel endpoint optimisé
           const res = await fetch(`/api/albums/${albumId}`, {
             method: 'DELETE'
           });
@@ -122,36 +196,52 @@
             throw new Error(errText || 'Erreur lors de la suppression de l\'album');
           }
 
-          toast.success('Album supprimé');
+          // Supprimer de la BDD locale
+          await fetch('/api/db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sql: 'DELETE FROM albums WHERE id = ?',
+              params: [albumId]
+            })
+          });
+
           // Rediriger vers la liste des albums
           goto('/albums');
-        } catch (e: unknown) {
-          toast.error('Erreur lors de la suppression: ' + (e as Error).message);
+        } catch (e) {
+          alert('Erreur lors de la suppression: ' + (e as Error).message);
         }
       }
     };
     showConfirmModal = true;
   }
 
-  async function shareAlbum() {
-    try {
-      const url = window.location.href;
-      if ((navigator as any).share) {
-        await (navigator as any).share({ title: title || 'Album', url });
-        toast.success('Album partagé');
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(url);
-        toast.success('Lien copié dans le presse-papiers');
-      } else {
-        // Fallback: show the URL so the user can copy it
-        // eslint-disable-next-line no-alert
-        window.prompt('Copiez ce lien pour partager l\'album', url);
-      }
-    } catch (e: unknown) {
-      toast.error('Impossible de partager: ' + ((e as Error)?.message ?? String(e)));
-    }
-  }
+  async function handleUpload(files: File[]) {
+    if (files.length === 0) return;
 
+    const albumId = $page.params.id as string;
+
+    try {
+      // 1. Uploader les fichiers vers Immich
+      const formData = new FormData();
+
+      // Ajouter chaque fichier au FormData
+      files.forEach((file) => {
+        formData.append('assetData', file);
+      });
+
+      // Upload via l'API Immich
+      const uploadRes = await fetch('/api/immich/assets', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text().catch(() => uploadRes.statusText);
+        throw new Error(`Erreur upload: ${errText}`);
+      }
+
+<<<<<<< Updated upstream
   async function handleUpload(
     files: File[],
     onProgress?: (current: number, total: number) => void,
@@ -175,111 +265,80 @@
         const visibility = String(($page.data as { album?: Album }).album?.visibility ?? '');
         if (immichId) {
           await photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined);
+=======
+      const uploadResult = await uploadRes.json();
+
+      // uploadResult peut être un objet avec { results: [...] } ou directement un tableau
+      const uploadedAssets = uploadResult.results || uploadResult;
+
+      if (!Array.isArray(uploadedAssets)) {
+        throw new Error('Format de réponse inattendu de l\'API Immich');
+      }
+
+      // 2. Ajouter les assets uploadés à l'album
+      const assetIds = uploadedAssets
+        .filter((asset: any) => asset.id || asset.assetId)
+        .map((asset: any) => asset.id || asset.assetId);
+
+      if (assetIds.length > 0) {
+        const addRes = await fetch(`/api/albums/${albumId}/assets`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: assetIds })
+        });
+
+        if (!addRes.ok) {
+          const errText = await addRes.text().catch(() => addRes.statusText);
+          throw new Error(`Erreur ajout à l'album: ${errText}`);
+>>>>>>> Stashed changes
         }
       }
-    });
 
-    return results || [];
+      // 3. Recharger l'album pour afficher les nouvelles photos
+      const res = await fetch(`/api/albums/${albumId}`);
+      if (res.ok) {
+        const data = await res.json();
+        photosState.assets = (data.assets || []).map((a: any) => ({
+          ...a,
+          date: a.fileModifiedAt || a.createdAt || null
+        }));
+      }
+
+      alert(`${files.length} fichier(s) uploadé(s) et ajouté(s) à l'album avec succès !`);
+    } catch (e) {
+      console.error('Upload error:', e);
+      alert('Erreur lors de l\'upload: ' + (e as Error).message);
+    }
   }
 
-  // Temporairement commenté
-
   import { onDestroy } from 'svelte';
-
   onDestroy(() => {
     if (photosState.currentDownloadController) {
-      try { photosState.currentDownloadController.abort(); } catch (e: unknown) {}
+      try { photosState.currentDownloadController.abort(); } catch (e) {}
       photosState.currentDownloadController = null;
     }
   });
 
-  let visibility = $state('');
-
   $effect(() => {
-    const id = String($page.params.id ?? '');
-    const album = ($page.data as { album?: Album }).album;
-    const immichId = String(album?.id ?? '');
-    const name = String(album?.name ?? '').trim();
-      if (id && immichId) {
-      title = name || 'Album';
-      visibility = String(album?.visibility ?? '');
-      photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined);
+    const id = $page.params.id as string | undefined;
+    const album = ($page.data as any)?.album;
+    const immichId = album?.id ?? null;
+    if (id) {
+      fetchAlbum(immichId, album?.name || undefined);
     }
   });
-
-  let albumLocalId = String($page.params.id ?? '');
 </script>
 
 <svelte:head>
   <title>{title || 'Album'} - MiGallery</title>
 </svelte:head>
 
-{#snippet actionButtons(mobile = false)}
-  {#if canManagePhotos && photosState.assets.length > 0}
-    <button
-      onclick={() => (photosState.selecting = !photosState.selecting)}
-      class="action-btn {photosState.selecting ? 'active' : 'primary'}"
-      title={photosState.selecting ? 'Annuler la sélection' : 'Sélectionner des photos'}
-    >
-      <Icon name={photosState.selecting ? 'x' : 'check-square'} size={mobile ? 20 : 16} />
-      <span class="btn-label">{photosState.selecting ? 'Annuler' : 'Sélect.'}</span>
-    </button>
-  {/if}
-
-  {#if canManagePhotos}
-    <button
-      onclick={() => showAlbumModal = true}
-      class="action-btn edit"
-      title="Modifier l'album"
-    >
-      <Icon name="edit" size={mobile ? 20 : 16} />
-      <span class="btn-label">{mobile ? 'Modifier' : 'Modifier l\'album'}</span>
-    </button>
-    <button
-      onclick={() => deleteAlbum()}
-      class="action-btn delete"
-      title="Supprimer l'album"
-    >
-      <Icon name="trash" size={mobile ? 20 : 16} />
-      <span class="btn-label">{mobile ? 'Suppr.' : 'Supprimer l\'album'}</span>
-    </button>
-  {/if}
-
-  <button
-    onclick={() => shareAlbum()}
-    class="action-btn share"
-    title="Partager l'album"
-  >
-    <Icon name="share" size={mobile ? 20 : 16} />
-    <span class="btn-label">Partager</span>
-  </button>
-
-  <button
-    onclick={() => downloadAll()}
-    disabled={photosState.isDownloading}
-    class="action-btn download"
-    title="Télécharger tout"
-  >
-    {#if photosState.isDownloading}
-      {#if photosState.downloadProgress >= 0}
-        <Icon name="download" size={mobile ? 20 : 16} />
-        <span class="btn-label">{Math.round(photosState.downloadProgress * 100)}%</span>
-      {:else}
-        <Spinner size={mobile ? 20 : 18} />
-        <span class="btn-label">...</span>
-      {/if}
-    {:else}
-      <Icon name="download" size={mobile ? 20 : 16} />
-      <span class="btn-label">{mobile ? 'Téléch.' : 'Télécharger tout'}</span>
-    {/if}
-  </button>
-{/snippet}
-
 <main class="album-detail">
   <div class="page-background"></div>
 
-  <nav class="top-nav"><a href="/albums"><Icon name="chevron-left" size={16} /> Retour aux albums</a></nav>
+  <nav><a href="/albums"><Icon name="chevron-left" size={16} /> Retour aux albums</a></nav>
 
+<<<<<<< Updated upstream
   <div class="header-container">
     <div class="header-content">
       <h1 class="m-0">{title || 'Album'}</h1>
@@ -294,82 +353,107 @@
     <!-- Desktop Actions -->
     <div class="desktop-actions">
       {@render actionButtons(false)}
+=======
+  <div class="flex items-center gap-3 justify-between">
+    <h1 class="m-0">{title || 'Album'}</h1>
+    <div class="flex gap-2">
+      {#if canManagePhotos && photosState.assets.length > 0}
+        <button onclick={() => (photosState.selecting = !photosState.selecting)} class="px-3 py-2 rounded-lg {photosState.selecting ? 'bg-gray-600 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-700'} text-white border-0 cursor-pointer flex items-center gap-2">
+          <Icon name={photosState.selecting ? 'x' : 'check-square'} size={16} />
+          {photosState.selecting ? 'Annuler' : 'Sélectionner'}
+        </button>
+      {/if}
+      {#if canManagePhotos}
+        <button onclick={() => showEditAlbumModal = true} class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white border-0 cursor-pointer flex items-center gap-2">
+          <Icon name="edit" size={16} />
+          Modifier l'album
+        </button>
+        <button onclick={() => deleteAlbum()} class="btn-delete-album px-3 py-2 rounded-lg text-white border-0 cursor-pointer flex items-center gap-2">
+          <Icon name="trash" size={16} />
+          Supprimer l'album
+        </button>
+      {/if}
+      <button onclick={() => downloadAll()} disabled={photosState.isDownloading} class="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white border-0 cursor-pointer">
+        {#if photosState.isDownloading}
+          {#if photosState.downloadProgress >= 0}
+            <Icon name="download" size={16} />
+            {Math.round(photosState.downloadProgress * 100)}%
+          {:else}
+            <Spinner size={18} />
+            Téléchargement...
+          {/if}
+        {:else}
+          <Icon name="download" size={16} />
+          Télécharger tout
+        {/if}
+      </button>
+>>>>>>> Stashed changes
     </div>
   </div>
 
   {#if photosState.error}
-      <div class="error"><Icon name="x-circle" size={20} /> Erreur: {photosState.error}</div>
-    {/if}
+    <div class="error"><Icon name="x-circle" size={20} /> Erreur: {photosState.error}</div>
+  {/if}
 
+  {#if photosState.loading}
+    <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
+  {/if}
+
+  {#if !photosState.loading && !photosState.error}
     {#if canManagePhotos}
       <div class="upload-section">
-        <h2>Ajouter des photos à cet album</h2>
+        <h2>Ajouter des photos à l'album</h2>
         <UploadZone onUpload={handleUpload} />
       </div>
     {/if}
+  {/if}
 
-    {#if photosState.loading}
-      <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
-    {/if}
+  {#if !photosState.loading && !photosState.error && photosState.assets.length === 0}
+    <div class="empty-state">
+      <Icon name="image" size={48} />
+      <p>Aucune photo dans cet album</p>
+    </div>
+  {/if}
 
-    {#if !photosState.loading && !photosState.error && photosState.assets.length === 0}
-      <div class="empty-state">
-        <Icon name="image" size={48} />
-        <p>Aucune photo dans cet album</p>
-      </div>
-    {/if}
+  {#if photosState.assets.length > 0}
+    <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
+    <PhotosGrid state={photosState} />
+  {/if}
 
-    {#if photosState.assets.length > 0}
-      <!-- Utiliser PhotosGrid pour gérer toute la logique des photos -->
-      <PhotosGrid state={photosState} visibility={visibility} albumId={albumLocalId} onModalClose={(hasChanges) => {
-        if (!hasChanges) return;
-
-        // Recharger l'album depuis la source après fermeture du modal
-        const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
-        const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
-        if (immichId) {
-          const visibility = String(($page.data as { album?: Album }).album?.visibility ?? '');
-          photosState.loadAlbumWithStreaming(immichId, name || undefined, visibility || undefined).catch((e) => {
-            console.warn('Erreur reload album après fermeture modal:', e);
-          });
-        }
-      }} />
-    {/if}
-
-  {#if showAlbumModal && $page.params.id}
-    <AlbumModal
-      albumId={String($page.params.id)}
-      onClose={() => showAlbumModal = false}
-      onSuccess={() => window.location.reload()}
+  {#if showEditAlbumModal && $page.params.id}
+    <EditAlbumModal
+      albumId={$page.params.id}
+      onClose={() => showEditAlbumModal = false}
+      onAlbumUpdated={() => window.location.reload()}
     />
   {/if}
 
   {#if showConfirmModal && confirmModalConfig}
-    <Modal
-      bind:show={showConfirmModal}
+    <ConfirmModal
       title={confirmModalConfig.title}
-      type="confirm"
+      message={confirmModalConfig.message}
       confirmText={confirmModalConfig.confirmText}
       onConfirm={confirmModalConfig.onConfirm}
       onCancel={() => showConfirmModal = false}
-    >
-      {#snippet children()}
-        <p style="white-space: pre-wrap;">{confirmModalConfig!.message}</p>
-      {/snippet}
-    </Modal>
+    />
   {/if}
-
-  <!-- Mobile Bottom Bar -->
-  <div class="mobile-bottom-bar">
-    {@render actionButtons(true)}
-  </div>
 </main>
 
 <style>
   .album-detail {
     position: relative;
     min-height: 100vh;
-    padding-bottom: 80px; /* Space for bottom bar on mobile */
+  }
+
+  .upload-section {
+    margin: 2rem 0;
+  }
+
+  .upload-section h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary, #ffffff);
   }
 
   .page-background {
@@ -394,15 +478,15 @@
 
   .page-background::before {
     background: radial-gradient(circle, rgba(59, 130, 246, 0.5) 0%, transparent 70%);
-    top: -350px;
-    left: -350px;
+    top: -250px;
+    left: -250px;
     animation-delay: -6s;
   }
 
   .page-background::after {
     background: radial-gradient(circle, rgba(236, 72, 153, 0.4) 0%, transparent 70%);
-    top: 20%;
-    right: -350px;
+    bottom: -300px;
+    right: -250px;
     animation-delay: -12s;
   }
 
@@ -418,14 +502,12 @@
     }
   }
 
-  .header-container {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    justify-content: space-between;
-    margin-bottom: 1rem;
+  /* Styles pour les boutons de l'en-tête */
+  :global(.btn-delete-album) {
+    background: #dc2626 !important;
   }
 
+<<<<<<< Updated upstream
   .header-content {
     display: flex;
     flex-direction: column;
@@ -556,5 +638,9 @@
     .upload-section h2 {
       font-size: 1rem;
     }
+=======
+  :global(.btn-delete-album:hover:not(:disabled)) {
+    background: #b91c1c !important;
+>>>>>>> Stashed changes
   }
 </style>
