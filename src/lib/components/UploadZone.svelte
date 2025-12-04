@@ -38,7 +38,9 @@
   let fileStatuses = $state<UploadFileStatus[]>([]);
   let fileInputRef: HTMLInputElement;
   let globalProgress = $state(0); // Pourcentage global d'upload
-  let uploadedCount = $state(0); // Nombre total de fichiers uploadés (persistant)
+  let uploadedCount = $state(0); // Nombre total de fichiers uploadés avec succès (persistant)
+  let duplicateCountPersist = $state(0); // Nombre total de doublons (persistant)
+  let errorCountPersist = $state(0); // Nombre total d'erreurs (persistant)
 
   function handleDragOver(e: DragEvent) {
     try {
@@ -171,6 +173,7 @@
           if (result.isDuplicate) {
             fileStatuses[statusIndex].status = 'duplicate';
             fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
+            duplicateCountPersist = duplicateCountPersist + 1; // Incrémenter le compteur persistant
             // keep visible a bit longer
             setTimeout(() => {
               fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
@@ -178,7 +181,7 @@
           } else {
             fileStatuses[statusIndex].status = 'success';
             fileStatuses[statusIndex].progress = 100;
-            uploadedCount = uploadedCount + 1;
+            uploadedCount = uploadedCount + 1; // Incrémenter le compteur persistant
             // remove success after short delay
             setTimeout(() => {
               fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
@@ -200,6 +203,7 @@
           if (statusIndex >= 0) {
             fileStatuses[statusIndex].status = 'duplicate';
             fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
+            duplicateCountPersist = duplicateCountPersist + 1; // Incrémenter le compteur persistant
 
             // Laisser le message visible un peu plus longtemps pour que l'utilisateur le voie
             setTimeout(() => {
@@ -214,6 +218,7 @@
         if (fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending') {
           fileStatuses[i].status = 'error';
           fileStatuses[i].error = (e as Error).message;
+          errorCountPersist = errorCountPersist + 1; // Incrémenter le compteur persistant
         }
       }
     } finally {
@@ -248,8 +253,8 @@
   }
 
   const successCount = $derived(uploadedCount);
-  const errorCount = $derived(fileStatuses.filter((s) => s.status === 'error').length);
-  const duplicateCount = $derived(fileStatuses.filter((s) => s.status === 'duplicate').length);
+  const visibleErrorCount = $derived(fileStatuses.filter((s) => s.status === 'error').length);
+  const visibleDuplicateCount = $derived(fileStatuses.filter((s) => s.status === 'duplicate').length);
   const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
 </script>
 
@@ -292,16 +297,16 @@
             <span>{successCount} fichier{successCount > 1 ? 's' : ''} uploadé{successCount > 1 ? 's' : ''}</span>
           </div>
         {/if}
-        {#if errorCount > 0}
+        {#if errorCountPersist > 0}
           <div class="summary-item error">
             <Icon name="x-circle" size={24} />
-            <span>{errorCount} erreur{errorCount > 1 ? 's' : ''}</span>
+            <span>{errorCountPersist} erreur{errorCountPersist > 1 ? 's' : ''}</span>
           </div>
         {/if}
-        {#if duplicateCount > 0}
+        {#if duplicateCountPersist > 0}
           <div class="summary-item duplicate">
             <Icon name="alert-circle" size={24} />
-            <span>{duplicateCount} doublon{duplicateCount > 1 ? 's' : ''}</span>
+            <span>{duplicateCountPersist} doublon{duplicateCountPersist > 1 ? 's' : ''}</span>
           </div>
         {/if}
 
@@ -332,7 +337,7 @@
           {/each}
         </div>
 
-        {#if errorCount > 0}
+        {#if errorCountPersist > 0}
           <button class="btn-retry" onclick={(e) => { e.stopPropagation(); retryUpload(failedFiles); }}>
             <Icon name="refresh-cw" size={16} />
             Réessayer les uploads échoués

@@ -37,8 +37,6 @@ export async function handleAlbumUpload(
 
 	try {
 		// 1. Upload files one-by-one
-		const uploadedAssets: Array<{ id?: string; assetId?: string; duplicateId?: string }> = [];
-
 		for (let i = 0; i < files.length; i++) {
 			const file = files[i];
 
@@ -144,7 +142,6 @@ export async function handleAlbumUpload(
 			const isDup = !!assetData?.duplicateId;
 			const aid = assetData?.id || assetData?.assetId;
 			results.push({ file, isDuplicate: isDup, assetId: aid });
-			uploadedAssets.push(...assetsFromRes);
 
 			// Appeler le callback par-fichier si fourni
 			if (options.onFileResult) {
@@ -152,6 +149,34 @@ export async function handleAlbumUpload(
 					options.onFileResult({ file, isDuplicate: isDup, assetId: aid });
 				} catch (e) {
 					void e;
+				}
+			}
+
+			// 2. Ajouter immédiatement cet asset à l'album (ne pas attendre les autres fichiers)
+			if (aid) {
+				const assetIdToAdd = aid;
+				try {
+					if (isPhotosCV) {
+						// Cas Photos CV: utilise /api/people
+						await fetch('/api/people', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								action: 'add-to-album',
+								assetIds: [assetIdToAdd]
+							})
+						});
+					} else {
+						// Cas album normal: utilise /api/albums/{id}/assets
+						await fetch(`/api/albums/${id}/assets`, {
+							method: 'PUT',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ ids: [assetIdToAdd] })
+						});
+					}
+				} catch (addErr: unknown) {
+					// Log l'erreur mais ne pas échouer tout l'upload
+					console.warn(`Erreur lors de l'ajout de l'asset ${aid} à l'album:`, addErr);
 				}
 			}
 
@@ -163,44 +188,8 @@ export async function handleAlbumUpload(
 			await new Promise((r) => setTimeout(r, 500));
 		}
 
-		// 2. Ajouter les assets à l'album (y compris les doublons qui ont un ID)
-		const assetIds = uploadedAssets
-			.map((asset) => asset.duplicateId || asset.id || asset.assetId)
-			.filter(Boolean);
-
-		if (assetIds.length > 0) {
-			if (isPhotosCV) {
-				// Cas Photos CV: utilise /api/people
-				const addRes = await fetch('/api/people', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						action: 'add-to-album',
-						assetIds
-					})
-				});
-
-				if (!addRes.ok) {
-					const errText = await addRes.text();
-					throw new Error(`Erreur ajout à l'album: ${errText}`);
-				}
-			} else {
-				// Cas album normal: utilise /api/albums/{id}/assets
-				const addRes = await fetch(`/api/albums/${id}/assets`, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ ids: assetIds })
-				});
-
-				if (!addRes.ok) {
-					const errText = await addRes.text();
-					throw new Error(`Erreur ajout à l'album: ${errText}`);
-				}
-			}
-		}
-
-		// 3. Appeler le callback onSuccess pour que la page gère le rafraîchissement
-		// Ne pas recharger ici directement - laisser la page décider comment rafraîchir
+		// Assets ont déjà été ajoutés à l'album individuellement dans la boucle ci-dessus
+		// Appeler le callback onSuccess pour que la page gère le rafraîchissement
 		toast.success(`${files.length} fichier(s) uploadé(s) et ajouté(s) à l'album !`);
 
 		// Appeler onSuccess et attendre qu'il se termine pour rafraîchir l'UI
