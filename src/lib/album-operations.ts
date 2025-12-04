@@ -2,7 +2,6 @@ import { activeOperations } from '$lib/operations';
 
 import { toast } from '$lib/toast';
 import type { PhotosState } from '$lib/photos.svelte';
-import type { ImmichAsset } from '$lib/types/api';
 
 /**
  * Upload générique de fichiers dans un album
@@ -200,28 +199,14 @@ export async function handleAlbumUpload(
 			}
 		}
 
-		// 3. Recharger l'album pour afficher les nouvelles photos
-		if (isPhotosCV) {
-			// Photos CV: on laisse la page utiliser sa propre logique de reload
-		} else {
-			// Album normal: reload via API
-			const res = await fetch(`/api/albums/${id}`);
-			if (res.ok) {
-				const data = (await res.json()) as {
-					assets?: ImmichAsset[];
-				};
-				photosState.assets = (data.assets || []).map((a) => ({
-					id: a.id,
-					originalFileName: a.originalFileName,
-					type: a.type,
-					date: a.fileCreatedAt || a.createdAt || a.updatedAt || null,
-					_raw: a
-				}));
-			}
-		}
-
+		// 3. Appeler le callback onSuccess pour que la page gère le rafraîchissement
+		// Ne pas recharger ici directement - laisser la page décider comment rafraîchir
 		toast.success(`${files.length} fichier(s) uploadé(s) et ajouté(s) à l'album !`);
-		options.onSuccess?.();
+
+		// Appeler onSuccess et attendre qu'il se termine pour rafraîchir l'UI
+		if (options.onSuccess) {
+			await options.onSuccess();
+		}
 
 		return results;
 	} catch (e: unknown) {

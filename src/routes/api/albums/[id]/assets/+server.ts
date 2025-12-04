@@ -3,6 +3,7 @@ import { json, error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { immichCache } from '$lib/server/immich-cache';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -35,6 +36,10 @@ export const PUT: RequestHandler = async ({ params, request, fetch }) => {
 		}
 
 		const result = (await res.json()) as unknown;
+
+		// Invalider le cache de l'album pour que les nouvelles photos apparaissent immédiatement
+		immichCache.invalidateAlbum(id);
+
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
@@ -75,6 +80,10 @@ export const DELETE: RequestHandler = async ({ params, request, fetch }) => {
 		}
 
 		const result = (await res.json()) as unknown;
+
+		// Invalider le cache de l'album pour que les photos supprimées disparaissent immédiatement
+		immichCache.invalidateAlbum(id);
+
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);

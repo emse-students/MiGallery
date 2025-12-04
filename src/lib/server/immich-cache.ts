@@ -124,6 +124,7 @@ class ImmichCache {
 	invalidateAsset(assetId: string): void {
 		this.invalidate([
 			new RegExp(`/api/assets/${assetId}`),
+			new RegExp(`/api/immich/assets/${assetId}`), // Le proxy utilise ce path
 			new RegExp(`/api/search/metadata.*personIds.*${assetId}`)
 		]);
 	}
@@ -134,6 +135,7 @@ class ImmichCache {
 	invalidatePerson(personId: string): void {
 		this.invalidate([
 			new RegExp(`/api/people/${personId}`),
+			new RegExp(`/api/immich/people/${personId}`), // Le proxy utilise ce path
 			new RegExp(`/api/search/metadata.*personIds.*${personId}`)
 		]);
 	}
@@ -142,7 +144,12 @@ class ImmichCache {
 	 * Invalide les entrées d'un album spécifique
 	 */
 	invalidateAlbum(albumId: string): void {
-		this.invalidate([new RegExp(`/api/albums/${albumId}`), new RegExp('/api/albums$')]);
+		this.invalidate([
+			new RegExp(`/api/albums/${albumId}`),
+			new RegExp(`/api/immich/albums/${albumId}`), // Le proxy utilise ce path
+			new RegExp('/api/albums$'),
+			new RegExp('/api/immich/albums$')
+		]);
 	}
 
 	/**
