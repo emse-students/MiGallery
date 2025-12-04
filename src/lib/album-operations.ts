@@ -164,10 +164,9 @@ export async function handleAlbumUpload(
 			await new Promise((r) => setTimeout(r, 500));
 		}
 
-		// 2. Ajouter les assets à l'album (sauf les doublons)
+		// 2. Ajouter les assets à l'album (y compris les doublons qui ont un ID)
 		const assetIds = uploadedAssets
-			.filter((asset) => !asset.duplicateId)
-			.map((asset) => asset.id || asset.assetId)
+			.map((asset) => asset.duplicateId || asset.id || asset.assetId)
 			.filter(Boolean);
 
 		if (assetIds.length > 0) {

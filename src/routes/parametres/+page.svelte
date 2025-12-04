@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import Icon from "$lib/components/Icon.svelte";
   import Spinner from '$lib/components/Spinner.svelte';
+  import CameraInput from '$lib/components/CameraInput.svelte';
   import { theme } from '$lib/theme';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
@@ -260,12 +261,17 @@
     isProcessing = true;
     uploadStatus = "Nouvelle tentative de reconnaissance...";
 
-    await checkForPeople();
+    await checkForPeople(false, null);
 
     isProcessing = false;
   }
 
-  async function checkForPeople() {
+  /**
+   * Vérifie si des personnes ont été détectées sur l'asset uploadé.
+   * @param shouldDeleteAfter - Si true, supprime l'asset après reconnaissance réussie
+   * @param assetIdToDelete - L'ID de l'asset à supprimer (peut être différent si c'était un duplicata)
+   */
+  async function checkForPeople(shouldDeleteAfter: boolean = false, assetIdToDelete: string | null = null) {
     const userId = (page.data.session?.user as User)?.id_user;
 
     if (!userId || !assetId) return;
@@ -302,6 +308,21 @@
 
         if (updateResult.success) {
           uploadStatus = `Terminé ! id_photos = ${personId}`;
+
+          // Supprimer la photo temporaire AVANT le reload si nécessaire
+          if (shouldDeleteAfter && assetIdToDelete) {
+            uploadStatus = "Nettoyage : suppression de la photo temporaire...";
+            try {
+              await fetch(`/api/immich/assets`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [assetIdToDelete] })
+              });
+            } catch (deleteErr) {
+              console.warn("Impossible de supprimer la photo temporaire:", deleteErr);
+            }
+          }
+
           // Reload silently after successful profile photo setup
           window.location.reload();
         } else {
@@ -348,10 +369,7 @@
     }
   }
 
-  async function importPhoto(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-
+  async function importPhoto(file: File) {
     if (!file) return;
 
     const userId = (page.data.session?.user as User)?.id_user;
@@ -367,6 +385,9 @@
     personId = null;
     canRetry = false;
     needsNewPhoto = false;
+
+    let isDuplicate = false;
+    let uploadedAssetId: string | null = null;
 
     try {
       const formData = new FormData();
@@ -386,25 +407,39 @@
         throw new Error(`Erreur upload: ${uploadResponse.statusText}`);
       }
 
-      const uploadData = await uploadResponse.json();
-      const uploadResult = uploadData as { id?: string };
-      if (!uploadResult.id) {
+      const uploadData = await uploadResponse.json() as Record<string, unknown>;
+
+      // Détecter si c'est un duplicata (Immich peut retourner { status: 'duplicate', id: '...' })
+      if (uploadData.status === 'duplicate' && uploadData.id) {
+        isDuplicate = true;
+        uploadedAssetId = String(uploadData.id);
+        assetId = uploadedAssetId;
+        uploadStatus = "Photo déjà présente dans la base de données. Utilisation de l'existante.";
+      } else if (uploadData.duplicateId) {
+        isDuplicate = true;
+        uploadedAssetId = String(uploadData.duplicateId);
+        assetId = uploadedAssetId;
+        uploadStatus = "Photo déjà présente dans la base de données. Utilisation de l'existante.";
+      } else if (uploadData.id) {
+        uploadedAssetId = String(uploadData.id);
+        assetId = uploadedAssetId;
+        uploadStatus = `Photo uploadée ! ID: ${assetId}`;
+      } else {
         throw new Error('Upload réussi mais pas d\'ID retourné');
       }
-      assetId = uploadResult.id;
-      uploadStatus = `Photo uploadée ! ID: ${assetId}`;
 
       uploadStatus = "Analyse en cours (attente 8 secondes)...";
       await new Promise(resolve => setTimeout(resolve, 8000));
 
-      await checkForPeople();
+      // Passer les infos de suppression à checkForPeople pour qu'elle gère la suppression AVANT le reload
+      const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
+      await checkForPeople(shouldDeleteAfter, uploadedAssetId);
 
     } catch (error: unknown) {
       uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur import photo:", error);
     } finally {
       isProcessing = false;
-      input.value = '';
     }
   }
 </script>
@@ -445,12 +480,7 @@
     <p>Importez une photo pour configurer votre reconnaissance faciale et accéder à "Mes photos".</p>
 
     <div class="my-5">
-      <input
-        type="file"
-        accept="image/*"
-        onchange={importPhoto}
-        disabled={isProcessing}
-      />
+      <CameraInput onPhoto={importPhoto} disabled={isProcessing} />
       {#if isProcessing}
         <span class="ml-2"><Spinner size={20} /> Traitement en cours...</span>
       {/if}
