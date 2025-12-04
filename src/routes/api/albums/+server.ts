@@ -69,7 +69,9 @@ export const GET: RequestHandler = async ({ fetch, request, locals, cookies }) =
  *   date?: string,
  *   location?: string,
  *   visibility?: 'private' | 'authenticated' | 'unlisted',
- *   visible?: boolean
+ *   visible?: boolean,
+ *   tags?: string[],
+ *   allowedUsers?: string[]
  * }
  */
 export const POST: RequestHandler = async ({ request, fetch }) => {
@@ -80,8 +82,10 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			location?: string | null;
 			visibility?: 'private' | 'authenticated' | 'unlisted';
 			visible?: boolean;
+			tags?: string[];
+			allowedUsers?: string[];
 		};
-		const { albumName, date, location, visibility = 'private', visible = true } = body;
+		const { albumName, date, location, visibility = 'private', visible = true, tags = [], allowedUsers = [] } = body;
 
 		if (!albumName || typeof albumName !== 'string') {
 			throw svelteError(400, 'albumName is required');
@@ -123,6 +127,28 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 				'INSERT OR IGNORE INTO albums (id, name, date, location, visibility, visible) VALUES (?, ?, ?, ?, ?, ?)'
 			);
 			stmt.run(albumId, albumName.trim(), date || null, location || null, visibility, visible ? 1 : 0);
+
+			// 3. Ajouter les tags si fournis
+			if (Array.isArray(tags) && tags.length > 0) {
+				const tagStmt = db.prepare('INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)');
+				for (const tag of tags) {
+					const trimmedTag = String(tag).trim();
+					if (trimmedTag) {
+						tagStmt.run(albumId, trimmedTag);
+					}
+				}
+			}
+
+			// 4. Ajouter les utilisateurs autorisés si fournis
+			if (Array.isArray(allowedUsers) && allowedUsers.length > 0) {
+				const userStmt = db.prepare('INSERT OR IGNORE INTO album_user_permissions (album_id, id_user) VALUES (?, ?)');
+				for (const userId of allowedUsers) {
+					const trimmedUserId = String(userId).trim();
+					if (trimmedUserId) {
+						userStmt.run(albumId, trimmedUserId);
+					}
+				}
+			}
 		} catch (dbErr) {
 			console.error('Error saving album to local DB:', dbErr);
 			// Continue anyway - the album exists in Immich
