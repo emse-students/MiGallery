@@ -152,7 +152,11 @@
     }
   }
 
-  async function handleUpload(files: File[], onProgress?: (current: number, total: number) => void) {
+  async function handleUpload(
+    files: File[],
+    onProgress?: (current: number, total: number) => void,
+    onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void
+  ) {
     // Capturer albumId au moment de l'appel
     const albumId = String($page.params.id ?? '');
     if (!albumId) {
@@ -162,8 +166,9 @@
 
     const results = await handleAlbumUpload(files, albumId, photosState, {
       onProgress,
+      onFileResult,
       isPhotosCV: false,
-        onSuccess: async () => {
+      onSuccess: async () => {
         // Recharger l'album avec les nouvelles photos
         const immichId = String(($page.data as { album?: Album }).album?.id ?? '');
         const name = String(($page.data as { album?: Album }).album?.name ?? '').trim();
