@@ -276,7 +276,15 @@
   <nav class="top-nav"><a href="/albums"><Icon name="chevron-left" size={16} /> Retour aux albums</a></nav>
 
   <div class="header-container">
-    <h1 class="m-0">{title || 'Album'}</h1>
+    <div class="header-content">
+      <h1 class="m-0">{title || 'Album'}</h1>
+      {#if (($page.data as { album?: Album }).album?.location)}
+        <p class="location-info">
+          <Icon name="map-pin" size={14} />
+          {($page.data as { album?: Album }).album?.location}
+        </p>
+      {/if}
+    </div>
 
     <!-- Desktop Actions -->
     <div class="desktop-actions">
@@ -411,6 +419,21 @@
     gap: 1rem;
     justify-content: space-between;
     margin-bottom: 1rem;
+  }
+
+  .header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .location-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--text-secondary, #d1d5db);
+    margin: 0;
   }
 
   .desktop-actions {
