@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { goto } from '$app/navigation';
 	import Icon from './Icon.svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
@@ -160,9 +161,22 @@
 					const errText = await res.text().catch(() => res.statusText);
 					throw new Error(errText || 'Erreur lors de la création de l\'album');
 				}
+
+				const createdAlbum = (await res.json()) as { id?: string };
+				const newAlbumId = createdAlbum.id;
+
+				// Succès
+				if (onSuccess) await onSuccess();
+				onClose();
+
+				// Rediriger vers le nouvel album
+				if (newAlbumId) {
+					await goto(`/albums/${newAlbumId}`);
+				}
+				return;
 			}
 
-			// Succès
+			// Succès (pour UPDATE)
 			if (onSuccess) await onSuccess();
 			onClose();
 		} catch (e: unknown) {
