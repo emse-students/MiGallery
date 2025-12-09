@@ -92,6 +92,7 @@
 
 <svelte:head>
 	<title>{asset?.originalFileName || "Asset"}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
 </svelte:head>
 
 <main style="padding: 2rem; max-width: 1400px; margin: 0 auto;">

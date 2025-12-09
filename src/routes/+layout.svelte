@@ -153,13 +153,15 @@
 
 	<div class="user">
 		{#if u}
-			<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
-				{#if u.id_photos}
-					<img src={`/api/immich/people/${u.id_photos}/thumbnail`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
-				{:else}
-					<span class="initials">{(u.prenom || 'U').charAt(0)}{(u.nom || '').charAt(0) || 'U'}</span>
-				{/if}
-			</div>
+			<a href="/parametres" class="avatar-link">
+				<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
+					{#if u.id_photos}
+						<img src={`/api/immich/people/${u.id_photos}/thumbnail`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+					{:else}
+						<span class="initials">{(u.prenom || 'U').charAt(0)}{(u.nom || '').charAt(0) || 'U'}</span>
+					{/if}
+				</div>
+			</a>
 			<span class="user-name">{u.prenom} {u.nom}</span>
 			<button class="btn-logout" onclick={() => handleSignOut()}>Déconnexion</button>
 		{:else}
