@@ -26,7 +26,7 @@
   </div>
 
   <!-- Bannière de première connexion -->
-  {#if isFirstLogin}
+  {#if !hasIdPhotos}
     <div class="first-login-banner">
       <div class="banner-content">
         <h2><Icon name="user" size={32} /> Bienvenue !</h2>
