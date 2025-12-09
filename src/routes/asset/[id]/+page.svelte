@@ -9,6 +9,8 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 	let isVideo = $state(false);
+	let imageScale = $state(1);
+	let imageElement = $state<HTMLImageElement | null>(null);
 
 	async function loadAsset(id: string) {
 		if (!id) return;
@@ -17,6 +19,7 @@
 		asset = null;
 		mediaUrl = null;
 		isVideo = false;
+		imageScale = 1;
 		try {
 			const metaRes = await fetch(`/api/immich/assets/${id}`);
 			if (metaRes.ok) {
@@ -29,14 +32,8 @@
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 		} else {
 			// Pour les images, charger une grande miniature adaptée au viewport
+			// Utiliser 'preview' même sur mobile car l'image remplit tout l'écran
 			let size = 'preview';
-			try {
-				const vw = window.innerWidth || 1024;
-				if (vw < 600) size = 'thumbnail';
-				else size = 'preview';
-			} catch (e: unknown) {
-				size = 'preview';
-			}
 			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
 		}
 	} catch (e: unknown) {
@@ -44,7 +41,51 @@
 	} finally {
 		loading = false;
 	}
-}	$effect(() => {
+}
+
+	// Gérer le zoom tactile sur l'image
+	function handleImageWheel(e: WheelEvent) {
+		if (!isVideo) {
+			e.preventDefault();
+			const delta = e.deltaY > 0 ? 0.9 : 1.1;
+			imageScale = Math.max(1, Math.min(5, imageScale * delta));
+		}
+	}
+
+	// Gérer le pinch zoom sur mobile
+	function handleTouchStart(e: TouchEvent) {
+		if (e.touches.length === 2 && !isVideo) {
+			// Stocker la distance initiale entre les deux doigts
+			const touch1 = e.touches[0];
+			const touch2 = e.touches[1];
+			const distance = Math.hypot(
+				touch2.clientX - touch1.clientX,
+				touch2.clientY - touch1.clientY
+			);
+			(e.target as any).initialPinchDistance = distance;
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (e.touches.length === 2 && !isVideo && imageElement) {
+			e.preventDefault();
+			const touch1 = e.touches[0];
+			const touch2 = e.touches[1];
+			const currentDistance = Math.hypot(
+				touch2.clientX - touch1.clientX,
+				touch2.clientY - touch1.clientY
+			);
+			const initialDistance = (e.target as any).initialPinchDistance || currentDistance;
+
+			if (initialDistance > 0) {
+				const ratio = currentDistance / initialDistance;
+				imageScale = Math.max(1, Math.min(5, imageScale * ratio));
+				(e.target as any).initialPinchDistance = currentDistance;
+			}
+		}
+	}
+
+	$effect(() => {
 		if (assetId) loadAsset(assetId);
 	});
 </script>
@@ -72,7 +113,12 @@
 			Erreur: {error}
 		</div>
 	{:else if mediaUrl}
-		<div style="background: var(--bg-secondary); border-radius: var(--radius); padding: 1rem;">
+		<div
+			style="background: var(--bg-secondary); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; max-height: calc(100vh - 150px);"
+			onwheel={handleImageWheel}
+			ontouchstart={handleTouchStart}
+			ontouchmove={handleTouchMove}
+		>
 			{#if asset?.originalFileName}
 				<h2 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: var(--text-primary);">
 					<Icon name={isVideo ? 'image' : 'photo'} size={24} />
@@ -80,22 +126,25 @@
 				</h2>
 			{/if}
 
-			{#if isVideo}
-				<video
-					src={mediaUrl}
-					controls
-					style="display: block; max-width: 100%; max-height: 80vh; margin: 0 auto; border-radius: var(--radius);"
-				>
-					<track kind="captions" />
-					Votre navigateur ne supporte pas la lecture de vidéos.
-				</video>
-			{:else}
-				<img
-					src={mediaUrl}
-					alt={asset?.originalFileName || 'Image'}
-					style="display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: var(--radius);"
-				/>
-			{/if}
+			<div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; touch-action: none;">
+				{#if isVideo}
+					<video
+						src={mediaUrl}
+						controls
+						style="display: block; max-width: 100%; max-height: 100%; margin: 0 auto; border-radius: var(--radius);"
+					>
+						<track kind="captions" />
+						Votre navigateur ne supporte pas la lecture de vidéos.
+					</video>
+				{:else}
+					<img
+						bind:this={imageElement}
+						src={mediaUrl}
+						alt={asset?.originalFileName || 'Image'}
+						style="display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: var(--radius); transform: scale({imageScale}); transition: transform 0.1s ease-out; cursor: zoom-in; user-select: none;"
+					/>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </main>

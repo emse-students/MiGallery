@@ -227,7 +227,7 @@ import { activeOperations } from '$lib/operations';
 			</div>
 		</div>
 	{:else}
-		<div class="photos-count"><strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''} trouvée{photosState.assets.length > 1 ? 's' : ''}</div>
+		<div class="photos-count"><strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''}</div>
 	{/if}
 
 	<!-- Section Favoris -->

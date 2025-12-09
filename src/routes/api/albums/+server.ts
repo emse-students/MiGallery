@@ -85,7 +85,15 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 			tags?: string[];
 			allowedUsers?: string[];
 		};
-		const { albumName, date, location, visibility = 'private', visible = true, tags = [], allowedUsers = [] } = body;
+		const {
+			albumName,
+			date,
+			location,
+			visibility = 'private',
+			visible = true,
+			tags = [],
+			allowedUsers = []
+		} = body;
 
 		if (!albumName || typeof albumName !== 'string') {
 			throw svelteError(400, 'albumName is required');
@@ -130,7 +138,9 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 
 			// 3. Ajouter les tags si fournis
 			if (Array.isArray(tags) && tags.length > 0) {
-				const tagStmt = db.prepare('INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)');
+				const tagStmt = db.prepare(
+					'INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)'
+				);
 				for (const tag of tags) {
 					const trimmedTag = String(tag).trim();
 					if (trimmedTag) {
@@ -141,7 +151,9 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 
 			// 4. Ajouter les utilisateurs autorisés si fournis
 			if (Array.isArray(allowedUsers) && allowedUsers.length > 0) {
-				const userStmt = db.prepare('INSERT OR IGNORE INTO album_user_permissions (album_id, id_user) VALUES (?, ?)');
+				const userStmt = db.prepare(
+					'INSERT OR IGNORE INTO album_user_permissions (album_id, id_user) VALUES (?, ?)'
+				);
 				for (const userId of allowedUsers) {
 					const trimmedUserId = String(userId).trim();
 					if (trimmedUserId) {
