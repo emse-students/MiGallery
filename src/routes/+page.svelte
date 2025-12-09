@@ -4,8 +4,9 @@
   import Icon from "$lib/components/Icon.svelte";
 
   // Vérifier si l'utilisateur a un id_photos configuré
-  let hasIdPhotos = $derived(!!((page.data.session?.user as User)?.id_photos));
-  let isFirstLogin = $derived((page.data.session?.user as User)?.first_login === 1);
+  let user = $derived((page.data.session?.user as User));
+  let isAuthenticated = $derived(!!user);
+  let hasIdPhotos = $derived(!!user?.id_photos);
 </script>
 
 <svelte:head>
@@ -26,7 +27,7 @@
   </div>
 
   <!-- Bannière de première connexion -->
-  {#if !hasIdPhotos}
+  {#if isAuthenticated && !hasIdPhotos}
     <div class="first-login-banner">
       <div class="banner-content">
         <h2><Icon name="user" size={32} /> Bienvenue !</h2>

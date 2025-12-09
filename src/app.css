@@ -307,6 +307,20 @@
 		margin-left: auto;
 	}
 
+	.topbar .avatar-link {
+		display: block;
+		text-decoration: none;
+		border-radius: 50%;
+		transition:
+			transform var(--ease) 150ms,
+			opacity var(--ease) 150ms;
+	}
+
+	.topbar .avatar-link:hover {
+		transform: scale(1.05);
+		opacity: 0.8;
+	}
+
 	.topbar .avatar {
 		width: 36px;
 		height: 36px;
@@ -317,6 +331,7 @@
 		justify-content: center;
 		overflow: hidden;
 		flex-shrink: 0;
+		cursor: pointer;
 	}
 
 	.topbar .avatar img {
@@ -705,7 +720,7 @@
 		max-width: 800px;
 		margin: 4rem auto;
 		position: relative;
-		min-height: 100vh;
+		min-height: auto;
 	}
 
 	.home-main .page-background {

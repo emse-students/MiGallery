@@ -268,13 +268,15 @@
 
   /**
    * Vérifie si des personnes ont été détectées sur l'asset uploadé.
-   * @param shouldDeleteAfter - Si true, supprime l'asset après reconnaissance réussie
+   * @param shouldDeleteAfter - Si true, supprime l'asset après reconnaissance (réussie ou non)
    * @param assetIdToDelete - L'ID de l'asset à supprimer (peut être différent si c'était un duplicata)
    */
   async function checkForPeople(shouldDeleteAfter: boolean = false, assetIdToDelete: string | null = null) {
     const userId = (page.data.session?.user as User)?.id_user;
 
     if (!userId || !assetId) return;
+
+    let shouldCleanup = shouldDeleteAfter && assetIdToDelete;
 
     try {
       uploadStatus = "Récupération des personnes détectées...";
@@ -310,7 +312,7 @@
           uploadStatus = `Terminé ! id_photos = ${personId}`;
 
           // Supprimer la photo temporaire AVANT le reload si nécessaire
-          if (shouldDeleteAfter && assetIdToDelete) {
+          if (shouldCleanup) {
             uploadStatus = "Nettoyage : suppression de la photo temporaire...";
             try {
               await fetch(`/api/immich/assets`, {
@@ -331,13 +333,54 @@
       } else if (people.length === 0) {
         uploadStatus = "Aucune personne détectée sur cette photo.";
         canRetry = true;
+
+        // Supprimer la photo puisqu'aucune personne n'a été détectée
+        if (shouldCleanup) {
+          try {
+            await fetch(`/api/immich/assets`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: [assetIdToDelete] })
+            });
+            uploadStatus += " Photo supprimée.";
+          } catch (deleteErr) {
+            console.warn("Impossible de supprimer la photo:", deleteErr);
+          }
+        }
       } else {
         uploadStatus = `Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`;
         needsNewPhoto = true;
+
+        // Supprimer la photo puisque plusieurs personnes ont été détectées
+        if (shouldCleanup) {
+          try {
+            await fetch(`/api/immich/assets`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: [assetIdToDelete] })
+            });
+            uploadStatus += " Photo supprimée.";
+          } catch (deleteErr) {
+            console.warn("Impossible de supprimer la photo:", deleteErr);
+          }
+        }
       }
     } catch (error: unknown) {
       uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur lors de la vérification des personnes:", error);
+
+      // Supprimer la photo en cas d'erreur aussi
+      if (shouldCleanup) {
+        try {
+          await fetch(`/api/immich/assets`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [assetIdToDelete] })
+          });
+        } catch (deleteErr) {
+          console.warn("Impossible de supprimer la photo après erreur:", deleteErr);
+        }
+      }
     }
   }
 
@@ -428,14 +471,51 @@
         throw new Error('Upload réussi mais pas d\'ID retourné');
       }
 
-      uploadStatus = "Analyse en cours (attente 8 secondes)...";
-      await new Promise(resolve => setTimeout(resolve, 8000));
+      uploadStatus = "Analyse en cours...";
+
+      // Vérifier toutes les 0,5 secondes pendant max 8 secondes
+      let personDetected = false;
+      const maxAttempts = 16; // 8 secondes / 0.5 secondes = 16 tentatives
+      let attempt = 0;
+
+      while (attempt < maxAttempts && !personDetected) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        try {
+          const checkResponse = await fetch(`/api/immich/assets/${assetId}`);
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json();
+            const people = checkData.people || [];
+            if (people.length > 0) {
+              personDetected = true;
+              break;
+            }
+          }
+        } catch (e) {
+          // Continuer à essayer même en cas d'erreur
+        }
+
+        attempt++;
+      }
 
       // Passer les infos de suppression à checkForPeople pour qu'elle gère la suppression AVANT le reload
       const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
       await checkForPeople(shouldDeleteAfter, uploadedAssetId);
 
     } catch (error: unknown) {
+      // En cas d'erreur, nettoyer la photo uploadée si ce n'était pas un duplicata
+      if (!isDuplicate && uploadedAssetId) {
+        try {
+          await fetch(`/api/immich/assets`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: [uploadedAssetId] })
+          });
+        } catch (deleteErr) {
+          console.warn("Impossible de supprimer la photo après erreur:", deleteErr);
+        }
+      }
+
       uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
       console.error("Erreur import photo:", error);
     } finally {
