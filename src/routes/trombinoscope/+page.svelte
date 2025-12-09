@@ -288,18 +288,18 @@
     <div class="users-count"><strong>{users.length}</strong> utilisateur{users.length > 1 ? 's' : ''}</div>
 
     {@const usersByPromo = users.reduce((acc, user) => {
-      const promo = user.promo_year || 'Sans promo';
+      const promo = user.promo_year || 'Promo non définie';
       if (!acc[promo]) acc[promo] = [];
       acc[promo].push(user);
       return acc;
     }, {} as Record<string, User[]>)}
 
     {#each Object.entries(usersByPromo).sort(([a], [b]) => {
-      if (a === 'Sans promo') return 1;
-      if (b === 'Sans promo') return -1;
+      if (a === 'Promo non définie') return 1;
+      if (b === 'Promo non définie') return -1;
       return Number(b) - Number(a);
     }) as [promo, promoUsers]}
-      <h2 class="promo-label">{promo === 'Sans promo' ? 'Sans promo' : `Promo ${promo}`}</h2>
+      <h2 class="promo-label">{promo === 'Promo non définie' ? 'Promo non définie' : `Promo ${promo}`}</h2>
       <div class="users-grid">
         {#each promoUsers as user (user.id_user)}
           <div
