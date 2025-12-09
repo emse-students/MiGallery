@@ -16,11 +16,11 @@
 	let years = $state<number[]>([]);
 
 	onMount(() => {
-		// Générer une liste d'années (année actuelle jusqu'à 10 ans en arrière)
+		// Générer une liste d'années (depuis 1816 jusqu'à l'année actuelle)
 		const currentYear = new Date().getFullYear();
 		const yearList: number[] = [];
-		for (let i = 0; i < 10; i++) {
-			yearList.push(currentYear - i);
+		for (let year = currentYear; year >= 1816; year--) {
+			yearList.push(year);
 		}
 		years = yearList;
 		selectedYear = currentYear;
@@ -58,8 +58,7 @@
 
 <Modal
 	bind:show={show}
-	title="Bienvenue sur MiGallery ! 👋"
-	icon="user-check"
+	title="Bienvenue sur MiGallery"
 	confirmText="Valider"
 	confirmDisabled={loading}
 	showCloseButton={false}
@@ -82,7 +81,7 @@
 
 		<p class="info-text">
 			<Icon name="info" size={16} />
-			Cette information nous permet de personnaliser votre accès aux albums et au trombinoscope.
+			Cette information nous permet de personnaliser votre accès aux albums.
 		</p>
 	</div>
 </Modal>
