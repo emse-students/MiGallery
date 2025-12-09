@@ -10,7 +10,7 @@
 	let error = $state<string | null>(null);
 	let isVideo = $state(false);
 	let imageScale = $state(1);
-	let imageElement: HTMLImageElement | null = null;
+	let imageElement = $state<HTMLImageElement | null>(null);
 
 	async function loadAsset(id: string) {
 		if (!id) return;
@@ -32,14 +32,8 @@
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 		} else {
 			// Pour les images, charger une grande miniature adaptée au viewport
+			// Utiliser 'preview' même sur mobile car l'image remplit tout l'écran
 			let size = 'preview';
-			try {
-				const vw = window.innerWidth || 1024;
-				if (vw < 600) size = 'thumbnail';
-				else size = 'preview';
-			} catch (e: unknown) {
-				size = 'preview';
-			}
 			mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
 		}
 	} catch (e: unknown) {
@@ -121,9 +115,9 @@
 	{:else if mediaUrl}
 		<div
 			style="background: var(--bg-secondary); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; max-height: calc(100vh - 150px);"
-			on:wheel={handleImageWheel}
-			on:touchstart={handleTouchStart}
-			on:touchmove={handleTouchMove}
+			onwheel={handleImageWheel}
+			ontouchstart={handleTouchStart}
+			ontouchmove={handleTouchMove}
 		>
 			{#if asset?.originalFileName}
 				<h2 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: var(--text-primary);">
