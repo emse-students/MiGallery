@@ -31,7 +31,7 @@
 	// Initialiser le thème au montage
 	onMount(() => {
 		theme.initialize();
-		
+
 		// Afficher le modal si première connexion
 		if (isFirstLogin) {
 			showFirstLoginModal = true;

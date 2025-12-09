@@ -43,9 +43,7 @@ export const PATCH: RequestHandler = async ({ request, locals, cookies }) => {
 		}
 
 		// Mettre à jour l'année de promo et marquer first_login à 0
-		const stmt = db.prepare(
-			'UPDATE users SET promo_year = ?, first_login = 0 WHERE id_user = ?'
-		);
+		const stmt = db.prepare('UPDATE users SET promo_year = ?, first_login = 0 WHERE id_user = ?');
 		const result = stmt.run(promoYear, userId);
 
 		if (result.changes === 0) {
