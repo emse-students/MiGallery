@@ -23,9 +23,6 @@ export const { handle } = SvelteKitAuth({
 		jwt({ token, user, profile }: { token: JWT; user?: User; profile?: Profile }): JWT {
 			// Initial sign in
 			if (user) {
-				console.log('CAS Profile:', profile);
-				console.log('CAS User:', user);
-				console.log('CAS Token:', token);
 				token.id = profile?.sub;
 			}
 			return token;

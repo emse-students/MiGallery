@@ -63,13 +63,13 @@ export const GET: RequestHandler = async ({ locals, cookies, request }) => {
 		}
 
 		const db = getDatabase();
-		// Filtrer les utilisateurs système (promo_year IS NULL) pour le trombinoscope
-		// Les admins peuvent voir tous les utilisateurs via d'autres routes si nécessaire
+		// Exclure uniquement l'admin système (les.roots@etu.emse.fr)
+		// Afficher tous les autres utilisateurs, même ceux sans promo_year (nouveaux utilisateurs)
 		const rows = db
 			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE promo_year IS NOT NULL ORDER BY promo_year DESC, nom, prenom'
+				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
 			)
-			.all() as UserRow[];
+			.all('les.roots@etu.emse.fr') as UserRow[];
 		return json({ success: true, users: rows });
 	} catch (e) {
 		const err = e as Error;

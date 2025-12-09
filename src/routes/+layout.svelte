@@ -11,6 +11,7 @@
 	import Modal from "$lib/components/Modal.svelte";
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
+	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
 	import "../app.css";
 
 	let u = $derived((page.data?.session?.user) as User);
@@ -20,13 +21,34 @@
 	let hasPhoto = $derived(!!u?.id_photos);
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
+	let isFirstLogin = $derived(u?.first_login === 1);
 
 	let { children } = $props();
+
+	// Modal première connexion
+	let showFirstLoginModal = $state(false);
 
 	// Initialiser le thème au montage
 	onMount(() => {
 		theme.initialize();
+		
+		// Afficher le modal si première connexion
+		if (isFirstLogin) {
+			showFirstLoginModal = true;
+		}
 	});
+
+	// Détecter changement de first_login après update
+	$effect(() => {
+		if (isFirstLogin && isAuthenticated && !showFirstLoginModal) {
+			showFirstLoginModal = true;
+		}
+	});
+
+	function handleFirstLoginComplete() {
+		// Recharger la page pour mettre à jour la session
+		window.location.reload();
+	}
 
 	// Avertissement avant navigation pendant une opération
 	let navigationModal = $derived($navigationModalStore);
@@ -155,6 +177,8 @@
 <ConfirmHost />
 
 <MobileNav />
+
+<FirstLoginModal bind:show={showFirstLoginModal} onComplete={handleFirstLoginComplete} />
 
 <Modal
 	bind:show={showNavigationWarning}
