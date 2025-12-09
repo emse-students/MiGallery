@@ -137,18 +137,34 @@
           throw new Error('Asset ID non récupéré après upload');
         }
 
-        // 2. Attendre que la reconnaissance faciale traite l'image (8 secondes)
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        // 2. Polling: vérifier toutes les secondes si un visage a été détecté (max 15s)
+        const maxAttempts = 15;
+        let attempt = 0;
+        let faceDetected = false;
+        let people: { id: string }[] = [];
 
-        // 3. Récupérer les informations de l'asset pour voir les personnes détectées
-        const assetInfoRes = await fetch(`/api/immich/assets/${assetId}`);
+        while (attempt < maxAttempts && !faceDetected) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          attempt++;
 
-        if (!assetInfoRes.ok) {
-          throw new Error('Erreur lors de la récupération des informations de l\'asset');
+          try {
+            // Ajouter un timestamp pour bypasser le cache du proxy
+            const checkResponse = await fetch(`/api/immich/assets/${assetId}?nocache=${Date.now()}`);
+            if (checkResponse.ok) {
+              const checkData = await checkResponse.json();
+              const checkInfo = checkData as { people?: { id: string }[] };
+              if (checkInfo.people && checkInfo.people.length > 0) {
+                faceDetected = true;
+                people = checkInfo.people;
+                break;
+              }
+            }
+          } catch (pollError) {
+            console.warn('Erreur polling:', pollError);
+          }
         }
 
-        const assetInfo = (await assetInfoRes.json()) as { people: { id: string }[] };
-        const people = assetInfo.people || [];
+        // 3. Vérifier les résultats du polling
 
         if (people.length === 0) {
           uploadingPhoto = false;
