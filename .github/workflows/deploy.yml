@@ -70,12 +70,21 @@ jobs:
 
    - name: Wait for server to be ready
      run: |
+      cd ~/MiGallery
       echo "Attente du démarrage du serveur..."
-      sleep 10
+      node scripts/wait-for-server.mjs http://localhost:3000 30000
 
    - name: Run API tests on production
      run: |
       cd ~/MiGallery
-      bun run test || echo "⚠️  Les tests ont échoué mais le déploiement continue"
+      echo "🧪 Exécution de la suite de tests complète..."
+      bun test tests/albums.test.ts || echo "⚠️ Tests albums échoués"
+      bun test tests/users.test.ts || echo "⚠️ Tests users échoués"
+      bun test tests/favorites-external.test.ts || echo "⚠️ Tests favorites échoués"
+      bun test tests/admin-auth.test.ts || echo "⚠️ Tests admin échoués"
+      bun test tests/people-photoscv.test.ts || echo "⚠️ Tests people échoués"
+      bun test tests/immich-proxy.test.ts || echo "⚠️ Tests immich proxy échoués"
+      bun test tests/e2e-integration.test.ts || echo "⚠️ Tests E2E échoués"
+      echo "✅ Suite de tests terminée"
      env:
       API_BASE_URL: http://localhost:3000

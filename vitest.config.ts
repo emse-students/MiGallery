@@ -8,7 +8,22 @@ export default defineConfig({
 		testTimeout: 30000, // 30 secondes pour les tests d'API
 		hookTimeout: 30000, // 30 secondes pour les hooks (setup/teardown)
 		environment: 'node',
-		include: ['tests/**/*.test.ts']
+		include: ['tests/**/*.test.ts'],
+		// Exécution séquentielle pour éviter les conflits de ressources
+		sequence: {
+			concurrent: false
+		},
+		// Retry pour les tests flaky (notamment ceux dépendant d'Immich)
+		retry: 1,
+		// Reporter avec plus de détails
+		reporters: ['verbose'],
+		// Coverage configuration
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'html'],
+			include: ['src/**/*.ts'],
+			exclude: ['src/**/*.d.ts', 'src/**/*.test.ts', 'src/**/*.spec.ts', '**/*.config.ts']
+		}
 	},
 	resolve: {
 		alias: {

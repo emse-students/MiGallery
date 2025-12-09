@@ -159,7 +159,7 @@
       messageType = 'success';
 
       setTimeout(() => {
-        window.location.reload();
+        window.location.href = window.location.href;
       }, 2000);
 
     } catch (error: unknown) {

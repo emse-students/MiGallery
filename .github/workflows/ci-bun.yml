@@ -47,12 +47,19 @@ jobs:
      run: |
       bun run build/index.js &
       echo "Server started, waiting for it to be ready..."
-      sleep 5
+      node scripts/wait-for-server.mjs http://localhost:3000 30000
 
    - name: Run tests
      run: bun run test
      env:
       API_BASE_URL: http://localhost:3000
+     continue-on-error: false
+
+   - name: Run E2E integration tests
+     run: bun test tests/e2e-integration.test.ts
+     env:
+      API_BASE_URL: http://localhost:3000
+     continue-on-error: true
 
    - name: Stop server
      if: always()

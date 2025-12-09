@@ -19,8 +19,8 @@
   let personId = $state<string | null>(null);
 
   let isProcessing = $state<boolean>(false);
-  let canRetry = $state<boolean>(false);
   let needsNewPhoto = $state<boolean>(false);
+  let abortController: AbortController | null = null;
 
   // État pour la gestion de la BDD et de l'utilisateur
   let allUsers = $state<UserRow[]>([]);
@@ -254,22 +254,12 @@
     }
   }
 
-  async function retryRecognition() {
-    if (!assetId) return;
 
-    canRetry = false;
-    isProcessing = true;
-    uploadStatus = "Nouvelle tentative de reconnaissance...";
-
-    await checkForPeople(false, null);
-
-    isProcessing = false;
-  }
 
   /**
    * Vérifie si des personnes ont été détectées sur l'asset uploadé.
-   * @param shouldDeleteAfter - Si true, supprime l'asset après reconnaissance (réussie ou non)
-   * @param assetIdToDelete - L'ID de l'asset à supprimer (peut être différent si c'était un duplicata)
+   * @param shouldDeleteAfter - Si true, nettoie l'asset temporaire après reconnaissance
+   * @param assetIdToDelete - L'ID de l'asset à nettoyer (peut être différent si c'était un duplicata)
    */
   async function checkForPeople(shouldDeleteAfter: boolean = false, assetIdToDelete: string | null = null) {
     const userId = (page.data.session?.user as User)?.id_user;
@@ -290,11 +280,13 @@
       const assetInfo = assetInfoData as { people?: Array<{ id: string }> };
       const people = assetInfo.people || [];
 
+      console.log('checkForPeople - Asset info:', assetInfo);
+      console.log('checkForPeople - People array:', people);
       uploadStatus = `${people.length} personne(s) détectée(s)`;
 
       if (people.length === 1) {
         personId = people[0].id;
-        uploadStatus = `Une personne détectée ! ID: ${personId}`;
+        uploadStatus = `Visage détecté avec succès !`;
 
         const updateResponse = await fetch('/api/db', {
           method: 'POST',
@@ -308,12 +300,14 @@
         const updateData = await updateResponse.json();
         const updateResult = asApiResponse(updateData);
 
-        if (updateResult.success) {
-          uploadStatus = `Terminé ! id_photos = ${personId}`;
+        console.log('Update result:', updateResult);
 
-          // Supprimer la photo temporaire AVANT le reload si nécessaire
+        if (updateResult.success) {
+          uploadStatus = `Configuration terminée !`;
+
+          // Nettoyer la photo temporaire AVANT le reload si nécessaire
           if (shouldCleanup) {
-            uploadStatus = "Nettoyage : suppression de la photo temporaire...";
+            console.log('Nettoyage de la photo temporaire...');
             try {
               await fetch(`/api/immich/assets`, {
                 method: 'DELETE',
@@ -321,20 +315,25 @@
                 body: JSON.stringify({ ids: [assetIdToDelete] })
               });
             } catch (deleteErr) {
-              console.warn("Impossible de supprimer la photo temporaire:", deleteErr);
+              console.warn("Impossible de nettoyer la photo temporaire:", deleteErr);
             }
           }
 
-          // Reload silently after successful profile photo setup
-          window.location.reload();
+          // Désactiver isProcessing pour éviter le message beforeunload
+          isProcessing = false;
+
+          console.log('Rechargement de la page...');
+          // Reload après configuration réussie
+          setTimeout(() => {
+            window.location.href = window.location.href;
+          }, 100);
         } else {
           uploadStatus = `Personne détectée mais erreur mise à jour BDD: ${updateResult.error}`;
         }
       } else if (people.length === 0) {
-        uploadStatus = "Aucune personne détectée sur cette photo.";
-        canRetry = true;
+        uploadStatus = "Aucun visage détecté. Veuillez utiliser une photo de visage claire.";
 
-        // Supprimer la photo puisqu'aucune personne n'a été détectée
+        // Nettoyer la photo si nécessaire
         if (shouldCleanup) {
           try {
             await fetch(`/api/immich/assets`, {
@@ -342,16 +341,15 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ids: [assetIdToDelete] })
             });
-            uploadStatus += " Photo supprimée.";
           } catch (deleteErr) {
-            console.warn("Impossible de supprimer la photo:", deleteErr);
+            console.warn("Impossible de nettoyer la photo:", deleteErr);
           }
         }
       } else {
-        uploadStatus = `Plusieurs personnes détectées (${people.length}). Veuillez choisir une photo avec une seule personne.`;
+        uploadStatus = `${people.length} visages détectés. Veuillez utiliser une photo avec un seul visage.`;
         needsNewPhoto = true;
 
-        // Supprimer la photo puisque plusieurs personnes ont été détectées
+        // Nettoyer la photo si nécessaire
         if (shouldCleanup) {
           try {
             await fetch(`/api/immich/assets`, {
@@ -426,8 +424,11 @@
     uploadStatus = "Upload en cours...";
     assetId = null;
     personId = null;
-    canRetry = false;
     needsNewPhoto = false;
+
+    // Créer un AbortController pour gérer l'annulation si la page est fermée
+    abortController = new AbortController();
+    const signal = abortController.signal;
 
     let isDuplicate = false;
     let uploadedAssetId: string | null = null;
@@ -443,7 +444,8 @@
       uploadStatus = "Upload de la photo...";
       const uploadResponse = await fetch('/api/immich/assets', {
         method: 'POST',
-        body: formData
+        body: formData,
+        signal
       });
 
       if (!uploadResponse.ok) {
@@ -471,38 +473,55 @@
         throw new Error('Upload réussi mais pas d\'ID retourné');
       }
 
-      uploadStatus = "Analyse en cours...";
+      uploadStatus = "Analyse de l'image en cours...";
 
-      // Vérifier toutes les 0,5 secondes pendant max 8 secondes
-      let personDetected = false;
-      const maxAttempts = 16; // 8 secondes / 0.5 secondes = 16 tentatives
+      // Polling: vérifier toutes les secondes si un visage a été détecté (max 15 tentatives = 15s)
+      const maxAttempts = 15;
       let attempt = 0;
+      let faceDetected = false;
 
-      while (attempt < maxAttempts && !personDetected) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+      while (attempt < maxAttempts && !faceDetected) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        attempt++;
+        uploadStatus = `Analyse de l'image... (${attempt}s)`;
 
         try {
-          const checkResponse = await fetch(`/api/immich/assets/${assetId}`);
+          // Ajouter un timestamp pour bypasser le cache du proxy
+          const checkResponse = await fetch(`/api/immich/assets/${assetId}?nocache=${Date.now()}`, { signal });
           if (checkResponse.ok) {
             const checkData = await checkResponse.json();
-            const people = checkData.people || [];
-            if (people.length > 0) {
-              personDetected = true;
+            const checkInfo = checkData as { people?: Array<{ id: string }> };
+            console.log(`Polling tentative ${attempt}:`, checkInfo.people?.length || 0, 'visage(s) détecté(s)');
+            if (checkInfo.people && checkInfo.people.length > 0) {
+              faceDetected = true;
+              uploadStatus = "Visage détecté ! Finalisation...";
               break;
             }
           }
-        } catch (e) {
-          // Continuer à essayer même en cas d'erreur
+        } catch (pollError) {
+          // Ignorer les erreurs de polling, continuer
+          if (pollError instanceof Error && pollError.name === 'AbortError') {
+            throw pollError; // Propager l'annulation
+          }
+          console.warn('Erreur polling:', pollError);
         }
-
-        attempt++;
       }
 
-      // Passer les infos de suppression à checkForPeople pour qu'elle gère la suppression AVANT le reload
+      if (!faceDetected) {
+        uploadStatus = "Analyse terminée (délai d'attente atteint)";
+      }
+
+      // Passer les infos de nettoyage à checkForPeople
       const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
       await checkForPeople(shouldDeleteAfter, uploadedAssetId);
 
     } catch (error: unknown) {
+      // Si l'opération a été annulée (page fermée), ne rien faire
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Upload annulé (page fermée)');
+        return;
+      }
+
       // En cas d'erreur, nettoyer la photo uploadée si ce n'était pas un duplicata
       if (!isDuplicate && uploadedAssetId) {
         try {
@@ -520,8 +539,30 @@
       console.error("Erreur import photo:", error);
     } finally {
       isProcessing = false;
+      abortController = null;
     }
   }
+
+  // Gérer la fermeture de la page pendant un traitement en cours
+  $effect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Ne bloquer que si un traitement est en cours ET qu'on n'est pas en train de recharger après succès
+      if (isProcessing && abortController) {
+        // Annuler l'opération en cours
+        abortController.abort();
+
+        // Avertir l'utilisateur
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  });
 </script>
 
 <svelte:head>
@@ -557,7 +598,7 @@
 
   <div class="section">
     <h2><Icon name="image" size={28} /> Photo de profil</h2>
-    <p>Importez une photo pour configurer votre reconnaissance faciale et accéder à "Mes photos".</p>
+    <p>Importez une photo de votre visage pour configurer votre reconnaissance faciale et accéder à "Mes photos".</p>
 
     <div class="my-5">
       <CameraInput onPhoto={importPhoto} disabled={isProcessing} />
@@ -570,15 +611,6 @@
       <div class="status-box">
         <strong>Statut :</strong> {uploadStatus}
       </div>
-    {/if}
-
-    {#if canRetry}
-      <button onclick={retryRecognition} disabled={isProcessing}>
-        <Icon name="refresh" size={20} /> Réessayer la reconnaissance
-      </button>
-      <p class="text-slate-600 text-sm mt-2.5">
-        La reconnaissance peut prendre du temps. Vous pouvez attendre un peu puis réessayer.
-      </p>
     {/if}
 
     {#if needsNewPhoto}
