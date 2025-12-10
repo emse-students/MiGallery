@@ -536,6 +536,3 @@ pip install --upgrade pre-commit identify
 Si un commit échoue, corrigez les erreurs reportées par ESLint/Prettier puis réessayez.
 
 </details>
-
-
-Couscous
