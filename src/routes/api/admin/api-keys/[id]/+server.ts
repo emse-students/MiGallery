@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
-import { revokeApiKey } from '$lib/db/api-keys';
+import { deleteApiKey } from '$lib/db/api-keys';
 import { requireScope } from '$lib/server/permissions';
 
 export const DELETE: RequestHandler = async (event) => {
@@ -13,7 +13,7 @@ export const DELETE: RequestHandler = async (event) => {
 			return json({ error: 'Not Found' }, { status: 404 });
 		}
 
-		const changes = revokeApiKey(id);
+		const changes = deleteApiKey(id);
 		if (changes === 0) {
 			return json({ error: 'Not Found' }, { status: 404 });
 		}

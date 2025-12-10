@@ -361,7 +361,7 @@ export async function setupTestAuth(): Promise<TestContext> {
 	context.sessionCookie = sessionCookie;
 
 	// 2. Créer les clés API (admin, write, read)
-	const adminKey = await createApiKey(sessionCookie, ['admin'], 'Test Admin Key');
+	const adminKey = await createApiKey(sessionCookie, ['admin'], '[TEST] Admin Key');
 	if (!adminKey) {
 		throw new Error('Impossible de créer la clé admin');
 	}
@@ -369,13 +369,13 @@ export async function setupTestAuth(): Promise<TestContext> {
 	context.createdResources.apiKeys.push(adminKey.id);
 
 	// Write key doit inclure read pour avoir accès aux endpoints read
-	const writeKey = await createApiKey(sessionCookie, ['read', 'write'], 'Test Write Key');
+	const writeKey = await createApiKey(sessionCookie, ['read', 'write'], '[TEST] Write Key');
 	if (writeKey) {
 		context.writeApiKey = writeKey.rawKey;
 		context.createdResources.apiKeys.push(writeKey.id);
 	}
 
-	const readKey = await createApiKey(sessionCookie, ['read'], 'Test Read Key');
+	const readKey = await createApiKey(sessionCookie, ['read'], '[TEST] Read Key');
 	if (readKey) {
 		context.readApiKey = readKey.rawKey;
 		context.createdResources.apiKeys.push(readKey.id);

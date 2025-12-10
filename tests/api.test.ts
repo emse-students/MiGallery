@@ -119,7 +119,7 @@ async function createTestApiKey(scopes?: string[]): Promise<{ id: string; rawKey
 				Cookie: sessionCookie
 			},
 			body: JSON.stringify({
-				label: 'Test API Key (auto-generated)',
+				label: '[TEST] API Key (auto-generated)',
 				scopes: scopes || ['admin']
 			})
 		});
@@ -536,7 +536,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				label: 'Test Permission Key',
+				label: '[TEST] Permission Key',
 				scopes: ['read']
 			})
 		});
@@ -567,7 +567,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				label: 'Temp key for delete test',
+				label: '[TEST] Temp Key Delete',
 				scopes: ['read']
 			})
 		});
@@ -750,7 +750,7 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					albumName: 'Test Album READ Scope',
+					albumName: '[TEST] Album READ Scope',
 					visibility: 'private'
 				}),
 				signal: AbortSignal.timeout(10000)

@@ -44,7 +44,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Validation role
-		if (!['user', 'admin', 'moderator'].includes(role)) {
+		if (!['user', 'admin', 'mitviste'].includes(role)) {
 			return json({ error: 'Invalid role' }, { status: 400 });
 		}
 

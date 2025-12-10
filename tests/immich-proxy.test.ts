@@ -76,7 +76,7 @@ describe('Immich Proxy - POST requests', () => {
 			method: 'POST',
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
-				albumName: 'Test Album'
+				albumName: '[TEST] Album'
 			}),
 			signal: AbortSignal.timeout(10000)
 		});
@@ -107,7 +107,7 @@ describe('Immich Proxy - PUT requests', () => {
 			method: 'PUT',
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
-				albumName: 'Updated Album'
+				albumName: '[TEST] Updated Album'
 			}),
 			signal: AbortSignal.timeout(10000)
 		});
@@ -355,7 +355,7 @@ describe('Immich Proxy - Scope validation', () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({ albumName: 'Test' }),
+			body: JSON.stringify({ albumName: '[TEST] Album' }),
 			signal: AbortSignal.timeout(10000)
 		});
 

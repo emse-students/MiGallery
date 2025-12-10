@@ -4,7 +4,7 @@ import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
 import {
 	SYSTEM_ALBUMS as _SYSTEM_ALBUMS,
 	getOrCreateSystemAlbum,
-	getAllAssetIdsInSystemAlbums
+	getAssetIdsInSystemAlbum
 } from '$lib/immich/system-albums';
 import { immichCache } from '$lib/server/immich-cache';
 
@@ -60,10 +60,10 @@ export async function getPersonAssets(
 	fetchFn: typeof fetch
 ): Promise<ImmichAsset[]> {
 	const allAssets = await fetchAllPersonAssets(personId, fetchFn);
-	const systemAssetIds = new Set(await getAllAssetIdsInSystemAlbums(fetchFn));
+	const photoCVAssetIds = new Set(await getAssetIdsInSystemAlbum(fetchFn, 'PhotoCV'));
 	const filtered = allAssets.filter((asset) => {
-		const isInAnySystem = systemAssetIds.has(asset.id);
-		return inAlbum ? isInAnySystem : !isInAnySystem;
+		const isInPhotoCVAlbum = photoCVAssetIds.has(asset.id);
+		return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
 	});
 	return filtered;
 }

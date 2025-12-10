@@ -13,7 +13,8 @@ import {
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testAlbumId = ''; // UUID Immich = ID local dans la BDD
-let testAlbumCreated = false; // Flag pour savoir si on a créé un album de test
+// Suivi de tous les albums créés pour le nettoyage
+const createdAlbumIds: string[] = [];
 
 beforeAll(async () => {
 	await setupTestAuth();
@@ -29,7 +30,7 @@ beforeAll(async () => {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					albumName: `Test Permissions ${Date.now()}`,
+					albumName: `[TEST] Permissions ${Date.now()}`,
 					description: 'Album pour tests de permissions'
 				})
 			});
@@ -37,7 +38,7 @@ beforeAll(async () => {
 			if (response.ok) {
 				const album = (await response.json()) as ImmichAlbum;
 				testAlbumId = album.id;
-				testAlbumCreated = true;
+				createdAlbumIds.push(album.id);
 			}
 		} catch (err) {
 			console.error('Failed to create test album:', err);
@@ -46,15 +47,17 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	// Supprimer l'album de test si on l'a créé
-	if (testAlbumCreated && testAlbumId && globalTestContext.adminApiKey) {
-		try {
-			await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
-				method: 'DELETE',
-				headers: { 'x-api-key': globalTestContext.adminApiKey }
-			});
-		} catch {
-			// Ignore les erreurs de nettoyage
+	// Supprimer tous les albums créés pendant les tests
+	if (globalTestContext.adminApiKey) {
+		for (const albumId of createdAlbumIds) {
+			try {
+				await fetch(`${API_BASE_URL}/api/albums/${albumId}`, {
+					method: 'DELETE',
+					headers: { 'x-api-key': globalTestContext.adminApiKey }
+				});
+			} catch {
+				// Ignorer les erreurs (album peut déjà être supprimé)
+			}
 		}
 	}
 
@@ -132,7 +135,7 @@ describe('Albums API - GET /api/albums', () => {
 describe('Albums API - POST /api/albums', () => {
 	it('devrait respecter les permissions WRITE', async () => {
 		const albumData = {
-			albumName: `Test Permission Album ${Date.now()}`,
+			albumName: `[TEST] Permission Album ${Date.now()}`,
 			description: 'Test'
 		};
 
@@ -152,7 +155,7 @@ describe('Albums API - POST /api/albums', () => {
 
 	it('devrait créer un nouvel album', async () => {
 		const newAlbum = {
-			albumName: `Test Album ${Date.now()}`,
+			albumName: `[TEST] Album ${Date.now()}`,
 			description: 'Album créé par les tests automatisés'
 		};
 
@@ -169,6 +172,7 @@ describe('Albums API - POST /api/albums', () => {
 			expect(album).toHaveProperty('id');
 			expect(album.albumName).toBe(newAlbum.albumName);
 			testAlbumId = album.id;
+			createdAlbumIds.push(album.id);
 		}
 	});
 
@@ -216,7 +220,7 @@ describe('Albums API - PATCH /api/albums/[id]', () => {
 		const createRes = await fetch(`${API_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({ albumName: `Patch Test Album ${Date.now()}` })
+			body: JSON.stringify({ albumName: `[TEST] Patch Album ${Date.now()}` })
 		});
 
 		if (createRes.status === 200 || createRes.status === 201) {
@@ -249,7 +253,7 @@ describe('Albums API - PATCH /api/albums/[id]', () => {
 		}
 
 		const updates = {
-			albumName: `Album Modifié ${Date.now()}`,
+			albumName: `[TEST] Album Modifié ${Date.now()}`,
 			description: 'Description mise à jour'
 		};
 

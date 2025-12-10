@@ -1,32 +1,17 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
 
-  type KeyRow = { id: number; label?: string; scopes?: string | null; revoked: number; created_at: number };
+  type KeyRow = { id: number; label?: string; scopes?: string | null; created_at: number };
 
   let keys: KeyRow[] = $state([]);
   let loading = $state(true);
   let error: string | null = $state(null);
-  let showRevokedOld = $state(false);
 
   let newLabel = $state('');
   let newScopes = $state('');
   let creating = $state(false);
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
-
-  const REVOKED_RETENTION_DAYS = 30;
-
-  function isRevokedOld(key: KeyRow): boolean {
-    if (!key.revoked) return false;
-    const ageMs = Date.now() - (key.created_at * 1000);
-    const ageDays = ageMs / (1000 * 60 * 60 * 24);
-    return ageDays > REVOKED_RETENTION_DAYS;
-  }
-
-  function filteredKeys(): KeyRow[] {
-    return keys.filter(k => !isRevokedOld(k) || showRevokedOld);
-  }
 
   async function loadKeys() {
     loading = true;
@@ -62,12 +47,13 @@
     }
   }
 
-  async function revokeKey(id: number) {
-    const ok = await showConfirm('Révoquer cette clé ?', 'Révoquer la clé');
+  async function deleteKey(id: number) {
+    const ok = await showConfirm('Supprimer définitivement cette clé ?\nCette action est irréversible.', 'Supprimer la clé');
     if (!ok) return;
     try {
       const res = await fetch(`/api/admin/api-keys/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
+      toast.success('Clé supprimée');
       await loadKeys();
     } catch (e: unknown) {
       toast.error('Erreur: ' + (e as Error).message);
@@ -105,26 +91,19 @@
     <section class="card list">
       <div class="section-header">
         <h2>Clés existantes</h2>
-        <label class="toggle-old">
-          <input type="checkbox" bind:checked={showRevokedOld} />
-          <span>Afficher les clés révoquées (> {REVOKED_RETENTION_DAYS}j)</span>
-        </label>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>ID</th><th>Label</th><th>Scopes</th><th>Créée</th><th>Révoquée</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Label</th><th>Scopes</th><th>Créée</th><th>Actions</th></tr></thead>
           <tbody>
-            {#each filteredKeys() as k}
+            {#each keys as k}
               <tr>
                 <td>{k.id}</td>
                 <td>{k.label}</td>
                 <td>{k.scopes ?? ''}</td>
                 <td>{new Date(k.created_at).toLocaleString()}</td>
-                <td>{k.revoked ? 'oui' : 'non'}</td>
                 <td>
-                  {#if !k.revoked}
-                    <button onclick={() => revokeKey(k.id)}>Révoquer</button>
-                  {/if}
+                  <button onclick={() => deleteKey(k.id)}>Supprimer</button>
                 </td>
               </tr>
             {/each}
@@ -141,11 +120,10 @@
   }
 
   th:nth-child(1), td:nth-child(1) { width: 8%; }
-  th:nth-child(2), td:nth-child(2) { width: 20%; }
-  th:nth-child(3), td:nth-child(3) { width: 18%; }
-  th:nth-child(4), td:nth-child(4) { width: 18%; }
-  th:nth-child(5), td:nth-child(5) { width: 12%; }
-  th:nth-child(6), td:nth-child(6) { width: 24%; }
+  th:nth-child(2), td:nth-child(2) { width: 25%; }
+  th:nth-child(3), td:nth-child(3) { width: 22%; }
+  th:nth-child(4), td:nth-child(4) { width: 22%; }
+  th:nth-child(5), td:nth-child(5) { width: 23%; }
 
   th {
     word-break: break-word;

@@ -54,7 +54,7 @@ export const PUT: RequestHandler = async (event) => {
 		if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
 			return json({ error: 'Invalid email format' }, { status: 400 });
 		}
-		if (role && !['user', 'admin', 'moderator'].includes(role)) {
+		if (role && !['user', 'admin', 'mitviste'].includes(role)) {
 			return json({ error: 'Invalid role' }, { status: 400 });
 		}
 
