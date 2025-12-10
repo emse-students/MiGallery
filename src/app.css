@@ -860,7 +860,8 @@
 		margin-bottom: 2rem;
 	}
 
-	.album-detail nav a {
+	.album-detail nav a,
+	.album-detail nav button.back-link {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -869,9 +870,14 @@
 		border-radius: var(--radius-xs);
 		color: var(--text-secondary);
 		font-weight: 500;
+		border: none;
+		cursor: pointer;
+		font-size: inherit;
+		font-family: inherit;
 	}
 
-	.album-detail nav a:hover {
+	.album-detail nav a:hover,
+	.album-detail nav button.back-link:hover {
 		background: var(--bg-tertiary);
 		color: var(--text-primary);
 	}
