@@ -125,10 +125,9 @@
   let editingAlbumExistingUsers = $state<string[]>([]);
 
   async function loadAlbums() {
-    const res = await fetch('/api/albums/list');
-    const jsonData = await res.json();
-    const result = asApiResponse<Album[]>(jsonData);
-    if (result.success && result.data) { albums = result.data; }
+    const res = await fetch('/api/albums');
+    const jsonData = await res.json() as Album[];
+    albums = jsonData;
   }
 
   // No manual album creation: albums are sourced from Immich. Use import button to sync.
@@ -223,31 +222,7 @@
     if (showDbManager) loadAllUsers();
   });
 
-  // Importer les albums depuis Immich via le proxy serveur
-  async function importAlbumsFromImmich() {
-    try {
-      const res = await fetch('/api/albums/import', { method: 'POST' });
-
-      if (!res.ok) {
-        toast.error(`Erreur import albums: ${res.status} ${res.statusText}`);
-        return;
-      }
-
-      const jsonData = await res.json();
-      const result = asApiResponse<{imported: number, total: number}>(jsonData);
-
-      if (result.success && result.data) {
-        toast.success(`Import terminé : ${result.data.imported} albums importés sur ${result.data.total}`);
-      } else {
-        toast.error(`Erreur import: ${result.error || 'Unknown error'}`);
-      }
-
-      await loadAlbums();
-    } catch (err: unknown) {
-      console.error('Import albums error', err);
-      toast.error('Erreur lors de l\'import des albums. Voir la console.');
-    }
-  }
+  // Import depuis Immich supprimé - les albums sont maintenant gérés manuellement
 
 
 

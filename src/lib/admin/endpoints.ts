@@ -142,24 +142,6 @@ export const API_ENDPOINTS: EndpointGroup[] = [
 				exampleResponse: '{"processed":5,"success":true}'
 			},
 			{
-				method: 'GET',
-				path: '/api/albums/list',
-				scope: 'read',
-				description: 'Liste des albums de la BDD locale avec métadonnées',
-				exampleCurl: 'curl -H "x-api-key: YOUR_API_KEY" "http://localhost:5173/api/albums/list"',
-				exampleResponse:
-					'{"success":true,"data":[{"id":"uuid","name":"string","date":"2024-01-01","location":"string","visibility":"private","visible":1}]}'
-			},
-			{
-				method: 'POST',
-				path: '/api/albums/import',
-				scope: 'write',
-				description: 'Importer tous les albums depuis Immich dans la BDD locale',
-				exampleCurl:
-					'curl -X POST -H "x-api-key: YOUR_API_KEY" "http://localhost:5173/api/albums/import"',
-				exampleResponse: '{"success":true,"imported":10,"total":15}'
-			},
-			{
 				method: 'POST',
 				path: '/api/albums/{id}/permissions/tags',
 				scope: 'write',
