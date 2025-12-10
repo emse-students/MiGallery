@@ -192,7 +192,9 @@ describe('Permissions Résumé', () => {
 		console.debug(
 			'\nℹ️  Note: PUT/DELETE /api/people/album/assets testés dans people-photoscv.test.ts'
 		);
-		console.debug("   (nécessitent l'album système PhotoCV qui peut ne pas être disponible au début)");
+		console.debug(
+			"   (nécessitent l'album système PhotoCV qui peut ne pas être disponible au début)"
+		);
 		expect(true).toBe(true);
 	});
 });

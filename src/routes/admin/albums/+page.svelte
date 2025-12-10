@@ -114,8 +114,7 @@
   </div>
 
   <section class="card">
-    <button onclick={importAlbumsFromImmich} class="mb-4 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded">Importer depuis Immich</button>
-    <h3 class="mb-4 mt-4">Albums existants</h3>
+    <h3 class="mb-4">Albums existants</h3>
     {#if albums.length > 0}
       <div class="table-wrap">
         <table>
