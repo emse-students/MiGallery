@@ -13,10 +13,13 @@ const fs = require('fs');
 const envPath = path.join(process.cwd(), '.env');
 if (fs.existsSync(envPath)) {
 	const envContent = fs.readFileSync(envPath, 'utf-8');
-	envContent.split('\n').forEach(line => {
+	envContent.split('\n').forEach((line) => {
 		const [key, ...valueParts] = line.split('=');
 		if (key && valueParts.length > 0) {
-			const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
+			const value = valueParts
+				.join('=')
+				.trim()
+				.replace(/^["']|["']$/g, '');
 			if (!process.env[key.trim()]) {
 				process.env[key.trim()] = value;
 			}
@@ -45,7 +48,7 @@ const TEST_PATTERNS = [
 ];
 
 function isTestAlbum(albumName) {
-	return TEST_PATTERNS.some(pattern => pattern.test(albumName));
+	return TEST_PATTERNS.some((pattern) => pattern.test(albumName));
 }
 
 async function main() {
@@ -71,7 +74,7 @@ async function main() {
 		const response = await fetch(`${IMMICH_BASE_URL}/api/albums`, {
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
-				'Accept': 'application/json'
+				Accept: 'application/json'
 			}
 		});
 
@@ -87,13 +90,13 @@ async function main() {
 	}
 
 	// 2. Identifier les albums de test
-	const testAlbums = allAlbums.filter(album => isTestAlbum(album.albumName));
+	const testAlbums = allAlbums.filter((album) => isTestAlbum(album.albumName));
 
 	if (testAlbums.length === 0) {
 		console.log('✅ Aucun album de test trouvé sur Immich\n');
 	} else {
 		console.log(`🗑️  ${testAlbums.length} album(s) de test identifié(s):`);
-		testAlbums.forEach(album => {
+		testAlbums.forEach((album) => {
 			console.log(`   - ${album.albumName} (${album.id}) - ${album.assetCount || 0} assets`);
 		});
 		console.log('');
@@ -154,21 +157,27 @@ async function main() {
 
 		try {
 			// Compter les albums de test
-			const testAlbumsInDb = db.prepare(`
+			const testAlbumsInDb = db
+				.prepare(
+					`
 				SELECT id, name FROM albums
 				WHERE name LIKE '%Test%'
 				   OR name LIKE '%test%'
 				   OR name LIKE '%Permission%'
 				   OR name LIKE '%E2E%'
-			`).all();
+			`
+				)
+				.all();
 
 			if (testAlbumsInDb.length > 0) {
 				console.log(`   📋 ${testAlbumsInDb.length} album(s) de test dans la BDD locale:`);
-				testAlbumsInDb.forEach(a => console.log(`      - ${a.name} (${a.id})`));
+				testAlbumsInDb.forEach((a) => console.log(`      - ${a.name} (${a.id})`));
 
 				if (!DRY_RUN) {
 					// Supprimer les permissions associées
-					db.prepare(`
+					db
+						.prepare(
+							`
 						DELETE FROM album_tag_permissions
 						WHERE album_id IN (
 							SELECT id FROM albums
@@ -177,9 +186,13 @@ async function main() {
 							   OR name LIKE '%Permission%'
 							   OR name LIKE '%E2E%'
 						)
-					`).run();
+					`
+						)
+						.run();
 
-					db.prepare(`
+					db
+						.prepare(
+							`
 						DELETE FROM album_user_permissions
 						WHERE album_id IN (
 							SELECT id FROM albums
@@ -188,16 +201,22 @@ async function main() {
 							   OR name LIKE '%Permission%'
 							   OR name LIKE '%E2E%'
 						)
-					`).run();
+					`
+						)
+						.run();
 
 					// Supprimer les albums
-					const result = db.prepare(`
+					const result = db
+						.prepare(
+							`
 						DELETE FROM albums
 						WHERE name LIKE '%Test%'
 						   OR name LIKE '%test%'
 						   OR name LIKE '%Permission%'
 						   OR name LIKE '%E2E%'
-					`).run();
+					`
+						)
+						.run();
 
 					console.log(`   ✅ ${result.changes} album(s) supprimé(s) de la BDD locale\n`);
 				}
@@ -212,7 +231,7 @@ async function main() {
 	console.log('✨ Nettoyage terminé!\n');
 }
 
-main().catch(err => {
+main().catch((err) => {
 	console.error('❌ Erreur fatale:', err);
 	process.exit(1);
 });

@@ -10,12 +10,7 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testApiKeyId: string | null = null;
 
 // Liste des labels de clés créées pendant les tests pour nettoyage
-const TEST_KEY_LABELS = [
-	'Admin Key Test',
-	'Read Only Key',
-	'Invalid Scope Key',
-	'Multi Scope Key'
-];
+const TEST_KEY_LABELS = ['Admin Key Test', 'Read Only Key', 'Invalid Scope Key', 'Multi Scope Key'];
 
 beforeAll(async () => {
 	await setupTestAuth();
