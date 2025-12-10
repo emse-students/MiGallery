@@ -143,6 +143,42 @@ export const API_ENDPOINTS: EndpointGroup[] = [
 			},
 			{
 				method: 'GET',
+				path: '/api/albums/list',
+				scope: 'read',
+				description: 'Liste des albums de la BDD locale avec métadonnées',
+				exampleCurl: 'curl -H "x-api-key: YOUR_API_KEY" "http://localhost:5173/api/albums/list"',
+				exampleResponse:
+					'{"success":true,"data":[{"id":"uuid","name":"string","date":"2024-01-01","location":"string","visibility":"private","visible":1}]}'
+			},
+			{
+				method: 'POST',
+				path: '/api/albums/import',
+				scope: 'write',
+				description: 'Importer tous les albums depuis Immich dans la BDD locale',
+				exampleCurl:
+					'curl -X POST -H "x-api-key: YOUR_API_KEY" "http://localhost:5173/api/albums/import"',
+				exampleResponse: '{"success":true,"imported":10,"total":15}'
+			},
+			{
+				method: 'POST',
+				path: '/api/albums/{id}/permissions/tags',
+				scope: 'write',
+				description: 'Gérer les tags autorisés pour un album',
+				exampleCurl:
+					'curl -X POST -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"add":["2024","sport"],"remove":["old"]}\' "http://localhost:5173/api/albums/{id}/permissions/tags"',
+				exampleResponse: '{"success":true,"added":2,"removed":1}'
+			},
+			{
+				method: 'POST',
+				path: '/api/albums/{id}/permissions/users',
+				scope: 'write',
+				description: 'Gérer les utilisateurs autorisés pour un album',
+				exampleCurl:
+					'curl -X POST -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"add":["john.doe","jane.smith"],"remove":["old.user"]}\' "http://localhost:5173/api/albums/{id}/permissions/users"',
+				exampleResponse: '{"success":true,"added":2,"removed":1}'
+			},
+			{
+				method: 'GET',
 				path: '/api/albums/{id}/asset-thumbnail/{assetId}',
 				scope: 'read',
 				description: "Thumbnail d'un asset",
@@ -247,7 +283,16 @@ export const API_ENDPOINTS: EndpointGroup[] = [
 				description: "Mettre à jour l'année de promotion de l'utilisateur connecté",
 				exampleCurl:
 					'curl -X PATCH -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"promo_year":2024}\' "http://localhost:5173/api/users/me/promo"',
-				exampleResponse: '{"success":true,"user":{"id_user":"string","promo_year":2024,...}}'
+				exampleResponse: '{"success":true,"promo_year":2024}'
+			},
+			{
+				method: 'PATCH',
+				path: '/api/users/me/face',
+				scope: 'read',
+				description: "Mettre à jour l'ID de la personne (visage) de l'utilisateur connecté",
+				exampleCurl:
+					'curl -X PATCH -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"person_id":"uuid"}\' "http://localhost:5173/api/users/me/face"',
+				exampleResponse: '{"success":true,"person_id":"uuid"}'
 			},
 			{
 				method: 'GET',

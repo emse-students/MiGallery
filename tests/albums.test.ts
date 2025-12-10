@@ -13,13 +13,52 @@ import {
 } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-let testAlbumId = '';
+let testAlbumId = ''; // UUID Immich = ID local dans la BDD
+let testAlbumCreated = false; // Flag pour savoir si on a créé un album de test
 
 beforeAll(async () => {
 	await setupTestAuth();
+
+	// Créer un album de test dédié pour les tests de permissions
+	// POST /api/albums crée l'album sur Immich ET dans la BDD locale
+	if (globalTestContext.adminApiKey) {
+		try {
+			const response = await fetch(`${API_BASE_URL}/api/albums`, {
+				method: 'POST',
+				headers: {
+					'x-api-key': globalTestContext.adminApiKey,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					albumName: `Test Permissions ${Date.now()}`,
+					description: 'Album pour tests de permissions'
+				})
+			});
+
+			if (response.ok) {
+				const album = (await response.json()) as ImmichAlbum;
+				testAlbumId = album.id;
+				testAlbumCreated = true;
+			}
+		} catch (err) {
+			console.error('Failed to create test album:', err);
+		}
+	}
 });
 
 afterAll(async () => {
+	// Supprimer l'album de test si on l'a créé
+	if (testAlbumCreated && testAlbumId && globalTestContext.adminApiKey) {
+		try {
+			await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
+				method: 'DELETE',
+				headers: { 'x-api-key': globalTestContext.adminApiKey }
+			});
+		} catch {
+			// Ignore les erreurs de nettoyage
+		}
+	}
+
 	if (globalTestContext.adminApiKey) {
 		await teardownTestAuth(globalTestContext as import('./test-helpers').TestContext);
 	}
@@ -463,5 +502,193 @@ describe('Albums API - DELETE /api/albums/[id]', () => {
 		});
 
 		expect([200, 204, 401, 404, 500]).toContain(response.status);
+	});
+});
+
+describe('Albums API - GET /api/albums/list', () => {
+	it('devrait lister tous les albums de la BDD locale', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/albums/list`, {
+			headers: getAuthHeaders()
+		});
+
+		expect([200, 401, 403]).toContain(response.status);
+
+		if (response.status === 200) {
+			const data = (await response.json()) as {
+				success: boolean;
+				data: Array<{
+					id: string;
+					name: string;
+					date?: string | null;
+					location?: string | null;
+					visibility?: string;
+					visible?: number;
+				}>;
+			};
+			expect(data.success).toBe(true);
+			expect(Array.isArray(data.data)).toBe(true);
+
+			// Vérifier la structure des albums
+			if (data.data.length > 0) {
+				const album = data.data[0];
+				expect(album).toHaveProperty('id');
+				expect(album).toHaveProperty('name');
+				expect(album).toHaveProperty('date');
+				expect(album).toHaveProperty('location');
+				expect(album).toHaveProperty('visibility');
+				expect(album).toHaveProperty('visible');
+
+				// Sauvegarder l'ID pour les tests de permissions (c'est l'UUID Immich)
+				if (!testAlbumId) {
+					testAlbumId = album.id;
+				}
+			}
+		}
+	});
+
+	it('devrait rejeter les requêtes sans authentification', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/albums/list`);
+		expect([401, 403]).toContain(response.status);
+	});
+});
+
+describe('Albums API - POST /api/albums/import', () => {
+	it('devrait rejeter les requêtes sans authentification', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/albums/import`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' }
+		});
+
+		expect([401, 403]).toContain(response.status);
+	});
+
+	it('devrait importer les albums depuis Immich', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/albums/import`, {
+			method: 'POST',
+			headers: getAuthHeaders()
+		});
+
+		// Peut échouer si Immich n'est pas disponible, mais ne doit pas crasher
+		expect([200, 401, 403, 500, 502, 503]).toContain(response.status);
+
+		if (response.status === 200) {
+			const data = (await response.json()) as { success: boolean; imported: number; total: number };
+			expect(data.success).toBe(true);
+			expect(data).toHaveProperty('imported');
+			expect(data).toHaveProperty('total');
+			expect(typeof data.imported).toBe('number');
+			expect(typeof data.total).toBe('number');
+		}
+	});
+});
+
+describe('Albums API - POST /api/albums/[id]/permissions/tags', () => {
+	it('devrait rejeter les requêtes sans authentification', async () => {
+		// Utiliser le premier album disponible ou skip
+		if (!testAlbumId) {
+			return;
+		}
+
+		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/tags`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ add: ['test'], remove: [] })
+		});
+
+		expect([401, 403]).toContain(response.status);
+	});
+
+	it('devrait gérer les permissions de tags', async () => {
+		if (!testAlbumId) {
+			return;
+		}
+
+		// Test ajout
+		const addResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/tags`, {
+			method: 'POST',
+			headers: getAuthHeaders(),
+			body: JSON.stringify({ add: ['test-tag-ci'], remove: [] })
+		});
+
+		expect([200, 401, 403, 404]).toContain(addResponse.status);
+
+		if (addResponse.status === 200) {
+			const addData = (await addResponse.json()) as {
+				success: boolean;
+				added: number;
+				removed: number;
+			};
+			expect(addData.success).toBe(true);
+			expect(addData).toHaveProperty('added');
+
+			// Test suppression
+			const removeResponse = await fetch(
+				`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/tags`,
+				{
+					method: 'POST',
+					headers: getAuthHeaders(),
+					body: JSON.stringify({ add: [], remove: ['test-tag-ci'] })
+				}
+			);
+
+			expect([200, 401, 403, 404]).toContain(removeResponse.status);
+
+			if (removeResponse.status === 200) {
+				const removeData = (await removeResponse.json()) as { success: boolean; removed: number };
+				expect(removeData.success).toBe(true);
+			}
+		}
+	});
+});
+
+describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
+	it('devrait rejeter les requêtes sans authentification', async () => {
+		if (!testAlbumId) {
+			return;
+		}
+
+		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/users`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ add: ['test.user'], remove: [] })
+		});
+
+		expect([401, 403]).toContain(response.status);
+	});
+
+	it('devrait gérer les permissions utilisateurs', async () => {
+		if (!testAlbumId) {
+			return;
+		}
+
+		// Test ajout (peut échouer si l'utilisateur n'existe pas, c'est OK)
+		const addResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/users`, {
+			method: 'POST',
+			headers: getAuthHeaders(),
+			body: JSON.stringify({ add: ['les.roots'], remove: [] })
+		});
+
+		expect([200, 401, 403, 404]).toContain(addResponse.status);
+
+		if (addResponse.status === 200) {
+			const addData = (await addResponse.json()) as {
+				success: boolean;
+				added: number;
+				removed: number;
+			};
+			expect(addData.success).toBe(true);
+
+			// Test suppression
+			const removeResponse = await fetch(
+				`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/users`,
+				{
+					method: 'POST',
+					headers: getAuthHeaders(),
+					body: JSON.stringify({ add: [], remove: ['les.roots'] })
+				}
+			);
+
+			expect([200, 401, 403, 404]).toContain(removeResponse.status);
+		}
 	});
 });
