@@ -769,12 +769,12 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 		}
 	}, 15000);
 
-	it('PATCH /api/albums/{id} devrait accepter scope WRITE', async () => {
+	it('PATCH /api/albums/{id} devrait accepter scope WRITE', () => {
 		// Ce test nécessite un album existant, on le skip si Immich down
 		expect(true).toBe(true);
 	});
 
-	it('DELETE /api/albums/{id} devrait accepter scope WRITE (pas delete)', async () => {
+	it('DELETE /api/albums/{id} devrait accepter scope WRITE (pas delete)', () => {
 		// Test de régression pour vérifier que scope 'delete' n'est plus requis
 		expect(true).toBe(true);
 	});

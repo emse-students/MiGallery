@@ -31,7 +31,7 @@ beforeAll(async () => {
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
 					sessionCookie = `current_user_id=${match[1]}`;
-					console.log('✅ Authentifié avec cookie de session');
+					console.debug('✅ Authentifié avec cookie de session');
 				}
 			}
 		}
@@ -106,7 +106,7 @@ afterAll(async () => {
 		});
 	}
 
-	console.log('✅ Nettoyage terminé\n');
+	console.debug('✅ Nettoyage terminé\n');
 });
 
 // ========================================
@@ -339,7 +339,7 @@ describe('E2E - Workflow médias externes', () => {
 		});
 
 		if (createResponse.ok) {
-			const media = await createResponse.json();
+			const media = (await createResponse.json()) as { media: { id: string } };
 			const mediaId = media.media.id;
 
 			// 2. Récupérer le média

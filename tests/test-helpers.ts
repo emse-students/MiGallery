@@ -163,7 +163,7 @@ export function createTestContext(): TestContext {
 /**
  * Vérifier que l'utilisateur système existe dans la base de données
  */
-async function ensureSystemUserExists(): Promise<boolean> {
+async function _ensureSystemUserExists(): Promise<boolean> {
 	try {
 		const fs = await import('fs');
 		const path = await import('path');

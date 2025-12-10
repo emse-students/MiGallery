@@ -39,7 +39,9 @@ describe('People API - GET /api/people/people', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const data = await response.json();
+			const data = (await response.json()) as
+				| Array<{ id: string; name: string }>
+				| { people?: Array<{ id: string; name: string }>; data?: Array<{ id: string; name: string }> };
 			// La réponse peut être un tableau [...], un objet {people: [...]}, ou une autre structure
 			// Tolérons toutes les structures de réponse possibles
 			if (Array.isArray(data)) {
@@ -100,7 +102,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const photos = await response.json();
+			const photos = (await response.json()) as unknown[];
 			expect(Array.isArray(photos)).toBe(true);
 		}
 	}, 15000);
@@ -198,7 +200,7 @@ describe('People API - GET /api/people', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const data = await response.json();
+			const data = (await response.json()) as Record<string, unknown>;
 			expect(data).toBeDefined();
 		}
 	}, 15000);
@@ -300,7 +302,11 @@ describe('People Album API - GET /api/people/album', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const data = await response.json();
+			const data = (await response.json()) as {
+				id?: string;
+				albumName?: string;
+				assets?: unknown[];
+			};
 			// La réponse peut être {id, albumName} ou {assets: [...]}
 			if (data && typeof data === 'object') {
 				if ('id' in data) {
@@ -326,7 +332,7 @@ describe('People Album API - GET /api/people/album/info', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const info = await response.json();
+			const info = (await response.json()) as { id: string };
 			expect(info).toHaveProperty('id');
 		}
 	}, 15000);
@@ -346,7 +352,7 @@ describe('People Album API - GET /api/people/album/[albumId]/assets', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const assets = await response.json();
+			const assets = (await response.json()) as unknown[];
 			expect(Array.isArray(assets)).toBe(true);
 		}
 	}, 15000);
@@ -459,7 +465,7 @@ describe('People API - Error Handling', () => {
 		expect([401, 404, 500]).toContain(response.status);
 
 		if (response.headers.get('content-type')?.includes('application/json')) {
-			const error = await response.json();
+			const error = (await response.json()) as Record<string, unknown>;
 			expect(error).toBeDefined();
 		}
 	});

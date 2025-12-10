@@ -7,7 +7,7 @@ import { requireScope } from '$lib/server/permissions';
 /**
  * PATCH /api/users/me/face
  * Met à jour l'ID de la personne (id_photos) et le statut first_login de l'utilisateur connecté
- * 
+ *
  * Body:
  * - person_id: string | null (requis) - L'ID de la personne à associer
  * - user_id: string (optionnel, admin seulement) - Permet de modifier un autre utilisateur
