@@ -1,59 +1,28 @@
 import { json, error } from '@sveltejs/kit';
-import type { UserRow } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { verifySigned } from '$lib/auth/cookies';
+import { requireScope } from '$lib/server/permissions';
 import { execSync } from 'child_process';
 import path from 'path';
 
-import type { Cookies } from '@sveltejs/kit';
-
-async function getUserFromLocals(locals: App.Locals, cookies: Cookies): Promise<UserRow | null> {
-	const db = getDatabase();
-	const cookieSigned = cookies.get('current_user_id');
-	if (cookieSigned) {
-		const verified = verifySigned(cookieSigned);
-		if (verified) {
-			const userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(verified) as
-				| UserRow
-				| undefined;
-			if (userInfo) {
-				return userInfo;
-			}
-		}
-	}
-	if (locals && typeof locals.auth === 'function') {
-		const session = await locals.auth();
-		if (session?.user) {
-			const providerId = session.user.id || session.user.preferred_username || session.user.sub;
-			if (providerId) {
-				const userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(providerId) as
-					| UserRow
-					| undefined;
-				if (userInfo) {
-					return userInfo;
-				}
-			}
-		}
-	}
-	return null;
-}
-
-export const POST: RequestHandler = async ({ locals, cookies }) => {
-	const user = await getUserFromLocals(locals, cookies);
-
-	if (!user?.role || user.role !== 'admin') {
-		throw error(403, 'Accès refusé');
-	}
+export const POST: RequestHandler = async (event) => {
+	await requireScope(event, 'admin');
 
 	try {
 		const scriptPath = path.join(process.cwd(), 'scripts', 'backup-db.cjs');
 		const output = execSync(`node "${scriptPath}"`, { encoding: 'utf-8' });
 
+		// Extraire le chemin de sauvegarde de l'output (ligne "✅ Sauvegarde créée: nom_fichier")
+		const match = output.match(/Sauvegarde créée:\s*(.+)/);
+		const backupFileName = match ? match[1].trim() : null;
+		const backupPath = backupFileName
+			? path.join(process.cwd(), 'data', 'backups', backupFileName)
+			: null;
+
 		return json({
 			success: true,
 			message: 'Sauvegarde créée avec succès',
+			backupPath,
 			output
 		});
 	} catch (e: unknown) {

@@ -2,12 +2,18 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
+import { requireScope } from '$lib/server/permissions';
 
 /**
  * PATCH /api/users/me/promo
  * Met à jour l'année de promotion et le statut first_login de l'utilisateur connecté
  */
-export const PATCH: RequestHandler = async ({ request, locals, cookies }) => {
+export const PATCH: RequestHandler = async (event) => {
+	const { request, locals, cookies } = event;
+
+	// Vérifier l'authentification via API key ou session
+	await requireScope(event, 'read');
+
 	try {
 		const db = getDatabase();
 
@@ -29,6 +35,11 @@ export const PATCH: RequestHandler = async ({ request, locals, cookies }) => {
 				const user = session.user as { id?: string; preferred_username?: string; sub?: string };
 				userId = user.id || user.preferred_username || user.sub || null;
 			}
+		}
+
+		// Fallback sur l'userId défini par requireScope (API key avec user associé)
+		if (!userId && locals.userId) {
+			userId = locals.userId as string;
 		}
 
 		if (!userId) {
