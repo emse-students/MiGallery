@@ -124,10 +124,24 @@ async function main() {
 		});
 
 		// 5. Attendre la fin des tests
-		tests.on('close', (code) => {
+		tests.on('close', async (code) => {
 			console.log('\n🛑 Arrêt du serveur...');
 			server.kill();
-			process.exit(code);
+
+			// 6. Nettoyer les artefacts de test
+			console.log('\n🧹 Nettoyage des artefacts de test...');
+			const cleanup = spawn('node', ['./scripts/cleanup-test-artifacts.cjs'], {
+				stdio: 'inherit'
+			});
+
+			cleanup.on('close', () => {
+				process.exit(code);
+			});
+
+			cleanup.on('error', () => {
+				// Ignorer les erreurs de cleanup et quitter avec le code des tests
+				process.exit(code);
+			});
 		});
 	} catch (error) {
 		console.error('\n💥 Erreur:', error.message);
