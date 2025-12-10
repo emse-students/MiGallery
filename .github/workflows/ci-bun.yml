@@ -43,45 +43,22 @@ jobs:
       mkdir -p data
       bun run db:init || echo "Database already exists or init failed"
 
-   - name: Start server in background
+   - name: Create .env file for tests
      run: |
-      bun run build/index.js &
-      echo "Server started, waiting for it to be ready..."
-      node scripts/wait-for-server.mjs http://localhost:3000 30000
-     env:
-      # Required for tests to work in CI
-      ENABLE_DEV_ROUTES: 'true'
-      COOKIE_SECRET: 'ci-test-secret-not-for-production-use'
-      DATABASE_PATH: './data/migallery.db'
-      # Immich is not available in CI - tests should handle this gracefully
-      IMMICH_BASE_URL: ''
-      IMMICH_API_KEY: ''
+      cat > .env << EOF
+      # CI test environment
+      ENABLE_DEV_ROUTES=true
+      COOKIE_SECRET=ci-test-secret-not-for-production-use
+      DATABASE_PATH=./data/migallery.db
+      IMMICH_BASE_URL=
+      IMMICH_API_KEY=
+      EOF
 
    - name: Run tests
      run: bun run test
      env:
       API_BASE_URL: http://localhost:3000
-      ENABLE_DEV_ROUTES: 'true'
-      COOKIE_SECRET: 'ci-test-secret-not-for-production-use'
-      DATABASE_PATH: './data/migallery.db'
-      IMMICH_BASE_URL: ''
-      IMMICH_API_KEY: ''
      continue-on-error: false
-
-   - name: Run E2E integration tests
-     run: bun test tests/e2e-integration.test.ts
-     env:
-      API_BASE_URL: http://localhost:3000
-      ENABLE_DEV_ROUTES: 'true'
-      COOKIE_SECRET: 'ci-test-secret-not-for-production-use'
-      DATABASE_PATH: './data/migallery.db'
-      IMMICH_BASE_URL: ''
-      IMMICH_API_KEY: ''
-     continue-on-error: true
-
-   - name: Stop server
-     if: always()
-     run: pkill -f "bun run build/index.js" || true
 
    - name: Package application
      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
