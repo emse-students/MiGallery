@@ -48,17 +48,35 @@ jobs:
       bun run build/index.js &
       echo "Server started, waiting for it to be ready..."
       node scripts/wait-for-server.mjs http://localhost:3000 30000
+     env:
+      # Required for tests to work in CI
+      ENABLE_DEV_ROUTES: 'true'
+      COOKIE_SECRET: 'ci-test-secret-not-for-production-use'
+      DATABASE_PATH: './data/migallery.db'
+      # Immich is not available in CI - tests should handle this gracefully
+      IMMICH_BASE_URL: ''
+      IMMICH_API_KEY: ''
 
    - name: Run tests
      run: bun run test
      env:
       API_BASE_URL: http://localhost:3000
+      ENABLE_DEV_ROUTES: 'true'
+      COOKIE_SECRET: 'ci-test-secret-not-for-production-use'
+      DATABASE_PATH: './data/migallery.db'
+      IMMICH_BASE_URL: ''
+      IMMICH_API_KEY: ''
      continue-on-error: false
 
    - name: Run E2E integration tests
      run: bun test tests/e2e-integration.test.ts
      env:
       API_BASE_URL: http://localhost:3000
+      ENABLE_DEV_ROUTES: 'true'
+      COOKIE_SECRET: 'ci-test-secret-not-for-production-use'
+      DATABASE_PATH: './data/migallery.db'
+      IMMICH_BASE_URL: ''
+      IMMICH_API_KEY: ''
      continue-on-error: true
 
    - name: Stop server

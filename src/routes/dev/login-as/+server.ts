@@ -9,7 +9,12 @@ import { redirect } from '@sveltejs/kit';
  * Dev-only helper: set the signed `current_user_id` cookie so you can act as a local user.
  * Usage (dev only): GET /dev/login-as?u=<user_id>
  *
- * En production: nécessite ENABLE_DEV_ROUTES=true dans .env
+ * SÉCURITÉ :
+ * - En développement (npm run dev) : Toujours activé
+ * - En production : Désactivé par défaut, retourne 404
+ * - Pour activer en prod : Ajouter ENABLE_DEV_ROUTES=true dans .env (⚠️ DANGEREUX)
+ *
+ * RECOMMANDATION : Ne JAMAIS activer en production sauf pour débogage temporaire supervisé.
  */
 export const GET: RequestHandler = ({ url, cookies }) => {
 	// Allow dev routes if in dev mode OR if explicitly enabled in production

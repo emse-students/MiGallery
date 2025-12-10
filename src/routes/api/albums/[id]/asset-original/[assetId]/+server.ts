@@ -1,18 +1,18 @@
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 import { error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
-export const GET: RequestHandler = async ({ params, request, fetch, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
 	try {
-		const albumId = params.id;
-		const assetId = params.assetId;
+		const albumId = event.params.id;
+		const assetId = event.params.assetId;
+		const { fetch, request } = event;
 
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
@@ -43,13 +43,7 @@ export const GET: RequestHandler = async ({ params, request, fetch, locals, cook
 
 		if (!isUnlisted) {
 			// require auth or x-api-key with read scope
-			const user = await getCurrentUser({ locals, cookies });
-			if (!user) {
-				const raw = request.headers.get('x-api-key') || undefined;
-				if (!verifyRawKeyWithScope(raw, 'read')) {
-					throw error(401, 'Unauthorized');
-				}
-			}
+			await requireScope(event, 'read');
 		}
 
 		if (!IMMICH_API_KEY) {

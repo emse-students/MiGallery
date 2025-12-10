@@ -4,8 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -16,18 +15,11 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  *
  * Cache: Les albums sont cachés via le proxy /api/immich
  */
-export const GET: RequestHandler = async ({ params, fetch, request, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
+	const { id } = event.params;
 	try {
-		const { id } = params;
-
-		// Autorisation: session utilisateur OU x-api-key avec scope "read"
-		const user = await getCurrentUser({ locals, cookies });
-		if (!user) {
-			const raw = request.headers.get('x-api-key') || undefined;
-			if (!verifyRawKeyWithScope(raw, 'read')) {
-				throw error(401, 'Unauthorized');
-			}
-		}
+		await requireScope(event, 'read');
+		const { fetch } = event;
 
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
@@ -48,7 +40,7 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 		return json(album);
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${params.id} GET:`, err);
+		console.error(`Error in /api/albums/${id} GET:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
@@ -62,9 +54,11 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
  * 1. Supprime TOUJOURS de la BDD locale (source de vérité pour nous)
  * 2. Essaie de supprimer d'Immich (non-critique)
  */
-export const DELETE: RequestHandler = async ({ params, fetch }) => {
+export const DELETE: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
 	try {
-		const { id } = params;
+		const { id } = event.params;
+		const { fetch } = event;
 		let immichDeleteSuccess = true;
 		let immichDeleteError: string | null = null;
 
@@ -121,7 +115,7 @@ export const DELETE: RequestHandler = async ({ params, fetch }) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${params.id} DELETE:`, err);
+		console.error(`Error in /api/albums/${id} DELETE:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
@@ -146,10 +140,11 @@ export const DELETE: RequestHandler = async ({ params, fetch }) => {
  *   allowedUsers?: string[]
  * }
  */
-export const PATCH: RequestHandler = async ({ params, request }) => {
+export const PATCH: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
 	try {
-		const { id } = params;
-		const body = (await request.json()) as {
+		const { id } = event.params;
+		const body = (await event.request.json()) as {
 			name?: string;
 			date?: string | null;
 			location?: string | null;
@@ -265,7 +260,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${params.id} PATCH:`, err);
+		console.error(`Error in /api/albums/${id} PATCH:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

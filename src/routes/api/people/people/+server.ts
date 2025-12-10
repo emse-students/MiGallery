@@ -3,32 +3,23 @@ import { json, error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
 
 /**
  * GET /api/people/people
  * Liste toutes les personnes reconnues par Immich
  */
-export const GET: RequestHandler = async ({ fetch, request, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
+	await requireScope(event, 'read');
 	try {
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Autorisation: session utilisateur OU x-api-key with scope "read"
-		const user = await getCurrentUser({ locals, cookies });
-		if (!user) {
-			const raw = request.headers.get('x-api-key') || undefined;
-			if (!verifyRawKeyWithScope(raw, 'read')) {
-				throw error(401, 'Unauthorized');
-			}
-		}
-
-		const res = await fetch(`${IMMICH_BASE_URL}/api/people`, {
+		const res = await event.fetch(`${IMMICH_BASE_URL}/api/people`, {
 			headers: {
 				'x-api-key': IMMICH_API_KEY || '',
 				Accept: 'application/json'

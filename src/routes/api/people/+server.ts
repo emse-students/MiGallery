@@ -9,8 +9,7 @@ import {
 	addAssetsToAlbum,
 	removeAssetsFromAlbum
 } from '$lib/photos-cv/handlers';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 
 // compatibility: this +server still supports the old ?action=.. query API but delegates logic to handlers
 
@@ -23,18 +22,12 @@ import { getCurrentUser } from '$lib/server/auth';
  * - all-album-photos: TOUTES les photos DANS l'album PhotoCV (toutes personnes)
  * - album-info: Informations sur l'album PhotoCV
  */
-export const GET: RequestHandler = async ({ url, fetch, request, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
+	const { url, fetch } = event;
 	const action = url.searchParams.get('action');
 	const personId = url.searchParams.get('personId');
 
-	// Autorisation: session utilisateur OU x-api-key avec scope "read"
-	const user = await getCurrentUser({ locals, cookies });
-	if (!user) {
-		const raw = request.headers.get('x-api-key') || undefined;
-		if (!verifyRawKeyWithScope(raw, 'read')) {
-			throw error(401, 'Unauthorized');
-		}
-	}
+	await requireScope(event, 'read');
 
 	try {
 		switch (action) {
@@ -71,11 +64,11 @@ export const GET: RequestHandler = async ({ url, fetch, request, locals, cookies
 				);
 		}
 	} catch (e: unknown) {
-		const err = ensureError(e);
-		console.error('Error in /api/people GET:', err);
-		if (e && typeof e === 'object' && 'status' in e) {
+		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
 			throw e;
 		}
+		const err = ensureError(e);
+		console.error('Error in /api/people GET:', err);
 		throw error(500, err.message);
 	}
 };
@@ -89,19 +82,12 @@ export const GET: RequestHandler = async ({ url, fetch, request, locals, cookies
  *
  * Body: { action: string, assetIds: string[] }
  */
-export const POST: RequestHandler = async ({ request, fetch, locals, cookies }) => {
+export const POST: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
 	try {
-		// Autorisation: session utilisateur OU x-api-key avec scope "write"
-		const user = await getCurrentUser({ locals, cookies });
-		if (!user) {
-			const raw = request.headers.get('x-api-key') || undefined;
-			if (!verifyRawKeyWithScope(raw, 'write')) {
-				throw error(401, 'Unauthorized');
-			}
-		}
-
-		const body = (await request.json()) as { action?: string; assetIds?: string[] };
+		const body = (await event.request.json()) as { action?: string; assetIds?: string[] };
 		const { action, assetIds } = body;
+		const { fetch } = event;
 
 		if (!action || !assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
 			throw error(400, 'action and assetIds[] are required');
@@ -122,11 +108,11 @@ export const POST: RequestHandler = async ({ request, fetch, locals, cookies }) 
 				throw error(400, 'Invalid action. Valid actions: add-to-album, remove-from-album');
 		}
 	} catch (e: unknown) {
-		const err = ensureError(e);
-		console.error('Error in /api/people POST:', err);
-		if (e && typeof e === 'object' && 'status' in e) {
+		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
 			throw e;
 		}
+		const err = ensureError(e);
+		console.error('Error in /api/people POST:', err);
 		throw error(500, err.message);
 	}
 };

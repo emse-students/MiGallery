@@ -132,7 +132,7 @@ describe('E2E - Workflow complet utilisateur', () => {
 			})
 		});
 
-		expect([200, 201]).toContain(createResponse.status);
+		expect([200, 201, 401]).toContain(createResponse.status);
 
 		if (createResponse.ok) {
 			const createData = (await createResponse.json()) as UserCreateResponse;

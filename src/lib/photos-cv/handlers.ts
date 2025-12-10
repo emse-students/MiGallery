@@ -30,7 +30,8 @@ async function fetchAllPersonAssets(
 		});
 
 		if (!res.ok) {
-			throw new Error(`Search failed: ${res.statusText}`);
+			const txt = await res.text();
+			throw error(res.status, `Search failed: ${txt}`);
 		}
 
 		const data = (await res.json()) as {

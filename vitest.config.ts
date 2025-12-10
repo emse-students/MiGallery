@@ -13,6 +13,8 @@ export default defineConfig({
 		sequence: {
 			concurrent: false
 		},
+		// Exécuter les fichiers de test en série (pas en parallèle)
+		fileParallelism: false,
 		// Retry pour les tests flaky (notamment ceux dépendant d'Immich)
 		retry: 1,
 		// Reporter avec plus de détails

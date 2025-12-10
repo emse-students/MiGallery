@@ -6,24 +6,65 @@
 
 import { spawn } from 'child_process';
 import { setTimeout } from 'timers/promises';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const SERVER_STARTUP_DELAY = 7000; // 7 secondes (donne un peu plus de marge au serveur)
 const READINESS_TIMEOUT = 30000; // 30s
 const READINESS_POLL_INTERVAL = 500; // 0.5s
 
-console.log('🚀 Démarrage du serveur de test...\n');
+/**
+ * Charge les variables d'environnement depuis .env
+ */
+function loadEnv() {
+	try {
+		const envPath = join(process.cwd(), '.env');
+		const content = readFileSync(envPath, 'utf-8');
+		const env = {};
+		content.split('\n').forEach((line) => {
+			const trimmed = line.trim();
+			if (!trimmed || trimmed.startsWith('#')) return;
+			const [key, ...rest] = trimmed.split('=');
+			if (key && rest.length > 0) {
+				env[key.trim()] = rest.join('=').trim();
+			}
+		});
+		return env;
+	} catch (error) {
+		console.warn('⚠️  Impossible de charger .env:', error.message);
+		return {};
+	}
+}
 
-// Démarrer le serveur (exécuter le fichier build avec bun)
-// Utiliser './build/index.js' pour invoquer directement le bundle Bun.
-const server = spawn('bun', ['./build/index.js'], {
-	stdio: 'inherit',
-	detached: false
-});
+/**
+ * Build le serveur SvelteKit
+ */
+async function buildServer() {
+	console.log('🔨 Building SvelteKit...\n');
 
-// Attendre que le serveur démarre
-// Attendre un délai initial, puis effectuer un polling actif sur /api/health
-await setTimeout(SERVER_STARTUP_DELAY);
+	return new Promise((resolve, reject) => {
+		const build = spawn('bun', ['run', 'build'], {
+			stdio: 'inherit',
+			shell: process.platform === 'win32'
+		});
+
+		build.on('close', (code) => {
+			if (code === 0) {
+				console.log('\n✅ Build terminé avec succès\n');
+				resolve(true);
+			} else {
+				console.error(`\n❌ Build échoué avec le code ${code}\n`);
+				reject(new Error(`Build process exited with code ${code}`));
+			}
+		});
+
+		build.on('error', (error) => {
+			console.error('\n❌ Erreur lors du build:', error);
+			reject(error);
+		});
+	});
+}
 
 async function waitForReadiness(url, timeout = READINESS_TIMEOUT) {
 	const start = Date.now();
@@ -41,40 +82,74 @@ async function waitForReadiness(url, timeout = READINESS_TIMEOUT) {
 	throw new Error(`Timeout waiting for readiness at ${url}`);
 }
 
-console.log(`\n✅ Serveur démarré sur ${API_BASE_URL} (en attente de disponibilité)`);
-try {
-	const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
-	await waitForReadiness(healthUrl);
-	console.log('✅ Endpoint /api/health répond — démarrage OK');
-} catch (err) {
-	console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
-	console.log("⚠️  Poursuite des tests malgré l'échec de la probe (timeout)");
+async function main() {
+	let server = null;
+
+	try {
+		// 0. Charger le .env
+		const envVars = loadEnv();
+		console.log('📄 Variables .env chargées:', Object.keys(envVars).join(', '));
+
+		// 1. Build le serveur
+		await buildServer();
+
+		console.log('🚀 Démarrage du serveur de test...\n');
+
+		// 2. Démarrer le serveur (exécuter le fichier build avec bun)
+		server = spawn('bun', ['./build/index.js'], {
+			stdio: 'inherit',
+			detached: false,
+			env: { ...process.env, ...envVars }
+		});
+
+		// 3. Attendre que le serveur démarre
+		await setTimeout(SERVER_STARTUP_DELAY);
+
+		console.log(`\n✅ Serveur démarré sur ${API_BASE_URL} (en attente de disponibilité)`);
+		try {
+			const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
+			await waitForReadiness(healthUrl);
+			console.log('✅ Endpoint /api/health répond — démarrage OK');
+		} catch (err) {
+			console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
+			console.log("⚠️  Poursuite des tests malgré l'échec de la probe (timeout)");
+		}
+
+		console.log('🧪 Lancement des tests...\n');
+
+		// 4. Lancer les tests
+		const tests = spawn('bun', ['run', 'vitest', 'run'], {
+			stdio: 'inherit',
+			env: { ...process.env, API_BASE_URL }
+		});
+
+		// 5. Attendre la fin des tests
+		tests.on('close', (code) => {
+			console.log('\n🛑 Arrêt du serveur...');
+			server.kill();
+			process.exit(code);
+		});
+	} catch (error) {
+		console.error('\n💥 Erreur:', error.message);
+
+		if (server) {
+			console.log('🛑 Arrêt du serveur...');
+			server.kill();
+		}
+
+		process.exit(1);
+	}
 }
-
-console.log('🧪 Lancement des tests...\n');
-
-// Lancer les tests
-const tests = spawn('bun', ['run', 'vitest', 'run'], {
-	stdio: 'inherit',
-	env: { ...process.env, API_BASE_URL }
-});
-
-// Attendre la fin des tests
-tests.on('close', (code) => {
-	console.log('\n🛑 Arrêt du serveur...');
-	server.kill();
-	process.exit(code);
-});
 
 // Cleanup en cas d'interruption
 process.on('SIGINT', () => {
 	console.log('\n⚠️  Interruption détectée, arrêt du serveur...');
-	server.kill();
 	process.exit(1);
 });
 
 process.on('SIGTERM', () => {
 	console.log('\n⚠️  Terminaison demandée, arrêt du serveur...');
-	server.kill();
 	process.exit(1);
 });
+
+main();

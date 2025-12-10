@@ -2,24 +2,12 @@ import { json } from '@sveltejs/kit';
 
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
-import { createApiKey, listApiKeys, verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { ensureAdmin } from '$lib/server/auth';
+import { createApiKey, listApiKeys } from '$lib/db/api-keys';
+import { requireScope } from '$lib/server/permissions';
 
-export const GET: RequestHandler = async ({ locals, cookies, request }) => {
+export const GET: RequestHandler = async (event) => {
+	await requireScope(event, 'admin');
 	try {
-		// allow admin via x-api-key header as well
-		const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-		if (apiKeyHeader) {
-			if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-		} else {
-			const caller = await ensureAdmin({ locals, cookies });
-			if (!caller) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-		}
-
 		const rows = listApiKeys();
 		return json({ success: true, keys: rows });
 	} catch (e: unknown) {
@@ -29,22 +17,10 @@ export const GET: RequestHandler = async ({ locals, cookies, request }) => {
 	}
 };
 
-export const POST: RequestHandler = async ({ locals, cookies, request }) => {
+export const POST: RequestHandler = async (event) => {
+	await requireScope(event, 'admin');
 	try {
-		// allow admin via x-api-key header as well
-		const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-		if (apiKeyHeader) {
-			if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-		} else {
-			const caller = await ensureAdmin({ locals, cookies });
-			if (!caller) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-		}
-
-		const body = (await request.json()) as { label?: string; scopes?: string[] };
+		const body = (await event.request.json()) as { label?: string; scopes?: string[] };
 		const { label, scopes } = body;
 		const { id, rawKey } = createApiKey(label, Array.isArray(scopes) ? scopes : undefined);
 		return json({ success: true, id, rawKey });

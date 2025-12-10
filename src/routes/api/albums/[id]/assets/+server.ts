@@ -4,6 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { immichCache } from '$lib/server/immich-cache';
+import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -13,10 +14,12 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  *
  * Body: { ids: string[] }
  */
-export const PUT: RequestHandler = async ({ params, request, fetch }) => {
+export const PUT: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
 	try {
-		const { id } = params;
-		const body = (await request.json()) as unknown;
+		const { id } = event.params;
+		const body = (await event.request.json()) as unknown;
+		const { fetch } = event;
 
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
@@ -43,7 +46,7 @@ export const PUT: RequestHandler = async ({ params, request, fetch }) => {
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error(`Error in /api/albums/${params.id}/assets PUT:`, err);
+		console.error(`Error in /api/albums/${id}/assets PUT:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
@@ -57,10 +60,12 @@ export const PUT: RequestHandler = async ({ params, request, fetch }) => {
  *
  * Body: { ids: string[] }
  */
-export const DELETE: RequestHandler = async ({ params, request, fetch }) => {
+export const DELETE: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
 	try {
-		const { id } = params;
-		const body = (await request.json()) as unknown;
+		const { id } = event.params;
+		const body = (await event.request.json()) as unknown;
+		const { fetch } = event;
 
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
@@ -87,7 +92,7 @@ export const DELETE: RequestHandler = async ({ params, request, fetch }) => {
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error(`Error in /api/albums/${params.id}/assets DELETE:`, err);
+		console.error(`Error in /api/albums/${id}/assets DELETE:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}

@@ -48,7 +48,7 @@ export function listApiKeys(): Array<{
 
 export function revokeApiKey(id: number) {
 	const db = getDatabase();
-	const info = db.prepare('UPDATE api_keys SET revoked = 1 WHERE id = ?').run(id);
+	const info = db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
 	return info.changes;
 }
 

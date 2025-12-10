@@ -3,8 +3,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import { env } from '$env/dynamic/private';
 import { immichCache } from '$lib/server/immich-cache';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
@@ -22,28 +21,13 @@ const handle: RequestHandler = async function (event) {
 		if (internalKey && internalKey === apiKey) {
 			// Internal trusted call, allow
 		} else {
-			const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
-			if (!user) {
-				const raw = request.headers.get('x-api-key') || undefined;
-				if (!verifyRawKeyWithScope(raw, 'read')) {
-					return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-						status: 401,
-						headers: { 'content-type': 'application/json' }
-					});
-				}
-			}
+			await requireScope(event, 'read');
 		}
 	}
 
 	// Autorisation pour PUT/PATCH/POST/DELETE: session utilisateur requise
 	if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
-		const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
-		if (!user) {
-			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-				status: 401,
-				headers: { 'content-type': 'application/json' }
-			});
-		}
+		await requireScope(event, 'write');
 	}
 
 	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';

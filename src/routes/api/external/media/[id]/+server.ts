@@ -1,21 +1,15 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
+import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
-export const GET: RequestHandler = async ({ params, fetch, request }) => {
-	const providedKey =
-		request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || undefined;
-	if (!verifyRawKeyWithScope(providedKey, 'read')) {
-		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-			status: 401,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
-	const id = params.id;
+export const GET: RequestHandler = async (event) => {
+	await requireScope(event, 'read');
+	const id = event.params.id;
+	const { fetch } = event;
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
@@ -47,16 +41,10 @@ export const GET: RequestHandler = async ({ params, fetch, request }) => {
 	return new Response(res.body, { status: res.status, headers: headersOut });
 };
 
-export const DELETE: RequestHandler = async ({ params, fetch, request }) => {
-	const providedKey =
-		request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || undefined;
-	if (!verifyRawKeyWithScope(providedKey, 'write')) {
-		return new Response(JSON.stringify({ error: 'Unauthorized - write scope required' }), {
-			status: 401,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
-	const id = params.id;
+export const DELETE: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
+	const id = event.params.id;
+	const { fetch } = event;
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
