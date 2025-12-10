@@ -13,6 +13,7 @@ let readApiKey = '';
 let testUserId: string | null = null;
 let testAlbumId: string | null = null;
 let testApiKeyId: string | null = null;
+let testReadApiKeyId: string | null = null;
 
 // ========================================
 // Setup et authentification
@@ -73,6 +74,7 @@ beforeAll(async () => {
 			if (readKeyResponse.ok) {
 				const data = (await readKeyResponse.json()) as ApiKeyResponse;
 				readApiKey = data.rawKey ?? '';
+				testReadApiKeyId = data.id ?? null;
 				console.debug('✅ Clé API read créée');
 			}
 		}
@@ -101,6 +103,14 @@ afterAll(async () => {
 	// Supprimer les clés API de test
 	if (testApiKeyId && sessionCookie) {
 		await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
+			method: 'DELETE',
+			headers: { Cookie: sessionCookie }
+		});
+	}
+
+	// Supprimer la clé API read de test
+	if (testReadApiKeyId && sessionCookie) {
+		await fetch(`${API_BASE_URL}/api/admin/api-keys/${testReadApiKeyId}`, {
 			method: 'DELETE',
 			headers: { Cookie: sessionCookie }
 		});
