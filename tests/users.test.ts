@@ -285,12 +285,13 @@ describe('Users API - PATCH /api/users/me/promo', () => {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
-			promo_year: 2020
-		})
-	});
+				promo_year: 2020
+			})
+		});
 
-	expect([400, 401, 403, 500]).toContain(response.status);
-});	it('devrait rejeter une année de promo invalide', async () => {
+		expect([400, 401, 403, 500]).toContain(response.status);
+	});
+	it('devrait rejeter une année de promo invalide', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
@@ -439,5 +440,65 @@ describe('Users API - Validation des permissions', () => {
 		});
 
 		expect([200, 204, 401, 403, 404]).toContain(response.status);
+	});
+});
+
+describe('Users API - PATCH /api/users/me/face', () => {
+	it('devrait rejeter les requêtes sans authentification', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ person_id: 'test-id' })
+		});
+
+		expect([401, 403]).toContain(response.status);
+	});
+
+	it('devrait rejeter si person_id est manquant', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
+			method: 'PATCH',
+			headers: getAuthHeaders(),
+			body: JSON.stringify({})
+		});
+
+		expect([400, 401, 403]).toContain(response.status);
+
+		if (response.status === 400) {
+			const data = (await response.json()) as { error?: string };
+			expect(data.error).toBeDefined();
+		}
+	});
+
+	it('devrait mettre à jour le person_id avec une valeur valide', async () => {
+		const testPersonId = 'test-person-uuid-12345';
+		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
+			method: 'PATCH',
+			headers: getAuthHeaders(),
+			body: JSON.stringify({ person_id: testPersonId })
+		});
+
+		expect([200, 401, 403]).toContain(response.status);
+
+		if (response.status === 200) {
+			const data = (await response.json()) as { success: boolean; person_id: string };
+			expect(data.success).toBe(true);
+			expect(data.person_id).toBe(testPersonId);
+		}
+	});
+
+	it('devrait accepter null comme person_id', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
+			method: 'PATCH',
+			headers: getAuthHeaders(),
+			body: JSON.stringify({ person_id: null })
+		});
+
+		expect([200, 401, 403]).toContain(response.status);
+
+		if (response.status === 200) {
+			const data = (await response.json()) as { success: boolean; person_id: string | null };
+			expect(data.success).toBe(true);
+			expect(data.person_id).toBeNull();
+		}
 	});
 });

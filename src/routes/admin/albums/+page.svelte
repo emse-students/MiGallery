@@ -14,7 +14,7 @@
   let editingAlbumExistingUsers = $state<string[]>([]);
 
   async function loadAlbums() {
-    const res = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT * FROM albums ORDER BY date DESC, name ASC' }) });
+    const res = await fetch('/api/albums/list');
     const json = (await res.json()) as { success: boolean; data: Album[] };
     if (json.success) albums = json.data;
   }
@@ -22,13 +22,11 @@
   function startEditAlbum(a: Album) {
     editingAlbumId = a.id;
     (async () => {
-      const tagsRes = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT tag FROM album_tag_permissions WHERE album_id = ?', params: [a.id] }) });
-      const tagsJson = (await tagsRes.json()) as { success: boolean; data: { tag: string }[] };
-      const tagsArr = tagsJson.success ? (tagsJson.data || []).map((r) => r.tag) : [];
+      const res = await fetch(`/api/albums/${a.id}`);
+      const json = (await res.json()) as { success: boolean; album: Album & {tags: string[], allowed_users: string[]} };
 
-      const usersRes = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'SELECT id_user FROM album_user_permissions WHERE album_id = ?', params: [a.id] }) });
-      const usersJson = (await usersRes.json()) as { success: boolean; data: { id_user: string }[] };
-      const usersArr = usersJson.success ? (usersJson.data || []).map((r) => r.id_user) : [];
+      const tagsArr = json.success && json.album?.tags ? json.album.tags : [];
+      const usersArr = json.success && json.album?.allowed_users ? json.album.allowed_users : [];
 
       editingAlbumExistingTags = tagsArr;
       editingAlbumExistingUsers = usersArr;
@@ -41,19 +39,39 @@
   async function saveAlbumEdit() {
     if (!editingAlbumId) return;
     const id = editingAlbumId;
-    await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'UPDATE albums SET name = ?, date = ?, location = ?, visibility = ?, visible = ? WHERE id = ?', params: [editingAlbumData.name, editingAlbumData.date || null, editingAlbumData.location || null, editingAlbumData.visibility || 'private', editingAlbumData.visible ? 1 : 0, id] }) });
+    await fetch(`/api/albums/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editingAlbumData.name,
+        date: editingAlbumData.date || null,
+        location: editingAlbumData.location || null,
+        visibility: editingAlbumData.visibility || 'private',
+        visible: editingAlbumData.visible
+      })
+    });
 
     const desiredTags = editingAlbumData.tags ? editingAlbumData.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
     const toAddTags = desiredTags.filter(t => !editingAlbumExistingTags.includes(t));
     const toRemoveTags = editingAlbumExistingTags.filter(t => !desiredTags.includes(t));
-    for (const t of toAddTags) await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)', params: [id, t] }) });
-    for (const t of toRemoveTags) await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM album_tag_permissions WHERE album_id = ? AND tag = ?', params: [id, t] }) });
+    if (toAddTags.length > 0 || toRemoveTags.length > 0) {
+      await fetch(`/api/albums/${id}/permissions/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add: toAddTags, remove: toRemoveTags })
+      });
+    }
 
     const desiredUsers = editingAlbumData.allowed_users ? editingAlbumData.allowed_users.split(',').map((u: string) => u.trim()).filter(Boolean) : [];
     const toAddUsers = desiredUsers.filter(u => !editingAlbumExistingUsers.includes(u));
     const toRemoveUsers = editingAlbumExistingUsers.filter(u => !desiredUsers.includes(u));
-    for (const u of toAddUsers) await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'INSERT OR IGNORE INTO album_user_permissions (album_id, id_user) VALUES (?, ?)', params: [id, u] }) });
-    for (const u of toRemoveUsers) await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM album_user_permissions WHERE album_id = ? AND id_user = ?', params: [id, u] }) });
+    if (toAddUsers.length > 0 || toRemoveUsers.length > 0) {
+      await fetch(`/api/albums/${id}/permissions/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add: toAddUsers, remove: toRemoveUsers })
+      });
+    }
 
     editingAlbumExistingTags = desiredTags;
     editingAlbumExistingUsers = desiredUsers;
@@ -64,28 +82,20 @@
   async function deleteAlbum(albumId: string) {
     const ok = await showConfirm('Supprimer cet album ? Cette action est irréversible.', 'Supprimer l\'album');
     if (!ok) return;
-    await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM albums WHERE id = ?', params: [albumId] }) });
+    await fetch(`/api/albums/${albumId}`, { method: 'DELETE' });
     await loadAlbums();
   }
 
   async function importAlbumsFromImmich() {
     try {
-      const res = await fetch('/api/immich/albums');
-      if (!res.ok) { toast.error(`Erreur récupération albums Immich: ${res.status} ${res.statusText}`); return; }
-      const list = (await res.json()) as any[];
-      if (!Array.isArray(list)) { toast.error('Réponse Immich inattendue'); return; }
-      let added = 0;
-      for (const a of list) {
-        const immichId = a.id || a.albumId || a.album_id || a._id || null;
-        if (!immichId) continue;
-        let name = a.name || a.title || a.albumName || String(immichId || '');
-        let dateVal = null;
-        const m = name.match(/^([0-9]{4}-[0-9]{2}-[0-9]{2})\s*(.*)$/);
-        if (m) { dateVal = m[1]; name = m[2] || name; }
-        await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'INSERT OR IGNORE INTO albums (id, name, date, location, visibility, visible) VALUES (?, ?, ?, ?, ?, ?)', params: [immichId, name, dateVal, null, 'private', 1] }) });
-        added++;
+      const res = await fetch('/api/albums/import', { method: 'POST' });
+      if (!res.ok) { toast.error(`Erreur import albums: ${res.status} ${res.statusText}`); return; }
+      const json = (await res.json()) as { success: boolean; imported: number; total: number };
+      if (json.success) {
+        toast.success(`Import terminé : ${json.imported} albums importés sur ${json.total}`);
+      } else {
+        toast.error('Erreur lors de l\'import des albums.');
       }
-      toast.success(`Import terminé : ${added} albums importés (visibilité=private)`);
       await loadAlbums();
     } catch (err: unknown) { console.error('Import albums error', err); toast.error('Erreur lors de l\'import des albums. Voir la console.'); }
   }

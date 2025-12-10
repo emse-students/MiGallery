@@ -195,24 +195,16 @@
 					if (!res.ok) {
 						const errText = await res.text().catch(() => res.statusText);
 						throw new Error(errText || 'Erreur lors de la suppression de l\'album');
-					}
+				}
 
-					// Supprimer de la BDD locale
-					await fetch('/api/db', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
-							sql: 'DELETE FROM albums WHERE id = ?',
-							params: [immichId]
-						})
-					});
+				// La suppression de la BDD locale est gérée par l'endpoint DELETE /api/albums/[id]
 
-					// Invalider le cache pour cet album
-					await clientCache.delete('album-covers', immichId);
-					await clientCache.delete('albums', immichId);
+				// Invalider le cache pour cet album
+				await clientCache.delete('album-covers', immichId);
+				await clientCache.delete('albums', immichId);
 
-					// Rafraîchir la liste
-					albums = albums.filter(a => a.id !== immichId);
+				// Rafraîchir la liste
+				albums = albums.filter(a => a.id !== immichId);
 				} catch (e: unknown) {
 					toast.error('Erreur lors de la suppression: ' + (e as Error).message);
 				}

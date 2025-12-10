@@ -32,16 +32,11 @@
   let messageType: 'success' | 'error' | 'info' = $state('info');
 
   async function loadAllUsers() {
-    const response = await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql: 'SELECT * FROM users' })
-    });
-
+    const response = await fetch('/api/users');
     const jsonData = await response.json();
-    const result = asApiResponse<UserRow[]>(jsonData);
-    if (result.success && result.data) {
-      allUsers = result.data;
+    const result = asApiResponse<{users: UserRow[]}>(jsonData);
+    if (result.success && result.data?.users) {
+      allUsers = result.data.users;
     }
   }
 
@@ -51,9 +46,15 @@
       return;
     }
 
-    const response = await fetch('/api/db', {
+    const response = await fetch('/api/users', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql: 'INSERT INTO users (id_user, email, prenom, nom, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?)', params: [newUserData.id_user, newUserData.email, newUserData.prenom, newUserData.nom, newUserData.id_photos || null, newUserData.id_photos ? 0 : 1] })
+      body: JSON.stringify({
+        id_user: newUserData.id_user,
+        email: newUserData.email,
+        prenom: newUserData.prenom,
+        nom: newUserData.nom,
+        id_photos: newUserData.id_photos || null
+      })
     });
 
     const jsonData = await response.json();
@@ -76,7 +77,17 @@
 
   async function saveUserEdit() {
     if (!editingUserId) return;
-    const res = await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'UPDATE users SET email = ?, prenom = ?, nom = ?, id_photos = ?, role = ?, promo_year = ? WHERE id_user = ?', params: [editingUserData.email, editingUserData.prenom, editingUserData.nom, editingUserData.id_photos || null, editingUserData.role || 'user', editingUserData.promo_year || null, editingUserId] }) });
+    const res = await fetch(`/api/users/${editingUserId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: editingUserData.email,
+        prenom: editingUserData.prenom,
+        nom: editingUserData.nom,
+        id_photos: editingUserData.id_photos || null,
+        role: editingUserData.role || 'user',
+        promo_year: editingUserData.promo_year || null
+      })
+    });
     const jsonData = await res.json();
     const result = asApiResponse(jsonData);
     if (result.success) {
@@ -90,7 +101,7 @@
   async function deleteUser(id_user: string) {
     const ok = await showConfirm('Supprimer cet utilisateur ? Cette action est irréversible.', 'Supprimer l\'utilisateur');
     if (!ok) return;
-    await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sql: 'DELETE FROM users WHERE id_user = ?', params: [id_user] }) });
+    await fetch(`/api/users/${id_user}`, { method: 'DELETE' });
     await loadAllUsers();
   }
 

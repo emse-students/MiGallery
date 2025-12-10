@@ -553,7 +553,8 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 		});
 		result.admin.status = response.status;
 		// Admin doit toujours accepter (sauf si endpoint n'existe pas = 404)
-		result.admin.passed = (response.status >= 200 && response.status < 300) || response.status === 500; // Tolérer 500 en CI
+		result.admin.passed =
+			(response.status >= 200 && response.status < 300) || response.status === 500; // Tolérer 500 en CI
 	} catch {
 		result.admin.status = 0;
 		result.admin.passed = false;

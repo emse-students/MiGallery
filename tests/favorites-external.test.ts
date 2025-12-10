@@ -180,13 +180,13 @@ describe('External Media API - POST /api/external/media', () => {
 
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			method: 'POST',
-		headers: getAuthHeaders(),
-		body: JSON.stringify(mediaData)
-	});
+			headers: getAuthHeaders(),
+			body: JSON.stringify(mediaData)
+		});
 
-	expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
+		expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
 
-	if (response.status === 200 || response.status === 201) {
+		if (response.status === 200 || response.status === 201) {
 			const data = await response.json();
 			expect(data.success).toBe(true);
 			expect(data.media).toHaveProperty('id');
@@ -201,14 +201,14 @@ describe('External Media API - POST /api/external/media', () => {
 			description: 'Embed de test'
 		};
 
-	const response = await fetch(`${API_BASE_URL}/api/external/media`, {
-		method: 'POST',
-		headers: getAuthHeaders(),
-		body: JSON.stringify(mediaData)
-	});
+		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
+			method: 'POST',
+			headers: getAuthHeaders(),
+			body: JSON.stringify(mediaData)
+		});
 
-	expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
-});
+		expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
+	});
 
 	it('devrait rejeter la création sans données requises', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
@@ -272,13 +272,14 @@ describe('External Media API - GET /api/external/media/[id]', () => {
 	});
 
 	it('devrait retourner 404 pour un média inexistant', async () => {
-	const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
-		headers: getAuthHeaders()
-	});
+		const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
+			headers: getAuthHeaders()
+		});
 
-	expect([400, 401, 404, 500]).toContain(response.status);
+		expect([400, 401, 404, 500]).toContain(response.status);
+	});
 });
-});describe('External Media API - DELETE /api/external/media/[id]', () => {
+describe('External Media API - DELETE /api/external/media/[id]', () => {
 	it('devrait supprimer plusieurs médias externes', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			method: 'DELETE',
