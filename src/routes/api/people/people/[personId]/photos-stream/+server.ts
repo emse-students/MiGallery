@@ -6,7 +6,7 @@ import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
+import { getAssetIdsInSystemAlbum } from '$lib/immich/system-albums';
 
 /**
  * GET /api/people/people/[personId]/photos-stream
@@ -61,11 +61,11 @@ export const GET: RequestHandler = async (event) => {
 						}
 					}
 
-					// Filtrer selon in_album
-					const systemAssetIds = new Set(await getAllAssetIdsInSystemAlbums(fetch));
+					// Filtrer selon in_album (uniquement album PhotoCV)
+					const photoCVAssetIds = new Set(await getAssetIdsInSystemAlbum(fetch, 'PhotoCV'));
 					const filtered = allAssets.filter((asset) => {
-						const isInAnySystem = systemAssetIds.has(asset.id);
-						return inAlbum ? isInAnySystem : !isInAnySystem;
+						const isInPhotoCVAlbum = photoCVAssetIds.has(asset.id);
+						return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
 					});
 
 					// Phase 1: Envoyer les métadonnées minimales

@@ -46,7 +46,7 @@ beforeAll(async () => {
 					Cookie: sessionCookie
 				},
 				body: JSON.stringify({
-					label: 'E2E Test Admin Key',
+					label: '[TEST] E2E Admin Key',
 					scopes: ['admin']
 				})
 			});
@@ -66,7 +66,7 @@ beforeAll(async () => {
 					Cookie: sessionCookie
 				},
 				body: JSON.stringify({
-					label: 'E2E Test Read Key',
+					label: '[TEST] E2E Read Key',
 					scopes: ['read']
 				})
 			});
@@ -195,7 +195,7 @@ describe('E2E - Workflow complet album', () => {
 				'x-api-key': adminApiKey
 			},
 			body: JSON.stringify({
-				albumName: `E2E Test Album ${Date.now()}`,
+				albumName: `[TEST] E2E Album ${Date.now()}`,
 				description: 'Album créé par les tests E2E'
 			})
 		});
@@ -219,7 +219,7 @@ describe('E2E - Workflow complet album', () => {
 					'x-api-key': adminApiKey
 				},
 				body: JSON.stringify({
-					albumName: 'Album Modifié E2E',
+					albumName: '[TEST] E2E Album Modifié',
 					description: 'Description mise à jour'
 				})
 			});

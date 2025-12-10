@@ -10,7 +10,12 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testApiKeyId: string | null = null;
 
 // Liste des labels de clés créées pendant les tests pour nettoyage
-const TEST_KEY_LABELS = ['Admin Key Test', 'Read Only Key', 'Invalid Scope Key', 'Multi Scope Key'];
+const TEST_KEY_LABELS = [
+	'[TEST] Admin Key',
+	'[TEST] Read Only Key',
+	'[TEST] Invalid Scope Key',
+	'[TEST] Multi Scope Key'
+];
 
 beforeAll(async () => {
 	await setupTestAuth();
@@ -105,7 +110,7 @@ describe('Admin API Keys - GET /api/admin/api-keys', () => {
 describe('Admin API Keys - POST /api/admin/api-keys', () => {
 	it('devrait créer une nouvelle clé API', async () => {
 		const newKey = {
-			label: `Test API Key ${Date.now()}`,
+			label: `[TEST] API Key ${Date.now()}`,
 			scopes: ['read', 'write']
 		};
 
@@ -131,7 +136,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 
 	it('devrait créer une clé API avec scope admin', async () => {
 		const adminKey = {
-			label: 'Admin Key Test',
+			label: '[TEST] Admin Key',
 			scopes: ['admin']
 		};
 
@@ -146,7 +151,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 
 	it('devrait créer une clé API avec scope read uniquement', async () => {
 		const readKey = {
-			label: 'Read Only Key',
+			label: '[TEST] Read Only Key',
 			scopes: ['read']
 		};
 
@@ -173,7 +178,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 
 	it('devrait rejeter la création avec des scopes invalides', async () => {
 		const invalidKey = {
-			label: 'Invalid Scope Key',
+			label: '[TEST] Invalid Scope Key',
 			scopes: ['invalid-scope', 'super-admin']
 		};
 
@@ -188,7 +193,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 
 	it('devrait accepter plusieurs scopes valides', async () => {
 		const multiScopeKey = {
-			label: 'Multi Scope Key',
+			label: '[TEST] Multi Scope Key',
 			scopes: ['read', 'write', 'delete']
 		};
 

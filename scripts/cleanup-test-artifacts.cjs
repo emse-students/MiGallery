@@ -2,6 +2,11 @@
 /**
  * Script de nettoyage des artefacts de test
  * Supprime les utilisateurs, albums, et clés API créés pendant les tests
+ *
+ * Convention de nommage pour les tests:
+ * - Utilisateurs: commencent par "test." (ex: test.user.123456789)
+ * - Albums: commencent par "[TEST]" (ex: [TEST] Permission Album 123456789)
+ * - Clés API: commencent par "[TEST]" (ex: [TEST] Admin Key)
  */
 
 const path = require('path');
@@ -46,33 +51,21 @@ async function main() {
 			console.log('👤 Aucun utilisateur de test trouvé\n');
 		}
 
-		// 2. Supprimer les clés API de test
+		// 2. Supprimer les clés API de test (commencent par '[TEST]' ou sont NULL)
 		const testApiKeys = db
 			.prepare(
 				`SELECT id, label FROM api_keys WHERE
-				label LIKE 'Test%'
-				OR label LIKE '%Test%'
-				OR label LIKE 'E2E%'
-				OR label LIKE 'Admin Key%'
-				OR label LIKE 'Read Only%'
-				OR label LIKE 'Multi Scope%'
-				OR label LIKE 'Invalid Scope%'
+				label LIKE '[TEST]%'
 				OR label IS NULL`
 			)
 			.all();
 
 		if (testApiKeys.length > 0) {
 			console.log(`🔑 ${testApiKeys.length} clé(s) API de test trouvée(s):`);
-			testApiKeys.forEach((k) => console.log(`   - ${k.id}: ${k.label}`));
+			testApiKeys.forEach((k) => console.log(`   - ${k.id}: ${k.label || '(null)'}`));
 
 			const deleteApiKeys = db.prepare(`DELETE FROM api_keys WHERE
-				label LIKE 'Test%'
-				OR label LIKE '%Test%'
-				OR label LIKE 'E2E%'
-				OR label LIKE 'Admin Key%'
-				OR label LIKE 'Read Only%'
-				OR label LIKE 'Multi Scope%'
-				OR label LIKE 'Invalid Scope%'
+				label LIKE '[TEST]%'
 				OR label IS NULL`);
 			const result = deleteApiKeys.run();
 			console.log(`   ✅ ${result.changes} clé(s) API supprimée(s)\n`);
@@ -80,18 +73,14 @@ async function main() {
 			console.log('🔑 Aucune clé API de test trouvée\n');
 		}
 
-		// 3. Supprimer les albums de test (ceux avec un nom contenant 'Test' ou 'test')
-		const testAlbums = db
-			.prepare("SELECT id, name FROM albums WHERE name LIKE '%Test%' OR name LIKE '%test%'")
-			.all();
+		// 3. Supprimer les albums de test (commencent par '[TEST]')
+		const testAlbums = db.prepare("SELECT id, name FROM albums WHERE name LIKE '[TEST]%'").all();
 
 		if (testAlbums.length > 0) {
 			console.log(`📁 ${testAlbums.length} album(s) de test trouvé(s):`);
 			testAlbums.forEach((a) => console.log(`   - ${a.id}: ${a.name}`));
 
-			const deleteAlbums = db.prepare(
-				"DELETE FROM albums WHERE name LIKE '%Test%' OR name LIKE '%test%'"
-			);
+			const deleteAlbums = db.prepare("DELETE FROM albums WHERE name LIKE '[TEST]%'");
 			const result = deleteAlbums.run();
 			console.log(`   ✅ ${result.changes} album(s) supprimé(s)\n`);
 		} else {

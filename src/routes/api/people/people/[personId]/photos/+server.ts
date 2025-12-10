@@ -6,7 +6,7 @@ import { env } from '$env/dynamic/private';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
+import { getAssetIdsInSystemAlbum } from '$lib/immich/system-albums';
 import { requireScope } from '$lib/server/permissions';
 
 async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: typeof fetch) {
@@ -42,10 +42,10 @@ async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: type
 		}
 	}
 
-	const systemAssetIds = new Set(await getAllAssetIdsInSystemAlbums(fetchFn));
+	const systemAssetIds = new Set(await getAssetIdsInSystemAlbum(fetchFn, 'PhotoCV'));
 	const filtered = allAssets.filter((asset) => {
-		const isInAnySystem = systemAssetIds.has(asset.id);
-		return inAlbum ? isInAnySystem : !isInAnySystem;
+		const isInPhotoCVAlbum = systemAssetIds.has(asset.id);
+		return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
 	});
 
 	const enrichedAssets = await Promise.all(

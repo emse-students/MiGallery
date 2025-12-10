@@ -102,3 +102,26 @@ export async function getAllAssetIdsInSystemAlbums(fetchFn: typeof fetch): Promi
 	}
 	return Array.from(allAssetIds);
 }
+
+/**
+ * Récupère les IDs de tous les assets dans un album système spécifique (ex: 'PhotoCV')
+ */
+export async function getAssetIdsInSystemAlbum(
+	fetchFn: typeof fetch,
+	albumName: string
+): Promise<string[]> {
+	try {
+		const albumId = await getOrCreateSystemAlbum(fetchFn, albumName);
+		const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
+			headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
+		});
+		if (!res.ok) {
+			return [];
+		}
+		const album = (await res.json()) as ImmichAlbum;
+		return (album.assets || []).map((a) => a.id);
+	} catch (_e) {
+		void _e;
+		return [];
+	}
+}

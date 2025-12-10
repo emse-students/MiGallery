@@ -8,18 +8,26 @@ import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpe
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let createdUserId: string | null = null;
+// Suivi de tous les utilisateurs créés pour le nettoyage
+const createdUserIds: string[] = [];
 
 beforeAll(async () => {
 	await setupTestAuth();
 });
 
 afterAll(async () => {
-	// Nettoyage : supprimer l'utilisateur de test
-	if (createdUserId && globalTestContext.adminApiKey) {
-		await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
-			method: 'DELETE',
-			headers: { 'x-api-key': globalTestContext.adminApiKey }
-		});
+	// Nettoyage : supprimer tous les utilisateurs de test créés
+	if (globalTestContext.adminApiKey) {
+		for (const userId of createdUserIds) {
+			try {
+				await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+					method: 'DELETE',
+					headers: { 'x-api-key': globalTestContext.adminApiKey }
+				});
+			} catch {
+				// Ignorer les erreurs
+			}
+		}
 	}
 
 	if (globalTestContext.adminApiKey) {
@@ -96,6 +104,7 @@ describe('Users API - POST /api/users', () => {
 			expect(data.success).toBe(true);
 			expect(data.created).toBeDefined();
 			createdUserId = data.created!.id_user;
+			createdUserIds.push(createdUserId);
 			expect(createdUserId).toBe(newUser.id_user);
 		}
 	});
@@ -403,17 +412,23 @@ describe('Users API - Validation des permissions', () => {
 	});
 
 	it('devrait vérifier les permissions admin pour la création', async () => {
+		const testPermUserId = `test.perm.${Date.now()}`;
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
-				id_user: 'test.perm',
-				email: 'test@etu.emse.fr',
+				id_user: testPermUserId,
+				email: `test.perm.${Date.now()}@etu.emse.fr`,
 				prenom: 'Test',
 				nom: 'Permission',
 				role: 'user'
 			})
 		});
+
+		// Tracker pour nettoyage
+		if (response.status === 200 || response.status === 201) {
+			createdUserIds.push(testPermUserId);
+		}
 
 		expect([200, 201, 401, 403, 400, 409]).toContain(response.status);
 	});

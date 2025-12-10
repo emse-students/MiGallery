@@ -20,6 +20,8 @@ import {
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testAlbumId = '';
+// Suivi de tous les albums créés pour le nettoyage
+const createdAlbumIds: string[] = [];
 
 beforeAll(async () => {
 	await setupTestAuth();
@@ -31,16 +33,31 @@ beforeAll(async () => {
 			'Content-Type': 'application/json',
 			'x-api-key': globalTestContext.adminApiKey || ''
 		},
-		body: JSON.stringify({ albumName: `Permission Test Album ${Date.now()}` })
+		body: JSON.stringify({ albumName: `[TEST] Permission Album ${Date.now()}` })
 	});
 
 	if (createRes.status === 200 || createRes.status === 201) {
 		const album = (await createRes.json()) as ImmichAlbum;
 		testAlbumId = album.id;
+		createdAlbumIds.push(album.id);
 	}
 });
 
 afterAll(async () => {
+	// Supprimer tous les albums créés pendant les tests
+	if (globalTestContext.adminApiKey) {
+		for (const albumId of createdAlbumIds) {
+			try {
+				await fetch(`${API_BASE_URL}/api/albums/${albumId}`, {
+					method: 'DELETE',
+					headers: { 'x-api-key': globalTestContext.adminApiKey }
+				});
+			} catch {
+				// Ignorer les erreurs (album peut déjà être supprimé)
+			}
+		}
+	}
+
 	if (globalTestContext.adminApiKey) {
 		await teardownTestAuth(globalTestContext as import('./test-helpers').TestContext);
 	}
@@ -55,11 +72,13 @@ describe('Permissions Albums - Opérations WRITE', () => {
 				'Content-Type': 'application/json',
 				'x-api-key': globalTestContext.adminApiKey || ''
 			},
-			body: JSON.stringify({ albumName: `Delete Test ${Date.now()}` })
+			body: JSON.stringify({ albumName: `[TEST] Delete Album ${Date.now()}` })
 		});
 
 		if (createRes.status === 200 || createRes.status === 201) {
 			const album = (await createRes.json()) as ImmichAlbum;
+			// Tracker pour nettoyage si le test échoue
+			createdAlbumIds.push(album.id);
 
 			const result = await testPermissions({
 				endpoint: `/api/albums/${album.id}`,
