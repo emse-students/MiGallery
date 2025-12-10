@@ -504,82 +504,8 @@ describe('Albums API - DELETE /api/albums/[id]', () => {
 	});
 });
 
-describe('Albums API - GET /api/albums/list', () => {
-	it('devrait lister tous les albums de la BDD locale', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/albums/list`, {
-			headers: getAuthHeaders()
-		});
-
-		expect([200, 401, 403]).toContain(response.status);
-
-		if (response.status === 200) {
-			const data = (await response.json()) as {
-				success: boolean;
-				data: Array<{
-					id: string;
-					name: string;
-					date?: string | null;
-					location?: string | null;
-					visibility?: string;
-					visible?: number;
-				}>;
-			};
-			expect(data.success).toBe(true);
-			expect(Array.isArray(data.data)).toBe(true);
-
-			// Vérifier la structure des albums
-			if (data.data.length > 0) {
-				const album = data.data[0];
-				expect(album).toHaveProperty('id');
-				expect(album).toHaveProperty('name');
-				expect(album).toHaveProperty('date');
-				expect(album).toHaveProperty('location');
-				expect(album).toHaveProperty('visibility');
-				expect(album).toHaveProperty('visible');
-
-				// Sauvegarder l'ID pour les tests de permissions (c'est l'UUID Immich)
-				if (!testAlbumId) {
-					testAlbumId = album.id;
-				}
-			}
-		}
-	});
-
-	it('devrait rejeter les requêtes sans authentification', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/albums/list`);
-		expect([401, 403]).toContain(response.status);
-	});
-});
-
-describe('Albums API - POST /api/albums/import', () => {
-	it('devrait rejeter les requêtes sans authentification', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/albums/import`, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' }
-		});
-
-		expect([401, 403]).toContain(response.status);
-	});
-
-	it('devrait importer les albums depuis Immich', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/albums/import`, {
-			method: 'POST',
-			headers: getAuthHeaders()
-		});
-
-		// Peut échouer si Immich n'est pas disponible, mais ne doit pas crasher
-		expect([200, 401, 403, 500, 502, 503]).toContain(response.status);
-
-		if (response.status === 200) {
-			const data = (await response.json()) as { success: boolean; imported: number; total: number };
-			expect(data.success).toBe(true);
-			expect(data).toHaveProperty('imported');
-			expect(data).toHaveProperty('total');
-			expect(typeof data.imported).toBe('number');
-			expect(typeof data.total).toBe('number');
-		}
-	});
-});
+// Tests pour /api/albums/list et /api/albums/import supprimés - endpoints dépréciés
+// GET /api/albums retourne maintenant la liste des albums de la BDD locale
 
 describe('Albums API - POST /api/albums/[id]/permissions/tags', () => {
 	it('devrait rejeter les requêtes sans authentification', async () => {

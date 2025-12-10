@@ -14,9 +14,8 @@
   let editingAlbumExistingUsers = $state<string[]>([]);
 
   async function loadAlbums() {
-    const res = await fetch('/api/albums/list');
-    const json = (await res.json()) as { success: boolean; data: Album[] };
-    if (json.success) albums = json.data;
+    const res = await fetch('/api/albums');
+    albums = (await res.json()) as Album[];
   }
 
   function startEditAlbum(a: Album) {
@@ -86,19 +85,7 @@
     await loadAlbums();
   }
 
-  async function importAlbumsFromImmich() {
-    try {
-      const res = await fetch('/api/albums/import', { method: 'POST' });
-      if (!res.ok) { toast.error(`Erreur import albums: ${res.status} ${res.statusText}`); return; }
-      const json = (await res.json()) as { success: boolean; imported: number; total: number };
-      if (json.success) {
-        toast.success(`Import terminé : ${json.imported} albums importés sur ${json.total}`);
-      } else {
-        toast.error('Erreur lors de l\'import des albums.');
-      }
-      await loadAlbums();
-    } catch (err: unknown) { console.error('Import albums error', err); toast.error('Erreur lors de l\'import des albums. Voir la console.'); }
-  }
+  // Import depuis Immich supprimé - les albums sont maintenant gérés manuellement
 
   onMount(() => { loadAlbums(); });
 </script>
@@ -114,8 +101,7 @@
   </div>
 
   <section class="card">
-    <button onclick={importAlbumsFromImmich} class="mb-4 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded">Importer depuis Immich</button>
-    <h3 class="mb-4 mt-4">Albums existants</h3>
+    <h3 class="mb-4">Albums existants</h3>
     {#if albums.length > 0}
       <div class="table-wrap">
         <table>

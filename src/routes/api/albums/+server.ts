@@ -1,52 +1,51 @@
 import { json, error as svelteError } from '@sveltejs/kit';
-import type { ImmichAlbum } from '$lib/types/api';
+import type { ImmichAlbum, AlbumRow } from '$lib/types/api';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
+import { ensureError } from '$lib/ts-utils';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/albums
- * Récupère la liste de tous les albums Immich
- *
- * Cache: Les albums sont cachés via le proxy /api/immich
+ * Récupère la liste des albums de la BDD locale (pas Immich directement)
+ * Seuls les albums répertoriés dans MiGallery sont retournés
  */
 export const GET: RequestHandler = async (event) => {
 	// Autorisation: session utilisateur OU x-api-key avec scope "read"
 	await requireScope(event, 'read');
 
 	try {
-		if (!IMMICH_BASE_URL) {
-			throw svelteError(500, 'IMMICH_BASE_URL not configured');
-		}
+		const db = getDatabase();
+		// Récupérer uniquement les albums de la base de données locale
+		// L'album PhotoCV est exclu via la requête SQL (name != 'PhotoCV')
+		const albums = db
+			.prepare("SELECT * FROM albums WHERE name != 'PhotoCV' ORDER BY date DESC, name ASC")
+			.all() as AlbumRow[];
 
-		const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums`, {
-			headers: {
-				'x-api-key': IMMICH_API_KEY,
-				Accept: 'application/json'
-			}
-		});
+		// Transformer en format compatible avec l'ancien format ImmichAlbum pour la rétrocompatibilité
+		const formattedAlbums = albums.map((album) => ({
+			id: album.id,
+			albumName: album.name,
+			description: album.location || '',
+			createdAt: album.date || '',
+			updatedAt: album.date || '',
+			assetCount: 0, // Non disponible depuis la BDD locale
+			// Métadonnées MiGallery
+			date: album.date,
+			location: album.location,
+			visibility: album.visibility,
+			visible: album.visible
+		}));
 
-		if (!res.ok) {
-			const errorText = await res.text();
-			throw svelteError(res.status, `Failed to fetch albums: ${errorText}`);
-		}
-
-		const albums = (await res.json()) as ImmichAlbum[];
-
-		// Filtrer l'album PhotoCV (caché)
-		const visibleAlbums = albums.filter((a) => a.albumName !== 'PhotoCV');
-
-		return json(visibleAlbums);
+		return json(formattedAlbums);
 	} catch (err: unknown) {
-		console.error('Error in /api/albums GET:', err);
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
-		throw svelteError(500, err instanceof Error ? err.message : 'Internal server error');
+		const e = ensureError(err);
+		console.error('Error in /api/albums GET:', e);
+		throw svelteError(500, e.message);
 	}
 };
 

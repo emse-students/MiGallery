@@ -33,9 +33,7 @@ async function main() {
 
 	try {
 		// 1. Supprimer les utilisateurs de test (ceux qui commencent par 'test.')
-		const testUsers = db
-			.prepare("SELECT id_user FROM users WHERE id_user LIKE 'test.%'")
-			.all();
+		const testUsers = db.prepare("SELECT id_user FROM users WHERE id_user LIKE 'test.%'").all();
 
 		if (testUsers.length > 0) {
 			console.log(`👤 ${testUsers.length} utilisateur(s) de test trouvé(s):`);
@@ -50,7 +48,8 @@ async function main() {
 
 		// 2. Supprimer les clés API de test
 		const testApiKeys = db
-			.prepare(`SELECT id, label FROM api_keys WHERE
+			.prepare(
+				`SELECT id, label FROM api_keys WHERE
 				label LIKE 'Test%'
 				OR label LIKE '%Test%'
 				OR label LIKE 'E2E%'
@@ -58,7 +57,8 @@ async function main() {
 				OR label LIKE 'Read Only%'
 				OR label LIKE 'Multi Scope%'
 				OR label LIKE 'Invalid Scope%'
-				OR label IS NULL`)
+				OR label IS NULL`
+			)
 			.all();
 
 		if (testApiKeys.length > 0) {
@@ -100,34 +100,36 @@ async function main() {
 
 		// 4. Vérifier les permissions orphelines
 		const orphanedTagPerms = db
-			.prepare(`
+			.prepare(
+				`
 				SELECT COUNT(*) as count FROM album_tag_permissions
 				WHERE album_id NOT IN (SELECT id FROM albums)
-			`)
+			`
+			)
 			.get();
 
 		if (orphanedTagPerms.count > 0) {
 			console.log(`🏷️  ${orphanedTagPerms.count} permission(s) de tag orpheline(s) trouvée(s)`);
-			db.prepare(
-				'DELETE FROM album_tag_permissions WHERE album_id NOT IN (SELECT id FROM albums)'
-			).run();
+			db
+				.prepare('DELETE FROM album_tag_permissions WHERE album_id NOT IN (SELECT id FROM albums)')
+				.run();
 			console.log('   ✅ Supprimées\n');
 		}
 
 		const orphanedUserPerms = db
-			.prepare(`
+			.prepare(
+				`
 				SELECT COUNT(*) as count FROM album_user_permissions
 				WHERE album_id NOT IN (SELECT id FROM albums)
-			`)
+			`
+			)
 			.get();
 
 		if (orphanedUserPerms.count > 0) {
-			console.log(
-				`👥 ${orphanedUserPerms.count} permission(s) utilisateur orpheline(s) trouvée(s)`
-			);
-			db.prepare(
-				'DELETE FROM album_user_permissions WHERE album_id NOT IN (SELECT id FROM albums)'
-			).run();
+			console.log(`👥 ${orphanedUserPerms.count} permission(s) utilisateur orpheline(s) trouvée(s)`);
+			db
+				.prepare('DELETE FROM album_user_permissions WHERE album_id NOT IN (SELECT id FROM albums)')
+				.run();
 			console.log('   ✅ Supprimées\n');
 		}
 
