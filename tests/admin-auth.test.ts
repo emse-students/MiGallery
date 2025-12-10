@@ -404,7 +404,7 @@ describe('API Authentication - API Key Validation', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait respecter les scopes de la clé API', async () => {
+	it('devrait respecter les scopes de la clé API', () => {
 		// TODO: Créer une clé avec scope 'read' uniquement et tester les opérations write
 		expect(true).toBe(true);
 	});
@@ -448,7 +448,7 @@ describe('API Error Handling', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait gérer les timeouts gracieusement', async () => {
+	it('devrait gérer les timeouts gracieusement', () => {
 		// TODO: Tester avec un endpoint qui timeout
 		expect(true).toBe(true);
 	});

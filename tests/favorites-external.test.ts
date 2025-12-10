@@ -37,7 +37,7 @@ describe('Favorites API - GET /api/favorites', () => {
 		expect([200, 401, 403]).toContain(response.status);
 
 		if (response.status === 200) {
-			const favorites = await response.json();
+			const favorites = (await response.json()) as unknown[];
 			expect(Array.isArray(favorites)).toBe(true);
 		}
 	});
@@ -53,7 +53,7 @@ describe('Favorites API - GET /api/favorites', () => {
 		});
 
 		if (response.status === 200) {
-			const favorites = await response.json();
+			const favorites = (await response.json()) as unknown[];
 			expect(Array.isArray(favorites)).toBe(true);
 		}
 	});
@@ -187,7 +187,7 @@ describe('External Media API - POST /api/external/media', () => {
 		expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
 
 		if (response.status === 200 || response.status === 201) {
-			const data = await response.json();
+			const data = (await response.json()) as { success: boolean; media: { id: string } };
 			expect(data.success).toBe(true);
 			expect(data.media).toHaveProperty('id');
 		}
@@ -266,7 +266,7 @@ describe('External Media API - GET /api/external/media/[id]', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const data = await response.json();
+			const data = (await response.json()) as { id: string };
 			expect(data).toHaveProperty('id');
 		}
 	});

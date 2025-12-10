@@ -68,7 +68,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 				description: "Suppression d'album"
 			});
 
-			console.log(
+			console.debug(
 				formatPermissionResults(
 					{ endpoint: `/api/albums/${album.id}`, method: 'DELETE', requiredScope: 'write' },
 					result
@@ -96,7 +96,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 			description: "Ajout d'assets à l'album"
 		});
 
-		console.log(
+		console.debug(
 			formatPermissionResults(
 				{ endpoint: `/api/albums/${testAlbumId}/assets`, method: 'PUT', requiredScope: 'write' },
 				result
@@ -168,7 +168,7 @@ describe('Permissions Albums - Opérations READ', () => {
 			description: "Récupération des covers d'albums"
 		});
 
-		console.log(
+		console.debug(
 			formatPermissionResults(
 				{ endpoint: '/api/albums/covers', method: 'POST', requiredScope: 'read' },
 				result
@@ -184,15 +184,15 @@ describe('Permissions Albums - Opérations READ', () => {
 
 describe('Permissions Résumé', () => {
 	it('devrait afficher un récapitulatif des tests de permissions', () => {
-		console.log('\n=== RÉCAPITULATIF DES TESTS DE PERMISSIONS ===');
-		console.log('✅ Tous les endpoints critiques testés');
-		console.log('✅ Hiérarchie des scopes vérifiée: public < read < write < admin');
-		console.log('✅ Rejets sans auth confirmés (401/403)');
-		console.log('✅ Acceptations avec scopes appropriés confirmées (200)');
-		console.log(
+		console.debug('\n=== RÉCAPITULATIF DES TESTS DE PERMISSIONS ===');
+		console.debug('✅ Tous les endpoints critiques testés');
+		console.debug('✅ Hiérarchie des scopes vérifiée: public < read < write < admin');
+		console.debug('✅ Rejets sans auth confirmés (401/403)');
+		console.debug('✅ Acceptations avec scopes appropriés confirmées (200)');
+		console.debug(
 			'\nℹ️  Note: PUT/DELETE /api/people/album/assets testés dans people-photoscv.test.ts'
 		);
-		console.log("   (nécessitent l'album système PhotoCV qui peut ne pas être disponible au début)");
+		console.debug("   (nécessitent l'album système PhotoCV qui peut ne pas être disponible au début)");
 		expect(true).toBe(true);
 	});
 });
