@@ -9,11 +9,30 @@ const db = Database.open(dbPath);
 
 console.log('🔍 Recherche des clés API de test...\n');
 
-// Lister les clés API de test
+// Patterns de clés de test à supprimer
+const TEST_KEY_PATTERNS = [
+  'Test API Key%',
+  'Test Read Key',
+  'Multi Scope Key',
+  'Invalid Scope Key',
+  'Read Only Key',
+  'Admin Key Test',
+  'E2E Test%',
+  '%Test%Key%'
+];
+
+// Lister les clés API de test (label vide ou correspondant aux patterns)
 const testKeys = db.prepare(`
   SELECT id, label, scopes, revoked, created_at
   FROM api_keys
-  WHERE label LIKE 'Test API Key%'
+  WHERE label = ''
+     OR label LIKE 'Test API Key%'
+     OR label LIKE 'Test Read Key%'
+     OR label = 'Multi Scope Key'
+     OR label = 'Invalid Scope Key'
+     OR label = 'Read Only Key'
+     OR label = 'Admin Key Test'
+     OR label LIKE 'E2E Test%'
 `).all();
 
 if (testKeys.length === 0) {
@@ -24,7 +43,7 @@ if (testKeys.length === 0) {
 console.log(`📋 ${testKeys.length} clé(s) API de test trouvée(s):\n`);
 testKeys.forEach((k, i) => {
   console.log(`  ${i + 1}. ID: ${k.id}`);
-  console.log(`     Label: ${k.label}`);
+  console.log(`     Label: ${k.label || '(vide)'}`);
   console.log(`     Scopes: ${k.scopes}`);
   console.log(`     Révoquée: ${k.revoked ? 'Oui' : 'Non'}`);
   console.log(`     Créée le: ${new Date(k.created_at).toLocaleString()}`);
@@ -35,7 +54,14 @@ testKeys.forEach((k, i) => {
 console.log('🗑️  Suppression des clés API de test...');
 const result = db.prepare(`
   DELETE FROM api_keys
-  WHERE label LIKE 'Test API Key%'
+  WHERE label = ''
+     OR label LIKE 'Test API Key%'
+     OR label LIKE 'Test Read Key%'
+     OR label = 'Multi Scope Key'
+     OR label = 'Invalid Scope Key'
+     OR label = 'Read Only Key'
+     OR label = 'Admin Key Test'
+     OR label LIKE 'E2E Test%'
 `).run();
 
 console.log(`\n✅ ${result.changes} clé(s) API de test supprimée(s).`);

@@ -9,12 +9,20 @@ import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpe
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testApiKeyId: string | null = null;
 
+// Liste des labels de clés créées pendant les tests pour nettoyage
+const TEST_KEY_LABELS = [
+	'Admin Key Test',
+	'Read Only Key',
+	'Invalid Scope Key',
+	'Multi Scope Key'
+];
+
 beforeAll(async () => {
 	await setupTestAuth();
 });
 
 afterAll(async () => {
-	// Nettoyage : supprimer les clés API de test
+	// Nettoyage : supprimer la clé de test principale
 	if (testApiKeyId && globalTestContext.sessionCookie) {
 		await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
 			method: 'DELETE',
@@ -22,7 +30,34 @@ afterAll(async () => {
 		});
 	}
 
+	// Nettoyage : supprimer toutes les clés de test créées
 	if (globalTestContext.adminApiKey) {
+		try {
+			const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
+				headers: { 'x-api-key': globalTestContext.adminApiKey }
+			});
+			if (response.ok) {
+				const data = (await response.json()) as ApiKeysListResponse;
+				for (const key of data.keys || []) {
+					// Supprimer les clés avec les labels de test ou qui commencent par "Test API Key"
+					if (
+						TEST_KEY_LABELS.includes(key.label || '') ||
+						(key.label && key.label.startsWith('Test API Key'))
+					) {
+						await fetch(`${API_BASE_URL}/api/admin/api-keys/${key.id}`, {
+							method: 'DELETE',
+							headers: { 'x-api-key': globalTestContext.adminApiKey }
+						});
+					}
+				}
+			}
+		} catch (e: unknown) {
+			const message = e instanceof Error ? e.message : String(e);
+			if (!message.startsWith('fetch failed')) {
+				console.warn('Erreur lors du nettoyage des clés de test:', message);
+			}
+		}
+
 		await teardownTestAuth(globalTestContext as import('./test-helpers').TestContext);
 	}
 });
