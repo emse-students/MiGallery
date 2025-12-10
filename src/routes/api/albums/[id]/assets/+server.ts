@@ -46,7 +46,7 @@ export const PUT: RequestHandler = async (event) => {
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error(`Error in /api/albums/${id}/assets PUT:`, err);
+		console.error(`Error in /api/albums/${event.params.id}/assets PUT:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
@@ -92,7 +92,7 @@ export const DELETE: RequestHandler = async (event) => {
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error(`Error in /api/albums/${id}/assets DELETE:`, err);
+		console.error(`Error in /api/albums/${event.params.id}/assets DELETE:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}

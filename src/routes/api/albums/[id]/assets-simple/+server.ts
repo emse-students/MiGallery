@@ -59,7 +59,7 @@ export const GET: RequestHandler = async (event) => {
 			}
 		});
 	} catch (e: unknown) {
-		console.error(`Error in /api/albums/${id}/assets-simple GET:`, e);
+		console.error(`Error in /api/albums/${event.params.id}/assets-simple GET:`, e);
 		const errorMessage = e instanceof Error ? e.message : 'Internal server error';
 		throw svelteError(500, `Internal server error: ${errorMessage}`);
 	}

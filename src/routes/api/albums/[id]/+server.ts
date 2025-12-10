@@ -115,7 +115,7 @@ export const DELETE: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${id} DELETE:`, err);
+		console.error(`Error in /api/albums/${event.params.id} DELETE:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
@@ -260,7 +260,7 @@ export const PATCH: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${id} PATCH:`, err);
+		console.error(`Error in /api/albums/${event.params.id} PATCH:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

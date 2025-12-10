@@ -444,6 +444,9 @@ describe('Users API - Validation des permissions', () => {
 });
 
 describe('Users API - PATCH /api/users/me/face', () => {
+	// Utilisateur de test pour les endpoints /me avec API key admin
+	const testUserId = 'test-face-user';
+
 	it('devrait rejeter les requêtes sans authentification', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
@@ -458,10 +461,10 @@ describe('Users API - PATCH /api/users/me/face', () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({})
+			body: JSON.stringify({ user_id: testUserId })
 		});
 
-		expect([400, 401, 403]).toContain(response.status);
+		expect([400, 401, 403, 404]).toContain(response.status);
 
 		if (response.status === 400) {
 			const data = (await response.json()) as { error?: string };
@@ -474,10 +477,10 @@ describe('Users API - PATCH /api/users/me/face', () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({ person_id: testPersonId })
+			body: JSON.stringify({ person_id: testPersonId, user_id: testUserId })
 		});
 
-		expect([200, 401, 403]).toContain(response.status);
+		expect([200, 401, 403, 404]).toContain(response.status);
 
 		if (response.status === 200) {
 			const data = (await response.json()) as { success: boolean; person_id: string };
@@ -490,10 +493,10 @@ describe('Users API - PATCH /api/users/me/face', () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({ person_id: null })
+			body: JSON.stringify({ person_id: null, user_id: testUserId })
 		});
 
-		expect([200, 401, 403]).toContain(response.status);
+		expect([200, 401, 403, 404]).toContain(response.status);
 
 		if (response.status === 200) {
 			const data = (await response.json()) as { success: boolean; person_id: string | null };

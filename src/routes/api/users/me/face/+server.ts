@@ -7,46 +7,57 @@ import { requireScope } from '$lib/server/permissions';
 /**
  * PATCH /api/users/me/face
  * Met à jour l'ID de la personne (id_photos) et le statut first_login de l'utilisateur connecté
+ * 
+ * Body:
+ * - person_id: string | null (requis) - L'ID de la personne à associer
+ * - user_id: string (optionnel, admin seulement) - Permet de modifier un autre utilisateur
  */
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
 
 	// Vérifier l'authentification via API key ou session
-	await requireScope(event, 'read');
+	const auth = await requireScope(event, 'read');
 
 	try {
 		const db = getDatabase();
+		const body = (await request.json()) as { person_id?: string | null; user_id?: string };
 
-		// Récupérer l'utilisateur connecté via cookie
-		const cookieSigned = cookies.get('current_user_id') ?? null;
+		// Récupérer l'utilisateur cible
 		let userId: string | null = null;
 
-		if (cookieSigned) {
-			const verified = verifySigned(cookieSigned);
-			if (verified) {
-				userId = verified;
-			}
-		}
+		// Si admin et user_id fourni, utiliser celui-ci
+		if (auth.grantedScope === 'admin' && body.user_id) {
+			userId = body.user_id;
+		} else {
+			// Sinon, identifier l'utilisateur connecté via cookie
+			const cookieSigned = cookies.get('current_user_id') ?? null;
 
-		// Fallback sur la session provider
-		if (!userId && locals && typeof locals.auth === 'function') {
-			const session = await locals.auth();
-			if (session?.user) {
-				const user = session.user as { id?: string; preferred_username?: string; sub?: string };
-				userId = user.id || user.preferred_username || user.sub || null;
+			if (cookieSigned) {
+				const verified = verifySigned(cookieSigned);
+				if (verified) {
+					userId = verified;
+				}
 			}
-		}
 
-		// Fallback sur l'userId défini par requireScope (API key avec user associé)
-		if (!userId && locals.userId) {
-			userId = locals.userId as string;
+			// Fallback sur la session provider
+			if (!userId && locals && typeof locals.auth === 'function') {
+				const session = await locals.auth();
+				if (session?.user) {
+					const user = session.user as { id?: string; preferred_username?: string; sub?: string };
+					userId = user.id || user.preferred_username || user.sub || null;
+				}
+			}
+
+			// Fallback sur l'userId défini par requireScope (API key avec user associé)
+			if (!userId && locals.userId) {
+				userId = locals.userId as string;
+			}
 		}
 
 		if (!userId) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
+			return json({ error: 'Unauthorized - no user identified' }, { status: 401 });
 		}
 
-		const body = (await request.json()) as { person_id?: string | null };
 		const personId = body.person_id;
 
 		// Accepter null ou une chaîne non vide
