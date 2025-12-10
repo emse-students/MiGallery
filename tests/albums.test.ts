@@ -13,7 +13,6 @@ import {
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testAlbumId = ''; // UUID Immich = ID local dans la BDD
-let testAlbumCreated = false; // Flag pour savoir si on a créé un album de test
 // Suivi de tous les albums créés pour le nettoyage
 const createdAlbumIds: string[] = [];
 
@@ -39,7 +38,6 @@ beforeAll(async () => {
 			if (response.ok) {
 				const album = (await response.json()) as ImmichAlbum;
 				testAlbumId = album.id;
-				testAlbumCreated = true;
 				createdAlbumIds.push(album.id);
 			}
 		} catch (err) {

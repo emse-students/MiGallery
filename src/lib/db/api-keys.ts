@@ -46,7 +46,7 @@ export function listApiKeys(): Array<{
 	return rows;
 }
 
-export function revokeApiKey(id: number) {
+export function deleteApiKey(id: number) {
 	const db = getDatabase();
 	const info = db.prepare('DELETE FROM api_keys WHERE id = ?').run(id);
 	return info.changes;
