@@ -279,11 +279,22 @@ export interface UserCreateResponse {
 }
 
 /**
+ * Clé API dans la liste
+ */
+export interface ApiKeyItem {
+	id: string;
+	label: string;
+	scopes: string;
+	created_at: number;
+	revoked: boolean;
+}
+
+/**
  * Liste des clés API (endpoint /api/admin/api-keys)
  */
 export interface ApiKeysListResponse {
 	success: boolean;
-	keys: unknown[];
+	keys: ApiKeyItem[];
 }
 
 /**
