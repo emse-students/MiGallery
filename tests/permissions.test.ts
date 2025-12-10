@@ -158,7 +158,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 			endpoint: `/api/albums/${testAlbumId}/metadata`,
 			method: 'PUT',
 			body: {
-				name: `Updated ${Date.now()}`,
+				name: `[TEST] Updated ${Date.now()}`,
 				visibility: 'private'
 			},
 			requiredScope: 'write',

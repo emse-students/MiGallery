@@ -226,9 +226,11 @@ describe('Albums API - PATCH /api/albums/[id]', () => {
 		if (createRes.status === 200 || createRes.status === 201) {
 			const album = (await createRes.json()) as ImmichAlbum;
 			const albumId = album.id;
+			// Tracker pour nettoyage
+			createdAlbumIds.push(albumId);
 
 			const updateData = {
-				name: `Updated Album ${Date.now()}`,
+				name: `[TEST] Updated Album ${Date.now()}`,
 				visibility: 'authenticated' as const
 			};
 
