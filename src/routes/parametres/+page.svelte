@@ -568,6 +568,11 @@
   <div class="section">
     <h2><Icon name="image" size={28} /> Photo de profil</h2>
     <p>Importez une photo de votre visage pour configurer votre reconnaissance faciale et accéder à "Mes photos".</p>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+      <Icon name="info" size={14} class="inline-block mr-1" />
+      En envoyant une photo, vous consentez à son traitement par notre système de reconnaissance faciale pour vous identifier sur les photos de la galerie.
+      Cette photo temporaire sera automatiquement supprimée de nos serveurs sous 24 heures après traitement.
+    </p>
 
     <div class="my-5">
       <CameraInput onPhoto={importPhoto} disabled={isProcessing} />
@@ -596,6 +601,22 @@
       <p><strong>ID de la personne :</strong> <code>{personId}</code></p>
     {/if}
   </div>
+
+  <!-- Footer avec crédits -->
+  <footer class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-600 dark:text-gray-400">
+    <p class="mb-2">
+      MiGallery, by <a href="https://mitv.fr" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">MiTV</a>
+    </p>
+    <p class="mb-4">
+      <a href="https://github.com/DeMASKe/DeMASKe" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Jolan BOUDIN</a>
+      et
+      <a href="https://github.com/gd-pnjj" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Gabriel DUPONT</a>
+      - 2025
+    </p>
+    <p>
+      <a href="https://gallery.mitv.fr/cgu" class="text-blue-600 dark:text-blue-400 hover:underline">Conditions Générales d'Utilisation</a>
+    </p>
+  </footer>
 </main>
 
 <style>

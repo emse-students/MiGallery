@@ -35,6 +35,7 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 // Patterns d'albums de test à supprimer
 const TEST_PATTERNS = [
+	/^\[TEST\]/i,  // Nouveau pattern officiel
 	/^Test\s/i,
 	/Test$/i,
 	/\bTest\b/i,
@@ -161,7 +162,8 @@ async function main() {
 				.prepare(
 					`
 				SELECT id, name FROM albums
-				WHERE name LIKE '%Test%'
+				WHERE name LIKE '[TEST]%'
+				   OR name LIKE '%Test%'
 				   OR name LIKE '%test%'
 				   OR name LIKE '%Permission%'
 				   OR name LIKE '%E2E%'
@@ -181,7 +183,8 @@ async function main() {
 						DELETE FROM album_tag_permissions
 						WHERE album_id IN (
 							SELECT id FROM albums
-							WHERE name LIKE '%Test%'
+							WHERE name LIKE '[TEST]%'
+							   OR name LIKE '%Test%'
 							   OR name LIKE '%test%'
 							   OR name LIKE '%Permission%'
 							   OR name LIKE '%E2E%'
@@ -196,7 +199,8 @@ async function main() {
 						DELETE FROM album_user_permissions
 						WHERE album_id IN (
 							SELECT id FROM albums
-							WHERE name LIKE '%Test%'
+							WHERE name LIKE '[TEST]%'
+							   OR name LIKE '%Test%'
 							   OR name LIKE '%test%'
 							   OR name LIKE '%Permission%'
 							   OR name LIKE '%E2E%'
@@ -210,7 +214,8 @@ async function main() {
 						.prepare(
 							`
 						DELETE FROM albums
-						WHERE name LIKE '%Test%'
+						WHERE name LIKE '[TEST]%'
+						   OR name LIKE '%Test%'
 						   OR name LIKE '%test%'
 						   OR name LIKE '%Permission%'
 						   OR name LIKE '%E2E%'
