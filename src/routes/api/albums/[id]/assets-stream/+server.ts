@@ -222,7 +222,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error(`Error in /api/albums/${id}/assets-stream GET:`, _err.message || _err);
+		console.error(`Error in /api/albums/${event.params.id}/assets-stream GET:`, _err.message || _err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
