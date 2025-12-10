@@ -13,10 +13,27 @@
   import { showConfirm } from '$lib/confirm';
   import { handleAlbumUpload } from '$lib/album-operations';
   import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+  import { activeOperations } from '$lib/operations';
+  import { navigationModalStore } from '$lib/navigation-store';
   import type { User, Album } from '$lib/types/api';
 
   let title = $state('');
   let showAlbumModal = $state(false);
+
+  // Souscription aux opérations actives pour bloquer la navigation
+  let hasActiveOps = $state(false);
+  activeOperations.subscribe((ops) => {
+    hasActiveOps = ops.size > 0;
+  });
+
+  /** Navigation avec vérification des opérations en cours */
+  function handleBackClick() {
+    if (hasActiveOps) {
+      navigationModalStore.set({ show: true, href: '/albums' });
+    } else {
+      goto('/albums');
+    }
+  }
 
   // État du modal de confirmation
   let showConfirmModal = $state(false);
@@ -278,7 +295,7 @@
 <main class="album-detail">
   <div class="page-background"></div>
 
-  <nav class="top-nav"><a href="/albums"><Icon name="chevron-left" size={16} /> Retour aux albums</a></nav>
+  <nav class="top-nav"><button type="button" class="back-link" onclick={handleBackClick}><Icon name="chevron-left" size={16} /> Retour aux albums</button></nav>
 
   <div class="header-container">
     <div class="header-content">

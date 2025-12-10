@@ -83,9 +83,16 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	// (sauf pour les routes /api/external/* qui utilisent x-api-key)
 	const isMutatingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
+	// DEBUG: Log pour identifier les problèmes CSRF
+	if (isMutatingMethod) {
+		console.log(`[CSRF] ${method} ${pathname} | origin: ${origin} | exempt: ${isApiExternalRoute} | allowed: ${isAllowedOrigin(origin)}`);
+	}
+
 	if (isMutatingMethod && !isApiExternalRoute && origin) {
-		// L'origine doit correspondre exactement à l'URL du serveur
-		if (origin !== url.origin) {
+		// L'origine doit correspondre à l'URL du serveur OU être dans la liste des origines autorisées
+		const originAllowed = origin === url.origin || isAllowedOrigin(origin);
+		if (!originAllowed) {
+			console.warn(`[CSRF BLOCKED] origin=${origin} not allowed (url.origin=${url.origin})`);
 			return new Response('Cross-site POST form submissions are forbidden', {
 				status: 403,
 				headers: {
