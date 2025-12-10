@@ -4,8 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -15,9 +14,10 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Envoie d'abord les métadonnées minimales (id, type, dimensions) pour installer les skeletons,
  * puis enrichit progressivement avec les détails complets
  */
-export const GET: RequestHandler = async ({ params, fetch, request, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
 	try {
-		const { id } = params;
+		const { id } = event.params;
+		const { fetch, request } = event;
 
 		// Récupérer d'abord l'album (le serveur a accès à IMMICH_API_KEY)
 		if (!IMMICH_BASE_URL) {
@@ -95,13 +95,7 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 			localVisibility === 'unlisted' ||
 			albumVisibility === 'unlisted';
 		if (!isUnlisted) {
-			const user = await getCurrentUser({ locals, cookies });
-			if (!user) {
-				const raw = request.headers.get('x-api-key') || undefined;
-				if (!verifyRawKeyWithScope(raw, 'read')) {
-					throw error(401, 'Unauthorized');
-				}
-			}
+			await requireScope(event, 'read');
 		}
 
 		if (!IMMICH_BASE_URL) {
@@ -228,7 +222,7 @@ export const GET: RequestHandler = async ({ params, fetch, request, locals, cook
 		});
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error(`Error in /api/albums/${params.id}/assets-stream GET:`, _err.message || _err);
+		console.error(`Error in /api/albums/${id}/assets-stream GET:`, _err.message || _err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

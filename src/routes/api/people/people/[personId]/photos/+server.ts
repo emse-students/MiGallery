@@ -7,8 +7,7 @@ import { env } from '$env/dynamic/private';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 
 async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: typeof fetch) {
 	const allAssets: ImmichAsset[] = [];
@@ -74,23 +73,16 @@ async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: type
 	return enrichedAssets;
 }
 
-export const GET: RequestHandler = async ({ params, url, fetch, request, locals, cookies }) => {
-	const personId = params.personId;
+export const GET: RequestHandler = async (event) => {
+	const personId = event.params.personId;
 	if (!personId) {
 		throw error(400, 'personId required');
 	}
-	const inAlbum = url.searchParams.get('in_album') === 'true';
+	const inAlbum = event.url.searchParams.get('in_album') === 'true';
 
-	// Autorisation: session utilisateur OU x-api-key avec scope "read"
-	const user = await getCurrentUser({ locals, cookies });
-	if (!user) {
-		const raw = request.headers.get('x-api-key') || undefined;
-		if (!verifyRawKeyWithScope(raw, 'read')) {
-			throw error(401, 'Unauthorized');
-		}
-	}
+	await requireScope(event, 'read');
 	try {
-		const assets = await getPersonAssets(personId, inAlbum, fetch);
+		const assets = await getPersonAssets(personId, inAlbum, event.fetch);
 		return json({ assets });
 	} catch (e: unknown) {
 		const err = ensureError(e);

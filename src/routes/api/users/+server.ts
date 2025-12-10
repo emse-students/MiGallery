@@ -2,94 +2,29 @@ import { json } from '@sveltejs/kit';
 import type { UserRow } from '$lib/types/api';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
-import { verifySigned } from '$lib/auth/cookies';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
+import { requireScope } from '$lib/server/permissions';
 
-import type { Cookies } from '@sveltejs/kit';
-
-async function getUserFromLocals(locals: App.Locals, cookies: Cookies): Promise<UserRow | null> {
-	const db = getDatabase();
-
-	// Try cookie first (fast path)
-	const cookieSigned = cookies.get('current_user_id');
-	if (cookieSigned) {
-		const verified = verifySigned(cookieSigned);
-		if (verified) {
-			const userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(verified) as
-				| UserRow
-				| undefined;
-			if (userInfo) {
-				return userInfo;
-			}
-		}
-	}
-
-	// Fallback to auth provider
-	if (locals && typeof locals.auth === 'function') {
-		const session = await locals.auth();
-		if (session?.user) {
-			const providerId = session.user.id || session.user.preferred_username || session.user.sub;
-			if (providerId) {
-				const userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(providerId) as
-					| UserRow
-					| undefined;
-				if (userInfo) {
-					return userInfo;
-				}
-			}
-		}
-	}
-
-	return null;
-}
-
-export const GET: RequestHandler = async ({ locals, cookies, request }) => {
+export const GET: RequestHandler = async (event) => {
 	// list users - admin only
-	try {
-		// accept admin via x-api-key header as well
-		const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-		if (apiKeyHeader) {
-			if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-		} else {
-			const user = await getUserFromLocals(locals, cookies);
-			if (!user) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-			if ((user.role || 'user') !== 'admin') {
-				return json({ error: 'Forbidden' }, { status: 403 });
-			}
-		}
+	await requireScope(event, 'admin');
 
-		const db = getDatabase();
-		// Exclure uniquement l'admin système (les.roots@etu.emse.fr)
-		// Afficher tous les autres utilisateurs, même ceux sans promo_year (nouveaux utilisateurs)
-		const rows = db
-			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
-			)
-			.all('les.roots@etu.emse.fr') as UserRow[];
-		return json({ success: true, users: rows });
-	} catch (e) {
-		const err = e as Error;
-		console.error('GET /api/users error', err);
-		return json({ success: false, error: err.message }, { status: 500 });
-	}
+	const db = getDatabase();
+	// Exclure uniquement l'admin système (les.roots@etu.emse.fr)
+	// Afficher tous les autres utilisateurs, même ceux sans promo_year (nouveaux utilisateurs)
+	const rows = db
+		.prepare(
+			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
+		)
+		.all('les.roots@etu.emse.fr') as UserRow[];
+	return json({ success: true, users: rows });
 };
 
-export const POST: RequestHandler = async ({ request, locals, cookies }) => {
+export const POST: RequestHandler = async (event) => {
 	// create user - admin only
-	try {
-		const user = await getUserFromLocals(locals, cookies);
-		if (!user) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
-		if ((user.role || 'user') !== 'admin') {
-			return json({ error: 'Forbidden' }, { status: 403 });
-		}
+	await requireScope(event, 'admin');
 
-		const body = (await request.json()) as {
+	try {
+		const body = (await event.request.json()) as {
 			id_user?: string;
 			email?: string;
 			prenom?: string;
@@ -101,6 +36,16 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 		const { id_user, email, prenom, nom, role = 'user', promo_year = null, id_photos = null } = body;
 		if (!id_user || !email) {
 			return json({ error: 'id_user and email required' }, { status: 400 });
+		}
+
+		// Validation email simple
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+			return json({ error: 'Invalid email format' }, { status: 400 });
+		}
+
+		// Validation role
+		if (!['user', 'admin', 'moderator'].includes(role)) {
+			return json({ error: 'Invalid role' }, { status: 400 });
 		}
 
 		const db = getDatabase();
@@ -126,6 +71,12 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	} catch (e) {
 		const err = e as Error;
 		console.error('POST /api/users error', err);
+		if (
+			err.message.includes('UNIQUE constraint failed') ||
+			err.message.includes('SQLITE_CONSTRAINT_UNIQUE')
+		) {
+			return json({ success: false, error: 'User already exists' }, { status: 409 });
+		}
 		return json({ success: false, error: err.message }, { status: 500 });
 	}
 };

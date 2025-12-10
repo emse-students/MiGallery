@@ -3,8 +3,11 @@ import { json } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from '@sveltejs/kit';
 import { signId } from '$lib/auth/cookies';
+import { requireScope } from '$lib/server/permissions';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async (event) => {
+	await requireScope(event, 'admin');
+	const { request, cookies } = event;
 	try {
 		const { userId } = (await request.json()) as { userId: string | null | undefined };
 

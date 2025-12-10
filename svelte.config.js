@@ -15,11 +15,17 @@ const config = {
 		prerender: {
 			handleHttpError: 'warn'
 		},
-		// Configuration CSRF : désactivé globalement car on gère nous-mêmes la sécurité
-		// dans hooks.server.ts. Les routes /api/external/* utilisent x-api-key (pas de cookies),
-		// donc pas de risque CSRF. Les autres routes sont protégées par notre hook.
+		// Configuration CSRF : on spécifie les origines de confiance.
+		// Les routes /api/external/* utilisent x-api-key (pas de cookies), donc pas de risque CSRF.
+		// Les autres routes mutantes (POST/PUT/DELETE) sont vérifiées dans hooks.server.ts.
 		csrf: {
-			checkOrigin: false
+			trustedOrigins: [
+				'https://portail-etu.emse.fr',
+				'https://gallery.mitv.fr',
+				'http://localhost:5173',
+				'http://localhost:3000',
+				'http://localhost:5174'
+			]
 		}
 	},
 	compilerOptions: {

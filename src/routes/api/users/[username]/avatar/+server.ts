@@ -4,79 +4,21 @@ import { json, error as svelteError } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { verifySigned } from '$lib/auth/cookies';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import type { User } from '$lib/types/api';
+import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-
-async function getUserFromLocals(
-	locals: App.Locals,
-	cookies: { get: (name: string) => string | undefined }
-): Promise<User | null> {
-	const db = getDatabase();
-
-	// Try cookie first (fast path)
-	const cookieSigned = cookies.get('current_user_id');
-	if (cookieSigned) {
-		const verified = verifySigned(cookieSigned);
-		if (verified) {
-			const userInfo = db
-				.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1')
-				.get(verified) as User | null;
-			if (userInfo) {
-				return userInfo;
-			}
-		}
-	}
-
-	// Fallback to auth provider
-	if (locals && typeof locals.auth === 'function') {
-		const session = await locals.auth();
-		if (session?.user) {
-			const providerId: string | undefined = (session.user.id ||
-				session.user.preferred_username ||
-				session.user.sub) as string | undefined;
-			if (providerId) {
-				const userInfo = db
-					.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1')
-					.get(providerId) as User | null;
-				if (userInfo) {
-					return userInfo;
-				}
-			}
-		}
-	}
-
-	return null;
-}
 
 /**
  * GET /api/users/[username]/avatar
  * Récupère la photo de profil d'un utilisateur par son id_user
  * Requires: authentification (session cookie, auth provider, ou clé API avec scope 'read')
  */
-export const GET: RequestHandler = async ({ params, fetch, locals, cookies, request }) => {
+export const GET: RequestHandler = async (event) => {
+	await requireScope(event, 'read');
 	try {
-		// Vérifier l'authentification via clé API ou session
-		const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-		let authenticated = false;
-
-		if (apiKeyHeader) {
-			// Vérifier la clé API avec scope 'read'
-			authenticated = verifyRawKeyWithScope(apiKeyHeader, 'read') as boolean;
-		} else {
-			// Vérifier la session
-			const caller = await getUserFromLocals(locals, cookies);
-			authenticated = !!caller;
-		}
-
-		if (!authenticated) {
-			return svelteError(401, 'Unauthorized');
-		}
-
-		const { username } = params;
+		const { username } = event.params;
+		const { fetch } = event;
 		if (!username) {
 			return svelteError(400, "Nom d'utilisateur manquant");
 		}

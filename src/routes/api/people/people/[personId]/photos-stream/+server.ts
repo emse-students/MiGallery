@@ -3,8 +3,7 @@ import type { ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
@@ -15,22 +14,15 @@ import { getAllAssetIdsInSystemAlbums } from '$lib/immich/system-albums';
  * Phase 1: Métadonnées minimales (id, type, dimensions)
  * Phase 2: Enrichissement avec détails complets
  */
-export const GET: RequestHandler = async ({ params, url, fetch, request, locals, cookies }) => {
-	const personId = params.personId;
+export const GET: RequestHandler = async (event) => {
+	const personId = event.params.personId;
 	if (!personId) {
 		throw error(400, 'personId required');
 	}
-	const inAlbum = url.searchParams.get('in_album') === 'true';
+	const inAlbum = event.url.searchParams.get('in_album') === 'true';
 
-	// Autorisation: session utilisateur OU x-api-key avec scope "read"
-	const user = await getCurrentUser({ locals, cookies });
-	if (!user) {
-		const raw = request.headers.get('x-api-key') || undefined;
-		if (!verifyRawKeyWithScope(raw, 'read')) {
-			throw error(401, 'Unauthorized');
-		}
-	}
-
+	await requireScope(event, 'read');
+	const { fetch } = event;
 	try {
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream({

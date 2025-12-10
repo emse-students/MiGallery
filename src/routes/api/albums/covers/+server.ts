@@ -3,6 +3,7 @@ import type { ImmichAlbum, ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -13,9 +14,11 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Body: { albumIds: string[] }
  * Returns: Stream de { albumId: string, cover: { assetId: string, type: string } | null }
  */
-export const POST: RequestHandler = async ({ request, fetch }) => {
+export const POST: RequestHandler = async (event) => {
 	try {
-		const { albumIds } = (await request.json()) as { albumIds?: string[] };
+		await requireScope(event, 'read');
+		const { albumIds } = (await event.request.json()) as { albumIds?: string[] };
+		const { fetch } = event;
 
 		if (!Array.isArray(albumIds) || albumIds.length === 0) {
 			throw error(400, 'albumIds array is required');

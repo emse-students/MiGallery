@@ -3,8 +3,7 @@ import type { ImmichAlbum } from '$lib/types/api';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -15,25 +14,16 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  *
  * Cache: Les albums sont cachés via le proxy /api/immich
  */
-export const GET: RequestHandler = async ({ fetch, request, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
+	// Autorisation: session utilisateur OU x-api-key avec scope "read"
+	await requireScope(event, 'read');
+
 	try {
 		if (!IMMICH_BASE_URL) {
 			throw svelteError(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Autorisation: session utilisateur OU x-api-key avec scope "read"
-		try {
-			const user = await getCurrentUser({ locals, cookies });
-			if (!user) {
-				const raw = request.headers.get('x-api-key') || undefined;
-				if (!verifyRawKeyWithScope(raw, 'read')) {
-					throw svelteError(401, 'Unauthorized');
-				}
-			}
-		} catch {
-			throw svelteError(401, 'Unauthorized');
-		}
-		const res = await fetch(`${IMMICH_BASE_URL}/api/albums`, {
+		const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums`, {
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
 				Accept: 'application/json'
@@ -74,9 +64,12 @@ export const GET: RequestHandler = async ({ fetch, request, locals, cookies }) =
  *   allowedUsers?: string[]
  * }
  */
-export const POST: RequestHandler = async ({ request, fetch }) => {
+export const POST: RequestHandler = async (event) => {
+	// Autorisation: session utilisateur OU x-api-key avec scope "write"
+	await requireScope(event, 'write');
+
 	try {
-		const body = (await request.json()) as {
+		const body = (await event.request.json()) as {
 			albumName?: string;
 			date?: string | null;
 			location?: string | null;
@@ -104,7 +97,7 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
 		}
 
 		// 1. Créer l'album dans Immich
-		const immichRes = await fetch(`${IMMICH_BASE_URL}/api/albums`, {
+		const immichRes = await event.fetch(`${IMMICH_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,

@@ -4,26 +4,17 @@ import { json, error as svelteError } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser } from '$lib/server/auth';
+import { requireScope } from '$lib/server/permissions';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
-export const GET: RequestHandler = async ({ params, request, locals, cookies }) => {
+export const GET: RequestHandler = async (event) => {
 	try {
-		const { id } = params;
-
-		// Autorisation: session utilisateur OU x-api-key avec scope "read"
-		const user = await getCurrentUser({ locals, cookies });
-		if (!user) {
-			const raw = request.headers.get('x-api-key') || undefined;
-			if (!verifyRawKeyWithScope(raw, 'read')) {
-				return json({ error: 'Unauthorized' }, { status: 401 });
-			}
-		}
+		await requireScope(event, 'read');
+		const { id } = event.params;
 		if (!id) {
 			return json({ error: 'Album ID manquant' }, { status: 400 });
 		}

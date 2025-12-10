@@ -114,9 +114,11 @@ export async function cleanupResource(
  * Types utiles pour les tests
  */
 export interface TestContext {
-	apiKey: string;
-	readApiKey?: string;
-	sessionCookie?: string;
+	adminApiKey: string;
+	writeApiKey: string;
+	readApiKey: string;
+	sessionCookie: string;
+	testUserId: string;
 	createdResources: {
 		users: string[];
 		albums: string[];
@@ -125,11 +127,31 @@ export interface TestContext {
 }
 
 /**
+ * Contexte de test global partagé
+ */
+export const globalTestContext: Partial<TestContext> = {
+	adminApiKey: '',
+	writeApiKey: '',
+	readApiKey: '',
+	sessionCookie: '',
+	testUserId: '',
+	createdResources: {
+		users: [],
+		albums: [],
+		apiKeys: []
+	}
+};
+
+/**
  * Helper pour initialiser un contexte de test
  */
 export function createTestContext(): TestContext {
 	return {
-		apiKey: '',
+		adminApiKey: '',
+		writeApiKey: '',
+		readApiKey: '',
+		sessionCookie: '',
+		testUserId: '',
 		createdResources: {
 			users: [],
 			albums: [],
@@ -139,23 +161,431 @@ export function createTestContext(): TestContext {
 }
 
 /**
- * Helper pour nettoyer un contexte de test complet
+ * Vérifier que l'utilisateur système existe dans la base de données
  */
-export async function cleanupTestContext(context: TestContext): Promise<void> {
+async function ensureSystemUserExists(): Promise<boolean> {
+	try {
+		const fs = await import('fs');
+		const path = await import('path');
+
+		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+
+		if (!fs.existsSync(DB_PATH)) {
+			console.warn('⚠️  Base de données introuvable');
+			return false;
+		}
+
+		const isBun = typeof (globalThis as Record<string, unknown>).Bun !== 'undefined';
+
+		interface SqliteDatabase {
+			prepare: (sql: string) => {
+				get: (param: string) => { id_user: string; role: string } | undefined;
+			};
+			close: () => void;
+		}
+
+		type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => SqliteDatabase;
+
+		let Database: DatabaseConstructor;
+
+		if (isBun) {
+			// @ts-expect-error - bun:sqlite is a Bun-specific module
+			const bunSqlite = (await import('bun:sqlite')) as { Database: DatabaseConstructor };
+			Database = bunSqlite.Database;
+		} else {
+			Database = (await import('better-sqlite3')).default as DatabaseConstructor;
+		}
+
+		const db = new Database(DB_PATH, isBun ? undefined : { readonly: true });
+
+		try {
+			const user = db.prepare('SELECT id_user, role FROM users WHERE id_user = ?').get('les.roots');
+			db.close();
+
+			if (user) {
+				console.debug(`✅ Utilisateur système les.roots existe (rôle: ${user.role})`);
+				return true;
+			} else {
+				console.warn('⚠️  Utilisateur système les.roots introuvable');
+				return false;
+			}
+		} catch (dbError) {
+			db.close();
+			throw dbError;
+		}
+	} catch (error) {
+		console.error(`❌ Erreur lors de la vérification: ${(error as Error).message}`);
+		return false;
+	}
+}
+
+/**
+ * Se connecter avec l'utilisateur système
+ */
+async function loginAsSystemUser(): Promise<string> {
 	const { API_BASE_URL } = TEST_CONFIG;
 
-	// Nettoyer les utilisateurs
-	for (const userId of context.createdResources.users) {
-		await cleanupResource(`${API_BASE_URL}/api/users`, context.apiKey, userId);
+	try {
+		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=les.roots`, {
+			redirect: 'manual'
+		});
+
+		if (response.status === 303 || response.status === 302) {
+			const cookies = response.headers.get('set-cookie');
+			if (cookies) {
+				const match = cookies.match(/current_user_id=([^;]+)/);
+				if (match) {
+					const sessionCookie = `current_user_id=${match[1]}`;
+					console.debug('✅ Connexion réussie avec cookie de session');
+					return sessionCookie;
+				}
+			}
+		}
+
+		console.error(`❌ Échec de la connexion (status: ${response.status})`);
+		return '';
+	} catch (error) {
+		console.error(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
+		return '';
+	}
+}
+
+/**
+ * Créer une clé API
+ */
+async function createApiKey(
+	sessionCookie: string,
+	scopes: string[],
+	label: string
+): Promise<{ id: string; rawKey: string } | null> {
+	const { API_BASE_URL } = TEST_CONFIG;
+
+	try {
+		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Cookie: sessionCookie
+			},
+			body: JSON.stringify({ label, scopes })
+		});
+
+		if (response.status === 200 || response.status === 201) {
+			const data = (await response.json()) as { rawKey?: string; id?: string };
+			if (data.rawKey && data.id) {
+				console.debug(`✅ Clé API créée (${label}): ${data.rawKey.substring(0, 20)}...`);
+				return { id: data.id, rawKey: data.rawKey };
+			}
+		}
+
+		console.error(`❌ Échec de la création de clé API (status: ${response.status})`);
+		return null;
+	} catch (error) {
+		console.error(`❌ Erreur lors de la création de clé API: ${(error as Error).message}`);
+		return null;
+	}
+}
+
+/**
+ * Créer un utilisateur de test et le mettre en admin
+ */
+async function createTestUser(
+	adminApiKey: string
+): Promise<{ id_user: string; email: string } | null> {
+	const { API_BASE_URL } = TEST_CONFIG;
+	const timestamp = Date.now();
+	const testUser = {
+		id_user: `test.user.${timestamp}`,
+		email: `test.${timestamp}@etu.emse.fr`,
+		prenom: 'Test',
+		nom: 'User',
+		role: 'user' as const,
+		promo_year: 2025
+	};
+
+	try {
+		// Créer l'utilisateur
+		const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-api-key': adminApiKey
+			},
+			body: JSON.stringify(testUser)
+		});
+
+		if (!createResponse.ok) {
+			console.error(`❌ Échec de la création de l'utilisateur (status: ${createResponse.status})`);
+			return null;
+		}
+
+		// Mettre l'utilisateur en admin
+		const updateResponse = await fetch(`${API_BASE_URL}/api/users/${testUser.id_user}`, {
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				'x-api-key': adminApiKey
+			},
+			body: JSON.stringify({ ...testUser, role: 'admin' })
+		});
+
+		if (!updateResponse.ok) {
+			console.warn(
+				`⚠️  Impossible de mettre l'utilisateur en admin (status: ${updateResponse.status})`
+			);
+		}
+
+		console.debug(`✅ Utilisateur de test créé et mis en admin: ${testUser.id_user}`);
+		return { id_user: testUser.id_user, email: testUser.email };
+	} catch (error) {
+		console.error(`❌ Erreur lors de la création de l'utilisateur: ${(error as Error).message}`);
+		return null;
+	}
+}
+
+/**
+ * Configuration complète de l'authentification pour les tests
+ */
+export async function setupTestAuth(): Promise<TestContext> {
+	const { API_BASE_URL } = TEST_CONFIG;
+	console.debug("\n🚀 Setup de l'authentification pour les tests");
+	console.debug(`📍 URL de base: ${API_BASE_URL}\n`);
+
+	const context = createTestContext();
+
+	// 1. Se connecter avec l'utilisateur système
+	const sessionCookie = await loginAsSystemUser();
+	if (!sessionCookie) {
+		throw new Error('Échec de la connexion');
+	}
+	context.sessionCookie = sessionCookie;
+
+	// 2. Créer les clés API (admin, write, read)
+	const adminKey = await createApiKey(sessionCookie, ['admin'], 'Test Admin Key');
+	if (!adminKey) {
+		throw new Error('Impossible de créer la clé admin');
+	}
+	context.adminApiKey = adminKey.rawKey;
+	context.createdResources.apiKeys.push(adminKey.id);
+
+	// Write key doit inclure read pour avoir accès aux endpoints read
+	const writeKey = await createApiKey(sessionCookie, ['read', 'write'], 'Test Write Key');
+	if (writeKey) {
+		context.writeApiKey = writeKey.rawKey;
+		context.createdResources.apiKeys.push(writeKey.id);
 	}
 
-	// Nettoyer les albums
-	for (const albumId of context.createdResources.albums) {
-		await cleanupResource(`${API_BASE_URL}/api/albums`, context.apiKey, albumId);
+	const readKey = await createApiKey(sessionCookie, ['read'], 'Test Read Key');
+	if (readKey) {
+		context.readApiKey = readKey.rawKey;
+		context.createdResources.apiKeys.push(readKey.id);
 	}
 
-	// Nettoyer les clés API
+	// 4. Créer un utilisateur de test et le mettre en admin
+	const testUser = await createTestUser(context.adminApiKey);
+	if (testUser) {
+		context.testUserId = testUser.id_user;
+		context.createdResources.users.push(testUser.id_user);
+	}
+
+	// Mettre à jour le contexte global
+	Object.assign(globalTestContext, context);
+
+	console.debug("✅ Setup de l'authentification terminé\n");
+	return context;
+}
+
+/**
+ * Nettoyage complet après les tests
+ */
+export async function teardownTestAuth(context: TestContext): Promise<void> {
+	const { API_BASE_URL } = TEST_CONFIG;
+	console.debug('\n🧹 Nettoyage après les tests');
+
+	// Supprimer l'utilisateur de test
+	if (context.testUserId) {
+		try {
+			await fetch(`${API_BASE_URL}/api/users/${context.testUserId}`, {
+				method: 'DELETE',
+				headers: { 'x-api-key': context.adminApiKey }
+			});
+			console.debug(`✅ Utilisateur de test supprimé: ${context.testUserId}`);
+		} catch {
+			console.warn("⚠️  Impossible de supprimer l'utilisateur de test");
+		}
+	}
+
+	// Supprimer les clés API
 	for (const keyId of context.createdResources.apiKeys) {
-		await cleanupResource(`${API_BASE_URL}/api/admin/api-keys`, context.apiKey, keyId);
+		try {
+			await fetch(`${API_BASE_URL}/api/admin/api-keys/${keyId}`, {
+				method: 'DELETE',
+				headers: { Cookie: context.sessionCookie }
+			});
+			console.debug(`✅ Clé API supprimée: ${keyId}`);
+		} catch {
+			console.warn(`⚠️  Impossible de supprimer la clé API: ${keyId}`);
+		}
 	}
+
+	// Nettoyer les autres ressources
+	for (const userId of context.createdResources.users) {
+		if (userId !== context.testUserId) {
+			await cleanupResource(`${API_BASE_URL}/api/users`, context.adminApiKey, userId);
+		}
+	}
+
+	for (const albumId of context.createdResources.albums) {
+		await cleanupResource(`${API_BASE_URL}/api/albums`, context.adminApiKey, albumId);
+	}
+
+	console.debug('✅ Nettoyage terminé\n');
+}
+
+/**
+ * Types pour les tests de permissions
+ */
+export interface PermissionTestConfig {
+	endpoint: string;
+	method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+	body?: Record<string, unknown> | string;
+	requiredScope: 'public' | 'read' | 'write' | 'admin';
+	description?: string;
+}
+
+export interface PermissionTestResult {
+	noAuth: { status: number; passed: boolean };
+	read: { status: number; passed: boolean };
+	write: { status: number; passed: boolean };
+	admin: { status: number; passed: boolean };
+}
+
+/**
+ * Helper pour tester les permissions d'un endpoint
+ * Vérifie systématiquement:
+ * - Sans authentification → doit rejeter
+ * - Avec clé read → accepte si requiredScope = 'read', rejette si 'write' ou 'admin'
+ * - Avec clé write → accepte si requiredScope ≤ 'write', rejette si 'admin'
+ * - Avec clé admin → accepte toujours
+ */
+export async function testPermissions(config: PermissionTestConfig): Promise<PermissionTestResult> {
+	const { API_BASE_URL } = TEST_CONFIG;
+	const { endpoint, method = 'GET', body, requiredScope } = config;
+	const url = `${API_BASE_URL}${endpoint}`;
+
+	const result: PermissionTestResult = {
+		noAuth: { status: 0, passed: false },
+		read: { status: 0, passed: false },
+		write: { status: 0, passed: false },
+		admin: { status: 0, passed: false }
+	};
+
+	// Test 1: Sans authentification
+	try {
+		const response = await fetch(url, {
+			method,
+			headers: { 'Content-Type': 'application/json' },
+			body: body ? JSON.stringify(body) : undefined
+		});
+		result.noAuth.status = response.status;
+		// Public → doit accepter (200-299), sinon doit rejeter (401/403)
+		result.noAuth.passed =
+			requiredScope === 'public'
+				? response.status >= 200 && response.status < 300
+				: response.status === 401 || response.status === 403;
+	} catch {
+		result.noAuth.status = 0;
+		result.noAuth.passed = false;
+	}
+
+	// Test 2: Avec clé READ
+	try {
+		const response = await fetch(url, {
+			method,
+			headers: {
+				'Content-Type': 'application/json',
+				'x-api-key': globalTestContext.readApiKey || ''
+			},
+			body: body ? JSON.stringify(body) : undefined
+		});
+		result.read.status = response.status;
+		// Read doit accepter si requiredScope = 'public' ou 'read'
+		const shouldAccept = requiredScope === 'public' || requiredScope === 'read';
+		result.read.passed = shouldAccept
+			? response.status >= 200 && response.status < 300
+			: response.status === 401 || response.status === 403;
+	} catch {
+		result.read.status = 0;
+		result.read.passed = false;
+	}
+
+	// Test 3: Avec clé WRITE
+	try {
+		const response = await fetch(url, {
+			method,
+			headers: {
+				'Content-Type': 'application/json',
+				'x-api-key': globalTestContext.writeApiKey || ''
+			},
+			body: body ? JSON.stringify(body) : undefined
+		});
+		result.write.status = response.status;
+		// Write doit accepter si requiredScope ≤ 'write'
+		const shouldAccept =
+			requiredScope === 'public' || requiredScope === 'read' || requiredScope === 'write';
+		result.write.passed = shouldAccept
+			? response.status >= 200 && response.status < 300
+			: response.status === 401 || response.status === 403;
+	} catch {
+		result.write.status = 0;
+		result.write.passed = false;
+	}
+
+	// Test 4: Avec clé ADMIN
+	try {
+		const response = await fetch(url, {
+			method,
+			headers: {
+				'Content-Type': 'application/json',
+				'x-api-key': globalTestContext.adminApiKey || ''
+			},
+			body: body ? JSON.stringify(body) : undefined
+		});
+		result.admin.status = response.status;
+		// Admin doit toujours accepter (sauf si endpoint n'existe pas = 404)
+		result.admin.passed = response.status >= 200 && response.status < 300;
+	} catch {
+		result.admin.status = 0;
+		result.admin.passed = false;
+	}
+
+	return result;
+}
+
+/**
+ * Helper pour formater les résultats de test de permissions
+ */
+export function formatPermissionResults(
+	config: PermissionTestConfig,
+	result: PermissionTestResult
+): string {
+	const { endpoint, method = 'GET', requiredScope } = config;
+	const lines: string[] = [];
+
+	lines.push(`\n📋 Test de permissions: ${method} ${endpoint}`);
+	lines.push(`   Scope requis: ${requiredScope}`);
+	lines.push('');
+	lines.push(`   Sans auth: ${result.noAuth.status} ${result.noAuth.passed ? '✅' : '❌'}`);
+	lines.push(`   Read key:  ${result.read.status} ${result.read.passed ? '✅' : '❌'}`);
+	lines.push(`   Write key: ${result.write.status} ${result.write.passed ? '✅' : '❌'}`);
+	lines.push(`   Admin key: ${result.admin.status} ${result.admin.passed ? '✅' : '❌'}`);
+
+	return lines.join('\n');
+}
+
+/**
+ * Helper pour nettoyer un contexte de test complet (legacy, gardé pour compatibilité)
+ */
+export async function cleanupTestContext(context: TestContext): Promise<void> {
+	await teardownTestAuth(context);
 }

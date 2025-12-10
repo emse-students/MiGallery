@@ -3,6 +3,7 @@ import { json, error as svelteError } from '@sveltejs/kit';
 
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
+import { requireScope } from '$lib/server/permissions';
 
 /**
  * PUT /api/albums/[id]/metadata
@@ -17,14 +18,15 @@ import type { RequestHandler } from '@sveltejs/kit';
  *   visible?: boolean
  * }
  */
-export const PUT: RequestHandler = async ({ params, request }) => {
+export const PUT: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
 	try {
-		const { id } = params;
+		const { id } = event.params;
 		if (!id) {
 			return json({ error: 'Album ID manquant' }, { status: 400 });
 		}
 
-		const body = (await request.json()) as Record<string, unknown>;
+		const body = (await event.request.json()) as Record<string, unknown>;
 
 		const name = typeof body.name === 'string' ? body.name : null;
 		const date =
@@ -69,7 +71,7 @@ export const PUT: RequestHandler = async ({ params, request }) => {
 		});
 	} catch (e: unknown) {
 		const errorMessage = e instanceof Error ? e.message : 'Erreur inconnue';
-		console.error(`Erreur PUT /api/albums/${params.id}/metadata:`, e);
+		console.error(`Erreur PUT /api/albums/${id}/metadata:`, e);
 		return json({ error: errorMessage }, { status: 500 });
 	}
 };

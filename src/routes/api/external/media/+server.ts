@@ -4,7 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
+import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -16,12 +16,9 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * - Form field: file (binary file data)
  * Returns: { success: true, assetIds: string[] }
  */
-export const POST: RequestHandler = async ({ request, fetch }) => {
-	const providedKey =
-		request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || undefined;
-	if (!verifyRawKeyWithScope(providedKey, 'write')) {
-		return json({ error: 'Unauthorized - write scope required' }, { status: 401 });
-	}
+export const POST: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
+	const { request, fetch } = event;
 
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');
@@ -113,12 +110,9 @@ export const POST: RequestHandler = async ({ request, fetch }) => {
  * - List assets in PortailEtu album
  * - Header: x-api-key (requires 'read' scope)
  */
-export const GET: RequestHandler = async ({ fetch, request }) => {
-	const providedKey =
-		request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || undefined;
-	if (!verifyRawKeyWithScope(providedKey, 'read')) {
-		return json({ error: 'Unauthorized - read scope required' }, { status: 401 });
-	}
+export const GET: RequestHandler = async (event) => {
+	await requireScope(event, 'read');
+	const { fetch } = event;
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
@@ -143,12 +137,9 @@ export const GET: RequestHandler = async ({ fetch, request }) => {
  * - Body: { assetIds: string[] }
  * Returns: { success: true, deletedCount: number }
  */
-export const DELETE: RequestHandler = async ({ request, fetch }) => {
-	const providedKey =
-		request.headers.get('x-api-key') || request.headers.get('X-API-KEY') || undefined;
-	if (!verifyRawKeyWithScope(providedKey, 'write')) {
-		return json({ error: 'Unauthorized - write scope required' }, { status: 401 });
-	}
+export const DELETE: RequestHandler = async (event) => {
+	await requireScope(event, 'write');
+	const { request, fetch } = event;
 
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');

@@ -14,6 +14,7 @@
     params?: Param[];
     exampleCurl?: string;
     noteAuth?: string;
+    exampleResponse?: string;  // Nouveau champ
   }
   interface EndpointGroup {
     group: string;
@@ -43,8 +44,8 @@
         <a href="/admin/api-keys" class="btn-link">
           🔑 Gérer les clés API
         </a>
-        <a href="https://www.postman.com/" target="_blank" class="btn-link secondary">
-          📮 Tester avec Postman
+        <a href="/admin/api-docs#endpoints" class="btn-link secondary">
+          📋 Voir tous les endpoints
         </a>
       </div>
     </div>
@@ -255,6 +256,13 @@
                     </details>
                   {/if}
 
+                  {#if endpoint.exampleResponse}
+                    <details class="example-details response">
+                      <summary>✅ Exemple de réponse</summary>
+                      <pre>{@html esc(endpoint.exampleResponse)}</pre>
+                    </details>
+                  {/if}
+
                   {#if endpoint.noteAuth}
                     <div class="auth-note">
                       🔒 {endpoint.noteAuth}
@@ -367,7 +375,8 @@ requests.get(
           <h4>📚 Documentation complète</h4>
           <ul>
             <li><code>docs/API_SECURITY.md</code> — Sécurité API</li>
-            <li><code>docs/POSTMAN_AVATAR.md</code> — Guide Postman</li>
+            <li><code>docs/API_ENDPOINTS_BY_SCOPE.md</code> — Liste des endpoints par scope</li>
+            <li><code>docs/SECURITY_DEV_ROUTES.md</code> — Analyse routes /dev/</li>
             <li><code>tests/README.md</code> — Tests automatisés</li>
           </ul>
         </div>
@@ -375,8 +384,9 @@ requests.get(
         <div class="help-item">
           <h4>🔧 Outils recommandés</h4>
           <ul>
-            <li><a href="https://www.postman.com/" target="_blank">Postman</a> — Tester l'API</li>
             <li><a href="https://curl.se/" target="_blank">cURL</a> — Ligne de commande</li>
+            <li><a href="https://httpie.io/" target="_blank">HTTPie</a> — Client HTTP moderne</li>
+            <li><a href="https://insomnia.rest/" target="_blank">Insomnia</a> — Tester l'API (GUI)</li>
           </ul>
         </div>
 
@@ -814,6 +824,19 @@ requests.get(
   .example-details pre {
     margin: 0;
     border-top: 1px solid var(--border);
+  }
+
+  .example-details.response {
+    border-color: rgba(34, 197, 94, 0.3);
+  }
+
+  .example-details.response summary {
+    background: rgba(34, 197, 94, 0.05);
+    color: #22c55e;
+  }
+
+  .example-details.response summary:hover {
+    background: rgba(34, 197, 94, 0.1);
   }
 
   .auth-note {
