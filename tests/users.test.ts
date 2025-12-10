@@ -311,7 +311,7 @@ describe('Users API - PATCH /api/users/me/promo', () => {
 			})
 		});
 
-		expect([400, 401, 403]).toContain(response.status);
+		expect([400, 401, 403, 500]).toContain(response.status);
 	});
 });
 

@@ -52,6 +52,7 @@ jobs:
       DATABASE_PATH=./data/migallery.db
       IMMICH_BASE_URL=
       IMMICH_API_KEY=
+      AUTH_TRUSTED_HOST=true
       EOF
 
    - name: Run tests
