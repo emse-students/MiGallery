@@ -1,8 +1,11 @@
 <script lang="ts">
   import { page } from "$app/state";
+  import { onMount, onDestroy } from 'svelte';
   import Icon from "$lib/components/Icon.svelte";
   import Spinner from '$lib/components/Spinner.svelte';
   import CameraInput from '$lib/components/CameraInput.svelte';
+  import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
+  import { PhotosState } from '$lib/photos.svelte';
   import { theme } from '$lib/theme';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
@@ -10,6 +13,10 @@
   import { toast } from '$lib/toast';
 
   let isAdmin = $derived((page.data.session?.user as User)?.role === 'admin');
+
+  // PhotosState pour la photo de profil
+  const photosState = new PhotosState();
+  let showChangePhotoModal = $state(false);
 
   let uploadStatus = $state<string>("");
   let assetId = $state<string | null>(null);
@@ -21,6 +28,45 @@
   let isProcessing = $state<boolean>(false);
   let needsNewPhoto = $state<boolean>(false);
   let abortController: AbortController | null = null;
+
+  // Initialiser PhotosState avec les données de l'utilisateur courant
+  onMount(() => {
+    const user = page.data.session?.user as User;
+    if (user?.id_photos) {
+      photosState.peopleId = user.id_photos;
+      photosState.loadPerson(user.id_photos);
+    }
+  });
+
+  // Nettoyer PhotosState à la destruction du composant
+  onDestroy(() => {
+    photosState.cleanup();
+  });
+
+  // Gérer la sélection d'une nouvelle photo de profil
+  async function handlePhotoSelected(assetId: string) {
+    try {
+      const user = page.data.session?.user as User;
+      if (!user?.id_photos) throw new Error('Utilisateur non configuré');
+
+      // Mettre à jour la personne côté serveur
+      const updateRes = await fetch(`/api/immich/people/${user.id_photos}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ featureFaceAssetId: assetId })
+      });
+
+      if (!updateRes.ok) {
+        const txt = await updateRes.text().catch(() => updateRes.statusText);
+        throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
+      }
+
+      toast.success('Photo de profil mise à jour !');
+      showChangePhotoModal = false;
+    } catch (e) {
+      toast.error('Erreur: ' + (e instanceof Error ? e.message : 'Erreur inconnue'));
+    }
+  }
 
   // État pour la gestion de la BDD et de l'utilisateur
   let allUsers = $state<UserRow[]>([]);
@@ -534,10 +580,6 @@
   });
 </script>
 
-<svelte:head>
-  <title>Paramètres - MiGallery</title>
-</svelte:head>
-
 <main class="settings-main">
   <div class="page-background">
     <div class="gradient-blob blob-1"></div>
@@ -546,6 +588,34 @@
   </div>
 
   <h1><Icon name="settings" size={32} /> Paramètres</h1>
+
+  {#if photosState.personName && photosState.imageUrl}
+    <div class="header-section">
+      <button
+        class="profile-photo-btn"
+        onclick={() => showChangePhotoModal = true}
+        title="Changer la photo de profil"
+      >
+        <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo" />
+        <div class="photo-overlay">
+          <Icon name="camera" size={32} />
+          <span class="change-photo-text">Changer de photo</span>
+        </div>
+      </button>
+      <h2 class="page-title">
+        {photosState.personName}
+      </h2>
+    </div>
+  {/if}
+
+  {#if showChangePhotoModal}
+    <ChangePhotoModal
+      currentPhotoUrl={photosState.imageUrl || undefined}
+      peopleId={photosState.peopleId ?? undefined}
+      onPhotoSelected={handlePhotoSelected}
+      onClose={() => showChangePhotoModal = false}
+    />
+  {/if}
 
   <div class="section">
     <h3><Icon name="palette" size={24} /> Thème</h3>
@@ -599,4 +669,106 @@
 </main>
 
 <style>
+  .header-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0 3rem;
+    flex-wrap: wrap;
+  }
+
+  .page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  .profile-photo-btn {
+    position: relative;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .profile-photo-btn::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6, #ec4899);
+    border-radius: 50%;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .profile-photo-btn:hover::before {
+    opacity: 1;
+  }
+
+  .profile-photo-btn:hover {
+    transform: scale(1.08);
+  }
+
+  .profile-photo {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 5px solid var(--bg-primary);
+    transition: border-color 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .photo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 50%;
+    color: white;
+    backdrop-filter: blur(8px);
+  }
+
+  .change-photo-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  .profile-photo-btn:hover .photo-overlay {
+    opacity: 1;
+  }
+
+  @media (max-width: 640px) {
+    .header-section {
+      flex-direction: column;
+      gap: 1.5rem;
+      margin: 1.5rem 0 2rem;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .profile-photo {
+      width: 120px;
+      height: 120px;
+    }
+  }
 </style>

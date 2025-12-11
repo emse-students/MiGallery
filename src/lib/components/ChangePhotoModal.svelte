@@ -77,6 +77,10 @@
 		try {
 			await onPhotoSelected(selectedAssetId);
 			onClose();
+			// Recharger la page automatiquement après la mise à jour réussie
+			setTimeout(() => {
+				window.location.reload();
+			}, 500);
 		} catch (e: unknown) {
 			console.error('Erreur lors de la confirmation:', e);
 			error = (e as Error).message;

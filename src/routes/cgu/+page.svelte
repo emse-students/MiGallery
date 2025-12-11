@@ -24,11 +24,80 @@
 
 		<section id="cgu" class="cgu-section">
 			<h2>Conditions Générales d'Utilisation (CGU)</h2>
-			<p>
-				Les présentes Conditions Générales d'Utilisation régissent l'accès et l'utilisation du service MiGallery.
-				Elles définissent les obligations des utilisateurs et de l'éditeur. Pour toute question détaillée,
-				veuillez contacter l'équipe (voir Mentions Légales).
+			<p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+				Dernière mise à jour : 10 décembre 2025
 			</p>
+
+			<section>
+				<h3>1. Objet</h3>
+				<p>
+					Les présentes CGU régissent l'utilisation de la plateforme MiGallery. En créant un compte, vous acceptez
+					ces conditions sans réserve.
+				</p>
+			</section>
+
+			<section>
+				<h3>2. Accès et Compte</h3>
+				<list>
+					<li><strong>Éligibilité :</strong> Vous devez être titulaire d'une adresse @etu.emse.fr</li>
+					<li><strong>Sécurité :</strong> Vous êtes responsable de la confidentialité de vos identifiants. Toute action effectuée depuis votre compte est réputée être effectuée par vous.</li>
+					<li><strong>Exactitude :</strong> Vous vous engagez à fournir des informations d'inscription exactes.</li>
+				</list>
+			</section>
+
+			<section>
+				<h3>3. Utilisation de la Reconnaissance Faciale</h3>
+				<p>Le Service propose une fonction de regroupement de visages basée sur la biométrie.</p>
+				<list>
+					<li><strong>Cadre d'usage :</strong> Cette fonctionnalité est strictement réservée à un usage personnel et domestique (organisation de vos photos réalisées par MiTV).</li>
+					<li><strong>Désactivation :</strong> Vous pouvez désactiver cette fonction à tout moment en nous contactant à l'adresse <a href="mailto:bureau@mitv.fr">bureau@mitv.fr</a> , nous supprimerons vos données biométriques associées. </li>
+				</list>
+			</section>
+
+			<section>
+				<h3>4. Comportements Interdits</h3>
+				<p>Il est strictement interdit de uploader du contenu :</p>
+				<list>
+					<li>Pornographique, pédopornographique, violent ou haineux.</li>
+					<li>Enfreignant le droit d'auteur ou la vie privée d'autrui.</li>
+					<li>Contenant des virus ou des scripts malveillants.</li>
+				</list>
+				<p>
+					Nous nous réservons le droit de supprimer tout contenu illicite et de suspendre le compte concerné
+					sans préavis.
+				</p>
+			</section>
+
+			<section>
+				<h3>5. Responsabilité de MiGallery</h3>
+				<list>
+					<li><strong>Disponibilité :</strong> Le Service est fourni « tel quel ». Nous nous efforçons de le maintenir accessible 24/7, mais ne garantissons pas l'absence de pannes ou de maintenance.</li>
+				</list>
+			</section>
+
+			<section>
+				<h3>6. Données Personnelles</h3>
+				<p>
+					La collecte et le traitement de vos données, y compris biométriques, sont régis par notre
+					<a href="#politique">Politique de Confidentialité</a>.
+				</p>
+			</section>
+
+			<section>
+				<h3>7. Résiliation</h3>
+				<list>
+					<li><strong>Par vous :</strong> Vous pouvez supprimer votre compte à tout moment via l'interface du Service. Toutes vos données seront effacées selon nos délais de conservation.</li>
+					<li><strong>Par nous :</strong> En cas de violation des présentes CGU, nous pouvons suspendre ou résilier votre accès.</li>
+				</list>
+			</section>
+
+			<section>
+				<h3>8. Droit Applicable et Juridiction</h3>
+				<p>
+					Ces CGU sont soumises au droit français. En cas de litige non résolu à l'amiable, les tribunaux du
+					ressort de Saint Etienne seront seuls compétents.
+				</p>
+			</section>
 		</section>
 
 		<section id="politique" class="cgu-section">
@@ -70,11 +139,11 @@
 			<section>
 				<h3>5. Vos Droits (Article 15 à 21 du RGPD)</h3>
 				<p>Concernant vos données biométriques, vous disposez des droits suivants :</p>
-				<ul>
+				<list>
 					<li><strong>Droit de retrait du consentement :</strong> Vous pouvez désactiver l'option à tout moment.</li>
 					<li><strong>Droit d'accès et de rectification :</strong> Vous pouvez voir les groupes de visages créés et corriger les erreurs (ex: mauvaise identification).</li>
 					<li><strong>Droit à l'effacement (« Droit à l'oubli ») :</strong> Vous pouvez demander la suppression totale de vos modèles de visages.</li>
-				</ul>
+				</list>
 			</section>
 
 			<section>
@@ -271,6 +340,8 @@
 		background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
 		border-left-color: #8b5cf6;
 		margin-top: 3rem;
+		padding: 2rem;
+		border-radius: var(--radius);
 	}
 
 	.consent-box h2 {
