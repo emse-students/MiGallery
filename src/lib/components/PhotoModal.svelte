@@ -452,7 +452,18 @@
 					<button
 						class="btn-icon btn-favorite"
 						class:active={asset.isFavorite}
-						onclick={() => onFavoriteToggle(asset!.id)}
+						onclick={async () => {
+							// Mise à jour optimiste : inverser le state immédiatement
+							const wasFavorite = asset!.isFavorite;
+							asset!.isFavorite = !asset!.isFavorite;
+							try {
+								await onFavoriteToggle(asset!.id);
+							} catch (e) {
+								// En cas d'erreur, revenir à l'état précédent
+								asset!.isFavorite = wasFavorite;
+								toast.error('Erreur lors de la mise à jour du favori');
+							}
+						}}
 						title={asset.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
 					>
 						<Icon name={asset.isFavorite ? 'heart-filled' : 'heart'} size={20} />
