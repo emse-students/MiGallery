@@ -55,6 +55,13 @@
 	let imgElement = $state<HTMLImageElement | null>(null);
 	let containerElement = $state<HTMLDivElement | null>(null);
 
+	// Touch/pinch zoom state
+	let touchStartDistance = $state(0);
+	let touchStartScale = $state(1);
+	let isTouchDragging = $state(false);
+	let touchDragStart = $state({ x: 0, y: 0 });
+	let lastTouchEnd = $state(0); // Pour détecter double-tap
+
 	// Prévenir les rechargements répétés de la même asset
 	let lastLoadedAssetId = $state<string | null>(null);
 
@@ -118,16 +125,8 @@
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 				imageLoaded = true;
 			} else {
-			// Choisir dynamiquement la taille de la miniature selon la taille du conteneur
-			// Utiliser preview pour les écrans larges, thumbnail pour les petits écrans
-			let size = 'preview';
-			try {
-				const containerWidth = containerElement ? containerElement.clientWidth : window.innerWidth;
-				if (containerWidth < 600) size = 'thumbnail';
-				else size = 'preview';
-			} catch (e: unknown) {
-				size = 'preview';
-			}
+			// Toujours utiliser 'preview' pour une meilleure qualité, même sur mobile
+			const size = 'preview';
 
 				// Pour les albums en mode "unlisted" on utilise la route publique qui proxy la vignette
 				if (albumVisibility === 'unlisted' && albumId) {
@@ -299,6 +298,86 @@
 	function handleMouseUp() {
 		isDragging = false;
 	}
+
+	// ============= TOUCH HANDLERS (mobile pinch-to-zoom) =============
+	
+	function getTouchDistance(touches: TouchList): number {
+		if (touches.length < 2) return 0;
+		const dx = touches[0].clientX - touches[1].clientX;
+		const dy = touches[0].clientY - touches[1].clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	function handleTouchStart(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			// Pinch start
+			e.preventDefault();
+			touchStartDistance = getTouchDistance(e.touches);
+			touchStartScale = scale;
+			isTouchDragging = false;
+		} else if (e.touches.length === 1) {
+			// Single finger - check for double tap or drag
+			const now = Date.now();
+			if (now - lastTouchEnd < 300) {
+				// Double tap - toggle zoom
+				e.preventDefault();
+				if (scale > 1) {
+					scale = 1;
+					translate = { x: 0, y: 0 };
+				} else {
+					scale = 2.5;
+				}
+				lastTouchEnd = 0;
+			} else if (scale > 1) {
+				// Start drag when zoomed
+				isTouchDragging = true;
+				touchDragStart = { 
+					x: e.touches[0].clientX - translate.x, 
+					y: e.touches[0].clientY - translate.y 
+				};
+			}
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (e.touches.length === 2 && touchStartDistance > 0) {
+			// Pinch zoom
+			e.preventDefault();
+			const currentDistance = getTouchDistance(e.touches);
+			const scaleChange = currentDistance / touchStartDistance;
+			let newScale = touchStartScale * scaleChange;
+			newScale = Math.max(minScale, Math.min(10, newScale));
+			scale = newScale;
+			
+			if (scale <= 1) {
+				translate = { x: 0, y: 0 };
+			}
+		} else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
+			// Single finger drag when zoomed
+			e.preventDefault();
+			const newTranslate = { 
+				x: e.touches[0].clientX - touchDragStart.x, 
+				y: e.touches[0].clientY - touchDragStart.y 
+			};
+			translate = constrainTranslate(newTranslate);
+		}
+	}
+
+	function handleTouchEnd(e: TouchEvent) {
+		if (e.touches.length === 0) {
+			lastTouchEnd = Date.now();
+			touchStartDistance = 0;
+			isTouchDragging = false;
+			
+			// Constrain translate after pinch ends
+			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
+			
+			if (scale <= 1) {
+				translate = { x: 0, y: 0 };
+			}
+		}
+	}
+	// ============= END TOUCH HANDLERS =============
 
 	function resetZoom() {
 		scale = 1;
@@ -541,6 +620,9 @@
 							}}
 							onmousedown={handleMouseDown}
 							ondblclick={handleDoubleClick}
+							ontouchstart={handleTouchStart}
+							ontouchmove={handleTouchMove}
+							ontouchend={handleTouchEnd}
 							draggable="false"
 						/>
 					{/if}
@@ -724,6 +806,8 @@
 		position: relative;
 		overflow: hidden;
 		user-select: none;
+		/* Empêcher le zoom natif du navigateur sur mobile */
+		touch-action: none;
 	}
 
 
