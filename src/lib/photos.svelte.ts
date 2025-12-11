@@ -311,25 +311,31 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge TOUTES les photos DANS l'album PhotoCV (toutes personnes confondues)
+	 * Charge la première page des photos DANS l'album PhotoCV (pagination, 100 par défaut)
 	 * Utilisé par: page Photos CV (onglet "Toutes les photos CV" - mitvistes/admins uniquement)
 	 */
-	async loadAllPhotosCV(): Promise<void> {
-		console.warn('📸 PhotosState.loadAllPhotosCV appelé');
+	async loadAllPhotosCV(limit: number = 100): Promise<void> {
+		console.warn('📸 PhotosState.loadAllPhotosCV appelé, page 1, limit:', limit);
 		this.loading = true;
 		this.error = null;
 		this.assets = [];
+		this.photoCVCurrentPage = 1;
 
 		try {
-			// Utiliser l'endpoint RESTful qui récupère TOUTES les photos de l'album PhotoCV
-			const res = await fetch('/api/people/album');
+			// Utiliser l'endpoint avec pagination
+			const res = await fetch(`/api/people/album?page=1&limit=${limit}`);
 
 			if (!res.ok) {
 				const text = await res.text().catch(() => res.statusText);
 				throw new Error(text || `HTTP ${res.status}`);
 			}
 
-			const data = (await res.json()) as { assets?: ImmichAsset[] };
+			const data = (await res.json()) as {
+				assets?: ImmichAsset[];
+				hasMore?: boolean;
+				totalCount?: number;
+				currentPage?: number;
+			};
 			const allAssets = data.assets || [];
 
 			this.assets = allAssets.map((it) => ({
@@ -338,6 +344,100 @@ export class PhotosState {
 				isFavorite: false, // Ignorer le favori Immich
 				_raw: it
 			}));
+			this.photoCVHasMore = data.hasMore ?? false;
+			this.photoCVTotalCount = data.totalCount ?? 0;
+			this.photoCVCurrentPage = data.currentPage ?? 1;
+		} catch (e: unknown) {
+			const _err = ensureError(e);
+			this.error = (e as Error).message;
+		} finally {
+			this.loading = false;
+		}
+	}
+
+	/**
+	 * Charge la page suivante des photos PhotoCV
+	 */
+	async loadNextPagePhotosCV(limit: number = 100): Promise<void> {
+		const nextPage = this.photoCVCurrentPage + 1;
+		console.warn('📸 PhotosState.loadNextPagePhotosCV appelé, page:', nextPage);
+		this.loading = true;
+		this.error = null;
+
+		try {
+			const res = await fetch(`/api/people/album?page=${nextPage}&limit=${limit}`);
+
+			if (!res.ok) {
+				const text = await res.text().catch(() => res.statusText);
+				throw new Error(text || `HTTP ${res.status}`);
+			}
+
+			const data = (await res.json()) as {
+				assets?: ImmichAsset[];
+				hasMore?: boolean;
+				totalCount?: number;
+				currentPage?: number;
+			};
+			const pageAssets = data.assets || [];
+
+			// Remplacer les assets (pas ajouter)
+			const newAssets = pageAssets.map((it) => ({
+				...it,
+				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+				isFavorite: false,
+				_raw: it
+			}));
+			this.assets = newAssets;
+			this.photoCVHasMore = data.hasMore ?? false;
+			this.photoCVTotalCount = data.totalCount ?? 0;
+			this.photoCVCurrentPage = nextPage;
+		} catch (e: unknown) {
+			const _err = ensureError(e);
+			this.error = (e as Error).message;
+		} finally {
+			this.loading = false;
+		}
+	}
+
+	/**
+	 * Charge la page précédente des photos PhotoCV
+	 */
+	async loadPrevPagePhotosCV(limit: number = 100): Promise<void> {
+		const prevPage = Math.max(1, this.photoCVCurrentPage - 1);
+		if (prevPage === this.photoCVCurrentPage) {
+			return; // Déjà à la page 1
+		}
+		console.warn('📸 PhotosState.loadPrevPagePhotosCV appelé, page:', prevPage);
+		this.loading = true;
+		this.error = null;
+
+		try {
+			const res = await fetch(`/api/people/album?page=${prevPage}&limit=${limit}`);
+
+			if (!res.ok) {
+				const text = await res.text().catch(() => res.statusText);
+				throw new Error(text || `HTTP ${res.status}`);
+			}
+
+			const data = (await res.json()) as {
+				assets?: ImmichAsset[];
+				hasMore?: boolean;
+				totalCount?: number;
+				currentPage?: number;
+			};
+			const pageAssets = data.assets || [];
+
+			// Remplacer les assets (pas ajouter)
+			const newAssets = pageAssets.map((it) => ({
+				...it,
+				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+				isFavorite: false,
+				_raw: it
+			}));
+			this.assets = newAssets;
+			this.photoCVHasMore = data.hasMore ?? false;
+			this.photoCVTotalCount = data.totalCount ?? 0;
+			this.photoCVCurrentPage = prevPage;
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			this.error = (e as Error).message;
@@ -610,6 +710,32 @@ export class PhotosState {
 	 */
 	get nonFavorites(): Asset[] {
 		return this.assets.filter((a) => !a.isFavorite);
+	}
+
+	// Pagination pour loadAllPhotosCV
+	#photoCVCurrentPage = $state(1);
+	#photoCVHasMore = $state(false);
+	#photoCVTotalCount = $state(0);
+
+	get photoCVCurrentPage() {
+		return this.#photoCVCurrentPage;
+	}
+	set photoCVCurrentPage(value) {
+		this.#photoCVCurrentPage = value;
+	}
+
+	get photoCVHasMore() {
+		return this.#photoCVHasMore;
+	}
+	set photoCVHasMore(value) {
+		this.#photoCVHasMore = value;
+	}
+
+	get photoCVTotalCount() {
+		return this.#photoCVTotalCount;
+	}
+	set photoCVTotalCount(value) {
+		this.#photoCVTotalCount = value;
 	}
 
 	cleanup() {

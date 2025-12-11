@@ -20,6 +20,16 @@
   let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.id_photos);
   let currentView = $state<'my' | 'all'>('my'); // Vue par défaut : mes photos
   let personId = $state<string>(''); // ID de la personne connectée
+  let photosGridContainer = $state<HTMLDivElement | null>(null); // Pour scroller
+
+  /**
+   * Scroll vers le haut du conteneur de photos
+   */
+  function scrollToPhotosGrid() {
+    if (photosGridContainer) {
+      photosGridContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
   /**
    * Upload et ajout automatique à l'album PhotoCV
@@ -167,10 +177,76 @@
     {/if}
 
     {#if !allPhotosState.loading && !allPhotosState.error}
-      <div class="photos-count">
-        <strong>{allPhotosState.assets.length}</strong> photo{allPhotosState.assets.length > 1 ? 's' : ''} CV affichée(s)
+      <!-- Pagination en haut -->
+      <div class="pagination-bar">
+        <button
+          class="btn-nav-page"
+          onclick={async () => {
+            await allPhotosState.loadPrevPagePhotosCV();
+            scrollToPhotosGrid();
+          }}
+          disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+          title="Page précédente"
+        >
+          <Icon name="chevron-left" size={18} />
+        </button>
+
+        <div class="pagination-info">
+          <span class="page-counter">
+            Page {allPhotosState.photoCVCurrentPage}
+          </span>
+        </div>
+
+        <button
+          class="btn-nav-page"
+          onclick={async () => {
+            await allPhotosState.loadNextPagePhotosCV();
+            scrollToPhotosGrid();
+          }}
+          disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+          title="Page suivante"
+        >
+          <Icon name="chevron-right" size={18} />
+        </button>
       </div>
-      <PhotosGrid state={allPhotosState} />
+
+      <!-- Grille de photos -->
+      <div bind:this={photosGridContainer}>
+        <PhotosGrid state={allPhotosState} />
+      </div>
+
+      <!-- Pagination en bas -->
+      <div class="pagination-bar">
+        <button
+          class="btn-nav-page"
+          onclick={async () => {
+            await allPhotosState.loadPrevPagePhotosCV();
+            scrollToPhotosGrid();
+          }}
+          disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+          title="Page précédente"
+        >
+          <Icon name="chevron-left" size={18} />
+        </button>
+
+        <div class="pagination-info">
+          <span class="page-counter">
+            Page {allPhotosState.photoCVCurrentPage}
+          </span>
+        </div>
+
+        <button
+          class="btn-nav-page"
+          onclick={async () => {
+            await allPhotosState.loadNextPagePhotosCV();
+            scrollToPhotosGrid();
+          }}
+          disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+          title="Page suivante"
+        >
+          <Icon name="chevron-right" size={18} />
+        </button>
+      </div>
     {/if}
   {/if}
 </main>
@@ -281,13 +357,6 @@
     color: var(--text-secondary, #d0d0d0);
   }
 
-  .photos-count {
-    text-align: center;
-    margin: 2rem 0;
-    font-size: 1rem;
-    color: var(--text-secondary, #a0a0a0);
-  }
-
   .upload-section {
     margin: 2rem auto;
     max-width: 800px;
@@ -318,6 +387,61 @@
     align-items: center;
     justify-content: center;
     gap: 1rem;
+  }
+
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 2rem auto;
+    max-width: 800px;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-nav-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    background: linear-gradient(90deg, var(--accent, #3b82f6), #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .btn-nav-page:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
+
+  .btn-nav-page:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .pagination-info {
+    text-align: center;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .page-counter {
+    color: var(--text-primary, #ffffff);
+    font-weight: 600;
+    font-size: 0.95rem;
   }
 
   @media (max-width: 640px) {
