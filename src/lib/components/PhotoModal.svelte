@@ -64,6 +64,19 @@
 		if (index >= 0) currentIndex = index;
 	});
 
+	// Resynchronise l'objet `asset` si la liste `assets` change
+	$effect(() => {
+		if (!assetId) return;
+
+		const latest = assets.find(a => a.id === assetId) || null;
+		// Ne pas toucher l'état si l'objet est déjà la même référence
+		if (latest && latest !== asset) {
+			asset = latest;
+			// Si le type a changé (image -> video), mettre à jour le flag
+			isVideo = asset?.type === 'VIDEO';
+		}
+	});
+
 	// Charger l'asset actuel
 	async function loadAsset(id: string) {
 		if (!id) return;
