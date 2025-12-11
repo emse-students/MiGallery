@@ -1,11 +1,10 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import { onMount, onDestroy } from 'svelte';
+  import { goto } from "$app/navigation";
   import Icon from "$lib/components/Icon.svelte";
+  import Modal from '$lib/components/Modal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CameraInput from '$lib/components/CameraInput.svelte';
-  import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
-  import { PhotosState } from '$lib/photos.svelte';
   import { theme } from '$lib/theme';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
@@ -13,10 +12,6 @@
   import { toast } from '$lib/toast';
 
   let isAdmin = $derived((page.data.session?.user as User)?.role === 'admin');
-
-  // PhotosState pour la photo de profil
-  const photosState = new PhotosState();
-  let showChangePhotoModal = $state(false);
 
   let uploadStatus = $state<string>("");
   let assetId = $state<string | null>(null);
@@ -29,44 +24,11 @@
   let needsNewPhoto = $state<boolean>(false);
   let abortController: AbortController | null = null;
 
-  // Initialiser PhotosState avec les données de l'utilisateur courant
-  onMount(() => {
-    const user = page.data.session?.user as User;
-    if (user?.id_photos) {
-      photosState.peopleId = user.id_photos;
-      photosState.loadPerson(user.id_photos);
-    }
-  });
-
-  // Nettoyer PhotosState à la destruction du composant
-  onDestroy(() => {
-    photosState.cleanup();
-  });
-
-  // Gérer la sélection d'une nouvelle photo de profil
-  async function handlePhotoSelected(assetId: string) {
-    try {
-      const user = page.data.session?.user as User;
-      if (!user?.id_photos) throw new Error('Utilisateur non configuré');
-
-      // Mettre à jour la personne côté serveur
-      const updateRes = await fetch(`/api/immich/people/${user.id_photos}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ featureFaceAssetId: assetId })
-      });
-
-      if (!updateRes.ok) {
-        const txt = await updateRes.text().catch(() => updateRes.statusText);
-        throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
-      }
-
-      toast.success('Photo de profil mise à jour !');
-      showChangePhotoModal = false;
-    } catch (e) {
-      toast.error('Erreur: ' + (e instanceof Error ? e.message : 'Erreur inconnue'));
-    }
-  }
+  // État pour les modaux
+  let showDeleteAccountModal = $state<boolean>(false);
+  let deleteConfirmText = $state<string>('');
+  let isDeletingAccount = $state<boolean>(false);
+  let showFaceAlreadyAssignedModal = $state<boolean>(false);
 
   // État pour la gestion de la BDD et de l'utilisateur
   let allUsers = $state<UserRow[]>([]);
@@ -312,12 +274,31 @@
           })
         });
 
-        const updateData = await updateResponse.json();
-        const updateResult = asApiResponse(updateData);
+        const updateData = await updateResponse.json() as { success?: boolean; error?: string; message?: string };
 
-        console.log('Update result:', updateResult);
+        console.log('Update result:', updateData);
 
-        if (updateResult.success) {
+        // Vérifier si le visage est déjà assigné à un autre compte
+        if (updateData.error === 'face_already_assigned') {
+          uploadStatus = "Ce visage est déjà associé à un autre compte.";
+          showFaceAlreadyAssignedModal = true;
+
+          // Nettoyer la photo
+          if (shouldCleanup) {
+            try {
+              await fetch(`/api/immich/assets`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: [assetIdToDelete] })
+              });
+            } catch (deleteErr) {
+              console.warn("Impossible de nettoyer la photo:", deleteErr);
+            }
+          }
+          return;
+        }
+
+        if (updateData.success) {
           uploadStatus = `Configuration terminée !`;
 
           // Nettoyer la photo temporaire AVANT le reload si nécessaire
@@ -343,7 +324,7 @@
             window.location.href = window.location.href;
           }, 100);
         } else {
-          uploadStatus = `Personne détectée mais erreur mise à jour BDD: ${updateResult.error || 'Erreur inconnue'}`;
+          uploadStatus = `Personne détectée mais erreur mise à jour BDD: ${updateData.error || 'Erreur inconnue'}`;
         }
       } else if (people.length === 0) {
         uploadStatus = "Aucun visage détecté. Veuillez utiliser une photo de visage claire.";
@@ -578,7 +559,49 @@
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   });
+
+  // Fonction de suppression de compte
+  async function deleteMyAccount() {
+    if (deleteConfirmText !== 'CONFIRMATION') {
+      toast.error('Veuillez taper "CONFIRMATION" pour confirmer la suppression.');
+      return;
+    }
+
+    isDeletingAccount = true;
+
+    try {
+      const response = await fetch('/api/users/me', {
+        method: 'DELETE'
+      });
+
+      const data = await response.json() as { success?: boolean; error?: string };
+
+      if (data.success) {
+        toast.success('Votre compte a été supprimé avec succès.');
+        showDeleteAccountModal = false;
+        // Rediriger vers la page d'accueil après déconnexion
+        setTimeout(() => {
+          goto('/api/auth/signout');
+        }, 1000);
+      } else {
+        toast.error(`Erreur lors de la suppression: ${data.error || 'Erreur inconnue'}`);
+      }
+    } catch (e) {
+      toast.error(`Erreur lors de la suppression: ${e instanceof Error ? e.message : 'Erreur inconnue'}`);
+    } finally {
+      isDeletingAccount = false;
+    }
+  }
+
+  function openDeleteAccountModal() {
+    deleteConfirmText = '';
+    showDeleteAccountModal = true;
+  }
 </script>
+
+<svelte:head>
+  <title>Paramètres - MiGallery</title>
+</svelte:head>
 
 <main class="settings-main">
   <div class="page-background">
@@ -588,34 +611,6 @@
   </div>
 
   <h1><Icon name="settings" size={32} /> Paramètres</h1>
-
-  {#if photosState.personName && photosState.imageUrl}
-    <div class="header-section">
-      <button
-        class="profile-photo-btn"
-        onclick={() => showChangePhotoModal = true}
-        title="Changer la photo de profil"
-      >
-        <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo" />
-        <div class="photo-overlay">
-          <Icon name="camera" size={32} />
-          <span class="change-photo-text">Changer de photo</span>
-        </div>
-      </button>
-      <h2 class="page-title">
-        {photosState.personName}
-      </h2>
-    </div>
-  {/if}
-
-  {#if showChangePhotoModal}
-    <ChangePhotoModal
-      currentPhotoUrl={photosState.imageUrl || undefined}
-      peopleId={photosState.peopleId ?? undefined}
-      onPhotoSelected={handlePhotoSelected}
-      onClose={() => showChangePhotoModal = false}
-    />
-  {/if}
 
   <div class="section">
     <h3><Icon name="palette" size={24} /> Thème</h3>
@@ -672,124 +667,133 @@
     {/if}
   </div>
 
-  <!-- Footer avec crédits -->
-  <footer class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-600 dark:text-gray-400">
-    <p class="mb-2">
-      MiGallery, by <a href="https://mitv.fr" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">MiTV</a>
+  <!-- Section Suppression de compte -->
+  <div class="section danger-section">
+    <h2><Icon name="alert-triangle" size={28} /> Zone de danger</h2>
+    <p class="text-gray-600 dark:text-gray-400 mb-4">
+      La suppression de votre compte est <strong>irréversible</strong>. Toutes vos données seront définitivement supprimées, y compris vos préférences et votre profil de reconnaissance faciale.
     </p>
-    <p class="mb-4">
-      <a href="https://github.com/DeMASKe/DeMASKe" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Jolan BOUDIN</a>
-      et
-      <a href="https://github.com/gd-pnjj" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">Gabriel DUPONT</a>
-      - 2025
-    </p>
-    <p>
-      <a href="https://gallery.mitv.fr/cgu" class="text-blue-600 dark:text-blue-400 hover:underline">Conditions Générales d'Utilisation</a>
-    </p>
+    <button
+      onclick={openDeleteAccountModal}
+      class="btn-danger px-4 py-2 rounded flex items-center gap-2"
+    >
+      <Icon name="trash" size={18} />
+      Supprimer mon compte
+    </button>
+  </div>
+
+  <!-- Footer discret et design -->
+  <footer class="mt-20 pt-8 border-t border-gray-100 dark:border-gray-800/50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 dark:text-gray-500 gap-4">
+        <p>MiGallery, by
+          <a href="https://mitv.fr" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors">MiTV</a>
+          <span class="mx-2">-</span>
+          <a href="/cgu" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors">CGU</a>
+        </p>
+        <p class="flex gap-3">
+          <a href="https://github.com/DeMASKe/DeMASKe" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors"><Icon name="github" size={12} class="inline mr-1" />Jolan BOUDIN</a>
+          <span>-</span>
+          <a href="https://github.com/gd-pnjj" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors"><Icon name="github" size={12} class="inline mr-1" />Gabriel DUPONT</a>
+        </p>
+        <p>MiTV 2025</p>
+      </div>
+    </div>
   </footer>
 </main>
 
+<!-- Modal de confirmation de suppression de compte -->
+<Modal
+  bind:show={showDeleteAccountModal}
+  title="Supprimer votre compte"
+  type="warning"
+  icon="alert-triangle"
+  confirmText={isDeletingAccount ? 'Suppression...' : 'Supprimer définitivement'}
+  cancelText="Annuler"
+  confirmDisabled={deleteConfirmText !== 'CONFIRMATION' || isDeletingAccount}
+  onConfirm={deleteMyAccount}
+  onCancel={() => { showDeleteAccountModal = false; deleteConfirmText = ''; }}
+>
+  {#snippet children()}
+    <div class="delete-account-content">
+      <p class="warning-text">
+        <Icon name="alert-circle" size={20} class="inline text-red-500 mr-1" />
+        <strong>Attention :</strong> Cette action est irréversible !
+      </p>
+      <p class="mb-4">
+        La suppression de votre compte entraînera la perte définitive de :
+      </p>
+      <ul class="list-disc list-inside mb-4 text-sm text-gray-600 dark:text-gray-400">
+        <li>Votre profil et vos préférences</li>
+        <li>Votre association de reconnaissance faciale</li>
+        <li>Vos favoris et albums personnels</li>
+      </ul>
+      <p class="mb-2">
+        Pour confirmer, tapez <strong>CONFIRMATION</strong> ci-dessous :
+      </p>
+      <input
+        type="text"
+        bind:value={deleteConfirmText}
+        placeholder="Tapez CONFIRMATION"
+        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+        disabled={isDeletingAccount}
+      />
+    </div>
+  {/snippet}
+</Modal>
+
+<!-- Modal visage déjà assigné -->
+<Modal
+  bind:show={showFaceAlreadyAssignedModal}
+  title="Visage déjà associé"
+  type="warning"
+  icon="alert-circle"
+  confirmText="J'ai compris"
+  onConfirm={() => { showFaceAlreadyAssignedModal = false; }}
+>
+  {#snippet children()}
+    <div class="face-warning-content">
+      <p class="mb-4">
+        <strong>Ce visage a déjà été assigné à un autre compte.</strong>
+      </p>
+      <p class="mb-4 text-gray-600 dark:text-gray-400">
+        Si vous pensez qu'il s'agit d'une erreur ou que ce visage vous appartient, veuillez contacter l'équipe MiTV pour résoudre ce problème.
+      </p>
+      <p class="contact-info">
+        <Icon name="link" size={16} class="inline mr-1" />
+        <a href="mailto:bureau@mitv.fr" class="text-blue-600 dark:text-blue-400 hover:underline">bureau@mitv.fr</a>
+      </p>
+    </div>
+  {/snippet}
+</Modal>
+
 <style>
-  .header-section {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2rem;
-    margin: 2rem 0 3rem;
-    flex-wrap: wrap;
+  .danger-section {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.05);
   }
 
-  .page-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .profile-photo-btn {
-    position: relative;
-    border: none;
-    background: none;
-    cursor: pointer;
-    padding: 0;
-    border-radius: 50%;
-    overflow: hidden;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .profile-photo-btn::before {
-    content: '';
-    position: absolute;
-    inset: -3px;
-    background: linear-gradient(135deg, var(--accent), #8b5cf6, #ec4899);
-    border-radius: 50%;
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .profile-photo-btn:hover::before {
-    opacity: 1;
-  }
-
-  .profile-photo-btn:hover {
-    transform: scale(1.08);
-  }
-
-  .profile-photo {
-    width: 140px;
-    height: 140px;
-    object-fit: cover;
-    border-radius: 50%;
-    border: 5px solid var(--bg-primary);
-    transition: border-color 0.3s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  }
-
-  .photo-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    border-radius: 50%;
+  .btn-danger {
+    background-color: #dc2626;
     color: white;
-    backdrop-filter: blur(8px);
+    border: none;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
   }
 
-  .change-photo-text {
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-align: center;
+  .btn-danger:hover {
+    background-color: #b91c1c;
   }
 
-  .profile-photo-btn:hover .photo-overlay {
-    opacity: 1;
+  .delete-account-content .warning-text {
+    color: #dc2626;
+    margin-bottom: 1rem;
   }
 
-  @media (max-width: 640px) {
-    .header-section {
-      flex-direction: column;
-      gap: 1.5rem;
-      margin: 1.5rem 0 2rem;
-    }
-
-    .page-title {
-      font-size: 1.5rem;
-      text-align: center;
-    }
-
-    .profile-photo {
-      width: 120px;
-      height: 120px;
-    }
+  .face-warning-content .contact-info {
+    padding: 0.75rem;
+    background: var(--bg-secondary, #f3f4f6);
+    border-radius: 0.5rem;
+    font-weight: 500;
   }
 </style>

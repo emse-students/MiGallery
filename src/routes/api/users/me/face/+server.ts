@@ -65,6 +65,24 @@ export const PATCH: RequestHandler = async (event) => {
 			return json({ error: 'person_id is required and must be a string or null' }, { status: 400 });
 		}
 
+		// Vérifier si ce person_id est déjà utilisé par un autre utilisateur
+		if (personId) {
+			const existingUser = db
+				.prepare('SELECT id_user FROM users WHERE id_photos = ? AND id_user != ?')
+				.get(personId, userId) as { id_user: string } | undefined;
+
+			if (existingUser) {
+				return json(
+					{
+						error: 'face_already_assigned',
+						message:
+							"Ce visage a déjà été assigné à un autre compte. Si ce n'est pas le vôtre, merci de contacter bureau@mitv.fr"
+					},
+					{ status: 409 }
+				);
+			}
+		}
+
 		// Mettre à jour l'ID de la personne et marquer first_login à 0
 		const stmt = db.prepare('UPDATE users SET id_photos = ?, first_login = 0 WHERE id_user = ?');
 		const result = stmt.run(personId, userId);

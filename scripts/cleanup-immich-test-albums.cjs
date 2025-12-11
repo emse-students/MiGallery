@@ -35,7 +35,7 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 // Patterns d'albums de test à supprimer
 const TEST_PATTERNS = [
-	/^\[TEST\]/i,  // Nouveau pattern officiel
+	/^\[TEST\]/i, // Nouveau pattern officiel
 	/^Test\s/i,
 	/Test$/i,
 	/\bTest\b/i,

@@ -134,6 +134,11 @@
           <li>Rotation régulière des clés pour les services critiques</li>
         </ul>
       </div>
+
+      <div class="info-box">
+        <strong>🔒 Endpoints "session only" :</strong>
+        <p>Certains endpoints (comme <code>/api/users/me</code>) ne sont accessibles que via session utilisateur, pas via clé API. Ces endpoints gèrent des données personnelles sensibles et nécessitent une authentification utilisateur directe.</p>
+      </div>
     </section>
 
     <!-- Scopes -->
@@ -174,6 +179,12 @@
             <td>Administration complète</td>
             <td>Tous</td>
             <td><code>/api/users</code>, <code>/api/admin/api-keys</code></td>
+          </tr>
+          <tr>
+            <td><span class="scope-badge session">session</span></td>
+            <td>Session utilisateur uniquement</td>
+            <td>—</td>
+            <td><code>/api/users/me</code></td>
           </tr>
         </tbody>
       </table>
@@ -672,6 +683,11 @@ requests.get(
   .scope-badge.admin {
     background: rgba(168, 85, 247, 0.2);
     color: #a855f7;
+  }
+
+  .scope-badge.session {
+    background: rgba(251, 191, 36, 0.2);
+    color: #f59e0b;
   }
 
   .endpoint-group {

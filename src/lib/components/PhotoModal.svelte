@@ -455,12 +455,11 @@
 						onclick={async () => {
 							// Mise à jour optimiste : inverser le state immédiatement
 							const wasFavorite = asset!.isFavorite;
-							asset!.isFavorite = !asset!.isFavorite;
 							try {
 								await onFavoriteToggle(asset!.id);
+								// Le state est mis à jour par toggleFavorite dans PhotosGrid
 							} catch (e) {
-								// En cas d'erreur, revenir à l'état précédent
-								asset!.isFavorite = wasFavorite;
+								// En cas d'erreur, pas besoin de revenir car toggleFavorite gère l'erreur
 								toast.error('Erreur lors de la mise à jour du favori');
 							}
 						}}
