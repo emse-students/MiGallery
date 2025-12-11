@@ -692,9 +692,9 @@
           <a href="/cgu" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors">CGU</a>
         </p>
         <p class="flex gap-3">
-          <a href="https://github.com/DeMASKe/DeMASKe" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors"><Icon name="github" size={12} class="inline mr-1" />Jolan BOUDIN</a>
+          <a href="https://github.com/DeMASKe/DeMASKe" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors"><Icon name="github" size={12} class="inline mr-1" /> Jolan BOUDIN</a>
           <span>-</span>
-          <a href="https://github.com/gd-pnjj" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors"><Icon name="github" size={12} class="inline mr-1" />Gabriel DUPONT</a>
+          <a href="https://github.com/gd-pnjj" target="_blank" rel="noopener noreferrer" class="hover:text-gray-700 dark:hover:text-gray-400 transition-colors"><Icon name="github" size={12} class="inline mr-1" /> Gabriel DUPONT</a>
         </p>
         <p>MiTV 2025</p>
       </div>
