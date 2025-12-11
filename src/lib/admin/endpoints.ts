@@ -259,6 +259,35 @@ export const API_ENDPOINTS: EndpointGroup[] = [
 				exampleResponse: '{"success":true,"deleted":1}'
 			},
 			{
+				method: 'GET',
+				path: '/api/users/me',
+				scope: 'session',
+				description:
+					"Récupère les informations de l'utilisateur connecté (session uniquement, pas de clé API)",
+				exampleCurl: '# Uniquement via navigateur avec session active',
+				exampleResponse: `{
+  "success": true,
+  "user": {
+    "id_user": "string",
+    "email": "string",
+    "prenom": "string",
+    "nom": "string",
+    "id_photos": "uuid|null",
+    "role": "user|admin|mitviste",
+    "promo_year": 2024
+  }
+}`
+			},
+			{
+				method: 'DELETE',
+				path: '/api/users/me',
+				scope: 'session',
+				description:
+					'Supprimer son propre compte (session uniquement, pas de clé API). Action irréversible.',
+				exampleCurl: '# Uniquement via navigateur avec session active',
+				exampleResponse: '{"success":true,"message":"Account deleted successfully"}'
+			},
+			{
 				method: 'PATCH',
 				path: '/api/users/me/promo',
 				scope: 'read',
