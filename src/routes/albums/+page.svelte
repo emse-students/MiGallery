@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import Icon from '$lib/components/Icon.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
@@ -219,9 +220,19 @@
 		}
 	});
 
-	async function handleAlbumCreated() {
-		// Recharger la page pour afficher le nouvel album
-		window.location.reload();
+	async function handleAlbumCreated(newAlbumId?: string) {
+	 	if (newAlbumId) {
+	 		// Naviguer directement vers l'album créé
+	 		try {
+	 			await goto(`/albums/${newAlbumId}`);
+	 		} catch (e) {
+	 			// Fallback: reload si la navigation échoue
+	 			window.location.reload();
+	 		}
+	 	} else {
+	 		// Pas d'ID fourni -> recharger la page
+	 		window.location.reload();
+	 	}
 	}
 </script>
 
