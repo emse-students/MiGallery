@@ -78,6 +78,17 @@ const migrations = [
       PRIMARY KEY (user_id, asset_id),
       FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
     )`
+	},
+	{
+		name: 'Create photo_access_permissions table',
+		sql: `CREATE TABLE IF NOT EXISTS photo_access_permissions (
+      owner_id TEXT NOT NULL,
+      authorized_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (owner_id, authorized_id),
+      FOREIGN KEY(owner_id) REFERENCES users(id_user) ON DELETE CASCADE,
+      FOREIGN KEY(authorized_id) REFERENCES users(id_user) ON DELETE CASCADE
+    )`
 	}
 ];
 

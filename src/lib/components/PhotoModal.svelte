@@ -55,6 +55,9 @@
 	let imgElement = $state<HTMLImageElement | null>(null);
 	let containerElement = $state<HTMLDivElement | null>(null);
 
+	// Portal root pour monter le modal directement dans document.body
+	let portalRoot = $state<HTMLDivElement | null>(null);
+
 	// Touch/pinch zoom state
 	let touchStartDistance = $state(0);
 	let touchStartScale = $state(1);
@@ -300,7 +303,7 @@
 	}
 
 	// ============= TOUCH HANDLERS (mobile pinch-to-zoom) =============
-	
+
 	function getTouchDistance(touches: TouchList): number {
 		if (touches.length < 2) return 0;
 		const dx = touches[0].clientX - touches[1].clientX;
@@ -331,9 +334,9 @@
 			} else if (scale > 1) {
 				// Start drag when zoomed
 				isTouchDragging = true;
-				touchDragStart = { 
-					x: e.touches[0].clientX - translate.x, 
-					y: e.touches[0].clientY - translate.y 
+				touchDragStart = {
+					x: e.touches[0].clientX - translate.x,
+					y: e.touches[0].clientY - translate.y
 				};
 			}
 		}
@@ -348,16 +351,16 @@
 			let newScale = touchStartScale * scaleChange;
 			newScale = Math.max(minScale, Math.min(10, newScale));
 			scale = newScale;
-			
+
 			if (scale <= 1) {
 				translate = { x: 0, y: 0 };
 			}
 		} else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
 			// Single finger drag when zoomed
 			e.preventDefault();
-			const newTranslate = { 
-				x: e.touches[0].clientX - touchDragStart.x, 
-				y: e.touches[0].clientY - touchDragStart.y 
+			const newTranslate = {
+				x: e.touches[0].clientX - touchDragStart.x,
+				y: e.touches[0].clientY - touchDragStart.y
 			};
 			translate = constrainTranslate(newTranslate);
 		}
@@ -368,10 +371,10 @@
 			lastTouchEnd = Date.now();
 			touchStartDistance = 0;
 			isTouchDragging = false;
-			
+
 			// Constrain translate after pinch ends
 			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
-			
+
 			if (scale <= 1) {
 				translate = { x: 0, y: 0 };
 			}
@@ -498,6 +501,11 @@
 	}
 
 	onMount(() => {
+		// Si besoin, monter le wrapper du modal dans document.body pour éviter
+		// les problèmes de stacking context créés par des parents transform/opacity
+		if (portalRoot && portalRoot.parentNode !== document.body) {
+			document.body.appendChild(portalRoot);
+		}
 		window.addEventListener('keydown', handleKeydown);
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
@@ -509,6 +517,11 @@
 		window.removeEventListener('mousemove', handleMouseMove);
 		window.removeEventListener('mouseup', handleMouseUp);
 		document.body.classList.remove('modal-open');
+
+		// Nettoyer le portail si on l'a monté dans document.body
+		if (portalRoot && portalRoot.parentNode === document.body) {
+			try { document.body.removeChild(portalRoot); } catch {}
+		}
 		// Revoke object URL only if we created one
 		if (mediaUrl && mediaUrl.startsWith && mediaUrl.startsWith('blob:')) {
 			try { URL.revokeObjectURL(mediaUrl); } catch {}
@@ -516,7 +529,7 @@
 	});
 </script>
 
-<div class="modal-backdrop" onclick={handleBackdropClick} role="button" tabindex="-1" onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}>
+<div bind:this={portalRoot} class="modal-backdrop" onclick={handleBackdropClick} role="button" tabindex="-1" onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}>
 	<div class="modal-content">
 		<div class="modal-header">
 			<div class="modal-title">

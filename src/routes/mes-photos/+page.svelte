@@ -15,6 +15,12 @@
   let showChangePhotoModal = $state(false);
   let targetUserId = $state<string | null>(null); // Store target user ID
   let targetUserName = $state<string | null>(null);
+  let isViewingOwnPhotos = $state(true); // Track if viewing own photos
+  let isAdmin = $state(false); // Track if current user is admin
+  let accessDenied = $state(false); // Track if access was denied
+
+  // Computed: can edit profile photo (own photos OR admin)
+  let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
 
   function openChangePhotoModal() {
     showChangePhotoModal = true;
@@ -47,46 +53,79 @@
 
   onDestroy(() => photosState.cleanup());
 
-  onMount(() => {
-    // Check for userId parameter (from trombinoscope)
+  onMount(async () => {
+    // Check for userId parameter (from trombinoscope or direct link)
     const urlParams = new URLSearchParams(window.location.search);
     const userIdParam = urlParams.get('userId');
 
     const user = page.data.session?.user as User;
+    isAdmin = user?.role === 'admin';
 
-    // If userId is provided, only admins are allowed to view another user's photos
+    // If userId is provided, check access permissions
     if (userIdParam) {
-      if (!(user?.role === 'admin')) {
-        // not allowed
-        goto('/');
-        return;
+      // Check if it's the current user's own photos
+      if (userIdParam === user?.id_user) {
+        // Continue as own photos
+        isViewingOwnPhotos = true;
+      } else {
+        isViewingOwnPhotos = false;
+
+        // Check access via API (also returns user info if access granted)
+        try {
+          const accessRes = await fetch(`/api/users/${encodeURIComponent(userIdParam)}/photo-access`);
+          const accessData = await accessRes.json() as {
+            success?: boolean;
+            hasAccess?: boolean;
+            reason?: string;
+            user?: { id_user: string; prenom: string; nom: string; id_photos: string | null };
+          };
+
+          if (!accessData.success || !accessData.hasAccess) {
+            accessDenied = true;
+            return;
+          }
+
+          // Access granted - use the user info from the response
+          if (accessData.user?.id_photos) {
+            targetUserId = userIdParam;
+            photosState.peopleId = accessData.user.id_photos;
+            targetUserName = (accessData.user.prenom || '') + (accessData.user.nom ? (' ' + accessData.user.nom) : '');
+            photosState.loadPerson(accessData.user.id_photos);
+          } else {
+            goto('/');
+          }
+          return;
+        } catch {
+          accessDenied = true;
+          return;
+        }
       }
 
-      // allowed: admin
       targetUserId = userIdParam;
-      // Fetch the target user's id_photos via API users endpoint
-      fetch(`/api/users/${encodeURIComponent(userIdParam)}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-        return res.json();
-      })
-      .then(data => {
-        const targetUser = data.user as User;
-        if (targetUser?.id_photos) {
-          photosState.peopleId = targetUser.id_photos;
-          // Use local DB name for header
-          targetUserName = (targetUser.prenom || '') + (targetUser.nom ? (' ' + targetUser.nom) : '');
-          photosState.loadPerson(targetUser.id_photos);
+      // Fetch the target user's id_photos via API users endpoint (own photos case)
+      try {
+        const accessRes = await fetch(`/api/users/${encodeURIComponent(userIdParam)}/photo-access`);
+        const accessData = await accessRes.json() as {
+          success?: boolean;
+          user?: { id_user: string; prenom: string; nom: string; id_photos: string | null };
+        };
+
+        if (accessData.success && accessData.user?.id_photos) {
+          photosState.peopleId = accessData.user.id_photos;
+          targetUserName = (accessData.user.prenom || '') + (accessData.user.nom ? (' ' + accessData.user.nom) : '');
+          photosState.loadPerson(accessData.user.id_photos);
         } else {
           goto('/');
         }
-      })
-      .catch(() => goto('/'));
+      } catch {
+        goto('/');
+      }
       return;
     }
 
     // Default: load current user's photos
     targetUserId = null;
+    isViewingOwnPhotos = true;
     if (!user?.id_photos) {
       goto('/');
       return;
@@ -110,38 +149,63 @@
     <div class="gradient-blob blob-3"></div>
   </div>
 
-  {#if photosState.personName && photosState.imageUrl}
-    <div class="header-section">
-      <button
-        class="profile-photo-btn"
-        onclick={openChangePhotoModal}
-        title="Changer la photo de profil"
-      >
-        <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo" />
-        <div class="photo-overlay">
-          <Icon name="camera" size={32} />
-          <span class="change-photo-text">Changer de photo</span>
-        </div>
+  {#if accessDenied}
+    <div class="access-denied">
+      <Icon name="lock" size={48} />
+      <h2>Accès non autorisé</h2>
+      <p>Vous n'avez pas l'autorisation de voir les photos de cet utilisateur.</p>
+      <p class="hint">L'utilisateur doit vous autoriser depuis ses paramètres pour que vous puissiez accéder à ses photos.</p>
+      <button class="btn-primary" onclick={() => goto('/')}>
+        <Icon name="arrow-left" size={18} />
+        Retour à l'accueil
       </button>
-      <h1 class="page-title">
+    </div>
+  {:else}
+    {#if photosState.personName && photosState.imageUrl}
+      <div class="header-section">
+        {#if canEditProfilePhoto}
+          <button
+            class="profile-photo-btn"
+            onclick={openChangePhotoModal}
+            title="Changer la photo de profil"
+          >
+            <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo" />
+            <div class="photo-overlay">
+              <Icon name="camera" size={32} />
+              <span class="change-photo-text">Changer de photo</span>
+            </div>
+          </button>
+        {:else}
+          <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo static" />
+        {/if}
+        <div class="header-text">
+          <h1 class="page-title">
+            {targetUserName ?? photosState.personName}
+          </h1>
+          {#if !isViewingOwnPhotos}
+            <span class="viewing-badge">
+              <Icon name="eye" size={14} />
+              Consultation autorisée
+            </span>
+          {/if}
+        </div>
+      </div>
+    {:else if photosState.personName}
+      <h1 class="page-title-center">
         {targetUserName ?? photosState.personName}
       </h1>
-    </div>
-  {:else if photosState.personName}
-    <h1 class="page-title-center">
-      {targetUserName ?? photosState.personName}
-    </h1>
-  {/if}
+    {/if}
 
-  {#if photosState.error}
-    <div class="error"><Icon name="x-circle" size={20} /> {photosState.error}</div>
-  {/if}
+    {#if photosState.error}
+      <div class="error"><Icon name="x-circle" size={20} /> {photosState.error}</div>
+    {/if}
 
-  {#if photosState.loading}
-    <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
-  {/if}
+    {#if photosState.loading}
+      <div class="loading"><Spinner size={20} /> Chargement des photos...</div>
+    {/if}
 
-  <PhotosGrid state={photosState} showFavorites={true} />
+    <PhotosGrid state={photosState} showFavorites={isViewingOwnPhotos} />
+  {/if}
 
   {#if showChangePhotoModal}
     <ChangePhotoModal
@@ -211,6 +275,24 @@
     gap: 2rem;
     margin: 2rem 0 3rem;
     flex-wrap: wrap;
+  }
+
+  .header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .viewing-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--accent);
+    background: rgba(124, 58, 237, 0.1);
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    width: fit-content;
   }
 
   .page-title {
@@ -295,6 +377,58 @@
 
   .profile-photo-btn:hover .photo-overlay {
     opacity: 1;
+  }
+
+  .profile-photo.static {
+    cursor: default;
+  }
+
+  /* Access denied styles */
+  .access-denied {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-primary);
+  }
+
+  .access-denied h2 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .access-denied p {
+    color: var(--text-secondary);
+    margin: 0.5rem 0;
+    max-width: 400px;
+  }
+
+  .access-denied .hint {
+    font-size: 0.875rem;
+    opacity: 0.7;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--accent);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-secondary);
   }
 
   @media (max-width: 640px) {

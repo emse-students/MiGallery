@@ -2,6 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from 'svelte';
+  import { fade } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
@@ -18,30 +19,22 @@
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
   let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.id_photos);
-  let currentView = $state<'my' | 'all'>('my'); // Vue par défaut : mes photos
-  let personId = $state<string>(''); // ID de la personne connectée
-  let photosGridContainer = $state<HTMLDivElement | null>(null); // Pour scroller
+  let currentView = $state<'my' | 'all'>('my');
+  let personId = $state<string>('');
+  let photosGridContainer = $state<HTMLDivElement | null>(null);
 
-  /**
-   * Scroll vers le haut du conteneur de photos
-   */
   function scrollToPhotosGrid() {
     if (photosGridContainer) {
       photosGridContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 
-  /**
-   * Upload et ajout automatique à l'album PhotoCV
-   */
   async function handleUpload(
     files: File[],
     onProgress?: (current: number, total: number) => void,
     onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void
   ) {
     if (files.length === 0) return [];
-
-    // Capturer les valeurs au moment de l'appel pour éviter les problèmes de proxy
     const view = currentView;
     const person = personId;
 
@@ -50,17 +43,10 @@
       onFileResult,
       isPhotosCV: true,
       onSuccess: async () => {
-        // 3. Recharger les vues
-        if (person) {
-          await myPhotosState.loadMyPhotosCV(person);
-        }
-
-        if (view === 'all') {
-          await allPhotosState.loadAllPhotosCV();
-        }
+        if (person) await myPhotosState.loadMyPhotosCV(person);
+        if (view === 'all') await allPhotosState.loadAllPhotosCV();
       }
     });
-
     return results || [];
   }
 
@@ -78,30 +64,18 @@
 
   onMount(() => {
     const user = page.data.session?.user as User;
-
-    // Admin/mitviste peuvent accéder même sans id_photos (pour gérer les imports)
-    if (!user) {
-      goto('/');
-      return;
-    }
+    if (!user) { goto('/'); return; }
 
     const hasIdPhotos = !!user.id_photos;
     const isManager = user.role === 'admin' || user.role === 'mitviste';
 
-    // Rediriger seulement si ni id_photos ni manager
-    if (!hasIdPhotos && !isManager) {
-      goto('/');
-      return;
-    }
+    if (!hasIdPhotos && !isManager) { goto('/'); return; }
 
-    // Si l'utilisateur a un id_photos, charger ses photos personnelles
     if (hasIdPhotos) {
-      // Convertir en string pour éviter les Proxy
       personId = String(user.id_photos ?? '');
       myPhotosState.peopleId = String(user.id_photos ?? '');
       myPhotosState.loadMyPhotosCV(String(user.id_photos ?? ''));
     } else if (isManager) {
-      // Si manager sans id_photos, basculer directement sur la vue "all"
       currentView = 'all';
       allPhotosState.loadAllPhotosCV();
     }
@@ -119,334 +93,300 @@
     <div class="gradient-blob blob-3"></div>
   </div>
 
-  <h1 class="page-title">Photos CV</h1>
+  <div class="photoscv-container">
 
-  <!-- Onglets de navigation -->
-  <div class="tabs">
-    {#if hasIdPhotos}
-      <button
-        class="tab {currentView === 'my' ? 'active' : ''}"
-        onclick={() => switchView('my')}
-      >
-        <Icon name="user" size={18} />
-        Mes photos CV
-      </button>
-    {/if}
-    {#if canManagePhotos}
-      <button
-        class="tab {currentView === 'all' ? 'active' : ''}"
-        onclick={() => switchView('all')}
-      >
-        <Icon name="users" size={18} />
-        Toutes les photos CV
-      </button>
-    {/if}
-  </div>
+    <header class="page-header">
+        <h1 class="page-title">Photos CV</h1>
+        <p class="subtitle">Gérez vos portraits professionnels</p>
+    </header>
 
-  <!-- Vue : Mes photos CV -->
-  {#if currentView === 'my' && hasIdPhotos}
-    {#if myPhotosState.personName}
-      <h2 class="section-title">{myPhotosState.personName}</h2>
-    {/if}
-
-    {#if myPhotosState.error}
-      <div class="error"><Icon name="x-circle" size={20} /> {myPhotosState.error}</div>
-    {/if}
-
-    {#if myPhotosState.loading}
-      <div class="loading"><Spinner size={20} /> Chargement de vos photos CV...</div>
-    {/if}
-
-    <PhotosGrid state={myPhotosState} />
-  {/if}
-
-  <!-- Vue : Toutes les photos CV (mitvistes/admins) -->
-  {#if currentView === 'all' && canManagePhotos}
-    <div class="upload-section">
-      <h2>Ajouter des photos CV</h2>
-      <p class="upload-info">Les photos uploadées seront automatiquement ajoutées à l'album Photos CV</p>
-      <UploadZone onUpload={handleUpload} />
+    <div class="tabs-container">
+      {#if hasIdPhotos}
+        <button
+          class="tab-pill {currentView === 'my' ? 'active' : ''}"
+          onclick={() => switchView('my')}
+        >
+          <Icon name="user" size={18} />
+          <span>Mes photos</span>
+        </button>
+      {/if}
+      {#if canManagePhotos}
+        <button
+          class="tab-pill {currentView === 'all' ? 'active' : ''}"
+          onclick={() => switchView('all')}
+        >
+          <Icon name="users" size={18} />
+          <span>Tout le monde</span>
+        </button>
+      {/if}
     </div>
 
-    {#if allPhotosState.error}
-      <div class="error"><Icon name="x-circle" size={20} /> {allPhotosState.error}</div>
-    {/if}
+    <div class="content-area">
+        {#if currentView === 'my' && hasIdPhotos}
+        <div in:fade={{ duration: 200 }}>
+            {#if myPhotosState.personName}
+                <div class="section-header">
+                    <h2>{myPhotosState.personName}</h2>
+                </div>
+            {/if}
 
-    {#if allPhotosState.loading}
-      <div class="loading"><Spinner size={20} /> Chargement de vos photos CV...</div>
-    {/if}
+            {#if myPhotosState.error}
+                <div class="state-message error"><Icon name="x-circle" size={20} /> {myPhotosState.error}</div>
+            {/if}
 
-    {#if !allPhotosState.loading && !allPhotosState.error}
-      <!-- Pagination en haut -->
-      <div class="pagination-bar">
-        <button
-          class="btn-nav-page"
-          onclick={async () => {
-            await allPhotosState.loadPrevPagePhotosCV();
-            scrollToPhotosGrid();
-          }}
-          disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-          title="Page précédente"
-        >
-          <Icon name="chevron-left" size={18} />
-        </button>
+            {#if myPhotosState.loading}
+                <div class="state-message loading"><Spinner size={24} /> Chargement de vos photos...</div>
+            {/if}
 
-        <div class="pagination-info">
-          <span class="page-counter">
-            Page {allPhotosState.photoCVCurrentPage}
-          </span>
+            <div class="grid-wrapper">
+                <PhotosGrid state={myPhotosState} />
+            </div>
         </div>
+        {/if}
 
-        <button
-          class="btn-nav-page"
-          onclick={async () => {
-            await allPhotosState.loadNextPagePhotosCV();
-            scrollToPhotosGrid();
-          }}
-          disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-          title="Page suivante"
-        >
-          <Icon name="chevron-right" size={18} />
-        </button>
-      </div>
+        {#if currentView === 'all' && canManagePhotos}
+        <div in:fade={{ duration: 200 }}>
 
-      <!-- Grille de photos -->
-      <div bind:this={photosGridContainer}>
-        <PhotosGrid state={allPhotosState} />
-      </div>
+            <div class="upload-card">
+                <div class="upload-header">
+                    <div class="icon-box">
+                        <Icon name="upload-cloud" size={24} />
+                    </div>
+                    <div>
+                        <h3>Ajouter des portraits</h3>
+                        <p>Ajout automatique à l'album "Photos CV"</p>
+                    </div>
+                </div>
+                <div class="upload-body">
+                    <UploadZone onUpload={handleUpload} />
+                </div>
+            </div>
 
-      <!-- Pagination en bas -->
-      <div class="pagination-bar">
-        <button
-          class="btn-nav-page"
-          onclick={async () => {
-            await allPhotosState.loadPrevPagePhotosCV();
-            scrollToPhotosGrid();
-          }}
-          disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-          title="Page précédente"
-        >
-          <Icon name="chevron-left" size={18} />
-        </button>
+            {#if allPhotosState.error}
+                <div class="state-message error"><Icon name="x-circle" size={20} /> {allPhotosState.error}</div>
+            {/if}
 
-        <div class="pagination-info">
-          <span class="page-counter">
-            Page {allPhotosState.photoCVCurrentPage}
-          </span>
+            {#if allPhotosState.loading}
+                <div class="state-message loading"><Spinner size={24} /> Chargement de la base...</div>
+            {/if}
+
+            {#if !allPhotosState.loading && !allPhotosState.error}
+                <div class="pagination-bar top">
+                    <button
+                        class="btn-nav"
+                        onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
+                        disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+                    >
+                        <Icon name="chevron-left" size={18} /> Précédent
+                    </button>
+
+                    <span class="page-info">Page {allPhotosState.photoCVCurrentPage}</span>
+
+                    <button
+                        class="btn-nav"
+                        onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
+                        disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+                    >
+                        Suivant <Icon name="chevron-right" size={18} />
+                    </button>
+                </div>
+
+                <div bind:this={photosGridContainer} class="grid-wrapper">
+                    <PhotosGrid state={allPhotosState} />
+                </div>
+
+                <div class="pagination-bar bottom">
+                    <button
+                        class="btn-nav"
+                        onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
+                        disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+                    >
+                        <Icon name="chevron-left" size={18} />
+                    </button>
+
+                    <span class="page-info">Page {allPhotosState.photoCVCurrentPage}</span>
+
+                    <button
+                        class="btn-nav"
+                        onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
+                        disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+                    >
+                        <Icon name="chevron-right" size={18} />
+                    </button>
+                </div>
+            {/if}
         </div>
-
-        <button
-          class="btn-nav-page"
-          onclick={async () => {
-            await allPhotosState.loadNextPagePhotosCV();
-            scrollToPhotosGrid();
-          }}
-          disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-          title="Page suivante"
-        >
-          <Icon name="chevron-right" size={18} />
-        </button>
-      </div>
-    {/if}
-  {/if}
+        {/if}
+    </div>
+  </div>
 </main>
 
 <style>
+  /* --- VARIABLES (Local Scope) --- */
   .photoscv-main {
+    --pcv-bg: var(--bg-primary, #ffffff);
+    --pcv-card-bg: var(--bg-secondary, #ffffff);
+    --pcv-text: var(--text-primary, #1f2937);
+    --pcv-text-muted: var(--text-secondary, #6b7280);
+    --pcv-border: var(--border, #e5e7eb);
+    --pcv-accent: var(--accent, #3b82f6);
+
     position: relative;
     min-height: 100vh;
+    color: var(--pcv-text);
+    background-color: var(--pcv-bg);
+    overflow-x: hidden;
   }
 
-  .photoscv-main .page-background {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: -1;
-    overflow: hidden;
-  }
-
-  .photoscv-main .gradient-blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(110px);
-    opacity: 0.14;
-    animation: float 22s ease-in-out infinite;
-  }
-
-  .photoscv-main .blob-1 {
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(14, 165, 233, 0.6) 0%, transparent 70%);
-    top: -200px;
-    left: 10%;
-    animation-delay: 0s;
-  }
-
-  .photoscv-main .blob-2 {
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%);
-    top: 30%;
-    right: 15%;
-    animation-delay: -7s;
-  }
-
-  .photoscv-main .blob-3 {
-    width: 550px;
-    height: 550px;
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
-    bottom: 10%;
-    left: 20%;
-    animation-delay: -14s;
-  }
-
-  @keyframes float {
-    0%, 100% {
-      transform: translate(0, 0) scale(1);
-    }
-    33% {
-      transform: translate(30px, -30px) scale(1.05);
-    }
-    66% {
-      transform: translate(-20px, 20px) scale(0.95);
+  @media (prefers-color-scheme: dark) {
+    .photoscv-main {
+        --pcv-bg: var(--bg-primary, #0f172a);
+        --pcv-card-bg: var(--bg-secondary, #1e293b);
+        --pcv-text: var(--text-primary, #f3f4f6);
+        --pcv-text-muted: var(--text-secondary, #9ca3af);
+        --pcv-border: var(--border, #334155);
     }
   }
 
-  .tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin: 2rem auto;
-    max-width: 600px;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  /* --- BACKGROUND --- */
+  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.15; }
+  .blob-1 { width: 600px; height: 600px; background: #0ea5e9; top: -200px; left: 10%; animation: float 25s infinite; }
+  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; top: 30%; right: 15%; animation: float 30s infinite reverse; }
+  .blob-3 { width: 550px; height: 550px; background: #ec4899; bottom: 10%; left: 20%; animation: float 28s infinite; }
+  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -30px); } }
+
+  /* --- CONTAINER --- */
+  .photoscv-container {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 6rem;
   }
 
-  .tab {
-    flex: 1;
-    padding: 0.75rem 1.5rem;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary, #a0a0a0);
-    font-size: 1rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border-bottom: 3px solid transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .tab:hover {
-    color: var(--text-primary, #ffffff);
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  .tab.active {
-    color: rgba(59, 130, 246, 1);
-    border-bottom-color: rgba(59, 130, 246, 1);
-  }
-
-  .section-title {
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 1.5rem 0;
-    color: var(--text-secondary, #d0d0d0);
-  }
-
-  .upload-section {
-    margin: 2rem auto;
-    max-width: 800px;
-  }
-
-  .upload-section h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary, #ffffff);
-    text-align: center;
-  }
-
-  .upload-info {
-    text-align: center;
-    color: var(--text-secondary, #a0a0a0);
-    margin-bottom: 1rem;
-    font-size: 0.9375rem;
-  }
-
+  /* --- HEADER --- */
+  .page-header { text-align: center; margin-bottom: 2.5rem; }
   .page-title {
-    text-align: center;
-    font-size: 3rem;
-    font-weight: 700;
-    margin: 2rem 0 3rem;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
+    font-size: 3rem; font-weight: 800; margin: 0;
+    background: linear-gradient(135deg, var(--pcv-text), var(--pcv-accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .subtitle { color: var(--pcv-text-muted); font-size: 1.1rem; margin-top: 0.5rem; }
+
+  /* --- TABS (PILLS) --- */
+  .tabs-container {
+    display: flex; justify-content: center; gap: 0.5rem;
+    margin-bottom: 3rem;
+    background: var(--pcv-card-bg);
+    padding: 0.5rem;
+    border-radius: 99px;
+    border: 1px solid var(--pcv-border);
+    width: fit-content;
+    margin-left: auto; margin-right: auto;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
   }
 
-  .pagination-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin: 2rem auto;
-    max-width: 800px;
-    padding: 1.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    flex-wrap: wrap;
-  }
-
-  .btn-nav-page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.625rem 0.875rem;
-    background: linear-gradient(90deg, var(--accent, #3b82f6), #8b5cf6);
-    color: white;
+  .tab-pill {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1.5rem;
+    border-radius: 99px;
     border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.95rem;
+    background: transparent;
+    color: var(--pcv-text-muted);
+    font-weight: 600; font-size: 0.95rem;
     cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    min-width: 44px;
-    height: 44px;
+    transition: all 0.2s;
   }
 
-  .btn-nav-page:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  .tab-pill:hover { color: var(--pcv-text); background: rgba(0,0,0,0.05); }
+  .tab-pill.active {
+    background: var(--pcv-accent);
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
   }
 
-  .btn-nav-page:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  /* --- CONTENT SECTIONS --- */
+  .section-header { text-align: center; margin-bottom: 2rem; }
+  .section-header h2 { font-size: 1.5rem; color: var(--pcv-text); opacity: 0.8; }
+
+  /* --- UPLOAD CARD --- */
+  .upload-card {
+    background: var(--pcv-card-bg);
+    border: 1px solid var(--pcv-border);
+    border-radius: 1.5rem;
+    overflow: hidden;
+    margin-bottom: 3rem;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
   }
 
-  .pagination-info {
-    text-align: center;
-    flex: 1;
-    min-width: 200px;
+  .upload-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--pcv-border);
+    display: flex; align-items: center; gap: 1rem;
+    background: rgba(59, 130, 246, 0.03);
   }
 
-  .page-counter {
-    color: var(--text-primary, #ffffff);
-    font-weight: 600;
-    font-size: 0.95rem;
+  .icon-box {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--pcv-accent), #8b5cf6);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
   }
+
+  .upload-header h3 { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--pcv-text); }
+  .upload-header p { margin: 0.25rem 0 0; color: var(--pcv-text-muted); font-size: 0.9rem; }
+  .upload-body { padding: 2rem; }
+
+  /* --- PAGINATION --- */
+  .pagination-bar {
+    display: flex; align-items: center; justify-content: center; gap: 1rem;
+    padding: 1rem;
+    background: var(--pcv-card-bg);
+    border: 1px solid var(--pcv-border);
+    border-radius: 1rem;
+    width: fit-content;
+    margin: 0 auto;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  }
+
+  .pagination-bar.top { margin-bottom: 2rem; }
+  .pagination-bar.bottom { margin-top: 2rem; }
+
+  .page-info {
+    font-weight: 600; color: var(--pcv-text); min-width: 80px; text-align: center;
+  }
+
+  .btn-nav {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--pcv-border);
+    border-radius: 0.5rem;
+    color: var(--pcv-text);
+    font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-nav:hover:not(:disabled) {
+    border-color: var(--pcv-accent); color: var(--pcv-accent);
+    background: rgba(59, 130, 246, 0.05);
+  }
+  .btn-nav:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* --- UTILS --- */
+  .grid-wrapper { margin-top: 1rem; }
+
+  .state-message {
+    display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+    padding: 2rem; color: var(--pcv-text-muted);
+  }
+  .state-message.error { color: #ef4444; }
 
   @media (max-width: 640px) {
-    .page-title {
-      font-size: 2rem;
-    }
+    .page-title { font-size: 2rem; }
+    .pagination-bar { width: 100%; justify-content: space-between; }
+    .btn-nav { padding: 0.5rem; }
   }
 </style>

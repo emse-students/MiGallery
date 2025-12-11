@@ -53,3 +53,14 @@ CREATE TABLE IF NOT EXISTS user_favorites (
     PRIMARY KEY (user_id, asset_id),
     FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
+
+-- Photo access permissions: allows a user to grant specific people access to their "Mes photos" page
+-- RGPD compliant: explicit consent to share biometric-linked photos with specific users only
+CREATE TABLE IF NOT EXISTS photo_access_permissions (
+    owner_id TEXT NOT NULL,           -- The user who grants access (owner of the photos)
+    authorized_id TEXT NOT NULL,      -- The user who is granted access
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (owner_id, authorized_id),
+    FOREIGN KEY(owner_id) REFERENCES users(id_user) ON DELETE CASCADE,
+    FOREIGN KEY(authorized_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
