@@ -431,7 +431,6 @@
     position: relative;
     min-height: 100vh;
     color: var(--tm-text);
-    background-color: var(--tm-bg);
     overflow-x: hidden;
     font-family: system-ui, -apple-system, sans-serif;
   }
