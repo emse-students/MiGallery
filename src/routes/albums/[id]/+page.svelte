@@ -314,9 +314,7 @@
     --am-text-muted: var(--text-secondary, #6b7280);
     --am-accent: var(--accent, #3b82f6);
     --am-border: var(--border, #e5e7eb);
-    --am-glass-bg: rgba(255, 255, 255, 0.7);
-    --am-glass-border: rgba(255, 255, 255, 0.6);
-    --am-item-bg: rgba(255, 255, 255, 0.5);
+    /* Do not override glass variables here — rely on global theme variables to avoid flashes */
 
     position: relative;
     min-height: 100vh;
@@ -505,7 +503,6 @@
       box-shadow: 0 8px 28px rgba(0,0,0,0.06) !important;
       backdrop-filter: none !important;
     }
-    .upload-container a,
     .upload-container *,
     .upload-header h3,
     .upload-header p {

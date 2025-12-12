@@ -519,6 +519,21 @@
   .flex-spacer {
     content: '';
     flex-grow: 999999999;
+
+  /* Reduce modal transparency specifically for the corbeille confirmation dialogs */
+  :global([data-theme='dark']) .corbeille-main .modal-content {
+    background: rgba(10,12,16,0.92) !important;
+    border-color: rgba(255,255,255,0.06) !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.6) !important;
+    color: var(--text-primary) !important;
+  }
+
+  :global([data-theme='light']) .corbeille-main .modal-content {
+    background: rgba(255,255,255,0.96) !important;
+    border-color: rgba(0,0,0,0.06) !important;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.08) !important;
+    color: var(--text-primary) !important;
+  }
     margin: 0;
     padding: 0;
     height: 0;
