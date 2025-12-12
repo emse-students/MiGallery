@@ -314,9 +314,7 @@
     --am-text-muted: var(--text-secondary, #6b7280);
     --am-accent: var(--accent, #3b82f6);
     --am-border: var(--border, #e5e7eb);
-    --am-glass-bg: rgba(255, 255, 255, 0.7);
-    --am-glass-border: rgba(255, 255, 255, 0.6);
-    --am-item-bg: rgba(255, 255, 255, 0.5);
+    /* Do not override glass variables here — rely on global theme variables to avoid flashes */
 
     position: relative;
     min-height: 100vh;

@@ -231,9 +231,7 @@
     --cv-text-muted: var(--text-secondary, #6b7280);
     --cv-accent: var(--accent, #3b82f6);
     --cv-border: var(--border, #e5e7eb);
-    --cv-glass-bg: rgba(255, 255, 255, 0.7);
-    --cv-glass-border: rgba(255, 255, 255, 0.5);
-    --cv-item-bg: rgba(255, 255, 255, 0.5);
+        /* Do not override glass variables here — rely on global theme variables to avoid flashes */
 
     position: relative;
     min-height: 100vh;
@@ -276,6 +274,7 @@
     position: relative; z-index: 1;
     max-width: 1200px; margin: 0 auto;
     padding: 2rem 1.5rem 6rem;
+    border-radius: 1.5rem;
   }
 
   /* --- HEADER --- */
