@@ -191,26 +191,6 @@
                 {/if}
 
                 {#if !allPhotosState.loading && !allPhotosState.error}
-                    <!-- Pagination Top -->
-                    <div class="pagination-container top">
-                        <button
-                            class="btn-nav"
-                            onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
-                            disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-                        >
-                            <Icon name="chevron-left" size={20} />
-                        </button>
-
-                        <span class="page-badge">Page {allPhotosState.photoCVCurrentPage}</span>
-
-                        <button
-                            class="btn-nav"
-                            onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
-                            disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-                        >
-                            <Icon name="chevron-right" size={20} />
-                        </button>
-                    </div>
 
                     <div bind:this={photosGridContainer} class="grid-wrapper glass-card p-4">
                         <PhotosGrid state={allPhotosState} />
@@ -225,6 +205,8 @@
                         >
                             <Icon name="chevron-left" size={20} /> Précédent
                         </button>
+
+                        <span class="page-badge">Page {allPhotosState.photoCVCurrentPage}</span>
 
                         <button
                             class="btn-nav"
@@ -357,7 +339,6 @@
   .pagination-container {
       display: flex; align-items: center; justify-content: center; gap: 1rem;
   }
-  .pagination-container.top { margin-bottom: 1.5rem; justify-content: flex-end; }
   .pagination-container.bottom { margin-top: 2rem; }
 
   .btn-nav {
@@ -385,6 +366,39 @@
 
   @media (max-width: 640px) {
       .header-content h1 { font-size: 2rem; }
-      .pagination-container.top { justify-content: center; }
   }
+
+    /* Mobile: améliorer la lisibilité des zones d'upload et cartes glass */
+    @media (max-width: 768px) {
+        .upload-section,
+        .glass-card.upload-section,
+        .glass-card.upload-section .upload-content {
+            /* Rendre le fond plus opaque sur mobile pour meilleur contraste */
+            background: rgba(255,255,255,0.96) !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            color: var(--cv-text) !important;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.08) !important;
+            backdrop-filter: none !important;
+        }
+        .upload-section .upload-header h3,
+        .upload-section .upload-header p {
+            color: var(--cv-text) !important;
+        }
+    }
+
+    @media (max-width: 768px) and (prefers-color-scheme: dark) {
+        .upload-section,
+        .glass-card.upload-section,
+        .glass-card.upload-section .upload-content {
+            background: rgba(10,12,16,0.92) !important;
+            border-color: rgba(255,255,255,0.06) !important;
+            color: var(--cv-text) !important;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.35) !important;
+            backdrop-filter: none !important;
+        }
+        .upload-section .upload-header h3,
+        .upload-section .upload-header p {
+            color: var(--cv-text) !important;
+        }
+    }
 </style>
