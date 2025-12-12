@@ -243,8 +243,7 @@
     font-family: system-ui, -apple-system, sans-serif;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .page-main {
+    :global([data-theme='dark']) .page-main {
         --cv-bg: var(--bg-primary, #020617);
         --cv-text: var(--text-primary, #f3f4f6);
         --cv-text-muted: var(--text-secondary, #94a3b8);
@@ -253,7 +252,17 @@
         --cv-glass-border: rgba(255, 255, 255, 0.08);
         --cv-item-bg: rgba(255, 255, 255, 0.03);
     }
-  }
+
+    /* Ensure explicit light theme variables when the app attribute forces light mode */
+    :global([data-theme='light']) .page-main {
+        --cv-bg: var(--bg-primary, #ffffff);
+        --cv-text: var(--text-primary, #111827);
+        --cv-text-muted: var(--text-secondary, #6b7280);
+        --cv-border: var(--border, #e5e7eb);
+        --cv-glass-bg: rgba(255, 255, 255, 0.7);
+        --cv-glass-border: rgba(255, 255, 255, 0.5);
+        --cv-item-bg: rgba(255, 255, 255, 0.5);
+    }
 
   /* --- BACKGROUND --- */
   .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -305,6 +314,7 @@
     background: var(--cv-glass-bg); backdrop-filter: blur(20px);
     border: 1px solid var(--cv-glass-border); border-radius: 20px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+	margin-bottom: 1.5em;
   }
   .glass-card.p-4 { padding: 1.5rem; }
 
@@ -313,7 +323,8 @@
   .upload-header {
       padding: 1.5rem; border-bottom: 1px solid var(--cv-border);
       display: flex; align-items: center; gap: 1rem;
-      background: rgba(255,255,255,0.02);
+      /* Use theme-aware glass background for better contrast */
+      background: var(--cv-glass-bg);
   }
   .icon-box {
       width: 42px; height: 42px; border-radius: 10px;
@@ -384,6 +395,9 @@
         .upload-section .upload-header p {
             color: var(--cv-text) !important;
         }
+        /* Add spacing between upload card and grid content on mobile. Use padding-top to avoid margin collapse when grid content renders */
+        .upload-section { margin-bottom: 1rem !important; }
+        .grid-wrapper { margin-top: 0 !important; padding-top: 1rem !important; }
     }
 
     @media (max-width: 768px) and (prefers-color-scheme: dark) {
@@ -399,6 +413,27 @@
         .upload-section .upload-header h3,
         .upload-section .upload-header p {
             color: var(--cv-text) !important;
+        }
+    }
+
+    /* Mobile light-mode specific tweak for better contrast */
+    @media (max-width: 768px) and (prefers-color-scheme: light) {
+        .upload-section,
+        .glass-card.upload-section,
+        .glass-card.upload-section .upload-content {
+            background: rgba(255,255,255,0.96) !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            /* Force explicit readable text color in light mode */
+            color: var(--text-primary, #111827) !important;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.06) !important;
+            backdrop-filter: none !important;
+        }
+        .upload-section .upload-header h3,
+        .upload-section .upload-header p,
+        .upload-section .upload-content,
+        .upload-section a,
+        .upload-section * {
+            color: var(--text-primary, #111827) !important;
         }
     }
 </style>

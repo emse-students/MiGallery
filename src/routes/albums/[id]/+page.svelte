@@ -338,6 +338,26 @@
         --am-item-bg: rgba(255, 255, 255, 0.03);
     }
   }
+  :global([data-theme='dark']) .page-main {
+    --am-bg: var(--bg-primary, #020617);
+    --am-text: var(--text-primary, #f3f4f6);
+    --am-text-muted: var(--text-secondary, #94a3b8);
+    --am-border: rgba(255, 255, 255, 0.08);
+    --am-glass-bg: rgba(15, 23, 42, 0.6);
+    --am-glass-border: rgba(255, 255, 255, 0.08);
+    --am-item-bg: rgba(255, 255, 255, 0.03);
+  }
+
+  /* Ensure explicit light theme variables when the app attribute forces light mode */
+  :global([data-theme='light']) .page-main {
+    --am-bg: var(--bg-primary, #ffffff);
+    --am-text: var(--text-primary, #111827);
+    --am-text-muted: var(--text-secondary, #6b7280);
+    --am-border: var(--border, #e5e7eb);
+    --am-glass-bg: rgba(255, 255, 255, 0.7);
+    --am-glass-border: rgba(255, 255, 255, 0.08);
+    --am-item-bg: rgba(255, 255, 255, 0.5);
+  }
 
   /* --- BACKGROUND --- */
   .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
@@ -425,6 +445,9 @@
   .upload-header h3 { margin: 0; font-size: 1.2rem; }
   .upload-header p { margin: 0; color: var(--am-text-muted); font-size: 0.9rem; }
 
+  /* Make upload header use theme glass background for consistency */
+  .upload-header { background: var(--am-glass-bg); padding: 1rem; border-radius: 12px; }
+
   .error-card { padding: 1.5rem; border-left: 4px solid #ef4444; color: #ef4444; display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
 
   .empty-state {
@@ -464,6 +487,30 @@
       .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
       .header-main { gap: 1rem; }
       .title-wrapper h1 { font-size: 1.8rem; }
+  }
+
+  /* Mobile: improve spacing and contrast for upload area */
+  @media (max-width: 768px) {
+    .upload-container { margin-bottom: 1rem !important; }
+    /* Use padding-top to guarantee spacing even after the gallery grid renders */
+    .gallery-wrapper { margin-top: 0 !important; padding-top: 1rem !important; }
+  }
+
+  @media (max-width: 768px) and (prefers-color-scheme: light) {
+    .upload-container, .upload-header {
+      background: rgba(255,255,255,0.96) !important;
+      border-color: rgba(0,0,0,0.06) !important;
+      /* Force explicit readable text color in light mode */
+      color: var(--text-primary, #111827) !important;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.06) !important;
+      backdrop-filter: none !important;
+    }
+    .upload-container a,
+    .upload-container *,
+    .upload-header h3,
+    .upload-header p {
+      color: var(--text-primary, #111827) !important;
+    }
   }
 
   /* Mobile: améliorer la lisibilité des zones d'upload et cartes glass */
