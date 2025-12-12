@@ -354,8 +354,8 @@
             {/if}
 
               <LazyImage
-              src={`/api/immich/assets/${asset.id}/thumbnail?size=preview`}
-              highRes={`/api/immich/assets/${asset.id}/original`}
+              src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
+              highRes={`/api/immich/assets/${asset.id}/thumbnail?size=preview`}
               alt={asset.originalFileName || 'Photo'}
               isVideo={asset.type === 'VIDEO'}
             />
