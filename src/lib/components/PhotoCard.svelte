@@ -148,16 +148,17 @@
 	// Ne PAS utiliser asset._raw?.isFavorite car c'est la valeur d'Immich (partagée entre utilisateurs)
 	// On utilise uniquement asset.isFavorite qui est chargé depuis notre base locale
 	let isFavorite = $derived(asset.isFavorite ?? false);
+	// Use smaller numeric thumbnail for faster grid load, and a medium high-res for visible upgrade
 	let thumbnailUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
-			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=preview`
-			: `/api/immich/assets/${asset.id}/thumbnail?size=preview`
+			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
+			: `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`
 	);
 
 	let highResUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
 			? undefined
-			: `/api/immich/assets/${asset.id}/original`
+			: `/api/immich/assets/${asset.id}/thumbnail?size=preview`
 	);
 	let isVideo = $derived(asset.type === 'VIDEO');
 </script>

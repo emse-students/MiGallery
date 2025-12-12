@@ -262,14 +262,14 @@
                                         {#if albumCovers[a.id]}
                                             <LazyImage
                                               src={
-                                                // use preview via proxy param for better baseline quality
-                                                `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=preview&format=JPEG`
+                                                // use modest numeric size for grid thumbnails
+                                                `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=thumbnail&format=JPEG`
                                               }
                                               highRes={
-                                                // Only request original when album is public/listed
+                                                // medium high-res for visible upgrade when allowed (avoid original to save bandwidth)
                                                 a.visibility === 'unlisted'
                                                   ? undefined
-                                                  : `/api/immich/assets/${albumCovers[a.id].id}/original`
+                                                  : `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=preview&format=JPEG`
                                               }
                                               alt={a.name}
                                               class="album-cover"

@@ -40,6 +40,7 @@
     interface Props {
         src: string;
         highRes?: string;
+        highResDprThreshold?: number;
         alt: string;
         class?: string;
         aspectRatio?: string;
@@ -47,7 +48,7 @@
         radius?: string; // Prop pour contrôler le radius du skeleton interne
     }
 
-    let { src, highRes = undefined, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
+    let { src, highRes = undefined, highResDprThreshold = 1.25, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
 
     let isLoaded = $state(false);
     let isInView = $state(false);
@@ -82,6 +83,11 @@
             displaySrc = src;
             // If a highRes URL is provided, fetch and swap to it lazily
             if (highRes && !highResLoaded) {
+                const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1;
+                if (dpr < (highResDprThreshold || 1)) {
+                    // Skip fetching highRes for low-DPR displays to save bandwidth
+                    return;
+                }
                 try {
                     const cachedHigh = getCached(highRes);
                     if (cachedHigh) {
