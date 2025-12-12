@@ -146,7 +146,7 @@
 						title={asset.originalFileName || 'Photo'}
 					>
 					<LazyImage
-						src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
+						src={`/api/immich/assets/${asset.id}/thumbnail?size=preview`}
 						alt={asset.originalFileName || 'Photo'}
 						class="photo-thumbnail"
 						aspectRatio="1"

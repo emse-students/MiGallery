@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { goto } from '$app/navigation';
 	import Icon from './Icon.svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
@@ -9,7 +8,7 @@
 	interface Props {
 		albumId?: string; // If present, edit mode. If absent, create mode.
 		onClose: () => void;
-		onSuccess?: () => void; // Called after create or update
+		onSuccess?: (albumId?: string) => void; // Called after create or update
 	}
 
 	let { albumId, onClose, onSuccess }: Props = $props();
@@ -165,14 +164,9 @@
 				const createdAlbum = (await res.json()) as { id?: string };
 				const newAlbumId = createdAlbum.id;
 
-				// Succès
-				if (onSuccess) await onSuccess();
+				// Succès — laisser le parent décider de la navigation
+				if (onSuccess) await onSuccess(newAlbumId);
 				onClose();
-
-				// Rediriger vers le nouvel album
-				if (newAlbumId) {
-					await goto(`/albums/${newAlbumId}`);
-				}
 				return;
 			}
 

@@ -150,8 +150,14 @@
 	let isFavorite = $derived(asset.isFavorite ?? false);
 	let thumbnailUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
-			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
-			: `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`
+			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=preview`
+			: `/api/immich/assets/${asset.id}/thumbnail?size=preview`
+	);
+
+	let highResUrl = $derived(
+		albumVisibility === 'unlisted' && albumId
+			? undefined
+			: `/api/immich/assets/${asset.id}/original`
 	);
 	let isVideo = $derived(asset.type === 'VIDEO');
 </script>
@@ -232,11 +238,12 @@
 
 		<!-- Image/Video Thumbnail -->
 		<LazyImage
-			src={thumbnailUrl}
-			alt={fileName}
-			class="photo-img-wrapper"
-			aspectRatio={aspectRatioString}
-			{isVideo}
+			 src={thumbnailUrl}
+			 highRes={highResUrl}
+			 alt={fileName}
+			 class="photo-img-wrapper"
+			 aspectRatio={aspectRatioString}
+			 {isVideo}
 		/>
 	{:else}
 		<!-- Skeleton pendant le chargement des détails -->

@@ -27,6 +27,7 @@
 	let loading = $state(false);
 	let isVideo = $state(false);
 	let imageLoaded = $state(false);
+	let highResLoaded = $state(false);
 	let scale = $state(1);
 	let minScale = $state(0.1); // will be recomputed to a dynamic value when the image loads
 
@@ -55,6 +56,16 @@
 	let imgElement = $state<HTMLImageElement | null>(null);
 	let containerElement = $state<HTMLDivElement | null>(null);
 
+	// Portal root pour monter le modal directement dans document.body
+	let portalRoot = $state<HTMLDivElement | null>(null);
+
+	// Touch/pinch zoom state
+	let touchStartDistance = $state(0);
+	let touchStartScale = $state(1);
+	let isTouchDragging = $state(false);
+	let touchDragStart = $state({ x: 0, y: 0 });
+	let lastTouchEnd = $state(0); // Pour détecter double-tap
+
 	// Prévenir les rechargements répétés de la même asset
 	let lastLoadedAssetId = $state<string | null>(null);
 
@@ -82,6 +93,7 @@
 		if (!id) return;
 		loading = true;
 		imageLoaded = false;
+		highResLoaded = false;
 		asset = null;
 		mediaUrl = null;
 		isVideo = false;
@@ -118,23 +130,32 @@
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 				imageLoaded = true;
 			} else {
-			// Choisir dynamiquement la taille de la miniature selon la taille du conteneur
-			// Utiliser preview pour les écrans larges, thumbnail pour les petits écrans
+			// Choisir la qualité initiale pour la visionneuse :
+			// - Sur mobile (petite largeur) on charge directement l'original pour une meilleure netteté
+			// - Sinon on charge 'preview' (meilleure que 'thumbnail') et on bascule vers l'original si l'utilisateur zoome
 			let size = 'preview';
-			try {
-				const containerWidth = containerElement ? containerElement.clientWidth : window.innerWidth;
-				if (containerWidth < 600) size = 'thumbnail';
-				else size = 'preview';
-			} catch (e: unknown) {
-				size = 'preview';
+			if (typeof window !== 'undefined') {
+				const isMobileViewport = window.innerWidth <= 768;
+				const highDPR = (window.devicePixelRatio || 1) > 1.5;
+				if (isMobileViewport || highDPR) {
+					// Charger l'original sur mobile / écrans haute densité pour conserver la netteté lors du zoom
+					size = 'original';
+				}
 			}
 
-				// Pour les albums en mode "unlisted" on utilise la route publique qui proxy la vignette
-				if (albumVisibility === 'unlisted' && albumId) {
-					mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${size}`;
+			// Pour les albums en mode "unlisted" on utilise la route publique qui proxy la vignette
+			if (albumVisibility === 'unlisted' && albumId) {
+				// Le proxy d'album ne propose que l'endpoint 'thumbnail';
+				// si on souhaitait l'original, on retombe sur 'preview' pour garantir l'accès public.
+				const proxySize = size === 'original' ? 'preview' : size;
+				mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
+			} else {
+				if (size === 'original') {
+					mediaUrl = `/api/immich/assets/${id}/original`;
 				} else {
 					mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
 				}
+			}
 		}
 	} catch (e: unknown) {
 		console.error('Erreur chargement asset:', e);
@@ -189,6 +210,11 @@
 
 			scale = newScale;
 
+			// Si l'utilisateur zoome fortement, charger la haute résolution si nécessaire
+			if (newScale > 1.3 && !highResLoaded && !isVideo) {
+				ensureHighRes();
+			}
+
 			// Contraindre le translate après le zoom
 			// Utiliser un petit délai pour que l'image ait le temps de se redimensionner
 			setTimeout(() => {
@@ -229,6 +255,11 @@
 		};
 
 		scale = newScale;
+
+		// Charger la haute résolution si on force un zoom important
+		if (newScale > 1.3 && !highResLoaded && !isVideo) {
+			ensureHighRes();
+		}
 
 		// Constrain after zoom. Use timeout so layout updates first.
 		setTimeout(() => { translate = constrainTranslate(translate); }, 0);
@@ -299,6 +330,112 @@
 	function handleMouseUp() {
 		isDragging = false;
 	}
+
+	// Charger l'original en remplacement du preview si nécessaire
+	async function ensureHighRes() {
+		if (!asset || isVideo || highResLoaded) return;
+		// Conserver l'original en mémoire mais remplacer mediaUrl par l'original
+		try {
+			if (albumVisibility === 'unlisted' && albumId) {
+				// proxy d'album n'expose pas l'original directement — on garde 'preview' dans ce cas
+				// (déjà géré lors de la construction de mediaUrl)
+				highResLoaded = true;
+				return;
+			}
+			// Construction de l'URL originale via l'endpoint prévu
+			mediaUrl = `/api/immich/assets/${asset.id}/original`;
+			highResLoaded = true;
+			// attendre que l'image se recharge (optionnel)
+			// l'événement onload de l'élément <img> gère imageLoaded
+		} catch (e) {
+			console.warn('Unable to load high-res image', e);
+		}
+	}
+
+	// ============= TOUCH HANDLERS (mobile pinch-to-zoom) =============
+
+	function getTouchDistance(touches: TouchList): number {
+		if (touches.length < 2) return 0;
+		const dx = touches[0].clientX - touches[1].clientX;
+		const dy = touches[0].clientY - touches[1].clientY;
+		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	function handleTouchStart(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			// Pinch start
+			e.preventDefault();
+			touchStartDistance = getTouchDistance(e.touches);
+			touchStartScale = scale;
+			isTouchDragging = false;
+		} else if (e.touches.length === 1) {
+			// Single finger - check for double tap or drag
+			const now = Date.now();
+			if (now - lastTouchEnd < 300) {
+				// Double tap - toggle zoom
+				e.preventDefault();
+				if (scale > 1) {
+					scale = 1;
+					translate = { x: 0, y: 0 };
+				} else {
+					scale = 2.5;
+				}
+				lastTouchEnd = 0;
+			} else if (scale > 1) {
+				// Start drag when zoomed
+				isTouchDragging = true;
+				touchDragStart = {
+					x: e.touches[0].clientX - translate.x,
+					y: e.touches[0].clientY - translate.y
+				};
+			}
+		}
+	}
+
+	function handleTouchMove(e: TouchEvent) {
+		if (e.touches.length === 2 && touchStartDistance > 0) {
+			// Pinch zoom
+			e.preventDefault();
+			const currentDistance = getTouchDistance(e.touches);
+			const scaleChange = currentDistance / touchStartDistance;
+			let newScale = touchStartScale * scaleChange;
+			newScale = Math.max(minScale, Math.min(10, newScale));
+			scale = newScale;
+
+			// Charger la haute résolution lors d'un pinch-zoom important
+			if (newScale > 1.3 && !highResLoaded && !isVideo) {
+				ensureHighRes();
+			}
+
+			if (scale <= 1) {
+				translate = { x: 0, y: 0 };
+			}
+		} else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
+			// Single finger drag when zoomed
+			e.preventDefault();
+			const newTranslate = {
+				x: e.touches[0].clientX - touchDragStart.x,
+				y: e.touches[0].clientY - touchDragStart.y
+			};
+			translate = constrainTranslate(newTranslate);
+		}
+	}
+
+	function handleTouchEnd(e: TouchEvent) {
+		if (e.touches.length === 0) {
+			lastTouchEnd = Date.now();
+			touchStartDistance = 0;
+			isTouchDragging = false;
+
+			// Constrain translate after pinch ends
+			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
+
+			if (scale <= 1) {
+				translate = { x: 0, y: 0 };
+			}
+		}
+	}
+	// ============= END TOUCH HANDLERS =============
 
 	function resetZoom() {
 		scale = 1;
@@ -419,6 +556,11 @@
 	}
 
 	onMount(() => {
+		// Si besoin, monter le wrapper du modal dans document.body pour éviter
+		// les problèmes de stacking context créés par des parents transform/opacity
+		if (portalRoot && portalRoot.parentNode !== document.body) {
+			document.body.appendChild(portalRoot);
+		}
 		window.addEventListener('keydown', handleKeydown);
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
@@ -430,6 +572,11 @@
 		window.removeEventListener('mousemove', handleMouseMove);
 		window.removeEventListener('mouseup', handleMouseUp);
 		document.body.classList.remove('modal-open');
+
+		// Nettoyer le portail si on l'a monté dans document.body
+		if (portalRoot && portalRoot.parentNode === document.body) {
+			try { document.body.removeChild(portalRoot); } catch {}
+		}
 		// Revoke object URL only if we created one
 		if (mediaUrl && mediaUrl.startsWith && mediaUrl.startsWith('blob:')) {
 			try { URL.revokeObjectURL(mediaUrl); } catch {}
@@ -437,7 +584,7 @@
 	});
 </script>
 
-<div class="modal-backdrop" onclick={handleBackdropClick} role="button" tabindex="-1" onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}>
+<div bind:this={portalRoot} class="modal-backdrop" onclick={handleBackdropClick} role="button" tabindex="-1" onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}>
 	<div class="modal-content">
 		<div class="modal-header">
 			<div class="modal-title">
@@ -541,6 +688,9 @@
 							}}
 							onmousedown={handleMouseDown}
 							ondblclick={handleDoubleClick}
+							ontouchstart={handleTouchStart}
+							ontouchmove={handleTouchMove}
+							ontouchend={handleTouchEnd}
 							draggable="false"
 						/>
 					{/if}
@@ -577,8 +727,8 @@
 	.modal-backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.95);
-		backdrop-filter: blur(20px);
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(8px) saturate(120%);
 		z-index: 1000;
 		display: flex;
 		align-items: center;
@@ -603,6 +753,11 @@
 		display: flex;
 		flex-direction: column;
 		animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255,255,255,0.06);
+		border-radius: 12px;
+		backdrop-filter: blur(10px) saturate(120%);
+		box-shadow: 0 20px 60px rgba(2,6,23,0.6);
 	}
 
 	@keyframes slideUp {
@@ -621,11 +776,11 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 1rem;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 12px 12px 0 0;
-		backdrop-filter: blur(10px);
-		z-index: 10;
+		background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+		border-bottom: 1px solid rgba(255,255,255,0.04);
 		position: relative;
+		z-index: 10;
+		backdrop-filter: blur(6px);
 	}
 
 	.modal-title {
@@ -724,6 +879,8 @@
 		position: relative;
 		overflow: hidden;
 		user-select: none;
+		/* Empêcher le zoom natif du navigateur sur mobile */
+		touch-action: none;
 	}
 
 
@@ -786,10 +943,11 @@
 	.modal-footer {
 		padding: 1rem;
 		text-align: center;
-		color: rgba(255, 255, 255, 0.8);
-		background: rgba(255, 255, 255, 0.05);
+		color: rgba(255, 255, 255, 0.85);
+		background: linear-gradient(to top, rgba(255,255,255,0.02), transparent);
+		border-top: 1px solid rgba(255,255,255,0.03);
 		border-radius: 0 0 12px 12px;
-		backdrop-filter: blur(10px);
+		backdrop-filter: blur(6px);
 		z-index: 10;
 		position: relative;
 	}
