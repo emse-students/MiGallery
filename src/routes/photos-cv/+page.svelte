@@ -96,7 +96,7 @@
 
   <div class="page-container">
 
-    <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
+    <header class="page-header centered" in:fade={{ duration: 300, delay: 100 }}>
         <div class="header-content">
             <h1>Photos CV</h1>
             <p class="subtitle">Portraits professionnels et institutionnels</p>
@@ -288,11 +288,7 @@
   }
 
   /* --- HEADER --- */
-  .page-header {
-    display: flex; align-items: center; justify-content: center; gap: 1.5rem;
-    margin-bottom: 3rem; flex-wrap: wrap; text-align: center;
-  }
-  .header-content h1 { font-size: 2.5rem; font-weight: 800; margin: 0; line-height: 1.1; letter-spacing: -0.02em; }
+    .page-header { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-bottom: 3rem; flex-wrap: wrap; text-align: center; }
   .subtitle { color: var(--cv-text-muted); font-size: 1.1rem; margin: 0.25rem 0 0; }
 
   /* --- TABS --- */

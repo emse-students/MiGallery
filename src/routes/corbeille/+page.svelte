@@ -263,7 +263,11 @@
 <main class="corbeille-main">
   <div class="page-background"></div>
 
-  <h1 class="page-title">Corbeille</h1>
+  <header class="page-header centered">
+    <div class="header-content">
+      <h1>Corbeille</h1>
+    </div>
+  </header>
 
   {#if error}
     <div class="error"><Icon name="x-circle" size={20} /> Erreur: {error}</div>
@@ -329,7 +333,7 @@
           {@const flexBasis = aspectRatio * 220}
           {@const flexGrow = aspectRatio * 100}
           <div
-            class="photo-card {selectedAssets.includes(asset.id) ? 'selected' : ''}"
+            class="photo-card glass-card {selectedAssets.includes(asset.id) ? 'selected' : ''}"
             style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
             role="button"
             tabindex="0"
@@ -349,8 +353,9 @@
               </button>
             {/if}
 
-            <LazyImage
-              src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
+              <LazyImage
+              src={`/api/immich/assets/${asset.id}/thumbnail?size=preview`}
+              highRes={`/api/immich/assets/${asset.id}/original`}
               alt={asset.originalFileName || 'Photo'}
               isVideo={asset.type === 'VIDEO'}
             />
@@ -422,17 +427,7 @@
     overflow: hidden;
   }
 
-  .page-title {
-    text-align: center;
-    font-size: 3rem;
-    font-weight: 700;
-    margin: 2rem 0 3rem;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-  }
+  /* Titles handled by shared styles in app.css */
 
   .toolbar {
     display: flex;
@@ -532,7 +527,10 @@
   .photo-card {
     position: relative;
     margin: 2px;
-    background: var(--bg-secondary);
+    /* glass-style background */
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(6px) saturate(120%);
     border-radius: var(--radius-xs);
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -547,9 +545,9 @@
 
   .photo-card:hover {
     transform: translateY(-6px) scale(1.02);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7),
-                0 10px 25px rgba(0, 0, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45),
+                0 6px 15px rgba(2, 6, 23, 0.25);
+    border-color: rgba(255, 255, 255, 0.08);
     z-index: 10;
   }
 
@@ -738,9 +736,6 @@
       display: none;
     }
 
-    .page-title {
-      font-size: 2rem;
-    }
   }
 
   @media (max-width: 480px) {

@@ -667,14 +667,14 @@
 
   /* --- MODAL --- */
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px) saturate(120%);
     z-index: 100; display: flex; align-items: center; justify-content: center;
   }
   .modal-glass {
-    background: var(--adm-bg); width: 90%; max-width: 450px;
-    padding: 2rem; border-radius: 24px; border: 1px solid var(--adm-glass-border);
-    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); text-align: center;
-    position: relative; overflow: hidden;
+    background: rgba(255,255,255,0.04); width: 90%; max-width: 520px;
+    padding: 1.75rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 20px 50px rgba(2,6,23,0.6); text-align: center;
+    position: relative; overflow: hidden; backdrop-filter: blur(8px) saturate(120%);
   }
   /* Petit effet de lueur dans la modal */
   .modal-glass::before {

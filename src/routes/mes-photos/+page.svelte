@@ -178,17 +178,17 @@
         {:else}
           <img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo static" />
         {/if}
-        <div class="header-text">
-          <h1 class="page-title">
-            {targetUserName ?? photosState.personName}
-          </h1>
-          {#if !isViewingOwnPhotos}
-            <span class="viewing-badge">
-              <Icon name="eye" size={14} />
-              Consultation autorisée
-            </span>
-          {/if}
-        </div>
+          <div class="header-text centered">
+            <h1 class="page-title">
+              {targetUserName ?? photosState.personName}
+            </h1>
+            {#if !isViewingOwnPhotos}
+              <span class="viewing-badge">
+                <Icon name="eye" size={14} />
+                Consultation autorisée
+              </span>
+            {/if}
+          </div>
       </div>
     {:else if photosState.personName}
       <h1 class="page-title-center">
@@ -295,20 +295,7 @@
     width: fit-content;
   }
 
-  .page-title {
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .page-title-center {
-    text-align: center;
-    font-size: 3rem;
-    font-weight: 700;
-    margin: 2rem 0 3rem;
-    color: var(--text-primary);
-  }
+  /* Titles: use global header styles (shared in app.css) */
 
   .profile-photo-btn {
     position: relative;

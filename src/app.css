@@ -382,7 +382,6 @@
 		padding-bottom: calc(var(--container-padding) + var(--mobile-nav-height));
 	}
 
-
 	/* =============================================
 	   SHARED PAGE / GLASS STYLES
 	   - Homogénise les titres h1/h2 entre pages (inspiré de /albums)
@@ -416,6 +415,14 @@
 		z-index: 1;
 	}
 
+	/* Ensure header actions align to the right by default (can be overridden per-page) */
+	.page-header .header-actions {
+		margin-left: auto;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
 	.header-content h1,
 	.page-title,
 	h1.page-title,
@@ -429,6 +436,26 @@
 		color: var(--text-primary);
 	}
 
+	/* Centered header modifier: use when a page has no header-actions */
+	.page-header.centered {
+		justify-content: center;
+	}
+
+	.page-header.centered .header-content,
+	.header-section.centered .header-text,
+	.page-title,
+	.page-title-center {
+		text-align: center;
+		width: 100%;
+	}
+
+	/* Ensure all main H1 use the album-style weight even if pages override local CSS */
+	.page-header .header-content h1,
+	main h1,
+	.header-content h1 {
+		font-weight: 800 !important;
+	}
+
 	/* Slightly smaller h2 common style */
 	.card-header h2,
 	.month-title,
@@ -437,6 +464,28 @@
 		font-weight: 700;
 		margin: 0;
 	}
+
+/* =============================================
+   GLOBAL TYPOGRAPHY (Homogénéiser la police)
+   - Basé sur /albums : system-ui, -apple-system, sans-serif
+   - Appliqué aux principaux conteneurs de page
+============================================= */
+
+html, body, main, .albums-main, .mesphotos-main, .corbeille-main, .trombi-main, .page-main, .settings-main {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure headings inherit the same system font */
+h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+}
+
+/* Keep monospace where explicitly requested (code blocks, ids, admin tables) */
+code, pre, .mono, .id-cell, .t-count {
+    font-family: ui-monospace, SFMono-Regular, 'Fira Code', 'Courier New', monospace;
+}
 
 	.subtitle {
 		color: var(--text-secondary);
@@ -450,8 +499,8 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.6rem 1.1rem;
-		background: rgba(255,255,255,0.06);
-		border: 1px solid rgba(255,255,255,0.06);
+		background: rgba(255, 255, 255, 0.06);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 10px;
 		color: var(--text-primary);
 		font-weight: 600;
@@ -462,8 +511,8 @@
 
 	.btn-glass:hover {
 		transform: translateY(-2px);
-		background: rgba(255,255,255,0.09);
-		border-color: rgba(59,130,246,0.14);
+		background: rgba(255, 255, 255, 0.09);
+		border-color: rgba(59, 130, 246, 0.14);
 		color: var(--accent);
 	}
 
@@ -471,16 +520,16 @@
 		background: var(--accent);
 		color: white;
 		border-color: transparent;
-		box-shadow: 0 6px 18px rgba(59,130,246,0.16);
+		box-shadow: 0 6px 18px rgba(59, 130, 246, 0.16);
 	}
 
 	/* Reusable glass card modifier */
 	.glass-card {
-		background: rgba(255,255,255,0.04);
-		border: 1px solid rgba(255,255,255,0.06);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: var(--radius);
 		backdrop-filter: blur(8px) saturate(120%);
-		box-shadow: 0 8px 24px rgba(2,6,23,0.45);
+		box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
 	}
 
 	/* Sur desktop large, pas besoin de padding pour la nav mobile */

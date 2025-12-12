@@ -39,6 +39,7 @@
 
     interface Props {
         src: string;
+        highRes?: string;
         alt: string;
         class?: string;
         aspectRatio?: string;
@@ -46,7 +47,7 @@
         radius?: string; // Prop pour contrôler le radius du skeleton interne
     }
 
-    let { src, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
+    let { src, highRes = undefined, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
 
     let isLoaded = $state(false);
     let isInView = $state(false);
@@ -54,6 +55,7 @@
     let imgElement: HTMLImageElement | null = $state(null);
     let containerElement: HTMLDivElement | null = $state(null);
     let displaySrc = $state(src);
+    let highResLoaded = $state(false);
 
     onMount(() => {
         if (!containerElement) return;
@@ -76,22 +78,47 @@
 
     $effect(() => {
         if (isInView && hasStartedLoading) {
+            // Start by displaying the preview src
             displaySrc = src;
-            try {
-                if (typeof src === 'string' && src.includes('/api/immich') && src.includes('thumbnail')) {
-                    const cached = getCached(src);
-                    if (cached) {
-                        displaySrc = cached;
+            // If a highRes URL is provided, fetch and swap to it lazily
+            if (highRes && !highResLoaded) {
+                try {
+                    const cachedHigh = getCached(highRes);
+                    if (cachedHigh) {
+                        displaySrc = cachedHigh;
+                        highResLoaded = true;
                     } else {
-                        fetch(src).then(r => r.ok ? r.blob() : Promise.reject())
+                        fetch(highRes).then(r => r.ok ? r.blob() : Promise.reject())
                             .then(b => {
                                 const url = URL.createObjectURL(b);
-                                setCached(src, url);
+                                setCached(highRes, url);
                                 displaySrc = url;
-                            }).catch(() => { displaySrc = src; });
+                                highResLoaded = true;
+                            }).catch(() => {
+                                // If highRes fails, fallback to preview src (already set)
+                            });
                     }
+                } catch (e) {
+                    // ignore and keep preview
                 }
-            } catch (e) { displaySrc = src; }
+            } else {
+                // No highRes requested: fallback to previous behavior for preview fetching/caching
+                try {
+                    if (typeof src === 'string' && src.includes('/api/immich') && src.includes('thumbnail')) {
+                        const cached = getCached(src);
+                        if (cached) {
+                            displaySrc = cached;
+                        } else {
+                            fetch(src).then(r => r.ok ? r.blob() : Promise.reject())
+                                .then(b => {
+                                    const url = URL.createObjectURL(b);
+                                    setCached(src, url);
+                                    displaySrc = url;
+                                }).catch(() => { displaySrc = src; });
+                        }
+                    }
+                } catch (e) { displaySrc = src; }
+            }
         }
     });
 </script>

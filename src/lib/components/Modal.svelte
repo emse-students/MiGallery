@@ -197,14 +197,14 @@
   }
 
   .modal-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(6px) saturate(120%);
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px) saturate(130%);
   }
 
   .modal-content {
-    /* Glassmorphism modal surface */
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    /* Glassmorphism modal surface (less transparent for better legibility) */
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 0.9rem;
     padding: 1.5rem;
     min-width: 400px;

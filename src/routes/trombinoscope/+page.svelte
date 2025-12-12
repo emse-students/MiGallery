@@ -225,17 +225,19 @@
 
     <!-- En-tête -->
     <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
-        <h1 class="page-title">Trombinoscope</h1>
+      <div class="header-content">
+        <h1>Trombinoscope</h1>
         <p class="subtitle">L'annuaire des membres de la galerie</p>
+      </div>
 
-        {#if canAccess}
-            <div class="header-actions">
-                <button class="action-pill primary" onclick={openAddUserModal}>
-                    <Icon name="user-plus" size={18} />
-                    <span>Ajouter</span>
-                </button>
-            </div>
-        {/if}
+      {#if canAccess}
+        <div class="header-actions">
+          <button class="action-pill primary" onclick={openAddUserModal}>
+            <Icon name="user-plus" size={18} />
+            <span>Ajouter</span>
+          </button>
+        </div>
+      {/if}
     </header>
 
     {#if error}
@@ -460,16 +462,7 @@
   }
 
   /* --- HEADER --- */
-  .page-header {
-      text-align: center; margin-bottom: 3rem;
-      display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
-  }
-  .page-title {
-    font-size: 3rem; font-weight: 800; margin: 0;
-    background: linear-gradient(135deg, var(--tm-text), var(--tm-accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    letter-spacing: -0.02em;
-  }
+  .page-header { text-align: center; margin-bottom: 3rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
   .subtitle { color: var(--tm-text-muted); font-size: 1.1rem; margin: 0; }
   .header-actions { margin-top: 1.5rem; }
 
@@ -608,12 +601,12 @@
     position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
     z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem;
   }
-  .modal-glass {
-    background: var(--tm-bg); width: 100%; max-width: 600px;
-    border-radius: 24px; border: 1px solid var(--tm-border);
-    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden;
-    display: flex; flex-direction: column; max-height: 90vh;
-  }
+    .modal-glass {
+      background: rgba(255,255,255,0.04); width: 90%; max-width: 520px;
+      padding: 1.75rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 20px 50px rgba(2,6,23,0.6); text-align: center;
+      position: relative; overflow: hidden; backdrop-filter: blur(8px) saturate(120%);
+    }
   .modal-header {
       padding: 1.5rem; border-bottom: 1px solid var(--tm-border);
       background: rgba(255,255,255,0.02);

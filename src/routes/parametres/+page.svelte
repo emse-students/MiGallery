@@ -360,14 +360,14 @@
   </div>
 
   <div class="settings-container">
-    <header class="page-header settings-header">
+    <header class="page-header settings-header centered">
       <div class="header-content">
         <h1>Paramètres</h1>
         <p class="subtitle">Gérez votre profil, vos préférences et votre confidentialité</p>
       </div>
     </header>
 
-    <section class="settings-card">
+    <section class="settings-card glass-card">
       <div class="card-header">
         <div class="icon-wrapper blue">
             <Icon name="palette" size={24} />
@@ -399,7 +399,7 @@
       </div>
     </section>
 
-    <section class="settings-card">
+    <section class="settings-card glass-card">
       <div class="card-header">
         <div class="icon-wrapper purple">
             <Icon name="scan-face" size={24} />
@@ -446,7 +446,7 @@
     </section>
 
     {#if currentUserHasFace}
-    <section class="settings-card">
+    <section class="settings-card glass-card">
       <div class="card-header">
         <div class="icon-wrapper green">
             <Icon name="share-2" size={24} />
@@ -468,9 +468,9 @@
                 onkeydown={(e) => e.key === 'Enter' && addPhotoPermission()}
             />
             <button
-                onclick={addPhotoPermission}
-                class="btn-primary"
-                disabled={isAddingPermission || !newAuthUserId.trim()}
+              onclick={addPhotoPermission}
+              class="theme-toggle-btn btn-primary"
+              disabled={isAddingPermission || !newAuthUserId.trim()}
             >
                 {#if isAddingPermission}<Spinner size={16} />{/if}
                 <span>Autoriser</span>
@@ -511,7 +511,7 @@
     </section>
     {/if}
 
-    <section class="settings-card">
+    <section class="settings-card glass-card">
         <div class="card-header">
           <div class="icon-wrapper indigo">
               <Icon name="users" size={24} />
@@ -702,24 +702,8 @@
         padding: 0 1.5rem;
     }
 
-    .settings-header {
-        margin-bottom: 3rem;
-        text-align: center;
-    }
 
-    .settings-header h1 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.75rem;
-        font-size: 2.25rem;
-        font-weight: 800;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(135deg, var(--st-accent), #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
+    .settings-header { margin-bottom: 3rem; text-align: center; }
 
     .subtitle {
         font-size: 1.1rem;

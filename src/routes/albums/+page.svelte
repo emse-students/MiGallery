@@ -261,12 +261,21 @@
                                     <div class="album-cover-wrapper">
                                         {#if albumCovers[a.id]}
                                             <LazyImage
-                                                src={`/api/immich/assets/${albumCovers[a.id].id}/thumbnail?format=JPEG`}
-                                                alt={a.name}
-                                                class="album-cover"
-                                                aspectRatio="1"
-                                                isVideo={albumCovers[a.id].type === 'VIDEO'}
-                                                radius="0"
+                                              src={
+                                                // use preview via proxy param for better baseline quality
+                                                `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=preview&format=JPEG`
+                                              }
+                                              highRes={
+                                                // Only request original when album is public/listed
+                                                a.visibility === 'unlisted'
+                                                  ? null
+                                                  : `/api/immich/assets/${albumCovers[a.id].id}/original`
+                                              }
+                                              alt={a.name}
+                                              class="album-cover"
+                                              aspectRatio="1"
+                                              isVideo={albumCovers[a.id].type === 'VIDEO'}
+                                              radius="0"
                                             />
                                         {:else}
                                             <div class="skeleton-wrapper">
