@@ -469,7 +469,7 @@
             />
             <button
               onclick={addPhotoPermission}
-              class="theme-toggle-btn btn-primary"
+              class="theme-toggle-btn"
               disabled={isAddingPermission || !newAuthUserId.trim()}
             >
                 {#if isAddingPermission}<Spinner size={16} />{/if}
@@ -803,17 +803,6 @@
 
     .permission-add-row { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     .permission-add-row input { flex: 1; }
-
-    .btn-primary {
-        background: var(--st-accent); color: white;
-        border: none; padding: 0 1.25rem;
-        border-radius: 0.5rem;
-        font-weight: 600; cursor: pointer;
-        display: flex; align-items: center; gap: 0.5rem;
-        transition: background 0.2s;
-    }
-    .btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
     /* --- PERMISSIONS LIST --- */
     .permissions-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
