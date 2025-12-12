@@ -95,7 +95,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/png" sizes="32x32" href="/MiGallery.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/MiGallery2.png">
 	<meta name="description" content="MiGallery - Galerie photo des étudiants EMSE">
 	<meta name="theme-color" content="#3b82f6">
 	<title>MiGallery</title>
@@ -103,7 +103,7 @@
 
 <nav class="topbar">
 	<div class="brand">
-		<img src="/MiGallery.png" alt="MiGallery" class="logo" />
+		<img src="/MiGallery2.png" alt="MiGallery" class="logo" />
 		<a href="/">MiGallery</a>
 	</div>
 

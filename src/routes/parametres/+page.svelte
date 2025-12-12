@@ -669,7 +669,6 @@
         min-height: 100vh;
         padding: 4rem 0 6rem;
         color: var(--st-text);
-        background-color: var(--st-bg);
         overflow-x: hidden;
     }
 

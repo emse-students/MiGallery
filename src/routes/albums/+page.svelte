@@ -373,7 +373,6 @@
     position: relative;
     min-height: 100vh;
     color: var(--alb-text);
-    background-color: var(--alb-bg);
     overflow-x: hidden;
     font-family: system-ui, -apple-system, sans-serif;
   }

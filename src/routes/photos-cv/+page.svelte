@@ -236,31 +236,9 @@
     position: relative;
     min-height: 100vh;
     color: var(--cv-text);
-    background-color: var(--cv-bg);
     overflow-x: hidden;
     font-family: system-ui, -apple-system, sans-serif;
   }
-
-    :global([data-theme='dark']) .page-main {
-        --cv-bg: var(--bg-primary, #020617);
-        --cv-text: var(--text-primary, #f3f4f6);
-        --cv-text-muted: var(--text-secondary, #94a3b8);
-        --cv-border: rgba(255, 255, 255, 0.08);
-        --cv-glass-bg: rgba(15, 23, 42, 0.6);
-        --cv-glass-border: rgba(255, 255, 255, 0.08);
-        --cv-item-bg: rgba(255, 255, 255, 0.03);
-    }
-
-    /* Ensure explicit light theme variables when the app attribute forces light mode */
-    :global([data-theme='light']) .page-main {
-        --cv-bg: var(--bg-primary, #ffffff);
-        --cv-text: var(--text-primary, #111827);
-        --cv-text-muted: var(--text-secondary, #6b7280);
-        --cv-border: var(--border, #e5e7eb);
-        --cv-glass-bg: rgba(255, 255, 255, 0.7);
-        --cv-glass-border: rgba(255, 255, 255, 0.5);
-        --cv-item-bg: rgba(255, 255, 255, 0.5);
-    }
 
   /* --- BACKGROUND --- */
   .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }

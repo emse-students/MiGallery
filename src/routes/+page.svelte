@@ -38,7 +38,7 @@
   <div class="content-wrapper" in:fade={{ duration: 800 }}>
     <header class="header">
       <div class="logo-container">
-        <img src="/MiGallery.png" alt="MiGallery Logo" class="logo" />
+        <img src="/MiGallery2.png" alt="MiGallery Logo" class="logo" />
       </div>
       <h1>MiGallery</h1>
       <p class="tagline">by MiTV</p>
