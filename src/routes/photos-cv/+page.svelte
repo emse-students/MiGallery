@@ -431,7 +431,6 @@
         .upload-section .upload-header h3,
         .upload-section .upload-header p,
         .upload-section .upload-content,
-        .upload-section a,
         .upload-section * {
             color: var(--text-primary, #111827) !important;
         }
