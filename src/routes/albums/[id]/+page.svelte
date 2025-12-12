@@ -465,4 +465,33 @@
       .header-main { gap: 1rem; }
       .title-wrapper h1 { font-size: 1.8rem; }
   }
+
+  /* Mobile: améliorer la lisibilité des zones d'upload et cartes glass */
+  @media (max-width: 768px) {
+    .upload-container,
+    .upload-container .upload-header,
+    .glass-card.upload-container,
+    .upload-container .upload-header h3,
+    .upload-container .upload-header p {
+      background: rgba(255,255,255,0.96) !important;
+      border-color: rgba(0,0,0,0.06) !important;
+      color: var(--am-text) !important;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.08) !important;
+      backdrop-filter: none !important;
+    }
+  }
+
+  @media (max-width: 768px) and (prefers-color-scheme: dark) {
+    .upload-container,
+    .upload-container .upload-header,
+    .glass-card.upload-container,
+    .upload-container .upload-header h3,
+    .upload-container .upload-header p {
+      background: rgba(8,10,12,0.92) !important;
+      border-color: rgba(255,255,255,0.06) !important;
+      color: var(--am-text) !important;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.35) !important;
+      backdrop-filter: none !important;
+    }
+  }
 </style>

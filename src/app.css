@@ -465,27 +465,51 @@
 		margin: 0;
 	}
 
-/* =============================================
+	/* =============================================
    GLOBAL TYPOGRAPHY (Homogénéiser la police)
    - Basé sur /albums : system-ui, -apple-system, sans-serif
    - Appliqué aux principaux conteneurs de page
 ============================================= */
 
-html, body, main, .albums-main, .mesphotos-main, .corbeille-main, .trombi-main, .page-main, .settings-main {
-    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
+	html,
+	body,
+	main,
+	.albums-main,
+	.mesphotos-main,
+	.corbeille-main,
+	.trombi-main,
+	.page-main,
+	.settings-main {
+		font-family:
+			system-ui,
+			-apple-system,
+			'Segoe UI',
+			Roboto,
+			'Helvetica Neue',
+			Arial,
+			sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
 
-/* Ensure headings inherit the same system font */
-h1, h2, h3, h4, h5, h6 {
-    font-family: inherit;
-}
+	/* Ensure headings inherit the same system font */
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		font-family: inherit;
+	}
 
-/* Keep monospace where explicitly requested (code blocks, ids, admin tables) */
-code, pre, .mono, .id-cell, .t-count {
-    font-family: ui-monospace, SFMono-Regular, 'Fira Code', 'Courier New', monospace;
-}
+	/* Keep monospace where explicitly requested (code blocks, ids, admin tables) */
+	code,
+	pre,
+	.mono,
+	.id-cell,
+	.t-count {
+		font-family: ui-monospace, SFMono-Regular, 'Fira Code', 'Courier New', monospace;
+	}
 
 	.subtitle {
 		color: var(--text-secondary);
