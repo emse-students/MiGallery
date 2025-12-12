@@ -156,7 +156,7 @@
 
 	let highResUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
-			? null
+			? undefined
 			: `/api/immich/assets/${asset.id}/original`
 	);
 	let isVideo = $derived(asset.type === 'VIDEO');

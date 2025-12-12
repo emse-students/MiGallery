@@ -268,7 +268,7 @@
                                               highRes={
                                                 // Only request original when album is public/listed
                                                 a.visibility === 'unlisted'
-                                                  ? null
+                                                  ? undefined
                                                   : `/api/immich/assets/${albumCovers[a.id].id}/original`
                                               }
                                               alt={a.name}
