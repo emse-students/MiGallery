@@ -360,9 +360,11 @@
   </div>
 
   <div class="settings-container">
-    <header class="settings-header">
-      <h1><Icon name="settings" size={32} /> Paramètres</h1>
-      <p class="subtitle">Gérez votre profil, vos préférences et votre confidentialité</p>
+    <header class="page-header settings-header">
+      <div class="header-content">
+        <h1>Paramètres</h1>
+        <p class="subtitle">Gérez votre profil, vos préférences et votre confidentialité</p>
+      </div>
     </header>
 
     <section class="settings-card">
@@ -410,8 +412,7 @@
 
       <div class="card-body">
         <div class="info-box">
-          <Icon name="info" size={18} class="flex-shrink-0" />
-          <p>
+          <p><Icon name="info" size={18} class="flex-shrink-0" />
             Cette photo sert uniquement à générer votre empreinte biométrique. Elle sera <strong>supprimée automatiquement sous 24h</strong> après traitement.
           </p>
         </div>
@@ -590,7 +591,7 @@
             <a href="/cgu">CGU</a> •
             <a href="mailto:bureau@mitv.fr">Contact</a>
         </div>
-        <p class="copyright">© 2025 MiTV - Développé par Jolan BOUDIN & Gabriel DUPONT</p>
+        <p class="copyright">2025 MiTV - Développé par Jolan BOUDIN & Gabriel DUPONT</p>
     </footer>
 
   </div>

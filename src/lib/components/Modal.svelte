@@ -197,19 +197,21 @@
   }
 
   .modal-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px) saturate(120%);
   }
 
   .modal-content {
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    /* Glassmorphism modal surface */
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.9rem;
     padding: 1.5rem;
     min-width: 400px;
     max-width: 600px;
-    box-shadow: var(--shadow-lg);
-    transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 12px 40px rgba(2,6,23,0.6);
+    backdrop-filter: blur(10px) saturate(130%);
+    transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
     display: flex;
     flex-direction: column;
     max-height: 90vh;

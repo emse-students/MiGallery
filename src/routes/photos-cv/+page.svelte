@@ -2,13 +2,12 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from 'svelte';
-  import { fade } from 'svelte/transition';
+  import { fade, slide } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
   import { PhotosState } from '$lib/photos.svelte';
-  import { toast } from '$lib/toast';
   import { handleAlbumUpload } from '$lib/album-operations';
   import type { User } from '$lib/types/api';
 
@@ -16,6 +15,7 @@
   const allPhotosState = new PhotosState();
 
   // Vérifier le rôle de l'utilisateur
+  // Note: page est un objet state ici, pas un store
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
   let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.id_photos);
@@ -86,307 +86,309 @@
   <title>Photos CV - MiGallery</title>
 </svelte:head>
 
-<main class="photoscv-main">
+<main class="page-main">
+  <!-- Fond animé -->
   <div class="page-background">
     <div class="gradient-blob blob-1"></div>
     <div class="gradient-blob blob-2"></div>
     <div class="gradient-blob blob-3"></div>
   </div>
 
-  <div class="photoscv-container">
+  <div class="page-container">
 
-    <header class="page-header">
-        <h1 class="page-title">Photos CV</h1>
-        <p class="subtitle">Gérez vos portraits professionnels</p>
+    <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
+        <div class="header-content">
+            <h1>Photos CV</h1>
+            <p class="subtitle">Portraits professionnels et institutionnels</p>
+        </div>
     </header>
 
-    <div class="tabs-container">
-      {#if hasIdPhotos}
-        <button
-          class="tab-pill {currentView === 'my' ? 'active' : ''}"
-          onclick={() => switchView('my')}
-        >
-          <Icon name="user" size={18} />
-          <span>Mes photos</span>
-        </button>
-      {/if}
-      {#if canManagePhotos}
-        <button
-          class="tab-pill {currentView === 'all' ? 'active' : ''}"
-          onclick={() => switchView('all')}
-        >
-          <Icon name="users" size={18} />
-          <span>Tout le monde</span>
-        </button>
-      {/if}
-    </div>
+    <!-- Navigation Tabs -->
+    {#if hasIdPhotos && canManagePhotos}
+        <div class="tabs-wrapper" in:fade={{ duration: 300, delay: 200 }}>
+            <div class="glass-tabs">
+                <button
+                    class="tab-item {currentView === 'my' ? 'active' : ''}"
+                    onclick={() => switchView('my')}
+                >
+                    <Icon name="user" size={18} />
+                    <span>Mes photos</span>
+                </button>
+                <button
+                    class="tab-item {currentView === 'all' ? 'active' : ''}"
+                    onclick={() => switchView('all')}
+                >
+                    <Icon name="users" size={18} />
+                    <span>Tout le monde</span>
+                </button>
+                <!-- Indicateur glissant pour l'effet visuel -->
+                <div class="tab-indicator {currentView === 'my' ? 'left' : 'right'}"></div>
+            </div>
+        </div>
+    {/if}
 
     <div class="content-area">
+        <!-- VUE: MES PHOTOS -->
         {#if currentView === 'my' && hasIdPhotos}
-        <div in:fade={{ duration: 200 }}>
-            {#if myPhotosState.personName}
-                <div class="section-header">
-                    <h2>{myPhotosState.personName}</h2>
-                </div>
-            {/if}
+            <div class="view-container" in:fade={{ duration: 300 }}>
+                {#if myPhotosState.personName}
+                    <div class="section-title">
+                        <h2>{myPhotosState.personName}</h2>
+                        <span class="badge">Personnel</span>
+                    </div>
+                {/if}
 
-            {#if myPhotosState.error}
-                <div class="state-message error"><Icon name="x-circle" size={20} /> {myPhotosState.error}</div>
-            {/if}
+                {#if myPhotosState.error}
+                    <div class="state-message error">
+                        <Icon name="x-circle" size={20} /> {myPhotosState.error}
+                    </div>
+                {/if}
 
-            {#if myPhotosState.loading}
-                <div class="state-message loading"><Spinner size={24} /> Chargement de vos photos...</div>
-            {/if}
+                {#if myPhotosState.loading}
+                    <div class="state-message loading">
+                        <Spinner size={32} /> Chargement de vos photos...
+                    </div>
+                {/if}
 
-            <div class="grid-wrapper">
-                <PhotosGrid state={myPhotosState} />
+                {#if !myPhotosState.loading && !myPhotosState.error}
+                    <div class="grid-wrapper glass-card p-4">
+                        <PhotosGrid state={myPhotosState} />
+                    </div>
+                {/if}
             </div>
-        </div>
         {/if}
 
+        <!-- VUE: ADMIN / TOUT LE MONDE -->
         {#if currentView === 'all' && canManagePhotos}
-        <div in:fade={{ duration: 200 }}>
+            <div class="view-container" in:fade={{ duration: 300 }}>
 
-            <div class="upload-card">
-                <div class="upload-header">
-                    <div class="icon-box">
-                        <Icon name="upload-cloud" size={24} />
+                <!-- Upload Card -->
+                <div class="glass-card upload-section mb-8">
+                    <div class="upload-header">
+                        <div class="icon-box">
+                            <Icon name="upload-cloud" size={24} />
+                        </div>
+                        <div>
+                            <h3>Ajouter des portraits</h3>
+                            <p>Les photos seront ajoutées à l'album système "Photos CV"</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3>Ajouter des portraits</h3>
-                        <p>Ajout automatique à l'album "Photos CV"</p>
+                    <div class="upload-content">
+                        <UploadZone onUpload={handleUpload} />
                     </div>
                 </div>
-                <div class="upload-body">
-                    <UploadZone onUpload={handleUpload} />
-                </div>
+
+                {#if allPhotosState.error}
+                    <div class="state-message error">
+                        <Icon name="x-circle" size={20} /> {allPhotosState.error}
+                    </div>
+                {/if}
+
+                {#if allPhotosState.loading}
+                    <div class="state-message loading">
+                        <Spinner size={32} /> Chargement de la base...
+                    </div>
+                {/if}
+
+                {#if !allPhotosState.loading && !allPhotosState.error}
+                    <!-- Pagination Top -->
+                    <div class="pagination-container top">
+                        <button
+                            class="btn-nav"
+                            onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
+                            disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+                        >
+                            <Icon name="chevron-left" size={20} />
+                        </button>
+
+                        <span class="page-badge">Page {allPhotosState.photoCVCurrentPage}</span>
+
+                        <button
+                            class="btn-nav"
+                            onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
+                            disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+                        >
+                            <Icon name="chevron-right" size={20} />
+                        </button>
+                    </div>
+
+                    <div bind:this={photosGridContainer} class="grid-wrapper glass-card p-4">
+                        <PhotosGrid state={allPhotosState} />
+                    </div>
+
+                    <!-- Pagination Bottom -->
+                    <div class="pagination-container bottom">
+                        <button
+                            class="btn-nav"
+                            onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
+                            disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+                        >
+                            <Icon name="chevron-left" size={20} /> Précédent
+                        </button>
+
+                        <button
+                            class="btn-nav"
+                            onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
+                            disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+                        >
+                            Suivant <Icon name="chevron-right" size={20} />
+                        </button>
+                    </div>
+                {/if}
             </div>
-
-            {#if allPhotosState.error}
-                <div class="state-message error"><Icon name="x-circle" size={20} /> {allPhotosState.error}</div>
-            {/if}
-
-            {#if allPhotosState.loading}
-                <div class="state-message loading"><Spinner size={24} /> Chargement de la base...</div>
-            {/if}
-
-            {#if !allPhotosState.loading && !allPhotosState.error}
-                <div class="pagination-bar top">
-                    <button
-                        class="btn-nav"
-                        onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
-                        disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-                    >
-                        <Icon name="chevron-left" size={18} /> Précédent
-                    </button>
-
-                    <span class="page-info">Page {allPhotosState.photoCVCurrentPage}</span>
-
-                    <button
-                        class="btn-nav"
-                        onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
-                        disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-                    >
-                        Suivant <Icon name="chevron-right" size={18} />
-                    </button>
-                </div>
-
-                <div bind:this={photosGridContainer} class="grid-wrapper">
-                    <PhotosGrid state={allPhotosState} />
-                </div>
-
-                <div class="pagination-bar bottom">
-                    <button
-                        class="btn-nav"
-                        onclick={async () => { await allPhotosState.loadPrevPagePhotosCV(); scrollToPhotosGrid(); }}
-                        disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-                    >
-                        <Icon name="chevron-left" size={18} />
-                    </button>
-
-                    <span class="page-info">Page {allPhotosState.photoCVCurrentPage}</span>
-
-                    <button
-                        class="btn-nav"
-                        onclick={async () => { await allPhotosState.loadNextPagePhotosCV(); scrollToPhotosGrid(); }}
-                        disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-                    >
-                        <Icon name="chevron-right" size={18} />
-                    </button>
-                </div>
-            {/if}
-        </div>
         {/if}
     </div>
   </div>
 </main>
 
 <style>
-  /* --- VARIABLES (Local Scope) --- */
-  .photoscv-main {
-    --pcv-bg: var(--bg-primary, #ffffff);
-    --pcv-card-bg: var(--bg-secondary, #ffffff);
-    --pcv-text: var(--text-primary, #1f2937);
-    --pcv-text-muted: var(--text-secondary, #6b7280);
-    --pcv-border: var(--border, #e5e7eb);
-    --pcv-accent: var(--accent, #3b82f6);
+  /* --- THEME VARIABLES --- */
+  .page-main {
+    --cv-bg: var(--bg-primary, #ffffff);
+    --cv-text: var(--text-primary, #1f2937);
+    --cv-text-muted: var(--text-secondary, #6b7280);
+    --cv-accent: var(--accent, #3b82f6);
+    --cv-border: var(--border, #e5e7eb);
+    --cv-glass-bg: rgba(255, 255, 255, 0.7);
+    --cv-glass-border: rgba(255, 255, 255, 0.5);
+    --cv-item-bg: rgba(255, 255, 255, 0.5);
 
     position: relative;
     min-height: 100vh;
-    color: var(--pcv-text);
-    background-color: var(--pcv-bg);
+    color: var(--cv-text);
+    background-color: var(--cv-bg);
     overflow-x: hidden;
+    font-family: system-ui, -apple-system, sans-serif;
   }
 
   @media (prefers-color-scheme: dark) {
-    .photoscv-main {
-        --pcv-bg: var(--bg-primary, #0f172a);
-        --pcv-card-bg: var(--bg-secondary, #1e293b);
-        --pcv-text: var(--text-primary, #f3f4f6);
-        --pcv-text-muted: var(--text-secondary, #9ca3af);
-        --pcv-border: var(--border, #334155);
+    .page-main {
+        --cv-bg: var(--bg-primary, #020617);
+        --cv-text: var(--text-primary, #f3f4f6);
+        --cv-text-muted: var(--text-secondary, #94a3b8);
+        --cv-border: rgba(255, 255, 255, 0.08);
+        --cv-glass-bg: rgba(15, 23, 42, 0.6);
+        --cv-glass-border: rgba(255, 255, 255, 0.08);
+        --cv-item-bg: rgba(255, 255, 255, 0.03);
     }
   }
 
   /* --- BACKGROUND --- */
   .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.15; }
-  .blob-1 { width: 600px; height: 600px; background: #0ea5e9; top: -200px; left: 10%; animation: float 25s infinite; }
-  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; top: 30%; right: 15%; animation: float 30s infinite reverse; }
-  .blob-3 { width: 550px; height: 550px; background: #ec4899; bottom: 10%; left: 20%; animation: float 28s infinite; }
-  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -30px); } }
+  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.15; }
+  .blob-1 { width: 600px; height: 600px; background: var(--cv-accent); top: -100px; left: -100px; animation: float 20s infinite; }
+  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; bottom: -50px; right: -50px; animation: float 25s infinite reverse; }
+  .blob-3 { width: 450px; height: 450px; background: #ec4899; top: 50%; left: 50%; animation: float 22s infinite; }
+  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px, 40px); } }
 
-  /* --- CONTAINER --- */
-  .photoscv-container {
-    position: relative;
-    z-index: 1;
-    max-width: 1200px;
-    margin: 0 auto;
+  .page-container {
+    position: relative; z-index: 1;
+    max-width: 1200px; margin: 0 auto;
     padding: 2rem 1.5rem 6rem;
   }
 
   /* --- HEADER --- */
-  .page-header { text-align: center; margin-bottom: 2.5rem; }
-  .page-title {
-    font-size: 3rem; font-weight: 800; margin: 0;
-    background: linear-gradient(135deg, var(--pcv-text), var(--pcv-accent));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  .page-header {
+    display: flex; align-items: center; justify-content: center; gap: 1.5rem;
+    margin-bottom: 3rem; flex-wrap: wrap; text-align: center;
   }
-  .subtitle { color: var(--pcv-text-muted); font-size: 1.1rem; margin-top: 0.5rem; }
+  .header-content h1 { font-size: 2.5rem; font-weight: 800; margin: 0; line-height: 1.1; letter-spacing: -0.02em; }
+  .subtitle { color: var(--cv-text-muted); font-size: 1.1rem; margin: 0.25rem 0 0; }
 
-  /* --- TABS (PILLS) --- */
-  .tabs-container {
-    display: flex; justify-content: center; gap: 0.5rem;
-    margin-bottom: 3rem;
-    background: var(--pcv-card-bg);
-    padding: 0.5rem;
-    border-radius: 99px;
-    border: 1px solid var(--pcv-border);
-    width: fit-content;
-    margin-left: auto; margin-right: auto;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  /* --- TABS --- */
+  .tabs-wrapper { display: flex; justify-content: center; margin-bottom: 3rem; }
+  .glass-tabs {
+      position: relative; display: flex; gap: 0.5rem; padding: 0.4rem;
+      background: var(--cv-glass-bg); border: 1px solid var(--cv-glass-border);
+      border-radius: 99px; backdrop-filter: blur(12px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   }
-
-  .tab-pill {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 1.5rem;
-    border-radius: 99px;
-    border: none;
-    background: transparent;
-    color: var(--pcv-text-muted);
-    font-weight: 600; font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.2s;
+  .tab-item {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 1.5rem; border: none; background: transparent;
+      color: var(--cv-text-muted); font-weight: 600; cursor: pointer;
+      transition: color 0.3s ease; border-radius: 99px;
   }
+  .tab-item.active { color: white; }
+  .tab-item:hover:not(.active) { color: var(--cv-text); }
 
-  .tab-pill:hover { color: var(--pcv-text); background: rgba(0,0,0,0.05); }
-  .tab-pill.active {
-    background: var(--pcv-accent);
-    color: white;
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  .tab-indicator {
+      position: absolute; top: 0.4rem; bottom: 0.4rem; z-index: 1;
+      background: var(--cv-accent); border-radius: 99px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      width: calc(50% - 0.4rem); box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
   }
+  .tab-indicator.left { left: 0.4rem; transform: translateX(0); }
+  .tab-indicator.right { left: 0.4rem; transform: translateX(100%); }
 
-  /* --- CONTENT SECTIONS --- */
-  .section-header { text-align: center; margin-bottom: 2rem; }
-  .section-header h2 { font-size: 1.5rem; color: var(--pcv-text); opacity: 0.8; }
-
-  /* --- UPLOAD CARD --- */
-  .upload-card {
-    background: var(--pcv-card-bg);
-    border: 1px solid var(--pcv-border);
-    border-radius: 1.5rem;
-    overflow: hidden;
-    margin-bottom: 3rem;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+  /* --- CARDS & GRID --- */
+  .glass-card {
+    background: var(--cv-glass-bg); backdrop-filter: blur(20px);
+    border: 1px solid var(--cv-glass-border); border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
   }
+  .glass-card.p-4 { padding: 1.5rem; }
 
+  /* Upload Section */
+  .upload-section { overflow: hidden; }
   .upload-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--pcv-border);
-    display: flex; align-items: center; gap: 1rem;
-    background: rgba(59, 130, 246, 0.03);
+      padding: 1.5rem; border-bottom: 1px solid var(--cv-border);
+      display: flex; align-items: center; gap: 1rem;
+      background: rgba(255,255,255,0.02);
   }
-
   .icon-box {
-    width: 48px; height: 48px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, var(--pcv-accent), #8b5cf6);
-    color: white;
-    display: flex; align-items: center; justify-content: center;
+      width: 42px; height: 42px; border-radius: 10px;
+      background: rgba(59, 130, 246, 0.1); color: var(--cv-accent);
+      display: flex; align-items: center; justify-content: center;
   }
+  .upload-header h3 { margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--cv-text); }
+  .upload-header p { margin: 0; font-size: 0.9rem; color: var(--cv-text-muted); }
+  .upload-content { padding: 1.5rem; }
 
-  .upload-header h3 { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--pcv-text); }
-  .upload-header p { margin: 0.25rem 0 0; color: var(--pcv-text-muted); font-size: 0.9rem; }
-  .upload-body { padding: 2rem; }
+  /* Section Title */
+  .section-title {
+      display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-left: 0.5rem;
+  }
+  .section-title h2 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+  .badge {
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      padding: 0.2rem 0.6rem; border-radius: 6px;
+      background: rgba(59, 130, 246, 0.1); color: var(--cv-accent);
+  }
 
   /* --- PAGINATION --- */
-  .pagination-bar {
-    display: flex; align-items: center; justify-content: center; gap: 1rem;
-    padding: 1rem;
-    background: var(--pcv-card-bg);
-    border: 1px solid var(--pcv-border);
-    border-radius: 1rem;
-    width: fit-content;
-    margin: 0 auto;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  .pagination-container {
+      display: flex; align-items: center; justify-content: center; gap: 1rem;
   }
-
-  .pagination-bar.top { margin-bottom: 2rem; }
-  .pagination-bar.bottom { margin-top: 2rem; }
-
-  .page-info {
-    font-weight: 600; color: var(--pcv-text); min-width: 80px; text-align: center;
-  }
+  .pagination-container.top { margin-bottom: 1.5rem; justify-content: flex-end; }
+  .pagination-container.bottom { margin-top: 2rem; }
 
   .btn-nav {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: 1px solid var(--pcv-border);
-    border-radius: 0.5rem;
-    color: var(--pcv-text);
-    font-weight: 500; cursor: pointer;
-    transition: all 0.2s;
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem;
+      background: var(--cv-item-bg); border: 1px solid var(--cv-glass-border);
+      border-radius: 10px; color: var(--cv-text); cursor: pointer;
+      transition: all 0.2s;
   }
-
   .btn-nav:hover:not(:disabled) {
-    border-color: var(--pcv-accent); color: var(--pcv-accent);
-    background: rgba(59, 130, 246, 0.05);
+      background: var(--cv-glass-bg); border-color: var(--cv-accent); color: var(--cv-accent);
+      transform: translateY(-2px);
   }
   .btn-nav:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* --- UTILS --- */
-  .grid-wrapper { margin-top: 1rem; }
+  .page-badge { font-family: monospace; font-weight: 600; color: var(--cv-text-muted); }
 
+  /* --- STATES --- */
   .state-message {
-    display: flex; align-items: center; justify-content: center; gap: 0.75rem;
-    padding: 2rem; color: var(--pcv-text-muted);
+    padding: 3rem; text-align: center; color: var(--cv-text-muted);
+    display: flex; justify-content: center; align-items: center; gap: 0.75rem;
+    background: var(--cv-glass-bg); border-radius: 16px; border: 1px solid var(--cv-border);
+    margin-bottom: 2rem;
   }
-  .state-message.error { color: #ef4444; }
+  .state-message.error { color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
 
   @media (max-width: 640px) {
-    .page-title { font-size: 2rem; }
-    .pagination-bar { width: 100%; justify-content: space-between; }
-    .btn-nav { padding: 0.5rem; }
+      .header-content h1 { font-size: 2rem; }
+      .pagination-container.top { justify-content: center; }
   }
 </style>

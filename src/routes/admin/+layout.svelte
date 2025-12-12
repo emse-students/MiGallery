@@ -6,8 +6,7 @@
     { href: '/admin', label: 'Documentation', icon: '📚' },
     { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
-    { href: '/admin/database', label: 'Base de données', icon: '🗄️' },
-    { href: '/admin/albums', label: 'Albums', icon: '📁' }
+    { href: '/admin/database', label: 'Base de données', icon: '🗄️' }
   ];
     // Svelte 5 children prop for {@render}
     let { children } = $props();

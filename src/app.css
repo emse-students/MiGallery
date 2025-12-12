@@ -382,6 +382,107 @@
 		padding-bottom: calc(var(--container-padding) + var(--mobile-nav-height));
 	}
 
+
+	/* =============================================
+	   SHARED PAGE / GLASS STYLES
+	   - Homogénise les titres h1/h2 entre pages (inspiré de /albums)
+	   - Boutons "glass" réutilisables
+	   - Background blobs communs
+	============================================= */
+
+	.page-background {
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		pointer-events: none;
+		overflow: hidden;
+	}
+
+	.gradient-blob {
+		position: absolute;
+		border-radius: 50%;
+		filter: blur(90px);
+		opacity: 0.12;
+		pointer-events: none;
+	}
+
+	/* Shared header */
+	.page-header {
+		display: flex;
+		align-items: center;
+		gap: 1.25rem;
+		margin-bottom: 2.5rem;
+		flex-wrap: wrap;
+		z-index: 1;
+	}
+
+	.header-content h1,
+	.page-title,
+	h1.page-title,
+	.page-title-center,
+	main > h1 {
+		font-size: 2rem;
+		font-weight: 800;
+		margin: 0;
+		line-height: 1.1;
+		letter-spacing: -0.02em;
+		color: var(--text-primary);
+	}
+
+	/* Slightly smaller h2 common style */
+	.card-header h2,
+	.month-title,
+	main h2 {
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin: 0;
+	}
+
+	.subtitle {
+		color: var(--text-secondary);
+		font-size: 1rem;
+		margin: 0.25rem 0 0;
+	}
+
+	/* Glass button used across pages */
+	.btn-glass {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.6rem 1.1rem;
+		background: rgba(255,255,255,0.06);
+		border: 1px solid rgba(255,255,255,0.06);
+		border-radius: 10px;
+		color: var(--text-primary);
+		font-weight: 600;
+		transition: all 0.18s ease;
+		cursor: pointer;
+		backdrop-filter: blur(6px) saturate(120%);
+	}
+
+	.btn-glass:hover {
+		transform: translateY(-2px);
+		background: rgba(255,255,255,0.09);
+		border-color: rgba(59,130,246,0.14);
+		color: var(--accent);
+	}
+
+	.btn-glass.primary {
+		background: var(--accent);
+		color: white;
+		border-color: transparent;
+		box-shadow: 0 6px 18px rgba(59,130,246,0.16);
+	}
+
+	/* Reusable glass card modifier */
+	.glass-card {
+		background: rgba(255,255,255,0.04);
+		border: 1px solid rgba(255,255,255,0.06);
+		border-radius: var(--radius);
+		backdrop-filter: blur(8px) saturate(120%);
+		box-shadow: 0 8px 24px rgba(2,6,23,0.45);
+	}
+
 	/* Sur desktop large, pas besoin de padding pour la nav mobile */
 	@media (min-width: 1441px) {
 		main {
