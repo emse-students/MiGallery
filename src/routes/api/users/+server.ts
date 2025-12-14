@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { UserRow } from '$lib/types/api';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
+import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 
 export const GET: RequestHandler = async (event) => {
@@ -67,6 +68,13 @@ export const POST: RequestHandler = async (event) => {
 				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
 			)
 			.get(id_user) as UserRow | undefined;
+
+		// Log creation
+		try {
+			await logEvent(event, 'create', 'user', id_user, { email, prenom, nom, role });
+		} catch (logErr) {
+			console.warn('logEvent failed (users POST):', logErr);
+		}
 		return json({ success: true, created, changes: info.changes });
 	} catch (e) {
 		const err = e as Error;

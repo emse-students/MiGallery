@@ -386,6 +386,18 @@
 		padding-bottom: calc(var(--container-padding) + var(--mobile-nav-height));
 	}
 
+	/* Footer safety: ensure texts wrap and remain centered on small viewports */
+	footer,
+	.settings-footer,
+	.footer-section,
+	.footer-links,
+	footer * {
+		max-width: 100%;
+		overflow-wrap: anywhere;
+		word-break: break-word;
+		text-align: center;
+	}
+
 	/* =============================================
 	   SHARED PAGE / GLASS STYLES
 	   - Homogénise les titres h1/h2 entre pages (inspiré de /albums)

@@ -3,6 +3,7 @@ import type { ImmichAlbum, AlbumRow } from '$lib/types/api';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
+import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 import { ensureError } from '$lib/ts-utils';
 
@@ -156,6 +157,13 @@ export const POST: RequestHandler = async (event) => {
 		} catch (dbErr) {
 			console.error('Error saving album to local DB:', dbErr);
 			// Continue anyway - the album exists in Immich
+		}
+
+		// Log album creation
+		try {
+			await logEvent(event, 'create', 'album', albumId, { name: albumName, visibility });
+		} catch (logErr) {
+			console.warn('logEvent failed (albums POST):', logErr);
 		}
 
 		return json({ ...immichAlbum, id: albumId });

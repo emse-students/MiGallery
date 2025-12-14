@@ -64,3 +64,15 @@ CREATE TABLE IF NOT EXISTS photo_access_permissions (
     FOREIGN KEY(owner_id) REFERENCES users(id_user) ON DELETE CASCADE,
     FOREIGN KEY(authorized_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
+
+-- Audit logs: events for admin review (creations, updates, deletions, logins)
+CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY,
+    timestamp TEXT DEFAULT (datetime('now')),
+    actor TEXT,
+    event_type TEXT,
+    target_type TEXT,
+    target_id TEXT,
+    details TEXT,
+    ip TEXT
+);

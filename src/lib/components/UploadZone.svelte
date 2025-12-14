@@ -369,40 +369,52 @@
 
 <style>
   .upload-zone {
-    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 3rem 2rem;
+    padding: 2.25rem 1.5rem;
     text-align: center;
     cursor: pointer;
-    transition: all 0.3s ease;
-    background: rgba(255, 255, 255, 0.02);
-    min-height: 200px;
+    transition: all 0.22s ease;
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    min-height: 180px;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-primary);
   }
 
   .upload-zone:hover:not(.disabled):not(.uploading) {
-    border-color: rgba(59, 130, 246, 0.6);
-    background: rgba(59, 130, 246, 0.05);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
   }
 
   .upload-zone.dragging {
-    border-color: rgba(59, 130, 246, 0.8);
-    background: rgba(59, 130, 246, 0.1);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
     transform: scale(1.02);
   }
 
   .upload-zone.uploading {
     cursor: not-allowed;
-    border-color: rgba(34, 197, 94, 0.6);
-    background: rgba(34, 197, 94, 0.05);
+    border-color: var(--success);
+    background: color-mix(in srgb, var(--success) 6%, rgba(255,255,255,0.02));
   }
 
   .upload-zone.disabled {
     cursor: not-allowed;
     opacity: 0.5;
     border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Improve contrast for light theme mobile devices */
+  @media (prefers-color-scheme: light) {
+    .upload-zone { background: rgba(255,255,255,0.92); border: 1px solid var(--border); color: var(--text-primary); }
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .upload-zone { background: rgba(10,12,18,0.6); border: 1px solid rgba(255,255,255,0.06); }
   }
 
   .upload-content {

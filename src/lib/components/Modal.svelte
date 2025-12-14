@@ -202,9 +202,9 @@
   }
 
   .modal-content {
-    /* Glassmorphism modal surface (less transparent for better legibility) */
-    background: rgba(255, 255, 255, 0.10);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    /* Glassmorphism modal surface (more opaque for better legibility) */
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.20);
     border-radius: 0.9rem;
     padding: 1.5rem;
     min-width: 400px;
@@ -215,6 +215,20 @@
     display: flex;
     flex-direction: column;
     max-height: 90vh;
+  }
+
+  /* Adjust modal surface per color scheme for legibility */
+  @media (prefers-color-scheme: dark) {
+    .modal-content {
+      background: rgba(6, 12, 18, 0.78);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+  }
+  @media (prefers-color-scheme: light) {
+    .modal-content {
+      background: rgba(255,255,255,0.95);
+      border: 1px solid rgba(0,0,0,0.06);
+    }
   }
 
   .modal-content-wide {

@@ -319,7 +319,6 @@
     position: relative;
     min-height: 100vh;
     color: var(--am-text);
-    background-color: var(--am-bg);
     overflow-x: hidden;
     padding-bottom: 100px; /* Espace pour la barre mobile */
     font-family: system-ui, -apple-system, sans-serif;
