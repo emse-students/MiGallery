@@ -20,6 +20,22 @@
   let error = $state<string | null>(null);
   let albums = $state<Album[]>([]);
   let showAlbumModal = $state(false);
+  let searchQuery = $state<string>('');
+  let filteredAlbums = $state<Album[]>([]);
+
+  // Filter immediately on every change to the search input so the canvas
+  // (the visible album grid) is reloaded on each keypress.
+  $effect(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) {
+      filteredAlbums = albums.slice();
+      return;
+    }
+    filteredAlbums = albums.filter((a) => {
+      const hay = `${a.name || ''} ${a.location || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  });
 
   let showConfirmModal = $state(false);
   let confirmModalConfig = $state<{
@@ -66,42 +82,63 @@
   let albumCovers = $state<Record<string, { id: string; type?: string }>>({});
   let currentDownloadController: AbortController | null = null;
 
+  // Helper to load covers for a given list of albums. Only requests missing covers.
+  async function loadCoversFor(list: Album[]) {
+    try {
+      const albumIds = list.map((a) => a.id);
+      const missing: string[] = [];
+      const cachedCovers: Record<string, { id: string; type?: string }> = {};
+
+      for (const albumId of albumIds) {
+        if (!albumCovers[albumId]) {
+          // try local cache first
+          const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
+          if (cached) {
+            cachedCovers[albumId] = cached;
+          } else {
+            missing.push(albumId);
+          }
+        }
+      }
+
+      if (Object.keys(cachedCovers).length > 0) {
+        albumCovers = { ...albumCovers, ...cachedCovers };
+      }
+
+      if (missing.length === 0) return;
+
+      const res = await fetch('/api/albums/covers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ albumIds: missing })
+      });
+
+      await consumeNDJSONStream<{ albumId: string; cover: { assetId: string; type: string } }>(
+        res,
+        ({ albumId, cover }) => {
+          if (cover && typeof cover === 'object' && 'assetId' in cover) {
+            const coverData = { id: cover.assetId, type: cover.type };
+            albumCovers = { ...albumCovers, [albumId]: coverData };
+            clientCache.set('album-covers', albumId, coverData);
+          }
+        }
+      );
+    } catch (e: unknown) {
+      console.warn('Error loading album covers', e);
+    }
+  }
+
+  // Load covers when the full albums list changes (initial load) and when the
+  // filtered view changes (so the visible canvas always has matching covers).
   $effect(() => {
     if (albums.length > 0) {
-      (async () => {
-        try {
-          const albumIds = albums.map(a => a.id);
-          const cachedCovers: Record<string, { id: string; type?: string }> = {};
+      void loadCoversFor(albums);
+    }
+  });
 
-          for (const albumId of albumIds) {
-            const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
-            if (cached) cachedCovers[albumId] = cached;
-          }
-
-          if (Object.keys(cachedCovers).length > 0) {
-            albumCovers = { ...albumCovers, ...cachedCovers };
-          }
-
-          const res = await fetch('/api/albums/covers', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ albumIds })
-          });
-
-          await consumeNDJSONStream<{ albumId: string; cover: { assetId: string; type: string } }>(
-            res,
-            ({ albumId, cover }) => {
-              if (cover && typeof cover === 'object' && 'assetId' in cover) {
-                const coverData = { id: cover.assetId, type: cover.type };
-                albumCovers = { ...albumCovers, [albumId]: coverData };
-                clientCache.set('album-covers', albumId, coverData);
-              }
-            }
-          );
-        } catch (e: unknown) {
-          console.warn('Error loading album covers', e);
-        }
-      })();
+  $effect(() => {
+    if (filteredAlbums.length > 0) {
+      void loadCoversFor(filteredAlbums);
     }
   });
 
@@ -190,6 +227,9 @@
       window.location.reload();
     }
   }
+
+  // Cleanup debounce timer on destroy
+  // No debounce timer to cleanup anymore
 </script>
 
 <svelte:head>
@@ -209,6 +249,16 @@
                 <div class="header-content">
             <h1>Albums</h1>
             <p class="subtitle">Vos souvenirs et événements</p>
+        </div>
+
+        <div class="header-search">
+            <input
+              class="search-input"
+              placeholder="Rechercher un album..."
+              bind:value={searchQuery}
+              oninput={(e) => { searchQuery = (e.target as HTMLInputElement).value; }}
+              aria-label="Rechercher des albums"
+            />
         </div>
 
         {#if canCreateAlbum}
@@ -241,8 +291,14 @@
     {/if}
 
     {#if !loading && albums.length > 0}
-        <div class="albums-timeline">
-            {#each Object.entries(groupAlbumsByMonth(albums)) as [month, items], i}
+      {#if filteredAlbums.length === 0}
+        <div class="empty-state" in:fade>
+          <div class="empty-icon"><Icon name="search" size={48} /></div>
+          <p>Aucun album ne correspond à votre recherche</p>
+        </div>
+      {:else}
+      <div class="albums-timeline">
+        {#each Object.entries(groupAlbumsByMonth(filteredAlbums)) as [month, items], i}
                 <div class="month-group" in:fade={{ delay: i * 100, duration: 400 }}>
                     <div class="month-header">
                         <h3 class="month-title">{month}</h3>
@@ -335,6 +391,7 @@
                 </div>
             {/each}
         </div>
+        {/if}
     {/if}
   </div>
 
@@ -560,4 +617,11 @@
     .album-actions { opacity: 1; pointer-events: auto; }
     .album-info-overlay { padding-top: 2rem; }
   }
+
+  .header-search { width: 100%; max-width: 420px; margin-left: 1rem; }
+  .search-input {
+    width: 100%; padding: 0.5rem 0.75rem; border-radius: 10px; border: 1px solid var(--alb-border);
+    background: var(--alb-item-bg); color: var(--alb-text); font-size: 0.95rem;
+  }
+  .search-input:focus { outline: none; box-shadow: 0 4px 12px rgba(59,130,246,0.12); border-color: var(--alb-accent); }
 </style>

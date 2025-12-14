@@ -5,6 +5,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
+import { logEvent } from '$lib/server/logs';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -113,6 +114,12 @@ export const DELETE: RequestHandler = async (event) => {
 			immichDeleted: immichDeleteSuccess,
 			immichError: immichDeleteError
 		});
+		// Log album deletion
+		try {
+			await logEvent(event, 'delete', 'album', event.params.id, { immichDeleted: immichDeleteSuccess, immichError: immichDeleteError });
+		} catch (logErr) {
+			console.warn('logEvent failed (albums DELETE):', logErr);
+		}
 	} catch (e: unknown) {
 		const err = ensureError(e);
 		console.error(`Error in /api/albums/${event.params.id} DELETE:`, err);
@@ -253,6 +260,13 @@ export const PATCH: RequestHandler = async (event) => {
 		const updated = db
 			.prepare('SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?')
 			.get(id);
+
+		// Log album metadata update
+		try {
+			await logEvent(event, 'update', 'album', id, { name, date, location, visibility, visible });
+		} catch (logErr) {
+			console.warn('logEvent failed (albums PATCH):', logErr);
+		}
 
 		return json({
 			success: true,

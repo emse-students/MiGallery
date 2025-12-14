@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state"; // Utilisation de $app/state comme dans l'exemple
   import { goto } from "$app/navigation";
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -12,6 +12,26 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let users = $state<User[]>([]);
+  let searchQuery = $state<string>('');
+  let debouncedSearch = $state<string>('');
+  let filteredUsers = $state<User[]>([]);
+  let _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  $effect(() => {
+    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
+    _searchDebounceTimer = setTimeout(() => {
+      debouncedSearch = (searchQuery || '').trim().toLowerCase();
+    }, 180);
+  });
+
+  $effect(() => {
+    const q = (debouncedSearch || '').toLowerCase();
+    if (!q) { filteredUsers = users.slice(); return; }
+    filteredUsers = users.filter(u => {
+      const hay = `${u.prenom || ''} ${u.nom || ''} ${u.email || ''} ${u.id_user || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  });
 
   // Modal d'édition/ajout utilisateur
   let showEditUserModal = $state(false);
@@ -207,6 +227,14 @@
     // Seul le bouton "Ajouter" est protégé par `canAccess`
     fetchUsers();
   });
+
+  // Cleanup debounce timer on destroy
+  onDestroy(() => {
+    if (_searchDebounceTimer) {
+      try { clearTimeout(_searchDebounceTimer); } catch (e) {}
+      _searchDebounceTimer = null;
+    }
+  });
 </script>
 
 <svelte:head>
@@ -229,6 +257,16 @@
         <h1>Trombinoscope</h1>
         <p class="subtitle">L'annuaire des membres de la galerie</p>
       </div>
+
+          <div class="header-search">
+            <input
+              class="search-input"
+              placeholder="Rechercher (prénom, nom, email...)"
+              bind:value={searchQuery}
+              oninput={(e) => { searchQuery = (e.target as HTMLInputElement).value; }}
+              aria-label="Rechercher des membres"
+            />
+          </div>
 
       {#if canAccess}
         <div class="header-actions">
@@ -260,7 +298,13 @@
     {/if}
 
     {#if users.length > 0}
-        {@const usersByPromo = users.reduce((acc, user) => {
+      {#if filteredUsers.length === 0}
+        <div class="empty-state" in:fade>
+          <div class="empty-icon"><Icon name="search" size={48} /></div>
+          <p>Aucun membre ne correspond à votre recherche</p>
+        </div>
+      {:else}
+      {@const usersByPromo = filteredUsers.reduce((acc, user) => {
             const promo = user.promo_year || 'Staff / Autre';
             if (!acc[promo]) acc[promo] = [];
             acc[promo].push(user);
@@ -332,6 +376,7 @@
                 </section>
             {/each}
         </div>
+          {/if}
     {/if}
   </div>
 
@@ -459,6 +504,10 @@
     max-width: 1200px; margin: 0 auto;
     padding: 2rem 1.5rem 6rem;
   }
+
+  .header-search { margin-top: 0.75rem; width: 100%; max-width: 520px; }
+  .search-input { width: 100%; padding: 0.5rem 0.75rem; border-radius: 10px; border: 1px solid var(--tm-border); background: var(--tm-card-bg); color: var(--tm-text); }
+  .search-input:focus { outline: none; box-shadow: 0 6px 18px rgba(59,130,246,0.08); border-color: var(--tm-accent); }
 
   /* --- HEADER --- */
   .page-header { text-align: center; margin-bottom: 3rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
@@ -637,7 +686,7 @@
   .input-glass:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .select-wrapper { position: relative; }
-  .select-wrapper select { appearance: none; cursor: pointer; }
+  .select-wrapper select { appearance: none; cursor: pointer; background: transparent; color: var(--tm-text); border: 1px solid var(--tm-border); padding: 0.6rem 0.9rem; border-radius: 10px; }
   .select-icon { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--tm-text-muted); }
 
   /* Photo Section in Modal */

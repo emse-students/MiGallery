@@ -1,21 +1,150 @@
 import type { RequestHandler } from '@sveltejs/kit';
-
 import { ensureError } from '$lib/ts-utils';
+import { logEvent } from '$lib/server/logs';
 import { env } from '$env/dynamic/private';
 import { immichCache } from '$lib/server/immich-cache';
 import { requireScope } from '$lib/server/permissions';
 
+// Modules Node.js nécessaires pour le stockage temporaire
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
 
+/**
+ * Gère l'upload par morceaux (chunked) pour contourner les limites de Cloudflare.
+ * Stocke les morceaux sur le disque et transfère le fichier complet à Immich à la fin.
+ */
+async function handleChunkedUpload(
+	request: Request,
+	outgoingHeaders: Record<string, string>,
+	baseUrl: string
+) {
+	const chunkIndex = parseInt(request.headers.get('x-chunk-index') || '0');
+	const totalChunks = parseInt(request.headers.get('x-chunk-total') || '1');
+	const fileId = request.headers.get('x-file-id');
+
+	if (!fileId) {
+		return new Response(JSON.stringify({ error: 'Missing x-file-id header for chunked upload' }), {
+			status: 400
+		});
+	}
+
+	// Chemin temporaire unique pour ce fichier
+	const tempFilePath = path.join(os.tmpdir(), `immich_proxy_${fileId}.part`);
+
+	try {
+		const buffer = await request.arrayBuffer();
+
+		// Écriture du chunk sur le disque
+		if (chunkIndex === 0) {
+			fs.writeFileSync(tempFilePath, Buffer.from(buffer));
+		} else {
+			fs.appendFileSync(tempFilePath, Buffer.from(buffer));
+		}
+
+		// Si ce n'est pas le dernier chunk, on répond OK et on attend la suite
+		if (chunkIndex < totalChunks - 1) {
+			return new Response(JSON.stringify({ status: 'chunk_received', index: chunkIndex }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		}
+
+		// --- C'est le DERNIER chunk : Assemblage et envoi à Immich ---
+		console.debug(`[Immich-Proxy] Réassemblage terminé pour ${fileId}, envoi à Immich...`);
+
+		const fileContent = fs.readFileSync(tempFilePath);
+		const originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
+
+		// Reconstruction du FormData attendu par Immich
+		const formData = new FormData();
+		const fileBlob = new Blob([fileContent], { type: 'application/octet-stream' });
+
+		// Le champ fichier principal
+		formData.append('assetData', fileBlob, originalName);
+
+		// Ajout des métadonnées requises par Immich (envoyées via headers par le client)
+		// Le client doit envoyer ces infos dans les headers de chaque chunk (ou au moins le dernier)
+		const deviceId = request.headers.get('x-immich-device-id');
+		const deviceAssetId = request.headers.get('x-immich-asset-id');
+		const fileCreatedAt = request.headers.get('x-immich-created-at');
+		const fileModifiedAt = request.headers.get('x-immich-modified-at');
+		const isFavorite = request.headers.get('x-immich-is-favorite');
+
+		if (deviceId) {
+			formData.append('deviceId', deviceId);
+		}
+		if (deviceAssetId) {
+			formData.append('deviceAssetId', deviceAssetId);
+		}
+		if (fileCreatedAt) {
+			formData.append('fileCreatedAt', fileCreatedAt);
+		}
+		if (fileModifiedAt) {
+			formData.append('fileModifiedAt', fileModifiedAt);
+		}
+		if (isFavorite) {
+			formData.append('isFavorite', isFavorite);
+		}
+
+		// Préparation de l'URL Immich
+		const immichUrl = `${baseUrl}/api/assets`; // Endpoint standard d'upload
+
+		// On nettoie les headers pour l'appel fetch sortant (pas de content-type/length, fetch le gère pour FormData)
+		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
+		delete fetchHeaders['content-type'];
+		delete fetchHeaders['content-length'];
+
+		// Envoi à Immich
+		const response = await fetch(immichUrl, {
+			method: 'POST',
+			headers: fetchHeaders,
+			body: formData
+		});
+
+		// Nettoyage du fichier temporaire
+		try {
+			fs.unlinkSync(tempFilePath);
+		} catch (e) {
+			console.warn('Failed to cleanup temp file', e);
+		}
+
+		// Retourne la réponse d'Immich au client
+		return new Response(response.body, {
+			status: response.status,
+			headers: response.headers
+		});
+	} catch (err: unknown) {
+		const _err = ensureError(err);
+		console.error('[Immich-Proxy] Error processing chunk:', _err);
+		// Nettoyage en cas d'erreur
+		try {
+			if (fs.existsSync(tempFilePath)) {
+				fs.unlinkSync(tempFilePath);
+			}
+		} catch {
+			/* ignore */
+		}
+
+		return new Response(
+			JSON.stringify({ error: _err.message || 'Internal Server Error processing chunk' }),
+			{
+				status: 500,
+				headers: { 'content-type': 'application/json' }
+			}
+		);
+	}
+}
+
 const handle: RequestHandler = async function (event) {
 	const request = event.request;
-	const path = (event.params.path as string) || '';
+	const pathParam = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
 	// Autorisation pour GET: session utilisateur OU x-api-key avec scope "read"
-	// We also accept an internal server-only header `x-internal-immich-key` matching our configured
-	// IMMICH API key to allow server-side code to call this proxy without requiring a user session.
 	if (request.method === 'GET') {
 		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
 		if (internalKey && internalKey === apiKey) {
@@ -31,11 +160,14 @@ const handle: RequestHandler = async function (event) {
 	}
 
 	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
-	// ensure we have a protocol; if user provided e.g. 10.0.0.4:2283, default to http://
 	if (base && !/^https?:\/\//i.test(base)) {
 		base = `http://${base}`;
 	}
-	const remoteUrl = `${base}/api/${path}${search}`;
+
+	// Déterminer l'URL distante standard
+	const resolvedRemoteUrl = pathParam.startsWith('endpoints/')
+		? `${base}/${pathParam}${search}`
+		: `${base}/api/${pathParam}${search}`;
 
 	if (!baseUrlFromEnv) {
 		return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
@@ -44,9 +176,29 @@ const handle: RequestHandler = async function (event) {
 		});
 	}
 
+	// --- LOGIQUE CHUNKED UPLOAD ---
+	// Si la requête est un POST vers assets ET contient les headers de chunking
+	if (
+		request.method === 'POST' &&
+		request.headers.has('x-chunk-index') &&
+		request.headers.has('x-file-id')
+	) {
+		// Préparer les headers de base (API Key, Accept)
+		const chunkHeaders: Record<string, string> = {
+			accept: request.headers.get('accept') || '*/*'
+		};
+		if (apiKey) {
+			chunkHeaders['x-api-key'] = apiKey;
+		}
+
+		// Déléguer au handler de chunks
+		return handleChunkedUpload(request, chunkHeaders, base);
+	}
+	// ------------------------------
+
 	// Vérifier le cache pour les requêtes GET
 	if (request.method === 'GET') {
-		const cached = immichCache.get('GET', `/api/${path}`, remoteUrl);
+		const cached = immichCache.get('GET', `/api/${pathParam}`, resolvedRemoteUrl);
 		if (cached) {
 			const headers = new Headers({ 'content-type': 'application/json', 'x-cache': 'HIT' });
 			return new Response(JSON.stringify(cached), { status: 200, headers });
@@ -65,7 +217,6 @@ const handle: RequestHandler = async function (event) {
 	const contentType = request.headers.get('content-type');
 
 	// Forward the request body as a stream when possible to avoid buffering large uploads
-	// and to allow the upstream/proxy to handle chunked transfer encoding.
 	let bodyToForward: BodyInit | undefined = undefined;
 	if (!['GET', 'HEAD'].includes(request.method)) {
 		try {
@@ -73,26 +224,18 @@ const handle: RequestHandler = async function (event) {
 				outgoingHeaders['content-type'] = contentType;
 			}
 
-			// Special-case: for DELETE to /api/assets we want to log the JSON body to help
-			// debug invalid payloads (e.g. non-UUIDs or wrong shape). Read the body as text
-			// and forward the text. This sacrifices streaming for this small case only.
-			if (request.method === 'DELETE' && path === 'assets') {
+			// Special-case: for DELETE to /api/assets logging
+			if (request.method === 'DELETE' && pathParam === 'assets') {
 				try {
 					const txt = await request.text();
 					console.debug('[immich-proxy] DELETE /api/assets body:', txt);
 					bodyToForward = txt;
 				} catch (e: unknown) {
 					const _err = ensureError(e);
-					console.warn(
-						'[immich-proxy] failed to read DELETE /api/assets body for logging',
-						_err.message || _err
-					);
-					// fallback to streaming if possible
+					console.warn('[immich-proxy] failed to read DELETE body', _err.message);
 					bodyToForward = request.body ?? undefined;
 				}
 			} else {
-				// Prefer forwarding the original request body stream instead of reading into memory.
-				// This keeps payload sizes lower in-memory and allows upstream to process chunked bodies.
 				bodyToForward = request.body ?? undefined;
 			}
 		} catch (e: unknown) {
@@ -101,10 +244,7 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
-	// Build RequestInit for forwarding. When forwarding a stream body in
-	// Node's fetch implementation we must set `duplex: 'half'` so the
-	// runtime allows streaming request bodies. TypeScript's RequestInit
-	// may not include `duplex`, so extend the type with the duplex field.
+	// Build RequestInit for forwarding.
 	const init: RequestInit & { duplex?: 'half' } = {
 		method: request.method,
 		headers: outgoingHeaders,
@@ -112,19 +252,12 @@ const handle: RequestHandler = async function (event) {
 		duplex: 'half'
 	};
 
-	// resolved upstream URL (used for forwarding)
-	// if the client asked for endpoints/* we forward to ${base}/endpoints/..., otherwise to ${base}/api/...
-	const resolvedRemoteUrl = path.startsWith('endpoints/')
-		? `${base}/${path}${search}`
-		: `${base}/api/${path}${search}`;
-
 	// production: forward without debug helpers or extra logging
 
 	try {
-		// use resolvedRemoteUrl (special-cases endpoints/*) when forwarding the request
 		const res = await fetch(resolvedRemoteUrl, init);
 
-		// log upstream errors (use clone so we don't consume the body)
+		// log upstream errors
 		if (!res.ok) {
 			try {
 				const clone = res.clone();
@@ -134,28 +267,24 @@ const handle: RequestHandler = async function (event) {
 					statusText: res.statusText,
 					bodySnippet: snippet && snippet.slice ? snippet.slice(0, 200) : snippet
 				});
-			} catch (e: unknown) {
-				const _err = ensureError(e);
-				console.error(
-					'Immich proxy upstream error but failed to read body snippet',
-					_err.message || _err
-				);
+			} catch {
+				console.error('Immich proxy upstream error but failed to read body snippet');
 			}
 		}
 
-		const contentType = res.headers.get('content-type') || 'application/json';
+		const resContentType = res.headers.get('content-type') || 'application/json';
 
 		// Treat images, videos and archive/octet binary responses as binary so we can stream them
 		const isBinary =
-			contentType.startsWith('image/') ||
-			contentType.startsWith('video/') ||
-			contentType.startsWith('application/octet-stream') ||
-			contentType.includes('zip') ||
-			contentType.includes('octet-stream');
+			resContentType.startsWith('image/') ||
+			resContentType.startsWith('video/') ||
+			resContentType.startsWith('application/octet-stream') ||
+			resContentType.includes('zip') ||
+			resContentType.includes('octet-stream');
 
 		if (isBinary) {
 			const headers = new Headers();
-			headers.set('content-type', contentType);
+			headers.set('content-type', resContentType);
 			const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid', 'content-length'];
 			for (const h of safeForward) {
 				const v = res.headers.get(h);
@@ -163,7 +292,6 @@ const handle: RequestHandler = async function (event) {
 					headers.set(h, v);
 				}
 			}
-			// 204 No Content ne peut pas avoir de body
 			if (res.status === 204) {
 				return new Response(null, { status: 204, headers });
 			}
@@ -173,32 +301,38 @@ const handle: RequestHandler = async function (event) {
 		const textBody = await res.text();
 		const headers = new Headers();
 
-		// If the upstream returned an HTML error page (eg Cloudflare 502), convert to a compact JSON
-		// so the UI doesn't render huge HTML blobs as an error message.
-		if (!res.ok && contentType.includes('text/html')) {
-			const msg = `Upstream error ${res.status} ${res.statusText}`;
-			headers.set('content-type', 'application/json');
-			return new Response(JSON.stringify({ error: msg }), { status: res.status, headers });
+		if (!res.ok) {
+			if (resContentType.includes('text/html')) {
+				const msg = `Upstream error ${res.status} ${res.statusText}`;
+				headers.set('content-type', 'application/json');
+				return new Response(JSON.stringify({ error: msg }), { status: res.status, headers });
+			}
+			if (!resContentType.includes('application/json')) {
+				const snippet = textBody && textBody.slice ? textBody.slice(0, 200) : textBody;
+				headers.set('content-type', 'application/json');
+				return new Response(
+					JSON.stringify({ error: snippet || `Upstream ${res.status} ${res.statusText}` }),
+					{ status: res.status, headers }
+				);
+			}
 		}
 
 		// Mettre en cache les réponses JSON réussies pour les GET
-		if (request.method === 'GET' && res.ok && contentType.includes('application/json')) {
+		if (request.method === 'GET' && res.ok && resContentType.includes('application/json')) {
 			try {
 				const jsonData: unknown = JSON.parse(textBody);
 				const etag = res.headers.get('etag') || undefined;
-				immichCache.set('GET', `/api/${path}`, remoteUrl, jsonData, undefined, etag);
-			} catch (_e) {
-				void _e;
-				// Ignore JSON parse errors
+				immichCache.set('GET', `/api/${pathParam}`, resolvedRemoteUrl, jsonData, undefined, etag);
+			} catch {
+				/* Ignore JSON parse errors */
 			}
 		}
 
 		// Invalider le cache après les mutations
 		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && res.ok) {
-			// Extraire les IDs des assets/albums/personnes pour invalidation ciblée
-			const assetIdMatch = path.match(/assets\/([^/]+)/);
-			const albumIdMatch = path.match(/albums\/([^/]+)/);
-			const personIdMatch = path.match(/people\/([^/]+)/);
+			const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
+			const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
+			const personIdMatch = pathParam.match(/people\/([^/]+)/);
 
 			if (assetIdMatch) {
 				immichCache.invalidateAsset(assetIdMatch[1]);
@@ -211,7 +345,27 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		headers.set('content-type', contentType);
+		// Log delete events
+		if (request.method === 'DELETE' && res.ok) {
+			try {
+				const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
+				const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
+				const personIdMatch = pathParam.match(/people\/([^/]+)/);
+				if (assetIdMatch) {
+					await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
+				}
+				if (albumIdMatch) {
+					await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
+				}
+				if (personIdMatch) {
+					await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
+				}
+			} catch {
+				/* swallow logging errors */
+			}
+		}
+
+		headers.set('content-type', resContentType);
 		headers.set('x-cache', 'MISS');
 		const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
 		for (const h of safeForward) {
@@ -221,7 +375,6 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		// 204 No Content ne peut pas avoir de body
 		if (res.status === 204) {
 			return new Response(null, { status: 204, headers });
 		}
@@ -229,7 +382,7 @@ const handle: RequestHandler = async function (event) {
 		return new Response(textBody, { status: res.status, headers });
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		return new Response(JSON.stringify({ error: (err as Error).message }), {
+		return new Response(JSON.stringify({ error: _err.message }), {
 			status: 502,
 			headers: { 'content-type': 'application/json' }
 		});

@@ -100,7 +100,7 @@ export function getDatabase(): DatabaseInstance {
 					dbInstance
 						.prepare(
 							`CREATE TABLE api_keys (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
+									id INTEGER PRIMARY KEY,
               key_hash TEXT NOT NULL UNIQUE,
               label TEXT,
               scopes TEXT,

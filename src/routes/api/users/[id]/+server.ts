@@ -3,6 +3,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
+import { logEvent } from '$lib/server/logs';
 
 export const GET: RequestHandler = async (event) => {
 	// get user by id - admin only
@@ -81,6 +82,12 @@ export const PUT: RequestHandler = async (event) => {
 				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
 			)
 			.get(targetId);
+		// Log update
+		try {
+			await logEvent(event, 'update', 'user', targetId, { email, prenom, nom, role, promo_year });
+		} catch (logErr) {
+			console.warn('logEvent failed (users PUT):', logErr);
+		}
 		return json({ success: true, updated, changes: info.changes });
 	} catch (e: unknown) {
 		const err = ensureError(e);
@@ -104,6 +111,12 @@ export const DELETE: RequestHandler = async (event) => {
 	const info = db.prepare('DELETE FROM users WHERE id_user = ?').run(targetId);
 	if (info.changes === 0) {
 		return json({ error: 'User not found' }, { status: 404 });
+	}
+	// Log deletion
+	try {
+		await logEvent(event, 'delete', 'user', targetId, null);
+	} catch (logErr) {
+		console.warn('logEvent failed (users DELETE):', logErr);
 	}
 	return json({ success: true, changes: info.changes });
 };
