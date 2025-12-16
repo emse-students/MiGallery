@@ -9,8 +9,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		throw redirect(303, '/');
 	}
 
-	// Static API reference similar to Immich endpoints listing. Keep concise and example-driven.
-
 	const endpoints = API_ENDPOINTS;
 
 	return { endpoints };

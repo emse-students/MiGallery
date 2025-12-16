@@ -89,6 +89,17 @@ const migrations = [
       FOREIGN KEY(owner_id) REFERENCES users(id_user) ON DELETE CASCADE,
       FOREIGN KEY(authorized_id) REFERENCES users(id_user) ON DELETE CASCADE
     )`
+	},
+	{
+		name: 'Create api_keys table',
+		sql: `CREATE TABLE IF NOT EXISTS api_keys (
+      id INTEGER PRIMARY KEY,
+      key_hash TEXT NOT NULL UNIQUE,
+      label TEXT,
+      scopes TEXT,
+      revoked INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`
 	}
 ];
 

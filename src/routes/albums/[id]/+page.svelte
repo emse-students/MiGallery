@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { fade, fly } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
@@ -202,12 +203,7 @@
 {/snippet}
 
 <main class="page-main">
-  <!-- Fond animé -->
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="page-container">
     <!-- Navigation Retour -->
@@ -324,16 +320,14 @@
     font-family: system-ui, -apple-system, sans-serif;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .page-main {
-        --am-bg: var(--bg-primary, #020617);
-        --am-text: var(--text-primary, #f3f4f6);
-        --am-text-muted: var(--text-secondary, #94a3b8);
-        --am-border: rgba(255, 255, 255, 0.08);
-        --am-glass-bg: rgba(15, 23, 42, 0.6);
-        --am-glass-border: rgba(255, 255, 255, 0.08);
-        --am-item-bg: rgba(255, 255, 255, 0.03);
-    }
+  :global([data-theme='dark']) .page-main {
+    --am-bg: var(--bg-primary, #020617);
+    --am-text: var(--text-primary, #f3f4f6);
+    --am-text-muted: var(--text-secondary, #94a3b8);
+    --am-border: rgba(255, 255, 255, 0.08);
+    --am-glass-bg: rgba(15, 23, 42, 0.6);
+    --am-glass-border: rgba(255, 255, 255, 0.08);
+    --am-item-bg: rgba(255, 255, 255, 0.03);
   }
   :global([data-theme='dark']) .page-main {
     --am-bg: var(--bg-primary, #020617);
@@ -357,12 +351,7 @@
   }
 
   /* --- BACKGROUND --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.15; }
-  .blob-1 { width: 600px; height: 600px; background: var(--am-accent); top: -200px; left: 10%; animation: float 25s infinite; }
-  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; top: 30%; right: 15%; animation: float 30s infinite reverse; }
-  .blob-3 { width: 550px; height: 550px; background: #ec4899; bottom: 10%; left: 20%; animation: float 28s infinite; }
-  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -30px); } }
+  /* Removed */
 
   .page-container {
     position: relative; z-index: 1;
@@ -381,14 +370,7 @@
   .back-btn:hover { color: var(--am-accent); }
 
   /* --- HEADER --- */
-  .page-header {
-      display: flex; justify-content: space-between; align-items: flex-end;
-      margin-bottom: 3rem; flex-wrap: wrap; gap: 2rem;
-  }
-  .header-main { display: flex; align-items: center; gap: 1.5rem; }
-
-  /* .icon-wrapper removed because it's not used in the markup to avoid unused CSS selector error */
-
+  .header-toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 2rem; position: relative; z-index: 1; }
   .title-wrapper h1 { margin: 0; font-size: 2.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
   .title-wrapper .meta { margin: 0.25rem 0 0; color: var(--am-text-muted); font-size: 1rem; display: flex; align-items: center; gap: 0.4rem; }
   .title-wrapper .count { font-size: 0.85rem; color: var(--am-text-muted); opacity: 0.7; margin: 0.2rem 0 0; }
@@ -402,11 +384,13 @@
   .divider { width: 1px; height: 24px; background: var(--am-border); margin: 0 0.25rem; }
 
   .btn-glass {
-      display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
-      border: 1px solid transparent; border-radius: 10px;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 1.2rem; border-radius: 12px;
       background: var(--am-item-bg); color: var(--am-text);
       font-weight: 600; cursor: pointer; transition: all 0.2s;
       white-space: nowrap;
+      border: 1px solid var(--am-glass-border);
+      backdrop-filter: blur(10px);
   }
   /* Base hover */
   .btn-glass:hover {
@@ -451,6 +435,7 @@
       padding: 4rem; text-align: center; color: var(--am-text-muted);
       display: flex; flex-direction: column; align-items: center; gap: 1rem;
   }
+
   .loading-state { text-align: center; padding: 4rem; color: var(--am-text-muted); display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 
   /* --- MOBILE BAR --- */
@@ -530,11 +515,9 @@
     .glass-card.upload-container,
     .upload-container .upload-header h3,
     .upload-container .upload-header p {
-      background: rgba(8,10,12,0.92) !important;
-      border-color: rgba(255,255,255,0.06) !important;
+      background: rgba(15, 23, 42, 0.96) !important;
+      border-color: rgba(255,255,255,0.08) !important;
       color: var(--am-text) !important;
-      box-shadow: 0 8px 28px rgba(0,0,0,0.35) !important;
-      backdrop-filter: none !important;
     }
   }
 </style>

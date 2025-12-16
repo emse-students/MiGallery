@@ -218,17 +218,13 @@
   }
 
   /* Adjust modal surface per color scheme for legibility */
-  @media (prefers-color-scheme: dark) {
-    .modal-content {
+  :global([data-theme='dark']) .modal-content {
       background: rgba(6, 12, 18, 0.78);
       border: 1px solid rgba(255,255,255,0.06);
-    }
   }
-  @media (prefers-color-scheme: light) {
-    .modal-content {
+  :global([data-theme='light']) .modal-content {
       background: rgba(255,255,255,0.95);
       border: 1px solid rgba(0,0,0,0.06);
-    }
   }
 
   .modal-content-wide {

@@ -6,6 +6,7 @@
 	import type { ImmichAsset, User } from '$lib/types/api';
 	import type { Asset } from '$lib/photos.svelte';
 	import { toast } from '$lib/toast';
+	import { setAlbumCover } from '$lib/immich/albums';
 
 	interface Props {
 		assetId: string;
@@ -477,6 +478,25 @@
 		}
 	}
 
+	import { clientCache } from '$lib/client-cache';
+
+	async function handleSetCover() {
+		if (!albumId || !assetId) return;
+		try {
+			await setAlbumCover(albumId, assetId);
+			toast.success('Couverture mise à jour');
+
+			// Invalider le cache local de la couverture pour cet album
+			clientCache.delete('album-covers', albumId);
+
+			// Si on est sur la page album, on peut essayer de forcer le rechargement
+			// Mais comme c'est géré par le parent, le plus simple est de recharger la page ou de laisser le cache expirer
+			// Idéalement, on devrait émettre un événement pour dire au parent de rafraîchir
+		} catch (e) {
+			toast.error('Erreur: ' + (e as Error).message);
+		}
+	}
+
 	async function deleteCurrentAsset(skipConfirmation = false) {
 		if (!canManagePhotos || !assetId) return;
 
@@ -596,6 +616,11 @@
 				{/if}
 			</div>
 			<div class="modal-actions">
+				{#if canManagePhotos && albumId}
+					<button class="btn-icon" onclick={handleSetCover} title="Définir comme couverture">
+						<Icon name="image" size={20} />
+					</button>
+				{/if}
 				{#if !isVideo && mediaUrl}
 					<button class="btn-icon" onclick={() => scale = Math.max(scale - 0.2, minScale)} title="Zoom -" disabled={scale <= minScale}>
 						<Icon name="minus" size={20} />

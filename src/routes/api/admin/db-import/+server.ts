@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { requireScope } from '$lib/server/permissions';
+import { resetDatabase } from '$lib/db/database';
 import fs from 'fs';
 import path from 'path';
 
@@ -20,6 +21,9 @@ export const POST: RequestHandler = async (event) => {
 
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 		const BACKUP_PATH = `${DB_PATH}.before-import.${Date.now()}`;
+
+		// Fermer la connexion existante avant de toucher au fichier
+		resetDatabase();
 
 		// Sauvegarder la DB actuelle avant import
 		if (fs.existsSync(DB_PATH)) {

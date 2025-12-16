@@ -64,6 +64,10 @@ jobs:
         echo "Base de données existante trouvée, pas d'initialisation"
       fi
 
+      # Toujours exécuter les migrations pour mettre à jour le schéma si nécessaire
+      echo "Exécution des migrations..."
+      bun run db:migrate
+
    - name: Restart server
      run: |
       pm2 restart migallery || pm2 start bun --name migallery -- run ./build/index.js

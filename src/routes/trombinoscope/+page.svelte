@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { page } from "$app/state"; // Utilisation de $app/state comme dans l'exemple
+  import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { onMount, onDestroy } from 'svelte';
   import { fade, fly } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import type { User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
@@ -13,21 +14,11 @@
   let error = $state<string | null>(null);
   let users = $state<User[]>([]);
   let searchQuery = $state<string>('');
-  let debouncedSearch = $state<string>('');
-  let filteredUsers = $state<User[]>([]);
-  let _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  $effect(() => {
-    if (_searchDebounceTimer) clearTimeout(_searchDebounceTimer);
-    _searchDebounceTimer = setTimeout(() => {
-      debouncedSearch = (searchQuery || '').trim().toLowerCase();
-    }, 180);
-  });
-
-  $effect(() => {
-    const q = (debouncedSearch || '').toLowerCase();
-    if (!q) { filteredUsers = users.slice(); return; }
-    filteredUsers = users.filter(u => {
+  let filteredUsers = $derived.by(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(u => {
       const hay = `${u.prenom || ''} ${u.nom || ''} ${u.email || ''} ${u.id_user || ''}`.toLowerCase();
       return hay.includes(q);
     });
@@ -47,12 +38,9 @@
   });
   let selectedUser = $state<User | null>(null);
 
-  // Upload photo pour liaison Immich
   let uploadingPhoto = $state(false);
   let uploadPhotoFile = $state<File | null>(null);
 
-  // Vérifier le rôle de l'utilisateur
-  // Note: Adaptation syntaxe Svelte 5 ($derived et page.data.session)
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let currentUserId = $derived((page.data.session?.user as User)?.id_user);
   let canAccess = $derived(userRole === 'admin');
@@ -227,14 +215,6 @@
     // Seul le bouton "Ajouter" est protégé par `canAccess`
     fetchUsers();
   });
-
-  // Cleanup debounce timer on destroy
-  onDestroy(() => {
-    if (_searchDebounceTimer) {
-      try { clearTimeout(_searchDebounceTimer); } catch (e) {}
-      _searchDebounceTimer = null;
-    }
-  });
 </script>
 
 <svelte:head>
@@ -242,12 +222,7 @@
 </svelte:head>
 
 <main class="trombi-main">
-  <!-- Fond animé -->
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="trombi-container">
 
@@ -463,7 +438,6 @@
 </main>
 
 <style>
-  /* --- THEME VARIABLES --- */
   .trombi-main {
     --tm-bg: var(--bg-primary, #ffffff);
     --tm-card-bg: var(--bg-secondary, rgba(255, 255, 255, 0.7));
@@ -475,29 +449,20 @@
 
     position: relative;
     min-height: 100vh;
+    padding: 4rem 0 6rem;
     color: var(--tm-text);
     overflow-x: hidden;
     font-family: system-ui, -apple-system, sans-serif;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .trombi-main {
-        --tm-bg: var(--bg-primary, #0f172a);
-        --tm-card-bg: var(--bg-secondary, rgba(30, 41, 59, 0.7));
-        --tm-text: var(--text-primary, #f3f4f6);
-        --tm-text-muted: var(--text-secondary, #94a3b8);
-        --tm-border: var(--border, #334155);
-        --tm-glass-border: rgba(255, 255, 255, 0.1);
-    }
+  :global([data-theme='dark']) .trombi-main {
+    --tm-bg: var(--bg-primary, #0f172a);
+    --tm-card-bg: var(--bg-secondary, rgba(30, 41, 59, 0.7));
+    --tm-text: var(--text-primary, #f3f4f6);
+    --tm-text-muted: var(--text-secondary, #94a3b8);
+    --tm-border: var(--border, #334155);
+    --tm-glass-border: rgba(255, 255, 255, 0.1);
   }
-
-  /* --- ANIMATED BACKGROUND --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(100px); opacity: 0.15; }
-  .blob-1 { width: 600px; height: 600px; background: #0ea5e9; top: -200px; left: 10%; animation: float 25s infinite; }
-  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; top: 30%; right: 15%; animation: float 30s infinite reverse; }
-  .blob-3 { width: 550px; height: 550px; background: #ec4899; bottom: 10%; left: 20%; animation: float 28s infinite; }
-  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(30px, -30px); } }
 
   .trombi-container {
     position: relative; z-index: 1;
@@ -514,7 +479,6 @@
   .subtitle { color: var(--tm-text-muted); font-size: 1.1rem; margin: 0; }
   .header-actions { margin-top: 1.5rem; }
 
-  /* --- BUTTONS PILLS --- */
   .action-pill {
       display: inline-flex; align-items: center; gap: 0.5rem;
       padding: 0.6rem 1.5rem; border-radius: 99px;
@@ -627,6 +591,7 @@
       position: relative; z-index: 1; width: 100%;
       display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
   }
+
   .name {
       font-weight: 700; font-size: 1.15rem; color: var(--tm-text);
       margin-bottom: 0.1rem; line-height: 1.2;
@@ -654,17 +619,20 @@
       padding: 1.75rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.06);
       box-shadow: 0 20px 50px rgba(2,6,23,0.6); text-align: center;
       position: relative; overflow: hidden; backdrop-filter: blur(8px) saturate(120%);
+      max-height: 90vh; display: flex; flex-direction: column;
     }
   .modal-header {
       padding: 1.5rem; border-bottom: 1px solid var(--tm-border);
       background: rgba(255,255,255,0.02);
+      flex-shrink: 0;
   }
   .modal-header h3 { margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.75rem; color: var(--tm-text); }
 
-  .modal-body { padding: 2rem; overflow-y: auto; }
+  .modal-body { padding: 2rem; overflow-y: auto; flex: 1; }
   .modal-actions {
       padding: 1.5rem; border-top: 1px solid var(--tm-border); background: rgba(255,255,255,0.02);
       display: flex; justify-content: flex-end; gap: 1rem;
+      flex-shrink: 0;
   }
 
   /* Form Elements */

@@ -1,96 +1,167 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { fade } from 'svelte/transition';
+    import Icon from '$lib/components/Icon.svelte';
+    import type { PageData } from './$types';
 
-  let logs = $state<any[]>([]);
-  let loading = $state(true);
-  let filter = $state('');
-  let offset = $state(0);
-  const limit = 50;
-
-  async function loadLogs() {
-    loading = true;
-    const url = new URL(`/api/admin/logs`, location.origin);
-    url.searchParams.set('limit', String(limit));
-    url.searchParams.set('offset', String(offset));
-    if (filter) url.searchParams.set('type', filter);
-    const res = await fetch(url.toString());
-    if (res.ok) {
-      const data = await res.json();
-      logs = data.logs || [];
-    } else {
-      logs = [];
-    }
-    loading = false;
-  }
-
-  onMount(() => { void loadLogs(); });
-
-  function nextPage() { offset += limit; void loadLogs(); }
-  function prevPage() { offset = Math.max(0, offset - limit); void loadLogs(); }
+    let { data } = $props<{ data: PageData }>();
+    let logs = $derived(data.logs as any[]);
 </script>
 
 <svelte:head>
-  <title>Admin — Logs</title>
+    <title>Logs Admin - MiGallery</title>
 </svelte:head>
 
-<main class="admin-logs">
-  <header class="page-header">
-    <div class="header-content">
-      <h1>Logs</h1>
-      <p class="subtitle">Audit — créations, modifications, suppressions et connexions</p>
-    </div>
-    <div class="header-actions">
-      <input placeholder="Filtrer par type (create, update, delete, login)" bind:value={filter} class="search-input" />
-      <button class="btn" onclick={() => { offset = 0; void loadLogs(); }}>Filtrer</button>
-    </div>
-  </header>
+<div class="logs-container">
+    <header class="page-header">
+        <h1><Icon name="activity" size={28} /> Logs Système</h1>
+        <p>Historique des 200 dernières actions</p>
+    </header>
 
-  {#if loading}
-    <div class="state-message"><Icon name="loader" size={20} /> Chargement...</div>
-  {:else}
-    {#if logs.length === 0}
-      <div class="empty-state">Aucun log trouvé</div>
-    {:else}
-      <table class="logs-table" in:fade>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Acteur</th>
-            <th>Type</th>
-            <th>Cible</th>
-            <th>Détails</th>
-            <th>IP</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each logs as l}
-            <tr>
-              <td>{l.timestamp}</td>
-              <td>{l.actor || '-'}</td>
-              <td>{l.event_type}</td>
-              <td>{l.target_type}{l.target_id ? ` / ${l.target_id}` : ''}</td>
-              <td>{l.details ? l.details : '-'}</td>
-              <td>{l.ip || '-'}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+    <div class="grid-table glass-card">
+        <div class="table-header">
+            <div class="cell col-date">Date</div>
+            <div class="cell col-actor">Acteur</div>
+            <div class="cell col-action">Action</div>
+            <div class="cell col-target">Cible</div>
+            <div class="cell col-details">Détails</div>
+        </div>
 
-      <div class="pagination">
-        <button class="btn" onclick={prevPage} disabled={offset === 0}>Précédent</button>
-        <button class="btn" onclick={nextPage}>Suivant</button>
-      </div>
-    {/if}
-  {/if}
-</main>
+        <div class="table-body">
+            {#each logs as log}
+                <div class="table-row">
+                    <div class="cell col-date">{new Date(log.timestamp).toLocaleString()}</div>
+                    <div class="cell col-actor">
+                        {#if log.actor}
+                            <span class="badge user">{log.actor}</span>
+                        {:else}
+                            <span class="badge system">Système</span>
+                        {/if}
+                    </div>
+                    <div class="cell col-action">
+                        <span class="action-tag {log.event_type}">{log.event_type}</span>
+                    </div>
+                    <div class="cell col-target">
+                        {#if log.target_type}
+                            <div class="target-wrapper">
+                                <span class="target">{log.target_type}</span>
+                                {#if log.target_id}<span class="target-id">#{log.target_id.substring(0,8)}...</span>{/if}
+                            </div>
+                        {:else}
+                            <span class="muted">-</span>
+                        {/if}
+                    </div>
+                    <div class="cell col-details" title={log.details}>
+                        {log.details || '-'}
+                    </div>
+                </div>
+            {/each}
+        </div>
+    </div>
+</div>
 
 <style>
-  .admin-logs { padding: 1.5rem; }
-  .page-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
-  .search-input { padding:0.4rem 0.6rem; border-radius:8px; border:1px solid var(--border); }
-  .logs-table { width:100%; border-collapse:collapse; margin-top:1rem; }
-  .logs-table th, .logs-table td { padding:0.5rem 0.75rem; border-bottom:1px solid var(--border); text-align:left; font-size:0.9rem; }
-  .pagination { display:flex; gap:0.5rem; margin-top:1rem; }
+    /* Configuration de la grille : C'est ici que l'alignement est garanti */
+    /* On définit les largeurs : fixe | fixe | fixe | pourcentage | reste */
+    :global(.grid-table) {
+        --col-layout: 180px 140px 100px 25% 1fr;
+    }
+
+    .logs-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        color: var(--text-primary);
+    }
+
+    .page-header { margin-bottom: 2rem; }
+    .page-header h1 { display: flex; align-items: center; gap: 1rem; font-size: 2rem; margin-bottom: 0.5rem; }
+
+    /* Conteneur principal */
+    .glass-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 75vh; /* Hauteur fixe pour permettre le scroll interne */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Lignes (Header et Row) partagent la MEME définition de grille */
+    .table-header, .table-row {
+        display: grid;
+        grid-template-columns: var(--col-layout);
+        align-items: center; /* Centrage vertical du texte */
+    }
+
+    /* Style de l'en-tête */
+    .table-header {
+        background: rgba(0, 0, 0, 0.2); /* Fond légèrement plus sombre */
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        border-bottom: 1px solid var(--border);
+        z-index: 10;
+        /* Le header reste en haut du conteneur parent */
+        flex-shrink: 0;
+    }
+
+    /* Zone de scroll pour le contenu */
+    .table-body {
+        overflow-y: auto;
+        flex-grow: 1;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+    }
+
+    .table-row {
+        border-bottom: 1px solid var(--border);
+        transition: background 0.1s;
+    }
+    .table-row:last-child { border-bottom: none; }
+    .table-row:hover { background: rgba(255,255,255,0.03); }
+
+    /* Cellules */
+    .cell {
+        padding: 1rem;
+        border-right: 1px solid var(--border);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        height: 100%; /* Important pour que la bordure fasse toute la hauteur */
+        display: flex;
+        align-items: center; /* Centrage vertical du contenu */
+    }
+
+    /* Pas de bordure à droite pour la dernière colonne */
+    .cell:last-child { border-right: none; }
+
+    /* --- Styles du contenu (identique à avant) --- */
+    .col-date { color: var(--text-secondary); font-size: 0.9rem; font-family: monospace; }
+
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .badge.user { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.2); }
+    .badge.system { background: rgba(107, 114, 128, 0.15); color: #9ca3af; border: 1px solid rgba(107, 114, 128, 0.2); }
+
+    .action-tag { font-family: monospace; font-size: 0.85rem; font-weight: 600; color: var(--accent); }
+    .action-tag.delete { color: #ef4444; }
+    .action-tag.create { color: #10b981; }
+
+    .target-wrapper { display: flex; align-items: center; gap: 0.5rem; }
+    .target { font-weight: 600; }
+    .target-id { opacity: 0.5; font-size: 0.8rem; font-family: monospace; }
+    .muted { opacity: 0.3; }
+
+    .col-details {
+        color: var(--text-secondary);
+        font-family: monospace;
+        font-size: 0.8rem;
+    }
 </style>

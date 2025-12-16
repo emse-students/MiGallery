@@ -4,6 +4,7 @@
   import { onMount, onDestroy } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
@@ -15,11 +16,10 @@
   let showChangePhotoModal = $state(false);
   let targetUserId = $state<string | null>(null); // Store target user ID
   let targetUserName = $state<string | null>(null);
-  let isViewingOwnPhotos = $state(true); // Track if viewing own photos
-  let isAdmin = $state(false); // Track if current user is admin
-  let accessDenied = $state(false); // Track if access was denied
+  let isViewingOwnPhotos = $state(true);
+  let isAdmin = $state(false);
+  let accessDenied = $state(false);
 
-  // Computed: can edit profile photo (own photos OR admin)
   let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
 
   function openChangePhotoModal() {
@@ -35,7 +35,6 @@
     const targetIdPhotos = photosState.peopleId;
     if (!targetIdPhotos) throw new Error('Utilisateur non configuré');
 
-    // Mettre à jour la personne côté serveur
     const updateRes = await fetch(`/api/immich/people/${targetIdPhotos}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -61,16 +60,11 @@
     const user = page.data.session?.user as User;
     isAdmin = user?.role === 'admin';
 
-    // If userId is provided, check access permissions
     if (userIdParam) {
-      // Check if it's the current user's own photos
       if (userIdParam === user?.id_user) {
-        // Continue as own photos
         isViewingOwnPhotos = true;
       } else {
         isViewingOwnPhotos = false;
-
-        // Check access via API (also returns user info if access granted)
         try {
           const accessRes = await fetch(`/api/users/${encodeURIComponent(userIdParam)}/photo-access`);
           const accessData = await accessRes.json() as {
@@ -143,11 +137,7 @@
 </svelte:head>
 
 <main class="mesphotos-main">
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   {#if accessDenied}
     <div class="access-denied">
@@ -219,53 +209,9 @@
 
 <style>
   .mesphotos-main {
+    min-height: 100vh;
+    padding-bottom: 4rem;
     position: relative;
-  }
-
-  .page-background {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: -1;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .mesphotos-main .gradient-blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(105px);
-    opacity: 0.13;
-    animation: float 21s ease-in-out infinite;
-  }
-
-  .mesphotos-main .blob-1 {
-    width: 700px;
-    height: 700px;
-    background: radial-gradient(circle, rgba(124, 58, 237, 0.6) 0%, transparent 70%);
-    top: -150px;
-    left: 20%;
-    animation-delay: 0s;
-  }
-
-  .mesphotos-main .blob-2 {
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(20, 184, 166, 0.5) 0%, transparent 70%);
-    bottom: -100px;
-    right: 10%;
-    animation-delay: -8s;
-  }
-
-  .mesphotos-main .blob-3 {
-    width: 550px;
-    height: 550px;
-    background: radial-gradient(circle, rgba(147, 51, 234, 0.4) 0%, transparent 70%);
-    top: 50%;
-    left: 50%;
-    animation-delay: -15s;
   }
 
   .header-section {
@@ -349,11 +295,11 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    opacity: 0;
-    transition: opacity 0.3s ease;
     border-radius: 50%;
     color: white;
     backdrop-filter: blur(8px);
+	opacity: 0; /* Cache l'overlay par défaut */
+    transition: opacity 0.3s ease; /* Animation fluide */
   }
 
   .change-photo-text {

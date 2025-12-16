@@ -5,6 +5,7 @@
   import { fade, slide } from 'svelte/transition';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import UploadZone from '$lib/components/UploadZone.svelte';
   import { PhotosState } from '$lib/photos.svelte';
@@ -14,8 +15,6 @@
   const myPhotosState = new PhotosState();
   const allPhotosState = new PhotosState();
 
-  // Vérifier le rôle de l'utilisateur
-  // Note: page est un objet state ici, pas un store
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
   let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.id_photos);
@@ -87,12 +86,7 @@
 </svelte:head>
 
 <main class="page-main">
-  <!-- Fond animé -->
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="page-container">
 
@@ -226,7 +220,6 @@
 <style>
   /* --- THEME VARIABLES --- */
   .page-main {
-    --cv-bg: var(--bg-primary, #ffffff);
     --cv-text: var(--text-primary, #1f2937);
     --cv-text-muted: var(--text-secondary, #6b7280);
     --cv-accent: var(--accent, #3b82f6);
@@ -235,18 +228,14 @@
 
     position: relative;
     min-height: 100vh;
+    padding: 4rem 0 6rem;
     color: var(--cv-text);
     overflow-x: hidden;
     font-family: system-ui, -apple-system, sans-serif;
   }
 
   /* --- BACKGROUND --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.15; }
-  .blob-1 { width: 600px; height: 600px; background: var(--cv-accent); top: -100px; left: -100px; animation: float 20s infinite; }
-  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; bottom: -50px; right: -50px; animation: float 25s infinite reverse; }
-  .blob-3 { width: 450px; height: 450px; background: #ec4899; top: 50%; left: 50%; animation: float 22s infinite; }
-  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px, 40px); } }
+  /* Removed */
 
   .page-container {
     position: relative; z-index: 1;

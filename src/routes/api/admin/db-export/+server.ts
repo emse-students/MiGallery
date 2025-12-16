@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { requireScope } from '$lib/server/permissions';
+import { getDatabase } from '$lib/db/database';
 import fs from 'fs';
 import path from 'path';
 
@@ -16,6 +17,12 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	try {
+		// Force WAL checkpoint to ensure all data is in the main file
+		const db = getDatabase();
+		if (db.exec) {
+			db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+		}
+
 		const dbBuffer = fs.readFileSync(DB_PATH);
 		const filename = `migallery_export_${new Date().toISOString().split('T')[0]}.db`;
 

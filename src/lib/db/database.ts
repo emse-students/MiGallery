@@ -140,3 +140,16 @@ export function getDatabase(): DatabaseInstance {
 
 	return db;
 }
+
+export function resetDatabase() {
+	if (db) {
+		try {
+			if (db.close) {
+				db.close();
+			}
+		} catch (e) {
+			console.error('Error closing database:', e);
+		}
+		db = null;
+	}
+}
