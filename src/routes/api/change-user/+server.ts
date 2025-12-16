@@ -23,7 +23,7 @@ export const POST: RequestHandler = async (event) => {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'strict',
-			secure: process.env.NODE_ENV === 'production',
+			secure: String(process.env.NODE_ENV) === 'production',
 			maxAge: 60 * 60 * 24 * 30 // 30 jours
 		});
 
