@@ -382,8 +382,10 @@
 		max-width: var(--max-width);
 		margin: 0 auto;
 		padding: var(--container-padding);
-		min-height: calc(100vh - var(--topbar-height) - var(--mobile-nav-height));
+		min-height: calc(100vh - var(--topbar-height));
 		padding-bottom: calc(var(--container-padding) + var(--mobile-nav-height));
+		position: relative;
+		z-index: 1;
 	}
 
 	/* Footer safety: ensure texts wrap and remain centered on small viewports */
