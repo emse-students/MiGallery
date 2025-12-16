@@ -63,7 +63,7 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 			const signed = signId(String(created.id_user));
 			cookies.set('current_user_id', signed, {
 				httpOnly: true,
-				secure: process.env.NODE_ENV === 'production',
+				   secure: String(process.env.NODE_ENV) === 'production',
 				sameSite: 'lax',
 				path: '/',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
