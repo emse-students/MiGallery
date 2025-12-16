@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import Icon from '$lib/components/Icon.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 
   interface Doc { filename: string; title: string; content: string; name: string; html: string; }
 
@@ -31,11 +32,7 @@
 </svelte:head>
 
 <main class="docs-main">
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="docs-container">
     <header class="page-header">
@@ -113,25 +110,20 @@
     background-color: var(--doc-bg);
     padding: 2rem 1rem 6rem;
     overflow-x: hidden;
+    border-radius: 1.5rem;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .docs-main {
+  :global([data-theme='dark']) .docs-main {
         --doc-bg: var(--bg-primary, #0f172a);
         --doc-text: var(--text-primary, #f1f5f9);
         --doc-text-muted: var(--text-secondary, #94a3b8);
         --doc-border: rgba(255, 255, 255, 0.1);
         --doc-card-bg: rgba(30, 41, 59, 0.7);
         --doc-code-bg: #020617;
-    }
   }
 
   /* --- BACKGROUND --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.1; }
-  .blob-1 { width: 500px; height: 500px; background: var(--doc-accent); top: -10%; left: -10%; }
-  .blob-2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -10%; right: -10%; }
-  .blob-3 { width: 600px; height: 600px; background: #10b981; top: 40%; left: 40%; opacity: 0.05; }
+  /* Removed */
 
   .docs-container {
     position: relative; z-index: 1;

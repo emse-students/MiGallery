@@ -5,14 +5,13 @@
   import Modal from '$lib/components/Modal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CameraInput from '$lib/components/CameraInput.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import { theme } from '$lib/theme';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
-
-  // --- LOGIQUE METIER CONSERVÉE (Identique à ton code original) ---
-  // J'ai gardé toute ta logique intacte pour ne rien casser.
+  import { uploadFileChunked } from '$lib/album-operations';
 
   let isAdmin = $state<boolean>(false);
 
@@ -27,18 +26,15 @@
   let needsNewPhoto = $state<boolean>(false);
   let abortController: AbortController | null = null;
 
-  // État pour les modaux
   let showDeleteAccountModal = $state<boolean>(false);
   let deleteConfirmText = $state<string>('');
   let isDeletingAccount = $state<boolean>(false);
   let showFaceAlreadyAssignedModal = $state<boolean>(false);
 
-  // État pour la dissociation du visage
   let showUnlinkFaceModal = $state<boolean>(false);
   let isUnlinkingFace = $state<boolean>(false);
   let currentUserHasFace = $state<boolean>(false);
 
-  // État pour la gestion des autorisations de photos
   interface PhotoPermission {
     authorized_id: string;
     authorized_prenom: string;
@@ -59,11 +55,9 @@
   let isLoadingSharedWithMe = $state<boolean>(false);
 
   $effect(() => {
-    // initial data + derived flags
     loadCurrentUserFaceStatus();
     loadPhotoPermissions();
     loadSharedWithMe();
-    // set admin flag from session user if available
     try {
       const u = page.data.session?.user as User | undefined;
       isAdmin = !!(u && u.role === 'admin');
@@ -193,7 +187,9 @@
 
       if (people.length === 1) {
         personId = people[0].id;
-        uploadStatus = `Visage détecté avec succès !`;
+        // Ne pas afficher "Succès" tout de suite, attendre la confirmation BDD
+        uploadStatus = `Visage détecté, enregistrement...`;
+
         const updateResponse = await fetch('/api/users/me/face', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -209,7 +205,7 @@
         }
 
         if (updateData.success) {
-          uploadStatus = `Configuration terminée !`;
+          uploadStatus = `Visage reconnu avec succès !`;
           if (shouldCleanup) await cleanupAsset(assetIdToDelete);
           isProcessing = false;
           setTimeout(() => { window.location.href = window.location.href; }, 100);
@@ -258,14 +254,9 @@
     let uploadedAssetId: string | null = null;
 
     try {
-      const formData = new FormData();
-      formData.append('assetData', file);
-      formData.append('deviceAssetId', `${file.name}-${Date.now()}`);
-      formData.append('deviceId', 'MiGallery-Web');
-      formData.append('fileCreatedAt', new Date().toISOString());
-      formData.append('fileModifiedAt', new Date().toISOString());
+      let uploadResponse: Response;
+      uploadResponse = await uploadFileChunked(file, signal);
 
-      const uploadResponse = await fetch('/api/immich/assets', { method: 'POST', body: formData, signal });
       if (!uploadResponse.ok) throw new Error(`Erreur upload: ${uploadResponse.statusText}`);
       const uploadData = await uploadResponse.json() as Record<string, unknown>;
 
@@ -353,11 +344,7 @@
 </svelte:head>
 
 <main class="settings-main">
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="settings-container">
     <header class="page-header settings-header centered">
@@ -653,7 +640,6 @@
 </Modal>
 
 <style>
-    /* --- VARIABLES THEME (Local Scope) --- */
     .settings-main {
         --st-bg: var(--bg-primary, #ffffff);
         --st-card-bg: var(--bg-secondary, #ffffff);
@@ -672,27 +658,16 @@
         overflow-x: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .settings-main {
-            --st-bg: var(--bg-primary, #0f172a);
-            --st-card-bg: var(--bg-secondary, #1e293b);
-            --st-text: var(--text-primary, #f3f4f6);
-            --st-text-muted: var(--text-secondary, #9ca3af);
-            --st-border: var(--border, #334155);
-            --st-danger-bg: rgba(239, 68, 68, 0.1);
-            --st-danger-border: rgba(239, 68, 68, 0.3);
-        }
+    :global([data-theme='dark']) .settings-main {
+        --st-bg: var(--bg-primary, #0f172a);
+        --st-card-bg: var(--bg-secondary, #1e293b);
+        --st-text: var(--text-primary, #f3f4f6);
+        --st-text-muted: var(--text-secondary, #9ca3af);
+        --st-border: var(--border, #334155);
+        --st-danger-bg: rgba(239, 68, 68, 0.1);
+        --st-danger-border: rgba(239, 68, 68, 0.3);
     }
 
-    /* --- BACKGROUND (Identique CGU) --- */
-    .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-    .gradient-blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; }
-    .blob-1 { width: 500px; height: 500px; background: var(--st-accent); top: -100px; left: -100px; animation: float 20s infinite; }
-    .blob-2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -50px; right: -50px; animation: float 25s infinite reverse; }
-    .blob-3 { width: 450px; height: 450px; background: var(--st-accent); top: 50%; right: 10%; animation: float 22s infinite; }
-    @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px, 40px); } }
-
-    /* --- LAYOUT --- */
     .settings-container {
         position: relative;
         z-index: 1;
@@ -701,7 +676,6 @@
         padding: 0 1.5rem;
     }
 
-
     .settings-header { margin-bottom: 3rem; text-align: center; }
 
     .subtitle {
@@ -709,7 +683,6 @@
         color: var(--st-text-muted);
     }
 
-    /* --- CARDS --- */
     .settings-card {
         background: var(--st-card-bg);
         border: 1px solid var(--st-border);
@@ -750,7 +723,6 @@
 
     .card-body { padding: 1.5rem; }
 
-    /* --- SPECIFIC ELEMENTS --- */
     .preference-row {
         display: flex; justify-content: space-between; align-items: center;
     }
@@ -804,7 +776,6 @@
     .permission-add-row input { flex: 1; }
 
     /* --- PERMISSIONS LIST --- */
-    .permissions-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
     .permission-chip {
         display: flex; align-items: center; gap: 0.75rem;
         padding: 0.5rem 0.75rem;
@@ -829,6 +800,7 @@
 
     /* --- SHARED LIST --- */
     .shared-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
     .shared-item {
         display: flex; align-items: center; gap: 1rem;
         padding: 0.75rem;
@@ -852,7 +824,6 @@
 
     /* --- DANGER ZONE --- */
     .danger-zone { border-color: var(--st-danger-border); background: var(--st-danger-bg); }
-    .danger-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem 0; }
     .danger-info strong { color: var(--st-text); display: block; margin-bottom: 0.25rem; }
     .danger-info p { margin: 0; font-size: 0.9rem; }
     .separator { height: 1px; background: var(--st-danger-border); margin: 1rem 0; }
@@ -872,7 +843,6 @@
 
     /* --- FOOTER --- */
     .settings-footer { text-align: center; margin-top: 4rem; color: var(--st-text-muted); }
-    .footer-links a { color: var(--st-text-muted); text-decoration: none; font-weight: 500; transition: color 0.2s; }
     .footer-links a:hover { color: var(--st-accent); }
     .copyright { font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.7; }
 

@@ -3,6 +3,7 @@
   import { goto } from "$app/navigation";
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
@@ -261,7 +262,7 @@
 </svelte:head>
 
 <main class="corbeille-main">
-  <div class="page-background"></div>
+  <BackgroundBlobs />
 
   <header class="page-header centered">
     <div class="header-content">
@@ -410,21 +411,6 @@
   .corbeille-main {
     position: relative;
     min-height: 100vh;
-  }
-
-  .page-background {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: -1;
-    background:
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(220, 38, 38, 0.15), transparent),
-      radial-gradient(ellipse 60% 50% at 0% 100%, rgba(245, 158, 11, 0.1), transparent),
-      radial-gradient(ellipse 60% 50% at 100% 100%, rgba(168, 85, 247, 0.1), transparent);
-    pointer-events: none;
-    overflow: hidden;
   }
 
   /* Titles handled by shared styles in app.css */

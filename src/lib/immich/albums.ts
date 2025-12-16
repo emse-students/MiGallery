@@ -45,3 +45,14 @@ export async function fetchAlbumCovers(
 	}
 	return albumCovers;
 }
+
+export async function setAlbumCover(albumId: string, assetId: string): Promise<void> {
+	const res = await fetch(`/api/immich/albums/${albumId}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ albumThumbnailAssetId: assetId })
+	});
+	if (!res.ok) {
+		throw new Error(await res.text().catch(() => res.statusText));
+	}
+}

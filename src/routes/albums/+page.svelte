@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/Icon.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
   import AlbumModal from '$lib/components/AlbumModal.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -23,8 +24,6 @@
   let searchQuery = $state<string>('');
   let filteredAlbums = $state<Album[]>([]);
 
-  // Filter immediately on every change to the search input so the canvas
-  // (the visible album grid) is reloaded on each keypress.
   $effect(() => {
     const q = (searchQuery || '').trim().toLowerCase();
     if (!q) {
@@ -84,20 +83,20 @@
 
   // Helper to load covers for a given list of albums. Only requests missing covers.
   async function loadCoversFor(list: Album[]) {
-    try {
       const albumIds = list.map((a) => a.id);
       const missing: string[] = [];
       const cachedCovers: Record<string, { id: string; type?: string }> = {};
 
       for (const albumId of albumIds) {
-        if (!albumCovers[albumId]) {
-          // try local cache first
-          const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
-          if (cached) {
-            cachedCovers[albumId] = cached;
-          } else {
-            missing.push(albumId);
-          }
+        // Si on a déjà la cover en mémoire, on ne fait rien
+        if (albumCovers[albumId]) continue;
+
+        // try local cache first
+        const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
+        if (cached) {
+          cachedCovers[albumId] = cached;
+        } else {
+          missing.push(albumId);
         }
       }
 
@@ -107,6 +106,7 @@
 
       if (missing.length === 0) return;
 
+      try {
       const res = await fetch('/api/albums/covers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -237,12 +237,7 @@
 </svelte:head>
 
 <main class="albums-main">
-  <!-- Fond animé -->
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="albums-container">
     <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
@@ -434,26 +429,19 @@
     font-family: system-ui, -apple-system, sans-serif;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .albums-main {
-        --alb-bg: var(--bg-primary, #020617);
-        --alb-text: var(--text-primary, #f3f4f6);
-        --alb-text-muted: var(--text-secondary, #94a3b8);
-        --alb-border: rgba(255, 255, 255, 0.08);
-        --alb-glass-bg: rgba(15, 23, 42, 0.6);
-        --alb-glass-border: rgba(255, 255, 255, 0.08);
-        --alb-item-bg: rgba(255, 255, 255, 0.03);
-        --alb-item-hover: rgba(255, 255, 255, 0.08);
-    }
+  :global([data-theme='dark']) .albums-main {
+    --alb-bg: var(--bg-primary, #020617);
+    --alb-text: var(--text-primary, #f3f4f6);
+    --alb-text-muted: var(--text-secondary, #94a3b8);
+    --alb-border: rgba(255, 255, 255, 0.08);
+    --alb-glass-bg: rgba(15, 23, 42, 0.6);
+    --alb-glass-border: rgba(255, 255, 255, 0.08);
+    --alb-item-bg: rgba(255, 255, 255, 0.03);
+    --alb-item-hover: rgba(255, 255, 255, 0.08);
   }
 
   /* --- BACKGROUND --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.15; }
-  .blob-1 { width: 600px; height: 600px; background: var(--alb-accent); top: -100px; left: -100px; animation: float 20s infinite; }
-  .blob-2 { width: 500px; height: 500px; background: #8b5cf6; bottom: -50px; right: -50px; animation: float 25s infinite reverse; }
-  .blob-3 { width: 450px; height: 450px; background: var(--alb-accent); top: 50%; left: 50%; animation: float 22s infinite; }
-  @keyframes float { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(20px, 40px); } }
+  /* Removed */
 
   /* --- LAYOUT --- */
   .albums-container {
@@ -506,10 +494,7 @@
 
   /* --- CARD (Glassmorphism / Borderless) --- */
   .album-item {
-    position: relative;
-    border-radius: 20px;
-    overflow: hidden;
-    /* Correction bug safari border-radius + transform */
+    position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 1;
     -webkit-mask-image: -webkit-radial-gradient(white, black);
     mask-image: radial-gradient(white, black);
     background: var(--alb-item-bg);
@@ -525,9 +510,6 @@
     z-index: 10;
     border-color: var(--alb-accent);
   }
-
-  .album-item.album-hidden { opacity: 0.6; filter: grayscale(1); }
-
   .album-link { display: block; text-decoration: none; color: inherit; width: 100%; height: 100%; }
 
   .album-cover-wrapper {

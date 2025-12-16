@@ -16,7 +16,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Seuls les albums répertoriés dans MiGallery sont retournés
  */
 export const GET: RequestHandler = async (event) => {
-	// Autorisation: session utilisateur OU x-api-key avec scope "read"
+	// Autorisation: cet endpoint nécessite une authentification avec scope 'read'
 	await requireScope(event, 'read');
 
 	try {

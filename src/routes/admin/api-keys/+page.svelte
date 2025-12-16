@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
@@ -79,11 +80,7 @@
 
 <main class="admin-main">
   <!-- Fond animé -->
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="admin-container">
     <header class="page-header">
@@ -219,10 +216,10 @@
     overflow-x: hidden;
     padding: 2rem 1rem 6rem;
     font-family: system-ui, -apple-system, sans-serif;
+    border-radius: 1.5rem;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .admin-main {
+  :global([data-theme='dark']) .admin-main {
         /* DARK MODE */
         --adm-bg: #020617;
         --adm-text: #f8fafc;
@@ -234,17 +231,10 @@
         --adm-glass-border: rgba(255, 255, 255, 0.08);
         --adm-item-bg: rgba(255, 255, 255, 0.03);
         --adm-item-hover: rgba(255, 255, 255, 0.08);
-    }
   }
 
   /* --- BACKGROUND ANIMÉ --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; }
-  @media (prefers-color-scheme: dark) { .gradient-blob { opacity: 0.2; } }
-
-  .blob-1 { width: 500px; height: 500px; background: var(--adm-accent); top: -10%; left: -10%; }
-  .blob-2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -10%; right: -10%; }
-  .blob-3 { width: 600px; height: 600px; background: #10b981; top: 40%; left: 40%; opacity: 0.05; }
+  /* Removed */
 
   .admin-container {
     position: relative; z-index: 1;

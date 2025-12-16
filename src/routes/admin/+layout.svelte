@@ -5,6 +5,7 @@
   const links = [
     { href: '/admin', label: 'Documentation', icon: '📚' },
     { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
+    { href: '/admin/logs', label: 'Logs', icon: '📜' },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
     { href: '/admin/database', label: 'Base de données', icon: '🗄️' }
   ];
@@ -45,6 +46,7 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     gap: 0;
+    border-radius: 1.5rem;
   }
 
   .sidebar {
@@ -58,6 +60,7 @@
     position: sticky;
     top: 0;
     height: 100vh;
+    border-radius: 1.5rem;
   }
 
   .brand {

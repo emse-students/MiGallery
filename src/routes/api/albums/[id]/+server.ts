@@ -108,18 +108,22 @@ export const DELETE: RequestHandler = async (event) => {
 			}
 		}
 
+		// Log album deletion
+		try {
+			await logEvent(event, 'delete', 'album', event.params.id, {
+				immichDeleted: immichDeleteSuccess,
+				immichError: immichDeleteError
+			});
+		} catch (logErr) {
+			console.warn('logEvent failed (albums DELETE):', logErr);
+		}
+
 		return json({
 			success: true,
 			localDbDeleted: true,
 			immichDeleted: immichDeleteSuccess,
 			immichError: immichDeleteError
 		});
-		// Log album deletion
-		try {
-			await logEvent(event, 'delete', 'album', event.params.id, { immichDeleted: immichDeleteSuccess, immichError: immichDeleteError });
-		} catch (logErr) {
-			console.warn('logEvent failed (albums DELETE):', logErr);
-		}
 	} catch (e: unknown) {
 		const err = ensureError(e);
 		console.error(`Error in /api/albums/${event.params.id} DELETE:`, err);

@@ -46,7 +46,8 @@ async function buildServer() {
 	return new Promise((resolve, reject) => {
 		const build = spawn('bun', ['run', 'build'], {
 			stdio: 'inherit',
-			shell: process.platform === 'win32'
+			shell: process.platform === 'win32',
+			env: { ...process.env, NODE_ENV: 'test' }
 		});
 
 		build.on('close', (code) => {
@@ -90,6 +91,10 @@ async function main() {
 		const envVars = loadEnv();
 		console.log('📄 Variables .env chargées:', Object.keys(envVars).join(', '));
 
+		// Définir NODE_ENV=test pour activer les routes de dev pendant les tests
+		process.env.NODE_ENV = 'test';
+		console.log('✅ NODE_ENV défini à "test"');
+
 		// 1. Build le serveur
 		await buildServer();
 
@@ -99,7 +104,7 @@ async function main() {
 		server = spawn('bun', ['./build/index.js'], {
 			stdio: 'inherit',
 			detached: false,
-			env: { ...process.env, ...envVars }
+			env: { ...process.env, ...envVars, NODE_ENV: 'test' }
 		});
 
 		// 3. Attendre que le serveur démarre
@@ -120,7 +125,7 @@ async function main() {
 		// 4. Lancer les tests
 		const tests = spawn('bun', ['run', 'vitest', 'run'], {
 			stdio: 'inherit',
-			env: { ...process.env, API_BASE_URL }
+			env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' }
 		});
 
 		// 5. Attendre la fin des tests

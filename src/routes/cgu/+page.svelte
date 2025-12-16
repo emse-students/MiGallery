@@ -1,5 +1,6 @@
 <script lang="ts">
     import Icon from '$lib/components/Icon.svelte';
+    import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 </script>
 
 <svelte:head>
@@ -8,11 +9,7 @@
 </svelte:head>
 
 <main class="cgu-main">
-    <div class="page-background">
-        <div class="gradient-blob blob-1"></div>
-        <div class="gradient-blob blob-2"></div>
-        <div class="gradient-blob blob-3"></div>
-    </div>
+    <BackgroundBlobs />
 
     <div class="cgu-container">
         <header class="cgu-header">
@@ -147,9 +144,6 @@
 </main>
 
 <style>
-    /* --- VARIABLES & THEME --- */
-    /* Ces variables utilisent des valeurs par défaut mais devraient idéalement
-       hériter de votre système de thème global (:root) */
     .cgu-main {
         --cgu-bg: var(--bg-primary, #ffffff);
         --cgu-text: var(--text-primary, #1f2937);
@@ -163,60 +157,17 @@
         min-height: 100vh;
         padding: 4rem 0 6rem;
         color: var(--cgu-text);
-        background-color: var(--cgu-bg); /* Fallback si pas de background global */
         overflow-x: hidden;
     }
 
-    /* Support du Dark Mode si les variables CSS globales changent ou via media query */
-    @media (prefers-color-scheme: dark) {
-        .cgu-main {
-            --cgu-bg: var(--bg-primary, #0f172a);
-            --cgu-text: var(--text-primary, #f3f4f6);
-            --cgu-text-muted: var(--text-secondary, #9ca3af);
-            --cgu-card-bg: var(--bg-secondary, #1e293b);
-            --cgu-border: var(--border, #334155);
-            --cgu-accent-glow: rgba(59, 130, 246, 0.25);
-        }
-    }
-
-    /* --- BACKGROUND --- */
-    .page-background {
-        position: fixed;
-        inset: 0;
-        z-index: 0;
-        pointer-events: none;
-        overflow: hidden;
-    }
-
-    .gradient-blob {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(80px);
-        opacity: 0.2;
-    }
-
-    .blob-1 {
-        width: 60vw; height: 60vw;
-        background: var(--cgu-accent);
-        top: -20%; left: -20%;
-        animation: float 20s ease-in-out infinite;
-    }
-    .blob-2 {
-        width: 50vw; height: 50vw;
-        background: #8b5cf6;
-        bottom: -10%; right: -10%;
-        animation: float 25s ease-in-out infinite reverse;
-    }
-    .blob-3 {
-        width: 40vw; height: 40vw;
-        background: var(--cgu-accent);
-        top: 40%; left: 30%;
-        animation: float 22s ease-in-out infinite;
-    }
-
-    @keyframes float {
-        0%, 100% { transform: translate(0, 0); }
-        50% { transform: translate(20px, 40px); }
+    /* Support du Dark Mode via l'attribut data-theme */
+    :global([data-theme='dark']) .cgu-main {
+        --cgu-bg: var(--bg-primary, #0f172a);
+        --cgu-text: var(--text-primary, #f3f4f6);
+        --cgu-text-muted: var(--text-secondary, #9ca3af);
+        --cgu-card-bg: var(--bg-secondary, #1e293b);
+        --cgu-border: var(--border, #334155);
+        --cgu-accent-glow: rgba(59, 130, 246, 0.25);
     }
 
     /* --- LAYOUT --- */

@@ -2,15 +2,14 @@
   import { page } from "$app/state";
   import type { User } from "$lib/types/api";
   import Icon from "$lib/components/Icon.svelte";
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import { fade, fly } from "svelte/transition";
 	import { signIn} from "@auth/sveltekit/client";
 
-  // Récupération réactive de l'utilisateur (Svelte 5)
   let user = $derived(page.data.session?.user as User | undefined);
   let isAuthenticated = $derived(!!user);
   let hasIdPhotos = $derived(!!user?.id_photos);
 
-  // Déterminer le message d'accueil en fonction de l'heure (optionnel, pour le fun)
   const hour = new Date().getHours();
   const greeting = hour < 18 ? "Bonjour" : "Bonsoir";
 
@@ -28,12 +27,7 @@
 </svelte:head>
 
 <main class="home-main">
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-    <div class="glass-overlay"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="content-wrapper" in:fade={{ duration: 800 }}>
     <header class="header">
@@ -78,7 +72,6 @@
 </main>
 
 <style>
-  /* --- Layout & Reset --- */
   :global(body) {
     margin: 0;
     font-family: 'Inter', system-ui, sans-serif;
@@ -95,35 +88,6 @@
     justify-content: center;
     overflow: hidden;
     border-radius: 1.5rem;
-  }
-
-  /* --- Background Blobs --- */
-  .page-background {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    overflow: hidden;
-  }
-
-  .gradient-blob {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.6;
-    animation: float 10s infinite ease-in-out;
-  }
-
-  .blob-1 { background: #4f46e5; width: 400px; height: 400px; top: -10%; left: -10%; animation-delay: 0s; }
-  .blob-2 { background: #db2777; width: 300px; height: 300px; bottom: 10%; right: -5%; animation-delay: 2s; }
-  .blob-3 { background: #0ea5e9; width: 350px; height: 350px; top: 40%; left: 40%; animation-delay: 4s; }
-
-  @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
   }
 
   /* --- Content --- */
@@ -198,7 +162,6 @@
 
   /* --- Buttons --- */
   .btn {
-    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;

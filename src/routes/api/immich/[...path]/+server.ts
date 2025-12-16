@@ -13,15 +13,33 @@ import os from 'node:os';
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
 
+import type { RequestEvent } from '@sveltejs/kit';
+
+interface ImmichAssetResponse {
+	id: string;
+	[key: string]: unknown;
+}
+
+interface ImmichAlbumResponse {
+	id: string;
+	albumName?: string;
+	[key: string]: unknown;
+}
+
+interface BulkDeleteRequest {
+	ids: string[];
+}
+
 /**
  * Gère l'upload par morceaux (chunked) pour contourner les limites de Cloudflare.
  * Stocke les morceaux sur le disque et transfère le fichier complet à Immich à la fin.
  */
 async function handleChunkedUpload(
-	request: Request,
+	event: RequestEvent,
 	outgoingHeaders: Record<string, string>,
 	baseUrl: string
 ) {
+	const request = event.request;
 	const chunkIndex = parseInt(request.headers.get('x-chunk-index') || '0');
 	const totalChunks = parseInt(request.headers.get('x-chunk-total') || '1');
 	const fileId = request.headers.get('x-file-id');
@@ -104,6 +122,22 @@ async function handleChunkedUpload(
 			headers: fetchHeaders,
 			body: formData
 		});
+
+		// Log upload success
+		if (response.ok) {
+			try {
+				// On essaie de récupérer l'ID de l'asset créé
+				const respClone = response.clone();
+				const respData = (await respClone.json()) as ImmichAssetResponse;
+				const assetId = respData.id;
+
+				if (assetId) {
+					await logEvent(event, 'create', 'asset', assetId, { originalName, proxied: true });
+				}
+			} catch (e) {
+				console.warn('Failed to log upload:', e);
+			}
+		}
 
 		// Nettoyage du fichier temporaire
 		try {
@@ -192,7 +226,7 @@ const handle: RequestHandler = async function (event) {
 		}
 
 		// Déléguer au handler de chunks
-		return handleChunkedUpload(request, chunkHeaders, base);
+		return handleChunkedUpload(event, chunkHeaders, base);
 	}
 	// ------------------------------
 
@@ -345,23 +379,74 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		// Log delete events
-		if (request.method === 'DELETE' && res.ok) {
+		// Log events
+		if (res.ok) {
 			try {
 				const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
 				const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
 				const personIdMatch = pathParam.match(/people\/([^/]+)/);
-				if (assetIdMatch) {
-					await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
+
+				// DELETE
+				if (request.method === 'DELETE') {
+					// Bulk delete assets
+					if (pathParam === 'assets') {
+						try {
+							let ids: string[] = [];
+							if (bodyToForward && typeof bodyToForward === 'string') {
+								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
+								if (parsed.ids && Array.isArray(parsed.ids)) {
+									ids = parsed.ids;
+								}
+							}
+							if (ids.length > 0) {
+								await logEvent(event, 'delete', 'asset', 'bulk', { count: ids.length, ids });
+							}
+						} catch {
+							/* ignore parse error */
+						}
+					} else if (assetIdMatch) {
+						// Single delete
+						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
+					} else if (albumIdMatch) {
+						await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
+					} else if (personIdMatch) {
+						await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
+					}
+				} else if (request.method === 'POST') {
+					// POST (Create)
+					// Create Album
+					if (pathParam === 'albums') {
+						try {
+							const respData = JSON.parse(textBody) as ImmichAlbumResponse;
+							if (respData.id) {
+								await logEvent(event, 'create', 'album', respData.id, { name: respData.albumName });
+							}
+						} catch {
+							/* ignore */
+						}
+					} else if (albumIdMatch && pathParam.endsWith('/assets')) {
+						// Add assets to album
+						try {
+							let count = 0;
+							if (bodyToForward && typeof bodyToForward === 'string') {
+								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
+								if (parsed.ids && Array.isArray(parsed.ids)) {
+									count = parsed.ids.length;
+								}
+							}
+							await logEvent(event, 'update', 'album', albumIdMatch[1], { action: 'add_assets', count });
+						} catch {
+							/* ignore */
+						}
+					}
+				} else if (request.method === 'PUT' || request.method === 'PATCH') {
+					// PUT/PATCH (Update)
+					if (albumIdMatch) {
+						await logEvent(event, 'update', 'album', albumIdMatch[1], { method: request.method });
+					}
 				}
-				if (albumIdMatch) {
-					await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
-				}
-				if (personIdMatch) {
-					await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
-				}
-			} catch {
-				/* swallow logging errors */
+			} catch (e) {
+				console.warn('Logging failed in proxy:', e);
 			}
 		}
 

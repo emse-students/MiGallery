@@ -13,6 +13,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Liste toutes les personnes reconnues par Immich
  */
 export const GET: RequestHandler = async (event) => {
+	// Endpoint nécessite une authentification avec scope 'read'
 	await requireScope(event, 'read');
 	try {
 		if (!IMMICH_BASE_URL) {

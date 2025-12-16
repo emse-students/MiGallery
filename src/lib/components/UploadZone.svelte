@@ -409,13 +409,9 @@
   }
 
   /* Improve contrast for light theme mobile devices */
-  @media (prefers-color-scheme: light) {
-    .upload-zone { background: rgba(255,255,255,0.92); border: 1px solid var(--border); color: var(--text-primary); }
-  }
+  :global([data-theme='light']) .upload-zone { background: rgba(255,255,255,0.92); border: 1px solid var(--border); color: var(--text-primary); }
 
-  @media (prefers-color-scheme: dark) {
-    .upload-zone { background: rgba(10,12,18,0.6); border: 1px solid rgba(255,255,255,0.06); }
-  }
+  :global([data-theme='dark']) .upload-zone { background: rgba(10,12,18,0.6); border: 1px solid rgba(255,255,255,0.06); }
 
   .upload-content {
     display: flex;

@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '$lib/components/Icon.svelte';
+  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import { page } from '$app/state';
   import type { PageData } from './$types';
   import { asApiResponse } from '$lib/ts-utils';
@@ -185,11 +186,7 @@
 
 <main class="admin-main">
   <!-- Fond animé -->
-  <div class="page-background">
-    <div class="gradient-blob blob-1"></div>
-    <div class="gradient-blob blob-2"></div>
-    <div class="gradient-blob blob-3"></div>
-  </div>
+  <BackgroundBlobs />
 
   <div class="admin-container">
 
@@ -201,11 +198,6 @@
       <div>
         <h1>Maintenance BDD</h1>
         <p class="subtitle">Sauvegardes, restaurations et intégrité du système</p>
-      </div>
-      <div style="margin-left: auto;">
-          <a href="/admin" class="btn-glass">
-            <Icon name="arrow-left" size={16} /> Retour
-          </a>
       </div>
     </header>
 
@@ -432,10 +424,10 @@
     overflow-x: hidden;
     padding: 2rem 1rem 6rem;
     font-family: system-ui, -apple-system, sans-serif;
+    border-radius: 1.5rem;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .admin-main {
+  :global([data-theme='dark']) .admin-main {
         /* DARK MODE */
         --adm-bg: #020617;
         --adm-text: #f8fafc;
@@ -447,17 +439,10 @@
         --adm-glass-border: rgba(255, 255, 255, 0.08);
         --adm-item-bg: rgba(255, 255, 255, 0.03);
         --adm-item-hover: rgba(255, 255, 255, 0.08);
-    }
   }
 
   /* --- BACKGROUND ANIMÉ --- */
-  .page-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .gradient-blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; }
-  @media (prefers-color-scheme: dark) { .gradient-blob { opacity: 0.2; } }
-
-  .blob-1 { width: 500px; height: 500px; background: var(--adm-accent); top: -10%; left: -10%; }
-  .blob-2 { width: 400px; height: 400px; background: #8b5cf6; bottom: -10%; right: -10%; }
-  .blob-3 { width: 600px; height: 600px; background: #10b981; top: 40%; left: 40%; opacity: 0.05; }
+  /* Removed */
 
   .admin-container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; }
 
@@ -597,7 +582,7 @@
     border-color: rgba(239, 68, 68, 0.2);
     background: rgba(239, 68, 68, 0.05) !important;
   }
-  @media (prefers-color-scheme: dark) { .danger-zone { background: rgba(239, 68, 68, 0.1) !important; } }
+  :global([data-theme='dark']) .danger-zone { background: rgba(239, 68, 68, 0.1) !important; }
 
   .file-drop-area { position: relative; margin-top: 1rem; }
   .file-drop-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }

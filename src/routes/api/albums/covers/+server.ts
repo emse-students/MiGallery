@@ -52,18 +52,51 @@ export const POST: RequestHandler = async (event) => {
 									const album = (await res.json()) as ImmichAlbum;
 									const assets = album.assets || [];
 
-									if (assets.length > 0) {
-										const coverAsset: ImmichAsset = album.albumThumbnailAssetId
-											? assets.find((a) => a.id === album.albumThumbnailAssetId) || assets[0]
-											: assets[0];
+									if (assets.length > 0 || album.albumThumbnailAssetId) {
+										let coverAsset: ImmichAsset | undefined;
 
-										return {
-											albumId,
-											cover: {
-												assetId: coverAsset.id,
-												type: coverAsset.type || 'IMAGE'
+										// 1. Try to find the cover asset in the list
+										if (album.albumThumbnailAssetId) {
+											coverAsset = assets.find((a) => a.id === album.albumThumbnailAssetId);
+
+											// 2. If not found, try to fetch it individually
+											if (!coverAsset) {
+												try {
+													const assetRes = await fetch(
+														`${IMMICH_BASE_URL}/api/assets/${album.albumThumbnailAssetId}`,
+														{
+															headers: {
+																'x-api-key': IMMICH_API_KEY,
+																Accept: 'application/json'
+															}
+														}
+													);
+													if (assetRes.ok) {
+														coverAsset = (await assetRes.json()) as ImmichAsset;
+													}
+												} catch (e) {
+													console.warn(
+														`Failed to fetch cover asset ${album.albumThumbnailAssetId} for album ${albumId}`,
+														e
+													);
+												}
 											}
-										};
+										}
+
+										// 3. Fallback to first asset if still no cover
+										if (!coverAsset && assets.length > 0) {
+											coverAsset = assets[0];
+										}
+
+										if (coverAsset) {
+											return {
+												albumId,
+												cover: {
+													assetId: coverAsset.id,
+													type: coverAsset.type || 'IMAGE'
+												}
+											};
+										}
 									}
 								}
 
