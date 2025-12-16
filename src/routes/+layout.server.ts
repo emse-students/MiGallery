@@ -101,7 +101,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 			const signed = signId(String(userInfo.id_user));
 			cookies.set('current_user_id', signed, {
 				httpOnly: true,
-				secure: process.env.NODE_ENV === 'production',
+				secure: String(process.env.NODE_ENV) === 'production',
 				sameSite: 'lax',
 				path: '/',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
