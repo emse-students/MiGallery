@@ -9,6 +9,7 @@
   import type { User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
+  import { uploadFileChunked } from '$lib/album-operations';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -118,14 +119,10 @@
 
       if (uploadPhotoFile) {
         uploadingPhoto = true;
-        const formData = new FormData();
-        formData.append('assetData', uploadPhotoFile);
-        formData.append('deviceAssetId', `${uploadPhotoFile.name}-${Date.now()}`);
-        formData.append('deviceId', 'MiGallery-Web');
-        formData.append('fileCreatedAt', new Date().toISOString());
-        formData.append('fileModifiedAt', new Date().toISOString());
+        let uploadRes: Response;
 
-        const uploadRes = await fetch('/api/immich/assets', { method: 'POST', body: formData });
+        uploadRes = await uploadFileChunked(uploadPhotoFile);
+
         if (!uploadRes.ok) throw new Error('Erreur lors de l\'upload de la photo');
 
         const uploadData = (await uploadRes.json()) as { id: string };

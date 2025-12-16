@@ -220,10 +220,93 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 }
 
 /**
+ * Créer l'utilisateur système dans la DB (directement via SQLite)
+ * Utile pour les tests avant d'appeler /dev/login-as
+ */
+async function ensureSystemUserExists(): Promise<boolean> {
+	try {
+		const fs = await import('fs');
+		const path = await import('path');
+
+		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+
+		if (!fs.existsSync(DB_PATH)) {
+			console.warn('⚠️  Base de données introuvable');
+			return false;
+		}
+
+		const isBun = typeof (globalThis as Record<string, unknown>).Bun !== 'undefined';
+
+		interface SqliteDatabase {
+			prepare: (sql: string) => {
+				get: (param?: unknown) => unknown;
+				run: (...params: unknown[]) => { changes: number };
+			};
+			close: () => void;
+		}
+
+		type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => SqliteDatabase;
+
+		let Database: DatabaseConstructor;
+
+		if (isBun) {
+			// @ts-expect-error - bun:sqlite is a Bun-specific module
+			const bunSqlite = (await import('bun:sqlite')) as { Database: DatabaseConstructor };
+			Database = bunSqlite.Database;
+		} else {
+			Database = (await import('better-sqlite3')).default as DatabaseConstructor;
+		}
+
+		const db = new Database(DB_PATH, isBun ? undefined : undefined);
+
+		try {
+			// Vérifier si l'utilisateur existe
+			const existingUser = db.prepare('SELECT id_user FROM users WHERE id_user = ?').get('les.roots');
+
+			if (existingUser) {
+				console.debug('✅ Utilisateur système les.roots existe déjà');
+				db.close();
+				return true;
+			}
+
+			// Créer l'utilisateur système
+			db
+				.prepare(
+					'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, role, promo_year) VALUES (?, ?, ?, ?, ?, ?)'
+				)
+				.run('les.roots', 'les.roots@local', 'System', 'Root', 'admin', null);
+
+			console.debug('✅ Utilisateur système les.roots créé dans la DB');
+			db.close();
+			return true;
+		} catch (dbError) {
+			try {
+				db.close();
+			} catch {
+				void 0;
+			}
+			throw dbError;
+		}
+	} catch (error) {
+		console.error(
+			`❌ Erreur lors de la création de l'utilisateur système: ${(error as Error).message}`
+		);
+		return false;
+	}
+}
+
+/**
  * Se connecter avec l'utilisateur système
  */
 async function loginAsSystemUser(): Promise<string> {
 	const { API_BASE_URL } = TEST_CONFIG;
+
+	// D'abord s'assurer que l'utilisateur existe dans la DB
+	const userExists = await ensureSystemUserExists();
+	if (!userExists) {
+		console.error("❌ Impossible de créer/vérifier l'utilisateur système");
+		return '';
+	}
 
 	try {
 		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=les.roots`, {
@@ -236,13 +319,14 @@ async function loginAsSystemUser(): Promise<string> {
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
 					const sessionCookie = `current_user_id=${match[1]}`;
-					console.debug('✅ Connexion réussie avec cookie de session');
 					return sessionCookie;
 				}
 			}
+		} else {
+			console.error(
+				`❌ Échec de la connexion (status: ${response.status}), responseBody=${await response.text()}`
+			);
 		}
-
-		console.error(`❌ Échec de la connexion (status: ${response.status})`);
 		return '';
 	} catch (error) {
 		console.error(`❌ Erreur lors de la connexion: ${(error as Error).message}`);

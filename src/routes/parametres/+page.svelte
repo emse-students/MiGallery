@@ -11,6 +11,7 @@
   import type { UserRow, Album, User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
+  import { uploadFileChunked } from '$lib/album-operations';
 
   let isAdmin = $state<boolean>(false);
 
@@ -253,14 +254,9 @@
     let uploadedAssetId: string | null = null;
 
     try {
-      const formData = new FormData();
-      formData.append('assetData', file);
-      formData.append('deviceAssetId', `${file.name}-${Date.now()}`);
-      formData.append('deviceId', 'MiGallery-Web');
-      formData.append('fileCreatedAt', new Date().toISOString());
-      formData.append('fileModifiedAt', new Date().toISOString());
+      let uploadResponse: Response;
+      uploadResponse = await uploadFileChunked(file, signal);
 
-      const uploadResponse = await fetch('/api/immich/assets', { method: 'POST', body: formData, signal });
       if (!uploadResponse.ok) throw new Error(`Erreur upload: ${uploadResponse.statusText}`);
       const uploadData = await uploadResponse.json() as Record<string, unknown>;
 

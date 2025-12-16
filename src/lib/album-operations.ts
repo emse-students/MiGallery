@@ -3,6 +3,55 @@ import { activeOperations } from '$lib/operations';
 import { toast } from '$lib/toast';
 import type { PhotosState } from '$lib/photos.svelte';
 
+const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+
+export async function uploadFileChunked(file: File, signal?: AbortSignal): Promise<Response> {
+	const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+	const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+	const deviceAssetId = `${file.name}-${Date.now()}`;
+	const deviceId = 'MiGallery-Web';
+	const fileCreatedAt = new Date().toISOString();
+	const fileModifiedAt = new Date().toISOString();
+
+	let lastResponse: Response | null = null;
+
+	for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+		const start = chunkIndex * CHUNK_SIZE;
+		const end = Math.min(start + CHUNK_SIZE, file.size);
+		const chunk = file.slice(start, end);
+
+		const headers: Record<string, string> = {
+			'x-chunk-index': String(chunkIndex),
+			'x-chunk-total': String(totalChunks),
+			'x-file-id': fileId,
+			'x-original-name': file.name,
+			'x-immich-device-id': deviceId,
+			'x-immich-asset-id': deviceAssetId,
+			'x-immich-created-at': fileCreatedAt,
+			'x-immich-modified-at': fileModifiedAt
+		};
+
+		const res = await fetch('/api/immich/assets', {
+			method: 'POST',
+			headers,
+			body: chunk,
+			signal
+		});
+
+		if (!res.ok) {
+			const text = await res.text();
+			throw new Error(`Chunk ${chunkIndex + 1}/${totalChunks} failed: ${res.status} ${text}`);
+		}
+
+		lastResponse = res;
+	}
+
+	if (!lastResponse) {
+		throw new Error('No response from chunked upload');
+	}
+	return lastResponse;
+}
+
 /**
  * Upload générique de fichiers dans un album
  * Fonctionne pour les deux cas:
@@ -47,17 +96,7 @@ export async function handleAlbumUpload(
 
 			for (let attempt = 0; attempt < maxRetries; attempt++) {
 				try {
-					const formData = new FormData();
-					formData.append('assetData', file);
-					formData.append('deviceAssetId', `${file.name}-${Date.now()}`);
-					formData.append('deviceId', 'MiGallery-Web');
-					formData.append('fileCreatedAt', new Date().toISOString());
-					formData.append('fileModifiedAt', new Date().toISOString());
-
-					uploadRes = await fetch('/api/immich/assets', {
-						method: 'POST',
-						body: formData
-					});
+					uploadRes = await uploadFileChunked(file);
 
 					if (uploadRes.ok) {
 						break; // Success, exit retry loop

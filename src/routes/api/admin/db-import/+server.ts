@@ -13,10 +13,18 @@ export const POST: RequestHandler = async (event) => {
 
 	try {
 		const formData = await request.formData();
-		const file = formData.get('file') as File;
+		const file = formData.get('file') as File | null;
 
-		if (!file || !file.name.endsWith('.db')) {
-			throw error(400, 'Fichier invalide. Veuillez fournir un fichier .db');
+		if (!file) {
+			return error(400, 'Fichier manquant. Veuillez fournir un fichier.');
+		}
+
+		if (typeof file === 'string' || !file.name) {
+			return error(400, 'Fichier invalide.');
+		}
+
+		if (!file.name.endsWith('.db')) {
+			return error(400, 'Fichier invalide. Veuillez fournir un fichier .db');
 		}
 
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
@@ -42,6 +50,6 @@ export const POST: RequestHandler = async (event) => {
 	} catch (e: unknown) {
 		const err = ensureError(e);
 		console.error('Error importing database:', err);
-		throw error(500, err.message || "Erreur lors de l'import de la base de données");
+		return error(400, "Fichier invalide. La base de données n'a pas pu être importée.");
 	}
 };
