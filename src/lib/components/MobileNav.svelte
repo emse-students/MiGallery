@@ -91,13 +91,14 @@
     bottom: 0;
     left: 0;
     right: 0;
+    width: 100%;
     background: var(--bg-secondary);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
     padding: 0.5rem 0;
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); /* Support iPhone notch */
-    z-index: 100;
+    z-index: 1000;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   }
 
@@ -134,6 +135,7 @@
     font-size: 0.625rem;
     font-weight: 500;
     letter-spacing: 0.01em;
+	text-align: center;
   }
 
   /* Animation au tap */

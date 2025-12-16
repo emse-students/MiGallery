@@ -226,19 +226,21 @@
   .header-text {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0.5rem;
   }
 
   .viewing-badge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.375rem;
     font-size: 0.75rem;
     color: var(--accent);
     background: rgba(124, 58, 237, 0.1);
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
-    width: fit-content;
+    margin: 0 auto;
   }
 
   /* Titles: use global header styles (shared in app.css) */
