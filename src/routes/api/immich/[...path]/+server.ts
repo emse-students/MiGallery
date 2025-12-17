@@ -259,6 +259,9 @@ const handle: RequestHandler = async function (event) {
 			}
 
 			// Special-case: for DELETE to /api/assets logging
+			// DISABLED: Reading the body here consumes the stream and can cause issues if not handled perfectly.
+			// For now, we skip logging the body content to ensure reliability.
+			/*
 			if (request.method === 'DELETE' && pathParam === 'assets') {
 				try {
 					const txt = await request.text();
@@ -272,6 +275,8 @@ const handle: RequestHandler = async function (event) {
 			} else {
 				bodyToForward = request.body ?? undefined;
 			}
+			*/
+			bodyToForward = request.body ?? undefined;
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			console.error('Error processing request body for immich proxy:', _err.message || _err);
