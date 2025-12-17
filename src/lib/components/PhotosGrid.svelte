@@ -147,12 +147,38 @@ import { activeOperations } from '$lib/operations';
 		}
 	}
 
+	function closeModal() {
+		showModal = false;
+		// Force a shallow refresh of the assets array so the grid re-renders
+		photosState.assets = [...photosState.assets];
+		if (onModalClose) {
+			setTimeout(() => {
+				try {
+					onModalClose(hasChanges);
+				} catch (e) {
+					// onModalClose threw silently
+				}
+			}, 0);
+		}
+	}
+
+	$effect(() => {
+		const handlePopState = (event: PopStateEvent) => {
+			if (showModal) {
+				closeModal();
+			}
+		};
+		window.addEventListener('popstate', handlePopState);
+		return () => window.removeEventListener('popstate', handlePopState);
+	});
+
 	function handlePhotoCardClick(id: string) {
 		if (photosState.selecting) {
 			photosState.handlePhotoClick(id, new Event('click'));
 		} else {
 			modalAssetId = id;
 			hasChanges = false;
+			history.pushState({ modalOpen: true }, '');
 			showModal = true;
 		}
 	}
@@ -293,17 +319,10 @@ import { activeOperations } from '$lib/operations';
 			showFavorite={showFavorites}
 			onFavoriteToggle={handleFavoriteToggle}
 			onClose={() => {
-				showModal = false;
-				// Force a shallow refresh of the assets array so the grid re-renders
-				photosState.assets = [...photosState.assets];
-				if (onModalClose) {
-					setTimeout(() => {
-						try {
-							onModalClose(hasChanges);
-						} catch (e) {
-							// onModalClose threw silently
-						}
-					}, 0);
+				if (history.state?.modalOpen) {
+					history.back();
+				} else {
+					closeModal();
 				}
 			}}
 		onAssetDeleted={(id) => {

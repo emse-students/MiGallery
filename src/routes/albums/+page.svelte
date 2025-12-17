@@ -460,8 +460,8 @@
   }
   .btn-glass:hover { transform: translateY(-2px); background: var(--alb-item-hover); border-color: var(--alb-accent); color: var(--alb-accent); }
 
-  .btn-glass.primary { background: var(--alb-accent); color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
-  .btn-glass.primary:hover { background: #2563eb; color: white; transform: translateY(-2px); }
+  .btn-glass.primary { background: var(--alb-accent); color: white; border-color: transparent; box-shadow: 0 4px 12px color-mix(in srgb, var(--alb-accent) 30%, transparent); }
+  .btn-glass.primary:hover { background: color-mix(in srgb, var(--alb-accent) 90%, black); color: white; transform: translateY(-2px); }
 
   /* --- TIMELINE --- */
   .month-group { margin-bottom: 3rem; }
@@ -576,7 +576,7 @@
     transition: all 0.2s;
   }
   .action-btn:hover { background-color: var(--alb-accent); transform: scale(1.1); }
-  .action-btn.delete:hover { background-color: #ef4444; }
+  .action-btn.delete:hover { background-color: var(--error, #ef4444); }
 
   /* --- ETATS --- */
   .state-message {
@@ -584,7 +584,7 @@
     display: flex; justify-content: center; gap: 0.5rem;
     background: var(--alb-glass-bg); border-radius: 1rem; border: 1px solid var(--alb-border);
   }
-  .state-message.error { color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+  .state-message.error { color: var(--error, #ef4444); border-color: color-mix(in srgb, var(--error, #ef4444) 20%, transparent); }
 
   .empty-state {
     text-align: center; padding: 4rem; color: var(--alb-text-muted);

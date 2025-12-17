@@ -403,15 +403,15 @@
 
   /* Codes couleurs spécifiques au survol */
   .btn-glass.edit:hover { background: #8b5cf6; color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
-  .btn-glass.delete:hover { background: #ef4444; color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
+  .btn-glass.delete:hover { background: var(--error); color: white; border-color: transparent; box-shadow: 0 4px 12px color-mix(in srgb, var(--error) 30%, transparent); }
   .btn-glass.share:hover { background: #0ea5e9; color: white; border-color: transparent; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3); }
 
   /* Download est l'action primaire, donc verte par défaut */
   .btn-glass.download {
-      background: #10b981; color: white; border-color: transparent;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      background: var(--success); color: white; border-color: transparent;
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 30%, transparent);
   }
-  .btn-glass.download:hover { background: #059669; transform: translateY(-2px); }
+  .btn-glass.download:hover { background: var(--success-hover); transform: translateY(-2px); }
 
   /* Active toggle state */
   .btn-glass.active { background: var(--am-text); color: var(--am-bg); }
@@ -433,7 +433,7 @@
   /* Make upload header use theme glass background for consistency */
   .upload-header { background: var(--am-glass-bg); padding: 1rem; border-radius: 12px; }
 
-  .error-card { padding: 1.5rem; border-left: 4px solid #ef4444; color: #ef4444; display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+  .error-card { padding: 1.5rem; border-left: 4px solid var(--error); color: var(--error); display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
 
   .empty-state {
       padding: 4rem; text-align: center; color: var(--am-text-muted);
@@ -452,8 +452,8 @@
           display: block; position: fixed; bottom: 0; left: 0; right: 0;
           z-index: 100; padding: 0.75rem 1rem;
           padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
-          background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px);
-          border-top: 1px solid var(--am-border);
+          background: var(--bg-elevated); backdrop-filter: blur(16px);
+          border-top: 1px solid var(--border);
       }
       .actions-group.mobile {
           justify-content: space-between; background: transparent; border: none; padding: 0; gap: 0.5rem;
@@ -462,11 +462,11 @@
           flex-direction: column; padding: 0.5rem; gap: 0.25rem; font-size: 0.7rem; flex: 1;
           background: transparent; border: none; color: var(--am-text-muted); box-shadow: none;
       }
-      .actions-group.mobile .btn-glass.active { color: var(--am-accent); background: rgba(59,130,246,0.1); }
+      .actions-group.mobile .btn-glass.active { color: var(--am-accent); background: var(--accent-light); }
 
       /* Mobile Colors */
-      .actions-group.mobile .btn-glass.download { color: #10b981; background: transparent; }
-      .actions-group.mobile .btn-glass.delete { color: #ef4444; }
+      .actions-group.mobile .btn-glass.download { color: var(--success); background: transparent; }
+      .actions-group.mobile .btn-glass.delete { color: var(--error); }
       .actions-group.mobile .btn-glass.share { color: #0ea5e9; }
       .actions-group.mobile .btn-glass.edit { color: #8b5cf6; }
 

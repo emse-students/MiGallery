@@ -375,7 +375,7 @@
     text-align: center;
     cursor: pointer;
     transition: all 0.22s ease;
-    background: rgba(255,255,255,0.03);
+    background: var(--bg-secondary);
     backdrop-filter: blur(8px) saturate(120%);
     -webkit-backdrop-filter: blur(8px) saturate(120%);
     min-height: 180px;
@@ -399,19 +399,14 @@
   .upload-zone.uploading {
     cursor: not-allowed;
     border-color: var(--success);
-    background: color-mix(in srgb, var(--success) 6%, rgba(255,255,255,0.02));
+    background: color-mix(in srgb, var(--success) 6%, var(--bg-secondary));
   }
 
   .upload-zone.disabled {
     cursor: not-allowed;
     opacity: 0.5;
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--border);
   }
-
-  /* Improve contrast for light theme mobile devices */
-  :global([data-theme='light']) .upload-zone { background: rgba(255,255,255,0.92); border: 1px solid var(--border); color: var(--text-primary); }
-
-  :global([data-theme='dark']) .upload-zone { background: rgba(10,12,18,0.6); border: 1px solid rgba(255,255,255,0.06); }
 
   .upload-content {
     display: flex;
@@ -422,34 +417,36 @@
   }
 
   .upload-icon {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--text-secondary);
     transition: color 0.3s ease;
   }
 
   .upload-zone:hover:not(.disabled):not(.uploading) .upload-icon {
-    color: rgba(59, 130, 246, 0.8);
+    color: var(--accent);
+    opacity: 0.8;
   }
 
   .upload-zone.dragging .upload-icon {
-    color: rgba(59, 130, 246, 1);
+    color: var(--accent);
+    opacity: 1;
   }
 
   .upload-text {
     font-size: 1.125rem;
     font-weight: 500;
-    color: var(--text-primary, #ffffff);
+    color: var(--text-primary);
     margin: 0;
   }
 
   .upload-subtext {
     font-size: 0.9375rem;
-    color: var(--text-secondary, #a0a0a0);
+    color: var(--text-secondary);
     margin: 0;
   }
 
   .upload-hint {
     font-size: 0.875rem;
-    color: var(--text-tertiary, #808080);
+    color: var(--text-muted);
     margin: 0;
   }
 
@@ -471,18 +468,18 @@
   }
 
   .summary-item.success {
-    background: rgba(34, 197, 94, 0.1);
-    color: rgb(134, 239, 172);
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    color: var(--success);
   }
 
   .summary-item.error {
-    background: rgba(239, 68, 68, 0.1);
-    color: rgb(252, 165, 165);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    color: var(--error);
   }
 
   .summary-item.duplicate {
-    background: rgba(217, 119, 6, 0.1);
-    color: rgb(253, 224, 71);
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    color: var(--warning);
   }
 
   .file-list {
@@ -497,23 +494,23 @@
   .file-item {
     padding: 1rem;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
   }
 
   .file-item.success {
-    border-color: rgba(34, 197, 94, 0.3);
-    background: rgba(34, 197, 94, 0.05);
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+    background: color-mix(in srgb, var(--success) 5%, transparent);
   }
 
   .file-item.error {
-    border-color: rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.05);
+    border-color: color-mix(in srgb, var(--error) 30%, transparent);
+    background: color-mix(in srgb, var(--error) 5%, transparent);
   }
 
   .file-item.duplicate {
-    border-color: rgba(217, 119, 6, 0.3);
-    background: rgba(217, 119, 6, 0.05);
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--warning) 5%, transparent);
   }
 
   .file-header {
@@ -532,13 +529,13 @@
 
   .file-name {
     font-weight: 500;
-    color: var(--text-primary, #ffffff);
+    color: var(--text-primary);
     word-break: break-all;
   }
 
   .file-size {
     font-size: 0.875rem;
-    color: var(--text-secondary, #a0a0a0);
+    color: var(--text-secondary);
   }
 
   .file-status {
@@ -549,7 +546,7 @@
   .progress-bar {
     width: 100%;
     height: 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--bg-quaternary);
     border-radius: 3px;
     overflow: hidden;
     margin-bottom: 0.5rem;
@@ -557,25 +554,25 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, rgb(59, 130, 246), rgb(34, 197, 94));
+    background: linear-gradient(90deg, var(--accent), var(--success));
     transition: width 0.3s ease;
   }
 
   .progress-text {
     font-size: 0.75rem;
-    color: var(--text-secondary, #a0a0a0);
+    color: var(--text-secondary);
     margin: 0;
   }
 
   .error-message {
     font-size: 0.875rem;
-    color: rgb(252, 165, 165);
+    color: var(--error);
     margin: 0;
   }
 
   .btn-retry {
     padding: 0.75rem 1.5rem;
-    background: rgb(59, 130, 246);
+    background: var(--accent);
     color: white;
     border: none;
     border-radius: 8px;
@@ -588,14 +585,14 @@
   }
 
   .btn-retry:hover {
-    background: rgb(37, 99, 235);
+    background: var(--accent-hover);
   }
 
   .btn-clear {
     padding: 0.75rem 1.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary, #ffffff);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
     border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
@@ -603,6 +600,6 @@
   }
 
   .btn-clear:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--bg-quaternary);
   }
 </style>

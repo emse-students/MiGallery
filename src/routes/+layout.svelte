@@ -79,19 +79,13 @@
 			console.warn('Failed to clear user cookie:', e);
 		}
 
-		await signOut({ redirect: false });
-
-		if (typeof window !== 'undefined') {
-			setTimeout(() => {
-				window.location.href = '/';
-			}, 100);
-		}
+		await signOut({ callbackUrl: '/' });
 	}
 
 	async function handleSignIn() {
 		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
 		// Sans callbackUrl, redirige vers la page d'origine après authentification
-		await signIn('cas-emse');
+		await signIn('cas-emse', { callbackUrl: window.location.href });
 	}
 </script>
 

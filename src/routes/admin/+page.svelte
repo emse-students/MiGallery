@@ -250,7 +250,7 @@
 
   .filename-badge {
     font-family: monospace; font-size: 0.8rem;
-    background: rgba(0,0,0,0.05); color: var(--doc-text-muted);
+    background: color-mix(in srgb, var(--doc-text) 5%, transparent); color: var(--doc-text-muted);
     padding: 0.25rem 0.5rem; border-radius: 6px;
     border: 1px solid var(--doc-border);
     word-break: break-all; /* Force la coupure des noms de fichiers très longs */
@@ -299,7 +299,7 @@
   }
 
   :global(.doc-body code) {
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--doc-accent) 10%, transparent);
     color: var(--doc-accent);
     padding: 0.2rem 0.4rem;
     border-radius: 4px;
@@ -332,7 +332,7 @@
   }
   :global(.doc-body th) {
     text-align: left; padding: 0.75rem;
-    background: rgba(0,0,0,0.03);
+    background: color-mix(in srgb, var(--doc-text) 5%, transparent);
     border-bottom: 2px solid var(--doc-border);
     font-weight: 600;
     white-space: nowrap;

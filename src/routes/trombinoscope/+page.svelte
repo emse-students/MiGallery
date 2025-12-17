@@ -630,7 +630,7 @@
       display: flex; flex-direction: column; align-items: center; gap: 1rem;
       background: var(--tm-card-bg); border-radius: 1rem; border: 1px solid var(--tm-border);
   }
-  .state-message.error { color: #ef4444; border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); }
+  .state-message.error { color: var(--error); border-color: color-mix(in srgb, var(--error) 20%, transparent); background: color-mix(in srgb, var(--error) 5%, transparent); }
   .empty-state {
       padding: 4rem; text-align: center; color: var(--tm-text-muted);
       display: flex; flex-direction: column; align-items: center; gap: 1rem;
@@ -693,10 +693,10 @@
       display: flex; align-items: center; justify-content: center; cursor: pointer;
       backdrop-filter: blur(4px); transition: all 0.2s;
   }
-  .control-btn.edit { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-  .control-btn.edit:hover { background: #3b82f6; color: white; }
-  .control-btn.delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-  .control-btn.delete:hover { background: #ef4444; color: white; }
+  .control-btn.edit { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+  .control-btn.edit:hover { background: var(--accent); color: white; }
+  .control-btn.delete { background: color-mix(in srgb, var(--error) 20%, transparent); color: var(--error); }
+  .control-btn.delete:hover { background: var(--error); color: white; }
 
   /* Avatar */
   .avatar-container {
@@ -736,7 +736,7 @@
       font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 6px;
       text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem;
   }
-  .role-tag.admin { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+  .role-tag.admin { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
   .role-tag.mitviste { background: rgba(236, 72, 153, 0.15); color: #ec4899; }
 
   /* --- MODAL --- */
@@ -745,8 +745,8 @@
     z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem;
   }
     .modal-glass {
-      background: rgba(255,255,255,0.04); width: 90%; max-width: 520px;
-      padding: 1.75rem; border-radius: 18px; border: 1px solid rgba(255,255,255,0.06);
+      background: var(--tm-card-bg); width: 90%; max-width: 520px;
+      padding: 1.75rem; border-radius: 18px; border: 1px solid var(--tm-glass-border);
       box-shadow: 0 20px 50px rgba(2,6,23,0.6); text-align: center;
       position: relative; overflow: hidden; backdrop-filter: blur(8px) saturate(120%);
       max-height: 90vh; display: flex; flex-direction: column;
