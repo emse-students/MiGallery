@@ -82,7 +82,6 @@
 
   .home-main {
     position: relative;
-    min-height: calc(100vh - var(--topbar-height));
     display: flex;
     align-items: center;
     justify-content: center;
