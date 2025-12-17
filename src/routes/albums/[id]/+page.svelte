@@ -482,46 +482,21 @@
     .gallery-wrapper { margin-top: 0 !important; padding-top: 1rem !important; }
   }
 
-  @media (max-width: 768px) and (prefers-color-scheme: light) {
-    .upload-container, .upload-header {
-      background: rgba(255,255,255,0.96) !important;
-      border-color: rgba(0,0,0,0.06) !important;
-      /* Force explicit readable text color in light mode */
-      color: var(--text-primary, #111827) !important;
-      box-shadow: 0 8px 28px rgba(0,0,0,0.06) !important;
-      backdrop-filter: none !important;
-    }
-    .upload-container *,
-    .upload-header h3,
-    .upload-header p {
-      color: var(--text-primary, #111827) !important;
-    }
-  }
-
   /* Mobile: améliorer la lisibilité des zones d'upload et cartes glass */
   @media (max-width: 768px) {
     .upload-container,
     .upload-container .upload-header,
-    .glass-card.upload-container,
-    .upload-container .upload-header h3,
-    .upload-container .upload-header p {
-      background: rgba(255,255,255,0.96) !important;
-      border-color: rgba(0,0,0,0.06) !important;
-      color: var(--am-text) !important;
-      box-shadow: 0 8px 28px rgba(0,0,0,0.08) !important;
+    .glass-card.upload-container {
+      background: var(--bg-elevated) !important;
+      border-color: var(--border) !important;
+      color: var(--text-primary) !important;
+      box-shadow: var(--shadow-lg) !important;
       backdrop-filter: none !important;
     }
-  }
 
-  @media (max-width: 768px) and (prefers-color-scheme: dark) {
-    .upload-container,
-    .upload-container .upload-header,
-    .glass-card.upload-container,
     .upload-container .upload-header h3,
     .upload-container .upload-header p {
-      background: rgba(15, 23, 42, 0.96) !important;
-      border-color: rgba(255,255,255,0.08) !important;
-      color: var(--am-text) !important;
+      color: var(--text-primary) !important;
     }
   }
 </style>
