@@ -102,7 +102,27 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
 	// ============================================
-	// 4. Ajouter les headers CORS aux réponses API
+	// 4. Ajouter les headers de cache pour les ressources statiques
+	// ============================================
+	// Images, fonts, etc.: cache 1 année (versionnées par hash SvelteKit)
+	if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
+		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+	}
+	// CSS et JS compilés par SvelteKit (versionnés): cache 1 année
+	else if (/\/_app\//.test(pathname)) {
+		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+	}
+	// HTML pages: cache 1h (validation avec ETag/Last-Modified)
+	else if (pathname === '/' || /\.html$/.test(pathname)) {
+		response.headers.set('Cache-Control', 'public, max-age=3600, must-revalidate');
+	}
+	// Fallback: no cache pour les autres ressources
+	else if (!pathname.startsWith('/api/')) {
+		response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+	}
+
+	// ============================================
+	// 5. Ajouter les headers CORS aux réponses API
 	// ============================================
 	if (isApiExternalRoute || pathname.startsWith('/api/')) {
 		const corsOrigin = isAllowedOrigin(origin) ? origin || '*' : 'null';

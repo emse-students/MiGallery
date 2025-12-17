@@ -26,6 +26,9 @@ const config = {
 				'http://localhost:3000',
 				'http://localhost:5174'
 			]
+		},
+		version: {
+			pollInterval: 60000
 		}
 	},
 	compilerOptions: {
