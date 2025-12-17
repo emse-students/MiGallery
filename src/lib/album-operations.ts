@@ -4,8 +4,33 @@ import { toast } from '$lib/toast';
 import type { PhotosState } from '$lib/photos.svelte';
 
 const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+const SIMPLE_UPLOAD_THRESHOLD = 1024 * 1024 * 10; // 10MB
+
+async function uploadFileSimple(file: File, signal?: AbortSignal): Promise<Response> {
+	const formData = new FormData();
+	const deviceAssetId = `${file.name}-${Date.now()}`;
+	const deviceId = 'MiGallery-Web';
+	const fileCreatedAt = new Date().toISOString();
+	const fileModifiedAt = new Date().toISOString();
+
+	formData.append('assetData', file);
+	formData.append('deviceId', deviceId);
+	formData.append('deviceAssetId', deviceAssetId);
+	formData.append('fileCreatedAt', fileCreatedAt);
+	formData.append('fileModifiedAt', fileModifiedAt);
+
+	return await fetch('/api/immich/assets', {
+		method: 'POST',
+		body: formData,
+		signal
+	});
+}
 
 export async function uploadFileChunked(file: File, signal?: AbortSignal): Promise<Response> {
+	if (file.size < SIMPLE_UPLOAD_THRESHOLD) {
+		return uploadFileSimple(file, signal);
+	}
+
 	const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 	const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 	const deviceAssetId = `${file.name}-${Date.now()}`;
