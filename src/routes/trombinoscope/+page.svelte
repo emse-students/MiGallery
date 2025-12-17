@@ -63,7 +63,6 @@
         doc.text('Trombinoscope MiGallery', 14, 22);
         doc.setFontSize(11);
         doc.setTextColor(100);
-        doc.text(`Généré le ${new Date().toLocaleDateString()}`, 14, 30);
 
         // Preload images
         const images: Record<string, string> = {};
@@ -148,7 +147,7 @@
                     } else {
                         // Placeholder
                         doc.setDrawColor(220);
-                        doc.setFillColor(240);
+                        doc.setFillColor('#f0f0f0');
                         doc.rect(imgX, y, imgSize, imgSize, 'FD');
                     }
 
