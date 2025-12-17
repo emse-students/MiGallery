@@ -1,17 +1,23 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
+  import { onMount, onDestroy } from 'svelte';
   import Icon from "$lib/components/Icon.svelte";
   import Modal from '$lib/components/Modal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CameraInput from '$lib/components/CameraInput.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+  import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
+  import { PhotosState } from '$lib/photos.svelte';
   import { theme } from '$lib/theme';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
   import { uploadFileChunked } from '$lib/album-operations';
+
+  const photosState = new PhotosState();
+  let showChangePhotoModal = $state(false);
 
   let isAdmin = $state<boolean>(false);
 
@@ -64,12 +70,37 @@
     } catch { isAdmin = false; }
   });
 
+  onDestroy(() => photosState.cleanup());
+
+  async function handlePhotoSelected(assetId: string) {
+    const u = page.data.session?.user as User | undefined;
+    if (!u?.id_photos) {
+        toast.error("Vous n'êtes pas lié à une personne Immich.");
+        return;
+    }
+
+    const updateRes = await fetch(`/api/immich/people/${u.id_photos}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ featureFaceAssetId: assetId })
+    });
+
+    if (!updateRes.ok) {
+      const txt = await updateRes.text().catch(() => updateRes.statusText);
+      throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
+    }
+
+    toast.success('Photo de profil mise à jour !');
+    window.location.reload();
+  }
+
   async function loadCurrentUserFaceStatus() {
     try {
       const response = await fetch('/api/users/me');
       const data = await response.json() as { success?: boolean; user?: { id_photos?: string | null } };
       if (data.success && data.user) {
         currentUserHasFace = !!data.user.id_photos;
+        personId = data.user.id_photos ?? null;
       }
     } catch { /* Ignorer */ }
   }
@@ -353,6 +384,36 @@
         <p class="subtitle">Gérez votre profil, vos préférences et votre confidentialité</p>
       </div>
     </header>
+
+    <section class="settings-card glass-card">
+      <div class="card-header">
+        <div class="icon-wrapper blue">
+            <Icon name="user" size={24} />
+        </div>
+        <div>
+            <h2>Profil</h2>
+            <p>Gérez vos informations personnelles</p>
+        </div>
+      </div>
+
+      <div class="card-body">
+          <div class="preference-row">
+            <div class="pref-info">
+                <span class="pref-title">Photo de profil</span>
+                <span class="pref-desc">Modifier la photo affichée sur votre profil</span>
+            </div>
+            <button
+              onclick={() => showChangePhotoModal = true}
+              class="btn-secondary"
+              disabled={!currentUserHasFace}
+              title={!currentUserHasFace ? "Vous devez d'abord configurer la reconnaissance faciale" : ""}
+            >
+              <Icon name="camera" size={18} />
+              <span>Choisir sa photo</span>
+            </button>
+          </div>
+      </div>
+    </section>
 
     <section class="settings-card glass-card">
       <div class="card-header">
@@ -853,3 +914,11 @@
         .preference-row { flex-direction: column; text-align: center; gap: 1rem; }
     }
 </style>
+
+{#if showChangePhotoModal}
+  <ChangePhotoModal
+    peopleId={personId ?? undefined}
+    onClose={() => showChangePhotoModal = false}
+    onPhotoSelected={handlePhotoSelected}
+  />
+{/if}

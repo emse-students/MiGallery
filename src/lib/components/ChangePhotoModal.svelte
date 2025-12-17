@@ -11,6 +11,8 @@
 		onClose: () => void;
 		onPhotoSelected?: (assetId: string) => void;
 		peopleId?: string;
+			// Accept optional PhotosState when some callers pass it (backwards compatibility)
+			photosState?: unknown;
 	}
 
 	let { currentPhotoUrl, onClose, onPhotoSelected, peopleId }: Props = $props();

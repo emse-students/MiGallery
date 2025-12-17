@@ -95,7 +95,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/png" sizes="32x32" href="/MiGallery2.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
 	<meta name="description" content="MiGallery - Galerie photo des étudiants EMSE">
 	<meta name="theme-color" content="#3b82f6">
 	<title>MiGallery</title>
@@ -103,7 +103,7 @@
 
 <nav class="topbar">
 	<div class="brand">
-		<img src="/MiGallery2.png" alt="MiGallery" class="logo" />
+		<img src="/icon.png" alt="MiGallery" class="logo" fetchpriority="high" />
 		<a href="/">MiGallery</a>
 	</div>
 
@@ -153,7 +153,7 @@
 
 	<div class="user">
 		{#if u}
-			<a href="/parametres" class="avatar-link">
+			<a href="/mes-photos" class="avatar-link">
 				<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
 					{#if u.id_photos}
 						<img src={`/api/immich/people/${u.id_photos}/thumbnail`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />

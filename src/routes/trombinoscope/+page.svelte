@@ -10,6 +10,8 @@
   import { showConfirm } from '$lib/confirm';
   import { toast } from '$lib/toast';
   import { uploadFileChunked } from '$lib/album-operations';
+  import jsPDF from 'jspdf';
+  import autoTable from 'jspdf-autotable';
 
   let loading = $state(false);
   let error = $state<string | null>(null);
@@ -45,6 +47,133 @@
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let currentUserId = $derived((page.data.session?.user as User)?.id_user);
   let canAccess = $derived(userRole === 'admin');
+
+  async function exportToPDF() {
+    if (filteredUsers.length === 0) {
+        toast.info('Aucun utilisateur à exporter');
+        return;
+    }
+
+    const toastId = toast.loading('Génération du PDF...');
+    try {
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text('Trombinoscope MiGallery', 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+
+        // Preload images
+        const images: Record<string, string> = {};
+        const loadImage = async (userId: string) => {
+            try {
+                const res = await fetch(`/api/users/${userId}/avatar`);
+                if (!res.ok) return null;
+                const blob = await res.blob();
+                return new Promise<string>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch { return null; }
+        };
+
+        // Load images in parallel
+        await Promise.all(filteredUsers.map(async (u) => {
+            const dataUrl = await loadImage(u.id_user);
+            if (dataUrl) images[u.id_user] = dataUrl;
+        }));
+
+        // Group by promo
+        const usersByPromo: Record<string, User[]> = {};
+        filteredUsers.forEach(u => {
+            const p = u.promo_year ? u.promo_year.toString() : 'Staff / Autre';
+            if (!usersByPromo[p]) usersByPromo[p] = [];
+            usersByPromo[p].push(u);
+        });
+
+        // Sort promos
+        const promos = Object.keys(usersByPromo).sort((a, b) => {
+             if (a === 'Staff / Autre') return 1;
+             if (b === 'Staff / Autre') return -1;
+             return Number(b) - Number(a);
+        });
+
+        let y = 40;
+        const margin = 15;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const contentWidth = pageWidth - (margin * 2);
+        const colCount = 5;
+        const colWidth = contentWidth / colCount;
+        const imgSize = 25; // Square
+        const rowHeight = 45; // Image + text + padding
+
+        promos.forEach(promo => {
+            // Check space for header
+            if (y + 20 > doc.internal.pageSize.getHeight() - margin) {
+                doc.addPage();
+                y = margin + 10;
+            }
+
+            // Promo Header
+            doc.setFontSize(16);
+            doc.setTextColor(0);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Promo ${promo}`, margin, y);
+            y += 10;
+
+            const promoUsers = usersByPromo[promo];
+
+            // Grid loop
+            for (let i = 0; i < promoUsers.length; i += colCount) {
+                // Check if row fits
+                if (y + rowHeight > doc.internal.pageSize.getHeight() - margin) {
+                    doc.addPage();
+                    y = margin + 10;
+                }
+
+                const rowUsers = promoUsers.slice(i, i + colCount);
+                rowUsers.forEach((user, idx) => {
+                    const x = margin + (idx * colWidth);
+                    const img = images[user.id_user];
+
+                    // Image
+                    const imgX = x + (colWidth - imgSize) / 2;
+                    if (img) {
+                        try {
+                            doc.addImage(img, 'JPEG', imgX, y, imgSize, imgSize);
+                        } catch (e) { /* ignore */ }
+                    } else {
+                        // Placeholder
+                        doc.setDrawColor(220);
+                        doc.setFillColor('#f0f0f0');
+                        doc.rect(imgX, y, imgSize, imgSize, 'FD');
+                    }
+
+                    // Name
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(60);
+                    const name = `${user.prenom || ''}\n${user.nom || ''}`;
+                    doc.text(name, x + (colWidth / 2), y + imgSize + 5, { align: 'center' });
+                });
+
+                y += rowHeight;
+            }
+
+            y += 5; // Space between promos
+        });
+
+        doc.save('trombinoscope.pdf');
+        toast.dismiss(toastId);
+        toast.success('PDF téléchargé !');
+    } catch (e) {
+        console.error(e);
+        toast.dismiss(toastId);
+        toast.error('Erreur lors de la génération du PDF');
+    }
+  }
 
   async function fetchUsers() {
     loading = true;
@@ -240,14 +369,18 @@
             />
           </div>
 
-      {#if canAccess}
         <div class="header-actions">
-          <button class="action-pill primary" onclick={openAddUserModal}>
-            <Icon name="user-plus" size={18} />
-            <span>Ajouter</span>
+          <button class="action-pill" onclick={exportToPDF} title="Exporter en PDF">
+            <Icon name="download" size={18} />
+            <span>PDF</span>
           </button>
+          {#if canAccess}
+            <button class="action-pill primary" onclick={openAddUserModal}>
+              <Icon name="user-plus" size={18} />
+              <span>Ajouter</span>
+            </button>
+          {/if}
         </div>
-      {/if}
     </header>
 
     {#if error}
