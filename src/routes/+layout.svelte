@@ -57,9 +57,10 @@
 	function confirmNavigation() {
 		if (navigationModal?.href) {
 			activeOperations.clear();
+			const href = navigationModal.href;
 			navigationModalStore.set(null);
 			// La navigation se fera via window.location.href
-			window.location.href = navigationModal.href;
+			window.location.href = href;
 		}
 	}
 

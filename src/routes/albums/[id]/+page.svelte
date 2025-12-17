@@ -192,7 +192,11 @@
         {#if photosState.isDownloading}
             <Spinner size={18} />
             {#if !mobile}
-                <span class="label">{Math.round(photosState.downloadProgress * 100)}%</span>
+                {#if photosState.downloadProgress >= 0}
+                    <span class="label">{Math.round(photosState.downloadProgress * 100)}%</span>
+                {:else}
+                    <span class="label">...</span>
+                {/if}
             {/if}
         {:else}
             <Icon name="download" size={18} />
