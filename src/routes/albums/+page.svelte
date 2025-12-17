@@ -510,6 +510,16 @@
     z-index: 10;
     border-color: var(--alb-accent);
   }
+  /* Affichage des albums invisibles pour les utilisateurs privilégiés */
+  .album-item.album-hidden {
+    filter: grayscale(100%);
+    opacity: 0.6;
+    transition: filter 0.25s ease, opacity 0.25s ease;
+  }
+  .album-item.album-hidden:hover {
+    /* léger retour visuel au survol tout en restant distinct */
+    opacity: 0.75;
+  }
   .album-link { display: block; text-decoration: none; color: inherit; width: 100%; height: 100%; }
 
   .album-cover-wrapper {
