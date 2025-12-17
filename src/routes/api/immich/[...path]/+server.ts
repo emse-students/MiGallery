@@ -4,6 +4,7 @@ import { logEvent } from '$lib/server/logs';
 import { env } from '$env/dynamic/private';
 import { immichCache } from '$lib/server/immich-cache';
 import { requireScope } from '$lib/server/permissions';
+import { getDatabase } from '$lib/db/database';
 
 // Modules Node.js nécessaires pour le stockage temporaire
 import fs from 'node:fs';
@@ -15,19 +16,175 @@ const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
 
-interface ImmichAssetResponse {
-	id: string;
-	[key: string]: unknown;
-}
-
 interface ImmichAlbumResponse {
 	id: string;
 	albumName?: string;
+	assets?: Array<{ id: string }>;
+	[key: string]: unknown;
+}
+
+interface ImmichAssetResponse {
+	id: string;
+	albums?: ImmichAlbumResponse[];
+	albumId?: string;
 	[key: string]: unknown;
 }
 
 interface BulkDeleteRequest {
 	ids: string[];
+}
+
+/**
+ * Vérifie si un asset appartient à un album "unlisted" (public via lien).
+ * Si oui, l'accès est autorisé même sans authentification.
+ */
+async function checkPublicAssetAccess(
+	assetId: string,
+	baseUrl: string,
+	apiKey: string,
+	referer?: string | null
+): Promise<boolean> {
+	if (!baseUrl || !apiKey) {
+		console.warn('[CheckPublic] Missing baseUrl or apiKey');
+		return false;
+	}
+
+	const assetUrl = `${baseUrl.replace(/\/$/, '')}/api/assets/${assetId}`;
+	const cachePath = `/api/assets/${assetId}`;
+
+	let assetData = immichCache.get('GET', cachePath, assetUrl) as ImmichAssetResponse | null;
+
+	// Force fetch if albums is missing in cached data
+	if (assetData && (!assetData.albums || !Array.isArray(assetData.albums))) {
+		assetData = null; // Invalidate cache to force refresh
+	}
+
+	if (!assetData) {
+		try {
+			const res = await fetch(assetUrl, {
+				headers: { 'x-api-key': apiKey, accept: 'application/json' }
+			});
+			if (!res.ok) {
+				console.warn(`[CheckPublic] Fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
+				// Try to read body for more info
+				try {
+					const txt = await res.text();
+					console.warn(`[CheckPublic] Error body: ${txt.slice(0, 200)}`);
+				} catch {
+					// ignore
+				}
+				return false;
+			}
+			assetData = (await res.json()) as ImmichAssetResponse;
+			immichCache.set('GET', cachePath, assetUrl, assetData);
+		} catch (e) {
+			console.error('Error fetching asset details for public check:', e);
+			return false;
+		}
+	}
+
+	// Immich asset object has 'albums' array
+	const albums = (assetData?.albums as ImmichAlbumResponse[]) || [];
+
+	// Fallback: sometimes it might be in 'albumId' (rare for this endpoint but possible in some versions?)
+	if (assetData.albumId && !albums.find((a) => a.id === assetData?.albumId)) {
+		albums.push({ id: String(assetData.albumId) });
+	}
+
+	// Fallback 2: Check Referer if albums list is empty
+	if ((!Array.isArray(albums) || albums.length === 0) && referer) {
+		// Try to extract albumId from referer (e.g. /albums/UUID)
+		const match = referer.match(/\/albums\/([a-f0-9-]{36})/);
+		if (match) {
+			const albumId = match[1];
+			// Fetch album details to verify asset is inside
+			const albumUrl = `${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`;
+			const albumCacheKey = `/api/albums/${albumId}`;
+
+			let albumData = immichCache.get('GET', albumCacheKey, albumUrl) as ImmichAlbumResponse | null;
+			if (!albumData) {
+				try {
+					const res = await fetch(albumUrl, {
+						headers: { 'x-api-key': apiKey, accept: 'application/json' }
+					});
+					if (res.ok) {
+						albumData = (await res.json()) as ImmichAlbumResponse;
+						immichCache.set('GET', albumCacheKey, albumUrl, albumData);
+					}
+				} catch (e) {
+					console.error('Error fetching album details for referer check:', e);
+				}
+			}
+
+			// Check if assetId is in this album
+			// Note: ImmichAlbumResponse might need to be extended to include 'assets' property for this check
+			const assets = albumData?.assets;
+			if (Array.isArray(assets)) {
+				if (assets.some((a) => a.id === assetId)) {
+					// Found! Add this album to the list to be checked against DB
+					albums.push({ id: albumId });
+				}
+			}
+		}
+	}
+
+	if (!Array.isArray(albums) || albums.length === 0) {
+		console.warn(
+			`[CheckPublic] Asset ${assetId} has no albums linked in Immich response. Keys: ${Object.keys(assetData || {}).join(', ')}`
+		);
+		return false;
+	}
+
+	try {
+		const db = getDatabase();
+		const albumIds = albums.map((a) => a.id).filter((id) => !!id);
+		if (albumIds.length === 0) {
+			return false;
+		}
+
+		const placeholders = albumIds.map(() => '?').join(',');
+
+		// Check if ANY of the albums is unlisted
+		const stmt = db.prepare(
+			`SELECT id FROM albums WHERE id IN (${placeholders}) AND visibility = 'unlisted' LIMIT 1`
+		);
+		const result = stmt.get(...albumIds);
+
+		if (!result) {
+			console.warn(
+				`[CheckPublic] Asset ${assetId} belongs to albums [${albumIds.join(', ')}] but none are unlisted in local DB`
+			);
+		}
+
+		return !!result;
+	} catch (e) {
+		console.error('Error checking album visibility in DB:', e);
+		return false;
+	}
+}
+
+/**
+ * Vérifie si une liste d'assets est accessible publiquement (tous doivent être dans des albums unlisted).
+ */
+async function checkPublicAssetsAccess(
+	assetIds: string[],
+	baseUrl: string,
+	apiKey: string,
+	referer?: string | null
+): Promise<boolean> {
+	if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
+		return false;
+	}
+
+	// On vérifie chaque asset. Si un seul n'est pas public, on refuse tout.
+	// Note: checkPublicAssetAccess utilise le cache, donc c'est performant pour les assets déjà vus.
+	for (const id of assetIds) {
+		const allowed = await checkPublicAssetAccess(id, baseUrl, apiKey, referer);
+		if (!allowed) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**
@@ -184,13 +341,93 @@ const handle: RequestHandler = async function (event) {
 		if (internalKey && internalKey === apiKey) {
 			// Internal trusted call, allow
 		} else {
-			await requireScope(event, 'read');
+			try {
+				await requireScope(event, 'read');
+			} catch (err) {
+				// Si l'auth échoue, on vérifie si c'est une ressource publique (album unlisted)
+				// Regex pour détecter les assets (thumbnail, original, preview, video)
+				const assetMatch = pathParam.match(
+					/^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
+				);
+
+				if (assetMatch) {
+					const assetId = assetMatch[1];
+					const isPublic = await checkPublicAssetAccess(
+						assetId,
+						baseUrlFromEnv || '',
+						apiKey,
+						request.headers.get('referer')
+					);
+					if (isPublic) {
+						// C'est public, on laisse passer (le code suivant ajoutera la clé API admin)
+					} else {
+						console.warn(`[Proxy] Access denied for asset ${assetId} (not public)`);
+						// Return a specific error to help debugging
+						return new Response(
+							JSON.stringify({
+								error: 'Access denied to private asset',
+								assetId,
+								reason: 'Asset not found in any unlisted album',
+								debug: {
+									checked: true
+								}
+							}),
+							{
+								status: 403,
+								headers: {
+									'content-type': 'application/json',
+									'x-immich-proxy-reason': 'not-public-asset'
+								}
+							}
+						);
+					}
+				} else {
+					throw err; // Pas un asset -> on rejette
+				}
+			}
 		}
 	}
 
 	// Autorisation pour PUT/PATCH/POST/DELETE: session utilisateur requise
 	if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
-		await requireScope(event, 'write');
+		try {
+			await requireScope(event, 'write');
+		} catch (err) {
+			// Exception pour le téléchargement d'archives (zip) si tous les assets sont publics
+			const isDownload =
+				pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
+
+			if (request.method === 'POST' && isDownload) {
+				try {
+					// On doit cloner la requête pour lire le body sans le consommer pour le proxy
+					const clone = request.clone();
+					const body = (await clone.json()) as { assetIds?: string[]; ids?: string[] };
+					// Immich envoie { assetIds: [...] }
+					const assetIds = body.assetIds || body.ids || [];
+
+					if (
+						Array.isArray(assetIds) &&
+						assetIds.length > 0 &&
+						(await checkPublicAssetsAccess(
+							assetIds,
+							baseUrlFromEnv || '',
+							apiKey,
+							request.headers.get('referer')
+						))
+					) {
+						// Autorisé ! On continue vers le proxy.
+					} else {
+						console.warn('[Proxy] Access denied for download (not all assets public)');
+						throw err; // Rejet si pas public
+					}
+				} catch (e) {
+					console.error('Error checking public download access:', e);
+					throw err;
+				}
+			} else {
+				throw err;
+			}
+		}
 	}
 
 	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';

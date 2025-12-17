@@ -26,7 +26,14 @@ if (typeof window !== 'undefined') {
 
 			// Vérifier si c'est un lien interne
 			const href = link.getAttribute('href');
-			if (!href || href.startsWith('http') || link.getAttribute('target') === '_blank') {
+			// Ignorer les liens externes, les blobs (téléchargements) et les nouveaux onglets
+			if (
+				!href ||
+				href.startsWith('http') ||
+				href.startsWith('blob:') ||
+				link.getAttribute('target') === '_blank' ||
+				link.hasAttribute('download')
+			) {
 				return;
 			}
 
