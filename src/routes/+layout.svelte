@@ -153,7 +153,7 @@
 
 	<div class="user">
 		{#if u}
-			<a href="/parametres" class="avatar-link">
+			<a href="/mes-photos" class="avatar-link">
 				<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
 					{#if u.id_photos}
 						<img src={`/api/immich/people/${u.id_photos}/thumbnail`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
