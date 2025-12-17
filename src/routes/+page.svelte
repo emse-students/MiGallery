@@ -2,7 +2,6 @@
   import { page } from "$app/state";
   import type { User } from "$lib/types/api";
   import Icon from "$lib/components/Icon.svelte";
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import { fade, fly } from "svelte/transition";
 	import { signIn} from "@auth/sveltekit/client";
 
@@ -27,7 +26,6 @@
 </svelte:head>
 
 <main class="home-main">
-  <BackgroundBlobs />
 
   <div class="content-wrapper" in:fade={{ duration: 800 }}>
     <header class="header">
