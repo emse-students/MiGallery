@@ -16,7 +16,7 @@
   async function handleSignIn() {
 		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
 		// Sans callbackUrl, redirige vers la page d'origine après authentification
-		await signIn('cas-emse');
+		await signIn('cas-emse', { callbackUrl: window.location.href });
 	}
 </script>
 
@@ -75,14 +75,14 @@
   :global(body) {
     margin: 0;
     font-family: 'Inter', system-ui, sans-serif;
-    background-color: #0f172a; /* Bleu nuit très sombre */
-    color: white;
+    background-color: var(--bg-primary, #0f172a);
+    color: var(--text-primary, white);
     overflow-x: hidden;
   }
 
   .home-main {
     position: relative;
-    min-height: 100%;
+    min-height: calc(100vh - var(--topbar-height));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -114,7 +114,7 @@
     font-size: 3rem;
     font-weight: 800;
     margin: 0.5rem 0 0;
-    background: linear-gradient(to right, #fff, #cbd5e1);
+    background: linear-gradient(to right, var(--text-primary, #fff), var(--text-secondary, #cbd5e1));
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -122,7 +122,7 @@
 
   .tagline {
     font-size: 1.2rem;
-    color: #94a3b8;
+    color: var(--text-secondary, #94a3b8);
     margin-top: 0;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -137,25 +137,26 @@
   }
 
   .glass-card {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--glass-bg);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   }
 
   .glass-card:hover {
     transform: translateY(-5px);
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--glass-border-hover);
   }
 
   .card h2 {
     margin-top: 0;
     font-size: 1.5rem;
+    color: var(--text-primary);
   }
 
   .card p {
-    color: #cbd5e1;
+    color: var(--text-secondary);
     margin-bottom: 1.5rem;
     line-height: 1.6;
   }
@@ -174,21 +175,21 @@
   }
 
   .btn-primary {
-    background: #4f46e5;
+    background: var(--accent);
     color: white;
-    box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--accent) 40%, transparent);
   }
-  .btn-primary:hover { background: #4338ca; transform: scale(1.05); }
+  .btn-primary:hover { background: var(--accent-hover); transform: scale(1.05); }
 
   .btn-warning {
-    background: #eab308;
+    background: var(--warning);
     color: #0f172a;
-    box-shadow: 0 0 15px rgba(234, 179, 8, 0.4);
+    box-shadow: 0 0 15px color-mix(in srgb, var(--warning) 40%, transparent);
   }
-  .btn-warning:hover { background: #ca8a04; transform: scale(1.05); }
+  .btn-warning:hover { background: color-mix(in srgb, var(--warning) 80%, black); transform: scale(1.05); }
 
   .icon-wrapper {
     margin-bottom: 1rem;
-    color: #eab308;
+    color: var(--warning);
   }
 </style>

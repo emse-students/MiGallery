@@ -45,6 +45,11 @@
 	--shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 	--shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.3);
 
+	/* Glass */
+	--glass-bg: rgba(255, 255, 255, 0.05);
+	--glass-border: rgba(255, 255, 255, 0.1);
+	--glass-border-hover: rgba(255, 255, 255, 0.2);
+
 	/* Transitions */
 	--ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -77,6 +82,11 @@
 	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 	--shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 	--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+	/* Glass */
+	--glass-bg: rgba(255, 255, 255, 0.7);
+	--glass-border: rgba(0, 0, 0, 0.05);
+	--glass-border-hover: rgba(0, 0, 0, 0.1);
 
 	/* Glass background variables for light theme (ensure readable cards) */
 	--cv-glass-bg: rgba(255, 255, 255, 0.7);
