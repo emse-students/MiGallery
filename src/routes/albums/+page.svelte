@@ -313,14 +313,7 @@
                                         {#if albumCovers[a.id]}
                                             <LazyImage
                                               src={
-                                                // use modest numeric size for grid thumbnails
-                                                `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=thumbnail&format=JPEG`
-                                              }
-                                              highRes={
-                                                // medium high-res for visible upgrade when allowed (avoid original to save bandwidth)
-                                                a.visibility === 'unlisted'
-                                                  ? undefined
-                                                  : `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=preview&format=JPEG`
+                                                `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=preview&format=JPEG`
                                               }
                                               alt={a.name}
                                               class="album-cover"

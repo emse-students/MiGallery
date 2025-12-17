@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   interface BlobData {
     id: number;
     top: string;
@@ -10,6 +8,7 @@
     color: string;
   }
 
+  // Blobs statiques : génération immédiate sans hook ni animation
   let blobs = $state<BlobData[]>([]);
 
   // Palette identique (elle fonctionne bien)
@@ -21,25 +20,25 @@
     return Math.random() * (max - min) + min;
   }
 
-  onMount(() => {
-    // On génère 6 formes pour bien couvrir l'écran sans bouger
+  // Génération synchrones et immuables des blobs (pas d'animation)
+  {
     const count = 6;
     const newBlobs: BlobData[] = [];
 
     for (let i = 0; i < count; i++) {
       newBlobs.push({
         id: i,
-        // On étale bien les positions pour éviter les zones vides
+        // Positions fixes générées une seule fois
         top: `${getRandom(-20, 80)}%`,
         left: `${getRandom(-20, 80)}%`,
-        // Formes très grandes pour créer des dégradés doux
         width: `${getRandom(60, 90)}vw`,
         height: `${getRandom(60, 90)}vw`,
         color: colors[Math.floor(Math.random() * colors.length)],
       });
     }
+
     blobs = newBlobs;
-  });
+  }
 </script>
 
 <div class="page-background">
