@@ -27,7 +27,7 @@ const DEFAULT_CONFIG: CacheConfig = {
 		{ name: 'albums', ttl: 300000 },
 		{ name: 'assets', ttl: 600000 },
 		{ name: 'people', ttl: 1800000 },
-		{ name: 'thumbnails', ttl: 86400000 }
+		{ name: 'thumbnails', ttl: 36000000 }
 	]
 };
 

@@ -423,6 +423,81 @@ const handle: RequestHandler = async function (event) {
 		return handleChunkedUpload(event, chunkHeaders, base);
 	}
 
+	// --- Server-side file cache for binary assets (thumbnails, previews, original)
+	const FILE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+	const FILE_CACHE_DIR = path.join(process.cwd(), 'data', 'immich-file-cache');
+	try {
+		if (!fs.existsSync(FILE_CACHE_DIR)) {
+			fs.mkdirSync(FILE_CACHE_DIR, { recursive: true });
+		}
+	} catch {
+		// ignore mkdir failures; cache will be disabled
+	}
+
+	const assetMatchForCache = pathParam.match(
+		/^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
+	);
+	async function readCachedAsset(assetId: string, typeKey: string) {
+		try {
+			const base = path.join(FILE_CACHE_DIR, `${assetId}-${typeKey}`);
+			const filePath = `${base}.bin`;
+			const metaPath = `${base}.meta.json`;
+			if (!fs.existsSync(filePath) || !fs.existsSync(metaPath)) {
+				return null;
+			}
+			const stat = await fs.promises.stat(filePath);
+			const age = Date.now() - stat.mtimeMs;
+			if (age > FILE_CACHE_TTL_MS) {
+				try {
+					await fs.promises.unlink(filePath);
+					await fs.promises.unlink(metaPath);
+				} catch {
+					/* ignore */
+				}
+				return null;
+			}
+			const buf = await fs.promises.readFile(filePath);
+			const metaTxt = await fs.promises.readFile(metaPath, 'utf8');
+			const meta = JSON.parse(metaTxt) as Record<string, string>;
+			const headers = new Headers();
+			headers.set('content-type', meta['content-type'] || 'application/octet-stream');
+			headers.set('x-cache', 'HIT');
+			headers.set('cache-control', `public, max-age=${Math.floor(FILE_CACHE_TTL_MS / 1000)}`);
+			return new Response(new Uint8Array(buf), { status: 200, headers });
+		} catch {
+			return null;
+		}
+	}
+
+	async function writeCachedAsset(
+		assetId: string,
+		typeKey: string,
+		buf: Buffer,
+		headersObj: Headers
+	) {
+		try {
+			const base = path.join(FILE_CACHE_DIR, `${assetId}-${typeKey}`);
+			const filePath = `${base}.bin`;
+			const metaPath = `${base}.meta.json`;
+			await fs.promises.writeFile(filePath, buf);
+			const meta: Record<string, string> = {
+				'content-type': headersObj.get('content-type') || 'application/octet-stream'
+			};
+			await fs.promises.writeFile(metaPath, JSON.stringify(meta));
+		} catch (e) {
+			console.warn('Failed to write immich file cache:', e);
+		}
+	}
+
+	if (request.method === 'GET' && assetMatchForCache) {
+		const assetId = assetMatchForCache[1];
+		const typeKey = assetMatchForCache[2].replace('/', '-');
+		const cachedResp = await readCachedAsset(assetId, typeKey);
+		if (cachedResp) {
+			return cachedResp;
+		}
+	}
+
 	if (request.method === 'GET') {
 		const cached = immichCache.get('GET', `/api/${pathParam}`, resolvedRemoteUrl);
 		if (cached) {
@@ -512,6 +587,32 @@ const handle: RequestHandler = async function (event) {
 					headers.set(h, v);
 				}
 			}
+
+			// If this is an asset thumbnail/preview/original, attempt to cache it on disk for 30d
+			const assetMatch = pathParam.match(
+				/^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
+			);
+			if (assetMatch && res.ok) {
+				try {
+					const arrayBuf = await res.arrayBuffer();
+					const buf = Buffer.from(arrayBuf);
+					const assetId = assetMatch[1];
+					const typeKey = assetMatch[2].replace('/', '-');
+					await writeCachedAsset(assetId, typeKey, buf, res.headers);
+
+					// Serve cached buffer with long cache-control
+					headers.set('cache-control', `public, max-age=${Math.floor(FILE_CACHE_TTL_MS / 1000)}`);
+					headers.set('x-cache', 'MISS');
+					return new Response(arrayBuf, { status: res.status, headers });
+				} catch (e) {
+					console.warn('Failed to cache binary asset:', e);
+					if (res.status === 204) {
+						return new Response(null, { status: 204, headers });
+					}
+					return new Response(res.body, { status: res.status, headers });
+				}
+			}
+
 			if (res.status === 204) {
 				return new Response(null, { status: 204, headers });
 			}
