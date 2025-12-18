@@ -48,8 +48,14 @@ export async function ensureAdmin({
 	cookies: Cookies;
 }): Promise<UserRow | null> {
 	const fromCookie = getUserFromSignedCookie(cookies);
-	if (fromCookie && (fromCookie.role || 'user') === 'admin') {
-		return fromCookie;
+	// If a signed cookie exists, use it as the single source of truth.
+	// Do NOT fall back to the provider identity when a cookie is present,
+	// otherwise an admin who impersonates a non-admin would keep admin rights.
+	if (fromCookie) {
+		if ((fromCookie.role || 'user') === 'admin') {
+			return fromCookie;
+		}
+		return null;
 	}
 
 	if (!locals || typeof locals.auth !== 'function') {
