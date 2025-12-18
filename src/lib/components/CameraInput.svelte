@@ -19,18 +19,13 @@
   let canUseWebcam = $state(false);
   let isMobile = $state(false);
 
-  // Refs pour les inputs
   let fileInputRef: HTMLInputElement | undefined = $state(undefined);
   let cameraInputRef: HTMLInputElement | undefined = $state(undefined);
 
   onMount(async () => {
-    // Détecter si on est sur mobile
     isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-    // Sur PC, vérifier si l'API getUserMedia est disponible
     if (!isMobile && typeof navigator.mediaDevices?.getUserMedia === 'function') {
-      // L'API est disponible, on affiche le bouton webcam
-      // La détection réelle de la webcam se fera au moment du clic
       canUseWebcam = true;
     }
   });
@@ -47,7 +42,6 @@
       loading = true;
       cameraOpen = true;
 
-      // Attendre que le DOM soit mis à jour
       await new Promise(r => setTimeout(r, 50));
 
       const constraints = {
@@ -70,7 +64,6 @@
       cameraOpen = false;
       const errorMsg = err instanceof Error ? err.message : 'Impossible d\'accéder à la caméra';
 
-      // Messages d'erreur plus explicites
       if (errorMsg.includes('Permission denied') || errorMsg.includes('NotAllowedError')) {
         error = 'Accès à la caméra refusé. Veuillez autoriser l\'accès dans les paramètres du navigateur.';
       } else if (errorMsg.includes('NotFoundError') || errorMsg.includes('DevicesNotFoundError')) {
@@ -100,14 +93,11 @@
       const context = canvasElement.getContext('2d');
       if (!context) return;
 
-      // Définir les dimensions du canvas
       canvasElement.width = videoElement.videoWidth;
       canvasElement.height = videoElement.videoHeight;
 
-      // Dessiner l'image du flux vidéo
       context.drawImage(videoElement, 0, 0);
 
-      // Convertir le canvas en blob et créer un File
       canvasElement.toBlob((blob) => {
         if (blob) {
           const file = new File(
@@ -140,7 +130,6 @@
   }
 
   function openCameraCapture() {
-    // Sur mobile, utiliser l'input avec capture pour ouvrir la caméra native
     cameraInputRef?.click();
   }
 </script>

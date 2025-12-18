@@ -7,7 +7,6 @@
 
   const docsRaw = (page.data as { docs?: Doc[] }).docs || [];
 
-  // Tri intelligent
   const docs = docsRaw.slice().sort((a, b) => {
     const an = a.filename.toLowerCase();
     const bn = b.filename.toLowerCase();
@@ -19,7 +18,6 @@
   function scrollToDoc(id: string) {
     const el = document.getElementById(id);
     if (el) {
-        // Offset ajusté pour mobile/desktop
         const offset = window.innerWidth < 1024 ? 20 : 100;
         const y = el.getBoundingClientRect().top + window.scrollY - offset;
         window.scrollTo({ top: y, behavior: 'smooth' });

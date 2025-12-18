@@ -13,7 +13,6 @@ import type { User, AlbumRow } from '$lib/types/api';
  * - visibility 'private' => only users with explicit permission or promo tag or mitviste/admin
  */
 export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow): boolean {
-	// unlisted albums are accessible by link to anyone
 	const vis = (album.visibility || 'authenticated').toLowerCase();
 	if (vis === 'unlisted') {
 		return true;
@@ -28,7 +27,6 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 
 	const db = getDatabase();
 
-	// explicit user permission
 	const userPerm = db
 		.prepare('SELECT 1 FROM album_user_permissions WHERE album_id = ? AND id_user = ? LIMIT 1')
 		.get(album.id, user.id_user) as { 1: number } | undefined;
@@ -36,7 +34,6 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 		return true;
 	}
 
-	// tag permission (Promo <year>)
 	if (user.promo_year) {
 		const tag = `Promo ${user.promo_year}`;
 		const tagPerm = db
@@ -50,7 +47,6 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 		return true;
 	} // any logged-in user
 
-	// for 'unlisted' and 'private' we already checked explicit permissions and promo tag above
 	return false;
 }
 
@@ -65,8 +61,6 @@ export function getAlbumById(id: string): AlbumRow | null {
 
 export function listAllAlbums(): AlbumRow[] {
 	const db = getDatabase();
-	// Only list albums that are marked visible in public listings
-	// Order by date (newest first) then by name (ascending) for a chronological listing
 	const rows = db
 		.prepare('SELECT * FROM albums WHERE visible = 1 ORDER BY date DESC, name ASC')
 		.all() as AlbumRow[];
@@ -75,7 +69,6 @@ export function listAllAlbums(): AlbumRow[] {
 
 export function getAllAlbums(): AlbumRow[] {
 	const db = getDatabase();
-	// For admin, get all albums regardless of visibility
 	const rows = db.prepare('SELECT * FROM albums ORDER BY date DESC, name ASC').all() as AlbumRow[];
 	return rows;
 }

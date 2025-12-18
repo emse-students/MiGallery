@@ -20,7 +20,6 @@ function transformFile(file) {
 	let src = fs.readFileSync(file, 'utf8');
 	const original = src;
 
-	// Replace await SOMETHING.json() with (await SOMETHING.json()) as unknown
 	src = src.replace(/await\s+([^\n;]+?)\.json\(\)/g, '(await $1.json()) as unknown');
 
 	if (src !== original) {

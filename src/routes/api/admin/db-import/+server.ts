@@ -30,15 +30,12 @@ export const POST: RequestHandler = async (event) => {
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 		const BACKUP_PATH = `${DB_PATH}.before-import.${Date.now()}`;
 
-		// Fermer la connexion existante avant de toucher au fichier
 		resetDatabase();
 
-		// Sauvegarder la DB actuelle avant import
 		if (fs.existsSync(DB_PATH)) {
 			fs.copyFileSync(DB_PATH, BACKUP_PATH);
 		}
 
-		// Écrire le nouveau fichier
 		const buffer = Buffer.from(await file.arrayBuffer());
 		fs.writeFileSync(DB_PATH, buffer);
 

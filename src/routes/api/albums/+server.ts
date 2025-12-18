@@ -16,18 +16,14 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Seuls les albums répertoriés dans MiGallery sont retournés
  */
 export const GET: RequestHandler = async (event) => {
-	// Autorisation: cet endpoint nécessite une authentification avec scope 'read'
 	await requireScope(event, 'read');
 
 	try {
 		const db = getDatabase();
-		// Récupérer uniquement les albums de la base de données locale
-		// L'album PhotoCV est exclu via la requête SQL (name != 'PhotoCV')
 		const albums = db
 			.prepare("SELECT * FROM albums WHERE name != 'PhotoCV' ORDER BY date DESC, name ASC")
 			.all() as AlbumRow[];
 
-		// Transformer en format compatible avec l'ancien format ImmichAlbum pour la rétrocompatibilité
 		const formattedAlbums = albums.map((album) => ({
 			id: album.id,
 			albumName: album.name,
@@ -35,7 +31,6 @@ export const GET: RequestHandler = async (event) => {
 			createdAt: album.date || '',
 			updatedAt: album.date || '',
 			assetCount: 0, // Non disponible depuis la BDD locale
-			// Métadonnées MiGallery
 			date: album.date,
 			location: album.location,
 			visibility: album.visibility,
@@ -65,7 +60,6 @@ export const GET: RequestHandler = async (event) => {
  * }
  */
 export const POST: RequestHandler = async (event) => {
-	// Autorisation: session utilisateur OU x-api-key avec scope "write"
 	await requireScope(event, 'write');
 
 	try {
@@ -96,7 +90,6 @@ export const POST: RequestHandler = async (event) => {
 			throw svelteError(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// 1. Créer l'album dans Immich
 		const immichRes = await event.fetch(`${IMMICH_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: {
@@ -121,7 +114,6 @@ export const POST: RequestHandler = async (event) => {
 			throw svelteError(500, 'No album ID returned from Immich');
 		}
 
-		// 2. Créer l'album dans la base de données locale
 		try {
 			const db = getDatabase();
 			const stmt = db.prepare(
@@ -129,7 +121,6 @@ export const POST: RequestHandler = async (event) => {
 			);
 			stmt.run(albumId, albumName.trim(), date || null, location || null, visibility, visible ? 1 : 0);
 
-			// 3. Ajouter les tags si fournis
 			if (Array.isArray(tags) && tags.length > 0) {
 				const tagStmt = db.prepare(
 					'INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)'
@@ -142,7 +133,6 @@ export const POST: RequestHandler = async (event) => {
 				}
 			}
 
-			// 4. Ajouter les utilisateurs autorisés si fournis
 			if (Array.isArray(allowedUsers) && allowedUsers.length > 0) {
 				const userStmt = db.prepare(
 					'INSERT OR IGNORE INTO album_user_permissions (album_id, id_user) VALUES (?, ?)'
@@ -156,10 +146,8 @@ export const POST: RequestHandler = async (event) => {
 			}
 		} catch (dbErr) {
 			console.error('Error saving album to local DB:', dbErr);
-			// Continue anyway - the album exists in Immich
 		}
 
-		// Log album creation
 		try {
 			await logEvent(event, 'create', 'album', albumId, { name: albumName, visibility });
 		} catch (logErr) {

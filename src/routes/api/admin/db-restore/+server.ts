@@ -25,7 +25,6 @@ export const POST: RequestHandler = async (event) => {
 			throw error(404, 'Fichier de sauvegarde non trouvé');
 		}
 
-		// Vérifier que le fichier est bien dans le dossier backups (sécurité)
 		const realBackupPath = fs.realpathSync(backupPath);
 		const realBackupDir = fs.realpathSync(BACKUP_DIR);
 
@@ -36,15 +35,12 @@ export const POST: RequestHandler = async (event) => {
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 		const SAFETY_BACKUP = `${DB_PATH}.before-restore.${Date.now()}`;
 
-		// Fermer la connexion existante
 		resetDatabase();
 
-		// Sauvegarder la DB actuelle
 		if (fs.existsSync(DB_PATH)) {
 			fs.copyFileSync(DB_PATH, SAFETY_BACKUP);
 		}
 
-		// Restaurer depuis la sauvegarde
 		fs.copyFileSync(backupPath, DB_PATH);
 
 		return json({

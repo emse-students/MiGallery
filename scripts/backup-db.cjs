@@ -15,13 +15,11 @@ const MAX_BACKUPS = 10;
 
 console.log('🔄 Démarrage de la sauvegarde de la base de données...');
 
-// Vérifier que la DB existe
 if (!fs.existsSync(DB_PATH)) {
 	console.error('❌ Base de données non trouvée:', DB_PATH);
 	process.exit(1);
 }
 
-// Créer le dossier de sauvegarde si nécessaire
 if (!fs.existsSync(BACKUP_DIR)) {
 	fs.mkdirSync(BACKUP_DIR, { recursive: true });
 	console.log('📁 Dossier de sauvegarde créé:', BACKUP_DIR);
@@ -36,11 +34,10 @@ const backupFileName = `migallery_backup_${timestamp}.db`;
 const backupPath = path.join(BACKUP_DIR, backupFileName);
 
 try {
-	// Copier la base de données
+
 	fs.copyFileSync(DB_PATH, backupPath);
 	console.log('✅ Sauvegarde créée:', backupFileName);
 
-	// Lister toutes les sauvegardes
 	const backups = fs
 		.readdirSync(BACKUP_DIR)
 		.filter((f) => f.startsWith('migallery_backup_') && f.endsWith('.db'))

@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { json, error as svelteError } from '@sveltejs/kit';
+import { error as svelteError } from '@sveltejs/kit';
 
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
@@ -25,7 +24,6 @@ export const GET: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 
-		// Chercher l'utilisateur par son id_user
 		const userStmt = db.prepare('SELECT id_photos FROM users WHERE id_user = ?');
 		const user = userStmt.get(username) as { id_photos?: string | null } | undefined;
 
@@ -42,7 +40,6 @@ export const GET: RequestHandler = async (event) => {
 			return svelteError(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Récupérer la photo de profil depuis Immich
 		const res = await fetch(`${IMMICH_BASE_URL}/api/people/${userId}/thumbnail`, {
 			headers: {
 				'x-api-key': IMMICH_API_KEY

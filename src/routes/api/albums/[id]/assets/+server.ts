@@ -40,7 +40,6 @@ export const PUT: RequestHandler = async (event) => {
 
 		const result = (await res.json()) as unknown;
 
-		// Invalider le cache de l'album pour que les nouvelles photos apparaissent immédiatement
 		immichCache.invalidateAlbum(id);
 
 		return json(result);
@@ -86,7 +85,6 @@ export const DELETE: RequestHandler = async (event) => {
 
 		const result = (await res.json()) as unknown;
 
-		// Invalider le cache de l'album pour que les photos supprimées disparaissent immédiatement
 		immichCache.invalidateAlbum(id);
 
 		return json(result);

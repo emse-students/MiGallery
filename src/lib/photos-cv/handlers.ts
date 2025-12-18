@@ -118,7 +118,6 @@ export async function addAssetsToAlbum(
 		throw error(500, `Failed to add assets to album: ${errorText}`);
 	}
 
-	// Invalider le cache de l'album PhotoCV
 	immichCache.invalidateAlbum(albumId);
 
 	return res.json() as Promise<{ success: boolean }>;
@@ -139,7 +138,6 @@ export async function removeAssetsFromAlbum(
 		throw error(500, `Failed to remove assets from album: ${errorText}`);
 	}
 
-	// Invalider le cache de l'album PhotoCV
 	immichCache.invalidateAlbum(albumId);
 
 	return res.json() as Promise<{ success: boolean }>;

@@ -6,7 +6,6 @@ import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
 
 export const GET: RequestHandler = async (event) => {
-	// get user by id - admin only
 	await requireScope(event, 'admin');
 
 	const targetId = event.params.id;
@@ -27,7 +26,6 @@ export const GET: RequestHandler = async (event) => {
 };
 
 export const PUT: RequestHandler = async (event) => {
-	// update user - admin only
 	await requireScope(event, 'admin');
 
 	const targetId = event.params.id;
@@ -35,7 +33,6 @@ export const PUT: RequestHandler = async (event) => {
 		return json({ error: 'Bad Request' }, { status: 400 });
 	}
 
-	// Protect system user
 	if (targetId === 'les.roots') {
 		return json({ error: 'Cannot modify system user' }, { status: 403 });
 	}
@@ -51,7 +48,6 @@ export const PUT: RequestHandler = async (event) => {
 		};
 		const { email, prenom, nom, role, promo_year, id_photos } = body;
 
-		// Validation
 		if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
 			return json({ error: 'Invalid email format' }, { status: 400 });
 		}
@@ -82,7 +78,6 @@ export const PUT: RequestHandler = async (event) => {
 				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
 			)
 			.get(targetId);
-		// Log update
 		try {
 			await logEvent(event, 'update', 'user', targetId, { email, prenom, nom, role, promo_year });
 		} catch (logErr) {
@@ -97,12 +92,10 @@ export const PUT: RequestHandler = async (event) => {
 };
 
 export const DELETE: RequestHandler = async (event) => {
-	// delete user - admin only
 	await requireScope(event, 'admin');
 
 	const targetId = event.params.id;
 
-	// Protect system user
 	if (targetId === 'les.roots') {
 		return json({ error: 'Cannot delete system user' }, { status: 403 });
 	}
@@ -112,7 +105,6 @@ export const DELETE: RequestHandler = async (event) => {
 	if (info.changes === 0) {
 		return json({ error: 'User not found' }, { status: 404 });
 	}
-	// Log deletion
 	try {
 		await logEvent(event, 'delete', 'user', targetId, null);
 	} catch (logErr) {

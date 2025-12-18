@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Générateur de AUTH_SECRET pour MiGallery
- * Cet outil génère une clé sécurisée pour AUTH_SECRET
- */
 
 const crypto = require('crypto');
 const fs = require('fs');

@@ -6,12 +6,9 @@ import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 
 export const GET: RequestHandler = async (event) => {
-	// list users - admin only
 	await requireScope(event, 'admin');
 
 	const db = getDatabase();
-	// Exclure uniquement l'admin système (les.roots@etu.emse.fr)
-	// Afficher tous les autres utilisateurs, même ceux sans promo_year (nouveaux utilisateurs)
 	const rows = db
 		.prepare(
 			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
@@ -21,7 +18,6 @@ export const GET: RequestHandler = async (event) => {
 };
 
 export const POST: RequestHandler = async (event) => {
-	// create user - admin only
 	await requireScope(event, 'admin');
 
 	try {
@@ -39,12 +35,10 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'id_user and email required' }, { status: 400 });
 		}
 
-		// Validation email simple
 		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
 			return json({ error: 'Invalid email format' }, { status: 400 });
 		}
 
-		// Validation role
 		if (!['user', 'admin', 'mitviste'].includes(role)) {
 			return json({ error: 'Invalid role' }, { status: 400 });
 		}
@@ -69,7 +63,6 @@ export const POST: RequestHandler = async (event) => {
 			)
 			.get(id_user) as UserRow | undefined;
 
-		// Log creation
 		try {
 			await logEvent(event, 'create', 'user', id_user, { email, prenom, nom, role });
 		} catch (logErr) {

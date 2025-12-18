@@ -23,11 +23,11 @@ const DEFAULT_CONFIG: CacheConfig = {
 	name: 'migallery-cache',
 	version: 1,
 	stores: [
-		{ name: 'album-covers', ttl: 3600000 }, // 1h - Couvertures d'albums
-		{ name: 'albums', ttl: 300000 }, // 5min - Détails albums
-		{ name: 'assets', ttl: 600000 }, // 10min - Métadonnées assets
-		{ name: 'people', ttl: 1800000 }, // 30min - Infos personnes
-		{ name: 'thumbnails', ttl: 86400000 } // 24h - Miniatures (URLs blob)
+		{ name: 'album-covers', ttl: 36000000 },
+		{ name: 'albums', ttl: 300000 },
+		{ name: 'assets', ttl: 600000 },
+		{ name: 'people', ttl: 1800000 },
+		{ name: 'thumbnails', ttl: 86400000 }
 	]
 };
 
@@ -68,7 +68,6 @@ class ClientCache {
 			request.onupgradeneeded = (event) => {
 				const db = (event.target as IDBOpenDBRequest).result;
 
-				// Créer les object stores
 				for (const store of this.config.stores) {
 					if (!db.objectStoreNames.contains(store.name)) {
 						db.createObjectStore(store.name);
@@ -105,10 +104,8 @@ class ClientCache {
 						return;
 					}
 
-					// Vérifier la validité
 					const age = Date.now() - entry.timestamp;
 					if (age > store.ttl) {
-						// Expirée, supprimer
 						this.delete(storeName, key);
 						resolve(null);
 						return;
@@ -266,7 +263,6 @@ class ClientCache {
 	}
 }
 
-// Instance singleton
 export const clientCache = new ClientCache();
 
 /**
@@ -284,7 +280,6 @@ export async function cachedFetch<T>(
 	const cacheKey = options?.cacheKey || url;
 	const bypassCache = options?.bypassCache || false;
 
-	// Essayer de récupérer depuis le cache
 	if (cacheStore && !bypassCache) {
 		const cached = await clientCache.get<T>(cacheStore, cacheKey);
 		if (cached !== null) {
@@ -292,7 +287,6 @@ export async function cachedFetch<T>(
 		}
 	}
 
-	// Fetch depuis le serveur
 	const response = await fetch(url, options);
 
 	if (!response.ok) {
@@ -301,7 +295,6 @@ export async function cachedFetch<T>(
 
 	const data = (await response.json()) as unknown as T;
 
-	// Stocker en cache
 	if (cacheStore) {
 		const etag = response.headers.get('etag') || undefined;
 		await clientCache.set(cacheStore, cacheKey, data, etag);

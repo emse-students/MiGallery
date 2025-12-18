@@ -18,7 +18,6 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Determine local visibility (our source of truth)
 		let localVisibility: string | undefined = undefined;
 		try {
 			const db = getDatabase();
@@ -42,7 +41,6 @@ export const GET: RequestHandler = async (event) => {
 		const isUnlisted = visibilityHint === 'unlisted' || localVisibility === 'unlisted';
 
 		if (!isUnlisted) {
-			// require auth or x-api-key with read scope
 			await requireScope(event, 'read');
 		}
 
@@ -50,7 +48,6 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_API_KEY not configured on server');
 		}
 
-		// Proxy original via internal immich proxy so we can attach the internal key
 		const proxied = await fetch(`/api/immich/assets/${assetId}/original`, {
 			headers: {
 				'x-internal-immich-key': IMMICH_API_KEY,
@@ -73,7 +70,6 @@ export const GET: RequestHandler = async (event) => {
 			return new Response(bodySnippet || proxied.statusText, { status: proxied.status });
 		}
 
-		// Forward relevant headers and body stream
 		const headers: Record<string, string> = {};
 		const contentType = proxied.headers.get('content-type');
 		if (contentType) {
@@ -93,8 +89,6 @@ export const GET: RequestHandler = async (event) => {
 		const err = ensureError(e);
 		console.error('[asset-original] error', err);
 		if (e && typeof e === 'object' && 'status' in e) {
-			// Re-throw objects that carry a numeric `status` so SvelteKit can handle them.
-			// Cast via `unknown` -> `ErrorLike` to avoid using `any` and satisfy ESLint.
 			type ErrorLike = { status: number; [key: string]: unknown };
 			throw e as unknown as ErrorLike;
 		}

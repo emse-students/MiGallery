@@ -32,11 +32,9 @@
 	let scale = $state(1);
 	let minScale = $state(0.1); // will be recomputed to a dynamic value when the image loads
 
-	// Vérifier le rôle de l'utilisateur
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
-	// État du modal de confirmation
 	let showConfirmModal = $state(false);
 	let confirmModalConfig = $state<{
 		title: string;
@@ -46,50 +44,39 @@
 	} | null>(null);
 
 	function computeMinScale(): number {
-		// minScale permet un léger dézoom si l'utilisateur le souhaite
-		// scale=1 correspond à l'image qui remplit le conteneur (via CSS max-width/max-height)
 		return 0.5;
 	}
 	let isDragging = $state(false);
 	let dragStart = $state({ x: 0, y: 0 });
 	let translate = $state({ x: 0, y: 0 });
-	// baseScale removed: we rely on CSS (max-width / max-height) so scale=1 means "fit to container"
 	let imgElement = $state<HTMLImageElement | null>(null);
 	let containerElement = $state<HTMLDivElement | null>(null);
 
-	// Portal root pour monter le modal directement dans document.body
 	let portalRoot = $state<HTMLDivElement | null>(null);
 
-	// Touch/pinch zoom state
 	let touchStartDistance = $state(0);
 	let touchStartScale = $state(1);
 	let isTouchDragging = $state(false);
 	let touchDragStart = $state({ x: 0, y: 0 });
-	let lastTouchEnd = $state(0); // Pour détecter double-tap
+	let lastTouchEnd = $state(0); 
 
-	// Prévenir les rechargements répétés de la même asset
 	let lastLoadedAssetId = $state<string | null>(null);
 
-	// Trouver l'index actuel
 	$effect(() => {
 		const index = assets.findIndex(a => a.id === assetId);
 		if (index >= 0) currentIndex = index;
 	});
 
-	// Resynchronise l'objet `asset` si la liste `assets` change
 	$effect(() => {
 		if (!assetId) return;
 
 		const latest = assets.find(a => a.id === assetId) || null;
-		// Ne pas toucher l'état si l'objet est déjà la même référence
 		if (latest && latest !== asset) {
 			asset = latest;
-			// Si le type a changé (image -> video), mettre à jour le flag
 			isVideo = asset?.type === 'VIDEO';
 		}
 	});
 
-	// Charger l'asset actuel
 	async function loadAsset(id: string) {
 		if (!id) return;
 		loading = true;
@@ -100,15 +87,11 @@
 		isVideo = false;
 
 		try {
-				// Si l'asset est présent dans la liste `assets`, réutiliser les données locales
 				const local = assets.find(a => a.id === id);
 				if (local) {
 					asset = local;
 					isVideo = asset?.type === 'VIDEO';
 				} else {
-					// Sinon, tenter de récupérer les métadonnées depuis l'API Immich.
-					// Pour les albums "unlisted" en accès anonyme, cette requête peut renvoyer 401,
-					// donc on la tente uniquement si nécessaire et on ignore les erreurs non fatales.
 					try {
 						const metaRes = await fetch(`/api/immich/assets/${id}`);
 						if (metaRes.ok) {
@@ -122,7 +105,6 @@
 							isVideo = asset?.type === 'VIDEO';
 						}
 					} catch (err) {
-						// Ignorer les erreurs (ex: 401) — on garde les informations minimales si disponibles
 						void err;
 					}
 				}
@@ -131,23 +113,16 @@
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 				imageLoaded = true;
 			} else {
-			// Choisir la qualité initiale pour la visionneuse :
-			// - Sur mobile (petite largeur) on charge directement l'original pour une meilleure netteté
-			// - Sinon on charge 'preview' (meilleure que 'thumbnail') et on bascule vers l'original si l'utilisateur zoome
 			let size = 'preview';
 			if (typeof window !== 'undefined') {
 				const isMobileViewport = window.innerWidth <= 768;
 				const highDPR = (window.devicePixelRatio || 1) > 1.5;
 				if (isMobileViewport || highDPR) {
-					// Charger l'original sur mobile / écrans haute densité pour conserver la netteté lors du zoom
 					size = 'original';
 				}
 			}
 
-			// Pour les albums en mode "unlisted" on utilise la route publique qui proxy la vignette
 			if (albumVisibility === 'unlisted' && albumId) {
-				// Le proxy d'album ne propose que l'endpoint 'thumbnail';
-				// si on souhaitait l'original, on retombe sur 'preview' pour garantir l'accès public.
 				const proxySize = size === 'original' ? 'preview' : size;
 				mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
 			} else {
@@ -169,8 +144,6 @@
 		if (assetId && assetId !== lastLoadedAssetId) {
 			loadAsset(assetId);
 			lastLoadedAssetId = assetId;
-			// Reset zoom and position when changing photo
-			// minScale will be set after image loads
 			scale = 1;
 			translate = { x: 0, y: 0 };
 		}
@@ -183,7 +156,6 @@
 		const container = e.currentTarget as HTMLElement;
 		const rect = container.getBoundingClientRect();
 
-		// Position du curseur par rapport au conteneur (0 à 1)
 		const mouseX = (e.clientX - rect.left) / rect.width;
 		const mouseY = (e.clientY - rect.top) / rect.height;
 
@@ -192,18 +164,14 @@
 		const newScale = Math.min(Math.max(minScale, scale + delta), 3);
 
 		if (newScale !== oldScale) {
-			// Calculer le nouveau translate pour garder le point sous le curseur fixe
 			const scaleChange = newScale / oldScale;
 
-			// Convertir les coordonnées de la souris en position dans l'image
 			const imgCenterX = rect.width / 2;
 			const imgCenterY = rect.height / 2;
 
-			// Distance du curseur au centre
 			const offsetX = (e.clientX - rect.left) - imgCenterX;
 			const offsetY = (e.clientY - rect.top) - imgCenterY;
 
-			// Ajuster le translate
 			translate = {
 				x: translate.x * scaleChange + offsetX * (1 - scaleChange),
 				y: translate.y * scaleChange + offsetY * (1 - scaleChange)
@@ -211,19 +179,15 @@
 
 			scale = newScale;
 
-			// Si l'utilisateur zoome fortement, charger la haute résolution si nécessaire
 			if (newScale > 1.3 && !highResLoaded && !isVideo) {
 				ensureHighRes();
 			}
 
-			// Contraindre le translate après le zoom
-			// Utiliser un petit délai pour que l'image ait le temps de se redimensionner
 			setTimeout(() => {
 				translate = constrainTranslate(translate);
 			}, 0);
 		}
 
-		// Reset position if zoomed out completely
 		if (scale <= 1) {
 			translate = { x: 0, y: 0 };
 		}
@@ -236,7 +200,6 @@
 		const rect = (containerElement as HTMLElement).getBoundingClientRect();
 		const oldScale = scale;
 
-		// Toggle between a focused zoom (2x) and scale 1 (fit)
 		const target = oldScale >= 2 ? 1 : Math.min(2, 3);
 		const newScale = Math.min(Math.max(minScale, target), 3);
 
@@ -257,19 +220,17 @@
 
 		scale = newScale;
 
-		// Charger la haute résolution si on force un zoom important
 		if (newScale > 1.3 && !highResLoaded && !isVideo) {
 			ensureHighRes();
 		}
 
-		// Constrain after zoom. Use timeout so layout updates first.
 		setTimeout(() => { translate = constrainTranslate(translate); }, 0);
 
 		if (scale <= 1) translate = { x: 0, y: 0 };
 	}
 
 	function handleMouseDown(e: MouseEvent) {
-		if (scale <= 1) return; // Pas de drag si pas zoomé
+		if (scale <= 1) return; 
 		isDragging = true;
 		dragStart = { x: e.clientX - translate.x, y: e.clientY - translate.y };
 	}
@@ -283,8 +244,6 @@
 		const containerWidth = containerRect.width;
 		const containerHeight = containerRect.height;
 
-		// Calculer la taille de l'image affichée avec object-fit: contain
-		// L'image est ajustée pour que le côté le plus long remplisse le conteneur
 		const imgNaturalWidth = imgElement.naturalWidth;
 		const imgNaturalHeight = imgElement.naturalHeight;
 		const imgAspect = imgNaturalWidth / imgNaturalHeight;
@@ -294,23 +253,16 @@
 		let displayedHeight: number;
 
 		if (imgAspect > containerAspect) {
-			// Image plus large que le conteneur proportionnellement
-			// Elle est contrainte par la largeur
 			displayedWidth = containerWidth;
 			displayedHeight = containerWidth / imgAspect;
 		} else {
-			// Image plus haute que le conteneur proportionnellement
-			// Elle est contrainte par la hauteur
 			displayedHeight = containerHeight;
 			displayedWidth = containerHeight * imgAspect;
 		}
 
-		// Dimensions de l'image après zoom
 		const scaledWidth = displayedWidth * scale;
 		const scaledHeight = displayedHeight * scale;
 
-		// Calculer les limites maximales de déplacement
-		// On ne peut se déplacer que si l'image zoomée est plus grande que le conteneur
 		const maxTranslateX = Math.max(0, (scaledWidth - containerWidth) / 2);
 		const maxTranslateY = Math.max(0, (scaledHeight - containerHeight) / 2);
 
@@ -326,34 +278,23 @@
 		translate = constrainTranslate(newTranslate);
 	}
 
-
-
 	function handleMouseUp() {
 		isDragging = false;
 	}
 
-	// Charger l'original en remplacement du preview si nécessaire
 	async function ensureHighRes() {
 		if (!asset || isVideo || highResLoaded) return;
-		// Conserver l'original en mémoire mais remplacer mediaUrl par l'original
 		try {
 			if (albumVisibility === 'unlisted' && albumId) {
-				// proxy d'album n'expose pas l'original directement — on garde 'preview' dans ce cas
-				// (déjà géré lors de la construction de mediaUrl)
 				highResLoaded = true;
 				return;
 			}
-			// Construction de l'URL originale via l'endpoint prévu
 			mediaUrl = `/api/immich/assets/${asset.id}/original`;
 			highResLoaded = true;
-			// attendre que l'image se recharge (optionnel)
-			// l'événement onload de l'élément <img> gère imageLoaded
 		} catch (e) {
 			console.warn('Unable to load high-res image', e);
 		}
 	}
-
-	// ============= TOUCH HANDLERS (mobile pinch-to-zoom) =============
 
 	function getTouchDistance(touches: TouchList): number {
 		if (touches.length < 2) return 0;
@@ -364,16 +305,13 @@
 
 	function handleTouchStart(e: TouchEvent) {
 		if (e.touches.length === 2) {
-			// Pinch start
 			e.preventDefault();
 			touchStartDistance = getTouchDistance(e.touches);
 			touchStartScale = scale;
 			isTouchDragging = false;
 		} else if (e.touches.length === 1) {
-			// Single finger - check for double tap or drag
 			const now = Date.now();
 			if (now - lastTouchEnd < 300) {
-				// Double tap - toggle zoom
 				e.preventDefault();
 				if (scale > 1) {
 					scale = 1;
@@ -383,7 +321,6 @@
 				}
 				lastTouchEnd = 0;
 			} else if (scale > 1) {
-				// Start drag when zoomed
 				isTouchDragging = true;
 				touchDragStart = {
 					x: e.touches[0].clientX - translate.x,
@@ -395,7 +332,6 @@
 
 	function handleTouchMove(e: TouchEvent) {
 		if (e.touches.length === 2 && touchStartDistance > 0) {
-			// Pinch zoom
 			e.preventDefault();
 			const currentDistance = getTouchDistance(e.touches);
 			const scaleChange = currentDistance / touchStartDistance;
@@ -403,7 +339,6 @@
 			newScale = Math.max(minScale, Math.min(10, newScale));
 			scale = newScale;
 
-			// Charger la haute résolution lors d'un pinch-zoom important
 			if (newScale > 1.3 && !highResLoaded && !isVideo) {
 				ensureHighRes();
 			}
@@ -412,7 +347,6 @@
 				translate = { x: 0, y: 0 };
 			}
 		} else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
-			// Single finger drag when zoomed
 			e.preventDefault();
 			const newTranslate = {
 				x: e.touches[0].clientX - touchDragStart.x,
@@ -428,7 +362,6 @@
 			touchStartDistance = 0;
 			isTouchDragging = false;
 
-			// Constrain translate after pinch ends
 			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
 
 			if (scale <= 1) {
@@ -436,7 +369,6 @@
 			}
 		}
 	}
-	// ============= END TOUCH HANDLERS =============
 
 	function resetZoom() {
 		scale = 1;
@@ -458,7 +390,6 @@
 	async function downloadAsset() {
 		if (!assetId || !asset) return;
 		try {
-			// If this photo belongs to an unlisted album, use the public album proxy
 			let downloadUrl = `/api/immich/assets/${assetId}/original`;
 			if (albumVisibility === 'unlisted' && albumId) {
 				downloadUrl = `/api/albums/${albumId}/asset-original/${assetId}`;
@@ -486,12 +417,8 @@
 			await setAlbumCover(albumId, assetId);
 			toast.success('Couverture mise à jour');
 
-			// Invalider le cache local de la couverture pour cet album
 			clientCache.delete('album-covers', albumId);
 
-			// Si on est sur la page album, on peut essayer de forcer le rechargement
-			// Mais comme c'est géré par le parent, le plus simple est de recharger la page ou de laisser le cache expirer
-			// Idéalement, on devrait émettre un événement pour dire au parent de rafraîchir
 		} catch (e) {
 			toast.error('Erreur: ' + (e as Error).message);
 		}
@@ -510,28 +437,21 @@
 				});
 
 				if (!res.ok) {
-					// Ne pas essayer de lire le corps si 204 No Content
 					if (res.status === 204) {
-						// C'est un succès, continuer
 					} else {
 						const errText = await res.text().catch(() => res.statusText);
 						throw new Error(errText || 'Erreur lors de la suppression');
 					}
 				}
 
-				// Calculer la prochaine photo à afficher AVANT de notifier le parent
-				// (évite les conditions de course si le parent met à jour `assets` immédiatement)
 				const nextIndexSnapshot = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
 				const nextAssetId = (nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length) ? assets[nextIndexSnapshot].id : null;
 
-				// Notifier le parent
 				if (onAssetDeleted) {
 					onAssetDeleted(assetId);
 				}
-				// Émettre un événement Svelte au cas où le parent écoute via on:assetDeleted
 				dispatch('assetDeleted', assetId);
 
-				// Passer à la photo suivante (pré-calculée) ou fermer
 				if (nextAssetId) {
 					assetId = nextAssetId;
 				} else {
@@ -563,8 +483,6 @@
 		else if (e.key === '-' || e.key === '_') scale = Math.max(scale - 0.2, minScale);
 		else if (e.key === '0') resetZoom();
 		else if (e.key === 'Delete') {
-			// Shift+Delete = suppression sans confirmation
-			// Delete seul = suppression avec confirmation
 			if (canManagePhotos) {
 				deleteCurrentAsset(e.shiftKey);
 			}
@@ -576,8 +494,6 @@
 	}
 
 	onMount(() => {
-		// Si besoin, monter le wrapper du modal dans document.body pour éviter
-		// les problèmes de stacking context créés par des parents transform/opacity
 		if (portalRoot && portalRoot.parentNode !== document.body) {
 			document.body.appendChild(portalRoot);
 		}
@@ -593,11 +509,9 @@
 		window.removeEventListener('mouseup', handleMouseUp);
 		document.body.classList.remove('modal-open');
 
-		// Nettoyer le portail si on l'a monté dans document.body
 		if (portalRoot && portalRoot.parentNode === document.body) {
 			try { document.body.removeChild(portalRoot); } catch {}
 		}
-		// Revoke object URL only if we created one
 		if (mediaUrl && mediaUrl.startsWith && mediaUrl.startsWith('blob:')) {
 			try { URL.revokeObjectURL(mediaUrl); } catch {}
 		}
@@ -638,13 +552,10 @@
 						class="btn-icon btn-favorite"
 						class:active={asset.isFavorite}
 						onclick={async () => {
-							// Mise à jour optimiste : inverser le state immédiatement
 							const wasFavorite = asset!.isFavorite;
 							try {
 								await onFavoriteToggle(asset!.id);
-								// Le state est mis à jour par toggleFavorite dans PhotosGrid
 							} catch (e) {
-								// En cas d'erreur, pas besoin de revenir car toggleFavorite gère l'erreur
 								toast.error('Erreur lors de la mise à jour du favori');
 							}
 						}}
@@ -682,7 +593,6 @@
 				bind:this={containerElement}
 			>
 
-
 				{#if mediaUrl}
 					{#if isVideo}
 						<video
@@ -705,7 +615,6 @@
 							class:no-transition={isDragging}
 							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y / scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
 							onload={() => {
-								// scale=1 = l'image remplit le conteneur grâce au CSS
 								minScale = computeMinScale();
 								scale = 1;
 								translate = { x: 0, y: 0 };
@@ -907,8 +816,6 @@
 		/* Empêcher le zoom natif du navigateur sur mobile */
 		touch-action: none;
 	}
-
-
 
 	.media {
 		/* Pour que l'image remplisse le conteneur en s'ajustant sur le côté le plus long */

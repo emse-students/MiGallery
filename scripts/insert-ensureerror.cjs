@@ -20,20 +20,16 @@ function transformFile(file) {
 	let src = fs.readFileSync(file, 'utf8');
 	const original = src;
 
-	// replace console.log with console.warn
 	src = src.replace(/console\.log\(/g, 'console.warn(');
 
-	// process catch blocks for err, e, error
-	// We'll insert: const _err = ensureError(err);
 	src = src.replace(/catch\s*\(\s*(err|e|error)\s*:\s*unknown\s*\)\s*\{/g, (m, varName) => {
-		// check if ensureError already present nearby
+
 		const insert = `catch (${varName}: unknown) {\n\tconst _err = ensureError(${varName});`;
 		return insert;
 	});
 
-	// add import if ensureError used and import not present
 	if (src.includes('ensureError(') && !/ensureError/.test(original)) {
-		// add import after first import block or at top
+
 		if (/import\s+.*from\s+['"][^'"]+['"];?\s*/.test(src)) {
 			src = src.replace(
 				/(import[\s\S]*?from\s+['"][^'"]+['"];?\s*)/m,

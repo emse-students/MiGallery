@@ -11,8 +11,6 @@ import {
 } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
 
-// compatibility: this +server still supports the old ?action=.. query API but delegates logic to handlers
-
 /**
  * GET /api/people?action=...&personId=...
  *

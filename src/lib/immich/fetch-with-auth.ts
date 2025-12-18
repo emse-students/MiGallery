@@ -9,12 +9,10 @@ export function createImmichHeaders(
 ): Record<string, string> {
 	const headers: Record<string, string> = {};
 
-	// Typage strict : si apiKey est undefined, on ne l'ajoute pas (ou on throw)
 	if (apiKey) {
 		headers['x-api-key'] = apiKey;
 	}
 
-	// Ajouter les headers supplémentaires
 	if (additionalHeaders) {
 		Object.assign(headers, additionalHeaders);
 	}

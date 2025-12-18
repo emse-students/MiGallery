@@ -1,15 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { json, error as svelteError } from '@sveltejs/kit';
+import { json} from '@sveltejs/kit';
 
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 export const GET: RequestHandler = async (event) => {
 	try {
@@ -21,7 +14,6 @@ export const GET: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 
-		// Récupérer d'abord l'album depuis notre BDD locale (source de vérité)
 		const albumRow = db
 			.prepare('SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?')
 			.get(id) as
@@ -39,12 +31,10 @@ export const GET: RequestHandler = async (event) => {
 			return json({ error: 'Album non trouvé dans la base locale' }, { status: 404 });
 		}
 
-		// Charger les tags
 		const tagsRows = db
 			.prepare('SELECT tag FROM album_tag_permissions WHERE album_id = ?')
 			.all(id) as { tag: string }[];
 
-		// Charger les utilisateurs autorisés
 		const usersRows = db
 			.prepare('SELECT id_user FROM album_user_permissions WHERE album_id = ?')
 			.all(id) as { id_user: number }[];

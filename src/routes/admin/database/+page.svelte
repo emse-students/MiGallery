@@ -12,7 +12,6 @@
   const stats = data.stats;
   const backups = data.backups || [];
 
-  // --- Logic Base de données ---
   let uploadFile = $state<File | null>(null);
   let importing = $state(false);
   let exporting = $state(false);
@@ -22,7 +21,6 @@
   let databaseStatus = $state<any>(null);
   let showRepairModal = $state(false);
 
-  // Message persistant
     let persistentMessage = $state('');
     let persistentMessageType: 'success' | 'error' | 'info' = 'info';
 

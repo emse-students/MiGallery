@@ -11,13 +11,11 @@ import { requireScope } from '$lib/server/permissions';
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
 
-	// Vérifier l'authentification via API key ou session
 	await requireScope(event, 'read');
 
 	try {
 		const db = getDatabase();
 
-		// Récupérer l'utilisateur connecté via cookie
 		const cookieSigned = cookies.get('current_user_id') ?? null;
 		let userId: string | null = null;
 
@@ -28,7 +26,6 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		// Fallback sur la session provider
 		if (!userId && locals && typeof locals.auth === 'function') {
 			const session = await locals.auth();
 			if (session?.user) {
@@ -37,7 +34,6 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		// Fallback sur l'userId défini par requireScope (API key avec user associé)
 		if (!userId && locals.userId) {
 			userId = locals.userId as string;
 		}
@@ -53,7 +49,6 @@ export const PATCH: RequestHandler = async (event) => {
 			return json({ error: 'promo_year is required and must be a number' }, { status: 400 });
 		}
 
-		// Mettre à jour l'année de promo et marquer first_login à 0
 		const stmt = db.prepare('UPDATE users SET promo_year = ?, first_login = 0 WHERE id_user = ?');
 		const result = stmt.run(promoYear, userId);
 

@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-/**
- * Script pour ajouter la table user_favorites à une base de données existante
- */
 
 const fs = require('fs');
 const path = require('path');

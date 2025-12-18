@@ -12,7 +12,6 @@ export const POST: RequestHandler = async (event) => {
 		const scriptPath = path.join(process.cwd(), 'scripts', 'backup-db.cjs');
 		const output = execSync(`node "${scriptPath}"`, { encoding: 'utf-8' });
 
-		// Extraire le chemin de sauvegarde de l'output (ligne "✅ Sauvegarde créée: nom_fichier")
 		const match = output.match(/Sauvegarde créée:\s*(.+)/);
 		const backupFileName = match ? match[1].trim() : null;
 		const backupPath = backupFileName
