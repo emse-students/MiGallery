@@ -1,12 +1,8 @@
-/**
- * Script pour générer automatiquement la documentation complète des endpoints
- * Teste tous les endpoints accessibles et génère le code TypeScript pour endpoints.ts
- */
+
 
 const API_KEY = 'mAvmLgRgT7J1pJCCNNi4szLalbaMdNq28aprqvn129I';
 const BASE_URL = 'http://localhost:5173';
 
-// Résultats des tests capturés
 const results = {
 	health: {
 		'GET /api/health': {
@@ -98,7 +94,6 @@ const results = {
 	}
 };
 
-// Génération du code TypeScript
 function generateEndpointsCode() {
 	const groups = [
 		{ name: 'Health', key: 'health', description: 'Endpoints de santé et status' },
@@ -110,8 +105,6 @@ function generateEndpointsCode() {
 			description: 'Gestion des personnes et trombinoscope'
 		}
 	];
-
-	console.log('// Code généré automatiquement - À copier dans endpoints.ts\n');
 
 	for (const group of groups) {
 		if (!results[group.key]) continue;

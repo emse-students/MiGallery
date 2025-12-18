@@ -20,7 +20,6 @@ function transformFile(file) {
 	let src = fs.readFileSync(file, 'utf8');
 	const original = src;
 
-	// Replace catch (err) {  with catch (err: unknown) {
 	src = src.replace(/catch\s*\(\s*err\s*\)/g, 'catch (err: unknown)');
 	src = src.replace(/catch\s*\(\s*e\s*\)/g, 'catch (e: unknown)');
 	src = src.replace(/catch\s*\(\s*error\s*\)/g, 'catch (error: unknown)');

@@ -1,8 +1,5 @@
-// See https://kit.svelte.dev/docs/types#app
-// for information about these interfaces
 declare global {
 	namespace App {
-		// interface Error {}
 		interface Locals {
 			auth?: () => Promise<{
 				user?: {
@@ -28,8 +25,6 @@ declare global {
 				} | null;
 			};
 		}
-		// interface PageState {}
-		// interface Platform {}
 	}
 }
 

@@ -1,17 +1,12 @@
-/**
- * Script pour tester automatiquement tous les endpoints et capturer leurs schémas de réponse
- * Usage: node scripts/test-all-endpoints.js
- */
+
 
 const API_KEY = 'mAvmLgRgT7J1pJCCNNi4szLalbaMdNq28aprqvn129I';
 const BASE_URL = 'http://localhost:5173';
 
-// Liste complète des endpoints à tester
 const ENDPOINTS = [
 	// ========== Health ==========
 	{ method: 'GET', path: '/api/health', scope: 'read' },
 
-	// ========== Users ==========
 	{ method: 'GET', path: '/api/users', scope: 'admin' },
 	{
 		method: 'POST',
@@ -26,7 +21,6 @@ const ENDPOINTS = [
 		}
 	},
 
-	// ========== API Keys ==========
 	{ method: 'GET', path: '/api/admin/api-keys', scope: 'admin' },
 	{
 		method: 'POST',
@@ -45,11 +39,8 @@ const ENDPOINTS = [
 	{ method: 'GET', path: '/api/people', scope: 'read' },
 	{ method: 'GET', path: '/api/people/album/info', scope: 'read' },
 
-	// ========== External Media ==========
 	{ method: 'GET', path: '/api/external/media', scope: 'read' }
 
-	// Note: Les endpoints nécessitant des IDs spécifiques (GET /api/users/{id}, etc.)
-	// seront testés après avoir créé les ressources nécessaires
 ];
 
 /**
@@ -62,7 +53,7 @@ function generateSchema(obj, depth = 0, maxDepth = 3) {
 	const type = typeof obj;
 
 	if (type === 'string') {
-		// Détecter les formats spéciaux
+
 		if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(obj)) return '"ISO8601"';
 		if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(obj)) return '"uuid"';
 		return '"string"';
@@ -91,7 +82,6 @@ function generateSchema(obj, depth = 0, maxDepth = 3) {
 		const schema = {};
 		const keys = Object.keys(obj);
 
-		// Limiter le nombre de clés affichées selon la profondeur
 		const maxKeys = depth === 0 ? 20 : 10;
 		const displayKeys = keys.slice(0, maxKeys);
 		const hasMore = keys.length > maxKeys;
@@ -110,9 +100,6 @@ function generateSchema(obj, depth = 0, maxDepth = 3) {
 	return String(obj);
 }
 
-/**
- * Teste un endpoint et retourne son schéma
- */
 async function testEndpoint(endpoint) {
 	const url = `${BASE_URL}${endpoint.path}`;
 
@@ -124,7 +111,6 @@ async function testEndpoint(endpoint) {
 			}
 		};
 
-		// Ajouter le body pour POST/PUT/PATCH
 		if (endpoint.body && ['POST', 'PUT', 'PATCH'].includes(endpoint.method)) {
 			options.headers['Content-Type'] = 'application/json';
 			options.body = JSON.stringify(endpoint.body);
@@ -159,9 +145,6 @@ async function testEndpoint(endpoint) {
 	}
 }
 
-/**
- * Teste tous les endpoints
- */
 async function testAll() {
 	console.log(`🧪 Test de ${ENDPOINTS.length} endpoints...\n`);
 

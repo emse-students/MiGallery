@@ -1,14 +1,9 @@
 #!/usr/bin/env node
-/**
- * Script de tests unitaires pour l'API MiGallery
- * Teste tous les endpoints principaux de l'API
- */
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let API_KEY = '';
 let sessionCookie = '';
 
-// Couleurs pour le terminal
 const colors = {
 	reset: '\x1b[0m',
 	green: '\x1b[32m',
@@ -97,7 +92,7 @@ async function testEndpoint(config) {
 
 		return { passed, response, data };
 	} catch (error) {
-		// Special handling for fetch errors on Immich endpoints
+
 		const isImmichEndpoint =
 			path.includes('/api/albums') || path.includes('/api/people') || path.includes('/api/immich');
 
@@ -112,15 +107,14 @@ async function testEndpoint(config) {
 }
 
 // ========================================
-// Fonctions d'authentification et setup
+
 // ========================================
 
 async function ensureSystemUserExists() {
 	log("\n🔧 Vérification de l'utilisateur système...", colors.cyan);
 
 	try {
-		// Vérification directe en base de données au lieu de passer par l'API
-		// (car l'API nécessite une authentification)
+
 		const fs = require('fs');
 		const path = require('path');
 
@@ -168,7 +162,7 @@ async function loginAsSystemUser() {
 		if (response.status === 303 || response.status === 302) {
 			const cookies = response.headers.get('set-cookie');
 			if (cookies) {
-				// Extraire le cookie current_user_id
+
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
 					sessionCookie = `current_user_id=${match[1]}`;
@@ -258,7 +252,7 @@ async function runTests() {
 	log(`🔑 API Key initiale: ${API_KEY ? '✓ configurée' : '⚠️  non configurée'}\n`, colors.blue);
 
 	// ========================================
-	// Setup: Authentification et clé API
+
 	// ========================================
 	let testApiKeyId = null;
 
@@ -268,7 +262,7 @@ async function runTests() {
 		log("   Certains tests nécessitant l'authentification seront sautés.", colors.yellow);
 		log("   Pour créer l'utilisateur: node scripts/init-db.cjs\n", colors.blue);
 	} else {
-		// Connexion et création de clé API pour les tests
+
 		const loginSuccess = await loginAsSystemUser();
 		if (loginSuccess) {
 			testApiKeyId = await createTestApiKey();
@@ -276,14 +270,14 @@ async function runTests() {
 	}
 
 	// ========================================
-	// Tests Albums
+
 	// ========================================
 	log('\n📚 Tests Albums', colors.cyan);
 
 	await testEndpoint({
 		path: '/api/albums',
 		description: 'Lister les albums',
-		expectedStatus: [200, 500], // 500 si Immich down
+		expectedStatus: [200, 500], 
 		validate: (data, response) => {
 			if (response.status === 500) {
 				return { ok: true, message: 'Immich non accessible (normal si down)' };
@@ -296,14 +290,14 @@ async function runTests() {
 	});
 
 	// ========================================
-	// Tests Users
+
 	// ========================================
 	log('\n👥 Tests Users', colors.cyan);
 
 	await testEndpoint({
 		path: '/api/users',
 		description: 'Lister les utilisateurs (admin)',
-		expectedStatus: [200, 401, 403, 500], // 401 si pas auth, 403 si pas admin, 500 si Auth.js error
+		expectedStatus: [200, 401, 403, 500], 
 		validate: (data, response) => {
 			if (response.status === 401) {
 				return { ok: true, message: 'Non authentifié (normal sans cookie/clé API)' };
@@ -314,7 +308,7 @@ async function runTests() {
 			if (response.status === 500) {
 				return { ok: true, message: 'Erreur serveur (Auth.js config ou autre)' };
 			}
-			// Accept either a raw array or an envelope { success: true, users: [...] }
+
 			if (Array.isArray(data)) return { ok: true };
 			if (data && Array.isArray(data.users)) return { ok: true };
 			return { ok: false, message: 'La réponse devrait être un tableau ou { users: [...] }' };
@@ -335,7 +329,7 @@ async function runTests() {
 			if (response.status === 500) {
 				return { ok: true, message: 'Erreur serveur (Auth.js config ou autre)' };
 			}
-			// L'API retourne { success: true, user: {...} }
+
 			const user = data.user || data;
 			return {
 				ok: user && user.id_user === 'les.roots',
@@ -348,7 +342,7 @@ async function runTests() {
 	});
 
 	// ========================================
-	// Tests Photos-CV
+
 	// ========================================
 	log('\n📸 Tests Photos-CV', colors.cyan);
 
@@ -368,7 +362,7 @@ async function runTests() {
 	});
 
 	// ========================================
-	// Tests API Keys (Admin)
+
 	// ========================================
 	log('\n🔑 Tests API Keys', colors.cyan);
 
@@ -383,7 +377,7 @@ async function runTests() {
 			if (response.status === 403) {
 				return { ok: true, message: 'Accès refusé (normal si pas admin)' };
 			}
-			// Accept either a raw array or { keys: [...] } envelope
+
 			if (Array.isArray(data)) return { ok: true };
 			if (data && Array.isArray(data.keys)) return { ok: true };
 			return { ok: false, message: 'La réponse devrait être un tableau ou { keys: [...] }' };
@@ -391,14 +385,14 @@ async function runTests() {
 	});
 
 	// ========================================
-	// Tests Assets (Immich proxy)
+
 	// ========================================
 	log('\n🖼️  Tests Assets (Immich proxy)', colors.cyan);
 
 	await testEndpoint({
 		path: '/api/immich/assets',
 		description: 'Lister les assets via proxy Immich',
-		expectedStatus: [200, 500, 502, 404], // 500/502 si Immich non configuré, 404 si endpoint absent upstream
+		expectedStatus: [200, 500, 502, 404], 
 		validate: (data, response) => {
 			if (response.status >= 500) {
 				return { ok: true, message: 'Immich non configuré ou inaccessible (normal)' };
@@ -408,13 +402,12 @@ async function runTests() {
 	});
 
 	// ========================================
-	// Tests CRUD Users (Admin)
+
 	// ========================================
 	log('\n👤 Tests CRUD Users (Admin)', colors.cyan);
 
 	let createdUserId = null;
 
-	// 1. Créer un utilisateur de test
 	const createUserResult = await testEndpoint({
 		method: 'POST',
 		path: '/api/users',
@@ -448,11 +441,10 @@ async function runTests() {
 	if (createUserResult.passed && createUserResult.data?.created) {
 		createdUserId = createUserResult.data.created.id_user;
 	} else {
-		// L'utilisateur existe peut-être déjà, on essaie quand même
+
 		createdUserId = 'test.user.api';
 	}
 
-	// 2. Récupérer l'utilisateur créé
 	if (createdUserId) {
 		await testEndpoint({
 			path: `/api/users/${createdUserId}`,
@@ -476,7 +468,6 @@ async function runTests() {
 			}
 		});
 
-		// 3. Modifier l'utilisateur
 		await testEndpoint({
 			method: 'PUT',
 			path: `/api/users/${createdUserId}`,
@@ -503,7 +494,6 @@ async function runTests() {
 			}
 		});
 
-		// 4. Supprimer l'utilisateur
 		await testEndpoint({
 			method: 'DELETE',
 			path: `/api/users/${createdUserId}`,
@@ -525,14 +515,12 @@ async function runTests() {
 	}
 
 	// ========================================
-	// Tests CRUD Media/Photos (External API)
+
 	// ========================================
 	log('\n📷 Tests CRUD Media (External API)', colors.cyan);
 
 	let uploadedAssetId = null;
 
-	// 1. Upload une image de test (nécessite une vraie image en multipart)
-	// On teste d'abord si l'endpoint est accessible
 	await testEndpoint({
 		path: '/api/external/media',
 		description: 'Lister les médias externes (PortailEtu album)',
@@ -548,20 +536,19 @@ async function runTests() {
 		}
 	});
 
-	// Note: Le test d'upload réel nécessiterait de créer un FormData avec une vraie image
 	// Ce qui est complexe en Node.js sans bibliothèque additionnelle
-	// On documente le test manuel :
+
 	log(
 		"ℹ️  Test d'upload de photo : nécessite multipart/form-data (test manuel recommandé)",
 		colors.blue
 	);
 	log(
-		'   Exemple: curl -X POST -H "x-portal-api-key: YOUR_KEY" -F "file=@photo.jpg" http://localhost:3000/api/external/media',
+		'   Exemple: curl -X POST -H "x-portal-api-key: YOUR_KEY" -F "file=@photo.jpg" http:
 		colors.blue
 	);
 
 	// ========================================
-	// Tests Health / Info
+
 	// ========================================
 	log('\n💚 Tests Health', colors.cyan);
 
@@ -578,7 +565,7 @@ async function runTests() {
 	});
 
 	// ========================================
-	// Cleanup: Suppression de la clé API et déconnexion
+
 	// ========================================
 	if (testApiKeyId) {
 		await deleteApiKey(testApiKeyId);
@@ -599,7 +586,6 @@ async function runTests() {
 	log(`📈 Taux de réussite: ${successRate}%`, successRate >= 80 ? colors.green : colors.yellow);
 	log('='.repeat(60) + '\n', colors.cyan);
 
-	// Exit code
 	if (testsFailed > 0) {
 		log('⚠️  Certains tests ont échoué. Vérifiez les détails ci-dessus.', colors.yellow);
 		process.exit(1);

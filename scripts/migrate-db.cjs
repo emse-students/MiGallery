@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Script de migration de base de données
- * Crée ou met à jour les tables manquantes sans supprimer les données existantes
- */
 
 const fs = require('fs');
 const path = require('path');
@@ -16,7 +12,7 @@ if (!fs.existsSync(DB_PATH)) {
 
 let Database;
 try {
-	// Essayer d'utiliser bun:sqlite si disponible
+
 	Database = require('bun:sqlite').Database;
 } catch {
 	// Sinon utiliser better-sqlite3
@@ -25,7 +21,6 @@ try {
 
 const db = new Database(DB_PATH);
 
-// Liste des migrations à appliquer
 const migrations = [
 	{
 		name: 'Create users table',
@@ -111,7 +106,7 @@ console.log('🚀 Début de la migration de la base de données...\n');
 try {
 	for (const migration of migrations) {
 		try {
-			// Vérifier si la table existe déjà
+
 			const tableName = extractTableName(migration.sql);
 			const tableExists = checkTableExists(db, tableName);
 
@@ -133,7 +128,6 @@ try {
 	console.log(`   ✅ Tables créées: ${successCount}`);
 	console.log(`   ⏭️  Tables existantes: ${skipCount}`);
 
-	// Afficher l'état des tables
 	console.log(`\n📋 État des tables:`);
 	const tables = getTables(db);
 	for (const table of tables) {
@@ -150,7 +144,6 @@ try {
 	db.close();
 }
 
-// Utilitaires
 function extractTableName(sql) {
 	const match = sql.match(/CREATE TABLE IF NOT EXISTS\s+(\w+)/i);
 	return match ? match[1] : null;
