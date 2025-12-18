@@ -12,12 +12,10 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 
 	const db = getDatabase();
 
-	// Find album by id (which is the immich UUID in our schema)
 	let albumRow = db.prepare('SELECT * FROM albums WHERE id = ? LIMIT 1').get(paramId) as
 		| Album
 		| undefined;
 	if (!albumRow) {
-		// numeric fallback for very old DBs
 		const num = Number(paramId);
 		if (!isNaN(num)) {
 			albumRow = db.prepare('SELECT * FROM albums WHERE id = ? LIMIT 1').get(num) as Album | undefined;
@@ -36,12 +34,10 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		visibility: albumRow.visibility
 	};
 
-	// If album is unlisted, allow access without authentication (anyone with the link)
 	if ((album.visibility || '').toLowerCase() === 'unlisted') {
 		return { album };
 	}
 
-	// Otherwise require authentication and authorization via session from parent layout
 	const { session } = await parent();
 	const user = session?.user as User | undefined;
 

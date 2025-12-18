@@ -11,7 +11,6 @@ import { requireSession } from '$lib/server/permissions';
  * car il identifie l'utilisateur via sa session de connexion.
  */
 export const GET: RequestHandler = async (event) => {
-	// Requiert une session active (pas de clé API)
 	const user = await requireSession(event);
 
 	try {
@@ -45,25 +44,21 @@ export const GET: RequestHandler = async (event) => {
 export const DELETE: RequestHandler = async (event) => {
 	const { cookies } = event;
 
-	// Requiert une session active (pas de clé API)
 	const user = await requireSession(event);
 
 	try {
 		const db = getDatabase();
 
-		// Protéger l'utilisateur système
 		if (user.id_user === 'les.roots') {
 			return json({ error: 'Cannot delete system user' }, { status: 403 });
 		}
 
-		// Supprimer l'utilisateur (les contraintes CASCADE s'occupent des tables liées)
 		const result = db.prepare('DELETE FROM users WHERE id_user = ?').run(user.id_user);
 
 		if (result.changes === 0) {
 			return json({ error: 'Failed to delete user' }, { status: 500 });
 		}
 
-		// Supprimer le cookie de session
 		cookies.delete('current_user_id', { path: '/' });
 
 		return json({ success: true, message: 'Account deleted successfully' });

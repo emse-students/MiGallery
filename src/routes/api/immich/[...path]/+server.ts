@@ -6,7 +6,6 @@ import { immichCache } from '$lib/server/immich-cache';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
 
-// Modules Node.js nécessaires pour le stockage temporaire
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -54,7 +53,6 @@ async function checkPublicAssetAccess(
 
 	let assetData = immichCache.get('GET', cachePath, assetUrl) as ImmichAssetResponse | null;
 
-	// Force fetch if albums is missing in cached data
 	if (assetData && (!assetData.albums || !Array.isArray(assetData.albums))) {
 		assetData = null; // Invalidate cache to force refresh
 	}
@@ -66,12 +64,11 @@ async function checkPublicAssetAccess(
 			});
 			if (!res.ok) {
 				console.warn(`[CheckPublic] Fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
-				// Try to read body for more info
 				try {
 					const txt = await res.text();
 					console.warn(`[CheckPublic] Error body: ${txt.slice(0, 200)}`);
 				} catch {
-					// ignore
+					void 0;
 				}
 				return false;
 			}
@@ -83,21 +80,16 @@ async function checkPublicAssetAccess(
 		}
 	}
 
-	// Immich asset object has 'albums' array
 	const albums = (assetData?.albums as ImmichAlbumResponse[]) || [];
 
-	// Fallback: sometimes it might be in 'albumId' (rare for this endpoint but possible in some versions?)
 	if (assetData.albumId && !albums.find((a) => a.id === assetData?.albumId)) {
 		albums.push({ id: String(assetData.albumId) });
 	}
 
-	// Fallback 2: Check Referer if albums list is empty
 	if ((!Array.isArray(albums) || albums.length === 0) && referer) {
-		// Try to extract albumId from referer (e.g. /albums/UUID)
 		const match = referer.match(/\/albums\/([a-f0-9-]{36})/);
 		if (match) {
 			const albumId = match[1];
-			// Fetch album details to verify asset is inside
 			const albumUrl = `${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`;
 			const albumCacheKey = `/api/albums/${albumId}`;
 
@@ -116,12 +108,9 @@ async function checkPublicAssetAccess(
 				}
 			}
 
-			// Check if assetId is in this album
-			// Note: ImmichAlbumResponse might need to be extended to include 'assets' property for this check
 			const assets = albumData?.assets;
 			if (Array.isArray(assets)) {
 				if (assets.some((a) => a.id === assetId)) {
-					// Found! Add this album to the list to be checked against DB
 					albums.push({ id: albumId });
 				}
 			}
@@ -144,7 +133,6 @@ async function checkPublicAssetAccess(
 
 		const placeholders = albumIds.map(() => '?').join(',');
 
-		// Check if ANY of the albums is unlisted
 		const stmt = db.prepare(
 			`SELECT id FROM albums WHERE id IN (${placeholders}) AND visibility = 'unlisted' LIMIT 1`
 		);
@@ -176,8 +164,6 @@ async function checkPublicAssetsAccess(
 		return false;
 	}
 
-	// On vérifie chaque asset. Si un seul n'est pas public, on refuse tout.
-	// Note: checkPublicAssetAccess utilise le cache, donc c'est performant pour les assets déjà vus.
 	for (const id of assetIds) {
 		const allowed = await checkPublicAssetAccess(id, baseUrl, apiKey, referer);
 		if (!allowed) {
@@ -207,20 +193,17 @@ async function handleChunkedUpload(
 		});
 	}
 
-	// Chemin temporaire unique pour ce fichier
 	const tempFilePath = path.join(os.tmpdir(), `immich_proxy_${fileId}.part`);
 
 	try {
 		const buffer = await request.arrayBuffer();
 
-		// Écriture du chunk sur le disque
 		if (chunkIndex === 0) {
 			fs.writeFileSync(tempFilePath, Buffer.from(buffer));
 		} else {
 			fs.appendFileSync(tempFilePath, Buffer.from(buffer));
 		}
 
-		// Si ce n'est pas le dernier chunk, on répond OK et on attend la suite
 		if (chunkIndex < totalChunks - 1) {
 			return new Response(JSON.stringify({ status: 'chunk_received', index: chunkIndex }), {
 				status: 200,
@@ -228,21 +211,16 @@ async function handleChunkedUpload(
 			});
 		}
 
-		// --- C'est le DERNIER chunk : Assemblage et envoi à Immich ---
 		console.debug(`[Immich-Proxy] Réassemblage terminé pour ${fileId}, envoi à Immich...`);
 
 		const fileContent = fs.readFileSync(tempFilePath);
 		const originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
 
-		// Reconstruction du FormData attendu par Immich
 		const formData = new FormData();
 		const fileBlob = new Blob([fileContent], { type: 'application/octet-stream' });
 
-		// Le champ fichier principal
 		formData.append('assetData', fileBlob, originalName);
 
-		// Ajout des métadonnées requises par Immich (envoyées via headers par le client)
-		// Le client doit envoyer ces infos dans les headers de chaque chunk (ou au moins le dernier)
 		const deviceId = request.headers.get('x-immich-device-id');
 		const deviceAssetId = request.headers.get('x-immich-asset-id');
 		const fileCreatedAt = request.headers.get('x-immich-created-at');
@@ -265,25 +243,20 @@ async function handleChunkedUpload(
 			formData.append('isFavorite', isFavorite);
 		}
 
-		// Préparation de l'URL Immich
 		const immichUrl = `${baseUrl}/api/assets`; // Endpoint standard d'upload
 
-		// On nettoie les headers pour l'appel fetch sortant (pas de content-type/length, fetch le gère pour FormData)
 		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 		delete fetchHeaders['content-type'];
 		delete fetchHeaders['content-length'];
 
-		// Envoi à Immich
 		const response = await fetch(immichUrl, {
 			method: 'POST',
 			headers: fetchHeaders,
 			body: formData
 		});
 
-		// Log upload success
 		if (response.ok) {
 			try {
-				// On essaie de récupérer l'ID de l'asset créé
 				const respClone = response.clone();
 				const respData = (await respClone.json()) as ImmichAssetResponse;
 				const assetId = respData.id;
@@ -296,14 +269,12 @@ async function handleChunkedUpload(
 			}
 		}
 
-		// Nettoyage du fichier temporaire
 		try {
 			fs.unlinkSync(tempFilePath);
 		} catch (e) {
 			console.warn('Failed to cleanup temp file', e);
 		}
 
-		// Retourne la réponse d'Immich au client
 		return new Response(response.body, {
 			status: response.status,
 			headers: response.headers
@@ -311,7 +282,6 @@ async function handleChunkedUpload(
 	} catch (err: unknown) {
 		const _err = ensureError(err);
 		console.error('[Immich-Proxy] Error processing chunk:', _err);
-		// Nettoyage en cas d'erreur
 		try {
 			if (fs.existsSync(tempFilePath)) {
 				fs.unlinkSync(tempFilePath);
@@ -335,17 +305,14 @@ const handle: RequestHandler = async function (event) {
 	const pathParam = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
-	// Autorisation pour GET: session utilisateur OU x-api-key avec scope "read"
 	if (request.method === 'GET') {
 		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
 		if (internalKey && internalKey === apiKey) {
-			// Internal trusted call, allow
+			void 0;
 		} else {
 			try {
 				await requireScope(event, 'read');
 			} catch (err) {
-				// Si l'auth échoue, on vérifie si c'est une ressource publique (album unlisted)
-				// Regex pour détecter les assets (thumbnail, original, preview, video)
 				const assetMatch = pathParam.match(
 					/^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
 				);
@@ -359,10 +326,9 @@ const handle: RequestHandler = async function (event) {
 						request.headers.get('referer')
 					);
 					if (isPublic) {
-						// C'est public, on laisse passer (le code suivant ajoutera la clé API admin)
+						void 0;
 					} else {
 						console.warn(`[Proxy] Access denied for asset ${assetId} (not public)`);
-						// Return a specific error to help debugging
 						return new Response(
 							JSON.stringify({
 								error: 'Access denied to private asset',
@@ -388,21 +354,17 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
-	// Autorisation pour PUT/PATCH/POST/DELETE: session utilisateur requise
 	if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
 		try {
 			await requireScope(event, 'write');
 		} catch (err) {
-			// Exception pour le téléchargement d'archives (zip) si tous les assets sont publics
 			const isDownload =
 				pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
 
 			if (request.method === 'POST' && isDownload) {
 				try {
-					// On doit cloner la requête pour lire le body sans le consommer pour le proxy
 					const clone = request.clone();
 					const body = (await clone.json()) as { assetIds?: string[]; ids?: string[] };
-					// Immich envoie { assetIds: [...] }
 					const assetIds = body.assetIds || body.ids || [];
 
 					if (
@@ -415,7 +377,7 @@ const handle: RequestHandler = async function (event) {
 							request.headers.get('referer')
 						))
 					) {
-						// Autorisé ! On continue vers le proxy.
+						void 0;
 					} else {
 						console.warn('[Proxy] Access denied for download (not all assets public)');
 						throw err; // Rejet si pas public
@@ -435,7 +397,6 @@ const handle: RequestHandler = async function (event) {
 		base = `http://${base}`;
 	}
 
-	// Déterminer l'URL distante standard
 	const resolvedRemoteUrl = pathParam.startsWith('endpoints/')
 		? `${base}/${pathParam}${search}`
 		: `${base}/api/${pathParam}${search}`;
@@ -447,14 +408,11 @@ const handle: RequestHandler = async function (event) {
 		});
 	}
 
-	// --- LOGIQUE CHUNKED UPLOAD ---
-	// Si la requête est un POST vers assets ET contient les headers de chunking
 	if (
 		request.method === 'POST' &&
 		request.headers.has('x-chunk-index') &&
 		request.headers.has('x-file-id')
 	) {
-		// Préparer les headers de base (API Key, Accept)
 		const chunkHeaders: Record<string, string> = {
 			accept: request.headers.get('accept') || '*/*'
 		};
@@ -462,12 +420,9 @@ const handle: RequestHandler = async function (event) {
 			chunkHeaders['x-api-key'] = apiKey;
 		}
 
-		// Déléguer au handler de chunks
 		return handleChunkedUpload(event, chunkHeaders, base);
 	}
-	// ------------------------------
 
-	// Vérifier le cache pour les requêtes GET
 	if (request.method === 'GET') {
 		const cached = immichCache.get('GET', `/api/${pathParam}`, resolvedRemoteUrl);
 		if (cached) {
@@ -476,9 +431,7 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
-	// Build outgoing headers but only attach the API key if it's configured.
 	const outgoingHeaders: Record<string, string> = {
-		// forward client's Accept header when present so we don't force JSON for images/etc
 		accept: request.headers.get('accept') || '*/*'
 	};
 	if (apiKey) {
@@ -487,7 +440,6 @@ const handle: RequestHandler = async function (event) {
 
 	const contentType = request.headers.get('content-type');
 
-	// Forward the request body as a stream when possible to avoid buffering large uploads
 	let bodyToForward: BodyInit | undefined = undefined;
 	if (!['GET', 'HEAD'].includes(request.method)) {
 		try {
@@ -495,9 +447,6 @@ const handle: RequestHandler = async function (event) {
 				outgoingHeaders['content-type'] = contentType;
 			}
 
-			// Special-case: for DELETE to /api/assets logging
-			// DISABLED: Reading the body here consumes the stream and can cause issues if not handled perfectly.
-			// For now, we skip logging the body content to ensure reliability.
 			/*
 			if (request.method === 'DELETE' && pathParam === 'assets') {
 				try {
@@ -520,7 +469,6 @@ const handle: RequestHandler = async function (event) {
 		}
 	}
 
-	// Build RequestInit for forwarding.
 	const init: RequestInit & { duplex?: 'half' } = {
 		method: request.method,
 		headers: outgoingHeaders,
@@ -528,12 +476,9 @@ const handle: RequestHandler = async function (event) {
 		duplex: 'half'
 	};
 
-	// production: forward without debug helpers or extra logging
-
 	try {
 		const res = await fetch(resolvedRemoteUrl, init);
 
-		// log upstream errors
 		if (!res.ok) {
 			try {
 				const clone = res.clone();
@@ -550,7 +495,6 @@ const handle: RequestHandler = async function (event) {
 
 		const resContentType = res.headers.get('content-type') || 'application/json';
 
-		// Treat images, videos and archive/octet binary responses as binary so we can stream them
 		const isBinary =
 			resContentType.startsWith('image/') ||
 			resContentType.startsWith('video/') ||
@@ -593,7 +537,6 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		// Mettre en cache les réponses JSON réussies pour les GET
 		if (request.method === 'GET' && res.ok && resContentType.includes('application/json')) {
 			try {
 				const jsonData: unknown = JSON.parse(textBody);
@@ -604,7 +547,6 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		// Invalider le cache après les mutations
 		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && res.ok) {
 			const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
 			const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
@@ -621,16 +563,13 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		// Log events
 		if (res.ok) {
 			try {
 				const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
 				const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
 				const personIdMatch = pathParam.match(/people\/([^/]+)/);
 
-				// DELETE
 				if (request.method === 'DELETE') {
-					// Bulk delete assets
 					if (pathParam === 'assets') {
 						try {
 							let ids: string[] = [];
@@ -647,7 +586,6 @@ const handle: RequestHandler = async function (event) {
 							/* ignore parse error */
 						}
 					} else if (assetIdMatch) {
-						// Single delete
 						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
 					} else if (albumIdMatch) {
 						await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
@@ -655,8 +593,6 @@ const handle: RequestHandler = async function (event) {
 						await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
 					}
 				} else if (request.method === 'POST') {
-					// POST (Create)
-					// Create Album
 					if (pathParam === 'albums') {
 						try {
 							const respData = JSON.parse(textBody) as ImmichAlbumResponse;
@@ -667,7 +603,6 @@ const handle: RequestHandler = async function (event) {
 							/* ignore */
 						}
 					} else if (albumIdMatch && pathParam.endsWith('/assets')) {
-						// Add assets to album
 						try {
 							let count = 0;
 							if (bodyToForward && typeof bodyToForward === 'string') {
@@ -682,7 +617,6 @@ const handle: RequestHandler = async function (event) {
 						}
 					}
 				} else if (request.method === 'PUT' || request.method === 'PATCH') {
-					// PUT/PATCH (Update)
 					if (albumIdMatch) {
 						await logEvent(event, 'update', 'album', albumIdMatch[1], { method: request.method });
 					}

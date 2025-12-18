@@ -14,7 +14,6 @@ export const GET: RequestHandler = async (event) => {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
 
-	// Proxy thumbnail
 	const res = await fetch(`${IMMICH_BASE_URL}/api/assets/${id}/thumbnail`, {
 		headers: { 'x-api-key': IMMICH_API_KEY }
 	});
@@ -26,7 +25,6 @@ export const GET: RequestHandler = async (event) => {
 		});
 	}
 
-	// Stream binary response
 	const headersOut = new Headers();
 	const ct = res.headers.get('content-type') || 'application/octet-stream';
 	headersOut.set('content-type', ct);

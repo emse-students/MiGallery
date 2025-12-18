@@ -26,7 +26,6 @@ export const GET: RequestHandler = async (event) => {
 	try {
 		const db = getDatabase();
 
-		// Récupérer les autorisations avec les infos des utilisateurs autorisés
 		const permissions = db
 			.prepare(
 				`SELECT
@@ -69,12 +68,10 @@ export const POST: RequestHandler = async (event) => {
 
 		const authorizedId = body.user_id.trim();
 
-		// Vérifier que l'utilisateur ne s'autorise pas lui-même
 		if (authorizedId === user.id_user) {
 			return json({ error: 'Vous ne pouvez pas vous autoriser vous-même' }, { status: 400 });
 		}
 
-		// Vérifier que l'utilisateur cible existe
 		const targetUser = db
 			.prepare('SELECT id_user, prenom, nom FROM users WHERE id_user = ?')
 			.get(authorizedId) as UserBasic | undefined;
@@ -83,7 +80,6 @@ export const POST: RequestHandler = async (event) => {
 			return json({ error: 'Utilisateur non trouvé' }, { status: 404 });
 		}
 
-		// Ajouter l'autorisation (ignore si déjà existante)
 		db
 			.prepare(
 				'INSERT OR IGNORE INTO photo_access_permissions (owner_id, authorized_id) VALUES (?, ?)'
@@ -122,7 +118,6 @@ export const DELETE: RequestHandler = async (event) => {
 
 		const authorizedId = body.user_id.trim();
 
-		// Supprimer l'autorisation
 		const result = db
 			.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ? AND authorized_id = ?')
 			.run(user.id_user, authorizedId);

@@ -34,7 +34,6 @@
 		albumId
 	}: Props = $props();
 
-	// Déterminer le ratio d'aspect de l'image
 	function getAspectRatio(): number {
 		if (asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight) {
 			return asset.exifInfo.exifImageWidth / asset.exifInfo.exifImageHeight;
@@ -53,36 +52,28 @@
 
 	function getAspectRatioString(): string {
 		const ratio = getAspectRatio();
-		// Convertir en fraction approximative pour CSS
 		const width = Math.round(ratio * 100);
 		const height = 100;
 		return `${width}/${height}`;
 	}
 
-	// Exposer un ratio utilisable par LazyImage (même format string "W/H")
 	let aspectRatio = $derived(getAspectRatio());
 	let aspectRatioString = $derived(getAspectRatioString());
 
-	// Calculer flex-basis et flex-grow pour la hauteur fixe (220px desktop, 120px mobile) et largeur variable
-	// On utilise une hauteur de base de 220px pour desktop
 	let flexBasis = $derived(aspectRatio * 220);
 	let flexGrow = $derived(aspectRatio * 100);
 
-	// Vérifier si l'asset a les données complètes (pas juste les métadonnées minimales)
 	let isFullyLoaded = $derived(asset.originalFileName !== undefined && asset.originalFileName !== null);
 
-	// État pour l'appui long sur mobile (affiche les boutons d'action)
 	let showMobileActions = $state(false);
 	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 	const LONG_PRESS_DURATION = 500; // ms
 
 	function handleTouchStart(e: TouchEvent) {
-		// Ne pas déclencher si on touche un bouton
 		if ((e.target as HTMLElement).closest('button')) return;
 
 		longPressTimer = setTimeout(() => {
 			showMobileActions = true;
-			// Vibration haptique si disponible
 			if (navigator.vibrate) {
 				navigator.vibrate(50);
 			}
@@ -97,7 +88,6 @@
 	}
 
 	function handleTouchMove() {
-		// Annuler l'appui long si l'utilisateur bouge le doigt
 		if (longPressTimer) {
 			clearTimeout(longPressTimer);
 			longPressTimer = null;
@@ -143,12 +133,8 @@
 		}
 	}
 
-	// Nom du fichier et autres valeurs — réactifs pour suivre les mises à jour streaming
 	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
-	// Ne PAS utiliser asset._raw?.isFavorite car c'est la valeur d'Immich (partagée entre utilisateurs)
-	// On utilise uniquement asset.isFavorite qui est chargé depuis notre base locale
 	let isFavorite = $derived(asset.isFavorite ?? false);
-	// Use smaller numeric thumbnail for faster grid load, and a medium high-res for visible upgrade
 	let thumbnailUrl = $derived(
 		albumVisibility === 'unlisted' && albumId
 			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`

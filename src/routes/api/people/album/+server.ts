@@ -34,7 +34,6 @@ export const GET: RequestHandler = async (event) => {
 		const allAssets = albumData.assets || [];
 		const totalCount = allAssets.length;
 
-		// Pagination
 		const startIndex = (page - 1) * limit;
 		const endIndex = startIndex + limit;
 		const assets = allAssets.slice(startIndex, endIndex);

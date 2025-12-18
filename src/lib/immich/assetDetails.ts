@@ -1,6 +1,3 @@
-// Lightweight client-side asset details fetcher with caching and concurrency limit.
-// Purpose: reduce duplicate network requests and avoid firing hundreds of parallel GETs.
-
 import type { ImmichAsset } from '$lib/types/api';
 
 const memoryCache = new Map<string, ImmichAsset>();
@@ -25,7 +22,7 @@ function writeStorage(key: string, value: ImmichAsset): void {
 		}
 		sessionStorage.setItem(key, JSON.stringify(value));
 	} catch {
-		// ignore
+		void 0;
 	}
 }
 
@@ -79,7 +76,6 @@ export async function fetchAssetsDetails(
 	}
 	const out: Array<ImmichAsset | null> = new Array<ImmichAsset | null>(ids.length).fill(null);
 
-	// simple concurrency pool
 	let idx = 0;
 
 	async function worker(): Promise<void> {
@@ -110,6 +106,6 @@ export function clearAssetCaches() {
 			sessionStorage.clear();
 		}
 	} catch {
-		// empty
+		void 0;
 	}
 }

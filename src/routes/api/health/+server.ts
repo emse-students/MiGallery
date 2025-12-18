@@ -12,7 +12,6 @@ import { requireScope } from '$lib/server/permissions';
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'public');
 	try {
-		// Vérifier la connexion à la base de données
 		const db = getDatabase();
 		db.prepare('SELECT 1').get();
 

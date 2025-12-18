@@ -1,5 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { json, error as svelteError } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
@@ -44,13 +43,11 @@ export const PUT: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 
-		// Vérifier que l'album existe dans la base de données locale
 		const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id);
 		if (!existing) {
 			return json({ error: 'Album non trouvé' }, { status: 404 });
 		}
 
-		// Mettre à jour les métadonnées locales
 		const stmt = db.prepare(
 			'UPDATE albums SET name = ?, date = ?, location = ?, visibility = ?, visible = ? WHERE id = ?'
 		);
@@ -60,7 +57,6 @@ export const PUT: RequestHandler = async (event) => {
 			return json({ error: "Impossible de mettre à jour l'album" }, { status: 500 });
 		}
 
-		// Retourner les données mises à jour
 		const updated = db
 			.prepare('SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?')
 			.get(id);

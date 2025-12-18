@@ -1,5 +1,3 @@
-// Load .env at server startup (for production builds)
-// IMPORTANT: This must run BEFORE importing auth.ts
 import { config } from 'dotenv';
 config({ override: true }); // Override existing vars to ensure .env takes precedence
 
@@ -38,7 +36,7 @@ function isCsrfExemptPath(pathname: string): boolean {
 function isAllowedOrigin(origin: string | null): boolean {
 	if (!origin) {
 		return true;
-	} // Pas d'origin = requête serveur-à-serveur (curl, etc.)
+	}
 	return ALLOWED_ORIGINS.includes(origin);
 }
 
@@ -59,9 +57,6 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	const isApiExternalRoute = isCsrfExemptPath(pathname);
 	const method = request.method;
 
-	// ============================================
-	// 1. Gestion des requêtes OPTIONS (preflight)
-	// ============================================
 	if (method === 'OPTIONS') {
 		const corsOrigin = isAllowedOrigin(origin) ? origin || '*' : 'null';
 		return new Response(null, {
@@ -76,15 +71,9 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	// ============================================
-	// 2. Vérification CSRF pour les routes NON exemptées
-	// ============================================
-	// Pour les méthodes qui modifient des données, on vérifie que l'Origin correspond
-	// (sauf pour les routes /api/external/* qui utilisent x-api-key)
 	const isMutatingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
 
 	if (isMutatingMethod && !isApiExternalRoute && origin) {
-		// L'origine doit correspondre à l'URL du serveur OU être dans la liste des origines autorisées
 		const originAllowed = origin === url.origin || isAllowedOrigin(origin);
 		if (!originAllowed) {
 			return new Response('Cross-site POST form submissions are forbidden', {
@@ -96,34 +85,18 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	// ============================================
-	// 3. Résoudre la requête normalement
-	// ============================================
 	const response = await resolve(event);
 
-	// ============================================
-	// 4. Ajouter les headers de cache pour les ressources statiques
-	// ============================================
-	// Images, fonts, etc.: cache 1 année (versionnées par hash SvelteKit)
 	if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
 		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-	}
-	// CSS et JS compilés par SvelteKit (versionnés): cache 1 année
-	else if (/\/_app\//.test(pathname)) {
+	} else if (/\/_app\//.test(pathname)) {
 		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-	}
-	// HTML pages: cache 1h (validation avec ETag/Last-Modified)
-	else if (pathname === '/' || /\.html$/.test(pathname)) {
+	} else if (pathname === '/' || /\.html$/.test(pathname)) {
 		response.headers.set('Cache-Control', 'public, max-age=3600, must-revalidate');
-	}
-	// Fallback: no cache pour les autres ressources
-	else if (!pathname.startsWith('/api/')) {
+	} else if (!pathname.startsWith('/api/')) {
 		response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
 	}
 
-	// ============================================
-	// 5. Ajouter les headers CORS aux réponses API
-	// ============================================
 	if (isApiExternalRoute || pathname.startsWith('/api/')) {
 		const corsOrigin = isAllowedOrigin(origin) ? origin || '*' : 'null';
 		response.headers.set('Access-Control-Allow-Origin', corsOrigin);

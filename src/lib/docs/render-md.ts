@@ -1,4 +1,3 @@
-// Very small Markdown -> HTML converter for trusted local docs.
 function escapeHtml(s: string) {
 	return s
 		.replace(/&/g, '&amp;')
@@ -13,19 +12,15 @@ export function mdToHtml(md: string) {
 		return '';
 	}
 
-	// Normalize line endings
 	md = md.replace(/\r\n/g, '\n');
 
-	// Handle code fences ```
 	md = md.replace(/```([\s\S]*?)```/g, (_: string, code: string) => {
 		const esc = escapeHtml(code);
 		return `<pre><code>${esc}</code></pre>`;
 	});
 
-	// Inline code: `code`
 	md = md.replace(/`([^`]+)`/g, (_: string, c: string) => `<code>${escapeHtml(c)}</code>`);
 
-	// Headings
 	md = md.replace(/^######\s*(.+)$/gm, '<h6>$1</h6>');
 	md = md.replace(/^#####\s*(.+)$/gm, '<h5>$1</h5>');
 	md = md.replace(/^####\s*(.+)$/gm, '<h4>$1</h4>');
@@ -33,7 +28,6 @@ export function mdToHtml(md: string) {
 	md = md.replace(/^##\s*(.+)$/gm, '<h2>$1</h2>');
 	md = md.replace(/^#\s*(.+)$/gm, '<h1>$1</h1>');
 
-	// Lists (unordered)
 	md = md.replace(/(^|\n)([ \t]*[-*]\s+.+)(\n|$)/g, (m, pre, list: string) => {
 		const items = list
 			.split(/\n/)
@@ -43,19 +37,15 @@ export function mdToHtml(md: string) {
 		return `${pre}<ul>${items.map((i: string) => `<li>${i}</li>`).join('')}</ul>`;
 	});
 
-	// Links [text](url)
 	md = md.replace(
 		/\[([^\]]+)\]\(([^)]+)\)/g,
 		(_: string, text: string, url: string) =>
 			`<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`
 	);
 
-	// Bold **text**
 	md = md.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-	// Italic *text*
 	md = md.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-	// Paragraphs: wrap standalone lines
 	const lines = md.split('\n');
 	const out: string[] = [];
 	let inPre = false;

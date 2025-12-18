@@ -25,7 +25,6 @@ export async function fetchArchive(
 				signal: opts?.signal
 			});
 
-			// If upstream returned an archive/binary, return the blob
 			const contentType = res.headers.get('content-type') || '';
 			const isBinary =
 				contentType.includes('zip') ||
@@ -35,8 +34,6 @@ export async function fetchArchive(
 				contentType.startsWith('video/');
 
 			if (res.ok && isBinary) {
-				// If a progress callback was provided and the response body is a readable stream,
-				// read it chunk-by-chunk and report progress.
 				const onProgress = opts?.onProgress;
 				const contentLengthHeader = res.headers.get('content-length');
 				const total = contentLengthHeader ? Number(contentLengthHeader) : 0;
@@ -55,22 +52,17 @@ export async function fetchArchive(
 							chunks.push(value);
 							received += value.length;
 							try {
-								// If total is unknown (0), report -1 to indicate indeterminate progress
 								onProgress(total ? Math.min(1, received / total) : -1);
 							} catch (_e) {
 								void _e;
-								// ignore progress callback errors
 							}
 						}
 					}
-					// final progress
 					try {
 						onProgress(1);
 					} catch (_e) {
 						void _e;
-						// empty
 					}
-					// merge chunks into a single ArrayBuffer-backed Uint8Array
 					const merged = new Uint8Array(received);
 					let offset = 0;
 					for (const c of chunks) {
@@ -83,7 +75,6 @@ export async function fetchArchive(
 				return await res.blob();
 			}
 
-			// non-ok -> capture error info and try next candidate
 			const text = await res.text().catch(() => '');
 			lastErr = new Error(`Request to ${url} failed: ${res.status} ${res.statusText} - ${text}`);
 		} catch (e: unknown) {

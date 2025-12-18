@@ -28,7 +28,6 @@ export const GET: RequestHandler = async (event) => {
 		const stream = new ReadableStream({
 			async start(controller) {
 				try {
-					// Récupérer tous les assets de la personne
 					const allAssets: ImmichAsset[] = [];
 					let page = 1;
 					let hasNext = true;
@@ -61,14 +60,12 @@ export const GET: RequestHandler = async (event) => {
 						}
 					}
 
-					// Filtrer selon in_album (uniquement album PhotoCV)
 					const photoCVAssetIds = new Set(await getAssetIdsInSystemAlbum(fetch, 'PhotoCV'));
 					const filtered = allAssets.filter((asset) => {
 						const isInPhotoCVAlbum = photoCVAssetIds.has(asset.id);
 						return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
 					});
 
-					// Phase 1: Envoyer les métadonnées minimales
 					for (const asset of filtered) {
 						const minimalData = {
 							id: asset.id,
@@ -92,7 +89,6 @@ export const GET: RequestHandler = async (event) => {
 						);
 					}
 
-					// Phase 2: Enrichir par batches
 					const batchSize = 10;
 					for (let i = 0; i < filtered.length; i += batchSize) {
 						const batch = filtered.slice(i, i + batchSize);

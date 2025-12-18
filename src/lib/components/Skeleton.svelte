@@ -4,7 +4,7 @@
     interface Props {
         aspectRatio?: string;
         rounded?: boolean;
-        radius?: string; // Nouvelle prop pour contrôler l'arrondi
+        radius?: string; 
         class?: string;  // Permettre l'injection de classes (Tailwind ou autre)
         icon?: string;
         iconSize?: number;
@@ -14,7 +14,7 @@
     const {
         aspectRatio = '1',
         rounded = false,
-        radius = '12px', // Valeur par défaut (on pourra passer '0' depuis Albums)
+        radius = '12px', 
         class: className = '',
         icon,
         iconSize = 32,

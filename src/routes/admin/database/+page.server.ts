@@ -15,14 +15,12 @@ export const load: PageServerLoad = async ({ parent }) => {
 
 	const db = getDatabase();
 
-	// Statistiques de la DB
 	const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
 	const albumCount = db.prepare('SELECT COUNT(*) as count FROM albums').get() as { count: number };
 	const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role='admin'").get() as {
 		count: number;
 	};
 
-	// Taille de la DB
 	const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 	let dbSize = '0 KB';
 	try {
@@ -38,7 +36,6 @@ export const load: PageServerLoad = async ({ parent }) => {
 		console.error('Error getting DB size:', e);
 	}
 
-	// Liste des sauvegardes
 	const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'data', 'backups');
 	let backups: Array<{ filename: string; date: string; size: string }> = [];
 

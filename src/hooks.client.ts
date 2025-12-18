@@ -13,7 +13,6 @@ if (typeof window !== 'undefined') {
 		console.warn('[hooks.client] Active operations updated:', ops.size);
 	});
 
-	// Utiliser la capture phase pour intercepter AVANT SvelteKit
 	document.addEventListener(
 		'click',
 		(e) => {
@@ -24,9 +23,7 @@ if (typeof window !== 'undefined') {
 				return;
 			}
 
-			// Vérifier si c'est un lien interne
 			const href = link.getAttribute('href');
-			// Ignorer les liens externes, les blobs (téléchargements) et les nouveaux onglets
 			if (
 				!href ||
 				href.startsWith('http') ||
@@ -37,12 +34,10 @@ if (typeof window !== 'undefined') {
 				return;
 			}
 
-			// Si des opérations sont en cours, bloquer la navigation
 			if (hasActiveOps) {
 				console.warn('[hooks.client] Blocking navigation to:', href);
 				e.preventDefault();
 				e.stopPropagation();
-				// Afficher le modal au lieu d'utiliser confirm()
 				navigationModalStore.set({
 					show: true,
 					href

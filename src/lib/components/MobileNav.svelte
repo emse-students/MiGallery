@@ -17,7 +17,6 @@
   import Icon from './Icon.svelte';
   import type { User } from '$lib/types/api';
 
-  // Dérivation des informations utilisateur depuis le store de page
   let user = $derived((page.data?.session?.user) as User | undefined);
   let isAuthenticated = $derived(!!user);
   let hasPhoto = $derived(!!user?.id_photos);
@@ -25,10 +24,8 @@
   let isMitviste = $derived(user?.role === 'mitviste');
   let canManagePhotos = $derived(isAdmin || isMitviste);
 
-  // Détermination de la page active pour le style
   let currentPath = $derived(page.url.pathname);
 
-  // Cacher MobileNav sur les pages qui ont leur propre barre d'actions (comme les pages album)
   let isAlbumDetailPage = $derived(currentPath.startsWith('/albums/') && currentPath !== '/albums/');
 
   /**

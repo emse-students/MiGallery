@@ -30,8 +30,6 @@ function createToastStore() {
 			return this.show(message, 'info', duration);
 		},
 		loading(message: string) {
-			// Durable loading toast - caller should call `dismiss(id)` when done
-			// duration = 0 means keep until explicit dismiss
 			return this.show(message, 'info', 0);
 		},
 		dismiss(id: string) {
