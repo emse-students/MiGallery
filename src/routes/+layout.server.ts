@@ -37,7 +37,10 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 			return { session: null };
 		}
 
-		const providerUser: SessionUser = session.user;
+		const providerUser: SessionUser = {
+			...session.user,
+			email: session.user.email === null ? undefined : session.user.email
+		};
 
 		const candidateId =
 			providerUser.id ||
