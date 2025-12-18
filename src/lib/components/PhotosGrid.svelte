@@ -20,24 +20,19 @@ import { activeOperations } from '$lib/operations';
 
 	let { state: photosState, onModalClose, visibility, albumId, showFavorites = false }: Props = $props();
 
-	// Vérifier le rôle de l'utilisateur
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
-	// État du modal
 	let showModal = $state(false);
 	let modalAssetId = $state<string>('');
 	let hasChanges = $state(false);
 
-	// État du modal de confirmation de suppression
 	let showDeleteModal = $state(false);
 	let assetToDelete = $state<string | null>(null);
 
-	// Modal pour suppression multiple
 	let showDeleteSelectedModal = $state(false);
 	let idsToDelete = $state<string[] | null>(null);
 
-	// Modal pour téléchargement multiple
 	let showDownloadSelectedModal = $state(false);
 
 	async function handleDownloadSingle(id: string) {
@@ -86,11 +81,8 @@ import { activeOperations } from '$lib/operations';
 				throw new Error(errText || 'Erreur lors de la suppression');
 			}
 
-			// Retirer les assets de la liste locale
 					photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
-					// force shallow copy to ensure reactivity everywhere
 					photosState.assets = [...photosState.assets];
-			// Clear selection
 			photosState.selectedAssets = [];
 			photosState.selecting = false;
 			toast.success(`${count} photo(s) mise(s) à la corbeille !`);
@@ -109,7 +101,6 @@ import { activeOperations } from '$lib/operations';
 	async function confirmDownloadSelected() {
 		showDownloadSelectedModal = false;
 		try {
-			// call downloadSelected with skipConfirm flag handled in PhotosState
 			await photosState.downloadSelected(true);
 		} catch (e: unknown) {
 			toast.error('Erreur lors du téléchargement: ' + (e as Error).message);
@@ -134,9 +125,7 @@ import { activeOperations } from '$lib/operations';
 				throw new Error(errText || 'Erreur lors de la suppression');
 			}
 
-			// Retirer l'asset de la liste locale
 					photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
-					// force shallow copy to ensure reactivity everywhere
 					photosState.assets = [...photosState.assets];
 			toast.success('Photo mise à la corbeille !');
 		} catch (e: unknown) {
@@ -149,14 +138,12 @@ import { activeOperations } from '$lib/operations';
 
 	function closeModal() {
 		showModal = false;
-		// Force a shallow refresh of the assets array so the grid re-renders
 		photosState.assets = [...photosState.assets];
 		if (onModalClose) {
 			setTimeout(() => {
 				try {
 					onModalClose(hasChanges);
 				} catch (e) {
-					// onModalClose threw silently
 				}
 			}, 0);
 		}
@@ -192,17 +179,14 @@ import { activeOperations } from '$lib/operations';
 		}
 	}
 
-	// Computed: assets favoris (à afficher en priorité)
 	let favoriteAssets = $derived(
 		showFavorites ? photosState.assets.filter(a => a.isFavorite) : []
 	);
 
-	// Computed: assets non-favoris (pour éviter les doublons)
 	let nonFavoriteAssets = $derived(
 		showFavorites ? photosState.assets.filter(a => !a.isFavorite) : photosState.assets
 	);
 
-	// Computed: assets pour la visionneuse (favoris d'abord si showFavorites)
 	let assetsForModal = $derived(
 		showFavorites ? [...favoriteAssets, ...nonFavoriteAssets] : photosState.assets
 	);

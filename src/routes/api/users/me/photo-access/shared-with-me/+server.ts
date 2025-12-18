@@ -20,7 +20,6 @@ export const GET: RequestHandler = async (event) => {
 	try {
 		const db = getDatabase();
 
-		// Récupérer les personnes qui m'ont donné accès à leurs photos
 		const sharedWithMe = db
 			.prepare(
 				`SELECT

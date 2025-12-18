@@ -5,9 +5,7 @@ function base64UrlEncode(buf: Buffer) {
 }
 
 function base64UrlDecode(str: string) {
-	// restore padding
 	str = str.replace(/-/g, '+').replace(/_/g, '/');
-	// add padding
 	const pad = 4 - (str.length % 4);
 	if (pad !== 4) {
 		str += '='.repeat(pad);

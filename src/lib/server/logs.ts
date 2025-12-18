@@ -17,17 +17,13 @@ export async function logEvent(
 	try {
 		const db = getDatabase();
 
-		// Try to resolve actor from locals.auth() or locals.userId
 		let actor: string | null = null;
 		try {
 			if (event?.locals) {
-				// locals.auth may be provided by the auth provider; call if available
 				try {
-					// @ts-expect-error provider auth() type may vary
 					if (typeof (event.locals as any).auth === 'function') {
 						const s = await (event.locals as any).auth();
 						if (s && (s as any).user) {
-							// Try id_user (custom) then id (standard Auth.js) then email
 							actor = ((s as any).user.id_user || (s as any).user.id || (s as any).user.email) as string;
 						}
 					}
@@ -40,7 +36,6 @@ export async function logEvent(
 				}
 			}
 
-			// Fallback: check custom signed cookie (fast-path auth)
 			if (!actor && event?.cookies) {
 				const fromCookie = getUserFromSignedCookie(event.cookies);
 				if (fromCookie) {
@@ -51,7 +46,6 @@ export async function logEvent(
 			actor = null;
 		}
 
-		// If actor is still null, try to get it from details if provided (manual override)
 		if (!actor && details && typeof details === 'object' && 'actor' in details) {
 			actor = (details as any).actor;
 		}
@@ -69,7 +63,6 @@ export async function logEvent(
 		try {
 			console.warn('logEvent failed:', (e as Error).message || e);
 		} catch (inner) {
-			// best-effort logging failed
 			void inner;
 		}
 	}

@@ -18,11 +18,11 @@ class ImmichCache {
 	 */
 	private ttlRules: Array<{ pattern: RegExp; ttl: number }> = [
 		{ pattern: /^\/api\/people\/[^/]+$/, ttl: 300000 }, // 5 min - Profil personne
-		{ pattern: /^\/api\/people\/[^/]+\/thumbnail$/, ttl: 3600000 }, // 1h - Photo profil
+		{ pattern: /^\/api\/people\/[^/]+\/thumbnail$/, ttl: 3600000 },
 		{ pattern: /^\/api\/albums$/, ttl: 120000 }, // 2 min - Liste albums
-		{ pattern: /^\/api\/albums\/[^/]+$/, ttl: 60000 }, // 1 min - Album détails
+		{ pattern: /^\/api\/albums\/[^/]+$/, ttl: 60000 },
 		{ pattern: /^\/api\/search\/metadata/, ttl: 30000 }, // 30s - Recherche
-		{ pattern: /^\/api\/assets\/[^/]+$/, ttl: 120000 } // 2 min - Asset détails
+		{ pattern: /^\/api\/assets\/[^/]+$/, ttl: 120000 }
 	];
 
 	/**
@@ -30,7 +30,7 @@ class ImmichCache {
 	 */
 	private noCachePatterns: RegExp[] = [
 		/^\/api\/assets$/, // POST upload
-		/^\/api\/assets\/.*\/thumbnail$/, // Assets thumbnails (trop nombreux)
+		/^\/api\/assets\/.*\/thumbnail$/,
 		/^\/api\/search\/smart/ // Recherche intelligente (contextuelle)
 	];
 
@@ -100,7 +100,6 @@ class ImmichCache {
 			etag
 		});
 
-		// Nettoyage automatique si trop d'entrées
 		if (this.cache.size > 500) {
 			this.cleanup();
 		}
@@ -158,7 +157,6 @@ class ImmichCache {
 	private cleanup(): void {
 		const now = Date.now();
 		for (const [key, entry] of this.cache) {
-			// Extraire le path du key pour obtenir le TTL
 			const pathMatch = key.match(/:([^:]+)/);
 			const path = pathMatch ? pathMatch[1] : '';
 			const ttl = this.getTTL(path);
@@ -168,7 +166,6 @@ class ImmichCache {
 			}
 		}
 
-		// Si toujours trop, supprimer les plus anciennes
 		if (this.cache.size > 500) {
 			const entries = Array.from(this.cache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
 
@@ -196,5 +193,4 @@ class ImmichCache {
 	}
 }
 
-// Instance singleton
 export const immichCache = new ImmichCache();

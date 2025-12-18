@@ -15,7 +15,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 	try {
 		const db = getDatabase();
 
-		// 1) Prefer signed cookie-based fast-path: cookie is HttpOnly and set after first successful auth
 		const cookieSigned = cookies.get('current_user_id');
 		if (cookieSigned) {
 			const verified = verifySigned(cookieSigned);
@@ -27,10 +26,8 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 					return { session: { user: userInfo } };
 				}
 			}
-			// fallback to provider if cookie invalid or references missing user
 		}
 
-		// 2) No valid cookie: call provider once, map to local DB and set secure cookie
 		if (!locals || typeof locals.auth !== 'function') {
 			return { session: null };
 		}
@@ -42,7 +39,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 
 		const providerUser: SessionUser = session.user;
 
-		// Déterminer un identifiant provider stable (ordre d'essai)
 		const candidateId =
 			providerUser.id ||
 			providerUser.preferred_username ||
@@ -50,22 +46,18 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 			(providerUser.email ? String(providerUser.email).split('@')[0] : undefined);
 
 		if (!candidateId) {
-			// Si on ne peut pas inférer d'id provider, retourner la session brute (sans mapping DB)
 			return { session };
 		}
 
-		// Chercher par id_user
 		let stmt = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1');
 		let userInfo = stmt.get(candidateId) as UserRow | undefined;
 
-		// Si non trouvé par id_user, tenter par email si fourni
 		if (!userInfo && providerUser.email) {
 			stmt = db.prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
 			userInfo = stmt.get(providerUser.email) as UserRow | undefined;
 		}
 
 		if (!userInfo) {
-			// Créer un utilisateur minimal dans la base pour garder la cohérence
 			const prenom =
 				providerUser.given_name ||
 				providerUser.prenom ||
@@ -83,7 +75,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 				insert.run(candidateId, email, prenom, nom, 'user', null, 1, null);
 			} catch (_e) {
 				void _e;
-				// ignore duplicate errors race-condition; we'll re-query
 			}
 
 			userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
@@ -92,11 +83,9 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 		}
 
 		if (!userInfo) {
-			// En dernier recours, renvoyer la session provider brute
 			return { session };
 		}
 
-		// Set a secure, HttpOnly cookie so we don't need to call provider on every request
 		try {
 			const signed = signId(String(userInfo.id_user));
 			cookies.set('current_user_id', signed, {
@@ -111,7 +100,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 			console.warn('Failed to set current_user_id cookie', e);
 		}
 
-		// Logging utile pour debug: providerUser minimal et userInfo mappé (sans exposer secrets)
 		try {
 			console.warn(
 				'[session] provider id:',
@@ -122,7 +110,6 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 			console.warn('[session] mapped local user:', { id_user: userInfo.id_user, role: userInfo.role });
 		} catch (_e) {
 			void _e;
-			// ignore
 		}
 
 		return {

@@ -8,7 +8,7 @@ export const { handle } = SvelteKitAuth({
 		{
 			id: 'cas-emse', // signIn("my-provider") and will be part of the callback URL
 			name: 'CAS EMSE', // optional, used on the default login page as the button text.
-			type: 'oidc', // or "oauth" for OAuth 2 providers
+			type: 'oidc',
 			issuer: 'https://cas.emse.fr/cas/oidc', // to infer the .well-known/openid-configuration URL
 			clientId: env.CAS_CLIENT_ID, // from the provider's dashboard
 			clientSecret: env.CAS_CLIENT_SECRET, // from the provider's dashboard
@@ -21,7 +21,6 @@ export const { handle } = SvelteKitAuth({
 	secret: env.AUTH_SECRET,
 	callbacks: {
 		jwt({ token, user, profile }: { token: JWT; user?: User; profile?: Profile }): JWT {
-			// Initial sign in
 			if (user) {
 				token.id = profile?.sub;
 			}

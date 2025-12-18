@@ -32,7 +32,6 @@ export function formatDayLabel(dateStr: string | null) {
 		return 'Sans date';
 	}
 
-	// Parse as local date to avoid timezone issues
 	const year = d.getFullYear();
 	const month = d.getMonth();
 	const day = d.getDate();
@@ -42,7 +41,6 @@ export function formatDayLabel(dateStr: string | null) {
 	const todayMonth = today.getMonth();
 	const todayDay = today.getDate();
 
-	// Calculate day difference
 	const dMid = new Date(year, month, day);
 	const tMid = new Date(todayYear, todayMonth, todayDay);
 	const diff = Math.round((tMid.getTime() - dMid.getTime()) / (1000 * 60 * 60 * 24));
@@ -180,17 +178,14 @@ export class PhotosState {
 		this.peopleId = id;
 
 		try {
-			// Charger les favoris en parallèle (on ne l'attend pas)
 			const favoritesPromise = this.loadFavoritesSet();
 
-			// Récupérer les infos de la personne
 			const personRes = await fetch(`/api/immich/people/${id}`);
 			if (personRes.ok) {
 				const personData = (await personRes.json()) as { name?: string };
 				this.personName = personData.name || 'Sans nom';
 			}
 
-			// Récupérer la photo de profil
 			const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
 			if (thumb.ok) {
 				const blob = await thumb.blob();
@@ -203,7 +198,6 @@ export class PhotosState {
 				this._prevImageUrl = url;
 			}
 
-			// Utiliser le streaming pour charger progressivement
 			const res = await fetch(
 				`/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=false`
 			);
@@ -215,11 +209,10 @@ export class PhotosState {
 				asset: ImmichAsset;
 			}>(res, ({ phase, asset }) => {
 				if (phase === 'minimal') {
-					// Phase 1: Installer les skeletons
 					assetsMap.set(asset.id, {
 						...asset,
 						date: null,
-						isFavorite: false, // Sera mis à jour avec les favoris chargés en parallèle
+						isFavorite: false,
 						exifInfo:
 							asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
 								? {
@@ -228,13 +221,11 @@ export class PhotosState {
 									}
 								: null,
 						_raw: asset
-					}); // Dès qu'on reçoit la première photo, masquer le "Chargement"
+					});
 					if (assetsMap.size === 1) {
 						this.loading = false;
 					}
 				} else if (phase === 'full') {
-					// Phase 2: Enrichir avec les données complètes
-					// Préserver le statut favori local
 					const existing = assetsMap.get(asset.id);
 					assetsMap.set(asset.id, {
 						...asset,
@@ -244,11 +235,9 @@ export class PhotosState {
 					});
 				}
 
-				// Mettre à jour la liste affichée - utiliser spread pour créer un nouveau tableau
 				this.assets = [...Array.from(assetsMap.values())];
 			});
 
-			// Attendre les favoris et les appliquer
 			const favoriteSet = await favoritesPromise;
 			this.assets = this.assets.map((a) => ({
 				...a,
@@ -280,7 +269,6 @@ export class PhotosState {
 		this.assets = [];
 
 		try {
-			// Utiliser l'endpoint RESTful qui filtre les photos DANS l'album PhotoCV pour cette personne
 			const res = await fetch(`/api/people/people/${encodeURIComponent(id)}/photos?in_album=true`);
 
 			if (!res.ok) {
@@ -299,7 +287,7 @@ export class PhotosState {
 				createdAt: it.createdAt,
 				updatedAt: it.updatedAt,
 				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-				isFavorite: false, // Ignorer le favori Immich
+				isFavorite: false,
 				_raw: it
 			}));
 		} catch (e: unknown) {
@@ -322,7 +310,6 @@ export class PhotosState {
 		this.photoCVCurrentPage = 1;
 
 		try {
-			// Utiliser l'endpoint avec pagination
 			const res = await fetch(`/api/people/album?page=1&limit=${limit}`);
 
 			if (!res.ok) {
@@ -341,7 +328,7 @@ export class PhotosState {
 			this.assets = allAssets.map((it) => ({
 				...it,
 				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-				isFavorite: false, // Ignorer le favori Immich
+				isFavorite: false,
 				_raw: it
 			}));
 			this.photoCVHasMore = data.hasMore ?? false;
@@ -380,7 +367,6 @@ export class PhotosState {
 			};
 			const pageAssets = data.assets || [];
 
-			// Remplacer les assets (pas ajouter)
 			const newAssets = pageAssets.map((it) => ({
 				...it,
 				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
@@ -405,7 +391,7 @@ export class PhotosState {
 	async loadPrevPagePhotosCV(limit: number = 100): Promise<void> {
 		const prevPage = Math.max(1, this.photoCVCurrentPage - 1);
 		if (prevPage === this.photoCVCurrentPage) {
-			return; // Déjà à la page 1
+			return;
 		}
 		console.warn('📸 PhotosState.loadPrevPagePhotosCV appelé, page:', prevPage);
 		this.loading = true;
@@ -427,7 +413,6 @@ export class PhotosState {
 			};
 			const pageAssets = data.assets || [];
 
-			// Remplacer les assets (pas ajouter)
 			const newAssets = pageAssets.map((it) => ({
 				...it,
 				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
@@ -466,7 +451,6 @@ export class PhotosState {
 			const isSelected = this.selectedAssets.includes(id);
 			this.toggleSelect(id, !isSelected);
 		} else {
-			// Utiliser goto au lieu de window.location.href pour éviter le rechargement complet
 			import('$app/navigation').then(({ goto }) => {
 				goto(`/asset/${id}`);
 			});
@@ -576,11 +560,10 @@ export class PhotosState {
 				asset: ImmichAsset;
 			}>(res, ({ phase, asset }) => {
 				if (phase === 'minimal') {
-					// Phase 1: Installer les skeletons
 					assetsMap.set(asset.id, {
 						...asset,
 						date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-						isFavorite: false, // Ignorer le favori Immich
+						isFavorite: false,
 						exifInfo:
 							asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
 								? {
@@ -589,13 +572,11 @@ export class PhotosState {
 									}
 								: null,
 						_raw: asset
-					}); // Dès qu'on reçoit la première photo, masquer le "Chargement"
+					});
 					if (assetsMap.size === 1) {
 						this.loading = false;
 					}
 				} else if (phase === 'full') {
-					// Phase 2: Enrichir avec les données complètes
-					// Préserver le statut favori local
 					const existing = assetsMap.get(asset.id);
 					assetsMap.set(asset.id, {
 						...asset,
@@ -605,7 +586,6 @@ export class PhotosState {
 					});
 				}
 
-				// Mettre à jour la liste affichée - utiliser spread pour créer un nouveau tableau
 				this.assets = [...Array.from(assetsMap.values())];
 			});
 
@@ -644,7 +624,6 @@ export class PhotosState {
 				throw new Error(text || `HTTP ${res.status}`);
 			}
 
-			// Mettre à jour l'asset localement
 			this.assets = this.assets.map((a) =>
 				a.id === assetId ? { ...a, isFavorite: newFavoriteStatus } : a
 			);
@@ -688,7 +667,6 @@ export class PhotosState {
 			const data = (await res.json()) as { favorites: string[] };
 			const favoriteSet = new Set(data.favorites);
 
-			// Mettre à jour le statut favori des assets
 			this.assets = this.assets.map((a) => ({
 				...a,
 				isFavorite: favoriteSet.has(a.id)
@@ -712,7 +690,6 @@ export class PhotosState {
 		return this.assets.filter((a) => !a.isFavorite);
 	}
 
-	// Pagination pour loadAllPhotosCV
 	#photoCVCurrentPage = $state(1);
 	#photoCVHasMore = $state(false);
 	#photoCVTotalCount = $state(0);

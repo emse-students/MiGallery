@@ -38,7 +38,7 @@
   let fileStatuses = $state<UploadFileStatus[]>([]);
   let fileInputRef: HTMLInputElement;
   let globalProgress = $state(0); // Pourcentage global d'upload
-  let uploadedCount = $state(0); // Nombre total de fichiers uploadés avec succès (persistant)
+  let uploadedCount = $state(0); 
   let duplicateCountPersist = $state(0); // Nombre total de doublons (persistant)
   let errorCountPersist = $state(0); // Nombre total d'erreurs (persistant)
 
@@ -161,8 +161,6 @@
     }));
 
     try {
-      // Upload les fichiers valides
-      // onProgress: only update global progress bar; per-file status will be set by onFileResult
       const onProgressCallback = (current: number, total: number) => {
         globalProgress = Math.round((current / total) * 100);
       };
@@ -173,16 +171,14 @@
           if (result.isDuplicate) {
             fileStatuses[statusIndex].status = 'duplicate';
             fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
-            duplicateCountPersist = duplicateCountPersist + 1; // Incrémenter le compteur persistant
-            // keep visible a bit longer
+            duplicateCountPersist = duplicateCountPersist + 1; 
             setTimeout(() => {
               fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
             }, 3000);
           } else {
             fileStatuses[statusIndex].status = 'success';
             fileStatuses[statusIndex].progress = 100;
-            uploadedCount = uploadedCount + 1; // Incrémenter le compteur persistant
-            // remove success after short delay
+            uploadedCount = uploadedCount + 1; 
             setTimeout(() => {
               fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
             }, 1000);
@@ -193,19 +189,16 @@
 
       const results = await onUpload(files, onProgressCallback, onFileResultCallback);
 
-      // Vérifier que results est un array
       const uploadResults = Array.isArray(results) ? results : [];
 
-      // Traiter les doublons (les succès sont déjà gérés par le callback)
       for (const result of uploadResults) {
         if (result.isDuplicate) {
           const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
           if (statusIndex >= 0) {
             fileStatuses[statusIndex].status = 'duplicate';
             fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
-            duplicateCountPersist = duplicateCountPersist + 1; // Incrémenter le compteur persistant
+            duplicateCountPersist = duplicateCountPersist + 1; 
 
-            // Laisser le message visible un peu plus longtemps pour que l'utilisateur le voie
             setTimeout(() => {
               fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
             }, 3000);
@@ -218,14 +211,13 @@
         if (fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending') {
           fileStatuses[i].status = 'error';
           fileStatuses[i].error = (e as Error).message;
-          errorCountPersist = errorCountPersist + 1; // Incrémenter le compteur persistant
+          errorCountPersist = errorCountPersist + 1; 
         }
       }
     } finally {
       isUploading = false;
-      globalProgress = 0; // Réinitialiser le pourcentage global
+      globalProgress = 0; 
 
-      // Ne ferme le panneau que s'il n'y a pas d'erreurs
       setTimeout(() => {
         const hasErrors = fileStatuses.some((s) => s.status === 'error');
         if (!hasErrors) {

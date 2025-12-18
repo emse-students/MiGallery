@@ -35,7 +35,6 @@
   let dialogElement: HTMLDialogElement;
   let isProcessing = $state(false);
 
-  // Gérer l'affichage du dialog natif
   $effect(() => {
     if (!dialogElement) return;
 
@@ -46,11 +45,9 @@
     }
   });
 
-  // Gérer la touche Escape
   function handleKeydown(e: KeyboardEvent) {
     const active = document.activeElement as HTMLElement | null;
 
-    // If Enter pressed and it's safe (no input focused), treat as confirm when available
     if (e.key === 'Enter' && !isProcessing) {
       const tag = active?.tagName?.toUpperCase() || '';
       const isEditable = active?.isContentEditable;
@@ -93,13 +90,11 @@
   }
 
   function handleBackdropClick(e: MouseEvent) {
-    // Fermer seulement si on clique sur le backdrop, pas sur le contenu
     if (e.target === dialogElement && !isProcessing) {
       handleCancel();
     }
   }
 
-  // Déterminer l'icône et la couleur selon le type
   const typeConfig = $derived({
     info: { icon: 'info', color: 'text-blue-500' },
     success: { icon: 'check-circle', color: 'text-green-500' },

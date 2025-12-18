@@ -11,7 +11,6 @@
 		onClose: () => void;
 		onPhotoSelected?: (assetId: string) => void;
 		peopleId?: string;
-			// Accept optional PhotosState when some callers pass it (backwards compatibility)
 			photosState?: unknown;
 	}
 
@@ -35,7 +34,6 @@
 			loadingAssets = true;
 			error = null;
 
-			// Utiliser l'endpoint de recherche pour récupérer les assets associés à la personne
 			const res = await fetch('/api/immich/search/metadata', {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
@@ -48,7 +46,6 @@
 
 			const data = (await res.json()) as { assets: { items: ImmichAsset[] } };
 			const items = data?.assets?.items || [];
-			// Normaliser le format pour le rendu
 			assets = items.map((it) => ({
 				...it,
 				_raw: it
@@ -62,16 +59,12 @@
 	}
 
 	async function handlePhotoSelect(assetId: string) {
-		// garder la selection en local; la confirmation se fait via le bouton
 		selectedAssetId = assetId;
-		// Supporter le double-clic pour confirmer rapidement
-		// (la confirmation réelle est dans confirmSelection)
 	}
 
 	async function confirmSelection() {
 		if (!selectedAssetId) return;
 		if (!onPhotoSelected) {
-			// Si aucun callback fourni, fermer simplement
 			onClose();
 			return;
 		}
@@ -79,7 +72,6 @@
 		try {
 			await onPhotoSelected(selectedAssetId);
 			onClose();
-			// Recharger la page automatiquement après la mise à jour réussie
 			setTimeout(() => {
 				window.location.reload();
 			}, 500);

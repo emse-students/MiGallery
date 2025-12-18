@@ -81,17 +81,14 @@
   let albumCovers = $state<Record<string, { id: string; type?: string }>>({});
   let currentDownloadController: AbortController | null = null;
 
-  // Helper to load covers for a given list of albums. Only requests missing covers.
   async function loadCoversFor(list: Album[]) {
       const albumIds = list.map((a) => a.id);
       const missing: string[] = [];
       const cachedCovers: Record<string, { id: string; type?: string }> = {};
 
       for (const albumId of albumIds) {
-        // Si on a déjà la cover en mémoire, on ne fait rien
         if (albumCovers[albumId]) continue;
 
-        // try local cache first
         const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
         if (cached) {
           cachedCovers[albumId] = cached;
@@ -128,8 +125,6 @@
     }
   }
 
-  // Load covers when the full albums list changes (initial load) and when the
-  // filtered view changes (so the visible canvas always has matching covers).
   $effect(() => {
     if (albums.length > 0) {
       void loadCoversFor(albums);
@@ -228,8 +223,6 @@
     }
   }
 
-  // Cleanup debounce timer on destroy
-  // No debounce timer to cleanup anymore
 </script>
 
 <svelte:head>

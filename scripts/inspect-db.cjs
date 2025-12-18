@@ -1,15 +1,8 @@
 #!/usr/bin/env node
-/**
- * Script d'inspection et de réparation de la base de données
- * - Inspecte la structure et l'intégrité de la DB
- * - Répare les erreurs détectées si possible
- * - En cas d'échec, sauvegarde et propose de réinitialiser
- */
 
 const fs = require('fs');
 const path = require('path');
 
-// Detect runtime and load appropriate database driver
 function isBunRuntime() {
 	return typeof Bun !== 'undefined';
 }
@@ -43,7 +36,6 @@ const db = new Database(DB_PATH, { readonly: !REPAIR_MODE });
 try {
 	console.log('📊 STATISTIQUES DE LA BASE DE DONNÉES\n');
 
-	// 1. Vérifier l'intégrité
 	console.log("1. Vérification de l'intégrité...");
 	try {
 		const integrity = db.prepare('PRAGMA integrity_check').all();
@@ -61,7 +53,6 @@ try {
 		errors.push('integrity_check_error');
 	}
 
-	// 2. Vérifier les tables
 	console.log('\n2. Tables présentes:');
 	const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
 	tables.forEach((t) => console.log(`   - ${t.name}`));
@@ -76,7 +67,6 @@ try {
 		console.log('   ✅ Toutes les tables attendues sont présentes');
 	}
 
-	// 3. Statistiques des données
 	console.log('\n3. Statistiques:');
 	try {
 		const userCount = db.prepare('SELECT COUNT(*) AS c FROM users').get();
@@ -93,7 +83,6 @@ try {
 		errors.push('count_error');
 	}
 
-	// 4. Vérifier les contraintes de clés étrangères
 	console.log('\n4. Vérification des clés étrangères...');
 	try {
 		const fkCheck = db.prepare('PRAGMA foreign_key_check').all();
@@ -111,7 +100,6 @@ try {
 		errors.push('fk_check_error');
 	}
 
-	// 5. Vérifier l'utilisateur système admin
 	console.log("\n5. Vérification de l'utilisateur système...");
 	try {
 		const systemAdmin = db.prepare("SELECT * FROM users WHERE id_user = 'les.roots'").get();
@@ -133,7 +121,6 @@ try {
 		errors.push('system_user_check_error');
 	}
 
-	// 6. Afficher quelques exemples de données
 	console.log('\n6. Exemples de données (premiers résultats):');
 	try {
 		console.log('\n   Utilisateurs (5 premiers):');
@@ -184,7 +171,6 @@ if (!hasErrors) {
 
 			let repaired = false;
 
-			// Réparer l'utilisateur système manquant
 			if (errors.includes('system_user_missing')) {
 				console.log("   - Création de l'utilisateur système...");
 				dbWrite
@@ -195,7 +181,6 @@ if (!hasErrors) {
 				repaired = true;
 			}
 
-			// Réparer le rôle de l'utilisateur système
 			if (errors.includes('system_user_wrong_role')) {
 				console.log("   - Correction du rôle de l'utilisateur système...");
 				dbWrite.prepare("UPDATE users SET role = 'admin' WHERE id_user = 'les.roots'").run();

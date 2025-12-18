@@ -25,20 +25,16 @@
 
 	let { children } = $props();
 
-	// Modal première connexion
 	let showFirstLoginModal = $state(false);
 
-	// Initialiser le thème au montage
 	onMount(() => {
 		theme.initialize();
 
-		// Afficher le modal si première connexion
 		if (isFirstLogin) {
 			showFirstLoginModal = true;
 		}
 	});
 
-	// Détecter changement de first_login après update
 	$effect(() => {
 		if (isFirstLogin && isAuthenticated && !showFirstLoginModal) {
 			showFirstLoginModal = true;
@@ -46,11 +42,9 @@
 	});
 
 	function handleFirstLoginComplete() {
-		// Recharger la page pour mettre à jour la session
 		window.location.reload();
 	}
 
-	// Avertissement avant navigation pendant une opération
 	let navigationModal = $derived($navigationModalStore);
 	let showNavigationWarning = $derived.by(() => navigationModal?.show ?? false);
 
@@ -59,7 +53,6 @@
 			activeOperations.clear();
 			const href = navigationModal.href;
 			navigationModalStore.set(null);
-			// La navigation se fera via window.location.href
 			window.location.href = href;
 		}
 	}
@@ -83,8 +76,6 @@
 	}
 
 	async function handleSignIn() {
-		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
-		// Sans callbackUrl, redirige vers la page d'origine après authentification
 		await signIn('cas-emse', { callbackUrl: window.location.href });
 	}
 </script>

@@ -17,7 +17,6 @@ export const GET: RequestHandler = () => {
 	try {
 		const db = getDatabase();
 
-		// Vérifier les tables existantes
 		const existingTables = db
 			.prepare(
 				"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
@@ -138,7 +137,6 @@ export const POST: RequestHandler = () => {
 			}
 		}
 
-		// Revérifier l'état après les migrations
 		const tableStatus = REQUIRED_TABLES.map((table) => ({
 			name: table,
 			exists: true, // Si on arrive ici, toutes les tables doivent exister

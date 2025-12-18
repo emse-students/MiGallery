@@ -19,12 +19,10 @@ export const GET: RequestHandler = async (event) => {
 		const { id } = event.params;
 		const { fetch, request } = event;
 
-		// Récupérer d'abord l'album (le serveur a accès à IMMICH_API_KEY)
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Fetch album directly from Immich using server API key when available
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
@@ -34,7 +32,6 @@ export const GET: RequestHandler = async (event) => {
 			albumHeaders['x-api-key'] = IMMICH_API_KEY;
 		}
 
-		// Use internal proxy but present the internal key so the proxy allows the request
 		const albumRes = await fetch(`/api/immich/albums/${id}`, {
 			headers: {
 				'x-internal-immich-key': IMMICH_API_KEY,
@@ -67,8 +64,6 @@ export const GET: RequestHandler = async (event) => {
 		const album = (await albumRes.json()) as ImmichAlbum;
 		const albumVisibility = (album as unknown as { visibility?: string }).visibility;
 
-		// Autorisation: si l'album est 'unlisted' on permet l'accès anonyme.
-		// Accepter aussi le hint `visibility=unlisted` si le client le fournit (partage par lien).
 		let visibilityHint: string | null = null;
 		try {
 			const parsed = new URL(request.url);
@@ -76,8 +71,6 @@ export const GET: RequestHandler = async (event) => {
 		} catch {
 			visibilityHint = null;
 		}
-		// Utiliser en priorité la visibilité de la BDD locale (notre source de vérité),
-		// puis fallback sur la visibilité fournie par Immich.
 		let localVisibility: string | undefined = undefined;
 		try {
 			const db = getDatabase();
@@ -102,25 +95,21 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Récupérer la liste des assets de l'album (album déjà lu ci-dessus)
 		const assets = Array.isArray(album?.assets) ? album.assets : [];
 
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream({
 			async start(controller) {
 				try {
-					// Étape 1: Envoyer rapidement les métadonnées minimales pour installer les skeletons
 					for (const asset of assets) {
 						const minimalData = {
 							id: asset.id,
 							type: asset.type,
-							// Essayer d'extraire les dimensions depuis exifInfo si disponible
 							width: asset.exifInfo?.exifImageWidth || null,
 							height: asset.exifInfo?.exifImageHeight || null,
 							aspectRatio: null as number | null
 						};
 
-						// Calculer l'aspect ratio si possible
 						if (minimalData.width && minimalData.height) {
 							minimalData.aspectRatio = minimalData.width / minimalData.height;
 						}
@@ -135,14 +124,12 @@ export const GET: RequestHandler = async (event) => {
 						);
 					}
 
-					// Étape 2: Enrichir avec les détails complets par batches
 					const batchSize = 10;
 					for (let i = 0; i < assets.length; i += batchSize) {
 						const batch = assets.slice(i, i + batchSize);
 
 						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
 							try {
-								// Fetch asset details via internal proxy and include the internal key
 								const detailRes = await fetch(`/api/immich/assets/${asset.id}`, {
 									headers: {
 										'x-internal-immich-key': IMMICH_API_KEY,

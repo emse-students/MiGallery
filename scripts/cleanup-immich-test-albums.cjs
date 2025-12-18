@@ -1,15 +1,8 @@
 #!/usr/bin/env node
-/**
- * Script de nettoyage des albums de test sur Immich
- * Supprime les albums dont le nom contient 'Test', 'test', 'Permission', etc.
- *
- * Usage: node scripts/cleanup-immich-test-albums.cjs [--dry-run]
- */
 
 const path = require('path');
 const fs = require('fs');
 
-// Charger les variables d'environnement depuis .env
 const envPath = path.join(process.cwd(), '.env');
 if (fs.existsSync(envPath)) {
 	const envContent = fs.readFileSync(envPath, 'utf-8');
@@ -33,7 +26,6 @@ const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'm
 
 const DRY_RUN = process.argv.includes('--dry-run');
 
-// Patterns d'albums de test à supprimer
 const TEST_PATTERNS = [
 	/^\[TEST\]/i, // Nouveau pattern officiel
 	/^Test\s/i,
@@ -67,7 +59,6 @@ async function main() {
 	console.log(`📡 Serveur Immich: ${IMMICH_BASE_URL}`);
 	console.log(`📁 Base de données locale: ${DB_PATH}\n`);
 
-	// 1. Récupérer tous les albums d'Immich
 	console.log('📥 Récupération des albums depuis Immich...');
 
 	let allAlbums;
@@ -90,7 +81,6 @@ async function main() {
 		process.exit(1);
 	}
 
-	// 2. Identifier les albums de test
 	const testAlbums = allAlbums.filter((album) => isTestAlbum(album.albumName));
 
 	if (testAlbums.length === 0) {
@@ -102,7 +92,6 @@ async function main() {
 		});
 		console.log('');
 
-		// 3. Supprimer les albums de test
 		if (!DRY_RUN) {
 			let deleted = 0;
 			let failed = 0;
@@ -138,7 +127,6 @@ async function main() {
 	if (fs.existsSync(DB_PATH)) {
 		console.log('🗄️  Nettoyage de la base de données locale...');
 
-		// Détecter si on est dans Bun ou Node
 		const isBun = typeof globalThis.Bun !== 'undefined';
 		let Database;
 
@@ -157,7 +145,7 @@ async function main() {
 		const db = new Database(DB_PATH);
 
 		try {
-			// Compter les albums de test
+
 			const testAlbumsInDb = db
 				.prepare(
 					`
@@ -176,7 +164,7 @@ async function main() {
 				testAlbumsInDb.forEach((a) => console.log(`      - ${a.name} (${a.id})`));
 
 				if (!DRY_RUN) {
-					// Supprimer les permissions associées
+
 					db
 						.prepare(
 							`
@@ -209,7 +197,6 @@ async function main() {
 						)
 						.run();
 
-					// Supprimer les albums
 					const result = db
 						.prepare(
 							`

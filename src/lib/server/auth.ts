@@ -47,13 +47,11 @@ export async function ensureAdmin({
 	locals: App.Locals;
 	cookies: Cookies;
 }): Promise<UserRow | null> {
-	// cookie fast-path
 	const fromCookie = getUserFromSignedCookie(cookies);
 	if (fromCookie && (fromCookie.role || 'user') === 'admin') {
 		return fromCookie;
 	}
 
-	// fallback to provider session but DO NOT auto-create users
 	if (!locals || typeof locals.auth !== 'function') {
 		return null;
 	}
@@ -64,7 +62,6 @@ export async function ensureAdmin({
 			return null;
 		}
 
-		// determine candidate provider id (same logic as +layout.server.ts)
 		const candidateId =
 			providerUser.id ||
 			providerUser.preferred_username ||
@@ -101,13 +98,11 @@ export async function getCurrentUser({
 	locals: App.Locals;
 	cookies: Cookies;
 }): Promise<UserRow | null> {
-	// Try cookie first
 	const cookieUser = getUserFromSignedCookie(cookies);
 	if (cookieUser) {
 		return cookieUser;
 	}
 
-	// Fallback to provider mapping (do not create new users)
 	if (!locals || typeof locals.auth !== 'function') {
 		return null;
 	}

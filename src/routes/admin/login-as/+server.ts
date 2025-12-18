@@ -10,7 +10,6 @@ import { redirect } from '@sveltejs/kit';
  * Requires: Current user must be admin
  */
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
-	// Vérifier que l'utilisateur actuel est admin
 	const admin = await ensureAdmin({ locals, cookies });
 	if (!admin) {
 		return new Response('Forbidden: Admin access required', { status: 403 });
@@ -39,6 +38,5 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 		maxAge: 60 * 60 * 24 * 30 // 30 days
 	});
 
-	// Redirect to home where the layout will pick up the new cookie
 	throw redirect(303, '/');
 };

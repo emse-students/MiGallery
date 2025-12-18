@@ -1,10 +1,4 @@
-// ============================================================================
-// TYPES CENTRALISÉS - Source unique de vérité pour toute l'application
-// ============================================================================
 
-// ----------------------------------------------------------------------------
-// Users - Utilisateurs de l'application
-// ----------------------------------------------------------------------------
 
 /**
  * Représentation d'un utilisateur dans l'application
@@ -50,10 +44,6 @@ export interface EditUserData {
 	promo_year: number | null;
 }
 
-// ----------------------------------------------------------------------------
-// Albums - Gestion des albums photos
-// ----------------------------------------------------------------------------
-
 /**
  * Métadonnées d'un album (pour création/modification)
  */
@@ -91,10 +81,6 @@ export interface AlbumRow {
 	visible?: number | boolean;
 }
 
-// ----------------------------------------------------------------------------
-// API Responses - Réponses standardisées
-// ----------------------------------------------------------------------------
-
 /**
  * Réponse API générique pour tous les endpoints
  * @template T Type de données retournées
@@ -106,10 +92,6 @@ export interface ApiResponse<T = unknown> {
 	message?: string;
 }
 
-// ----------------------------------------------------------------------------
-// Database Operations - Opérations de base de données
-// ----------------------------------------------------------------------------
-
 /**
  * Résultat d'une inspection de la base de données
  */
@@ -118,10 +100,6 @@ export interface DbInspectionResult {
 	errors?: string[];
 	message?: string;
 }
-
-// ----------------------------------------------------------------------------
-// Immich Integration - Types pour l'API Immich
-// ----------------------------------------------------------------------------
 
 /**
  * Asset (photo/vidéo) tel que retourné par l'API Immich
@@ -210,10 +188,6 @@ export interface ImmichPaginatedResponse<T> {
 	nextPage?: string | null;
 }
 
-// ----------------------------------------------------------------------------
-// Authentication - Types pour l'authentification
-// ----------------------------------------------------------------------------
-
 /**
  * Utilisateur dans une session (Auth.js)
  */
@@ -240,10 +214,6 @@ export interface CookiesAPI {
 	get: (name: string) => string | undefined;
 	set: (name: string, value: string, opts?: unknown) => void;
 }
-
-// ----------------------------------------------------------------------------
-// Test Types - Types spécifiques aux tests (réexportés pour cohérence)
-// ----------------------------------------------------------------------------
 
 /**
  * Réponse de création d'une clé API

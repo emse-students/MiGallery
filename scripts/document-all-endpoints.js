@@ -1,7 +1,4 @@
-/**
- * Script pour documenter MASSIVEMENT tous les endpoints de l'API
- * Génère automatiquement le code TypeScript complet pour endpoints.ts
- */
+
 
 const API_KEY = 'mAvmLgRgT7J1pJCCNNi4szLalbaMdNq28aprqvn129I';
 const BASE_URL = 'http://localhost:5173';
@@ -60,7 +57,7 @@ function curl(method, path, body = null) {
 	let cmd = 'curl -H "x-api-key: YOUR_API_KEY"';
 	if (method !== 'GET') cmd += ` -X ${method}`;
 	if (body) cmd += ` -H "Content-Type: application/json" -d '${JSON.stringify(body)}'`;
-	cmd += ` "http://localhost:5173${path}"`;
+	cmd += ` "http:
 	return cmd;
 }
 
@@ -101,7 +98,6 @@ async function run() {
 		);
 	}
 
-	// ========== USERS ==========
 	console.log('👥 Users...');
 	const users = await test('GET', '/api/users');
 	if (users.success) {
@@ -145,7 +141,6 @@ async function run() {
 		);
 	}
 
-	// ========== API KEYS ==========
 	console.log('🔑 API Keys...');
 	const apiKeys = await test('GET', '/api/admin/api-keys');
 	if (apiKeys.success) {
@@ -197,7 +192,6 @@ async function run() {
 		);
 	}
 
-	// ========== PEOPLE & PHOTOS-CV ==========
 	console.log('📸 People & Photos-CV...');
 	const albumInfo = await test('GET', '/api/people/album/info');
 	if (albumInfo.success) {
@@ -261,7 +255,6 @@ async function run() {
 		);
 	}
 
-	// ========== EXTERNAL MEDIA ==========
 	console.log('🖼️ External Media...');
 	const externalMedia = await test('GET', '/api/external/media');
 	if (externalMedia.success) {
@@ -278,11 +271,8 @@ async function run() {
 		);
 	}
 
-	// ========== DATABASE ==========
 	console.log('💾 Database...');
-	// Note: db endpoints utilisent l'ancien système d'auth, skip pour l'instant
 
-	// ========== GÉNÉRATION ==========
 	console.log('\n' + '='.repeat(80));
 	console.log('CODE POUR endpoints.ts');
 	console.log('='.repeat(80) + '\n');

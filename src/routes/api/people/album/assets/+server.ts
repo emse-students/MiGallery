@@ -28,7 +28,6 @@ export const PUT: RequestHandler = async (event) => {
 		});
 		if (!res.ok) {
 			const txt = await res.text();
-			// Forward 4xx errors as is, 5xx as 500
 			if (res.status >= 400 && res.status < 500) {
 				throw error(res.status, `Failed to add assets: ${txt}`);
 			}
@@ -37,7 +36,6 @@ export const PUT: RequestHandler = async (event) => {
 		const data = (await res.json()) as { success?: boolean };
 		return json({ success: true, added: data });
 	} catch (e: unknown) {
-		// Rethrow SvelteKit errors
 		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
 			throw e;
 		}
