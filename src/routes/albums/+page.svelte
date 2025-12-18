@@ -306,7 +306,7 @@
                                         {#if albumCovers[a.id]}
                                             <LazyImage
                                               src={
-                                                `/api/immich/assets/${albumCovers[a.id].id}/thumbnail?size=preview&format=JPEG`
+												`/api/albums/${a.id}/cover/${albumCovers[a.id].id}`
                                               }
                                               alt={a.name}
                                               class="album-cover"
