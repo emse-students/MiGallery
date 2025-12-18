@@ -1,6 +1,4 @@
-/**
- * Script pour supprimer les clés API de test de la base de données
- */
+
 const Database = require('bun:sqlite').default;
 const path = require('path');
 
@@ -9,7 +7,6 @@ const db = Database.open(dbPath);
 
 console.log('🔍 Recherche des clés API de test...\n');
 
-// Patterns de clés de test à supprimer
 const TEST_KEY_PATTERNS = [
 	'Test API Key%',
 	'Test Read Key',
@@ -23,7 +20,6 @@ const TEST_KEY_PATTERNS = [
 	'Test External API'
 ];
 
-// Lister les clés API de test (label vide ou correspondant aux patterns)
 const testKeys = db
 	.prepare(
 		`

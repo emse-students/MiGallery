@@ -40,7 +40,6 @@ export function hasProperty<K extends string>(obj: unknown, key: K): obj is Reco
 	return isRecord(obj) && key in obj;
 }
 
-// Helper pour typer les réponses API
 export function asApiResponse<T = unknown>(
 	v: unknown
 ): {

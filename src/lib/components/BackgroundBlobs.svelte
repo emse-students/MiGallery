@@ -8,10 +8,8 @@
     color: string;
   }
 
-  // Blobs statiques : génération immédiate sans hook ni animation
   let blobs = $state<BlobData[]>([]);
 
-  // Palette identique (elle fonctionne bien)
   const colors = [
     '#FF3F3F', '#FF44EC', '#AC52FF', '#5B6CFF', '#2DD4BF', '#F59E0B'
   ];
@@ -20,7 +18,6 @@
     return Math.random() * (max - min) + min;
   }
 
-  // Génération synchrones et immuables des blobs (pas d'animation)
   {
     const count = 6;
     const newBlobs: BlobData[] = [];
@@ -28,7 +25,6 @@
     for (let i = 0; i < count; i++) {
       newBlobs.push({
         id: i,
-        // Positions fixes générées une seule fois
         top: `${getRandom(-20, 80)}%`,
         left: `${getRandom(-20, 80)}%`,
         width: `${getRandom(60, 90)}vw`,

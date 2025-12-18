@@ -30,14 +30,12 @@ export const GET: RequestHandler = async (event) => {
 	try {
 		const db = getDatabase();
 
-		// Fonction helper pour récupérer les infos utilisateur
 		const getTargetUser = (): UserInfo | null => {
 			return db
 				.prepare('SELECT id_user, prenom, nom, id_photos FROM users WHERE id_user = ?')
 				.get(targetUserId) as UserInfo | null;
 		};
 
-		// Cas 1: L'utilisateur demande ses propres photos
 		if (targetUserId === user.id_user) {
 			const targetUser = getTargetUser();
 			return json({
@@ -48,7 +46,6 @@ export const GET: RequestHandler = async (event) => {
 			});
 		}
 
-		// Cas 2: Admin a accès à tout
 		if (user.role === 'admin') {
 			const targetUser = getTargetUser();
 			return json({
@@ -59,7 +56,6 @@ export const GET: RequestHandler = async (event) => {
 			});
 		}
 
-		// Cas 3: Vérifier si l'utilisateur cible a donné l'autorisation
 		const permission = db
 			.prepare('SELECT 1 FROM photo_access_permissions WHERE owner_id = ? AND authorized_id = ?')
 			.get(targetUserId, user.id_user);
@@ -74,7 +70,6 @@ export const GET: RequestHandler = async (event) => {
 			});
 		}
 
-		// Pas d'accès
 		return json({
 			success: true,
 			hasAccess: false,

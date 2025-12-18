@@ -1,0 +1,1347 @@
+[
+	{
+		"file": "src/routes/api/immich/[...path]/+server.ts",
+		"frenchComments": [
+			{
+				"line": 237,
+				"text": "Reconstruction du FormData attendu par Immich",
+				"recommendation": "remove"
+			},
+			{
+				"line": 244,
+				"text": "Ajout des métadonnées requises par Immich (envoyées via headers par le client)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 268,
+				"text": "Préparation de l'URL Immich",
+				"recommendation": "remove"
+			},
+			{
+				"line": 276,
+				"text": "Envoi à Immich",
+				"recommendation": "remove"
+			},
+			{
+				"line": 299,
+				"text": "Nettoyage du fichier temporaire",
+				"recommendation": "convert"
+			},
+			{
+				"line": 306,
+				"text": "Retourne la réponse d'Immich au client",
+				"recommendation": "convert"
+			},
+			{
+				"line": 314,
+				"text": "Nettoyage en cas d'erreur",
+				"recommendation": "remove"
+			},
+			{
+				"line": 338,
+				"text": "Autorisation pour GET: session utilisateur OU x-api-key avec scope \"read\"",
+				"recommendation": "convert"
+			},
+			{
+				"line": 348,
+				"text": "Regex pour détecter les assets (thumbnail, original, preview, video)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 385,
+				"text": "Pas un asset -> on rejette",
+				"recommendation": "convert"
+			},
+			{
+				"line": 391,
+				"text": "Autorisation pour PUT/PATCH/POST/DELETE: session utilisateur requise",
+				"recommendation": "convert"
+			},
+			{
+				"line": 396,
+				"text": "Exception pour le téléchargement d'archives (zip) si tous les assets sont publics",
+				"recommendation": "convert"
+			},
+			{
+				"line": 402,
+				"text": "On doit cloner la requête pour lire le body sans le consommer pour le proxy",
+				"recommendation": "convert"
+			},
+			{
+				"line": 405,
+				"text": "Immich envoie { assetIds: [...] }",
+				"recommendation": "remove"
+			},
+			{
+				"line": 421,
+				"text": "Rejet si pas public",
+				"recommendation": "remove"
+			},
+			{
+				"line": 451,
+				"text": "Si la requête est un POST vers assets ET contient les headers de chunking",
+				"recommendation": "remove"
+			},
+			{
+				"line": 457,
+				"text": "Préparer les headers de base (API Key, Accept)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 465,
+				"text": "Déléguer au handler de chunks",
+				"recommendation": "convert"
+			},
+			{
+				"line": 470,
+				"text": "Vérifier le cache pour les requêtes GET",
+				"recommendation": "convert"
+			},
+			{
+				"line": 596,
+				"text": "Mettre en cache les réponses JSON réussies pour les GET",
+				"recommendation": "convert"
+			},
+			{
+				"line": 607,
+				"text": "Invalider le cache après les mutations",
+				"recommendation": "convert"
+			},
+			{
+				"line": 633,
+				"text": "Bulk delete assets",
+				"recommendation": "remove"
+			},
+			{
+				"line": 650,
+				"text": "Single delete",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/+layout.svelte",
+		"frenchComments": [
+			{
+				"line": 31,
+				"text": "Initialiser le thème au montage",
+				"recommendation": "convert"
+			},
+			{
+				"line": 35,
+				"text": "Afficher le modal si première connexion",
+				"recommendation": "convert"
+			},
+			{
+				"line": 49,
+				"text": "Recharger la page pour mettre à jour la session",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/hooks.client.ts",
+		"frenchComments": [
+			{
+				"line": 16,
+				"text": "Utiliser la capture phase pour intercepter AVANT SvelteKit",
+				"recommendation": "convert"
+			},
+			{
+				"line": 27,
+				"text": "Vérifier si c'est un lien interne",
+				"recommendation": "convert"
+			},
+			{
+				"line": 29,
+				"text": "Ignorer les liens externes, les blobs (téléchargements) et les nouveaux onglets",
+				"recommendation": "convert"
+			},
+			{
+				"line": 40,
+				"text": "Si des opérations sont en cours, bloquer la navigation",
+				"recommendation": "convert"
+			},
+			{
+				"line": 45,
+				"text": "Afficher le modal au lieu d'utiliser confirm()",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/albums/[id]/+page.svelte",
+		"frenchComments": [
+			{
+				"line": 46,
+				"text": "Chargement des données de l'album",
+				"recommendation": "convert"
+			},
+			{
+				"line": 133,
+				"text": "Recharger pour être sûr de la synchro",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/trombinoscope/+page.svelte",
+		"frenchComments": [
+			{
+				"line": 341,
+				"text": "Seul le bouton \"Ajouter\" est protégé par `canAccess`",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/lib/components/PhotoModal.svelte",
+		"frenchComments": [
+			{
+				"line": 35,
+				"text": "Vérifier le rôle de l'utilisateur",
+				"recommendation": "convert"
+			},
+			{
+				"line": 70,
+				"text": "Prévenir les rechargements répétés de la même asset",
+				"recommendation": "convert"
+			},
+			{
+				"line": 87,
+				"text": "Si le type a changé (image -> video), mettre à jour le flag",
+				"recommendation": "convert"
+			},
+			{
+				"line": 110,
+				"text": "Pour les albums \"unlisted\" en accès anonyme, cette requête peut renvoyer 401,",
+				"recommendation": "convert"
+			},
+			{
+				"line": 125,
+				"text": "Ignorer les erreurs (ex: 401) — on garde les informations minimales si disponibles",
+				"recommendation": "convert"
+			},
+			{
+				"line": 140,
+				"text": "Pour les albums partagés, on passe par le proxy d'album",
+				"recommendation": "convert"
+			},
+			{
+				"line": 177,
+				"text": "Position du curseur par rapport au conteneur (0 à 1)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 186,
+				"text": "Calculer le nouveau translate pour garder le point sous le curseur fixe",
+				"recommendation": "convert"
+			},
+			{
+				"line": 189,
+				"text": "Convertir les coordonnées de la souris en position dans l'image",
+				"recommendation": "convert"
+			},
+			{
+				"line": 193,
+				"text": "Distance du curseur au centre",
+				"recommendation": "remove"
+			},
+			{
+				"line": 197,
+				"text": "Ajuster le translate",
+				"recommendation": "remove"
+			},
+			{
+				"line": 210,
+				"text": "Contraindre le translate après le zoom",
+				"recommendation": "convert"
+			},
+			{
+				"line": 211,
+				"text": "Utiliser un petit délai pour que l'image ait le temps de se redimensionner",
+				"recommendation": "convert"
+			},
+			{
+				"line": 251,
+				"text": "Charger la haute résolution si on force un zoom important",
+				"recommendation": "convert"
+			},
+			{
+				"line": 263,
+				"text": "Pas de drag si pas zoomé",
+				"recommendation": "remove"
+			},
+			{
+				"line": 277,
+				"text": "Calculer la taille de l'image affichée avec object-fit: contain",
+				"recommendation": "convert"
+			},
+			{
+				"line": 288,
+				"text": "Image plus large que le conteneur proportionnellement",
+				"recommendation": "convert"
+			},
+			{
+				"line": 289,
+				"text": "Elle est contrainte par la largeur",
+				"recommendation": "remove"
+			},
+			{
+				"line": 293,
+				"text": "Image plus haute que le conteneur proportionnellement",
+				"recommendation": "convert"
+			},
+			{
+				"line": 294,
+				"text": "Elle est contrainte par la hauteur",
+				"recommendation": "remove"
+			},
+			{
+				"line": 299,
+				"text": "Dimensions de l'image après zoom",
+				"recommendation": "convert"
+			},
+			{
+				"line": 303,
+				"text": "Calculer les limites maximales de déplacement",
+				"recommendation": "convert"
+			},
+			{
+				"line": 337,
+				"text": "Construction de l'URL originale via l'endpoint prévu",
+				"recommendation": "convert"
+			},
+			{
+				"line": 340,
+				"text": "attendre que l'image se recharge (optionnel)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 397,
+				"text": "Charger la haute résolution lors d'un pinch-zoom important",
+				"recommendation": "convert"
+			},
+			{
+				"line": 480,
+				"text": "Invalider le cache local de la couverture pour cet album",
+				"recommendation": "convert"
+			},
+			{
+				"line": 513,
+				"text": "Calculer la prochaine photo à afficher AVANT de notifier le parent",
+				"recommendation": "convert"
+			},
+			{
+				"line": 518,
+				"text": "Notifier le parent",
+				"recommendation": "remove"
+			},
+			{
+				"line": 525,
+				"text": "Passer à la photo suivante (pré-calculée) ou fermer",
+				"recommendation": "convert"
+			},
+			{
+				"line": 587,
+				"text": "Nettoyer le portail si on l'a monté dans document.body",
+				"recommendation": "convert"
+			},
+			{
+				"line": 632,
+				"text": "Mise à jour optimiste : inverser le state immédiatement",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/lib/components/BackgroundBlobs.svelte",
+		"frenchComments": [
+			{
+				"line": 69,
+				"text": "Fond clair : blanc cassé pour moins d'agression",
+				"recommendation": "remove"
+			},
+			{
+				"line": 77,
+				"text": "Noir quasi absolu pour la profondeur",
+				"recommendation": "remove"
+			},
+			{
+				"line": 84,
+				"text": "Le flou est calculé une seule fois = pas de lag",
+				"recommendation": "remove"
+			},
+			{
+				"line": 86,
+				"text": "Zoom léger pour cacher les bords flous",
+				"recommendation": "remove"
+			},
+			{
+				"line": 92,
+				"text": "Opacité standard pour le mode clair",
+				"recommendation": "remove"
+			},
+			{
+				"line": 99,
+				"text": "Opacité très réduite : juste une lueur",
+				"recommendation": "remove"
+			},
+			{
+				"line": 101,
+				"text": "\"Hard-light\" ou \"Screen\" donne un effet néon subtil dans le noir",
+				"recommendation": "remove"
+			},
+			{
+				"line": 105,
+				"text": "Le grain reste pour la texture \"premium\"",
+				"recommendation": "remove"
+			},
+			{
+				"line": 116,
+				"text": "Grain encore plus discret la nuit",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "vitest.config.ts",
+		"frenchComments": [
+			{
+				"line": 16,
+				"text": "Exécuter les fichiers de test en série (pas en parallèle)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 18,
+				"text": "Retry pour les tests flaky (notamment ceux dépendant d'Immich)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 22,
+				"text": "Désactiver les logs stdout/stderr des tests",
+				"recommendation": "convert"
+			},
+			{
+				"line": 24,
+				"text": "Désactiver les logs console.log/error dans les tests",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "tests/users.test.ts",
+		"frenchComments": [
+			{
+				"line": 11,
+				"text": "Suivi de tous les utilisateurs créés pour le nettoyage",
+				"recommendation": "convert"
+			},
+			{
+				"line": 28,
+				"text": "Ignorer les erreurs",
+				"recommendation": "remove"
+			},
+			{
+				"line": 61,
+				"text": "Vérifier la structure des utilisateurs",
+				"recommendation": "convert"
+			},
+			{
+				"line": 377,
+				"text": "Vérifier que l'utilisateur a bien été supprimé",
+				"recommendation": "convert"
+			},
+			{
+				"line": 428,
+				"text": "Tracker pour nettoyage",
+				"recommendation": "remove"
+			},
+			{
+				"line": 462,
+				"text": "Utilisateur de test pour les endpoints /me avec API key admin",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "tests/test-helpers.ts",
+		"frenchComments": [
+			{
+				"line": 11,
+				"text": "Configuration des scopes",
+				"recommendation": "remove"
+			},
+			{
+				"line": 19,
+				"text": "Configuration des rôles",
+				"recommendation": "remove"
+			},
+			{
+				"line": 26,
+				"text": "Utilisateurs de test",
+				"recommendation": "remove"
+			},
+			{
+				"line": 109,
+				"text": "Ignorer les erreurs de nettoyage",
+				"recommendation": "remove"
+			},
+			{
+				"line": 263,
+				"text": "Vérifier si l'utilisateur existe",
+				"recommendation": "convert"
+			},
+			{
+				"line": 475,
+				"text": "Mettre à jour le contexte global",
+				"recommendation": "remove"
+			},
+			{
+				"line": 502,
+				"text": "Supprimer les clés API",
+				"recommendation": "convert"
+			},
+			{
+				"line": 515,
+				"text": "Nettoyer les autres ressources",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "tests/permissions.test.ts",
+		"frenchComments": [
+			{
+				"line": 23,
+				"text": "Suivi de tous les albums créés pour le nettoyage",
+				"recommendation": "convert"
+			},
+			{
+				"line": 29,
+				"text": "Créer un album de test pour les tests de permissions",
+				"recommendation": "convert"
+			},
+			{
+				"line": 56,
+				"text": "Ignorer les erreurs (album peut déjà être supprimé)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 68,
+				"text": "Créer un album jetable",
+				"recommendation": "remove"
+			},
+			{
+				"line": 80,
+				"text": "Tracker pour nettoyage si le test échoue",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "tests/immich-proxy.test.ts",
+		"frenchComments": [
+			{
+				"line": 249,
+				"text": "Vérifier que les headers de cache sont présents ou absents selon la configuration",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "tests/favorites-external.test.ts",
+		"frenchComments": [
+			{
+				"line": 91,
+				"text": "Ajouter une première fois",
+				"recommendation": "remove"
+			},
+			{
+				"line": 100,
+				"text": "Ajouter une deuxième fois (doublon)",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "tests/e2e-integration.test.ts",
+		"frenchComments": [
+			{
+				"line": 19,
+				"text": "Setup et authentification",
+				"recommendation": "remove"
+			},
+			{
+				"line": 23,
+				"text": "Démarrage des tests d'intégration end-to-end",
+				"recommendation": "convert"
+			},
+			{
+				"line": 40,
+				"text": "Créer une clé API admin pour les tests",
+				"recommendation": "convert"
+			},
+			{
+				"line": 61,
+				"text": "Créer une clé API read pour les tests",
+				"recommendation": "convert"
+			},
+			{
+				"line": 103,
+				"text": "Supprimer les clés API de test",
+				"recommendation": "convert"
+			},
+			{
+				"line": 111,
+				"text": "Supprimer la clé API read de test",
+				"recommendation": "convert"
+			},
+			{
+				"line": 123,
+				"text": "Tests end-to-end complets",
+				"recommendation": "remove"
+			},
+			{
+				"line": 392,
+				"text": "Les endpoints doivent être accessibles (même si Immich est down)",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "tests/api.test.ts",
+		"frenchComments": [
+			{
+				"line": 184,
+				"text": "Setup et Teardown",
+				"recommendation": "remove"
+			},
+			{
+				"line": 195,
+				"text": "Créer une clé API avec scope 'admin' pour les tests admin",
+				"recommendation": "convert"
+			},
+			{
+				"line": 202,
+				"text": "Créer une clé API avec scope 'read' pour les tests de lecture",
+				"recommendation": "convert"
+			},
+			{
+				"line": 229,
+				"text": "Supprimer les clés API de test",
+				"recommendation": "convert"
+			},
+			{
+				"line": 341,
+				"text": "Fallback si création a échoué mais user existe",
+				"recommendation": "remove"
+			},
+			{
+				"line": 458,
+				"text": "Immich peut être down ou non configuré",
+				"recommendation": "convert"
+			},
+			{
+				"line": 512,
+				"text": "Tests de Permissions - Endpoints Admin avec x-api-key",
+				"recommendation": "convert"
+			},
+			{
+				"line": 546,
+				"text": "Cleanup si créé",
+				"recommendation": "remove"
+			},
+			{
+				"line": 562,
+				"text": "Créer une clé temporaire via session",
+				"recommendation": "convert"
+			},
+			{
+				"line": 578,
+				"text": "Tenter de supprimer avec x-api-key",
+				"recommendation": "convert"
+			},
+			{
+				"line": 625,
+				"text": "Cleanup si créé",
+				"recommendation": "remove"
+			},
+			{
+				"line": 638,
+				"text": "Créer un utilisateur temporaire",
+				"recommendation": "convert"
+			},
+			{
+				"line": 656,
+				"text": "Tenter de modifier avec x-api-key",
+				"recommendation": "convert"
+			},
+			{
+				"line": 685,
+				"text": "Créer un utilisateur temporaire",
+				"recommendation": "convert"
+			},
+			{
+				"line": 703,
+				"text": "Tenter de supprimer avec x-api-key",
+				"recommendation": "convert"
+			},
+			{
+				"line": 718,
+				"text": "Tests de Permissions - Scopes READ vs WRITE",
+				"recommendation": "convert"
+			},
+			{
+				"line": 778,
+				"text": "Test de régression pour vérifier que scope 'delete' n'est plus requis",
+				"recommendation": "convert"
+			},
+			{
+				"line": 784,
+				"text": "Tests de Sécurité - Endpoint /api/db",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "tests/albums.test.ts",
+		"frenchComments": [
+			{
+				"line": 16,
+				"text": "Suivi de tous les albums créés pour le nettoyage",
+				"recommendation": "convert"
+			},
+			{
+				"line": 22,
+				"text": "Créer un album de test dédié pour les tests de permissions",
+				"recommendation": "convert"
+			},
+			{
+				"line": 59,
+				"text": "Ignorer les erreurs (album peut déjà être supprimé)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 69,
+				"text": "Helper pour les headers d'authentification",
+				"recommendation": "remove"
+			},
+			{
+				"line": 107,
+				"text": "Vérifier la structure des albums si présents",
+				"recommendation": "convert"
+			},
+			{
+				"line": 112,
+				"text": "Sauvegarder pour les tests suivants",
+				"recommendation": "remove"
+			},
+			{
+				"line": 193,
+				"text": "Skip si pas d'album disponible",
+				"recommendation": "remove"
+			},
+			{
+				"line": 229,
+				"text": "Tracker pour nettoyage",
+				"recommendation": "remove"
+			},
+			{
+				"line": 286,
+				"text": "Gérer les deux formats de réponse possibles",
+				"recommendation": "convert"
+			},
+			{
+				"line": 513,
+				"text": "Tests pour /api/albums/list et /api/albums/import supprimés - endpoints dépréciés",
+				"recommendation": "remove"
+			},
+			{
+				"line": 518,
+				"text": "Utiliser le premier album disponible ou skip",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "tests/admin-auth.test.ts",
+		"frenchComments": [
+			{
+				"line": 12,
+				"text": "Liste des labels de clés créées pendant les tests pour nettoyage",
+				"recommendation": "convert"
+			},
+			{
+				"line": 42,
+				"text": "Supprimer les clés avec les labels de test ou qui commencent par \"Test API Key\"",
+				"recommendation": "convert"
+			},
+			{
+				"line": 224,
+				"text": "Vérifier que la clé a bien été supprimée",
+				"recommendation": "convert"
+			},
+			{
+				"line": 455,
+				"text": "Toutes les requêtes devraient réussir ou être limitées",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/photos-cv/+page.server.ts",
+		"frenchComments": [
+			{
+				"line": 13,
+				"text": "Admin et mitviste peuvent accéder même sans id_photos (pour gérer les imports)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 14,
+				"text": "Les autres utilisateurs doivent avoir un id_photos",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/mes-photos/+page.server.ts",
+		"frenchComments": [
+			{
+				"line": 8,
+				"text": "Require authenticated user with id_photos",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/mes-photos/+page.svelte",
+		"frenchComments": [
+			{
+				"line": 49,
+				"text": "Recharger la page pour mettre à jour tous les affichages (header, vignette, etc.)",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/corbeille/+page.svelte",
+		"frenchComments": [
+			{
+				"line": 37,
+				"text": "Vérifier le rôle de l'utilisateur",
+				"recommendation": "convert"
+			},
+			{
+				"line": 178,
+				"text": "Retirer les assets restaurés de la liste",
+				"recommendation": "convert"
+			},
+			{
+				"line": 224,
+				"text": "Retirer les assets supprimés de la liste",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/[username]/avatar/+server.ts",
+		"frenchComments": [
+			{
+				"line": 45,
+				"text": "Récupérer la photo de profil depuis Immich",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/[id]/+server.ts",
+		"frenchComments": [
+			{
+				"line": 115,
+				"text": "Log deletion",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/me/+server.ts",
+		"frenchComments": [
+			{
+				"line": 14,
+				"text": "Requiert une session active (pas de clé API)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 48,
+				"text": "Requiert une session active (pas de clé API)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 66,
+				"text": "Supprimer le cookie de session",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/me/promo/+server.ts",
+		"frenchComments": [
+			{
+				"line": 56,
+				"text": "Mettre à jour l'année de promo et marquer first_login à 0",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/me/photo-access/+server.ts",
+		"frenchComments": [
+			{
+				"line": 29,
+				"text": "Récupérer les autorisations avec les infos des utilisateurs autorisés",
+				"recommendation": "convert"
+			},
+			{
+				"line": 72,
+				"text": "Vérifier que l'utilisateur ne s'autorise pas lui-même",
+				"recommendation": "convert"
+			},
+			{
+				"line": 77,
+				"text": "Vérifier que l'utilisateur cible existe",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/me/photo-access/shared-with-me/+server.ts",
+		"frenchComments": [
+			{
+				"line": 23,
+				"text": "Récupérer les personnes qui m'ont donné accès à leurs photos",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/+server.ts",
+		"frenchComments": [
+			{
+				"line": 13,
+				"text": "Exclure uniquement l'admin système (les.roots@etu.emse.fr)",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/users/me/face/+server.ts",
+		"frenchComments": [
+			{
+				"line": 68,
+				"text": "Vérifier si ce person_id est déjà utilisé par un autre utilisateur",
+				"recommendation": "convert"
+			},
+			{
+				"line": 86,
+				"text": "Mettre à jour l'ID de la personne et marquer first_login à 0",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/health/+server.ts",
+		"frenchComments": [
+			{
+				"line": 15,
+				"text": "Vérifier la connexion à la base de données",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/admin/logs/+server.ts",
+		"frenchComments": [
+			{
+				"line": 1,
+				"text": "Tout la logique de logs sera à faire plus tard",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/metadata/+server.ts",
+		"frenchComments": [
+			{
+				"line": 47,
+				"text": "Vérifier que l'album existe dans la base de données locale",
+				"recommendation": "convert"
+			},
+			{
+				"line": 53,
+				"text": "Mettre à jour les métadonnées locales",
+				"recommendation": "convert"
+			},
+			{
+				"line": 63,
+				"text": "Retourner les données mises à jour",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/permissions/users/+server.ts",
+		"frenchComments": [
+			{
+				"line": 32,
+				"text": "Vérifier que l'album existe",
+				"recommendation": "convert"
+			},
+			{
+				"line": 41,
+				"text": "Ajouter les utilisateurs",
+				"recommendation": "remove"
+			},
+			{
+				"line": 55,
+				"text": "Supprimer les utilisateurs",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/permissions/tags/+server.ts",
+		"frenchComments": [
+			{
+				"line": 32,
+				"text": "Vérifier que l'album existe",
+				"recommendation": "convert"
+			},
+			{
+				"line": 41,
+				"text": "Ajouter les tags",
+				"recommendation": "remove"
+			},
+			{
+				"line": 55,
+				"text": "Supprimer les tags",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/info/+server.ts",
+		"frenchComments": [
+			{
+				"line": 42,
+				"text": "Charger les tags",
+				"recommendation": "remove"
+			},
+			{
+				"line": 47,
+				"text": "Charger les utilisateurs autorisés",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/assets-stream/+server.ts",
+		"frenchComments": [
+			{
+				"line": 79,
+				"text": "Utiliser en priorité la visibilité de la BDD locale (notre source de vérité),",
+				"recommendation": "convert"
+			},
+			{
+				"line": 105,
+				"text": "Récupérer la liste des assets de l'album (album déjà lu ci-dessus)",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/assets-simple/+server.ts",
+		"frenchComments": [
+			{
+				"line": 41,
+				"text": "Nettoyer les assets pour éviter les Proxies",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/assets/+server.ts",
+		"frenchComments": [
+			{
+				"line": 43,
+				"text": "Invalider le cache de l'album pour que les nouvelles photos apparaissent immédiatement",
+				"recommendation": "convert"
+			},
+			{
+				"line": 89,
+				"text": "Invalider le cache de l'album pour que les photos supprimées disparaissent immédiatement",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/admin/db-restore/+server.ts",
+		"frenchComments": [
+			{
+				"line": 28,
+				"text": "Vérifier que le fichier est bien dans le dossier backups (sécurité)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 39,
+				"text": "Fermer la connexion existante",
+				"recommendation": "convert"
+			},
+			{
+				"line": 42,
+				"text": "Sauvegarder la DB actuelle",
+				"recommendation": "convert"
+			},
+			{
+				"line": 47,
+				"text": "Restaurer depuis la sauvegarde",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/admin/db-inspect/+server.ts",
+		"frenchComments": [
+			{
+				"line": 17,
+				"text": "Parser la sortie pour détecter les erreurs",
+				"recommendation": "convert"
+			},
+			{
+				"line": 21,
+				"text": "Récupérer la liste des tables",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/[id]/+server.ts",
+		"frenchComments": [
+			{
+				"line": 171,
+				"text": "Vérifier que l'album existe dans la BDD locale",
+				"recommendation": "convert"
+			},
+			{
+				"line": 177,
+				"text": "Mettre à jour les métadonnées locales",
+				"recommendation": "convert"
+			},
+			{
+				"line": 217,
+				"text": "Gérer les tags",
+				"recommendation": "remove"
+			},
+			{
+				"line": 219,
+				"text": "Récupérer les tags existants",
+				"recommendation": "convert"
+			},
+			{
+				"line": 225,
+				"text": "Tags à ajouter",
+				"recommendation": "remove"
+			},
+			{
+				"line": 231,
+				"text": "Tags à supprimer",
+				"recommendation": "remove"
+			},
+			{
+				"line": 238,
+				"text": "Gérer les utilisateurs autorisés",
+				"recommendation": "remove"
+			},
+			{
+				"line": 240,
+				"text": "Récupérer les utilisateurs existants",
+				"recommendation": "convert"
+			},
+			{
+				"line": 246,
+				"text": "Utilisateurs à ajouter",
+				"recommendation": "remove"
+			},
+			{
+				"line": 254,
+				"text": "Utilisateurs à supprimer",
+				"recommendation": "remove"
+			},
+			{
+				"line": 263,
+				"text": "Retourner les données mises à jour",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/admin/db-import/+server.ts",
+		"frenchComments": [
+			{
+				"line": 33,
+				"text": "Fermer la connexion existante avant de toucher au fichier",
+				"recommendation": "convert"
+			},
+			{
+				"line": 36,
+				"text": "Sauvegarder la DB actuelle avant import",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/admin/db-backup/+server.ts",
+		"frenchComments": [
+			{
+				"line": 15,
+				"text": "Extraire le chemin de sauvegarde de l'output (ligne \"✅ Sauvegarde créée: nom_fichier\")",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/+server.ts",
+		"frenchComments": [
+			{
+				"line": 24,
+				"text": "Récupérer uniquement les albums de la base de données locale",
+				"recommendation": "convert"
+			},
+			{
+				"line": 30,
+				"text": "Transformer en format compatible avec l'ancien format ImmichAlbum pour la rétrocompatibilité",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/api/albums/covers/+server.ts",
+		"frenchComments": [
+			{
+				"line": 36,
+				"text": "Traiter le batch en parallèle",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/+layout.server.ts",
+		"frenchComments": [
+			{
+				"line": 45,
+				"text": "Déterminer un identifiant provider stable (ordre d'essai)",
+				"recommendation": "convert"
+			},
+			{
+				"line": 57,
+				"text": "Chercher par id_user",
+				"recommendation": "remove"
+			},
+			{
+				"line": 68,
+				"text": "Créer un utilisateur minimal dans la base pour garder la cohérence",
+				"recommendation": "convert"
+			},
+			{
+				"line": 95,
+				"text": "En dernier recours, renvoyer la session provider brute",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/admin/login-as/+server.ts",
+		"frenchComments": [
+			{
+				"line": 13,
+				"text": "Vérifier que l'utilisateur actuel est admin",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/routes/admin/database/+page.server.ts",
+		"frenchComments": [
+			{
+				"line": 18,
+				"text": "Statistiques de la DB",
+				"recommendation": "remove"
+			},
+			{
+				"line": 25,
+				"text": "Taille de la DB",
+				"recommendation": "remove"
+			},
+			{
+				"line": 41,
+				"text": "Liste des sauvegardes",
+				"recommendation": "remove"
+			}
+		]
+	},
+	{
+		"file": "src/routes/admin/api/database/+server.ts",
+		"frenchComments": [
+			{
+				"line": 20,
+				"text": "Vérifier les tables existantes",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/hooks.server.ts",
+		"frenchComments": [
+			{
+				"line": 82,
+				"text": "Pour les méthodes qui modifient des données, on vérifie que l'Origin correspond",
+				"recommendation": "convert"
+			},
+			{
+				"line": 111,
+				"text": "CSS et JS compilés par SvelteKit (versionnés): cache 1 année",
+				"recommendation": "convert"
+			}
+		]
+	},
+	{
+		"file": "src/lib/album-operations.ts",
+		"frenchComments": [
+			{
+				"line": 102,
+				"text": "Capturer les valeurs pour éviter les problèmes de proxy",
+				"recommendation": "convert"
+			},
+			{
+				"line": 171,
+				"text": "Normaliser en tableau typé AssetLike[] pour éviter les any",
+				"recommendation": "convert"
+			},
+			{
+				"line": 204,
+				"text": "Enregistrer le résultat pour ce fichier",
+				"recommendation": "convert"
+			},
+			{
+				"line": 210,
+				"text": "Appeler le callback par-fichier si fourni",
+				"recommendation": "convert"
+			},
+			{
+				"line": 247,
+				"text": "Appeler le callback de progression global",
+				"recommendation": "convert"
+			}
+		]
+	}
+]

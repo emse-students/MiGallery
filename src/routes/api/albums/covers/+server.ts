@@ -33,7 +33,6 @@ export const POST: RequestHandler = async (event) => {
 				for (let i = 0; i < albumIds.length; i += batchSize) {
 					const batch = albumIds.slice(i, i + batchSize);
 
-					// Traiter le batch en parallèle
 					const results = await Promise.allSettled(
 						batch.map(async (albumId) => {
 							try {
@@ -55,11 +54,9 @@ export const POST: RequestHandler = async (event) => {
 									if (assets.length > 0 || album.albumThumbnailAssetId) {
 										let coverAsset: ImmichAsset | undefined;
 
-										// 1. Try to find the cover asset in the list
 										if (album.albumThumbnailAssetId) {
 											coverAsset = assets.find((a) => a.id === album.albumThumbnailAssetId);
 
-											// 2. If not found, try to fetch it individually
 											if (!coverAsset) {
 												try {
 													const assetRes = await fetch(
@@ -83,7 +80,6 @@ export const POST: RequestHandler = async (event) => {
 											}
 										}
 
-										// 3. Fallback to first asset if still no cover
 										if (!coverAsset && assets.length > 0) {
 											coverAsset = assets[0];
 										}
@@ -109,7 +105,6 @@ export const POST: RequestHandler = async (event) => {
 						})
 					);
 
-					// Envoyer chaque résultat immédiatement
 					for (const result of results) {
 						if (result.status === 'fulfilled') {
 							const data = `${JSON.stringify(result.value)}\n`;

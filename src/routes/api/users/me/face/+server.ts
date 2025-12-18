@@ -15,21 +15,17 @@ import { requireScope } from '$lib/server/permissions';
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
 
-	// Vérifier l'authentification via API key ou session
 	const auth = await requireScope(event, 'read');
 
 	try {
 		const db = getDatabase();
 		const body = (await request.json()) as { person_id?: string | null; user_id?: string };
 
-		// Récupérer l'utilisateur cible
 		let userId: string | null = null;
 
-		// Si admin et user_id fourni, utiliser celui-ci
 		if (auth.grantedScope === 'admin' && body.user_id) {
 			userId = body.user_id;
 		} else {
-			// Sinon, identifier l'utilisateur connecté via cookie
 			const cookieSigned = cookies.get('current_user_id') ?? null;
 
 			if (cookieSigned) {
@@ -39,7 +35,6 @@ export const PATCH: RequestHandler = async (event) => {
 				}
 			}
 
-			// Fallback sur la session provider
 			if (!userId && locals && typeof locals.auth === 'function') {
 				const session = await locals.auth();
 				if (session?.user) {
@@ -48,7 +43,6 @@ export const PATCH: RequestHandler = async (event) => {
 				}
 			}
 
-			// Fallback sur l'userId défini par requireScope (API key avec user associé)
 			if (!userId && locals.userId) {
 				userId = locals.userId as string;
 			}
@@ -60,12 +54,10 @@ export const PATCH: RequestHandler = async (event) => {
 
 		const personId = body.person_id;
 
-		// Accepter null ou une chaîne non vide
 		if (personId !== null && (personId === undefined || typeof personId !== 'string')) {
 			return json({ error: 'person_id is required and must be a string or null' }, { status: 400 });
 		}
 
-		// Vérifier si ce person_id est déjà utilisé par un autre utilisateur
 		if (personId) {
 			const existingUser = db
 				.prepare('SELECT id_user FROM users WHERE id_photos = ? AND id_user != ?')
@@ -83,7 +75,6 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		// Mettre à jour l'ID de la personne et marquer first_login à 0
 		const stmt = db.prepare('UPDATE users SET id_photos = ?, first_login = 0 WHERE id_user = ?');
 		const result = stmt.run(personId, userId);
 

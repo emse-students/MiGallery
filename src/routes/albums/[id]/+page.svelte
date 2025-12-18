@@ -19,7 +19,6 @@
   import { navigationModalStore } from '$lib/navigation-store';
   import type { User, Album } from '$lib/types/api';
 
-  // --- LOGIC ---
   const photosState = new PhotosState();
   let title = $state('');
   let locationInfo = $state('');
@@ -27,11 +26,9 @@
   let showConfirmModal = $state(false);
   let confirmModalConfig = $state<{ title: string; message: string; confirmText?: string; onConfirm: () => void } | null>(null);
 
-  // Sécurité & Rôles
   let userRole = $derived(((page.data.session?.user as User)?.role) || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
-  // Gestion Navigation / Opérations actives
   let hasActiveOps = $state(false);
   const unsubOps = activeOperations.subscribe((ops) => { hasActiveOps = ops.size > 0; });
 
@@ -43,18 +40,15 @@
     }
   }
 
-  // Chargement des données de l'album
   $effect(() => {
     const albumData = (page.data as { album?: Album }).album;
     if (albumData?.id) {
       title = albumData.name || 'Album';
       locationInfo = albumData.location || '';
-      // Chargement initial des photos
       photosState.loadAlbumWithStreaming(albumData.id, albumData.name, albumData.visibility || undefined);
     }
   });
 
-  // Actions
   async function downloadAll() {
     const ok = await showConfirm(`Télécharger ${photosState.assets.length} image(s) ?`, 'Télécharger ZIP');
     if (!ok) return;
@@ -130,7 +124,6 @@
       onFileResult,
       isPhotosCV: false,
       onSuccess: async () => {
-        // Recharger pour être sûr de la synchro
         photosState.loadAlbumWithStreaming(albumId, title);
       }
     });

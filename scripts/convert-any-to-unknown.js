@@ -20,14 +20,12 @@ function transformFile(file) {
 	let src = fs.readFileSync(file, 'utf8');
 	const original = src;
 
-	// Replacements
-	// 1) type annotations: ': any' -> ': unknown'
 	src = src.replace(/:\s*any(\b|\s|;|>)/g, ': unknown$1');
 	// 2) any[] -> unknown[]
 	src = src.replace(/\bany\s*\[\s*\]/g, 'unknown[]');
 	// 3) as any -> as unknown
 	src = src.replace(/as\s+any\b/g, 'as unknown');
-	// 4) function params like (x: any) -> (x: unknown)
+
 	src = src.replace(/\(\s*([a-zA-Z0-9_\$]+)\s*:\s*any(\s*\))/g, '($1: unknown$2)');
 	// 5) generic usages <any> -> <unknown>
 	src = src.replace(/<any>/g, '<unknown>');

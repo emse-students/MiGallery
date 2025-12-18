@@ -38,7 +38,6 @@ export async function fetchAlbumCovers(
 					}
 				} catch (_e) {
 					void _e; // Mark _e as used
-					// ignore per-album failures
 				}
 			})
 		);

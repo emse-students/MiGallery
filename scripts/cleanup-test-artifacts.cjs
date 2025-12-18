@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * Script de nettoyage des artefacts de test
- * Supprime les utilisateurs, albums, et clés API créés pendant les tests
- *
- * Convention de nommage pour les tests:
- * - Utilisateurs: commencent par "test." (ex: test.user.123456789)
- * - Albums: commencent par "[TEST]" (ex: [TEST] Permission Album 123456789)
- * - Clés API: commencent par "[TEST]" (ex: [TEST] Admin Key)
- */
 
 const path = require('path');
 const fs = require('fs');
@@ -23,7 +14,6 @@ async function main() {
 		return;
 	}
 
-	// Détecter si on est dans Bun ou Node
 	const isBun = typeof globalThis.Bun !== 'undefined';
 	let Database;
 
@@ -37,7 +27,7 @@ async function main() {
 	const db = new Database(DB_PATH);
 
 	try {
-		// 1. Supprimer les utilisateurs de test (ceux qui commencent par 'test.')
+
 		const testUsers = db.prepare("SELECT id_user FROM users WHERE id_user LIKE 'test.%'").all();
 
 		if (testUsers.length > 0) {
@@ -51,7 +41,6 @@ async function main() {
 			console.log('👤 Aucun utilisateur de test trouvé\n');
 		}
 
-		// 2. Supprimer les clés API de test (commencent par '[TEST]' ou sont NULL)
 		const testApiKeys = db
 			.prepare(
 				`SELECT id, label FROM api_keys WHERE
@@ -73,7 +62,6 @@ async function main() {
 			console.log('🔑 Aucune clé API de test trouvée\n');
 		}
 
-		// 3. Supprimer les albums de test (commencent par '[TEST]')
 		const testAlbums = db.prepare("SELECT id, name FROM albums WHERE name LIKE '[TEST]%'").all();
 
 		if (testAlbums.length > 0) {
@@ -87,7 +75,6 @@ async function main() {
 			console.log('📁 Aucun album de test trouvé\n');
 		}
 
-		// 4. Vérifier les permissions orphelines
 		const orphanedTagPerms = db
 			.prepare(
 				`
@@ -122,7 +109,6 @@ async function main() {
 			console.log('   ✅ Supprimées\n');
 		}
 
-		// 5. Afficher un résumé
 		console.log('📊 État actuel de la base de données:');
 		const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get();
 		const apiKeyCount = db.prepare('SELECT COUNT(*) as count FROM api_keys').get();

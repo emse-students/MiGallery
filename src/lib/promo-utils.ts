@@ -12,7 +12,6 @@ export function getSchoolYear(date: Date): number {
 	const month = date.getMonth() + 1; // 1-12
 	const year = date.getFullYear();
 
-	// Si avant le 25 août, on est dans l'année scolaire de l'année précédente
 	if (month < 8 || (month === 8 && date.getDate() < 25)) {
 		return year - 1;
 	}
@@ -30,7 +29,6 @@ export function getDefaultPromoTags(date: Date): string[] {
 	const schoolYear = getSchoolYear(date);
 	const tags: string[] = [];
 
-	// Ajouter l'année scolaire actuelle et les 3 précédentes
 	for (let i = 0; i < 4; i++) {
 		tags.push(`Promo ${schoolYear - i}`);
 	}

@@ -16,7 +16,6 @@
 	let years = $state<number[]>([]);
 
 	onMount(() => {
-		// Générer une liste d'années (depuis 1816 jusqu'à l'année actuelle)
 		const currentYear = new Date().getFullYear();
 		const yearList: number[] = [];
 		for (let year = currentYear; year >= 1816; year--) {

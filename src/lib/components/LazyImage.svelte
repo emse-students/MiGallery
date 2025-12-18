@@ -45,7 +45,7 @@
         class?: string;
         aspectRatio?: string;
         isVideo?: boolean;
-        radius?: string; // Prop pour contrôler le radius du skeleton interne
+        radius?: string; 
     }
 
     let { src, highRes = undefined, highResDprThreshold = 1.25, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
@@ -79,13 +79,10 @@
 
     $effect(() => {
         if (isInView && hasStartedLoading) {
-            // Start by displaying the preview src
             displaySrc = src;
-            // If a highRes URL is provided, fetch and swap to it lazily
             if (highRes && !highResLoaded) {
                 const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1;
                 if (dpr < (highResDprThreshold || 1)) {
-                    // Skip fetching highRes for low-DPR displays to save bandwidth
                     return;
                 }
                 try {
@@ -101,14 +98,11 @@
                                 displaySrc = url;
                                 highResLoaded = true;
                             }).catch(() => {
-                                // If highRes fails, fallback to preview src (already set)
                             });
                     }
                 } catch (e) {
-                    // ignore and keep preview
                 }
             } else {
-                // No highRes requested: fallback to previous behavior for preview fetching/caching
                 try {
                     if (typeof src === 'string' && src.includes('/api/immich') && src.includes('thumbnail')) {
                         const cached = getCached(src);

@@ -18,7 +18,6 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Check local DB album visibility (our source of truth)
 		let localVisibility: string | undefined = undefined;
 		try {
 			const db = getDatabase();
@@ -41,7 +40,6 @@ export const GET: RequestHandler = async (event) => {
 		const isUnlisted = visibilityHint === 'unlisted' || localVisibility === 'unlisted';
 
 		if (!isUnlisted) {
-			// require auth or x-api-key with read scope
 			await requireScope(event, 'read');
 		}
 
@@ -49,7 +47,6 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_API_KEY not configured on server');
 		}
 
-		// Fetch the thumbnail via the internal immich proxy and stream back to client
 		const size = new URL(request.url).searchParams.get('size') || 'thumbnail';
 		const proxied = await fetch(
 			`/api/immich/assets/${assetId}/thumbnail?size=${encodeURIComponent(size)}`,
@@ -62,7 +59,6 @@ export const GET: RequestHandler = async (event) => {
 		);
 
 		if (!proxied.ok) {
-			// try to read a small body for diagnostics
 			let bodySnippet = '';
 			try {
 				bodySnippet = await proxied.clone().text();
@@ -77,7 +73,6 @@ export const GET: RequestHandler = async (event) => {
 			return new Response(bodySnippet || proxied.statusText, { status: proxied.status });
 		}
 
-		// Copy relevant headers
 		const headers: Record<string, string> = {};
 		const contentType = proxied.headers.get('content-type');
 		if (contentType) {

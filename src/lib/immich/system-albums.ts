@@ -4,10 +4,8 @@ import { ensureError } from '$lib/ts-utils';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
-// Albums systèmes centralisés
 export const SYSTEM_ALBUMS = ['PhotoCV', 'PortailEtu'];
 
-// Simple in-memory cache for album ids
 const albumIdCache: Record<string, { id: string; updatedAt: number }> = {};
 const ALBUM_CACHE_TTL = 60 * 1000; // 1 minute
 
@@ -42,7 +40,6 @@ export async function getOrCreateSystemAlbum(
 		return existing.id;
 	}
 
-	// Create the album
 	const createRes = await fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
 		method: 'POST',
 		headers: {
@@ -97,7 +94,6 @@ export async function getAllAssetIdsInSystemAlbums(fetchFn: typeof fetch): Promi
 			}
 		} catch (_e) {
 			void _e;
-			// ignore
 		}
 	}
 	return Array.from(allAssetIds);

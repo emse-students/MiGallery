@@ -22,7 +22,6 @@ export const GET: RequestHandler = async (event) => {
 			throw svelteError(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		// Récupérer l'album avec ses assets
 		const albumRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
@@ -38,7 +37,6 @@ export const GET: RequestHandler = async (event) => {
 		const album = (await albumRes.json()) as ImmichAlbum;
 		const rawAssets = Array.isArray(album?.assets) ? album.assets : [];
 
-		// Nettoyer les assets pour éviter les Proxies
 		const assets = rawAssets.map((asset: ImmichAsset) => ({
 			id: asset.id,
 			originalFileName: asset.originalFileName,

@@ -2,7 +2,6 @@
 const fs = require('fs');
 const path = require('path');
 
-// Detect runtime and load appropriate database driver
 function isBunRuntime() {
 	return typeof Bun !== 'undefined';
 }
@@ -21,7 +20,6 @@ const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'm
 const dir = path.dirname(DB_PATH);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-// Vérifier si la DB existe déjà
 const dbExists = fs.existsSync(DB_PATH);
 if (dbExists) {
 	console.log('⚠️  Base de données déjà existante:', DB_PATH);
@@ -39,7 +37,6 @@ try {
 	const schema = fs.readFileSync(schemaPath, 'utf8');
 	db.exec(schema);
 
-	// Insert system admin user (ne doit pas apparaître sur le trombinoscope)
 	db
 		.prepare(
 			'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -52,11 +49,10 @@ try {
 			null,
 			0,
 			'admin',
-			null // promo_year null pour ne pas apparaître sur le trombinoscope
+			null 
 		);
 	console.log('✅ Utilisateur système admin créé: les.roots');
 
-	// If IMMICH configured, import albums (id = immich id)
 	const base = process.env.IMMICH_BASE_URL;
 	const apiKey = process.env.IMMICH_API_KEY;
 	if (base) {

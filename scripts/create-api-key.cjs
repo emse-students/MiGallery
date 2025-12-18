@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// Detect runtime and load appropriate database driver
 function isBunRuntime() {
 	return typeof Bun !== 'undefined';
 }
@@ -45,7 +44,6 @@ try {
 
 	const db = new Database(DB_PATH);
 
-	// ensure table exists (mimic migration behavior)
 	db.exec(`CREATE TABLE IF NOT EXISTS api_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     key_hash TEXT NOT NULL UNIQUE,

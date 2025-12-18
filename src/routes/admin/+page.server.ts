@@ -11,7 +11,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		throw redirect(303, '/');
 	}
 
-	// Read docs directory
 	const docsDir = join(process.cwd(), 'docs');
 	let files: { name: string; filename: string; html: string }[] = [];
 	try {
@@ -19,23 +18,19 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		for (const fn of entries) {
 			try {
 				const raw = readFileSync(join(docsDir, fn), 'utf-8');
-				// Extract title from first heading if present
 				const titleMatch = raw.match(/^#\s*(.+)$/m);
 				const title = titleMatch ? titleMatch[1].trim() : fn.replace(/[-_]/g, ' ').replace(/\.md$/, '');
 				const html = mdToHtml(raw);
 				files.push({ name: title, filename: fn, html });
 			} catch (_e) {
 				void _e;
-				// ignore individual file read errors
 			}
 		}
 	} catch (_e) {
 		void _e;
-		// docs directory missing - return empty
 		files = [];
 	}
 
-	// Prefer showing API_ENDPOINTS.md first if present
 	files.sort((a, _b) =>
 		a.filename.toLowerCase() === 'api_endpoints.md' || a.filename.toLowerCase() === 'api-endpoints.md'
 			? -1

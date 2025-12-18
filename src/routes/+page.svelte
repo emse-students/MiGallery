@@ -14,13 +14,9 @@
   const greeting = hour < 18 ? "Bonjour" : "Bonsoir";
 
   async function handleSignIn() {
-		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
-		// Sans callbackUrl, redirige vers la page d'origine après authentification
 		await signIn('cas-emse', { callbackUrl: window.location.href });
 	}
 </script>
-
-
 
 <svelte:head>
   <title>MiGallery - Accueil</title>

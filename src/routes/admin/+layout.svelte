@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import './shared-admin.css';
-  // simple nav links for admin
   const links = [
     { href: '/admin', label: 'Documentation', icon: '📚' },
     { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
@@ -9,7 +8,6 @@
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
     { href: '/admin/database', label: 'Base de données', icon: '🗄️' }
   ];
-    // Svelte 5 children prop for {@render}
     let { children } = $props();
 </script>
 

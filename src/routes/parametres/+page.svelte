@@ -218,7 +218,6 @@
 
       if (people.length === 1) {
         personId = people[0].id;
-        // Ne pas afficher "Succès" tout de suite, attendre la confirmation BDD
         uploadStatus = `Visage détecté, enregistrement...`;
 
         const updateResponse = await fetch('/api/users/me/face', {
@@ -303,7 +302,6 @@
 
       assetId = uploadedAssetId;
 
-      // Polling loop
       const maxAttempts = 15;
       let attempt = 0;
       let faceDetected = false;

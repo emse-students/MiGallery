@@ -17,7 +17,6 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	try {
-		// Force WAL checkpoint to ensure all data is in the main file
 		const db = getDatabase();
 		if (db.exec) {
 			db.exec('PRAGMA wal_checkpoint(TRUNCATE);');

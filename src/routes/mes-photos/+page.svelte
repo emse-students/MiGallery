@@ -31,7 +31,6 @@
   }
 
   async function handlePhotoSelected(assetId: string) {
-    // Use the target user's id_photos (from photosState)
     const targetIdPhotos = photosState.peopleId;
     if (!targetIdPhotos) throw new Error('Utilisateur non configuré');
 
@@ -46,14 +45,12 @@
     }
 
     toast.success('Photo de profil mise à jour !');
-    // Recharger la page pour mettre à jour tous les affichages (header, vignette, etc.)
     window.location.reload();
   }
 
   onDestroy(() => photosState.cleanup());
 
   onMount(async () => {
-    // Check for userId parameter (from trombinoscope or direct link)
     const urlParams = new URLSearchParams(window.location.search);
     const userIdParam = urlParams.get('userId');
 
@@ -79,7 +76,6 @@
             return;
           }
 
-          // Access granted - use the user info from the response
           if (accessData.user?.id_photos) {
             targetUserId = userIdParam;
             photosState.peopleId = accessData.user.id_photos;
@@ -96,7 +92,6 @@
       }
 
       targetUserId = userIdParam;
-      // Fetch the target user's id_photos via API users endpoint (own photos case)
       try {
         const accessRes = await fetch(`/api/users/${encodeURIComponent(userIdParam)}/photo-access`);
         const accessData = await accessRes.json() as {
@@ -117,14 +112,12 @@
       return;
     }
 
-    // Default: load current user's photos
     targetUserId = null;
     isViewingOwnPhotos = true;
     if (!user?.id_photos) {
       goto('/');
       return;
     }
-    // Use local DB name for current user header
     targetUserName = (user?.prenom || '') + (user?.nom ? (' ' + user.nom) : '');
 
     photosState.peopleId = user.id_photos;

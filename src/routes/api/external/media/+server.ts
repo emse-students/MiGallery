@@ -24,7 +24,6 @@ export const POST: RequestHandler = async (event) => {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
 
-	// Parse the multipart form data
 	let formData: FormData;
 	try {
 		formData = await request.formData();
@@ -34,17 +33,14 @@ export const POST: RequestHandler = async (event) => {
 		throw error(400, 'Invalid multipart form data');
 	}
 
-	// Extract the file from the form
 	const file = formData.get('file');
 	if (!file || !(file instanceof File)) {
 		throw error(400, 'Missing or invalid "file" field in multipart form data');
 	}
 
-	// Create new FormData for Immich with required fields
 	const immichFormData = new FormData();
 	immichFormData.append('assetData', file);
 
-	// Immich requires these metadata fields
 	const now = new Date().toISOString();
 	const deviceId = 'external-api'; // Generic device ID for external uploads
 	const deviceAssetId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`; // Unique ID
@@ -73,7 +69,6 @@ export const POST: RequestHandler = async (event) => {
 		| { id?: string; assets?: { id?: string }[] }
 		| { id?: string }[]
 		| null;
-	// Try to extract asset ids from response
 	let assetIds: string[] = [];
 	if (Array.isArray(uploadJson)) {
 		assetIds = uploadJson.map((it) => it.id).filter((id): id is string => Boolean(id));
@@ -83,7 +78,6 @@ export const POST: RequestHandler = async (event) => {
 		assetIds = [uploadJson.id];
 	}
 
-	// Add assets to PortailEtu album
 	try {
 		const albumId = await getOrCreateSystemAlbum(fetch, 'PortailEtu');
 		if (assetIds.length > 0) {
@@ -158,7 +152,6 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ error: 'No asset IDs provided' }, { status: 400 });
 	}
 
-	// Delete assets from Immich
 	const deleteRes = await fetch(`${IMMICH_BASE_URL}/api/assets`, {
 		method: 'DELETE',
 		headers: {

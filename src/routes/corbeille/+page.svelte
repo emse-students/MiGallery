@@ -21,11 +21,9 @@
   let showPhotoModal = $state(false);
   let modalAssetId = $state<string>('');
 
-  // Performance tracking (silent)
   let progress = $state<number>(0);
   let totalToLoad = $state<number>(0);
 
-  // État du modal de confirmation
   let showConfirmModal = $state(false);
   let confirmModalConfig = $state<{
     title: string;
@@ -34,7 +32,6 @@
     onConfirm: () => void;
   } | null>(null);
 
-  // Vérifier le rôle de l'utilisateur
   let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
   let canAccess = $derived(userRole === 'mitviste' || userRole === 'admin');
 
@@ -46,18 +43,15 @@
     totalToLoad = 0;
 
     try {
-      // 1) Récupérer les buckets contenant des éléments supprimés
       const bucketsRes = await fetch('/api/immich/timeline/buckets?isTrashed=true&size=MONTH');
       if (!bucketsRes.ok) throw new Error(`Erreur lors du chargement des buckets: ${bucketsRes.statusText}`);
 
       const buckets = (await bucketsRes.json()) as { timeBucket: string; count: number }[];
       if (!Array.isArray(buckets) || buckets.length === 0) {
-        // Aucun élément supprimé
         assets = [];
         return;
       }
 
-      // 2) Collecter tous les IDs d'assets à partir des buckets
       const allAssetIds: string[] = [];
       for (const bucket of buckets) {
         try {
@@ -81,7 +75,6 @@
         return;
       }
 
-      // 3) Récupérer les assets avec un pool limité de requêtes pour éviter de surcharger le backend
       const concurrency = 8;
       const results: ImmichAsset[] = [];
 
@@ -108,7 +101,6 @@
         results.push(...(batchResults.filter(r => r) as ImmichAsset[]));
       }
 
-      // Normalize assets to include a `date` field used for grouping (similar to Mes photos)
       assets = results.map((it) => ({
         ...it,
         date: it.deletedAt || it.takenAt || it.fileCreatedAt || it.updatedAt || null
@@ -120,8 +112,6 @@
       loading = false;
     }
   }
-
-  // removed manual ID check helper (temporary debug)
 
   function handlePhotoClick(id: string, event?: Event) {
     if (selecting) {
@@ -175,7 +165,6 @@
             throw new Error(errText || 'Erreur lors de la restauration');
           }
 
-          // Retirer les assets restaurés de la liste
           assets = assets.filter(a => !assetIds.includes(a.id));
           selectedAssets = [];
           selecting = false;
@@ -197,7 +186,6 @@
       onConfirm: async () => {
         showConfirmModal = false;
         try {
-          // Validate IDs
           const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
           for (const id of assetIds) {
             if (!uuidRe.test(id)) {
@@ -205,7 +193,6 @@
             }
           }
 
-          // DELETE /assets avec force=true pour supprimer définitivement depuis la corbeille
           const res = await fetch('/api/immich/assets', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
@@ -221,7 +208,6 @@
             throw new Error(errText || 'Erreur lors de la suppression');
           }
 
-          // Retirer les assets supprimés de la liste
           assets = assets.filter(a => !assetIds.includes(a.id));
           selectedAssets = [];
           selecting = false;
@@ -284,8 +270,6 @@
       <p>La corbeille est vide</p>
     </div>
   {/if}
-
-
 
   {#if assets.length > 0}
     <div class="toolbar">
@@ -380,7 +364,6 @@
       onClose={() => {
         showPhotoModal = false;
         modalAssetId = '';
-        // Force re-render du canvas/photos list
         assets = [...assets];
       }}
       onAssetDeleted={(id) => {

@@ -63,8 +63,6 @@ export const DELETE: RequestHandler = async (event) => {
 		let immichDeleteSuccess = true;
 		let immichDeleteError: string | null = null;
 
-		// ÉTAPE 1: Supprimer de la BDD locale EN PREMIER
-		// C'est notre source de vérité, on DOIT la nettoyer
 		try {
 			const db = getDatabase();
 			db.prepare('DELETE FROM albums WHERE id = ?').run(id);
@@ -77,8 +75,6 @@ export const DELETE: RequestHandler = async (event) => {
 			throw error(500, `Failed to delete album from database: ${err.message}`);
 		}
 
-		// ÉTAPE 2: Essayer de supprimer d'Immich (non-critique)
-		// Si ça échoue, on a au moins nettoyé notre BD
 		if (!IMMICH_BASE_URL) {
 			console.warn('IMMICH_BASE_URL not configured, skipping Immich deletion');
 		} else {
@@ -95,7 +91,6 @@ export const DELETE: RequestHandler = async (event) => {
 					immichDeleteSuccess = false;
 					immichDeleteError = errorText;
 					console.warn(`Immich deletion failed for album ${id}: ${errorText}`);
-					// Ne pas throw ici - on a quand même supprimé de la BD locale
 				} else {
 					console.warn(`Album ${id} supprimé d'Immich`);
 				}
@@ -104,11 +99,9 @@ export const DELETE: RequestHandler = async (event) => {
 				immichDeleteSuccess = false;
 				immichDeleteError = err.message;
 				console.warn('Error deleting album from Immich:', err);
-				// Ne pas throw ici - on a quand même supprimé de la BD locale
 			}
 		}
 
-		// Log album deletion
 		try {
 			await logEvent(event, 'delete', 'album', event.params.id, {
 				immichDeleted: immichDeleteSuccess,
@@ -168,13 +161,11 @@ export const PATCH: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 
-		// Vérifier que l'album existe dans la BDD locale
 		const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id);
 		if (!existing) {
 			throw error(404, 'Album non trouvé dans la base locale');
 		}
 
-		// Mettre à jour les métadonnées locales
 		if (
 			name !== undefined ||
 			date !== undefined ||
@@ -182,7 +173,6 @@ export const PATCH: RequestHandler = async (event) => {
 			visibility !== undefined ||
 			visible !== undefined
 		) {
-			// Construire dynamiquement la query pour ne mettre à jour que les champs fournis
 			const updates: string[] = [];
 			const values: unknown[] = [];
 
@@ -214,36 +204,29 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		// Gérer les tags
 		if (tags && Array.isArray(tags)) {
-			// Récupérer les tags existants
 			const existingTags = db
 				.prepare('SELECT tag FROM album_tag_permissions WHERE album_id = ?')
 				.all(id) as { tag: string }[];
 			const existingTagNames = existingTags.map((t) => t.tag);
 
-			// Tags à ajouter
 			const tagsToAdd = tags.filter((t) => !existingTagNames.includes(t));
 			for (const tag of tagsToAdd) {
 				db.prepare('INSERT INTO album_tag_permissions (album_id, tag) VALUES (?, ?)').run(id, tag);
 			}
 
-			// Tags à supprimer
 			const tagsToRemove = existingTagNames.filter((t) => !tags.includes(t));
 			for (const tag of tagsToRemove) {
 				db.prepare('DELETE FROM album_tag_permissions WHERE album_id = ? AND tag = ?').run(id, tag);
 			}
 		}
 
-		// Gérer les utilisateurs autorisés
 		if (allowedUsers && Array.isArray(allowedUsers)) {
-			// Récupérer les utilisateurs existants
 			const existingUsers = db
 				.prepare('SELECT id_user FROM album_user_permissions WHERE album_id = ?')
 				.all(id) as { id_user: string }[];
 			const existingUserIds = existingUsers.map((u) => u.id_user);
 
-			// Utilisateurs à ajouter
 			const usersToAdd = allowedUsers.filter((u) => !existingUserIds.includes(u));
 			for (const userId of usersToAdd) {
 				db
@@ -251,7 +234,6 @@ export const PATCH: RequestHandler = async (event) => {
 					.run(id, userId);
 			}
 
-			// Utilisateurs à supprimer
 			const usersToRemove = existingUserIds.filter((u) => !allowedUsers.includes(u));
 			for (const userId of usersToRemove) {
 				db
@@ -260,12 +242,10 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		// Retourner les données mises à jour
 		const updated = db
 			.prepare('SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?')
 			.get(id);
 
-		// Log album metadata update
 		try {
 			await logEvent(event, 'update', 'album', id, { name, date, location, visibility, visible });
 		} catch (logErr) {

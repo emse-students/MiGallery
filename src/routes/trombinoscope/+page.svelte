@@ -27,7 +27,6 @@
     });
   });
 
-  // Modal d'édition/ajout utilisateur
   let showEditUserModal = $state(false);
   let editMode = $state<'add' | 'edit'>('add');
   let editUserData = $state({
@@ -58,13 +57,11 @@
     try {
         const doc = new jsPDF();
 
-        // Title
         doc.setFontSize(18);
         doc.text('Trombinoscope MiGallery', 14, 22);
         doc.setFontSize(11);
         doc.setTextColor(100);
 
-        // Preload images
         const images: Record<string, string> = {};
         const loadImage = async (userId: string) => {
             try {
@@ -79,13 +76,11 @@
             } catch { return null; }
         };
 
-        // Load images in parallel
         await Promise.all(filteredUsers.map(async (u) => {
             const dataUrl = await loadImage(u.id_user);
             if (dataUrl) images[u.id_user] = dataUrl;
         }));
 
-        // Group by promo
         const usersByPromo: Record<string, User[]> = {};
         filteredUsers.forEach(u => {
             const p = u.promo_year ? u.promo_year.toString() : 'Staff / Autre';
@@ -93,7 +88,6 @@
             usersByPromo[p].push(u);
         });
 
-        // Sort promos
         const promos = Object.keys(usersByPromo).sort((a, b) => {
              if (a === 'Staff / Autre') return 1;
              if (b === 'Staff / Autre') return -1;
@@ -110,13 +104,11 @@
         const rowHeight = 45; // Image + text + padding
 
         promos.forEach(promo => {
-            // Check space for header
             if (y + 20 > doc.internal.pageSize.getHeight() - margin) {
                 doc.addPage();
                 y = margin + 10;
             }
 
-            // Promo Header
             doc.setFontSize(16);
             doc.setTextColor(0);
             doc.setFont('helvetica', 'bold');
@@ -125,9 +117,7 @@
 
             const promoUsers = usersByPromo[promo];
 
-            // Grid loop
             for (let i = 0; i < promoUsers.length; i += colCount) {
-                // Check if row fits
                 if (y + rowHeight > doc.internal.pageSize.getHeight() - margin) {
                     doc.addPage();
                     y = margin + 10;
@@ -138,20 +128,17 @@
                     const x = margin + (idx * colWidth);
                     const img = images[user.id_user];
 
-                    // Image
                     const imgX = x + (colWidth - imgSize) / 2;
                     if (img) {
                         try {
                             doc.addImage(img, 'JPEG', imgX, y, imgSize, imgSize);
                         } catch (e) { /* ignore */ }
                     } else {
-                        // Placeholder
                         doc.setDrawColor(220);
                         doc.setFillColor('#f0f0f0');
                         doc.rect(imgX, y, imgSize, imgSize, 'FD');
                     }
 
-                    // Name
                     doc.setFontSize(9);
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(60);
@@ -258,7 +245,6 @@
         const assetId = uploadData.id;
         if (!assetId) throw new Error('Asset ID non récupéré après upload');
 
-        // Polling (15s max)
         const maxAttempts = 15;
         let attempt = 0;
         let faceDetected = false;
@@ -337,8 +323,6 @@
   }
 
   onMount(() => {
-    // Si l'utilisateur n'est pas admin, il peut quand même voir le trombinoscope (comportement standard)
-    // Seul le bouton "Ajouter" est protégé par `canAccess`
     fetchUsers();
   });
 </script>

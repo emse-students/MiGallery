@@ -4,7 +4,6 @@ import type { User } from '$lib/types/api';
 import { redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ parent }) => {
-	// Use session from parent layout (respects signed cookie)
 	const { session } = await parent();
 	const user = session?.user as User | undefined;
 
@@ -12,8 +11,6 @@ export const load: PageServerLoad = async ({ parent }) => {
 		throw redirect(303, '/');
 	}
 
-	// For admins/mitvistes, show all albums (including non-visible)
-	// For regular users, show only visible albums
 	const userRole = (user.role || '').toLowerCase();
 	const isStaff = userRole === 'admin' || userRole === 'mitviste';
 	const albums = isStaff ? getAllAlbums() : listAllAlbums();

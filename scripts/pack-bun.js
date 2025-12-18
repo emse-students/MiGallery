@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-/**
- * Script de packaging complet de l'application
- * - Compile le build
- * - Inclut la base de données
- * - Inclut le fichier .env
- * - Crée un package prêt à déployer
- */
 
 import fs from 'fs';
 import path from 'path';
@@ -26,10 +19,8 @@ console.log("📦 Création du package complet de l'application...");
 console.log(`📍 Destination: ${outPath}`);
 console.log('');
 
-// Liste des fichiers/dossiers à inclure
 const filesToInclude = [];
 
-// 1. Build folder (obligatoire)
 const buildDir = path.resolve(process.cwd(), 'build');
 if (!fs.existsSync(buildDir)) {
 	console.error('❌ Le dossier build/ n\'existe pas. Lancez d\'abord "npm run build".');
@@ -37,7 +28,6 @@ if (!fs.existsSync(buildDir)) {
 }
 console.log('✅ build/ trouvé');
 
-// 2. Data folder (base de données)
 const dataDir = path.resolve(process.cwd(), 'data');
 if (fs.existsSync(dataDir)) {
 	console.log('✅ data/ trouvé (base de données)');
@@ -45,9 +35,6 @@ if (fs.existsSync(dataDir)) {
 	console.warn("⚠️  data/ non trouvé - le package n'inclura pas de base de données");
 }
 
-// 3. .env file
-// NOTE: For safety we DO NOT include the local `.env` file by default in release packages.
-// If you really want to include it, set the environment variable `PACK_INCLUDE_ENV=true`.
 const envFile = path.resolve(process.cwd(), '.env');
 const includeEnv = String(process.env.PACK_INCLUDE_ENV || '').toLowerCase() === 'true';
 if (fs.existsSync(envFile) && includeEnv) {
@@ -60,10 +47,8 @@ if (fs.existsSync(envFile) && includeEnv) {
 	console.warn("⚠️  .env non trouvé - le package n'inclura pas de configuration");
 }
 
-// 4. package.json (pour info sur la version)
 console.log('✅ package.json');
 
-// 5. README.md
 const readmeFile = path.resolve(process.cwd(), 'README.md');
 if (fs.existsSync(readmeFile)) {
 	console.log('✅ README.md');
@@ -78,7 +63,6 @@ if (fs.existsSync(scriptsDir)) {
 console.log('');
 console.log("🔄 Création de l'archive...");
 
-// Créer une archive tar.gz incluant tous les éléments
 try {
 	await tar.create(
 		{
@@ -93,7 +77,7 @@ try {
 			'package.json',
 			fs.existsSync(readmeFile) ? 'README.md' : null,
 			fs.existsSync(scriptsDir) ? 'scripts' : null
-		].filter(Boolean) // Enlever les null
+		].filter(Boolean) 
 	);
 
 	const stats = fs.statSync(outPath);

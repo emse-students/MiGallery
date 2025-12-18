@@ -1,12 +1,8 @@
-/**
- * Script intelligent pour documenter automatiquement TOUS les endpoints
- * Crée des données de test et génère la documentation complète
- */
+
 
 const API_KEY = 'mAvmLgRgT7J1pJCCNNi4szLalbaMdNq28aprqvn129I';
 const BASE_URL = 'http://localhost:5173';
 
-// Stockage des IDs créés pour les tests
 const testData = {
 	userId: null,
 	apiKeyId: null,
@@ -91,7 +87,7 @@ function generateCurl(method, path, scope, body = null) {
 		curl += ` -H "Content-Type: application/json" -d '${JSON.stringify(body)}'`;
 	}
 
-	curl += ` "http://localhost:5173${path}"`;
+	curl += ` "http:
 	return curl;
 }
 
@@ -128,7 +124,6 @@ async function documentAll() {
 		});
 	}
 
-	// ========== USERS ==========
 	console.log('Testing Users endpoints...');
 	const users = await testEndpoint('GET', '/api/users', 'admin');
 	if (users.success) {
@@ -172,7 +167,6 @@ async function documentAll() {
 		});
 	}
 
-	// ========== API KEYS ==========
 	console.log('Testing API Keys endpoints...');
 	const apiKeys = await testEndpoint('GET', '/api/admin/api-keys', 'admin');
 	if (apiKeys.success) {
@@ -244,7 +238,6 @@ async function documentAll() {
 		});
 	}
 
-	// ========== EXTERNAL MEDIA ==========
 	console.log('Testing External Media endpoints...');
 	const externalMedia = await testEndpoint('GET', '/api/external/media', 'read');
 	if (externalMedia.success) {
@@ -261,7 +254,6 @@ async function documentAll() {
 		});
 	}
 
-	// ========== GÉNÉRATION DU CODE ==========
 	console.log('\n' + '='.repeat(80));
 	console.log('CODE À COPIER DANS endpoints.ts');
 	console.log('='.repeat(80) + '\n');
