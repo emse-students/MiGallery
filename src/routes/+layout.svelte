@@ -76,7 +76,8 @@
 	}
 
 	async function handleSignIn() {
-		await signIn('cas-emse', { callbackUrl: window.location.href });
+		await signIn('cas-emse', { redirect: false });
+		window.location.reload();
 	}
 </script>
 
