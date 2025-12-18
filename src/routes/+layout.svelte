@@ -72,12 +72,12 @@
 			console.warn('Failed to clear user cookie:', e);
 		}
 
-		await signOut({ callbackUrl: '/' });
+		await signOut({ redirect: false });
+		window.location.href = '/';
 	}
 
 	async function handleSignIn() {
-		const data = await signIn('cas-emse', { redirect: false, callbackUrl: window.location.href });
-		if (data?.url) window.location.href = data.url;
+		await signIn('cas-emse');
 	}
 </script>
 

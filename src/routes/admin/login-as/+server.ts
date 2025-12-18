@@ -2,7 +2,6 @@ import { getDatabase } from '$lib/db/database';
 import { signId } from '$lib/auth/cookies';
 import { ensureAdmin } from '$lib/server/auth';
 import type { RequestHandler } from './$types';
-import { redirect } from '@sveltejs/kit';
 
 /**
  * Admin-only helper: set the signed `current_user_id` cookie to impersonate another user.
@@ -30,6 +29,10 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	}
 
 	const signed = signId(String(user.id_user));
+
+	// Force delete first to ensure clean state
+	cookies.delete('current_user_id', { path: '/' });
+
 	cookies.set('current_user_id', signed, {
 		httpOnly: true,
 		secure: String(process.env.NODE_ENV) === 'production',
@@ -38,5 +41,22 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 		maxAge: 60 * 60 * 24 * 30 // 30 days
 	});
 
-	throw redirect(303, '/');
+	return new Response(
+		`<html><head><meta http-equiv="refresh" content="1;url=/"></head><body>Redirecting...<script>
+window.location.replace('/?t=' + Date.now());
+window.addEventListener('pageshow', () => {
+	if (window.location.search.startsWith('?t=')) {
+		window.history.replaceState({}, '', '/');
+	}
+});
+</script></body></html>`,
+		{
+			headers: {
+				'Content-Type': 'text/html',
+				'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+				Pragma: 'no-cache',
+				Expires: '0'
+			}
+		}
+	);
 };

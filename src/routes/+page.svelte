@@ -14,8 +14,7 @@
   const greeting = hour < 18 ? "Bonjour" : "Bonsoir";
 
   async function handleSignIn() {
-		const data = await signIn('cas-emse', { redirect: false, callbackUrl: window.location.href });
-		if (data?.url) window.location.href = data.url;
+		await signIn('cas-emse');
 	}
 </script>
 

@@ -3,7 +3,6 @@ import type { UserRow } from '$lib/types/api';
 import { getDatabase } from '$lib/db/database';
 import { signId } from '$lib/auth/cookies';
 import type { RequestHandler } from './$types';
-import { redirect } from '@sveltejs/kit';
 
 /**
  * Dev-only helper: set the signed `current_user_id` cookie so you can act as a local user.
@@ -53,15 +52,35 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 			}
 
 			const signed = signId(String(created.id_user));
+
+			cookies.delete('current_user_id', { path: '/' });
+
 			cookies.set('current_user_id', signed, {
 				httpOnly: true,
-				secure: String(process.env.NODE_ENV) === 'production',
+				secure: !dev,
 				sameSite: 'lax',
 				path: '/',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
 
-			throw redirect(303, '/');
+			return new Response(
+				`<html><head><meta http-equiv="refresh" content="1;url=/"></head><body>Redirecting...<script>
+		window.location.replace('/?t=' + Date.now());
+		window.addEventListener('pageshow', () => {
+			if (window.location.search.startsWith('?t=')) {
+				window.history.replaceState({}, '', '/');
+			}
+		});
+		</script></body></html>`,
+				{
+					headers: {
+						'Content-Type': 'text/html',
+						'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+						Pragma: 'no-cache',
+						Expires: '0'
+					}
+				}
+			);
 		}
 
 		return new Response(
@@ -71,13 +90,27 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 	}
 
 	const signed = signId(String(user.id_user));
+
+	// Force delete first to ensure clean state
+	cookies.delete('current_user_id', { path: '/' });
+
 	cookies.set('current_user_id', signed, {
 		httpOnly: true,
-		secure: String(process.env.NODE_ENV) === 'production',
+		secure: !dev,
 		sameSite: 'lax',
 		path: '/',
 		maxAge: 60 * 60 * 24 * 30 // 30 days
 	});
 
-	throw redirect(303, '/');
+	return new Response(
+		'<html><head><meta http-equiv="refresh" content="1;url=/"></head><body>Redirecting...<script>window.location.replace("/?t=" + Date.now())</script></body></html>',
+		{
+			headers: {
+				'Content-Type': 'text/html',
+				'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+				Pragma: 'no-cache',
+				Expires: '0'
+			}
+		}
+	);
 };
