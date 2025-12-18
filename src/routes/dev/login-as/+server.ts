@@ -62,7 +62,12 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
 
-			throw redirect(303, '/');
+			return new Response(null, {
+				status: 303,
+				headers: {
+					Location: '/'
+				}
+			});
 		}
 
 		// Do NOT create or promote users in this dev helper in non-test environments.
@@ -82,5 +87,10 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 	});
 
 	// Redirect back to home where the layout will pick up the cookie and map the user
-	throw redirect(303, '/');
+	return new Response(null, {
+		status: 303,
+		headers: {
+			Location: '/'
+		}
+	});
 };

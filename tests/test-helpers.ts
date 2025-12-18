@@ -313,7 +313,8 @@ async function loginAsSystemUser(): Promise<string> {
 			redirect: 'manual'
 		});
 
-		if (response.status === 303 || response.status === 302) {
+		// Accepter 302/303 (redirect) ou 200 (HTML avec cookie) selon la version de SvelteKit
+		if (response.status === 303 || response.status === 302 || response.status === 200) {
 			const cookies = response.headers.get('set-cookie');
 			if (cookies) {
 				const match = cookies.match(/current_user_id=([^;]+)/);
@@ -322,6 +323,10 @@ async function loginAsSystemUser(): Promise<string> {
 					return sessionCookie;
 				}
 			}
+			// Pas de set-cookie — journaliser pour diagnostiquer
+			console.error(
+				`❌ Échec de la connexion (status: ${response.status}), pas de cookie retourné, body=${await response.text()}`
+			);
 		} else {
 			console.error(
 				`❌ Échec de la connexion (status: ${response.status}), responseBody=${await response.text()}`
