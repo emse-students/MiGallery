@@ -70,7 +70,13 @@ jobs:
 
    - name: Restart server
      run: |
-      pm2 restart migallery || pm2 start bun --name migallery -- run ./build/index.js
+      pm2 restart migallery --update-env || \
+      pm2 start /home/mitv/.bun/bin/bun \
+      --name migallery \
+      --cwd /home/mitv/MiGallery \
+      -- run /home/mitv/MiGallery/build/index.js
+      pm2 save
+
 
    - name: Wait for server to be ready
      run: |
