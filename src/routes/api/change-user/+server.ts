@@ -6,7 +6,6 @@ import { signId } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 
 export const POST: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
 	const { request, cookies } = event;
 	try {
 		const { userId } = (await request.json()) as { userId: string | null | undefined };
@@ -16,6 +15,9 @@ export const POST: RequestHandler = async (event) => {
 			cookies.delete('current_user_id', { path: '/' });
 			return json({ success: true });
 		}
+
+		// Pour définir un autre userId (impersonation), il faut être admin
+		await requireScope(event, 'admin');
 
 		// Signer l'ID utilisateur et stocker dans un cookie
 		const signed = signId(String(userId));
