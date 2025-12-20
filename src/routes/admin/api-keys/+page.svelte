@@ -78,7 +78,7 @@
   <title>Admin — API Keys</title>
 </svelte:head>
 
-<main class="admin-main">
+<div role="main" class="admin-main">
   <!-- Fond animé -->
   <BackgroundBlobs />
 
@@ -191,7 +191,7 @@
       {/if}
     </section>
   </div>
-</main>
+</div>
 
 <style>
   /* --- THEME & VARIABLES (Identique AdminDatabase) --- */

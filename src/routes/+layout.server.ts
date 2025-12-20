@@ -39,7 +39,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 
 		const providerUser: SessionUser = {
 			...session.user,
-			email: session.user.email === null ? undefined : session.user.email
+			email: typeof session.user.email === 'string' ? session.user.email : undefined
 		};
 
 		const candidateId =

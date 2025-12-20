@@ -182,7 +182,7 @@
   <title>Admin — Base de données</title>
 </svelte:head>
 
-<main class="admin-main">
+<div role="main" class="admin-main">
   <!-- Fond animé -->
   <BackgroundBlobs />
 
@@ -397,7 +397,7 @@
     </div>
   {/if}
 
-</main>
+</div>
 
 <style>
   /* --- THEME & VARIABLES --- */

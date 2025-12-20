@@ -3,6 +3,9 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
@@ -71,12 +74,83 @@ export const GET: RequestHandler = async (event) => {
 		});
 
 		if (!res.ok) {
+			// Try thumbnail as a fallback when original is not available
 			const thumbUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
 			const res2 = await fetch(thumbUrl, {
 				headers: { 'x-api-key': apiKey, Accept: 'image/webp,image/*' }
 			});
 			if (!res2.ok) {
 				throw error(res.status, 'Failed to fetch image from Immich');
+			}
+			return processImage(await res2.arrayBuffer(), cacheFile);
+		}
+
+		// If the original exists but is not an image (e.g. a video), request the thumbnail instead
+		const contentType = res.headers.get('content-type') ?? '';
+		if (!contentType.startsWith('image/')) {
+			const thumbUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
+			const res2 = await fetch(thumbUrl, {
+				headers: { 'x-api-key': apiKey, Accept: 'image/webp,image/*' }
+			});
+			if (!res2.ok) {
+				throw error(res2.status, 'Failed to fetch thumbnail from Immich');
+			}
+			const thumbContentType = res2.headers.get('content-type') ?? '';
+			if (!thumbContentType.startsWith('image/')) {
+				// No usable image available from thumbnail — attempt to extract a frame via ffmpeg
+				try {
+					const execFileAsync = promisify(execFile);
+					// Use the original response body (res) which holds the video
+					const videoBuffer = Buffer.from(await res.arrayBuffer());
+
+					const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'migallery-'));
+					const videoPath = path.join(tmpDir, `${assetId}-input`);
+					const framePath = path.join(tmpDir, `${assetId}-frame.jpg`);
+					fs.writeFileSync(videoPath, videoBuffer);
+
+					// Get duration with ffprobe
+					let duration = 0;
+					try {
+						const { stdout } = await execFileAsync('ffprobe', [
+							'-v', 'error',
+							'-show_entries', 'format=duration',
+							'-of', 'default=noprint_wrappers=1:nokey=1',
+							videoPath
+						]);
+						duration = parseFloat(String(stdout)) || 0;
+					} catch (ffprobeErr) {
+						// If ffprobe is not available or fails, fallback to 0 (start of video)
+						console.warn('ffprobe failed, falling back to start:', ffprobeErr);
+						duration = 0;
+					}
+
+					const seekSeconds = duration > 0 ? Math.max(0, duration * 0.1) : 0;
+
+					// Extract single frame at 10% using ffmpeg
+					await execFileAsync('ffmpeg', [
+						'-ss', String(seekSeconds),
+						'-i', videoPath,
+						'-frames:v', '1',
+						'-q:v', '2',
+						framePath
+					]);
+
+					const frameBuffer = fs.readFileSync(framePath);
+
+					// Cleanup temp files
+					try {
+						fs.unlinkSync(videoPath);
+						fs.unlinkSync(framePath);
+						fs.rmdirSync(tmpDir);
+					} catch (cleanupErr) {
+						console.warn('Failed to cleanup temp files', cleanupErr);
+					}
+
+					return processImage(frameBuffer, cacheFile);
+				} catch (ffErr) {
+					console.error('FFmpeg/frame extraction failed:', ffErr);
+					throw error(415, 'Asset is not an image and frame extraction failed');
+				}
 			}
 			return processImage(await res2.arrayBuffer(), cacheFile);
 		}

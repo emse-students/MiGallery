@@ -29,7 +29,7 @@
   <title>Admin — Documentation</title>
 </svelte:head>
 
-<main class="docs-main">
+<div role="main" class="docs-main">
   <BackgroundBlobs />
 
   <div class="docs-container">
@@ -88,7 +88,7 @@
       </div>
     </div>
   </div>
-</main>
+</div>
 
 <style>
   /* --- THEME VARIABLES --- */

@@ -135,4 +135,13 @@
       width: 200px;
     }
   }
+
+  /* Force sidebar visible in case some pages override it (diagnostic / fallback) */
+  :global(.sidebar) {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    z-index: 50 !important;
+  }
 </style>
