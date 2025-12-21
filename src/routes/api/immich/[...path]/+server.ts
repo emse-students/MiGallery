@@ -205,7 +205,6 @@ async function handleChunkedUpload(
 			const fd = fs.openSync(lockPath, 'wx');
 			fs.closeSync(fd);
 		} catch {
-			// if lock exists, report busy so client can retry
 			return new Response(JSON.stringify({ error: 'File currently locked, retry' }), {
 				status: 409,
 				headers: { 'content-type': 'application/json' }
@@ -214,7 +213,7 @@ async function handleChunkedUpload(
 
 		const buffer = await request.arrayBuffer();
 
-		// verify per-chunk sha256 when provided by client
+		// verify per-chunk sha256
 		try {
 			const chunkSha = request.headers.get('x-chunk-sha256');
 			if (chunkSha) {
@@ -224,18 +223,14 @@ async function handleChunkedUpload(
 						if (fs.existsSync(lockPath)) {
 							fs.unlinkSync(lockPath);
 						}
-					} catch {
-						/* ignore */
-					}
+					} catch { /* ignore */ }
 					return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
 						status: 400,
 						headers: { 'content-type': 'application/json' }
 					});
 				}
 			}
-		} catch {
-			/* ignore verification errors */
-		}
+		} catch { /* ignore verification errors */ }
 
 		try {
 			if (chunkIndex === 0) {
@@ -244,14 +239,11 @@ async function handleChunkedUpload(
 				fs.appendFileSync(tempFilePath, Buffer.from(buffer));
 			}
 		} finally {
-			// release lock so further chunk requests can proceed
 			try {
 				if (fs.existsSync(lockPath)) {
 					fs.unlinkSync(lockPath);
 				}
-			} catch {
-				/* ignore */
-			}
+			} catch { /* ignore */ }
 		}
 
 		if (chunkIndex < totalChunks - 1) {
@@ -265,35 +257,26 @@ async function handleChunkedUpload(
 
 		const originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
 
-		// compute checksum (sha256) by streaming the temp file
+		// compute checksum (sha256)
 		const hash = crypto.createHash('sha256');
 		await new Promise<void>((resolve, reject) => {
 			const rs = fs.createReadStream(tempFilePath);
-			rs.on('data', (chunk: string | Buffer) => {
-				// Return type of hash.update is crypto.Hash, we ensure callback returns void
-				hash.update(chunk);
-			});
+			rs.on('data', (chunk) => hash.update(chunk));
 			rs.on('end', () => resolve());
 			rs.on('error', (err) => reject(err));
 		});
 		const sha256 = hash.digest('hex');
 
-		// atomic rename to mark completion before forwarding
 		try {
 			fs.renameSync(tempFilePath, completePath);
 		} catch (e) {
 			console.warn('Failed to rename temp file to complete:', e);
 		}
 
-		/**
-         * We use the form-data package from npm because it handles Node.js streams correctly.
-         * We suppress the unsafe-assignment and unsafe-call warnings because NodeFormData type
-         * resolution is problematic in this specific environment.
-         */
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-		const formData: NodeFormData = new NodeFormData();
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+		// We use targeted disable here because NodeFormData often fails type resolution in ESM.
+		const formData = new NodeFormData();
+
 		formData.append('assetData', fs.createReadStream(completePath), { filename: originalName });
 
 		const deviceId = request.headers.get('x-immich-device-id');
@@ -303,35 +286,29 @@ async function handleChunkedUpload(
 		const isFavorite = request.headers.get('x-immich-is-favorite');
 
 		if (deviceId) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 			formData.append('deviceId', deviceId);
 		}
 		if (deviceAssetId) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 			formData.append('deviceAssetId', deviceAssetId);
 		}
 		if (fileCreatedAt) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 			formData.append('fileCreatedAt', fileCreatedAt);
 		}
 		if (fileModifiedAt) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 			formData.append('fileModifiedAt', fileModifiedAt);
 		}
 		if (isFavorite) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 			formData.append('isFavorite', isFavorite);
 		}
 
 		const immichUrl = `${baseUrl}/api/assets`;
-
 		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
 		const formHeaders = formData.getHeaders() as Record<string, string>;
 		for (const k of Object.keys(formHeaders)) {
 			fetchHeaders[k] = formHeaders[k];
 		}
+
 
 		fetchHeaders['x-proxy-sha256'] = sha256;
 
@@ -346,7 +323,6 @@ async function handleChunkedUpload(
 				const respClone = response.clone();
 				const respData = (await respClone.json()) as ImmichAssetResponse;
 				const assetId = respData.id;
-
 				if (assetId) {
 					await logEvent(event, 'create', 'asset', assetId, { originalName, proxied: true });
 				}
@@ -377,9 +353,7 @@ async function handleChunkedUpload(
 			if (fs.existsSync(tempFilePath)) {
 				fs.unlinkSync(tempFilePath);
 			}
-		} catch {
-			/* ignore */
-		}
+		} catch { /* ignore */ }
 
 		return new Response(
 			JSON.stringify({ error: _err.message || 'Internal Server Error processing chunk' }),
@@ -425,9 +399,7 @@ const handle: RequestHandler = async function (event) {
 								error: 'Access denied to private asset',
 								assetId,
 								reason: 'Asset not found in any unlisted album',
-								debug: {
-									checked: true
-								}
+								debug: { checked: true }
 							}),
 							{
 								status: 403,
@@ -439,7 +411,7 @@ const handle: RequestHandler = async function (event) {
 						);
 					}
 				} else {
-					throw err; // Pas un asset -> on rejette
+					throw err;
 				}
 			}
 		}
@@ -471,7 +443,7 @@ const handle: RequestHandler = async function (event) {
 						void 0;
 					} else {
 						console.warn('[Proxy] Access denied for download (not all assets public)');
-						throw err; // Rejet si pas public
+						throw err;
 					}
 				} catch (e) {
 					console.error('Error checking public download access:', e);
@@ -514,7 +486,6 @@ const handle: RequestHandler = async function (event) {
 		return handleChunkedUpload(event, chunkHeaders, base);
 	}
 
-	// chunk status / resume helper
 	if (request.method === 'GET' && event.url.searchParams.has('chunk-status')) {
 		return handleChunkStatus(event);
 	}
@@ -603,15 +574,14 @@ const handle: RequestHandler = async function (event) {
 
 		if (!res.ok) {
 			if (resContentType.includes('text/html')) {
-				const msg = `Upstream error ${res.status} ${res.statusText}`;
 				headers.set('content-type', 'application/json');
-				return new Response(JSON.stringify({ error: msg }), { status: res.status, headers });
+				return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), { status: res.status, headers });
 			}
 			if (!resContentType.includes('application/json')) {
 				const snippet = textBody && textBody.slice ? textBody.slice(0, 200) : textBody;
 				headers.set('content-type', 'application/json');
 				return new Response(
-					JSON.stringify({ error: snippet || `Upstream ${res.status} ${res.statusText}` }),
+					JSON.stringify({ error: snippet || `Upstream ${res.status}` }),
 					{ status: res.status, headers }
 				);
 			}
@@ -622,9 +592,7 @@ const handle: RequestHandler = async function (event) {
 				const jsonData: unknown = JSON.parse(textBody);
 				const etag = res.headers.get('etag') || undefined;
 				immichCache.set('GET', `/api/${pathParam}`, resolvedRemoteUrl, jsonData, undefined, etag);
-			} catch {
-				/* Ignore JSON parse errors */
-			}
+			} catch { /* Ignore JSON parse errors */ }
 		}
 
 		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && res.ok) {
@@ -652,19 +620,13 @@ const handle: RequestHandler = async function (event) {
 				if (request.method === 'DELETE') {
 					if (pathParam === 'assets') {
 						try {
-							let ids: string[] = [];
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids && Array.isArray(parsed.ids)) {
-									ids = parsed.ids;
+									await logEvent(event, 'delete', 'asset', 'bulk', { count: parsed.ids.length, ids: parsed.ids });
 								}
 							}
-							if (ids.length > 0) {
-								await logEvent(event, 'delete', 'asset', 'bulk', { count: ids.length, ids });
-							}
-						} catch {
-							/* ignore parse error */
-						}
+						} catch { /* ignore */ }
 					} else if (assetIdMatch) {
 						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
 					} else if (albumIdMatch) {
@@ -679,22 +641,16 @@ const handle: RequestHandler = async function (event) {
 							if (respData.id) {
 								await logEvent(event, 'create', 'album', respData.id, { name: respData.albumName });
 							}
-						} catch {
-							/* ignore */
-						}
+						} catch { /* ignore */ }
 					} else if (albumIdMatch && pathParam.endsWith('/assets')) {
 						try {
-							let count = 0;
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
-								if (parsed.ids && Array.isArray(parsed.ids)) {
-									count = parsed.ids.length;
+								if (parsed.ids) {
+									await logEvent(event, 'update', 'album', albumIdMatch[1], { action: 'add_assets', count: parsed.ids.length });
 								}
 							}
-							await logEvent(event, 'update', 'album', albumIdMatch[1], { action: 'add_assets', count });
-						} catch {
-							/* ignore */
-						}
+						} catch { /* ignore */ }
 					}
 				} else if (request.method === 'PUT' || request.method === 'PATCH') {
 					if (albumIdMatch) {
@@ -719,14 +675,10 @@ const handle: RequestHandler = async function (event) {
 		if (res.status === 204) {
 			return new Response(null, { status: 204, headers });
 		}
-
 		return new Response(textBody, { status: res.status, headers });
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		return new Response(JSON.stringify({ error: _err.message }), {
-			status: 502,
-			headers: { 'content-type': 'application/json' }
-		});
+		return new Response(JSON.stringify({ error: _err.message }), { status: 502, headers: { 'content-type': 'application/json' } });
 	}
 };
 
@@ -738,13 +690,9 @@ export const PATCH = handle;
 
 function handleChunkStatus(event: RequestEvent) {
 	const req = event.request;
-	const fileId =
-        req.headers.get('x-file-id') || (event.url.searchParams.get('fileId') as string | null);
+	const fileId = req.headers.get('x-file-id') || (event.url.searchParams.get('fileId') as string | null);
 	if (!fileId) {
-		return new Response(JSON.stringify({ error: 'Missing x-file-id' }), {
-			status: 400,
-			headers: { 'content-type': 'application/json' }
-		});
+		return new Response(JSON.stringify({ error: 'Missing x-file-id' }), { status: 400, headers: { 'content-type': 'application/json' } });
 	}
 
 	const tempFilePath = path.join(os.tmpdir(), `immich_proxy_${fileId}.part`);
@@ -757,8 +705,5 @@ function handleChunkStatus(event: RequestEvent) {
 		size = fs.statSync(completePath).size;
 	}
 
-	return new Response(JSON.stringify({ exists: size > 0, receivedBytes: size }), {
-		status: 200,
-		headers: { 'content-type': 'application/json' }
-	});
+	return new Response(JSON.stringify({ exists: size > 0, receivedBytes: size }), { status: 200, headers: { 'content-type': 'application/json' } });
 }

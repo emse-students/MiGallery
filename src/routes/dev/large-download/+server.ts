@@ -18,8 +18,12 @@ export const GET = async ({ request }) => {
 			let start = 0;
 			let end = stat.size - 1;
 			if (m) {
-				if (m[1]) start = parseInt(m[1], 10);
-				if (m[2]) end = parseInt(m[2], 10);
+				if (m[1]) {
+					start = parseInt(m[1], 10);
+				}
+				if (m[2]) {
+					end = parseInt(m[2], 10);
+				}
 			}
 
 			if (isNaN(start) || isNaN(end) || start > end || start < 0) {
