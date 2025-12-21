@@ -112,9 +112,12 @@ export const GET: RequestHandler = async (event) => {
 					let duration = 0;
 					try {
 						const { stdout } = await execFileAsync('ffprobe', [
-							'-v', 'error',
-							'-show_entries', 'format=duration',
-							'-of', 'default=noprint_wrappers=1:nokey=1',
+							'-v',
+							'error',
+							'-show_entries',
+							'format=duration',
+							'-of',
+							'default=noprint_wrappers=1:nokey=1',
 							videoPath
 						]);
 						duration = parseFloat(String(stdout)) || 0;
@@ -128,10 +131,14 @@ export const GET: RequestHandler = async (event) => {
 
 					// Extract single frame at 10% using ffmpeg
 					await execFileAsync('ffmpeg', [
-						'-ss', String(seekSeconds),
-						'-i', videoPath,
-						'-frames:v', '1',
-						'-q:v', '2',
+						'-ss',
+						String(seekSeconds),
+						'-i',
+						videoPath,
+						'-frames:v',
+						'1',
+						'-q:v',
+						'2',
 						framePath
 					]);
 
