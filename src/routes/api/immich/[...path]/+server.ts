@@ -279,8 +279,8 @@ async function handleChunkedUpload(
 			console.warn('Failed to rename temp file to complete:', e);
 		}
 
+		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any */
 		// Use Node `form-data` package instance. Type checks disabled because typings conflict with DOM FormData
-		// @ts-expect-error Node form-data typing
 		const formData: any = new NodeFormData();
 
 		formData.append('assetData', fs.createReadStream(completePath), { filename: originalName });
@@ -310,7 +310,6 @@ async function handleChunkedUpload(
 		const immichUrl = `${baseUrl}/api/assets`;
 		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 
-		// @ts-expect-error getHeaders exists on Node form-data instance
 		const formHeaders = (formData as any).getHeaders() as Record<string, string>;
 		for (const k of Object.keys(formHeaders)) {
 			fetchHeaders[k] = formHeaders[k];
@@ -323,6 +322,7 @@ async function handleChunkedUpload(
 			headers: fetchHeaders,
 			body: formData as unknown as BodyInit
 		});
+		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any */
 
 		if (response.ok) {
 			try {
