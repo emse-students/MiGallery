@@ -8,8 +8,9 @@ import { getDatabase } from '$lib/db/database';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import crypto from 'node:crypto';
+import http from 'node:http';
+import https from 'node:https';
 import NodeFormData from 'form-data';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
@@ -195,7 +196,12 @@ async function handleChunkedUpload(
 		});
 	}
 
-	const tempFilePath = path.join(os.tmpdir(), `immich_proxy_${fileId}.part`);
+	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
+	if (!fs.existsSync(uploadDir)) {
+		fs.mkdirSync(uploadDir, { recursive: true });
+	}
+
+	const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
 	const lockPath = `${tempFilePath}.lock`;
 	const completePath = `${tempFilePath}.complete`;
 
@@ -282,8 +288,12 @@ async function handleChunkedUpload(
 		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any */
 		// Use Node `form-data` package instance. Type checks disabled because typings conflict with DOM FormData
 		const formData: any = new NodeFormData();
+		const stats = fs.statSync(completePath);
 
-		formData.append('assetData', fs.createReadStream(completePath), { filename: originalName });
+		formData.append('assetData', fs.createReadStream(completePath), {
+			filename: originalName,
+			knownLength: stats.size
+		});
 
 		const deviceId = request.headers.get('x-immich-device-id');
 		const deviceAssetId = request.headers.get('x-immich-asset-id');
@@ -315,14 +325,63 @@ async function handleChunkedUpload(
 			fetchHeaders[k] = formHeaders[k];
 		}
 
+		// Calculate content length to prevent "Unexpected end of form" errors with large files
+		const length = await new Promise<number>((resolve, reject) => {
+			(formData as any).getLength((err: Error | null, length: number) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve(length);
+				}
+			});
+		});
+		fetchHeaders['content-length'] = String(length);
+
 		fetchHeaders['x-proxy-sha256'] = sha256;
 
-		const response = await fetch(immichUrl, {
-			method: 'POST',
-			headers: fetchHeaders,
-			body: formData as unknown as BodyInit,
-			duplex: 'half'
-		} as RequestInit & { duplex?: 'half' });
+		// Use http/https request for better streaming support with form-data
+		const response = await new Promise<Response>((resolve, reject) => {
+			const url = new URL(immichUrl);
+			const protocol = url.protocol === 'https:' ? https : http;
+
+			const req = protocol.request(
+				immichUrl,
+				{
+					method: 'POST',
+					headers: fetchHeaders
+				},
+				(res) => {
+					const chunks: Buffer[] = [];
+					res.on('data', (chunk: Buffer) => chunks.push(chunk));
+					res.on('end', () => {
+						const body = Buffer.concat(chunks);
+						const headers = new Headers();
+						for (const [key, value] of Object.entries(res.headers)) {
+							if (value) {
+								if (Array.isArray(value)) {
+									value.forEach((v) => headers.append(key, v));
+								} else {
+									headers.set(key, value);
+								}
+							}
+						}
+						resolve(
+							new Response(body, {
+								status: res.statusCode,
+								headers
+							})
+						);
+					});
+				}
+			);
+
+			req.on('error', (err) => {
+				console.error('[Immich-Proxy] Request error to Immich:', err);
+				reject(err);
+			});
+
+			formData.pipe(req);
+		});
 		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any */
 
 		if (response.ok) {
@@ -738,7 +797,8 @@ function handleChunkStatus(event: RequestEvent) {
 		});
 	}
 
-	const tempFilePath = path.join(os.tmpdir(), `immich_proxy_${fileId}.part`);
+	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
+	const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
 	const completePath = `${tempFilePath}.complete`;
 
 	let size = 0;

@@ -1,8 +1,9 @@
 import fs from 'fs';
 import { Readable } from 'stream';
 import path from 'path';
+import type { RequestHandler } from './$types';
 
-export const GET = async ({ request }) => {
+export const GET: RequestHandler = async ({ request }) => {
 	// Chemin local du fichier fourni par l'utilisateur
 	const filePath = path.normalize(
 		'J:/Drive partagés/Photothèque/2024-2025/Clips/Film Gala 2025.mp4'
