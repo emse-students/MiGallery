@@ -7,12 +7,9 @@ import os from 'os';
 const MAX_AGE_HOURS = Number(process.env.CHUNKED_TEMP_MAX_HOURS || '24');
 const now = Date.now();
 
-const dirsToClean = [
-	os.tmpdir(),
-	path.join(process.cwd(), 'data', 'chunk-uploads')
-];
+const dirsToClean = [os.tmpdir(), path.join(process.cwd(), 'data', 'chunk-uploads')];
 
-dirsToClean.forEach(tmp => {
+dirsToClean.forEach((tmp) => {
 	if (!fs.existsSync(tmp)) return;
 	console.log(`Cleaning chunked temp files in ${tmp}, older than ${MAX_AGE_HOURS}h`);
 
