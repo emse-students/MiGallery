@@ -75,6 +75,7 @@ try {
 
 				// Exclure les dossiers de données temporaires ou volumineux
 				const excludes = [
+					'build/artifacts',
 					'data/cache',
 					'data/chunk-uploads',
 					'data/mock-uploads',
