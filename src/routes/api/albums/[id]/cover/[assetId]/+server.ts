@@ -169,9 +169,12 @@ export const GET: RequestHandler = async (event) => {
 	}
 };
 
-async function processImage(buffer: ArrayBuffer, cacheFile: string): Promise<Response> {
+async function processImage(buffer: Buffer | ArrayBuffer, cacheFile: string): Promise<Response> {
+	// Normalize input to a Node Buffer so both ArrayBuffer and Buffer callers work
+	const inputBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+
 	try {
-		const resizedBuffer = await sharp(buffer)
+		const resizedBuffer = await sharp(inputBuffer)
 			.resize(600, 600, {
 				fit: 'cover',
 				position: 'center'
@@ -193,7 +196,7 @@ async function processImage(buffer: ArrayBuffer, cacheFile: string): Promise<Res
 		});
 	} catch (e) {
 		console.error('Sharp error:', e);
-		return new Response(Buffer.from(buffer), {
+		return new Response(Buffer.from(inputBuffer), {
 			headers: { 'Content-Type': 'image/jpeg' }
 		});
 	}
