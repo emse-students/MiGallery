@@ -68,7 +68,31 @@ try {
 		{
 			gzip: true,
 			file: outPath,
-			cwd: process.cwd()
+			cwd: process.cwd(),
+			filter: (p) => {
+				// Normaliser le chemin pour la comparaison
+				const normalizedPath = p.replace(/\\/g, '/').replace(/^\.\//, '');
+
+				// Exclure les dossiers de données temporaires ou volumineux
+				const excludes = [
+					'data/cache',
+					'data/chunk-uploads',
+					'data/mock-uploads',
+					'data/immich-file-cache',
+					'data/backups'
+				];
+
+				if (excludes.some((ex) => normalizedPath === ex || normalizedPath.startsWith(ex + '/'))) {
+					return false;
+				}
+
+				// Exclure les fichiers de base de données temporaires (WAL, SHM)
+				if (normalizedPath.endsWith('-wal') || normalizedPath.endsWith('-shm')) {
+					return false;
+				}
+
+				return true;
+			}
 		},
 		[
 			'build',
@@ -77,7 +101,7 @@ try {
 			'package.json',
 			fs.existsSync(readmeFile) ? 'README.md' : null,
 			fs.existsSync(scriptsDir) ? 'scripts' : null
-		].filter(Boolean) 
+		].filter(Boolean)
 	);
 
 	const stats = fs.statSync(outPath);
