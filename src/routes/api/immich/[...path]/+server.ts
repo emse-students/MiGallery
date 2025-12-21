@@ -279,7 +279,7 @@ async function handleChunkedUpload(
 			console.warn('Failed to rename temp file to complete:', e);
 		}
 
-		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any */
+		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any */
 		// Use Node `form-data` package instance. Type checks disabled because typings conflict with DOM FormData
 		const formData: any = new NodeFormData();
 
@@ -320,9 +320,10 @@ async function handleChunkedUpload(
 		const response = await fetch(immichUrl, {
 			method: 'POST',
 			headers: fetchHeaders,
-			body: formData as unknown as BodyInit
-		});
-		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any */
+			body: formData as unknown as BodyInit,
+			duplex: 'half'
+		} as RequestInit & { duplex?: 'half' });
+		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any */
 
 		if (response.ok) {
 			try {
