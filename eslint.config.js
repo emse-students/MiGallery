@@ -125,7 +125,8 @@ export default [
 			'scripts/**/*.cjs',
 			'scripts/**/*.mjs',
 			'src/**/*.svelte',
-			'**/.svelte-kit/**'
+			'**/.svelte-kit/**',
+			'static/streamsaver-sw.js'
 		]
 	}
 ];

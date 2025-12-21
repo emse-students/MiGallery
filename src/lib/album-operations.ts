@@ -1,5 +1,4 @@
 import { activeOperations } from '$lib/operations';
-
 import { toast } from '$lib/toast';
 import type { PhotosState } from '$lib/photos.svelte';
 
@@ -40,7 +39,24 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 
 	let lastResponse: Response | null = null;
 
-	for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+	// Check server for existing partial upload to resume
+	let startChunk = 0;
+	try {
+		const statusRes = await fetch('/api/immich/assets?chunk-status=1', {
+			method: 'GET',
+			headers: { 'x-file-id': fileId }
+		});
+		if (statusRes.ok) {
+			const json = (await statusRes.json().catch(() => null)) as { receivedBytes?: number } | null;
+			if (json && typeof json.receivedBytes === 'number' && json.receivedBytes > 0) {
+				startChunk = Math.floor(json.receivedBytes / CHUNK_SIZE);
+			}
+		}
+	} catch {
+		// ignore resume check errors and start from zero
+	}
+
+	for (let chunkIndex = startChunk; chunkIndex < totalChunks; chunkIndex++) {
 		const start = chunkIndex * CHUNK_SIZE;
 		const end = Math.min(start + CHUNK_SIZE, file.size);
 		const chunk = file.slice(start, end);
@@ -55,6 +71,22 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 			'x-immich-created-at': fileCreatedAt,
 			'x-immich-modified-at': fileModifiedAt
 		};
+
+		// compute per-chunk checksum (SHA-256) to allow server-side verification
+		try {
+			const subtle = globalThis.crypto?.subtle;
+			if (subtle && chunk && chunk.size > 0) {
+				const ab = await chunk.arrayBuffer();
+				const digest = await subtle.digest('SHA-256', ab);
+				const view = new Uint8Array(digest);
+				const hex = Array.from(view)
+					.map((b) => b.toString(16).padStart(2, '0'))
+					.join('');
+				headers['x-chunk-sha256'] = hex;
+			}
+		} catch {
+			/* ignore chunk hash errors */
+		}
 
 		const res = await fetch('/api/immich/assets', {
 			method: 'POST',
