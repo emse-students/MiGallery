@@ -10,7 +10,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
-import https from 'node:https';
 import NodeFormData from 'form-data';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
@@ -267,7 +266,10 @@ async function handleChunkedUpload(
 
 		console.debug(`[Immich-Proxy] Réassemblage terminé pour ${fileId}, envoi à Immich...`);
 
-		const originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
+		const originalName = (request.headers.get('x-original-name') || `upload-${fileId}.bin`).replace(
+			/"/g,
+			''
+		);
 
 		// compute checksum (sha256)
 		const hash = crypto.createHash('sha256');
@@ -280,20 +282,18 @@ async function handleChunkedUpload(
 		const sha256 = hash.digest('hex');
 
 		try {
+			if (fs.existsSync(completePath)) {
+				fs.unlinkSync(completePath);
+			}
 			fs.renameSync(tempFilePath, completePath);
 		} catch (e) {
 			console.warn('Failed to rename temp file to complete:', e);
 		}
 
-		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any */
+		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 		// Use Node `form-data` package instance. Type checks disabled because typings conflict with DOM FormData
 		const formData: any = new NodeFormData();
 		const stats = fs.statSync(completePath);
-
-		formData.append('assetData', fs.createReadStream(completePath), {
-			filename: originalName,
-			knownLength: stats.size
-		});
 
 		const deviceId = request.headers.get('x-immich-device-id');
 		const deviceAssetId = request.headers.get('x-immich-asset-id');
@@ -317,40 +317,45 @@ async function handleChunkedUpload(
 			formData.append('isFavorite', isFavorite);
 		}
 
+		// On ajoute le fichier en dernier, c'est souvent mieux pour les parseurs multipart
+		formData.append('assetData', fs.createReadStream(completePath), {
+			filename: originalName,
+			knownLength: stats.size
+		});
+
 		const immichUrl = `${baseUrl}/api/assets`;
 		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 
-		const formHeaders = (formData as any).getHeaders() as Record<string, string>;
-		for (const k of Object.keys(formHeaders)) {
-			fetchHeaders[k] = formHeaders[k];
-		}
-
-		// Calculate content length to prevent "Unexpected end of form" errors with large files
-		const length = await new Promise<number>((resolve, reject) => {
-			(formData as any).getLength((err: Error | null, length: number) => {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(length);
-				}
-			});
-		});
-		fetchHeaders['content-length'] = String(length);
+		// Nettoyage des headers pour laisser form-data gérer le multipart
+		delete fetchHeaders['transfer-encoding'];
+		delete fetchHeaders['content-length'];
+		delete fetchHeaders['content-type'];
+		delete fetchHeaders['connection'];
 
 		fetchHeaders['x-proxy-sha256'] = sha256;
 
-		// Use http/https request for better streaming support with form-data
+		console.debug(`[Immich-Proxy] Uploading to Immich: ${originalName} (${stats.size} bytes)`);
+
+		// Use formData.submit for more reliable multipart upload
 		const response = await new Promise<Response>((resolve, reject) => {
 			const url = new URL(immichUrl);
-			const protocol = url.protocol === 'https:' ? https : http;
+			const isHttps = url.protocol === 'https:';
 
-			const req = protocol.request(
-				immichUrl,
+			const req = formData.submit(
 				{
-					method: 'POST',
-					headers: fetchHeaders
+					protocol: url.protocol,
+					host: url.hostname,
+					port: url.port || (isHttps ? '443' : '80'),
+					path: url.pathname + url.search,
+					headers: fetchHeaders,
+					timeout: 600000 // 10 minutes
 				},
-				(res) => {
+				(err: Error | null, res: http.IncomingMessage) => {
+					if (err) {
+						reject(err);
+						return;
+					}
+
 					const chunks: Buffer[] = [];
 					res.on('data', (chunk: Buffer) => chunks.push(chunk));
 					res.on('end', () => {
@@ -375,16 +380,17 @@ async function handleChunkedUpload(
 				}
 			);
 
-			req.on('error', (err) => {
-				console.error('[Immich-Proxy] Request error to Immich:', err);
-				reject(err);
-			});
-
-			formData.pipe(req);
+			if (req) {
+				req.on('error', (err: Error) => {
+					console.error('[Immich-Proxy] Request error to Immich:', err);
+					reject(err);
+				});
+			}
 		});
-		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any */
+		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 
 		if (response.ok) {
+			console.debug(`[Immich-Proxy] Upload réussi pour ${originalName}`);
 			try {
 				const respClone = response.clone();
 				const respData = (await respClone.json()) as ImmichAssetResponse;
@@ -395,6 +401,12 @@ async function handleChunkedUpload(
 			} catch (e) {
 				console.warn('Failed to log upload:', e);
 			}
+		} else {
+			const errorBody = await response.clone().text();
+			console.error(
+				`[Immich-Proxy] Upload échoué pour ${originalName}: ${response.status} ${response.statusText}`,
+				errorBody
+			);
 		}
 
 		try {
