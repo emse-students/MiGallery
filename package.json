@@ -103,7 +103,7 @@
 		"jspdf-autotable": "^5.0.2",
 		"sharp": "^0.34.5",
 		"ffmpeg-static": "^5.1.0",
-		"ffprobe-static": "^4.4.0",
+		"ffprobe-static": "latest",
 		"svelte-adapter-bun": "^1.0.1",
 		"typescript-eslint": "^8.47.0",
 		"vitest": "^4.0.10"
