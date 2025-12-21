@@ -18,21 +18,21 @@ const apiKey = env.IMMICH_API_KEY ?? '';
 import type { RequestEvent } from '@sveltejs/kit';
 
 interface ImmichAlbumResponse {
-    id: string;
-    albumName?: string;
-    assets?: Array<{ id: string }>;
-    [key: string]: unknown;
+	id: string;
+	albumName?: string;
+	assets?: Array<{ id: string }>;
+	[key: string]: unknown;
 }
 
 interface ImmichAssetResponse {
-    id: string;
-    albums?: ImmichAlbumResponse[];
-    albumId?: string;
-    [key: string]: unknown;
+	id: string;
+	albums?: ImmichAlbumResponse[];
+	albumId?: string;
+	[key: string]: unknown;
 }
 
 interface BulkDeleteRequest {
-    ids: string[];
+	ids: string[];
 }
 
 /**
@@ -223,14 +223,18 @@ async function handleChunkedUpload(
 						if (fs.existsSync(lockPath)) {
 							fs.unlinkSync(lockPath);
 						}
-					} catch { /* ignore */ }
+					} catch {
+						/* ignore */
+					}
 					return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
 						status: 400,
 						headers: { 'content-type': 'application/json' }
 					});
 				}
 			}
-		} catch { /* ignore verification errors */ }
+		} catch {
+			/* ignore verification errors */
+		}
 
 		try {
 			if (chunkIndex === 0) {
@@ -243,7 +247,9 @@ async function handleChunkedUpload(
 				if (fs.existsSync(lockPath)) {
 					fs.unlinkSync(lockPath);
 				}
-			} catch { /* ignore */ }
+			} catch {
+				/* ignore */
+			}
 		}
 
 		if (chunkIndex < totalChunks - 1) {
@@ -273,9 +279,9 @@ async function handleChunkedUpload(
 			console.warn('Failed to rename temp file to complete:', e);
 		}
 
-
-		// We use targeted disable here because NodeFormData often fails type resolution in ESM.
-		const formData = new NodeFormData();
+		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any */
+		// Use Node `form-data` package instance. Type checks disabled because typings conflict with DOM FormData
+		const formData: any = new NodeFormData();
 
 		formData.append('assetData', fs.createReadStream(completePath), { filename: originalName });
 
@@ -304,11 +310,10 @@ async function handleChunkedUpload(
 		const immichUrl = `${baseUrl}/api/assets`;
 		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 
-		const formHeaders = formData.getHeaders() as Record<string, string>;
+		const formHeaders = (formData as any).getHeaders() as Record<string, string>;
 		for (const k of Object.keys(formHeaders)) {
 			fetchHeaders[k] = formHeaders[k];
 		}
-
 
 		fetchHeaders['x-proxy-sha256'] = sha256;
 
@@ -317,6 +322,7 @@ async function handleChunkedUpload(
 			headers: fetchHeaders,
 			body: formData as unknown as BodyInit
 		});
+		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-unsafe-assignment,@typescript-eslint/no-explicit-any */
 
 		if (response.ok) {
 			try {
@@ -342,9 +348,18 @@ async function handleChunkedUpload(
 			console.warn('Failed to cleanup temp file', e);
 		}
 
+		// Forward response body but copy only safe headers (avoid forwarding content-length)
+		const forwardedHeaders = new Headers();
+		const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
+		for (const h of safeRespForward) {
+			const v = response.headers.get(h);
+			if (v !== null && v !== undefined) {
+				forwardedHeaders.set(h, v);
+			}
+		}
 		return new Response(response.body, {
 			status: response.status,
-			headers: response.headers
+			headers: forwardedHeaders
 		});
 	} catch (err: unknown) {
 		const _err = ensureError(err);
@@ -353,7 +368,9 @@ async function handleChunkedUpload(
 			if (fs.existsSync(tempFilePath)) {
 				fs.unlinkSync(tempFilePath);
 			}
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 
 		return new Response(
 			JSON.stringify({ error: _err.message || 'Internal Server Error processing chunk' }),
@@ -422,7 +439,7 @@ const handle: RequestHandler = async function (event) {
 			await requireScope(event, 'write');
 		} catch (err) {
 			const isDownload =
-                pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
+				pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
 
 			if (request.method === 'POST' && isDownload) {
 				try {
@@ -432,13 +449,13 @@ const handle: RequestHandler = async function (event) {
 
 					if (
 						Array.isArray(assetIds) &&
-                        assetIds.length > 0 &&
-                        (await checkPublicAssetsAccess(
-                        	assetIds,
-                        	baseUrlFromEnv || '',
-                        	apiKey,
-                        	request.headers.get('referer')
-                        ))
+						assetIds.length > 0 &&
+						(await checkPublicAssetsAccess(
+							assetIds,
+							baseUrlFromEnv || '',
+							apiKey,
+							request.headers.get('referer')
+						))
 					) {
 						void 0;
 					} else {
@@ -473,8 +490,8 @@ const handle: RequestHandler = async function (event) {
 
 	if (
 		request.method === 'POST' &&
-        request.headers.has('x-chunk-index') &&
-        request.headers.has('x-file-id')
+		request.headers.has('x-chunk-index') &&
+		request.headers.has('x-file-id')
 	) {
 		const chunkHeaders: Record<string, string> = {
 			accept: request.headers.get('accept') || '*/*'
@@ -547,16 +564,16 @@ const handle: RequestHandler = async function (event) {
 		const resContentType = res.headers.get('content-type') || 'application/json';
 
 		const isBinary =
-            resContentType.startsWith('image/') ||
-            resContentType.startsWith('video/') ||
-            resContentType.startsWith('application/octet-stream') ||
-            resContentType.includes('zip') ||
-            resContentType.includes('octet-stream');
+			resContentType.startsWith('image/') ||
+			resContentType.startsWith('video/') ||
+			resContentType.startsWith('application/octet-stream') ||
+			resContentType.includes('zip') ||
+			resContentType.includes('octet-stream');
 
 		if (isBinary) {
 			const headers = new Headers();
 			headers.set('content-type', resContentType);
-			const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid', 'content-length'];
+			const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
 			for (const h of safeForward) {
 				const v = res.headers.get(h);
 				if (v) {
@@ -566,6 +583,7 @@ const handle: RequestHandler = async function (event) {
 			if (res.status === 204) {
 				return new Response(null, { status: 204, headers });
 			}
+			// Do not forward upstream Content-Length for streaming bodies — it can mismatch the proxied body.
 			return new Response(res.body, { status: res.status, headers });
 		}
 
@@ -575,15 +593,18 @@ const handle: RequestHandler = async function (event) {
 		if (!res.ok) {
 			if (resContentType.includes('text/html')) {
 				headers.set('content-type', 'application/json');
-				return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), { status: res.status, headers });
+				return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), {
+					status: res.status,
+					headers
+				});
 			}
 			if (!resContentType.includes('application/json')) {
 				const snippet = textBody && textBody.slice ? textBody.slice(0, 200) : textBody;
 				headers.set('content-type', 'application/json');
-				return new Response(
-					JSON.stringify({ error: snippet || `Upstream ${res.status}` }),
-					{ status: res.status, headers }
-				);
+				return new Response(JSON.stringify({ error: snippet || `Upstream ${res.status}` }), {
+					status: res.status,
+					headers
+				});
 			}
 		}
 
@@ -592,7 +613,9 @@ const handle: RequestHandler = async function (event) {
 				const jsonData: unknown = JSON.parse(textBody);
 				const etag = res.headers.get('etag') || undefined;
 				immichCache.set('GET', `/api/${pathParam}`, resolvedRemoteUrl, jsonData, undefined, etag);
-			} catch { /* Ignore JSON parse errors */ }
+			} catch {
+				/* Ignore JSON parse errors */
+			}
 		}
 
 		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && res.ok) {
@@ -623,10 +646,15 @@ const handle: RequestHandler = async function (event) {
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids && Array.isArray(parsed.ids)) {
-									await logEvent(event, 'delete', 'asset', 'bulk', { count: parsed.ids.length, ids: parsed.ids });
+									await logEvent(event, 'delete', 'asset', 'bulk', {
+										count: parsed.ids.length,
+										ids: parsed.ids
+									});
 								}
 							}
-						} catch { /* ignore */ }
+						} catch {
+							/* ignore */
+						}
 					} else if (assetIdMatch) {
 						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
 					} else if (albumIdMatch) {
@@ -641,16 +669,23 @@ const handle: RequestHandler = async function (event) {
 							if (respData.id) {
 								await logEvent(event, 'create', 'album', respData.id, { name: respData.albumName });
 							}
-						} catch { /* ignore */ }
+						} catch {
+							/* ignore */
+						}
 					} else if (albumIdMatch && pathParam.endsWith('/assets')) {
 						try {
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids) {
-									await logEvent(event, 'update', 'album', albumIdMatch[1], { action: 'add_assets', count: parsed.ids.length });
+									await logEvent(event, 'update', 'album', albumIdMatch[1], {
+										action: 'add_assets',
+										count: parsed.ids.length
+									});
 								}
 							}
-						} catch { /* ignore */ }
+						} catch {
+							/* ignore */
+						}
 					}
 				} else if (request.method === 'PUT' || request.method === 'PATCH') {
 					if (albumIdMatch) {
@@ -678,7 +713,10 @@ const handle: RequestHandler = async function (event) {
 		return new Response(textBody, { status: res.status, headers });
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		return new Response(JSON.stringify({ error: _err.message }), { status: 502, headers: { 'content-type': 'application/json' } });
+		return new Response(JSON.stringify({ error: _err.message }), {
+			status: 502,
+			headers: { 'content-type': 'application/json' }
+		});
 	}
 };
 
@@ -690,9 +728,13 @@ export const PATCH = handle;
 
 function handleChunkStatus(event: RequestEvent) {
 	const req = event.request;
-	const fileId = req.headers.get('x-file-id') || (event.url.searchParams.get('fileId') as string | null);
+	const fileId =
+		req.headers.get('x-file-id') || (event.url.searchParams.get('fileId') as string | null);
 	if (!fileId) {
-		return new Response(JSON.stringify({ error: 'Missing x-file-id' }), { status: 400, headers: { 'content-type': 'application/json' } });
+		return new Response(JSON.stringify({ error: 'Missing x-file-id' }), {
+			status: 400,
+			headers: { 'content-type': 'application/json' }
+		});
 	}
 
 	const tempFilePath = path.join(os.tmpdir(), `immich_proxy_${fileId}.part`);
@@ -705,5 +747,8 @@ function handleChunkStatus(event: RequestEvent) {
 		size = fs.statSync(completePath).size;
 	}
 
-	return new Response(JSON.stringify({ exists: size > 0, receivedBytes: size }), { status: 200, headers: { 'content-type': 'application/json' } });
+	return new Response(JSON.stringify({ exists: size > 0, receivedBytes: size }), {
+		status: 200,
+		headers: { 'content-type': 'application/json' }
+	});
 }
