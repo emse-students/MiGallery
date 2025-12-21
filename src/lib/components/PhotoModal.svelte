@@ -7,6 +7,7 @@
 	import type { Asset } from '$lib/photos.svelte';
 	import { toast } from '$lib/toast';
 	import { setAlbumCover } from '$lib/immich/albums';
+	import { clientCache } from '$lib/client-cache';
 
 	interface Props {
 		assetId: string;
@@ -22,6 +23,7 @@
 	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId, showFavorite = false, onFavoriteToggle }: Props = $props();
 	const dispatch = createEventDispatcher();
 
+	// -- État réactif --
 	let currentIndex = $state(0);
 	let asset = $state<Asset | null>(null);
 	let mediaUrl = $state<string | null>(null);
@@ -29,8 +31,14 @@
 	let isVideo = $state(false);
 	let imageLoaded = $state(false);
 	let highResLoaded = $state(false);
+
+	// -- État du Zoom --
 	let scale = $state(1);
-	let minScale = $state(0.1); // will be recomputed to a dynamic value when the image loads
+	let minScale = $state(0.1);
+	const MAX_SCALE = 5;
+
+	// Variable de suivi pour éviter le reset lors du chargement de la haute résolution
+	let lastProcessedAssetId = $state<string | null>(null);
 
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
@@ -58,7 +66,7 @@
 	let touchStartScale = $state(1);
 	let isTouchDragging = $state(false);
 	let touchDragStart = $state({ x: 0, y: 0 });
-	let lastTouchEnd = $state(0); 
+	let lastTouchEnd = $state(0);
 
 	let lastLoadedAssetId = $state<string | null>(null);
 
@@ -80,95 +88,87 @@
 	async function loadAsset(id: string) {
 		if (!id) return;
 		loading = true;
-		imageLoaded = false;
+
+		// IMPORTANT : On ne reset l'état chargé que si l'ID a changé.
+		// Cela permet de garder l'image "preview" affichée pendant que l'image "original" charge.
+		if (id !== lastProcessedAssetId) {
+			imageLoaded = false;
+		}
+
 		highResLoaded = false;
 		asset = null;
 		mediaUrl = null;
 		isVideo = false;
 
 		try {
-				const local = assets.find(a => a.id === id);
-				if (local) {
-					asset = local;
-					isVideo = asset?.type === 'VIDEO';
-				} else {
-					try {
-						const metaRes = await fetch(`/api/immich/assets/${id}`);
-						if (metaRes.ok) {
-							const rawAsset = (await metaRes.json()) as ImmichAsset;
-							asset = {
-								id: rawAsset.id,
-								originalFileName: rawAsset.originalFileName,
-								type: rawAsset.type,
-								_raw: rawAsset
-							};
-							isVideo = asset?.type === 'VIDEO';
-						}
-					} catch (err) {
-						void err;
+			const local = assets.find(a => a.id === id);
+			if (local) {
+				asset = local;
+				isVideo = asset?.type === 'VIDEO';
+			} else {
+				try {
+					const metaRes = await fetch(`/api/immich/assets/${id}`);
+					if (metaRes.ok) {
+						const rawAsset = (await metaRes.json()) as ImmichAsset;
+						asset = {
+							id: rawAsset.id,
+							originalFileName: rawAsset.originalFileName,
+							type: rawAsset.type,
+							isFavorite: rawAsset.isFavorite,
+							_raw: rawAsset
+						};
+						isVideo = asset?.type === 'VIDEO';
 					}
-				}
+				} catch (err) { void err; }
+			}
 
 			if (isVideo) {
 				mediaUrl = `/api/immich/assets/${id}/video/playback`;
 				imageLoaded = true;
 			} else {
-			let size = 'preview';
-			if (typeof window !== 'undefined') {
-				const isMobileViewport = window.innerWidth <= 768;
-				const highDPR = (window.devicePixelRatio || 1) > 1.5;
-				if (isMobileViewport || highDPR) {
-					size = 'original';
+				let size = 'preview';
+				if (typeof window !== 'undefined') {
+					const isMobileViewport = window.innerWidth <= 768;
+					const highDPR = (window.devicePixelRatio || 1) > 1.5;
+					if (isMobileViewport || highDPR) size = 'original';
 				}
-			}
 
-			if (albumVisibility === 'unlisted' && albumId) {
-				const proxySize = size === 'original' ? 'preview' : size;
-				mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
-			} else {
-				if (size === 'original') {
-					mediaUrl = `/api/immich/assets/${id}/original`;
+				if (albumVisibility === 'unlisted' && albumId) {
+					const proxySize = size === 'original' ? 'preview' : size;
+					mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
 				} else {
-					mediaUrl = `/api/immich/assets/${id}/thumbnail?size=${size}`;
+					mediaUrl = size === 'original'
+						? `/api/immich/assets/${id}/original`
+						: `/api/immich/assets/${id}/thumbnail?size=${size}`;
 				}
 			}
+		} catch (e) {
+			console.error('Erreur chargement asset:', e);
+		} finally {
+			loading = false;
 		}
-	} catch (e: unknown) {
-		console.error('Erreur chargement asset:', e);
-	} finally {
-		loading = false;
 	}
-}
 
 	$effect(() => {
 		if (assetId && assetId !== lastLoadedAssetId) {
 			loadAsset(assetId);
 			lastLoadedAssetId = assetId;
-			scale = 1;
-			translate = { x: 0, y: 0 };
 		}
 	});
 
 	function handleWheel(e: WheelEvent) {
-		if (!mediaUrl || isVideo) return;
+		if (!mediaUrl || isVideo || !containerElement) return;
 		e.preventDefault();
 
-		const container = e.currentTarget as HTMLElement;
-		const rect = container.getBoundingClientRect();
-
-		const mouseX = (e.clientX - rect.left) / rect.width;
-		const mouseY = (e.clientY - rect.top) / rect.height;
-
-		const delta = e.deltaY > 0 ? -0.1 : 0.1;
+		const rect = containerElement.getBoundingClientRect();
+		const delta = e.deltaY > 0 ? -0.2 : 0.2;
 		const oldScale = scale;
-		const newScale = Math.min(Math.max(minScale, scale + delta), 3);
+		const newScale = Math.min(Math.max(minScale, scale + delta), MAX_SCALE);
 
 		if (newScale !== oldScale) {
 			const scaleChange = newScale / oldScale;
-
 			const imgCenterX = rect.width / 2;
 			const imgCenterY = rect.height / 2;
-
 			const offsetX = (e.clientX - rect.left) - imgCenterX;
 			const offsetY = (e.clientY - rect.top) - imgCenterY;
 
@@ -176,40 +176,25 @@
 				x: translate.x * scaleChange + offsetX * (1 - scaleChange),
 				y: translate.y * scaleChange + offsetY * (1 - scaleChange)
 			};
-
 			scale = newScale;
 
-			if (newScale > 1.3 && !highResLoaded && !isVideo) {
-				ensureHighRes();
-			}
-
-			setTimeout(() => {
-				translate = constrainTranslate(translate);
-			}, 0);
+			if (newScale > 1.3 && !highResLoaded) ensureHighRes();
+			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
 		}
-
-		if (scale <= 1) {
-			translate = { x: 0, y: 0 };
-		}
+		if (scale <= 1) translate = { x: 0, y: 0 };
 	}
 
 	function handleDoubleClick(e: MouseEvent) {
-		if (!mediaUrl || isVideo) return;
+		if (!mediaUrl || isVideo || !containerElement) return;
 		e.preventDefault();
 
-		const rect = (containerElement as HTMLElement).getBoundingClientRect();
+		const rect = containerElement.getBoundingClientRect();
 		const oldScale = scale;
+		const target = oldScale > 1.1 ? 1 : 2.5;
 
-		const target = oldScale >= 2 ? 1 : Math.min(2, 3);
-		const newScale = Math.min(Math.max(minScale, target), 3);
-
-		if (newScale === oldScale) return;
-
-		const scaleChange = newScale / oldScale;
-
+		const scaleChange = target / oldScale;
 		const imgCenterX = rect.width / 2;
 		const imgCenterY = rect.height / 2;
-
 		const offsetX = (e.clientX - rect.left) - imgCenterX;
 		const offsetY = (e.clientY - rect.top) - imgCenterY;
 
@@ -217,54 +202,39 @@
 			x: translate.x * scaleChange + offsetX * (1 - scaleChange),
 			y: translate.y * scaleChange + offsetY * (1 - scaleChange)
 		};
+		scale = target;
 
-		scale = newScale;
-
-		if (newScale > 1.3 && !highResLoaded && !isVideo) {
-			ensureHighRes();
-		}
-
+		if (scale > 1.3 && !highResLoaded) ensureHighRes();
 		setTimeout(() => { translate = constrainTranslate(translate); }, 0);
-
 		if (scale <= 1) translate = { x: 0, y: 0 };
 	}
 
 	function handleMouseDown(e: MouseEvent) {
-		if (scale <= 1) return; 
+		if (scale <= 1) return;
 		isDragging = true;
 		dragStart = { x: e.clientX - translate.x, y: e.clientY - translate.y };
 	}
 
 	function constrainTranslate(newTranslate: { x: number; y: number }): { x: number; y: number } {
-		if (!imgElement || !containerElement || scale <= 1) {
-			return { x: 0, y: 0 };
-		}
+		if (!imgElement || !containerElement || scale <= 1) return { x: 0, y: 0 };
 
 		const containerRect = containerElement.getBoundingClientRect();
-		const containerWidth = containerRect.width;
-		const containerHeight = containerRect.height;
+		const imgAspect = imgElement.naturalWidth / imgElement.naturalHeight;
+		const containerAspect = containerRect.width / containerRect.height;
 
-		const imgNaturalWidth = imgElement.naturalWidth;
-		const imgNaturalHeight = imgElement.naturalHeight;
-		const imgAspect = imgNaturalWidth / imgNaturalHeight;
-		const containerAspect = containerWidth / containerHeight;
-
-		let displayedWidth: number;
-		let displayedHeight: number;
-
+		let displayedWidth, displayedHeight;
 		if (imgAspect > containerAspect) {
-			displayedWidth = containerWidth;
-			displayedHeight = containerWidth / imgAspect;
+			displayedWidth = containerRect.width;
+			displayedHeight = containerRect.width / imgAspect;
 		} else {
-			displayedHeight = containerHeight;
-			displayedWidth = containerHeight * imgAspect;
+			displayedHeight = containerRect.height;
+			displayedWidth = containerRect.height * imgAspect;
 		}
 
 		const scaledWidth = displayedWidth * scale;
 		const scaledHeight = displayedHeight * scale;
-
-		const maxTranslateX = Math.max(0, (scaledWidth - containerWidth) / 2);
-		const maxTranslateY = Math.max(0, (scaledHeight - containerHeight) / 2);
+		const maxTranslateX = Math.max(0, (scaledWidth - containerRect.width) / 2);
+		const maxTranslateY = Math.max(0, (scaledHeight - containerRect.height) / 2);
 
 		return {
 			x: Math.max(-maxTranslateX, Math.min(maxTranslateX, newTranslate.x)),
@@ -274,13 +244,10 @@
 
 	function handleMouseMove(e: MouseEvent) {
 		if (!isDragging) return;
-		const newTranslate = { x: e.clientX - dragStart.x, y: e.clientY - dragStart.y };
-		translate = constrainTranslate(newTranslate);
+		translate = constrainTranslate({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
 	}
 
-	function handleMouseUp() {
-		isDragging = false;
-	}
+	function handleMouseUp() { isDragging = false; }
 
 	async function ensureHighRes() {
 		if (!asset || isVideo || highResLoaded) return;
@@ -291,9 +258,7 @@
 			}
 			mediaUrl = `/api/immich/assets/${asset.id}/original`;
 			highResLoaded = true;
-		} catch (e) {
-			console.warn('Unable to load high-res image', e);
-		}
+		} catch (e) { console.warn('Échec chargement haute résolution', e); }
 	}
 
 	function getTouchDistance(touches: TouchList): number {
@@ -313,7 +278,7 @@
 			const now = Date.now();
 			if (now - lastTouchEnd < 300) {
 				e.preventDefault();
-				if (scale > 1) {
+				if (scale > 1.1) {
 					scale = 1;
 					translate = { x: 0, y: 0 };
 				} else {
@@ -322,10 +287,7 @@
 				lastTouchEnd = 0;
 			} else if (scale > 1) {
 				isTouchDragging = true;
-				touchDragStart = {
-					x: e.touches[0].clientX - translate.x,
-					y: e.touches[0].clientY - translate.y
-				};
+				touchDragStart = { x: e.touches[0].clientX - translate.x, y: e.touches[0].clientY - translate.y };
 			}
 		}
 	}
@@ -335,24 +297,15 @@
 			e.preventDefault();
 			const currentDistance = getTouchDistance(e.touches);
 			const scaleChange = currentDistance / touchStartDistance;
-			let newScale = touchStartScale * scaleChange;
-			newScale = Math.max(minScale, Math.min(10, newScale));
-			scale = newScale;
-
-			if (newScale > 1.3 && !highResLoaded && !isVideo) {
-				ensureHighRes();
-			}
-
-			if (scale <= 1) {
-				translate = { x: 0, y: 0 };
-			}
+			scale = Math.max(minScale, Math.min(MAX_SCALE, touchStartScale * scaleChange));
+			if (scale > 1.3 && !highResLoaded) ensureHighRes();
+			if (scale <= 1) translate = { x: 0, y: 0 };
 		} else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
 			e.preventDefault();
-			const newTranslate = {
+			translate = constrainTranslate({
 				x: e.touches[0].clientX - touchDragStart.x,
 				y: e.touches[0].clientY - touchDragStart.y
-			};
-			translate = constrainTranslate(newTranslate);
+			});
 		}
 	}
 
@@ -361,31 +314,14 @@
 			lastTouchEnd = Date.now();
 			touchStartDistance = 0;
 			isTouchDragging = false;
-
 			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
-
-			if (scale <= 1) {
-				translate = { x: 0, y: 0 };
-			}
+			if (scale <= 1) translate = { x: 0, y: 0 };
 		}
 	}
 
-	function resetZoom() {
-		scale = 1;
-		translate = { x: 0, y: 0 };
-	}
-
-	function goToPrevious() {
-		if (currentIndex > 0) {
-			assetId = assets[currentIndex - 1].id;
-		}
-	}
-
-	function goToNext() {
-		if (currentIndex < assets.length - 1) {
-			assetId = assets[currentIndex + 1].id;
-		}
-	}
+	function resetZoom() { scale = 1; translate = { x: 0, y: 0 }; }
+	function goToPrevious() { if (currentIndex > 0) assetId = assets[currentIndex - 1].id; }
+	function goToNext() { if (currentIndex < assets.length - 1) assetId = assets[currentIndex + 1].id; }
 
 	async function downloadAsset() {
 		if (!assetId || !asset) return;
@@ -404,29 +340,20 @@
 				a.click();
 				URL.revokeObjectURL(url);
 			}
-		} catch (e: unknown) {
-			console.error('Erreur téléchargement:', e);
-		}
+		} catch (e) { console.error('Erreur téléchargement:', e); }
 	}
-
-	import { clientCache } from '$lib/client-cache';
 
 	async function handleSetCover() {
 		if (!albumId || !assetId) return;
 		try {
 			await setAlbumCover(albumId, assetId);
 			toast.success('Couverture mise à jour');
-
 			clientCache.delete('album-covers', albumId);
-
-		} catch (e) {
-			toast.error('Erreur: ' + (e as Error).message);
-		}
+		} catch (e) { toast.error('Erreur: ' + (e as Error).message); }
 	}
 
 	async function deleteCurrentAsset(skipConfirmation = false) {
 		if (!canManagePhotos || !assetId) return;
-
 		const performDelete = async () => {
 			showConfirmModal = false;
 			try {
@@ -435,36 +362,20 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify({ ids: [assetId] })
 				});
-
-				if (!res.ok) {
-					if (res.status === 204) {
-					} else {
-						const errText = await res.text().catch(() => res.statusText);
-						throw new Error(errText || 'Erreur lors de la suppression');
-					}
+				if (!res.ok && res.status !== 204) {
+					const errText = await res.text().catch(() => res.statusText);
+					throw new Error(errText || 'Erreur lors de la suppression');
 				}
-
 				const nextIndexSnapshot = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
 				const nextAssetId = (nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length) ? assets[nextIndexSnapshot].id : null;
-
-				if (onAssetDeleted) {
-					onAssetDeleted(assetId);
-				}
+				if (onAssetDeleted) onAssetDeleted(assetId);
 				dispatch('assetDeleted', assetId);
-
-				if (nextAssetId) {
-					assetId = nextAssetId;
-				} else {
-					onClose();
-				}
-			} catch (e: unknown) {
-				toast.error('Erreur lors de la suppression: ' + (e as Error).message);
-			}
+				if (nextAssetId) assetId = nextAssetId;
+				else onClose();
+			} catch (e) { toast.error('Erreur suppression: ' + (e as Error).message); }
 		};
-
-		if (skipConfirmation) {
-			await performDelete();
-		} else {
+		if (skipConfirmation) await performDelete();
+		else {
 			confirmModalConfig = {
 				title: 'Supprimer la photo',
 				message: 'Voulez-vous vraiment mettre cette photo à la corbeille ?',
@@ -479,24 +390,14 @@
 		if (e.key === 'Escape') onClose();
 		else if (e.key === 'ArrowLeft') goToPrevious();
 		else if (e.key === 'ArrowRight') goToNext();
-		else if (e.key === '+' || e.key === '=') scale = Math.min(scale + 0.2, 3);
-		else if (e.key === '-' || e.key === '_') scale = Math.max(scale - 0.2, minScale);
+		else if (e.key === '+' || e.key === '=') scale = Math.min(scale + 0.5, MAX_SCALE);
+		else if (e.key === '-' || e.key === '_') scale = Math.max(scale - 0.5, minScale);
 		else if (e.key === '0') resetZoom();
-		else if (e.key === 'Delete') {
-			if (canManagePhotos) {
-				deleteCurrentAsset(e.shiftKey);
-			}
-		}
-	}
-
-	function handleBackdropClick(e: MouseEvent) {
-		if (e.target === e.currentTarget) onClose();
+		else if (e.key === 'Delete' && canManagePhotos) deleteCurrentAsset(e.shiftKey);
 	}
 
 	onMount(() => {
-		if (portalRoot && portalRoot.parentNode !== document.body) {
-			document.body.appendChild(portalRoot);
-		}
+		if (portalRoot && portalRoot.parentNode !== document.body) document.body.appendChild(portalRoot);
 		window.addEventListener('keydown', handleKeydown);
 		window.addEventListener('mousemove', handleMouseMove);
 		window.addEventListener('mouseup', handleMouseUp);
@@ -508,17 +409,13 @@
 		window.removeEventListener('mousemove', handleMouseMove);
 		window.removeEventListener('mouseup', handleMouseUp);
 		document.body.classList.remove('modal-open');
-
-		if (portalRoot && portalRoot.parentNode === document.body) {
+		if (portalRoot?.parentNode === document.body) {
 			try { document.body.removeChild(portalRoot); } catch {}
-		}
-		if (mediaUrl && mediaUrl.startsWith && mediaUrl.startsWith('blob:')) {
-			try { URL.revokeObjectURL(mediaUrl); } catch {}
 		}
 	});
 </script>
 
-<div bind:this={portalRoot} class="modal-backdrop" onclick={handleBackdropClick} role="button" tabindex="-1" onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}>
+<div bind:this={portalRoot} class="modal-backdrop" onclick={(e) => e.target === e.currentTarget && onClose()} role="button" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && onClose()}>
 	<div class="modal-content">
 		<div class="modal-header">
 			<div class="modal-title">
@@ -536,11 +433,11 @@
 					</button>
 				{/if}
 				{#if !isVideo && mediaUrl}
-					<button class="btn-icon" onclick={() => scale = Math.max(scale - 0.2, minScale)} title="Zoom -" disabled={scale <= minScale}>
+					<button class="btn-icon" onclick={() => scale = Math.max(scale - 0.5, minScale)} title="Zoom -" disabled={scale <= minScale}>
 						<Icon name="minus" size={20} />
 					</button>
 					<span class="zoom-level">{Math.round(scale * 100)}%</span>
-					<button class="btn-icon" onclick={() => scale = Math.min(scale + 0.2, 3)} title="Zoom +" disabled={scale >= 3}>
+					<button class="btn-icon" onclick={() => scale = Math.min(scale + 0.5, MAX_SCALE)} title="Zoom +" disabled={scale >= MAX_SCALE}>
 						<Icon name="plus" size={20} />
 					</button>
 					<button class="btn-icon" onclick={resetZoom} title="Reset (100%)" disabled={scale === 1}>
@@ -552,12 +449,7 @@
 						class="btn-icon btn-favorite"
 						class:active={asset.isFavorite}
 						onclick={async () => {
-							const wasFavorite = asset!.isFavorite;
-							try {
-								await onFavoriteToggle(asset!.id);
-							} catch (e) {
-								toast.error('Erreur lors de la mise à jour du favori');
-							}
+							try { await onFavoriteToggle!(asset!.id); } catch { toast.error('Erreur favori'); }
 						}}
 						title={asset.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
 					>
@@ -585,24 +477,10 @@
 				</button>
 			{/if}
 
-			<div
-				class="media-container"
-				onwheel={handleWheel}
-				role="img"
-				tabindex="-1"
-				bind:this={containerElement}
-			>
-
+			<div class="media-container" onwheel={handleWheel} role="img" tabindex="-1" bind:this={containerElement}>
 				{#if mediaUrl}
 					{#if isVideo}
-						<video
-							src={mediaUrl}
-							controls
-							class="media"
-							class:loaded={imageLoaded}
-						>
-							<track kind="captions" />
-						</video>
+						<video src={mediaUrl} controls class="media loaded"><track kind="captions" /></video>
 					{:else}
 						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 						<img
@@ -612,12 +490,16 @@
 							class="media"
 							class:loaded={imageLoaded}
 							class:zoomed={scale > 1}
-							class:no-transition={isDragging}
+							class:no-transition={isDragging || isTouchDragging}
 							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y / scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
 							onload={() => {
-								minScale = computeMinScale();
-								scale = 1;
-								translate = { x: 0, y: 0 };
+								// CONDITION CRUCIALE : On ne reset que si on change de photo (pas si on change de résolution)
+								if (asset?.id !== lastProcessedAssetId) {
+									minScale = computeMinScale();
+									scale = 1;
+									translate = { x: 0, y: 0 };
+									lastProcessedAssetId = asset?.id ?? null;
+								}
 								imageLoaded = true;
 							}}
 							onmousedown={handleMouseDown}
@@ -645,323 +527,84 @@
 </div>
 
 {#if showConfirmModal && confirmModalConfig}
-	<Modal
-		bind:show={showConfirmModal}
-		title={confirmModalConfig.title}
-		type="confirm"
-		confirmText={confirmModalConfig.confirmText}
-		onConfirm={confirmModalConfig.onConfirm}
-		onCancel={() => showConfirmModal = false}
-	>
+	<Modal bind:show={showConfirmModal} title={confirmModalConfig.title} type="confirm" confirmText={confirmModalConfig.confirmText} onConfirm={confirmModalConfig.onConfirm} onCancel={() => showConfirmModal = false}>
 		<p>{confirmModalConfig.message}</p>
 	</Modal>
 {/if}
 
 <style>
 	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(8px) saturate(120%);
-		z-index: 1000;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
+		position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(8px) saturate(120%); z-index: 1000;
+		display: flex; align-items: center; justify-content: center; padding: 1rem;
 		animation: fadeIn 0.2s ease-out;
 	}
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
+	@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 	.modal-content {
-		width: 100%;
-		max-width: 1400px;
-		height: 90vh;
-		display: flex;
-		flex-direction: column;
+		width: 100%; max-width: 1400px; height: 90vh;
+		display: flex; flex-direction: column;
 		animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255,255,255,0.06);
-		border-radius: 12px;
-		backdrop-filter: blur(10px) saturate(120%);
+		background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06);
+		border-radius: 12px; backdrop-filter: blur(10px) saturate(120%);
 		box-shadow: 0 20px 60px rgba(2,6,23,0.6);
 	}
-
-	@keyframes slideUp {
-		from {
-			transform: translateY(20px);
-			opacity: 0;
-		}
-		to {
-			transform: translateY(0);
-			opacity: 1;
-		}
-	}
+	@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 	.modal-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 1rem;
-		background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-		border-bottom: 1px solid rgba(255,255,255,0.04);
-		position: relative;
-		z-index: 10;
-		backdrop-filter: blur(6px);
+		display: flex; align-items: center; justify-content: space-between;
+		padding: 1rem; background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+		border-bottom: 1px solid rgba(255,255,255,0.04); z-index: 10; backdrop-filter: blur(6px);
 	}
-
-	.modal-title {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: white;
-		font-weight: 600;
-		overflow: hidden;
-	}
-
-	.modal-title span {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.modal-actions {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-	}
-
-	.zoom-level {
-		color: white;
-		font-size: 0.875rem;
-		font-weight: 600;
-		min-width: 50px;
-		text-align: center;
-	}
+	.modal-title { display: flex; align-items: center; gap: 0.5rem; color: white; font-weight: 600; overflow: hidden; }
+	.modal-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.modal-actions { display: flex; gap: 0.5rem; align-items: center; }
+	.zoom-level { color: white; font-size: 0.875rem; font-weight: 600; min-width: 50px; text-align: center; }
 
 	.btn-icon {
-		background: rgba(255, 255, 255, 0.1);
-		border: none;
-		color: white;
-		padding: 0.5rem;
-		border-radius: 8px;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		background: rgba(255, 255, 255, 0.1); border: none; color: white;
+		padding: 0.5rem; border-radius: 8px; cursor: pointer;
+		transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
 	}
+	.btn-icon:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+	.btn-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn-delete { background: rgba(220, 38, 38, 0.8); }
+	.btn-delete:hover:not(:disabled) { background: rgba(220, 38, 38, 1); }
+	.btn-favorite { color: #f87171; }
+	.btn-favorite:hover:not(:disabled) { background: rgba(239, 68, 68, 0.2); }
+	.btn-favorite.active { background: rgba(239, 68, 68, 0.9); color: white; }
 
-	.btn-icon:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.2);
-		transform: scale(1.05);
-	}
-
-	.btn-icon:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-delete {
-		background: rgba(220, 38, 38, 0.8);
-	}
-
-	.btn-delete:hover:not(:disabled) {
-		background: rgba(220, 38, 38, 1);
-	}
-
-	.btn-favorite {
-		color: #f87171;
-	}
-
-	.btn-favorite:hover:not(:disabled) {
-		background: rgba(239, 68, 68, 0.2);
-	}
-
-	.btn-favorite.active {
-		background: rgba(239, 68, 68, 0.9);
-		color: white;
-	}
-
-	.btn-favorite.active:hover:not(:disabled) {
-		background: rgba(220, 38, 38, 1);
-	}
-
-	.modal-body {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		position: relative;
-		min-height: 0;
-		overflow: hidden;
-	}
-
-	.media-container {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		position: relative;
-		overflow: hidden;
-		user-select: none;
-		/* Empêcher le zoom natif du navigateur sur mobile */
-		touch-action: none;
-	}
-
+	.modal-body { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; overflow: hidden; }
+	.media-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; user-select: none; touch-action: none; }
 	.media {
-		/* Pour que l'image remplisse le conteneur en s'ajustant sur le côté le plus long */
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		border-radius: 12px;
-		opacity: 0;
-		/* smooth transform for wheel/button/dblclick zooms */
+		width: 100%; height: 100%; object-fit: contain; border-radius: 12px; opacity: 0;
 		transition: opacity 0.3s ease, transform 160ms cubic-bezier(0.2, 0, 0, 1);
-		will-change: transform;
-		/* Important: transform-origin au centre pour que le zoom soit centré */
-		transform-origin: center center;
+		will-change: transform; transform-origin: center center;
 	}
-
-	.media.loaded {
-		opacity: 1;
-	}
-
-	/* disable animation while dragging for immediate response */
-	.media.no-transition {
-		transition: none !important;
-	}
+	.media.loaded { opacity: 1; }
+	.media.no-transition { transition: none !important; }
 
 	.nav-button {
-		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		background: rgba(255, 255, 255, 0.1);
-		backdrop-filter: blur(10px);
-		border: none;
-		color: white;
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 10;
+		position: absolute; top: 50%; transform: translateY(-50%);
+		background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
+		border: none; color: white; width: 48px; height: 48px; border-radius: 50%;
+		cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; z-index: 10;
 	}
+	.nav-button:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-50%) scale(1.1); }
+	.nav-left { left: 1rem; } .nav-right { right: 1rem; }
 
-	.nav-button:hover {
-		background: rgba(255, 255, 255, 0.2);
-		transform: translateY(-50%) scale(1.1);
-	}
-
-	.nav-left {
-		left: 1rem;
-	}
-
-	.nav-right {
-		right: 1rem;
-	}
-
-	.modal-footer {
-		padding: 1rem;
-		text-align: center;
-		color: rgba(255, 255, 255, 0.85);
-		background: linear-gradient(to top, rgba(255,255,255,0.02), transparent);
-		border-top: 1px solid rgba(255,255,255,0.03);
-		border-radius: 0 0 12px 12px;
-		backdrop-filter: blur(6px);
-		z-index: 10;
-		position: relative;
-	}
-
-	.counter {
-		font-weight: 600;
-	}
+	.modal-footer { padding: 1rem; text-align: center; color: rgba(255, 255, 255, 0.85); background: linear-gradient(to top, rgba(255,255,255,0.02), transparent); border-top: 1px solid rgba(255,255,255,0.03); border-radius: 0 0 12px 12px; backdrop-filter: blur(6px); z-index: 10; position: relative; }
+	.counter { font-weight: 600; }
 
 	@media (max-width: 768px) {
-		.modal-backdrop {
-			padding: 0;
-		}
-
-		.modal-content {
-			height: 100vh;
-			height: 100dvh; /* Dynamic viewport height pour mobile */
-			max-width: 100%;
-		}
-
-		.modal-header {
-			border-radius: 0;
-			padding: 0.75rem;
-			min-height: auto;
-		}
-
-		.modal-title span {
-			font-size: 0.8125rem;
-			max-width: 200px;
-		}
-
-		.modal-actions {
-			gap: 0.25rem;
-		}
-
-		.modal-actions .btn-icon {
-			padding: 0.375rem;
-		}
-
-		.zoom-level {
-			font-size: 0.75rem;
-			min-width: 40px;
-		}
-
-		.modal-body {
-			flex: 1;
-			min-height: 0;
-			overflow: hidden;
-			position: relative;
-		}
-
-		.media-container {
-			width: 100%;
-			height: 100%;
-		}
-
-		.media {
-			border-radius: 0;
-			width: 100%;
-			height: 100%;
-			object-fit: contain;
-		}
-
-		.modal-footer {
-			border-radius: 0;
-			padding: 0.5rem;
-		}
-
-		.counter {
-			font-size: 0.8125rem;
-		}
-
-		.nav-button {
-			width: 40px;
-			height: 40px;
-		}
-
-		.nav-left {
-			left: 0.5rem;
-		}
-
-		.nav-right {
-			right: 0.5rem;
-		}
+		.modal-backdrop { padding: 0; }
+		.modal-content { height: 100dvh; max-width: 100%; }
+		.modal-header, .modal-footer { border-radius: 0; padding: 0.75rem; }
+		.modal-title span { font-size: 0.8125rem; max-width: 200px; }
+		.modal-actions { gap: 0.25rem; }
+		.zoom-level { font-size: 0.75rem; min-width: 40px; }
+		.media { border-radius: 0; }
+		.nav-button { width: 40px; height: 40px; }
+		.nav-left { left: 0.5rem; } .nav-right { right: 0.5rem; }
 	}
 </style>

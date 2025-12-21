@@ -48,3 +48,15 @@ if (typeof window !== 'undefined') {
 		true
 	); // Capture phase = avant SvelteKit
 }
+
+// Enregistrer un service worker léger pour StreamSaver (si disponible)
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+	navigator.serviceWorker
+		.register('/streamsaver-sw.js')
+		.then((reg) => {
+			console.info('[hooks.client] streamsaver service worker registered', reg.scope);
+		})
+		.catch((err) => {
+			console.warn('[hooks.client] failed to register streamsaver service worker', err);
+		});
+}
