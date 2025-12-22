@@ -309,7 +309,11 @@ Les endpoints suivants ont été **ajoutés à la documentation** :
 - `/api/albums/{id}/asset-thumbnail/{assetId}`
 - `/api/albums/{id}/asset-original/{assetId}`
 
-**But**: Partage d'albums sans connexion
+**Téléchargement d'archives** :
+
+- `POST /api/immich/download/archive` : Autorisé sans auth si TOUS les `assetIds` fournis appartiennent à au moins un album `unlisted`.
+
+**But**: Partage d'albums sans connexion et export des photos partagées.
 
 ### Rôles Spéciaux
 

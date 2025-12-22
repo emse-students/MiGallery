@@ -566,9 +566,11 @@ const handle: RequestHandler = async function (event) {
 		base = `http://${base}`;
 	}
 
-	const resolvedRemoteUrl = pathParam.startsWith('endpoints/')
-		? `${base}/${pathParam}${search}`
-		: `${base}/api/${pathParam}${search}`;
+	const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
+
+	if (pathParam.includes('download')) {
+		console.debug(`[Proxy] Download request: ${request.method} ${pathParam} -> ${resolvedRemoteUrl}`);
+	}
 
 	if (!baseUrlFromEnv) {
 		return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
@@ -661,7 +663,8 @@ const handle: RequestHandler = async function (event) {
 	try {
 		const res = await fetch(resolvedRemoteUrl, init);
 
-		if (!res.ok) {
+		// Log upstream errors (only real errors >= 400). Treat 304 Not Modified as cache hit.
+		if (!res.ok && res.status >= 400) {
 			try {
 				const clone = res.clone();
 				const snippet = await clone.text();
@@ -673,6 +676,9 @@ const handle: RequestHandler = async function (event) {
 			} catch {
 				console.error('Immich proxy upstream error but failed to read body snippet');
 			}
+		} else if (res.status === 304) {
+			// Not Modified responses are expected when cache validation headers are used.
+			console.debug(`Immich proxy upstream: Not Modified for ${resolvedRemoteUrl}`);
 		}
 
 		const resContentType = res.headers.get('content-type') || 'application/json';

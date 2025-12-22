@@ -1,3 +1,41 @@
+# MiGallery v1.0.0
+
+**Date**: 22 décembre 2025
+**Type**: Release Stable
+
+## 🎯 Objectif
+
+Première version stable officielle de MiGallery. Cette version apporte une robustesse accrue, une gestion des permissions affinée et une intégration complète avec le CAS de l'EMSE.
+
+## ✨ Nouveautés et Améliorations
+
+### 🔒 Sécurité et Authentification
+
+- **Intégration CAS EMSE** : Authentification sécurisée via OIDC avec support du `client_secret_post`.
+- **Permissions Granulaires** : Refonte du système de scopes (`public`, `read`, `write`, `admin`).
+- **Téléchargements Sécurisés** : Le téléchargement d'archives ZIP est désormais considéré comme une opération de lecture (`read`), permettant un accès plus souple tout en restant sécurisé.
+- **Protection CSRF** : Implémentation d'une vérification d'origine personnalisée pour les mutations API.
+
+### 📸 Gestion des Médias
+
+- **Proxy Immich Optimisé** : Meilleure gestion des flux de données et résolution des chemins d'API.
+- **Téléchargement ZIP Fiable** : Nouvelle implémentation robuste pour le téléchargement d'albums complets, compatible avec tous les navigateurs modernes.
+- **Support des Albums Publics** : Accès simplifié aux albums non listés via des liens sécurisés.
+
+### 🛠️ Administration et Maintenance
+
+- **Logs d'Audit** : Nouveau système de logs pour suivre les connexions, l'utilisation des clés d'API et les modifications d'assets.
+- **Nettoyage Automatique** : Scripts de maintenance pour purger les fichiers temporaires et optimiser l'espace disque.
+- **Documentation API** : Documentation interactive mise à jour et audit complet des permissions.
+
+### 🚀 Performance et DevOps
+
+- **Optimisation Bun** : Utilisation intensive des capacités de Bun pour des performances maximales.
+- **CI/CD Robuste** : Workflow GitHub Actions amélioré pour des déploiements sans friction.
+- **Zéro Dette Technique** : Nettoyage complet des scripts obsolètes et correction de tous les avertissements de linting.
+
+---
+
 # MiGallery v0.1.0-alpha.1
 
 **Date**: 21 novembre 2025
