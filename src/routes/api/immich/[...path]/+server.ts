@@ -17,6 +17,19 @@ const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
 
+/**
+ * Nettoie une valeur d'en-tête pour s'assurer qu'elle ne contient que des caractères Latin-1.
+ * Les caractères hors plage (comme les apostrophes spéciales) font planter fetch.
+ */
+function sanitizeHeaderValue(value: string | null | undefined): string | undefined {
+	if (!value) {
+		return undefined;
+	}
+	// Remplace les caractères non-Latin1 par leur équivalent encodé ou les supprime
+	// eslint-disable-next-line no-control-regex
+	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
+}
+
 interface ImmichAlbumResponse {
 	id: string;
 	albumName?: string;
@@ -266,10 +279,14 @@ async function handleChunkedUpload(
 
 		console.debug(`[Immich-Proxy] Réassemblage terminé pour ${fileId}, envoi à Immich...`);
 
-		const originalName = (request.headers.get('x-original-name') || `upload-${fileId}.bin`).replace(
-			/"/g,
-			''
-		);
+		let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
+		try {
+			// Le client encode le nom en URI pour supporter les caractères non-ASCII (ex: apostrophes spéciales)
+			originalName = decodeURIComponent(originalName);
+		} catch {
+			/* ignore decoding errors, use raw */
+		}
+		originalName = originalName.replace(/"/g, '');
 
 		// compute checksum (sha256)
 		const hash = crypto.createHash('sha256');
@@ -459,7 +476,7 @@ const handle: RequestHandler = async function (event) {
 	const pathParam = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
-	if (request.method === 'GET') {
+	if (['GET', 'HEAD'].includes(request.method)) {
 		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
 		if (internalKey && internalKey === apiKey) {
 			void 0;
@@ -594,6 +611,31 @@ const handle: RequestHandler = async function (event) {
 		outgoingHeaders['x-api-key'] = apiKey;
 	}
 
+	const userAgent = request.headers.get('user-agent');
+	if (userAgent) {
+		outgoingHeaders['user-agent'] = sanitizeHeaderValue(userAgent) || '';
+	}
+
+	// Forward range headers for video streaming
+	const range = request.headers.get('range');
+	if (range) {
+		outgoingHeaders['range'] = range;
+	}
+	const ifRange = request.headers.get('if-range');
+	if (ifRange) {
+		outgoingHeaders['if-range'] = sanitizeHeaderValue(ifRange) || '';
+	}
+
+	// Forward cache validation headers
+	const ifNoneMatch = request.headers.get('if-none-match');
+	if (ifNoneMatch) {
+		outgoingHeaders['if-none-match'] = sanitizeHeaderValue(ifNoneMatch) || '';
+	}
+	const ifModifiedSince = request.headers.get('if-modified-since');
+	if (ifModifiedSince) {
+		outgoingHeaders['if-modified-since'] = sanitizeHeaderValue(ifModifiedSince) || '';
+	}
+
 	const contentType = request.headers.get('content-type');
 
 	let bodyToForward: BodyInit | undefined = undefined;
@@ -640,22 +682,31 @@ const handle: RequestHandler = async function (event) {
 			resContentType.startsWith('video/') ||
 			resContentType.startsWith('application/octet-stream') ||
 			resContentType.includes('zip') ||
-			resContentType.includes('octet-stream');
+			resContentType.includes('octet-stream') ||
+			res.status === 206;
 
-		if (isBinary) {
+		if (isBinary || request.method === 'HEAD') {
 			const headers = new Headers();
 			headers.set('content-type', resContentType);
-			const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
+			const safeForward = [
+				'etag',
+				'cache-control',
+				'expires',
+				'x-immich-cid',
+				'content-range',
+				'accept-ranges',
+				'content-length',
+				'last-modified'
+			];
 			for (const h of safeForward) {
 				const v = res.headers.get(h);
 				if (v) {
 					headers.set(h, v);
 				}
 			}
-			if (res.status === 204) {
-				return new Response(null, { status: 204, headers });
+			if (res.status === 204 || request.method === 'HEAD') {
+				return new Response(null, { status: res.status, headers });
 			}
-			// Do not forward upstream Content-Length for streaming bodies — it can mismatch the proxied body.
 			return new Response(res.body, { status: res.status, headers });
 		}
 
@@ -771,7 +822,16 @@ const handle: RequestHandler = async function (event) {
 
 		headers.set('content-type', resContentType);
 		headers.set('x-cache', 'MISS');
-		const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
+		const safeForward = [
+			'etag',
+			'cache-control',
+			'expires',
+			'x-immich-cid',
+			'content-range',
+			'accept-ranges',
+			'content-length',
+			'last-modified'
+		];
 		for (const h of safeForward) {
 			const v = res.headers.get(h);
 			if (v) {
@@ -797,6 +857,7 @@ export const POST = handle;
 export const PUT = handle;
 export const DELETE = handle;
 export const PATCH = handle;
+export const HEAD = handle;
 
 function handleChunkStatus(event: RequestEvent) {
 	const req = event.request;

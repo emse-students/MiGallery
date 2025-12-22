@@ -32,7 +32,7 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 
 	const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 	const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-	const deviceAssetId = `${file.name}-${Date.now()}`;
+	const deviceAssetId = `migallery-${fileId}`;
 	const deviceId = 'MiGallery-Web';
 	const fileCreatedAt = new Date().toISOString();
 	const fileModifiedAt = new Date().toISOString();
@@ -65,7 +65,7 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 			'x-chunk-index': String(chunkIndex),
 			'x-chunk-total': String(totalChunks),
 			'x-file-id': fileId,
-			'x-original-name': file.name,
+			'x-original-name': encodeURIComponent(file.name),
 			'x-immich-device-id': deviceId,
 			'x-immich-asset-id': deviceAssetId,
 			'x-immich-created-at': fileCreatedAt,
