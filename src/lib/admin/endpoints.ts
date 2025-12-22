@@ -8,6 +8,7 @@ export interface Endpoint {
 	path: string;
 	scope: string;
 	description: string;
+	notes?: string;
 	exampleCurl?: string;
 	exampleResponse?: string;
 }
@@ -675,6 +676,17 @@ export const API_ENDPOINTS: EndpointGroup[] = [
 	{
 		group: 'Immich Proxy',
 		items: [
+			{
+				method: 'POST',
+				path: '/api/immich/download/archive',
+				scope: 'write',
+				description: 'Télécharger une archive ZIP (Public si assets publics)',
+				notes:
+					'Autorisé sans authentification si TOUS les assets demandés appartiennent à un album public (unlisted).',
+				exampleCurl:
+					'curl -X POST -H "Content-Type: application/json" -d \'{"assetIds":["uuid1"]}\' "http://localhost:5173/api/immich/download/archive"',
+				exampleResponse: 'Binary ZIP content'
+			},
 			{
 				method: 'GET',
 				path: '/api/immich/{path}',

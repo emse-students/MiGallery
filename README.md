@@ -62,8 +62,10 @@ bun install
 Créez un fichier `.env` à la racine :
 
 ```env
-# Générer un secret pour les cookies
-COOKIE_SECRET=<générer avec: bun run generate:secret>
+# Générer un secret pour les cookies et Auth.js
+# bun run generate:secret
+COOKIE_SECRET=votre_secret_genere
+AUTH_SECRET=votre_secret_genere
 
 # Base de données
 DATABASE_PATH=./data/migallery.db
@@ -71,6 +73,11 @@ DATABASE_PATH=./data/migallery.db
 # Intégration Immich
 IMMICH_BASE_URL=http://votre-immich-url:2283
 IMMICH_API_KEY=votre_api_key
+
+# Authentification CAS EMSE
+CAS_CLIENT_ID=votre_client_id
+CAS_CLIENT_SECRET=votre_client_secret
+AUTH_TRUSTED_HOST=true # Mettre à true en production
 ```
 
 4. **Initialiser la base de données**

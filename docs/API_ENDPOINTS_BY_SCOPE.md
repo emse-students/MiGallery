@@ -57,13 +57,14 @@
 
 **\* Note** : Accès public si album `visibility='unlisted'`
 
-### Assets via Immich (3 endpoints)
+### Assets via Immich (4 endpoints)
 
-| Méthode | Endpoint                            |
-| ------- | ----------------------------------- |
-| `GET`   | `/api/immich/assets`                |
-| `GET`   | `/api/immich/assets/{id}/thumbnail` |
-| `GET`   | `/api/immich/assets/{id}/original`  |
+| Méthode | Endpoint                            | Note                                       |
+| ------- | ----------------------------------- | ------------------------------------------ |
+| `GET`   | `/api/immich/assets`                |                                            |
+| `GET`   | `/api/immich/assets/{id}/thumbnail` |                                            |
+| `GET`   | `/api/immich/assets/{id}/original`  |                                            |
+| `POST`  | `/api/immich/download/archive`      | **Public** si tous les assets sont publics |
 
 ### People & PhotoCV (10 endpoints)
 
