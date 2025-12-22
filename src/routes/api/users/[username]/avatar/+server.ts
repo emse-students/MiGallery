@@ -1,4 +1,4 @@
-import { error as svelteError } from '@sveltejs/kit';
+import { error as svelteError, isHttpError } from '@sveltejs/kit';
 
 import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
@@ -59,6 +59,9 @@ export const GET: RequestHandler = async (event) => {
 			}
 		});
 	} catch (err: unknown) {
+		if (isHttpError(err)) {
+			throw err;
+		}
 		const errorMessage = err instanceof Error ? err.message : 'Erreur serveur';
 		console.error('Erreur /api/users/[username]/avatar:', err);
 		return svelteError(500, errorMessage);

@@ -12,6 +12,9 @@ export const { handle } = SvelteKitAuth({
 			issuer: 'https://cas.emse.fr/cas/oidc', // to infer the .well-known/openid-configuration URL
 			clientId: env.CAS_CLIENT_ID, // from the provider's dashboard
 			clientSecret: env.CAS_CLIENT_SECRET, // from the provider's dashboard
+			client: {
+				token_endpoint_auth_method: 'client_secret_post'
+			},
 			authorization: {
 				scope: 'openid profile email'
 			}

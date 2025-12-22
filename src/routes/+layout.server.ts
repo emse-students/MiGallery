@@ -3,6 +3,7 @@ import type { UserRow, SessionUser } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import { signId, verifySigned } from '$lib/auth/cookies';
 import type { LayoutServerLoad } from './$types';
+import { logEvent } from '$lib/server/logs';
 
 /**
  * Load server-side: uniquement basé sur la session fournie par le provider (locals.auth())
@@ -91,6 +92,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 
 		try {
 			const signed = signId(String(userInfo.id_user));
+			const isNewCookie = !cookies.get('current_user_id');
 			cookies.set('current_user_id', signed, {
 				httpOnly: true,
 				secure: String(process.env.NODE_ENV) === 'production',
@@ -98,6 +100,13 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 				path: '/',
 				maxAge: 60 * 60 * 24 * 30 // 30 days
 			});
+
+			if (isNewCookie) {
+				await logEvent({ locals, cookies, request: event.request } as any, 'login', 'user', userInfo.id_user, {
+					method: 'provider',
+					email: userInfo.email
+				});
+			}
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			console.warn('Failed to set current_user_id cookie', e);

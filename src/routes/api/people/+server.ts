@@ -1,7 +1,8 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError } from '@sveltejs/kit';
 
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
+import { logEvent } from '$lib/server/logs';
 import {
 	getPersonAssets,
 	getAlbumAssets,
@@ -62,7 +63,7 @@ export const GET: RequestHandler = async (event) => {
 				);
 		}
 	} catch (e: unknown) {
-		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
+		if (isHttpError(e)) {
 			throw e;
 		}
 		const err = ensureError(e);
@@ -94,11 +95,21 @@ export const POST: RequestHandler = async (event) => {
 		switch (action) {
 			case 'add-to-album': {
 				const result = await addAssetsToAlbum(assetIds, fetch);
+				void logEvent(event, 'update', 'album', 'PhotoCV', {
+					action: 'add_assets',
+					count: assetIds.length,
+					assetIds
+				});
 				return json({ success: true, added: result });
 			}
 
 			case 'remove-from-album': {
 				const result = await removeAssetsFromAlbum(assetIds, fetch);
+				void logEvent(event, 'update', 'album', 'PhotoCV', {
+					action: 'remove_assets',
+					count: assetIds.length,
+					assetIds
+				});
 				return json({ success: true, removed: result });
 			}
 
@@ -106,7 +117,7 @@ export const POST: RequestHandler = async (event) => {
 				throw error(400, 'Invalid action. Valid actions: add-to-album, remove-from-album');
 		}
 	} catch (e: unknown) {
-		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
+		if (isHttpError(e)) {
 			throw e;
 		}
 		const err = ensureError(e);

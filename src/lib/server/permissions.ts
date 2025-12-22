@@ -15,6 +15,7 @@ import { verifyRawKeyWithScope } from '$lib/db/api-keys';
 import { getCurrentUser, ensureAdmin } from '$lib/server/auth';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { UserRow } from '$lib/types/api';
+import { logEvent } from '$lib/server/logs';
 
 export type Scope = 'public' | 'read' | 'write' | 'admin';
 
@@ -96,6 +97,16 @@ export async function requireScope(
 				: verifyRawKeyWithScope(apiKeyHeader, 'write')
 					? 'write'
 					: 'read';
+
+			// Log API key usage (only for mutating methods or admin scope to avoid flooding)
+			if (request.method !== 'GET' || grantedScope === 'admin') {
+				void logEvent(event, 'api_usage', 'api_key', `${apiKeyHeader.slice(0, 8)  }...`, {
+					method: request.method,
+					path: event.url.pathname,
+					scope: grantedScope
+				});
+			}
+
 			return {
 				user: null,
 				grantedScope: grantedScope as Scope,

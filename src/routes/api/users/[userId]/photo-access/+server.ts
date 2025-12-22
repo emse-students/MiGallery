@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
@@ -76,6 +76,9 @@ export const GET: RequestHandler = async (event) => {
 			reason: 'not_authorized'
 		});
 	} catch (e) {
+		if (isHttpError(e)) {
+			throw e;
+		}
 		const err = e as Error;
 		console.error('GET /api/users/[userId]/photo-access error', err);
 		return json({ error: err.message }, { status: 500 });

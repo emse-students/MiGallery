@@ -413,7 +413,7 @@ async function handleChunkedUpload(
 				const respData = (await respClone.json()) as ImmichAssetResponse;
 				const assetId = respData.id;
 				if (assetId) {
-					await logEvent(event, 'create', 'asset', assetId, { originalName, proxied: true });
+					await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
 				}
 			} catch (e) {
 				console.warn('Failed to log upload:', e);
