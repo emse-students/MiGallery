@@ -22,10 +22,13 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Base de données SQLite
-/data
+# Base de données SQLite et données locales
+/data/*
+!/data/.gitkeep
 *.db
 *.db-shm
 *.db-wal
+*.db.before-*
+*.db.backup-*
 
 .eslintcache

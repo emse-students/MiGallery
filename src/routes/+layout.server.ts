@@ -12,7 +12,8 @@ import { logEvent } from '$lib/server/logs';
  * - Si absent, on crée une entrée minimale automatiquement (first_login = 1)
  * - Aucun fallback via cookies n'est utilisé
  */
-export const load: LayoutServerLoad = async ({ locals, cookies }) => {
+export const load: LayoutServerLoad = async (event) => {
+	const { locals, cookies } = event;
 	try {
 		const db = getDatabase();
 
@@ -102,7 +103,7 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 			});
 
 			if (isNewCookie) {
-				await logEvent({ locals, cookies, request: event.request } as any, 'login', 'user', userInfo.id_user, {
+				await logEvent(event, 'login', 'user', userInfo.id_user, {
 					method: 'provider',
 					email: userInfo.email
 				});
