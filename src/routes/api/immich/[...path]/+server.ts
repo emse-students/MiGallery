@@ -17,6 +17,19 @@ const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
 
+/**
+ * Nettoie une valeur d'en-tête pour s'assurer qu'elle ne contient que des caractères Latin-1.
+ * Les caractères hors plage (comme les apostrophes spéciales) font planter fetch.
+ */
+function sanitizeHeaderValue(value: string | null | undefined): string | undefined {
+	if (!value) {
+		return undefined;
+	}
+	// Remplace les caractères non-Latin1 par leur équivalent encodé ou les supprime
+	// eslint-disable-next-line no-control-regex
+	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
+}
+
 interface ImmichAlbumResponse {
 	id: string;
 	albumName?: string;
@@ -266,10 +279,14 @@ async function handleChunkedUpload(
 
 		console.debug(`[Immich-Proxy] Réassemblage terminé pour ${fileId}, envoi à Immich...`);
 
-		const originalName = (request.headers.get('x-original-name') || `upload-${fileId}.bin`).replace(
-			/"/g,
-			''
-		);
+		let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
+		try {
+			// Le client encode le nom en URI pour supporter les caractères non-ASCII (ex: apostrophes spéciales)
+			originalName = decodeURIComponent(originalName);
+		} catch {
+			/* ignore decoding errors, use raw */
+		}
+		originalName = originalName.replace(/"/g, '');
 
 		// compute checksum (sha256)
 		const hash = crypto.createHash('sha256');
@@ -596,7 +613,7 @@ const handle: RequestHandler = async function (event) {
 
 	const userAgent = request.headers.get('user-agent');
 	if (userAgent) {
-		outgoingHeaders['user-agent'] = userAgent;
+		outgoingHeaders['user-agent'] = sanitizeHeaderValue(userAgent) || '';
 	}
 
 	// Forward range headers for video streaming
@@ -606,17 +623,17 @@ const handle: RequestHandler = async function (event) {
 	}
 	const ifRange = request.headers.get('if-range');
 	if (ifRange) {
-		outgoingHeaders['if-range'] = ifRange;
+		outgoingHeaders['if-range'] = sanitizeHeaderValue(ifRange) || '';
 	}
 
 	// Forward cache validation headers
 	const ifNoneMatch = request.headers.get('if-none-match');
 	if (ifNoneMatch) {
-		outgoingHeaders['if-none-match'] = ifNoneMatch;
+		outgoingHeaders['if-none-match'] = sanitizeHeaderValue(ifNoneMatch) || '';
 	}
 	const ifModifiedSince = request.headers.get('if-modified-since');
 	if (ifModifiedSince) {
-		outgoingHeaders['if-modified-since'] = ifModifiedSince;
+		outgoingHeaders['if-modified-since'] = sanitizeHeaderValue(ifModifiedSince) || '';
 	}
 
 	const contentType = request.headers.get('content-type');
