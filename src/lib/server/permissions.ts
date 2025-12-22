@@ -100,7 +100,7 @@ export async function requireScope(
 
 			// Log API key usage (only for mutating methods or admin scope to avoid flooding)
 			if (request.method !== 'GET' || grantedScope === 'admin') {
-				void logEvent(event, 'api_usage', 'api_key', `${apiKeyHeader.slice(0, 8)  }...`, {
+				void logEvent(event, 'api_usage', 'api_key', `${apiKeyHeader.slice(0, 8)}...`, {
 					method: request.method,
 					path: event.url.pathname,
 					scope: grantedScope
