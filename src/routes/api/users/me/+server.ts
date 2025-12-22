@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
@@ -11,9 +11,8 @@ import { requireSession } from '$lib/server/permissions';
  * car il identifie l'utilisateur via sa session de connexion.
  */
 export const GET: RequestHandler = async (event) => {
-	const user = await requireSession(event);
-
 	try {
+		const user = await requireSession(event);
 		const db = getDatabase();
 
 		const userData = db
@@ -28,6 +27,9 @@ export const GET: RequestHandler = async (event) => {
 
 		return json({ success: true, user: userData });
 	} catch (e) {
+		if (isHttpError(e)) {
+			throw e;
+		}
 		const err = e as Error;
 		console.error('GET /api/users/me error', err);
 		return json({ error: err.message }, { status: 500 });
@@ -44,9 +46,8 @@ export const GET: RequestHandler = async (event) => {
 export const DELETE: RequestHandler = async (event) => {
 	const { cookies } = event;
 
-	const user = await requireSession(event);
-
 	try {
+		const user = await requireSession(event);
 		const db = getDatabase();
 
 		if (user.id_user === 'les.roots') {
@@ -63,6 +64,9 @@ export const DELETE: RequestHandler = async (event) => {
 
 		return json({ success: true, message: 'Account deleted successfully' });
 	} catch (e) {
+		if (isHttpError(e)) {
+			throw e;
+		}
 		const err = e as Error;
 		console.error('DELETE /api/users/me error', err);
 		return json({ error: err.message }, { status: 500 });

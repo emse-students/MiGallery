@@ -1,4 +1,4 @@
-import { json } from '@sveltejs/kit';
+import { json, isHttpError } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
@@ -85,6 +85,9 @@ export const PUT: RequestHandler = async (event) => {
 		}
 		return json({ success: true, updated, changes: info.changes });
 	} catch (e: unknown) {
+		if (isHttpError(e)) {
+			throw e;
+		}
 		const err = ensureError(e);
 		console.error('PUT /api/users/[id] error', err);
 		return json({ success: false, error: err.message }, { status: 500 });
