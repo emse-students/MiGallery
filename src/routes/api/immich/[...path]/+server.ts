@@ -459,7 +459,7 @@ const handle: RequestHandler = async function (event) {
 	const pathParam = (event.params.path as string) || '';
 	const search = event.url.search || '';
 
-	if (request.method === 'GET') {
+	if (['GET', 'HEAD'].includes(request.method)) {
 		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
 		if (internalKey && internalKey === apiKey) {
 			void 0;
@@ -594,6 +594,31 @@ const handle: RequestHandler = async function (event) {
 		outgoingHeaders['x-api-key'] = apiKey;
 	}
 
+	const userAgent = request.headers.get('user-agent');
+	if (userAgent) {
+		outgoingHeaders['user-agent'] = userAgent;
+	}
+
+	// Forward range headers for video streaming
+	const range = request.headers.get('range');
+	if (range) {
+		outgoingHeaders['range'] = range;
+	}
+	const ifRange = request.headers.get('if-range');
+	if (ifRange) {
+		outgoingHeaders['if-range'] = ifRange;
+	}
+
+	// Forward cache validation headers
+	const ifNoneMatch = request.headers.get('if-none-match');
+	if (ifNoneMatch) {
+		outgoingHeaders['if-none-match'] = ifNoneMatch;
+	}
+	const ifModifiedSince = request.headers.get('if-modified-since');
+	if (ifModifiedSince) {
+		outgoingHeaders['if-modified-since'] = ifModifiedSince;
+	}
+
 	const contentType = request.headers.get('content-type');
 
 	let bodyToForward: BodyInit | undefined = undefined;
@@ -640,22 +665,31 @@ const handle: RequestHandler = async function (event) {
 			resContentType.startsWith('video/') ||
 			resContentType.startsWith('application/octet-stream') ||
 			resContentType.includes('zip') ||
-			resContentType.includes('octet-stream');
+			resContentType.includes('octet-stream') ||
+			res.status === 206;
 
-		if (isBinary) {
+		if (isBinary || request.method === 'HEAD') {
 			const headers = new Headers();
 			headers.set('content-type', resContentType);
-			const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
+			const safeForward = [
+				'etag',
+				'cache-control',
+				'expires',
+				'x-immich-cid',
+				'content-range',
+				'accept-ranges',
+				'content-length',
+				'last-modified'
+			];
 			for (const h of safeForward) {
 				const v = res.headers.get(h);
 				if (v) {
 					headers.set(h, v);
 				}
 			}
-			if (res.status === 204) {
-				return new Response(null, { status: 204, headers });
+			if (res.status === 204 || request.method === 'HEAD') {
+				return new Response(null, { status: res.status, headers });
 			}
-			// Do not forward upstream Content-Length for streaming bodies — it can mismatch the proxied body.
 			return new Response(res.body, { status: res.status, headers });
 		}
 
@@ -771,7 +805,16 @@ const handle: RequestHandler = async function (event) {
 
 		headers.set('content-type', resContentType);
 		headers.set('x-cache', 'MISS');
-		const safeForward = ['etag', 'cache-control', 'expires', 'x-immich-cid'];
+		const safeForward = [
+			'etag',
+			'cache-control',
+			'expires',
+			'x-immich-cid',
+			'content-range',
+			'accept-ranges',
+			'content-length',
+			'last-modified'
+		];
 		for (const h of safeForward) {
 			const v = res.headers.get(h);
 			if (v) {
@@ -797,6 +840,7 @@ export const POST = handle;
 export const PUT = handle;
 export const DELETE = handle;
 export const PATCH = handle;
+export const HEAD = handle;
 
 function handleChunkStatus(event: RequestEvent) {
 	const req = event.request;
