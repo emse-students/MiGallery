@@ -14,42 +14,75 @@ jobs:
   runs-on: ubuntu-latest
   strategy:
    matrix:
-    node-version: [18, 20, 22]
+    runtime: [bun, npm]
   steps:
    - name: Checkout
      uses: actions/checkout@v4
 
-   - name: Setup Node.js ${{ matrix.node-version }}
-     uses: actions/setup-node@v4
-     with:
-      node-version: ${{ matrix.node-version }}
-
    - name: Setup Bun
+     if: matrix.runtime == 'bun'
      uses: oven-sh/setup-bun@v2
      with:
       bun-version: latest
 
-   - name: Install dependencies
+   - name: Setup Node.js
+     if: matrix.runtime == 'npm'
+     uses: actions/setup-node@v4
+     with:
+      node-version: 'latest'
+
+   - name: Install dependencies (Bun)
+     if: matrix.runtime == 'bun'
      run: bun install
 
-   - name: Type check
+   - name: Install dependencies (npm)
+     if: matrix.runtime == 'npm'
+     run: npm install
+
+   - name: Type check (Bun)
+     if: matrix.runtime == 'bun'
      run: bun run check
 
-   - name: Generate SvelteKit config
+   - name: Type check (npm)
+     if: matrix.runtime == 'npm'
+     run: npm run check
+
+   - name: Generate SvelteKit config (Bun)
+     if: matrix.runtime == 'bun'
      run: bunx svelte-kit sync
 
-   - name: Lint code
+   - name: Generate SvelteKit config (npm)
+     if: matrix.runtime == 'npm'
+     run: npx svelte-kit sync
+
+   - name: Lint code (Bun)
+     if: matrix.runtime == 'bun'
      env:
       NODE_OPTIONS: '--max-old-space-size=16384'
      run: bun run lint
 
-   - name: Build
+   - name: Lint code (npm)
+     if: matrix.runtime == 'npm'
+     env:
+      NODE_OPTIONS: '--max-old-space-size=16384'
+     run: npm run lint
+
+   - name: Build (Bun)
+     if: matrix.runtime == 'bun'
      run: bun run build
+
+   - name: Build (npm)
+     if: matrix.runtime == 'npm'
+     run: npm run build
 
    - name: Setup test database
      run: |
       mkdir -p data
-      bun run db:init || echo "Database already exists or init failed"
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run db:init || echo "Database already exists or init failed"
+      else
+        npm run db:init || echo "Database already exists or init failed"
+      fi
 
    - name: Create .env file for tests
      run: |
@@ -63,20 +96,32 @@ jobs:
       AUTH_TRUSTED_HOST=true
       EOF
 
-   - name: Run tests
+   - name: Run tests (Bun)
+     if: matrix.runtime == 'bun'
      run: bun run test
      env:
       API_BASE_URL: http://localhost:3000
      continue-on-error: false
 
-   - name: Package application
-     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+   - name: Run tests (npm)
+     if: matrix.runtime == 'npm'
+     run: npm run test
+     env:
+      API_BASE_URL: http://localhost:3000
+     continue-on-error: false
+
+   - name: Package application (Bun)
+     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.runtime == 'bun'
      run: bun run package
+
+   - name: Package application (npm)
+     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.runtime == 'npm'
+     run: npm run package
 
    - name: Upload artifact
      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
      uses: actions/upload-artifact@v4
      with:
-      name: migallery-package
+      name: migallery-package-${{ matrix.runtime }}
       path: build/artifacts/*.tgz
       retention-days: 30
