@@ -145,18 +145,6 @@ jobs:
             <h3>🗄️ Base de données</h3>
             <p>Gestion et migrations de la base de données</p>
            </a>
-           <a href="API_ENDPOINTS_BY_SCOPE.html" class="doc-card">
-            <h3>🌐 API Endpoints</h3>
-            <p>Liste complète des endpoints API par scope</p>
-           </a>
-           <a href="API_PERMISSIONS_AUDIT.html" class="doc-card">
-            <h3>🔒 Permissions API</h3>
-            <p>Audit des permissions et contrôle d'accès</p>
-           </a>
-           <a href="SECURITY_FINAL_REPORT.html" class="doc-card">
-            <h3>🛡️ Sécurité</h3>
-            <p>Rapport de sécurité et bonnes pratiques</p>
-           </a>
           </div>
          </section>
 

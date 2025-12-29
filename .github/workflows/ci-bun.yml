@@ -29,7 +29,7 @@ jobs:
      if: matrix.runtime == 'npm'
      uses: actions/setup-node@v4
      with:
-      node-version: 'latest'
+      node-version: '24.x'
 
    - name: Install dependencies (Bun)
      if: matrix.runtime == 'bun'
