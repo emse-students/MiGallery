@@ -1,0 +1,64 @@
+name: ✨ Feature Request
+description: Proposer une nouvelle fonctionnalité
+title: '[FEATURE] '
+labels: ['enhancement', 'triage']
+body:
+ - type: markdown
+   attributes:
+    value: |
+     Merci de proposer une amélioration pour MiGallery !
+
+ - type: textarea
+   id: problem
+   attributes:
+    label: Problème ou besoin
+    description: Décrivez le problème que cette fonctionnalité résoudrait
+    placeholder: |
+     En tant qu'utilisateur, je voudrais...
+     Actuellement, je ne peux pas...
+   validations:
+    required: true
+
+ - type: textarea
+   id: solution
+   attributes:
+    label: Solution proposée
+    description: Décrivez la solution que vous aimeriez voir
+    placeholder: Je propose d'ajouter...
+   validations:
+    required: true
+
+ - type: textarea
+   id: alternatives
+   attributes:
+    label: Alternatives envisagées
+    description: Avez-vous envisagé d'autres solutions ?
+    placeholder: J'ai aussi pensé à...
+
+ - type: dropdown
+   id: priority
+   attributes:
+    label: Priorité
+    description: Quelle est l'importance de cette fonctionnalité pour vous ?
+    options:
+     - Basse
+     - Moyenne
+     - Haute
+     - Critique
+   validations:
+    required: true
+
+ - type: checkboxes
+   id: implementation
+   attributes:
+    label: Contribution
+    description: Seriez-vous intéressé pour contribuer ?
+    options:
+     - label: Je serais intéressé pour implémenter cette fonctionnalité
+     - label: Je peux aider à tester cette fonctionnalité
+
+ - type: textarea
+   id: additional
+   attributes:
+    label: Informations supplémentaires
+    description: Captures d'écran, maquettes, exemples, etc.

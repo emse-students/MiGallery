@@ -1,0 +1,44 @@
+version: 2
+updates:
+ # Maintenir les GitHub Actions à jour
+ - package-ecosystem: 'github-actions'
+   directory: '/'
+   schedule:
+    interval: 'weekly'
+    day: 'monday'
+   commit-message:
+    prefix: 'chore(deps):'
+    include: 'scope'
+   labels:
+    - 'dependencies'
+    - 'github-actions'
+   open-pull-requests-limit: 5
+
+ # Maintenir les dépendances npm à jour
+ - package-ecosystem: 'npm'
+   directory: '/'
+   schedule:
+    interval: 'weekly'
+    day: 'monday'
+   commit-message:
+    prefix: 'chore(deps):'
+    include: 'scope'
+   labels:
+    - 'dependencies'
+    - 'npm'
+   open-pull-requests-limit: 10
+   # Grouper les mises à jour mineures ensemble
+   groups:
+    development-dependencies:
+     dependency-type: 'development'
+     update-types:
+      - 'minor'
+      - 'patch'
+    production-dependencies:
+     dependency-type: 'production'
+     update-types:
+      - 'patch'
+   # Ignorer certains packages si nécessaire (décommenter si besoin)
+   # ignore:
+   #  - dependency-name: "svelte"
+   #    update-types: ["version-update:semver-major"]
