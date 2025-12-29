@@ -98,6 +98,7 @@ export const GET: RequestHandler = async (event) => {
 		const assets = Array.isArray(album?.assets) ? album.assets : [];
 
 		const encoder = new TextEncoder();
+		let streamClosed = false; // Track stream state to prevent double close
 		const stream = new ReadableStream({
 			async start(controller) {
 				try {
@@ -114,18 +115,16 @@ export const GET: RequestHandler = async (event) => {
 							minimalData.aspectRatio = minimalData.width / minimalData.height;
 						}
 
-						controller.enqueue(
-							encoder.encode(
-								`${JSON.stringify({
-									phase: 'minimal',
-									asset: minimalData
-								})}\n`
-							)
-						);
-					}
-
-					const batchSize = 10;
-					for (let i = 0; i < assets.length; i += batchSize) {
+						if (!streamClosed) {
+							controller.enqueue(
+								encoder.encode(
+									`${JSON.stringify({
+										phase: 'minimal',
+										asset: minimalData
+									})}\n`
+								)
+							);
+						}
 						const batch = assets.slice(i, i + batchSize);
 
 						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
@@ -168,34 +167,40 @@ export const GET: RequestHandler = async (event) => {
 						const results = await Promise.allSettled(detailsPromises);
 
 						for (const result of results) {
-							if (result.status === 'fulfilled' && result.value) {
+							if (result.status === 'fulfilled' && result.value && !streamClosed) {
 								controller.enqueue(encoder.encode(`${JSON.stringify(result.value)}\n`));
 							}
 						}
 					}
 
-					controller.close();
+					if (!streamClosed) {
+						streamClosed = true;
+						controller.close();
+					}
 				} catch (err: unknown) {
 					const _err = ensureError(err);
 					console.error(
 						'Error in assets stream (will send error message and close stream):',
 						_err.message || _err
 					);
-					try {
-						controller.enqueue(
-							encoder.encode(
-								`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`
-							)
-						);
-					} catch (e: unknown) {
-						const __err = ensureError(e);
-						console.error('Failed to enqueue error message on stream:', __err.message || __err);
-					}
-					try {
-						controller.close();
-					} catch (e: unknown) {
-						const __err = ensureError(e);
-						console.error('Failed to close stream after error:', __err.message || __err);
+					if (!streamClosed) {
+						try {
+							controller.enqueue(
+								encoder.encode(
+									`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`
+								)
+							);
+						} catch (e: unknown) {
+							const __err = ensureError(e);
+							console.error('Failed to enqueue error message on stream:', __err.message || __err);
+						}
+						try {
+							streamClosed = true;
+							controller.close();
+						} catch (e: unknown) {
+							const __err = ensureError(e);
+							console.error('Failed to close stream after error:', __err.message || __err);
+						}
 					}
 				}
 			}
