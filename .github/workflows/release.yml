@@ -80,6 +80,12 @@ jobs:
    - name: Install dependencies
      run: bun install
 
+   - name: Sync version with tag
+     run: |
+      VERSION=${GITHUB_REF_NAME#v}
+      echo "Setting version to $VERSION"
+      npm version $VERSION --no-git-tag-version --allow-same-version
+
    - name: Build
      run: bun run build
 

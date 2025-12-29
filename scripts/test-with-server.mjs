@@ -43,8 +43,15 @@ function loadEnv() {
 async function buildServer() {
 	console.log('🔨 Building SvelteKit...\n');
 
+	// Détecter si Bun est disponible
+	const isBunAvailable = process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
+	const runner = isBunAvailable ? 'bun' : 'npm';
+	const args = isBunAvailable ? ['run', 'build'] : ['run', 'build'];
+
+	console.log(`Using runner: ${runner}`);
+
 	return new Promise((resolve, reject) => {
-		const build = spawn('bun', ['run', 'build'], {
+		const build = spawn(runner, args, {
 			stdio: 'inherit',
 			shell: process.platform === 'win32',
 			env: { ...process.env, NODE_ENV: 'test' }
