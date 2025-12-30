@@ -676,8 +676,9 @@ const handle: RequestHandler = async function (event) {
 			} catch {
 				console.error('Immich proxy upstream error but failed to read body snippet');
 			}
-		} else if (res.status === 304) {
+		} else if (res.status === 304 && env.NODE_ENV === 'development') {
 			// Not Modified responses are expected when cache validation headers are used.
+			// Only log in development mode to avoid verbose production logs.
 			console.debug(`Immich proxy upstream: Not Modified for ${resolvedRemoteUrl}`);
 		}
 

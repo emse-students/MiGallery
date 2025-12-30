@@ -1,0 +1,86 @@
+name: 🐛 Bug Report
+description: Signaler un bug ou un problème
+title: '[BUG] '
+labels: ['bug', 'triage']
+body:
+ - type: markdown
+   attributes:
+    value: |
+     Merci de prendre le temps de remplir ce rapport de bug !
+
+ - type: textarea
+   id: description
+   attributes:
+    label: Description du bug
+    description: Une description claire et concise du bug
+    placeholder: Décrivez le bug...
+   validations:
+    required: true
+
+ - type: textarea
+   id: reproduction
+   attributes:
+    label: Étapes pour reproduire
+    description: Étapes pour reproduire le problème
+    placeholder: |
+     1. Aller à '...'
+     2. Cliquer sur '...'
+     3. Voir l'erreur
+   validations:
+    required: true
+
+ - type: textarea
+   id: expected
+   attributes:
+    label: Comportement attendu
+    description: Que devrait-il se passer ?
+    placeholder: Décrivez le comportement attendu...
+   validations:
+    required: true
+
+ - type: textarea
+   id: actual
+   attributes:
+    label: Comportement actuel
+    description: Que se passe-t-il réellement ?
+    placeholder: Décrivez le comportement actuel...
+   validations:
+    required: true
+
+ - type: textarea
+   id: screenshots
+   attributes:
+    label: Screenshots
+    description: Si applicable, ajoutez des captures d'écran
+    placeholder: Collez vos images ici...
+
+ - type: textarea
+   id: environment
+   attributes:
+    label: Environnement
+    description: Informations sur votre environnement
+    placeholder: |
+     - OS: [ex: Windows 11, macOS 14, Ubuntu 22.04]
+     - Navigateur: [ex: Chrome 120, Firefox 121]
+     - Version de Node.js: [ex: 20.10.0]
+     - Version de Bun: [ex: 1.0.20]
+    value: |
+     - OS:
+     - Navigateur:
+     - Version de Node.js:
+     - Version de Bun:
+   validations:
+    required: true
+
+ - type: textarea
+   id: logs
+   attributes:
+    label: Logs
+    description: Si applicable, collez les logs d'erreur
+    render: shell
+
+ - type: textarea
+   id: additional
+   attributes:
+    label: Informations supplémentaires
+    description: Tout autre contexte pertinent

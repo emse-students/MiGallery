@@ -1,0 +1,295 @@
+name: Documentation
+
+on:
+ push:
+  branches:
+   - main
+  paths:
+   - 'docs/**'
+   - 'src/lib/docs/**'
+   - 'README.md'
+   - '.github/workflows/docs.yml'
+
+# Permissions nécessaires pour publier sur GitHub Pages
+permissions:
+ contents: read
+ pages: write
+ id-token: write
+
+# Ne permettre qu'un seul déploiement à la fois
+concurrency:
+ group: 'pages'
+ cancel-in-progress: false
+
+jobs:
+ build:
+  name: Build Documentation
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Setup Node.js
+     uses: actions/setup-node@v4
+     with:
+      node-version: '20'
+
+   - name: Create documentation site
+     run: |
+      mkdir -p _site
+
+      # Créer la page d'accueil
+      cat > _site/index.html << 'EOF'
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+       <title>MiGallery - Documentation</title>
+       <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+         line-height: 1.6;
+         color: #333;
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         min-height: 100vh;
+         padding: 2rem;
+        }
+        .container {
+         max-width: 1200px;
+         margin: 0 auto;
+         background: white;
+         border-radius: 12px;
+         box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+         overflow: hidden;
+        }
+        header {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+         padding: 3rem 2rem;
+         text-align: center;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .subtitle { opacity: 0.9; font-size: 1.2rem; }
+        main { padding: 2rem; }
+        .docs-grid {
+         display: grid;
+         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+         gap: 1.5rem;
+         margin-top: 2rem;
+        }
+        .doc-card {
+         border: 2px solid #e2e8f0;
+         border-radius: 8px;
+         padding: 1.5rem;
+         transition: all 0.3s;
+         text-decoration: none;
+         color: inherit;
+         display: block;
+        }
+        .doc-card:hover {
+         border-color: #667eea;
+         transform: translateY(-4px);
+         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+        }
+        .doc-card h3 {
+         color: #667eea;
+         margin-bottom: 0.5rem;
+         font-size: 1.3rem;
+        }
+        .doc-card p { color: #666; font-size: 0.95rem; }
+        footer {
+         text-align: center;
+         padding: 2rem;
+         color: #666;
+         border-top: 1px solid #e2e8f0;
+        }
+        .badge {
+         display: inline-block;
+         background: #10b981;
+         color: white;
+         padding: 0.25rem 0.75rem;
+         border-radius: 12px;
+         font-size: 0.875rem;
+         font-weight: 500;
+         margin-left: 0.5rem;
+        }
+       </style>
+      </head>
+      <body>
+       <div class="container">
+        <header>
+         <h1>📸 MiGallery</h1>
+         <p class="subtitle">Documentation complète du projet</p>
+        </header>
+        <main>
+         <section>
+          <h2>🚀 Démarrage rapide</h2>
+          <div class="docs-grid">
+           <a href="README.html" class="doc-card">
+            <h3>📖 README</h3>
+            <p>Guide de démarrage et présentation du projet</p>
+           </a>
+           <a href="tutorial.html" class="doc-card">
+            <h3>🎓 Tutoriel</h3>
+            <p>Apprendre à utiliser MiGallery étape par étape</p>
+           </a>
+          </div>
+         </section>
+
+         <section style="margin-top: 2rem;">
+          <h2>🔧 Documentation technique</h2>
+          <div class="docs-grid">
+           <a href="DATABASE_MANAGEMENT.html" class="doc-card">
+            <h3>🗄️ Base de données</h3>
+            <p>Gestion et migrations de la base de données</p>
+           </a>
+          </div>
+         </section>
+
+         <section style="margin-top: 2rem;">
+          <h2>💻 Développement</h2>
+          <div class="docs-grid">
+           <a href="COMPONENTS.html" class="doc-card">
+            <h3>🧩 Composants</h3>
+            <p>Documentation des composants Svelte</p>
+           </a>
+           <a href="STYLES.html" class="doc-card">
+            <h3>🎨 Styles</h3>
+            <p>Guide des styles et thèmes</p>
+           </a>
+           <a href="SCRIPTS.html" class="doc-card">
+            <h3>📜 Scripts</h3>
+            <p>Documentation des scripts utilitaires</p>
+           </a>
+           <a href="MIGRATION_BUN_SQLITE.html" class="doc-card">
+            <h3>🔄 Migration Bun/SQLite</h3>
+            <p>Guide de migration vers Bun et SQLite</p>
+           </a>
+           <a href="CRON_SETUP.html" class="doc-card">
+            <h3>⏰ Configuration Cron</h3>
+            <p>Configuration des tâches planifiées</p>
+           </a>
+           <a href="NAVBAR_ACCESS_MATRIX.html" class="doc-card">
+            <h3>🧭 Matrice de navigation</h3>
+            <p>Contrôle d'accès de la barre de navigation</p>
+           </a>
+          </div>
+         </section>
+        </main>
+        <footer>
+         <p>🎯 MiGallery - Généré automatiquement par GitHub Actions</p>
+         <p style="font-size: 0.875rem; margin-top: 0.5rem;">
+          <a href="https://github.com/emse-students/MiGallery" style="color: #667eea; text-decoration: none;">
+           📦 Voir le code source sur GitHub
+          </a>
+         </p>
+        </footer>
+       </div>
+      </body>
+      </html>
+      EOF
+
+   - name: Convert Markdown to HTML
+     run: |
+      npm install -g marked
+
+      # Fonction pour convertir un fichier Markdown en HTML
+      convert_md_to_html() {
+       local input_file="$1"
+       local output_file="_site/$(basename "${input_file%.md}.html")"
+       local title=$(basename "${input_file%.md}")
+
+       cat > "$output_file" << EOF
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+       <title>${title} - MiGallery Documentation</title>
+       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown.min.css">
+       <style>
+        body {
+         margin: 0;
+         padding: 0;
+         background: #f6f8fa;
+        }
+        .container {
+         max-width: 980px;
+         margin: 0 auto;
+         padding: 2rem;
+        }
+        .header {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+         padding: 2rem;
+         margin: -2rem -2rem 2rem -2rem;
+         border-radius: 8px 8px 0 0;
+        }
+        .header a {
+         color: white;
+         text-decoration: none;
+         opacity: 0.9;
+        }
+        .header a:hover { opacity: 1; }
+        .markdown-body {
+         background: white;
+         padding: 2rem;
+         border-radius: 8px;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+       </style>
+      </head>
+      <body>
+       <div class="container">
+        <div class="header">
+         <a href="index.html">← Retour à l'accueil</a>
+         <h1>${title}</h1>
+        </div>
+        <div class="markdown-body">
+      EOF
+
+       marked "$input_file" >> "$output_file"
+
+       cat >> "$output_file" << EOF
+        </div>
+       </div>
+      </body>
+      </html>
+      EOF
+      }
+
+      # Convertir tous les fichiers Markdown
+      find docs -name "*.md" -type f | while read -r file; do
+       convert_md_to_html "$file"
+      done
+
+      find src/lib/docs -name "*.md" -type f | while read -r file; do
+       convert_md_to_html "$file"
+      done
+
+      # Convertir le README principal
+      if [ -f "README.md" ]; then
+       convert_md_to_html "README.md"
+      fi
+
+   - name: Setup Pages
+     uses: actions/configure-pages@v4
+
+   - name: Upload artifact
+     uses: actions/upload-pages-artifact@v3
+     with:
+      path: '_site'
+
+ deploy:
+  name: Deploy to GitHub Pages
+  environment:
+   name: github-pages
+   url: ${{ steps.deployment.outputs.page_url }}
+  runs-on: ubuntu-latest
+  needs: build
+  steps:
+   - name: Deploy to GitHub Pages
+     id: deployment
+     uses: actions/deploy-pages@v4

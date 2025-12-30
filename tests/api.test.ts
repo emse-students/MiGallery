@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+
 import type {
 	UserRow,
 	ApiKeyResponse,
@@ -28,11 +29,13 @@ let createdUserId: string | null = null;
 // ========================================
 
 async function ensureSystemUserExists(): Promise<boolean> {
+	console.log('Checking system user existence...');
 	try {
 		const fs = await import('fs');
 		const path = await import('path');
 
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+		console.log(`DB Path: ${DB_PATH}`);
 
 		if (!fs.existsSync(DB_PATH)) {
 			console.warn('⚠️  Base de données introuvable');
@@ -90,8 +93,12 @@ async function loginAsSystemUser(): Promise<boolean> {
 			redirect: 'manual'
 		});
 
+		// console.debug(`Login status: ${response.status}`);
+		// console.debug(`Login headers:`, Object.fromEntries(response.headers.entries()));
+		const cookies = response.headers.get('set-cookie');
+		// console.debug(`Login cookies: ${cookies}`);
+
 		if (response.status === 303 || response.status === 302) {
-			const cookies = response.headers.get('set-cookie');
 			if (cookies) {
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
@@ -102,10 +109,10 @@ async function loginAsSystemUser(): Promise<boolean> {
 			}
 		}
 
-		console.error(`❌ Échec de la connexion (status: ${response.status})`);
+		console.debug(`❌ Échec de la connexion (status: ${response.status})`);
 		return false;
 	} catch (error) {
-		console.error(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
+		console.debug(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
 		return false;
 	}
 }
@@ -189,22 +196,26 @@ beforeAll(async () => {
 	console.debug(`📍 URL de base: ${API_BASE_URL}\n`);
 
 	const userExists = await ensureSystemUserExists();
-	if (userExists) {
-		const loginSuccess = await loginAsSystemUser();
-		if (loginSuccess) {
-			// Créer une clé API avec scope 'admin' pour les tests admin
-			const adminKeyResult = await createTestApiKey(['admin']);
-			if (adminKeyResult) {
-				testApiKeyId = adminKeyResult.id;
-				API_KEY = adminKeyResult.rawKey;
-			}
+	console.debug(`User exists: ${userExists}`);
 
-			// Créer une clé API avec scope 'read' pour les tests de lecture
-			const readKeyResult = await createTestApiKey(['read']);
-			if (readKeyResult) {
-				testApiKeyReadId = readKeyResult.id;
-				API_KEY_READ = readKeyResult.rawKey;
-			}
+	// Tentative de connexion même si l'utilisateur n'est pas trouvé localement
+	// car l'endpoint /dev/login-as le créera si NODE_ENV=test
+	const loginSuccess = await loginAsSystemUser();
+	console.debug(`Login success: ${loginSuccess}`);
+
+	if (loginSuccess) {
+		// Créer une clé API avec scope 'admin' pour les tests admin
+		const adminKeyResult = await createTestApiKey(['admin']);
+		if (adminKeyResult) {
+			testApiKeyId = adminKeyResult.id;
+			API_KEY = adminKeyResult.rawKey;
+		}
+
+		// Créer une clé API avec scope 'read' pour les tests de lecture
+		const readKeyResult = await createTestApiKey(['read']);
+		if (readKeyResult) {
+			testApiKeyReadId = readKeyResult.id;
+			API_KEY_READ = readKeyResult.rawKey;
 		}
 	}
 });

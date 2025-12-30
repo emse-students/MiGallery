@@ -1,0 +1,87 @@
+name: Code Analysis
+
+on:
+ push:
+  branches:
+   - main
+ pull_request:
+  branches:
+   - main
+ schedule:
+  # Analyse quotidienne à 2h du matin
+  - cron: '0 2 * * *'
+
+jobs:
+ codeql:
+  name: CodeQL Security Analysis
+  runs-on: ubuntu-latest
+  permissions:
+   actions: read
+   contents: read
+   security-events: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Initialize CodeQL
+     uses: github/codeql-action/init@v3
+     with:
+      languages: javascript, typescript
+      queries: security-extended, security-and-quality
+
+   - name: Autobuild
+     uses: github/codeql-action/autobuild@v3
+
+   - name: Perform CodeQL Analysis
+     uses: github/codeql-action/analyze@v3
+
+ secret-scan:
+  name: Scan for Secrets
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      fetch-depth: 0
+
+   - name: TruffleHog Secret Scan
+     uses: trufflesecurity/trufflehog@main
+     with:
+      path: ./
+      extra_args: --debug --only-verified
+
+ eslint-security:
+  name: ESLint Security Check
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Run ESLint
+     run: bun run lint
+     continue-on-error: true
+
+ code-quality:
+  name: Code Quality Analysis
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      fetch-depth: 0
+
+   # SONAR_TOKEN est optionnel - configure dans GitHub secrets si SonarCloud est utilisé
+   - name: SonarCloud Scan
+     uses: SonarSource/sonarcloud-github-action@master
+     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+     continue-on-error: true

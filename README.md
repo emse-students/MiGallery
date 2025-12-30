@@ -8,6 +8,10 @@
 [![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
 [![Powered by Bun](https://img.shields.io/badge/Powered%20by-Bun-000000?logo=bun)](https://bun.sh/)
 
+[![CI (Bun)](https://github.com/emse-students/MiGallery/actions/workflows/ci-bun.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/ci-bun.yml)
+[![Code Analysis](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml)
+[![Documentation](https://github.com/emse-students/MiGallery/actions/workflows/docs.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/docs.yml)
+
 </div>
 
 ---
@@ -411,7 +415,7 @@ La qualité du code est assurée par une chaîne d'outils complète :
 
 ## 👨‍💻 Auteur
 
-Développé avec ❤️ par **DeMASKe**(https://github.com/DeMASKe) et **gd-pnjj**(https://github.com/gd-pnjj)pour **MiTV**
+Développé avec ❤️ par **[DeMASKe](https://github.com/DeMASKe)** et **[gd-pnjj](https://github.com/gd-pnjj)** pour **MiTV**
 
 - **Repository** : [github.com/emse-students/MiGallery](https://github.com/emse-students/MiGallery)
 - **Organisation** : EMSE Students
@@ -518,7 +522,7 @@ pip install --upgrade pre-commit
 pre-commit --version
 ```
 
-- `bun: command not found` → Installez Bun depuis https://bun.sh
+- `bun: command not found` → Installez Bun depuis <https://bun.sh>
 
 - Les hooks ne s'exécutent pas :
 
