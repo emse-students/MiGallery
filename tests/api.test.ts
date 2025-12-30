@@ -197,12 +197,12 @@ beforeAll(async () => {
 
 	const userExists = await ensureSystemUserExists();
 	console.debug(`User exists: ${userExists}`);
-	
+
 	// Tentative de connexion même si l'utilisateur n'est pas trouvé localement
 	// car l'endpoint /dev/login-as le créera si NODE_ENV=test
 	const loginSuccess = await loginAsSystemUser();
 	console.debug(`Login success: ${loginSuccess}`);
-	
+
 	if (loginSuccess) {
 		// Créer une clé API avec scope 'admin' pour les tests admin
 		const adminKeyResult = await createTestApiKey(['admin']);

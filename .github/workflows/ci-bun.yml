@@ -119,7 +119,9 @@ jobs:
 
    - name: Package application (npm)
      if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.runtime == 'npm'
-     run: npm run package
+     env:
+      ADAPTER: node
+     run: npm run package:legacy
 
    - name: Upload artifact
      if: github.event_name == 'push' && github.ref == 'refs/heads/main'

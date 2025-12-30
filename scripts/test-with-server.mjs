@@ -44,7 +44,8 @@ async function buildServer() {
 	console.log('🔨 Building SvelteKit...\n');
 
 	// Détecter si Bun est disponible
-	const isBunAvailable = process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
+	const isBunAvailable =
+		process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
 	const runner = isBunAvailable ? 'bun' : 'npm';
 	const args = isBunAvailable ? ['run', 'build'] : ['run', 'build'];
 
@@ -113,7 +114,8 @@ async function main() {
 
 		console.log('🚀 Démarrage du serveur de test...\n');
 
-		const isBun = process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
+		const isBun =
+			process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
 		const serverRunner = isBun ? 'bun' : 'node';
 
 		// 2. Démarrer le serveur
