@@ -32,3 +32,14 @@ vite.config.ts.timestamp-*
 *.db.backup-*
 
 .eslintcache
+
+# Lockfiles and package manager artifacts
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Packaging artifacts
+build/artifacts/*.tgz
+build/artifacts/*.tar.gz
