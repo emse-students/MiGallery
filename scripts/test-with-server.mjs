@@ -50,11 +50,17 @@ async function buildServer() {
 
 	console.log(`Using runner: ${runner}`);
 
+	const env = { ...process.env, NODE_ENV: 'test' };
+	if (!isBunAvailable) {
+		env.ADAPTER = 'node';
+		console.log('Using Node adapter');
+	}
+
 	return new Promise((resolve, reject) => {
 		const build = spawn(runner, args, {
 			stdio: 'inherit',
 			shell: process.platform === 'win32',
-			env: { ...process.env, NODE_ENV: 'test' }
+			env
 		});
 
 		build.on('close', (code) => {
@@ -107,8 +113,11 @@ async function main() {
 
 		console.log('🚀 Démarrage du serveur de test...\n');
 
-		// 2. Démarrer le serveur (exécuter le fichier build avec bun)
-		server = spawn('bun', ['./build/index.js'], {
+		const isBun = process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
+		const serverRunner = isBun ? 'bun' : 'node';
+
+		// 2. Démarrer le serveur
+		server = spawn(serverRunner, ['./build/index.js'], {
 			stdio: 'inherit',
 			detached: false,
 			env: { ...process.env, ...envVars, NODE_ENV: 'test' }
@@ -129,9 +138,13 @@ async function main() {
 
 		console.log('🧪 Lancement des tests...\n');
 
+		const testRunner = isBun ? 'bun' : 'npm';
+		const testArgs = isBun ? ['run', 'vitest', 'run'] : ['run', 'test:unit'];
+
 		// 4. Lancer les tests
-		const tests = spawn('bun', ['run', 'vitest', 'run'], {
+		const tests = spawn(testRunner, testArgs, {
 			stdio: 'inherit',
+			shell: process.platform === 'win32',
 			env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' }
 		});
 

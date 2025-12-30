@@ -73,6 +73,8 @@ jobs:
 
    - name: Build (npm)
      if: matrix.runtime == 'npm'
+     env:
+      ADAPTER: node
      run: npm run build
 
    - name: Setup test database
@@ -108,6 +110,7 @@ jobs:
      run: npm run test
      env:
       API_BASE_URL: http://localhost:3000
+      ADAPTER: node
      continue-on-error: false
 
    - name: Package application (Bun)
