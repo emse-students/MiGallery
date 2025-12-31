@@ -47,145 +47,136 @@ jobs:
        <meta name="viewport" content="width=device-width, initial-scale=1.0">
        <title>MiGallery - Documentation</title>
        <style>
+        :root {
+         --primary: #667eea;
+         --secondary: #764ba2;
+         --text: #333;
+         --bg: #f6f8fa;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
          line-height: 1.6;
-         color: #333;
-         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: var(--text);
+         background: var(--bg);
          min-height: 100vh;
-         padding: 2rem;
+         display: flex;
+         flex-direction: column;
         }
+        .header {
+         background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+         color: white;
+         padding: 4rem 2rem;
+         text-align: center;
+         margin-bottom: 3rem;
+         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 3rem; margin-bottom: 1rem; font-weight: 800; letter-spacing: -1px; }
+        .header p { font-size: 1.2rem; opacity: 0.9; max-width: 600px; margin: 0 auto; }
         .container {
          max-width: 1200px;
          margin: 0 auto;
-         background: white;
-         border-radius: 12px;
-         box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-         overflow: hidden;
+         padding: 0 2rem;
+         width: 100%;
+         flex: 1;
         }
-        header {
-         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-         color: white;
-         padding: 3rem 2rem;
-         text-align: center;
+        .section-title {
+         font-size: 1.8rem;
+         color: var(--secondary);
+         margin-bottom: 1.5rem;
+         border-bottom: 2px solid #e2e8f0;
+         padding-bottom: 0.5rem;
+         display: flex;
+         align-items: center;
+         gap: 0.5rem;
         }
-        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        .subtitle { opacity: 0.9; font-size: 1.2rem; }
-        main { padding: 2rem; }
-        .docs-grid {
+        .grid {
          display: grid;
          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-         gap: 1.5rem;
-         margin-top: 2rem;
+         gap: 2rem;
+         margin-bottom: 4rem;
         }
-        .doc-card {
-         border: 2px solid #e2e8f0;
-         border-radius: 8px;
-         padding: 1.5rem;
-         transition: all 0.3s;
+        .card {
+         background: white;
+         border-radius: 12px;
+         padding: 2rem;
+         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+         transition: transform 0.2s, box-shadow 0.2s;
          text-decoration: none;
          color: inherit;
-         display: block;
+         border: 1px solid #e2e8f0;
+         display: flex;
+         flex-direction: column;
+         height: 100%;
         }
-        .doc-card:hover {
-         border-color: #667eea;
-         transform: translateY(-4px);
-         box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+        .card:hover {
+         transform: translateY(-5px);
+         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+         border-color: var(--primary);
         }
-        .doc-card h3 {
-         color: #667eea;
-         margin-bottom: 0.5rem;
-         font-size: 1.3rem;
+        .card h3 {
+         color: var(--primary);
+         font-size: 1.4rem;
+         margin-bottom: 0.75rem;
         }
-        .doc-card p { color: #666; font-size: 0.95rem; }
-        footer {
+        .card p {
+         color: #666;
+         flex-grow: 1;
+         font-size: 0.95rem;
+        }
+        .footer {
          text-align: center;
-         padding: 2rem;
+         padding: 3rem;
          color: #666;
          border-top: 1px solid #e2e8f0;
-        }
-        .badge {
-         display: inline-block;
-         background: #10b981;
-         color: white;
-         padding: 0.25rem 0.75rem;
-         border-radius: 12px;
-         font-size: 0.875rem;
-         font-weight: 500;
-         margin-left: 0.5rem;
+         background: white;
+         margin-top: auto;
         }
        </style>
       </head>
       <body>
+       <div class="header">
+        <h1>📸 MiGallery Docs</h1>
+        <p>Documentation officielle de l'application de galerie photo de MiTV</p>
+       </div>
+
        <div class="container">
-        <header>
-         <h1>📸 MiGallery</h1>
-         <p class="subtitle">Documentation complète du projet</p>
-        </header>
-        <main>
-         <section>
-          <h2>🚀 Démarrage rapide</h2>
-          <div class="docs-grid">
-           <a href="README.html" class="doc-card">
-            <h3>📖 README</h3>
-            <p>Guide de démarrage et présentation du projet</p>
-           </a>
-           <a href="tutorial.html" class="doc-card">
-            <h3>🎓 Tutoriel</h3>
-            <p>Apprendre à utiliser MiGallery étape par étape</p>
-           </a>
-          </div>
-         </section>
+        <h2 class="section-title">📚 Manuel Utilisateur</h2>
+        <div class="grid">
+         <a href="tutorial.html" class="card">
+          <h3>🎓 Mode d'emploi</h3>
+          <p>Guide complet pour les utilisateurs et les membres MiTV : albums, photos, biométrie, gestion des droits...</p>
+         </a>
+         <a href="README.html" class="card">
+          <h3>📖 À propos</h3>
+          <p>Présentation générale du projet, installation et informations essentielles.</p>
+         </a>
+        </div>
 
-         <section style="margin-top: 2rem;">
-          <h2>🔧 Documentation technique</h2>
-          <div class="docs-grid">
-           <a href="DATABASE_MANAGEMENT.html" class="doc-card">
-            <h3>🗄️ Base de données</h3>
-            <p>Gestion et migrations de la base de données</p>
-           </a>
-          </div>
-         </section>
+        <h2 class="section-title">🛠 Documentation Technique</h2>
+        <div class="grid">
+         <a href="COMPONENTS.html" class="card">
+          <h3>🧩 Composants</h3>
+          <p>Documentation des composants Svelte et de l'interface utilisateur.</p>
+         </a>
+         <a href="STYLES.html" class="card">
+          <h3>🎨 Styles</h3>
+          <p>Guide des styles, thèmes et design system de l'application.</p>
+         </a>
+         <a href="SCRIPTS.html" class="card">
+          <h3>📜 Scripts</h3>
+          <p>Documentation des scripts utilitaires et outils de maintenance.</p>
+         </a>
+         <a href="NAVBAR_ACCESS_MATRIX.html" class="card">
+          <h3>🧭 Navigation</h3>
+          <p>Matrice des droits d'accès et structure de la navigation.</p>
+         </a>
+        </div>
+       </div>
 
-         <section style="margin-top: 2rem;">
-          <h2>💻 Développement</h2>
-          <div class="docs-grid">
-           <a href="COMPONENTS.html" class="doc-card">
-            <h3>🧩 Composants</h3>
-            <p>Documentation des composants Svelte</p>
-           </a>
-           <a href="STYLES.html" class="doc-card">
-            <h3>🎨 Styles</h3>
-            <p>Guide des styles et thèmes</p>
-           </a>
-           <a href="SCRIPTS.html" class="doc-card">
-            <h3>📜 Scripts</h3>
-            <p>Documentation des scripts utilitaires</p>
-           </a>
-           <a href="MIGRATION_BUN_SQLITE.html" class="doc-card">
-            <h3>🔄 Migration Bun/SQLite</h3>
-            <p>Guide de migration vers Bun et SQLite</p>
-           </a>
-           <a href="CRON_SETUP.html" class="doc-card">
-            <h3>⏰ Configuration Cron</h3>
-            <p>Configuration des tâches planifiées</p>
-           </a>
-           <a href="NAVBAR_ACCESS_MATRIX.html" class="doc-card">
-            <h3>🧭 Matrice de navigation</h3>
-            <p>Contrôle d'accès de la barre de navigation</p>
-           </a>
-          </div>
-         </section>
-        </main>
-        <footer>
-         <p>🎯 MiGallery - Généré automatiquement par GitHub Actions</p>
-         <p style="font-size: 0.875rem; margin-top: 0.5rem;">
-          <a href="https://github.com/emse-students/MiGallery" style="color: #667eea; text-decoration: none;">
-           📦 Voir le code source sur GitHub
-          </a>
-         </p>
-        </footer>
+       <div class="footer">
+        <p>MiGallery - Développé avec ❤️ par MiTV</p>
+        <p style="margin-top: 0.5rem;"><a href="https://github.com/emse-students/MiGallery" style="color: var(--primary); text-decoration: none;">📦 Voir le code source sur GitHub</a></p>
        </div>
       </body>
       </html>
