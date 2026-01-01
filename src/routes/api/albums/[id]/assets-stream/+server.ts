@@ -102,6 +102,7 @@ export const GET: RequestHandler = async (event) => {
 		const stream = new ReadableStream({
 			async start(controller) {
 				try {
+					// 1. Envoi des données minimales pour tous les assets
 					for (const asset of assets) {
 						const minimalData = {
 							id: asset.id,
@@ -125,8 +126,16 @@ export const GET: RequestHandler = async (event) => {
 								)
 							);
 						}
-						const batch = assets.slice(i, i + batchSize);
+					}
 
+					// 2. Envoi des détails complets par lots
+					const batchSize = 10;
+					for (let i = 0; i < assets.length; i += batchSize) {
+						if (streamClosed) {
+							break;
+						}
+
+						const batch = assets.slice(i, i + batchSize);
 						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
 							try {
 								const detailRes = await fetch(`/api/immich/assets/${asset.id}`, {

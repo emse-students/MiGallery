@@ -29,13 +29,13 @@ let createdUserId: string | null = null;
 // ========================================
 
 async function ensureSystemUserExists(): Promise<boolean> {
-	console.log('Checking system user existence...');
+	console.debug('Checking system user existence...');
 	try {
 		const fs = await import('fs');
 		const path = await import('path');
 
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
-		console.log(`DB Path: ${DB_PATH}`);
+		console.debug(`DB Path: ${DB_PATH}`);
 
 		if (!fs.existsSync(DB_PATH)) {
 			console.warn('⚠️  Base de données introuvable');

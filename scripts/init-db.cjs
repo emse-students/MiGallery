@@ -31,7 +31,11 @@ if (dbExists) {
 const db = new Database(DB_PATH);
 
 try {
-	db.pragma('foreign_keys = ON');
+	if (isBunRuntime()) {
+		db.exec('PRAGMA foreign_keys = ON');
+	} else {
+		db.pragma('foreign_keys = ON');
+	}
 
 	const schemaPath = path.join(process.cwd(), 'src', 'lib', 'db', 'schema.sql');
 	const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -49,7 +53,7 @@ try {
 			null,
 			0,
 			'admin',
-			null 
+			null
 		);
 	console.log('✅ Utilisateur système admin créé: les.roots');
 
