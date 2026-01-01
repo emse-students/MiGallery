@@ -30,8 +30,19 @@ if (!fs.existsSync(DB_PATH)) {
 let hasErrors = false;
 const errors = [];
 
-// Inspection en lecture seule
-const db = new Database(DB_PATH, { readonly: !REPAIR_MODE });
+// Inspection
+let db;
+try {
+	if (isBunRuntime()) {
+		// Bun:sqlite options are slightly different or more sensitive
+		db = new Database(DB_PATH, REPAIR_MODE ? { readwrite: true } : { readonly: true });
+	} else {
+		db = new Database(DB_PATH, { readonly: !REPAIR_MODE });
+	}
+} catch (e) {
+	console.error(`❌ Impossible d'ouvrir la base de données: ${e.message}`);
+	process.exit(1);
+}
 
 try {
 	console.log('📊 STATISTIQUES DE LA BASE DE DONNÉES\n');
@@ -167,7 +178,11 @@ if (!hasErrors) {
 
 		try {
 			const dbWrite = new Database(DB_PATH);
-			dbWrite.pragma('foreign_keys = ON');
+			if (isBunRuntime()) {
+				dbWrite.exec('PRAGMA foreign_keys = ON');
+			} else {
+				dbWrite.pragma('foreign_keys = ON');
+			}
 
 			let repaired = false;
 
