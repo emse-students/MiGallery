@@ -28,6 +28,21 @@ export const POST: RequestHandler = async (event) => {
 
 		const stream = new ReadableStream({
 			async start(controller) {
+				const safeEnqueue = (data: string) => {
+					try {
+						controller.enqueue(encoder.encode(data));
+						return true;
+					} catch (e: unknown) {
+						if (
+							(e as { code?: string }).code === 'ERR_INVALID_STATE' ||
+							(e as Error).message?.includes('Controller is already closed')
+						) {
+							return false;
+						}
+						throw e;
+					}
+				};
+
 				const batchSize = 10;
 
 				for (let i = 0; i < albumIds.length; i += batchSize) {
@@ -108,12 +123,23 @@ export const POST: RequestHandler = async (event) => {
 					for (const result of results) {
 						if (result.status === 'fulfilled') {
 							const data = `${JSON.stringify(result.value)}\n`;
-							controller.enqueue(encoder.encode(data));
+							if (!safeEnqueue(data)) {
+								return; // Stop processing if stream is closed
+							}
 						}
 					}
 				}
 
-				controller.close();
+				try {
+					controller.close();
+				} catch (e: unknown) {
+					if (
+						(e as { code?: string }).code !== 'ERR_INVALID_STATE' &&
+						!(e as Error).message?.includes('Controller is already closed')
+					) {
+						throw e;
+					}
+				}
 			}
 		});
 
