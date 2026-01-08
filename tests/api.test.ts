@@ -103,16 +103,16 @@ async function loginAsSystemUser(): Promise<boolean> {
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
 					sessionCookie = `current_user_id=${match[1]}`;
-					console.debug('✅ Connexion réussie avec cookie de session');
+					// console.debug('✅ Connexion réussie avec cookie de session');
 					return true;
 				}
 			}
 		}
 
-		console.debug(`❌ Échec de la connexion (status: ${response.status})`);
+		// console.debug(`❌ Échec de la connexion (status: ${response.status})`);
 		return false;
-	} catch (error) {
-		console.debug(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
+	} catch {
+		// console.debug(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
 		return false;
 	}
 }

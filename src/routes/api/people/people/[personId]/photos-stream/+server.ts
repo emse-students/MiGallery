@@ -27,6 +27,21 @@ export const GET: RequestHandler = async (event) => {
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream({
 			async start(controller) {
+				const safeEnqueue = (data: string) => {
+					try {
+						controller.enqueue(encoder.encode(data));
+						return true;
+					} catch (e: unknown) {
+						if (
+							(e as { code?: string }).code === 'ERR_INVALID_STATE' ||
+							(e as Error).message?.includes('Controller is already closed')
+						) {
+							return false;
+						}
+						throw e;
+					}
+				};
+
 				try {
 					const allAssets: ImmichAsset[] = [];
 					let page = 1;
@@ -79,14 +94,16 @@ export const GET: RequestHandler = async (event) => {
 							minimalData.aspectRatio = minimalData.width / minimalData.height;
 						}
 
-						controller.enqueue(
-							encoder.encode(
+						if (
+							!safeEnqueue(
 								`${JSON.stringify({
 									phase: 'minimal',
 									asset: minimalData
 								})}\n`
 							)
-						);
+						) {
+							return;
+						}
 					}
 
 					const batchSize = 10;
@@ -121,7 +138,9 @@ export const GET: RequestHandler = async (event) => {
 
 						for (const result of results) {
 							if (result.status === 'fulfilled' && result.value) {
-								controller.enqueue(encoder.encode(`${JSON.stringify(result.value)}\n`));
+								if (!safeEnqueue(`${JSON.stringify(result.value)}\n`)) {
+									return;
+								}
 							}
 						}
 					}
@@ -129,8 +148,18 @@ export const GET: RequestHandler = async (event) => {
 					controller.close();
 				} catch (err: unknown) {
 					const _err = ensureError(err);
+					if (
+						(_err as unknown as { code?: string }).code === 'ERR_INVALID_STATE' ||
+						_err.message?.includes('Controller is already closed')
+					) {
+						return;
+					}
 					console.error('Error in photos stream:', err);
-					controller.error(err);
+					try {
+						controller.error(err);
+					} catch {
+						/* ignore */
+					}
 				}
 			}
 		});

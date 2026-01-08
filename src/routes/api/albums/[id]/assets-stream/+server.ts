@@ -101,9 +101,32 @@ export const GET: RequestHandler = async (event) => {
 		let streamClosed = false; // Track stream state to prevent double close
 		const stream = new ReadableStream({
 			async start(controller) {
+				const safeEnqueue = (data: string) => {
+					if (streamClosed) {
+						return false;
+					}
+					try {
+						controller.enqueue(encoder.encode(data));
+						return true;
+					} catch (e: unknown) {
+						if (
+							(e as { code?: string }).code === 'ERR_INVALID_STATE' ||
+							(e as Error).message?.includes('Controller is already closed')
+						) {
+							streamClosed = true;
+							return false;
+						}
+						throw e;
+					}
+				};
+
 				try {
 					// 1. Envoi des données minimales pour tous les assets
 					for (const asset of assets) {
+						if (streamClosed) {
+							break;
+						}
+
 						const minimalData = {
 							id: asset.id,
 							type: asset.type,
@@ -116,15 +139,15 @@ export const GET: RequestHandler = async (event) => {
 							minimalData.aspectRatio = minimalData.width / minimalData.height;
 						}
 
-						if (!streamClosed) {
-							controller.enqueue(
-								encoder.encode(
-									`${JSON.stringify({
-										phase: 'minimal',
-										asset: minimalData
-									})}\n`
-								)
-							);
+						if (
+							!safeEnqueue(
+								`${JSON.stringify({
+									phase: 'minimal',
+									asset: minimalData
+								})}\n`
+							)
+						) {
+							break;
 						}
 					}
 
@@ -176,8 +199,10 @@ export const GET: RequestHandler = async (event) => {
 						const results = await Promise.allSettled(detailsPromises);
 
 						for (const result of results) {
-							if (result.status === 'fulfilled' && result.value && !streamClosed) {
-								controller.enqueue(encoder.encode(`${JSON.stringify(result.value)}\n`));
+							if (result.status === 'fulfilled' && result.value) {
+								if (!safeEnqueue(`${JSON.stringify(result.value)}\n`)) {
+									break;
+								}
 							}
 						}
 					}
@@ -188,27 +213,32 @@ export const GET: RequestHandler = async (event) => {
 					}
 				} catch (err: unknown) {
 					const _err = ensureError(err);
+					if (
+						(_err as unknown as { code?: string }).code === 'ERR_INVALID_STATE' ||
+						_err.message?.includes('Controller is already closed')
+					) {
+						streamClosed = true;
+						return;
+					}
 					console.error(
 						'Error in assets stream (will send error message and close stream):',
 						_err.message || _err
 					);
 					if (!streamClosed) {
-						try {
-							controller.enqueue(
-								encoder.encode(
-									`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`
-								)
-							);
-						} catch (e: unknown) {
-							const __err = ensureError(e);
-							console.error('Failed to enqueue error message on stream:', __err.message || __err);
-						}
+						safeEnqueue(
+							`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`
+						);
 						try {
 							streamClosed = true;
 							controller.close();
 						} catch (e: unknown) {
 							const __err = ensureError(e);
-							console.error('Failed to close stream after error:', __err.message || __err);
+							if (
+								!(__err as unknown as { code?: string }).code === 'ERR_INVALID_STATE' &&
+								!__err.message?.includes('Controller is already closed')
+							) {
+								console.error('Failed to close stream after error:', __err.message || __err);
+							}
 						}
 					}
 				}
