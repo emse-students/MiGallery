@@ -115,7 +115,7 @@
         ({ albumId, cover }) => {
           if (cover && typeof cover === 'object' && 'assetId' in cover) {
             const coverData = { id: cover.assetId, type: cover.type };
-            albumCovers = { ...albumCovers, [albumId]: coverData };
+            albumCovers[albumId] = coverData;
             clientCache.set('album-covers', albumId, coverData);
           }
         }

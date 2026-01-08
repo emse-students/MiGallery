@@ -146,7 +146,8 @@ export const POST: RequestHandler = async (event) => {
 		return new Response(stream, {
 			headers: {
 				'Content-Type': 'application/x-ndjson', // Newline Delimited JSON
-				'Cache-Control': 'no-cache',
+				// Cache covers for 30 days (assets don't change often)
+				'Cache-Control': 'public, max-age=2592000',
 				Connection: 'keep-alive'
 			}
 		});

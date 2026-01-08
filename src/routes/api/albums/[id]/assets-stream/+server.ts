@@ -225,9 +225,7 @@ export const GET: RequestHandler = async (event) => {
 						_err.message || _err
 					);
 					if (!streamClosed) {
-						safeEnqueue(
-							`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`
-						);
+						safeEnqueue(`${JSON.stringify({ phase: 'error', message: _err.message || String(_err) })}\n`);
 						try {
 							streamClosed = true;
 							controller.close();

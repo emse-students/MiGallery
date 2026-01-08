@@ -49,8 +49,9 @@ export const GET: RequestHandler = async (event) => {
 	const cacheFile = path.join(CACHE_DIR, `${assetId}.webp`);
 	if (fs.existsSync(cacheFile)) {
 		const buffer = fs.readFileSync(cacheFile);
+		// Cache-Control: 180 jours ~ 6 mois
 		return new Response(new Uint8Array(buffer), {
-			headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=604800' }
+			headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=15552000' }
 		});
 	}
 
@@ -134,7 +135,8 @@ async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<
 		return new Response(new Uint8Array(processed), {
 			headers: {
 				'Content-Type': 'image/webp',
-				'Cache-Control': 'public, max-age=604800'
+				// Cache-Control: 180 jours ~ 6 mois
+				'Cache-Control': 'public, max-age=15552000'
 			}
 		});
 	} catch (e) {
