@@ -122,8 +122,8 @@ export const PUT: RequestHandler = async (event) => {
 async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<Response> {
 	try {
 		const processed = await sharp(buffer)
-			.resize(600, 600, { fit: 'cover', position: 'center' })
-			.webp({ quality: 80 })
+			.resize(400, 400, { fit: 'cover', position: 'center' })
+			.webp({ quality: 50 })
 			.toBuffer();
 
 		try {
