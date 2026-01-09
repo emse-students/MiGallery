@@ -23,9 +23,12 @@
   let showAlbumModal = $state(false);
   let searchQuery = $state<string>('');
   let filteredAlbums = $state<Album[]>([]);
+  let pageLimit = $state(20);
+  let displayedAlbums = $derived(filteredAlbums.slice(0, pageLimit));
 
   $effect(() => {
     const q = (searchQuery || '').trim().toLowerCase();
+    pageLimit = 20; // Reset pagination on search change or albums update
     if (!q) {
       filteredAlbums = albums.slice();
       return;
@@ -126,15 +129,21 @@
   }
 
   $effect(() => {
-    if (albums.length > 0) {
-      void loadCoversFor(albums);
+    if (displayedAlbums.length > 0) {
+      void loadCoversFor(displayedAlbums);
     }
   });
 
+  let loadMoreElement: HTMLDivElement | null = $state(null);
   $effect(() => {
-    if (filteredAlbums.length > 0) {
-      void loadCoversFor(filteredAlbums);
-    }
+      if (!loadMoreElement) return;
+      const observer = new IntersectionObserver((entries) => {
+          if (entries[0].isIntersecting && pageLimit < filteredAlbums.length) {
+              pageLimit += 20;
+          }
+      }, { rootMargin: '400px' });
+      observer.observe(loadMoreElement);
+      return () => observer.disconnect();
   });
 
   function getVisibilityIcon(visibility?: string): string {
@@ -286,7 +295,7 @@
         </div>
       {:else}
       <div class="albums-timeline">
-        {#each Object.entries(groupAlbumsByMonth(filteredAlbums)) as [month, items], i}
+        {#each Object.entries(groupAlbumsByMonth(displayedAlbums)) as [month, items], i}
                 <div class="month-group" in:fade={{ delay: i * 100, duration: 400 }}>
                     <div class="month-header">
                         <h3 class="month-title">{month}</h3>
@@ -371,6 +380,12 @@
                     </div>
                 </div>
             {/each}
+
+            {#if pageLimit < filteredAlbums.length}
+               <div style="height: 50px; display: flex; justify-content: center; align-items: center; width: 100%; margin-top: 2rem;" bind:this={loadMoreElement}>
+                   <Spinner size={32} />
+               </div>
+            {/if}
         </div>
         {/if}
     {/if}
