@@ -501,7 +501,7 @@
                 <div class="input-group">
                     <label for="role">Rôle</label>
                     <div class="select-wrapper">
-                        <select id="role" class="input-glass" bind:value={editUserData.role}>
+                        <select id="role" class="input-glass" bind:value={editUserData.role} disabled={editMode === 'edit' && editUserData.id_user === currentUserId}>
                             <option value="user">Utilisateur</option>
                             <option value="mitviste">Mitviste</option>
                             <option value="admin">Admin</option>
