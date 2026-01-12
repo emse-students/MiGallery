@@ -26,7 +26,7 @@ export const GET: RequestHandler = async (event) => {
 };
 
 export const PUT: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+	const auth = await requireScope(event, 'admin');
 
 	const targetId = event.params.id;
 	if (!targetId) {
@@ -47,6 +47,14 @@ export const PUT: RequestHandler = async (event) => {
 			id_photos?: string | null;
 		};
 		const { email, prenom, nom, role, promo_year, id_photos } = body;
+
+		// Prevent admin from removing their own admin status
+		if (auth.user && auth.user.id_user === targetId) {
+			const effectiveRole = role || 'user';
+			if (effectiveRole !== 'admin') {
+				return json({ error: 'Admins cannot remove their own admin privileges' }, { status: 403 });
+			}
+		}
 
 		if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
 			return json({ error: 'Invalid email format' }, { status: 400 });
@@ -95,9 +103,13 @@ export const PUT: RequestHandler = async (event) => {
 };
 
 export const DELETE: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+	const auth = await requireScope(event, 'admin');
 
 	const targetId = event.params.id;
+
+	if (auth.user && auth.user.id_user === targetId) {
+		return json({ error: 'Admins cannot delete their own account' }, { status: 403 });
+	}
 
 	if (targetId === 'les.roots') {
 		return json({ error: 'Cannot delete system user' }, { status: 403 });
