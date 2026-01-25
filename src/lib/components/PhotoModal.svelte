@@ -1,6 +1,17 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
-	import Icon from './Icon.svelte';
+	import {
+		Image as ImageIcon,
+		Minus,
+		Plus,
+		RefreshCw,
+		Heart,
+		Download,
+		Trash,
+		X,
+		ChevronLeft,
+		ChevronRight
+	} from 'lucide-svelte';
 	import Modal from './Modal.svelte';
 	import { page } from '$app/stores';
 	import type { ImmichAsset, User } from '$lib/types/api';
@@ -20,7 +31,16 @@
 		onFavoriteToggle?: (assetId: string) => Promise<void>;
 	}
 
-	let { assetId = $bindable(), assets, onClose, onAssetDeleted, albumVisibility, albumId, showFavorite = false, onFavoriteToggle }: Props = $props();
+	let {
+		assetId = $bindable(),
+		assets,
+		onClose,
+		onAssetDeleted,
+		albumVisibility,
+		albumId,
+		showFavorite = false,
+		onFavoriteToggle
+	}: Props = $props();
 	const dispatch = createEventDispatcher();
 
 	// -- État réactif --
@@ -71,14 +91,14 @@
 	let lastLoadedAssetId = $state<string | null>(null);
 
 	$effect(() => {
-		const index = assets.findIndex(a => a.id === assetId);
+		const index = assets.findIndex((a) => a.id === assetId);
 		if (index >= 0) currentIndex = index;
 	});
 
 	$effect(() => {
 		if (!assetId) return;
 
-		const latest = assets.find(a => a.id === assetId) || null;
+		const latest = assets.find((a) => a.id === assetId) || null;
 		if (latest && latest !== asset) {
 			asset = latest;
 			isVideo = asset?.type === 'VIDEO';
@@ -101,7 +121,7 @@
 		isVideo = false;
 
 		try {
-			const local = assets.find(a => a.id === id);
+			const local = assets.find((a) => a.id === id);
 			if (local) {
 				asset = local;
 				isVideo = asset?.type === 'VIDEO';
@@ -119,7 +139,9 @@
 						};
 						isVideo = asset?.type === 'VIDEO';
 					}
-				} catch (err) { void err; }
+				} catch (err) {
+					void err;
+				}
 			}
 
 			if (isVideo) {
@@ -137,9 +159,10 @@
 					const proxySize = size === 'original' ? 'preview' : size;
 					mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
 				} else {
-					mediaUrl = size === 'original'
-						? `/api/immich/assets/${id}/original`
-						: `/api/immich/assets/${id}/thumbnail?size=${size}`;
+					mediaUrl =
+						size === 'original'
+							? `/api/immich/assets/${id}/original`
+							: `/api/immich/assets/${id}/thumbnail?size=${size}`;
 				}
 			}
 		} catch (e) {
@@ -169,8 +192,8 @@
 			const scaleChange = newScale / oldScale;
 			const imgCenterX = rect.width / 2;
 			const imgCenterY = rect.height / 2;
-			const offsetX = (e.clientX - rect.left) - imgCenterX;
-			const offsetY = (e.clientY - rect.top) - imgCenterY;
+			const offsetX = e.clientX - rect.left - imgCenterX;
+			const offsetY = e.clientY - rect.top - imgCenterY;
 
 			translate = {
 				x: translate.x * scaleChange + offsetX * (1 - scaleChange),
@@ -179,7 +202,9 @@
 			scale = newScale;
 
 			if (newScale > 1.3 && !highResLoaded) ensureHighRes();
-			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
+			setTimeout(() => {
+				translate = constrainTranslate(translate);
+			}, 0);
 		}
 		if (scale <= 1) translate = { x: 0, y: 0 };
 	}
@@ -195,8 +220,8 @@
 		const scaleChange = target / oldScale;
 		const imgCenterX = rect.width / 2;
 		const imgCenterY = rect.height / 2;
-		const offsetX = (e.clientX - rect.left) - imgCenterX;
-		const offsetY = (e.clientY - rect.top) - imgCenterY;
+		const offsetX = e.clientX - rect.left - imgCenterX;
+		const offsetY = e.clientY - rect.top - imgCenterY;
 
 		translate = {
 			x: translate.x * scaleChange + offsetX * (1 - scaleChange),
@@ -205,7 +230,9 @@
 		scale = target;
 
 		if (scale > 1.3 && !highResLoaded) ensureHighRes();
-		setTimeout(() => { translate = constrainTranslate(translate); }, 0);
+		setTimeout(() => {
+			translate = constrainTranslate(translate);
+		}, 0);
 		if (scale <= 1) translate = { x: 0, y: 0 };
 	}
 
@@ -247,7 +274,9 @@
 		translate = constrainTranslate({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
 	}
 
-	function handleMouseUp() { isDragging = false; }
+	function handleMouseUp() {
+		isDragging = false;
+	}
 
 	async function ensureHighRes() {
 		if (!asset || isVideo || highResLoaded) return;
@@ -258,7 +287,9 @@
 			}
 			mediaUrl = `/api/immich/assets/${asset.id}/original`;
 			highResLoaded = true;
-		} catch (e) { console.warn('Échec chargement haute résolution', e); }
+		} catch (e) {
+			console.warn('Échec chargement haute résolution', e);
+		}
 	}
 
 	function getTouchDistance(touches: TouchList): number {
@@ -287,7 +318,10 @@
 				lastTouchEnd = 0;
 			} else if (scale > 1) {
 				isTouchDragging = true;
-				touchDragStart = { x: e.touches[0].clientX - translate.x, y: e.touches[0].clientY - translate.y };
+				touchDragStart = {
+					x: e.touches[0].clientX - translate.x,
+					y: e.touches[0].clientY - translate.y
+				};
 			}
 		}
 	}
@@ -314,14 +348,23 @@
 			lastTouchEnd = Date.now();
 			touchStartDistance = 0;
 			isTouchDragging = false;
-			setTimeout(() => { translate = constrainTranslate(translate); }, 0);
+			setTimeout(() => {
+				translate = constrainTranslate(translate);
+			}, 0);
 			if (scale <= 1) translate = { x: 0, y: 0 };
 		}
 	}
 
-	function resetZoom() { scale = 1; translate = { x: 0, y: 0 }; }
-	function goToPrevious() { if (currentIndex > 0) assetId = assets[currentIndex - 1].id; }
-	function goToNext() { if (currentIndex < assets.length - 1) assetId = assets[currentIndex + 1].id; }
+	function resetZoom() {
+		scale = 1;
+		translate = { x: 0, y: 0 };
+	}
+	function goToPrevious() {
+		if (currentIndex > 0) assetId = assets[currentIndex - 1].id;
+	}
+	function goToNext() {
+		if (currentIndex < assets.length - 1) assetId = assets[currentIndex + 1].id;
+	}
 
 	async function downloadAsset() {
 		if (!assetId || !asset) return;
@@ -340,7 +383,9 @@
 				a.click();
 				URL.revokeObjectURL(url);
 			}
-		} catch (e) { console.error('Erreur téléchargement:', e); }
+		} catch (e) {
+			console.error('Erreur téléchargement:', e);
+		}
 	}
 
 	async function handleSetCover() {
@@ -349,7 +394,9 @@
 			await setAlbumCover(albumId, assetId);
 			toast.success('Couverture mise à jour');
 			clientCache.delete('album-covers', albumId);
-		} catch (e) { toast.error('Erreur: ' + (e as Error).message); }
+		} catch (e) {
+			toast.error('Erreur: ' + (e as Error).message);
+		}
 	}
 
 	async function deleteCurrentAsset(skipConfirmation = false) {
@@ -366,13 +413,19 @@
 					const errText = await res.text().catch(() => res.statusText);
 					throw new Error(errText || 'Erreur lors de la suppression');
 				}
-				const nextIndexSnapshot = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
-				const nextAssetId = (nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length) ? assets[nextIndexSnapshot].id : null;
+				const nextIndexSnapshot =
+					currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
+				const nextAssetId =
+					nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length
+						? assets[nextIndexSnapshot].id
+						: null;
 				if (onAssetDeleted) onAssetDeleted(assetId);
 				dispatch('assetDeleted', assetId);
 				if (nextAssetId) assetId = nextAssetId;
 				else onClose();
-			} catch (e) { toast.error('Erreur suppression: ' + (e as Error).message); }
+			} catch (e) {
+				toast.error('Erreur suppression: ' + (e as Error).message);
+			}
 		};
 		if (skipConfirmation) await performDelete();
 		else {
@@ -410,17 +463,26 @@
 		window.removeEventListener('mouseup', handleMouseUp);
 		document.body.classList.remove('modal-open');
 		if (portalRoot?.parentNode === document.body) {
-			try { document.body.removeChild(portalRoot); } catch {}
+			try {
+				document.body.removeChild(portalRoot);
+			} catch {}
 		}
 	});
 </script>
 
-<div bind:this={portalRoot} class="modal-backdrop" onclick={(e) => e.target === e.currentTarget && onClose()} role="button" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && onClose()}>
+<div
+	bind:this={portalRoot}
+	class="modal-backdrop"
+	onclick={(e) => e.target === e.currentTarget && onClose()}
+	role="button"
+	tabindex="-1"
+	onkeydown={(e) => e.key === 'Escape' && onClose()}
+>
 	<div class="modal-content">
 		<div class="modal-header">
 			<div class="modal-title">
 				{#if asset?.originalFileName}
-					<Icon name="image" size={20} />
+					<ImageIcon size={20} />
 					<span>{asset.originalFileName}</span>
 				{:else}
 					<span>Chargement...</span>
@@ -429,19 +491,29 @@
 			<div class="modal-actions">
 				{#if canManagePhotos && albumId}
 					<button class="btn-icon" onclick={handleSetCover} title="Définir comme couverture">
-						<Icon name="image" size={20} />
+						<ImageIcon size={20} />
 					</button>
 				{/if}
 				{#if !isVideo && mediaUrl}
-					<button class="btn-icon" onclick={() => scale = Math.max(scale - 0.5, minScale)} title="Zoom -" disabled={scale <= minScale}>
-						<Icon name="minus" size={20} />
+					<button
+						class="btn-icon"
+						onclick={() => (scale = Math.max(scale - 0.5, minScale))}
+						title="Zoom -"
+						disabled={scale <= minScale}
+					>
+						<Minus size={20} />
 					</button>
 					<span class="zoom-level">{Math.round(scale * 100)}%</span>
-					<button class="btn-icon" onclick={() => scale = Math.min(scale + 0.5, MAX_SCALE)} title="Zoom +" disabled={scale >= MAX_SCALE}>
-						<Icon name="plus" size={20} />
+					<button
+						class="btn-icon"
+						onclick={() => (scale = Math.min(scale + 0.5, MAX_SCALE))}
+						title="Zoom +"
+						disabled={scale >= MAX_SCALE}
+					>
+						<Plus size={20} />
 					</button>
 					<button class="btn-icon" onclick={resetZoom} title="Reset (100%)" disabled={scale === 1}>
-						<Icon name="refresh-cw" size={20} />
+						<RefreshCw size={20} />
 					</button>
 				{/if}
 				{#if showFavorite && asset && onFavoriteToggle}
@@ -449,23 +521,32 @@
 						class="btn-icon btn-favorite"
 						class:active={asset.isFavorite}
 						onclick={async () => {
-							try { await onFavoriteToggle!(asset!.id); } catch { toast.error('Erreur favori'); }
+							try {
+								await onFavoriteToggle!(asset!.id);
+							} catch {
+								toast.error('Erreur favori');
+							}
 						}}
 						title={asset.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
 					>
-						<Icon name={asset.isFavorite ? 'heart-filled' : 'heart'} size={20} />
+						<Heart size={20} fill={asset.isFavorite ? 'currentColor' : 'none'} />
 					</button>
 				{/if}
 				<button class="btn-icon" onclick={downloadAsset} title="Télécharger" disabled={!asset}>
-					<Icon name="download" size={20} />
+					<Download size={20} />
 				</button>
 				{#if canManagePhotos}
-					<button class="btn-icon btn-delete" onclick={() => deleteCurrentAsset(false)} title="Supprimer (Suppr)" disabled={!asset}>
-						<Icon name="trash" size={20} />
+					<button
+						class="btn-icon btn-delete"
+						onclick={() => deleteCurrentAsset(false)}
+						title="Supprimer (Suppr)"
+						disabled={!asset}
+					>
+						<Trash size={20} />
 					</button>
 				{/if}
 				<button class="btn-icon" onclick={onClose} title="Fermer">
-					<Icon name="x" size={20} />
+					<X size={20} />
 				</button>
 			</div>
 		</div>
@@ -473,11 +554,17 @@
 		<div class="modal-body">
 			{#if currentIndex > 0}
 				<button class="nav-button nav-left" onclick={goToPrevious} title="Photo précédente">
-					<Icon name="chevron-left" size={32} />
+					<ChevronLeft size={32} />
 				</button>
 			{/if}
 
-			<div class="media-container" onwheel={handleWheel} role="img" tabindex="-1" bind:this={containerElement}>
+			<div
+				class="media-container"
+				onwheel={handleWheel}
+				role="img"
+				tabindex="-1"
+				bind:this={containerElement}
+			>
 				{#if mediaUrl}
 					{#if isVideo}
 						<video src={mediaUrl} controls class="media loaded"><track kind="captions" /></video>
@@ -491,7 +578,8 @@
 							class:loaded={imageLoaded}
 							class:zoomed={scale > 1}
 							class:no-transition={isDragging || isTouchDragging}
-							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y / scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
+							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y /
+								scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
 							onload={() => {
 								// CONDITION CRUCIALE : On ne reset que si on change de photo (pas si on change de résolution)
 								if (asset?.id !== lastProcessedAssetId) {
@@ -515,7 +603,7 @@
 
 			{#if currentIndex < assets.length - 1}
 				<button class="nav-button nav-right" onclick={goToNext} title="Photo suivante">
-					<Icon name="chevron-right" size={32} />
+					<ChevronRight size={32} />
 				</button>
 			{/if}
 		</div>
@@ -527,84 +615,256 @@
 </div>
 
 {#if showConfirmModal && confirmModalConfig}
-	<Modal bind:show={showConfirmModal} title={confirmModalConfig.title} type="confirm" confirmText={confirmModalConfig.confirmText} onConfirm={confirmModalConfig.onConfirm} onCancel={() => showConfirmModal = false}>
+	<Modal
+		bind:show={showConfirmModal}
+		title={confirmModalConfig.title}
+		type="confirm"
+		confirmText={confirmModalConfig.confirmText}
+		onConfirm={confirmModalConfig.onConfirm}
+		onCancel={() => (showConfirmModal = false)}
+	>
 		<p>{confirmModalConfig.message}</p>
 	</Modal>
 {/if}
 
 <style>
 	.modal-backdrop {
-		position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(8px) saturate(120%); z-index: 1000;
-		display: flex; align-items: center; justify-content: center; padding: 1rem;
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(8px) saturate(120%);
+		z-index: 1000;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
 		animation: fadeIn 0.2s ease-out;
 	}
-	@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
 
 	.modal-content {
-		width: 100%; max-width: 1400px; height: 90vh;
-		display: flex; flex-direction: column;
+		width: 100%;
+		max-width: 1400px;
+		height: 90vh;
+		display: flex;
+		flex-direction: column;
 		animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255,255,255,0.06);
-		border-radius: 12px; backdrop-filter: blur(10px) saturate(120%);
-		box-shadow: 0 20px 60px rgba(2,6,23,0.6);
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 12px;
+		backdrop-filter: blur(10px) saturate(120%);
+		box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
 	}
-	@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+	@keyframes slideUp {
+		from {
+			transform: translateY(20px);
+			opacity: 0;
+		}
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
+	}
 
 	.modal-header {
-		display: flex; align-items: center; justify-content: space-between;
-		padding: 1rem; background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-		border-bottom: 1px solid rgba(255,255,255,0.04); z-index: 10; backdrop-filter: blur(6px);
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1rem;
+		background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+		z-index: 10;
+		backdrop-filter: blur(6px);
 	}
-	.modal-title { display: flex; align-items: center; gap: 0.5rem; color: white; font-weight: 600; overflow: hidden; }
-	.modal-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.modal-actions { display: flex; gap: 0.5rem; align-items: center; }
-	.zoom-level { color: white; font-size: 0.875rem; font-weight: 600; min-width: 50px; text-align: center; }
+	.modal-title {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: white;
+		font-weight: 600;
+		overflow: hidden;
+	}
+	.modal-title span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.modal-actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+	.zoom-level {
+		color: white;
+		font-size: 0.875rem;
+		font-weight: 600;
+		min-width: 50px;
+		text-align: center;
+	}
 
 	.btn-icon {
-		background: rgba(255, 255, 255, 0.1); border: none; color: white;
-		padding: 0.5rem; border-radius: 8px; cursor: pointer;
-		transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;
+		background: rgba(255, 255, 255, 0.1);
+		border: none;
+		color: white;
+		padding: 0.5rem;
+		border-radius: 8px;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
-	.btn-icon:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
-	.btn-icon:disabled { opacity: 0.5; cursor: not-allowed; }
-	.btn-delete { background: rgba(220, 38, 38, 0.8); }
-	.btn-delete:hover:not(:disabled) { background: rgba(220, 38, 38, 1); }
-	.btn-favorite { color: #f87171; }
-	.btn-favorite:hover:not(:disabled) { background: rgba(239, 68, 68, 0.2); }
-	.btn-favorite.active { background: rgba(239, 68, 68, 0.9); color: white; }
+	.btn-icon:hover:not(:disabled) {
+		background: rgba(255, 255, 255, 0.2);
+		transform: scale(1.05);
+	}
+	.btn-icon:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.btn-delete {
+		background: rgba(220, 38, 38, 0.8);
+	}
+	.btn-delete:hover:not(:disabled) {
+		background: rgba(220, 38, 38, 1);
+	}
+	.btn-favorite {
+		color: #f87171;
+	}
+	.btn-favorite:hover:not(:disabled) {
+		background: rgba(239, 68, 68, 0.2);
+	}
+	.btn-favorite.active {
+		background: rgba(239, 68, 68, 0.9);
+		color: white;
+	}
 
-	.modal-body { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 0; overflow: hidden; }
-	.media-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; user-select: none; touch-action: none; }
-	.media {
-		width: 100%; height: 100%; object-fit: contain; border-radius: 12px; opacity: 0;
-		transition: opacity 0.3s ease, transform 160ms cubic-bezier(0.2, 0, 0, 1);
-		will-change: transform; transform-origin: center center;
+	.modal-body {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		min-height: 0;
+		overflow: hidden;
 	}
-	.media.loaded { opacity: 1; }
-	.media.no-transition { transition: none !important; }
+	.media-container {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		position: relative;
+		overflow: hidden;
+		user-select: none;
+		touch-action: none;
+	}
+	.media {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		border-radius: 12px;
+		opacity: 0;
+		transition:
+			opacity 0.3s ease,
+			transform 160ms cubic-bezier(0.2, 0, 0, 1);
+		will-change: transform;
+		transform-origin: center center;
+	}
+	.media.loaded {
+		opacity: 1;
+	}
+	.media.no-transition {
+		transition: none !important;
+	}
 
 	.nav-button {
-		position: absolute; top: 50%; transform: translateY(-50%);
-		background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);
-		border: none; color: white; width: 48px; height: 48px; border-radius: 50%;
-		cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; z-index: 10;
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		background: rgba(255, 255, 255, 0.1);
+		backdrop-filter: blur(10px);
+		border: none;
+		color: white;
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 10;
 	}
-	.nav-button:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-50%) scale(1.1); }
-	.nav-left { left: 1rem; } .nav-right { right: 1rem; }
+	.nav-button:hover {
+		background: rgba(255, 255, 255, 0.2);
+		transform: translateY(-50%) scale(1.1);
+	}
+	.nav-left {
+		left: 1rem;
+	}
+	.nav-right {
+		right: 1rem;
+	}
 
-	.modal-footer { padding: 1rem; text-align: center; color: rgba(255, 255, 255, 0.85); background: linear-gradient(to top, rgba(255,255,255,0.02), transparent); border-top: 1px solid rgba(255,255,255,0.03); border-radius: 0 0 12px 12px; backdrop-filter: blur(6px); z-index: 10; position: relative; }
-	.counter { font-weight: 600; }
+	.modal-footer {
+		padding: 1rem;
+		text-align: center;
+		color: rgba(255, 255, 255, 0.85);
+		background: linear-gradient(to top, rgba(255, 255, 255, 0.02), transparent);
+		border-top: 1px solid rgba(255, 255, 255, 0.03);
+		border-radius: 0 0 12px 12px;
+		backdrop-filter: blur(6px);
+		z-index: 10;
+		position: relative;
+	}
+	.counter {
+		font-weight: 600;
+	}
 
 	@media (max-width: 768px) {
-		.modal-backdrop { padding: 0; }
-		.modal-content { height: 100dvh; max-width: 100%; }
-		.modal-header, .modal-footer { border-radius: 0; padding: 0.75rem; }
-		.modal-title span { font-size: 0.8125rem; max-width: 200px; }
-		.modal-actions { gap: 0.25rem; }
-		.zoom-level { font-size: 0.75rem; min-width: 40px; }
-		.media { border-radius: 0; }
-		.nav-button { width: 40px; height: 40px; }
-		.nav-left { left: 0.5rem; } .nav-right { right: 0.5rem; }
+		.modal-backdrop {
+			padding: 0;
+		}
+		.modal-content {
+			height: 100dvh;
+			max-width: 100%;
+		}
+		.modal-header,
+		.modal-footer {
+			border-radius: 0;
+			padding: 0.75rem;
+		}
+		.modal-title span {
+			font-size: 0.8125rem;
+			max-width: 200px;
+		}
+		.modal-actions {
+			gap: 0.25rem;
+		}
+		.zoom-level {
+			font-size: 0.75rem;
+			min-width: 40px;
+		}
+		.media {
+			border-radius: 0;
+		}
+		.nav-button {
+			width: 40px;
+			height: 40px;
+		}
+		.nav-left {
+			left: 0.5rem;
+		}
+		.nav-right {
+			right: 0.5rem;
+		}
 	}
 </style>

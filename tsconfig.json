@@ -10,6 +10,6 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"noImplicitAny": false
+		"noImplicitAny": true
 	}
 }

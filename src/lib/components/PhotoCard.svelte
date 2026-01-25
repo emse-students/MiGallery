@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from './Icon.svelte';
+	import { Heart, Download, Trash } from 'lucide-svelte';
 	import LazyImage from './LazyImage.svelte';
 	import Skeleton from './Skeleton.svelte';
 	import type { Asset } from '$lib/photos.svelte';
@@ -63,7 +63,9 @@
 	let flexBasis = $derived(aspectRatio * 220);
 	let flexGrow = $derived(aspectRatio * 100);
 
-	let isFullyLoaded = $derived(asset.originalFileName !== undefined && asset.originalFileName !== null);
+	let isFullyLoaded = $derived(
+		asset.originalFileName !== undefined && asset.originalFileName !== null
+	);
 
 	let showMobileActions = $state(false);
 	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -150,9 +152,11 @@
 </script>
 
 <!-- Photo Card Container -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-	class="photo-card {isSelected ? 'selected' : ''} {showMobileActions ? 'mobile-actions-visible' : ''}"
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="photo-card {isSelected ? 'selected' : ''} {showMobileActions
+		? 'mobile-actions-visible'
+		: ''}"
 	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
 	role="button"
 	tabindex="0"
@@ -172,7 +176,13 @@
 	{#if showMobileActions}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="mobile-actions-overlay" onclick={(e) => { e.stopPropagation(); closeMobileActions(); }}></div>
+		<div
+			class="mobile-actions-overlay"
+			onclick={(e) => {
+				e.stopPropagation();
+				closeMobileActions();
+			}}
+		></div>
 	{/if}
 
 	<!-- Selection Checkbox -->
@@ -195,7 +205,7 @@
 				onclick={handleFavoriteClick}
 				aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 			>
-				<Icon name={isFavorite ? 'heart-filled' : 'heart'} size={18} />
+				<Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
 			</button>
 		{/if}
 
@@ -207,7 +217,7 @@
 				onclick={handleDownloadClick}
 				aria-label="Download {fileName}"
 			>
-				<Icon name="download" size={18} />
+				<Download size={18} />
 			</button>
 
 			<!-- Delete Button (only if user can delete) -->
@@ -218,25 +228,29 @@
 					onclick={handleDeleteClick}
 					aria-label="Delete {fileName}"
 				>
-					<Icon name="trash" size={18} />
+					<Trash size={18} />
 				</button>
 			{/if}
 		{/if}
 
 		<!-- Image/Video Thumbnail -->
 		<LazyImage
-			 src={thumbnailUrl}
-			 highRes={highResUrl}
-			 alt={fileName}
-			 class="photo-img-wrapper"
-			 aspectRatio={aspectRatioString}
-			 {isVideo}
+			src={thumbnailUrl}
+			highRes={highResUrl}
+			alt={fileName}
+			class="photo-img-wrapper"
+			aspectRatio={aspectRatioString}
+			{isVideo}
 		/>
 	{:else}
 		<!-- Skeleton pendant le chargement des détails -->
 		<Skeleton aspectRatio={aspectRatioString}>
 			<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor" opacity="0.3"/>
+				<path
+					d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
+					fill="currentColor"
+					opacity="0.3"
+				/>
 			</svg>
 		</Skeleton>
 	{/if}
@@ -278,7 +292,7 @@
 	.photo-card.selected {
 		/* Make selection persistent and clearly visible */
 		outline: none;
-		box-shadow: 0 0 0 3px rgba(59,130,246,0.95); /* fallback accent color */
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.95); /* fallback accent color */
 		/* Keep the selected card above siblings so the frame is visible */
 		z-index: 20;
 		transform: translateY(-2px);

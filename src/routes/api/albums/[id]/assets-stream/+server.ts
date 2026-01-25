@@ -232,7 +232,7 @@ export const GET: RequestHandler = async (event) => {
 						} catch (e: unknown) {
 							const __err = ensureError(e);
 							if (
-								!(__err as unknown as { code?: string }).code === 'ERR_INVALID_STATE' &&
+								(__err as unknown as { code?: string }).code !== 'ERR_INVALID_STATE' &&
 								!__err.message?.includes('Controller is already closed')
 							) {
 								console.error('Failed to close stream after error:', __err.message || __err);

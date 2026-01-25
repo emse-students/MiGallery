@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Icon from './Icon.svelte';
+	import { Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-svelte';
 	import LazyImage from './LazyImage.svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
@@ -11,7 +11,7 @@
 		onClose: () => void;
 		onPhotoSelected?: (assetId: string) => void;
 		peopleId?: string;
-			photosState?: unknown;
+		photosState?: unknown;
 	}
 
 	let { currentPhotoUrl, onClose, onPhotoSelected, peopleId }: Props = $props();
@@ -25,7 +25,7 @@
 
 	async function loadUserPhotos() {
 		if (!peopleId) {
-			error = "Aucun identifiant utilisateur fourni";
+			error = 'Aucun identifiant utilisateur fourni';
 			loadingAssets = false;
 			return;
 		}
@@ -89,7 +89,7 @@
 </script>
 
 <Modal
-	bind:show={show}
+	bind:show
 	title="Changer la photo de profil"
 	icon="camera"
 	wide={true}
@@ -108,14 +108,14 @@
 		{/if}
 
 		<div class="instructions">
-			<Icon name="image" size={20} />
+			<ImageIcon size={20} />
 			<p>Cliquez sur une photo ci-dessous pour la définir comme photo de profil</p>
 		</div>
 	</div>
 
 	{#if error}
 		<div class="error-message">
-			<Icon name="alert-circle" size={20} />
+			<AlertCircle size={20} />
 			<p>{error}</p>
 		</div>
 	{/if}
@@ -134,11 +134,11 @@
 		<div class="photos-grid">
 			{#each assets as asset}
 				<button
-						class="photo-item {selectedAssetId === asset.id ? 'selected' : ''}"
-						onclick={() => handlePhotoSelect(asset.id)}
-						ondblclick={confirmSelection}
-						title={asset.originalFileName || 'Photo'}
-					>
+					class="photo-item {selectedAssetId === asset.id ? 'selected' : ''}"
+					onclick={() => handlePhotoSelect(asset.id)}
+					ondblclick={confirmSelection}
+					title={asset.originalFileName || 'Photo'}
+				>
 					<LazyImage
 						src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
 						alt={asset.originalFileName || 'Photo'}
@@ -148,7 +148,7 @@
 					/>
 					{#if selectedAssetId === asset.id}
 						<div class="selected-overlay">
-							<Icon name="check-circle" size={32} />
+							<CheckCircle size={32} />
 						</div>
 					{/if}
 				</button>
@@ -156,7 +156,7 @@
 		</div>
 	{:else}
 		<div class="empty-state">
-			<Icon name="image" size={48} />
+			<ImageIcon size={48} />
 			<p>Aucune photo trouvée</p>
 		</div>
 	{/if}

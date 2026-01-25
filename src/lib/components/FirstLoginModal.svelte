@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Icon from './Icon.svelte';
+	import { Info } from 'lucide-svelte';
 	import Modal from './Modal.svelte';
 	import { toast } from '$lib/toast';
 
@@ -56,7 +56,7 @@
 </script>
 
 <Modal
-	bind:show={show}
+	bind:show
 	title="Bienvenue sur MiGallery"
 	confirmText="Valider"
 	confirmDisabled={loading}
@@ -79,7 +79,7 @@
 		</div>
 
 		<p class="info-text">
-			<Icon name="info" size={16} />
+			<Info size={16} />
 			Cette information nous permet de personnaliser votre accès aux albums.
 		</p>
 	</div>

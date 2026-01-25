@@ -1,20 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { page } from "$app/state";
-	import { signIn, signOut } from "@auth/sveltekit/client";
-	import { activeOperations } from "$lib/operations";
-	import { navigationModalStore } from "$lib/navigation-store";
-	import { theme } from "$lib/theme";
-	import type { User } from "$lib/types/api";
-	import Icon from "$lib/components/Icon.svelte";
-	import ToastContainer from "$lib/components/ToastContainer.svelte";
-	import Modal from "$lib/components/Modal.svelte";
+	import { page } from '$app/state';
+	import { signIn, signOut } from '@auth/sveltekit/client';
+	import { activeOperations } from '$lib/operations';
+	import { navigationModalStore } from '$lib/navigation-store';
+	import { theme } from '$lib/theme';
+	import type { User } from '$lib/types/api';
+	import { Folder, User as UserIcon, Camera, Users, Trash, Settings } from 'lucide-svelte';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
 	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
-	import "../app.css";
+	import '../app.css';
 
-	let u = $derived((page.data?.session?.user) as User);
+	let u = $derived(page.data?.session?.user as User);
 	let isAdmin = $derived(u?.role === 'admin');
 	let isMitviste = $derived(u?.role === 'mitviste');
 	let canManagePhotos = $derived(isAdmin || isMitviste);
@@ -83,9 +83,9 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-	<meta name="description" content="MiGallery - Galerie photo des étudiants EMSE">
-	<meta name="theme-color" content="#3b82f6">
+	<link rel="icon" type="image/png" sizes="32x32" href="/icon.png" />
+	<meta name="description" content="MiGallery - Galerie photo des étudiants EMSE" />
+	<meta name="theme-color" content="#3b82f6" />
 	<title>MiGallery</title>
 </svelte:head>
 
@@ -99,18 +99,18 @@
 		{#if isAuthenticated}
 			<div class="links-left">
 				<a href="/albums" data-sveltekit-preload-data>
-					<Icon name="folder" size={18} />
+					<Folder size={18} />
 					<span class="link-text">Albums</span>
 				</a>
 				{#if hasPhoto}
 					<a href="/mes-photos" data-sveltekit-preload-data>
-						<Icon name="user" size={18} />
+						<UserIcon size={18} />
 						<span class="link-text">Mes photos</span>
 					</a>
 				{/if}
 				{#if hasPhoto || canManagePhotos}
 					<a href="/photos-cv" data-sveltekit-preload-data>
-						<Icon name="camera" size={18} />
+						<Camera size={18} />
 						<span class="link-text">Photos CV</span>
 					</a>
 				{/if}
@@ -119,18 +119,18 @@
 			<div class="links-right">
 				{#if isAdmin}
 					<a href="/trombinoscope">
-						<Icon name="users" size={18} />
+						<Users size={18} />
 						<span class="link-text">Trombinoscope</span>
 					</a>
 				{/if}
 				{#if canManagePhotos}
 					<a href="/corbeille">
-						<Icon name="trash" size={18} />
+						<Trash size={18} />
 						<span class="link-text">Corbeille</span>
 					</a>
 				{/if}
 				<a href="/parametres">
-					<Icon name="settings" size={18} />
+					<Settings size={18} />
 					<span class="link-text">Paramètres</span>
 				</a>
 			</div>
@@ -144,7 +144,11 @@
 			<a href="/mes-photos" class="avatar-link">
 				<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
 					{#if u.id_photos}
-						<img src={`/api/immich/people/${u.id_photos}/thumbnail`} alt="avatar" onerror={(e) => (e.currentTarget as HTMLImageElement).style.display = 'none'} />
+						<img
+							src={`/api/immich/people/${u.id_photos}/thumbnail`}
+							alt="avatar"
+							onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
+						/>
 					{:else}
 						<span class="initials">{(u.prenom || 'U').charAt(0)}{(u.nom || '').charAt(0) || 'U'}</span>
 					{/if}
