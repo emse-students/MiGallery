@@ -43,21 +43,6 @@ Modal générique supportant plusieurs types d'affichage.
 
 ---
 
-### Icon.svelte
-
-Wrapper pour les icônes Lucide.
-
-```svelte
-<Icon name="folder" size={24} class="custom-class" />
-```
-
-**Props:**
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `name` | `string` | - | Nom de l'icône Lucide |
-| `size` | `number` | `24` | Taille en pixels |
-| `class` | `string` | `''` | Classes CSS additionnelles |
-
 **Icônes disponibles:** folder, user, camera, trash, settings, edit, download, share, check-square, x, alert-circle, image, chevron-left, users, plus, etc.
 
 ---

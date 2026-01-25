@@ -33,9 +33,6 @@ const config = {
 		version: {
 			pollInterval: 60000
 		}
-	},
-	compilerOptions: {
-		runes: true
 	}
 };
 

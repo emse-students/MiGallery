@@ -1,15 +1,15 @@
 <script lang="ts">
-import Icon from '$lib/components/Icon.svelte';
-import PhotoCard from '$lib/components/PhotoCard.svelte';
-import PhotoModal from '$lib/components/PhotoModal.svelte';
-import Spinner from '$lib/components/Spinner.svelte';
-import Modal from '$lib/components/Modal.svelte';
-import type { PhotosState } from '$lib/photos.svelte';
-import { groupByDay } from '$lib/photos.svelte';
-import type { User } from '$lib/types/api';
-import { page } from '$app/stores';
-import { toast } from '$lib/toast';
-import { activeOperations } from '$lib/operations';
+	import { CheckSquare, Square, Download, Trash, Image as ImageIcon } from 'lucide-svelte';
+	import PhotoCard from '$lib/components/PhotoCard.svelte';
+	import PhotoModal from '$lib/components/PhotoModal.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import type { PhotosState } from '$lib/photos.svelte';
+	import { groupByDay } from '$lib/photos.svelte';
+	import type { User } from '$lib/types/api';
+	import { page } from '$app/stores';
+	import { toast } from '$lib/toast';
+	import { activeOperations } from '$lib/operations';
 	interface Props {
 		state: PhotosState;
 		onModalClose?: (hasChanges: boolean) => void;
@@ -18,7 +18,13 @@ import { activeOperations } from '$lib/operations';
 		showFavorites?: boolean;
 	}
 
-	let { state: photosState, onModalClose, visibility, albumId, showFavorites = false }: Props = $props();
+	let {
+		state: photosState,
+		onModalClose,
+		visibility,
+		albumId,
+		showFavorites = false
+	}: Props = $props();
 
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
@@ -81,8 +87,8 @@ import { activeOperations } from '$lib/operations';
 				throw new Error(errText || 'Erreur lors de la suppression');
 			}
 
-					photosState.assets = photosState.assets.filter(a => !ids.includes(a.id));
-					photosState.assets = [...photosState.assets];
+			photosState.assets = photosState.assets.filter((a) => !ids.includes(a.id));
+			photosState.assets = [...photosState.assets];
 			photosState.selectedAssets = [];
 			photosState.selecting = false;
 			toast.success(`${count} photo(s) mise(s) à la corbeille !`);
@@ -125,8 +131,8 @@ import { activeOperations } from '$lib/operations';
 				throw new Error(errText || 'Erreur lors de la suppression');
 			}
 
-					photosState.assets = photosState.assets.filter(a => a.id !== assetToDelete);
-					photosState.assets = [...photosState.assets];
+			photosState.assets = photosState.assets.filter((a) => a.id !== assetToDelete);
+			photosState.assets = [...photosState.assets];
 			toast.success('Photo mise à la corbeille !');
 		} catch (e: unknown) {
 			toast.error('Erreur lors de la suppression: ' + (e as Error).message);
@@ -143,8 +149,7 @@ import { activeOperations } from '$lib/operations';
 			setTimeout(() => {
 				try {
 					onModalClose(hasChanges);
-				} catch (e) {
-				}
+				} catch (e) {}
 			}, 0);
 		}
 	}
@@ -179,12 +184,10 @@ import { activeOperations } from '$lib/operations';
 		}
 	}
 
-	let favoriteAssets = $derived(
-		showFavorites ? photosState.assets.filter(a => a.isFavorite) : []
-	);
+	let favoriteAssets = $derived(showFavorites ? photosState.assets.filter((a) => a.isFavorite) : []);
 
 	let nonFavoriteAssets = $derived(
-		showFavorites ? photosState.assets.filter(a => !a.isFavorite) : photosState.assets
+		showFavorites ? photosState.assets.filter((a) => !a.isFavorite) : photosState.assets
 	);
 
 	let assetsForModal = $derived(
@@ -198,29 +201,35 @@ import { activeOperations } from '$lib/operations';
 	{#if photosState.selecting}
 		<div class="selection-toolbar">
 			<div class="selection-count">
-				<Icon name="check-square" size={18} />
-				{photosState.selectedAssets.length} sélectionné{photosState.selectedAssets.length > 1 ? 's' : ''}
+				<CheckSquare size={18} />
+				{photosState.selectedAssets.length} sélectionné{photosState.selectedAssets.length > 1
+					? 's'
+					: ''}
 			</div>
 			<div class="selection-actions">
 				<button onclick={() => photosState.selectAll()} class="btn-secondary">
-					<Icon name="check-square" size={16} />
+					<CheckSquare size={16} />
 					Tout sélectionner
 				</button>
 				<button onclick={() => photosState.deselectAll()} class="btn-secondary">
-					<Icon name="square" size={16} />
+					<Square size={16} />
 					Tout désélectionner
 				</button>
-				<button onclick={handleDownloadSelectedClick} disabled={photosState.selectedAssets.length === 0} class="btn-primary">
+				<button
+					onclick={handleDownloadSelectedClick}
+					disabled={photosState.selectedAssets.length === 0}
+					class="btn-primary"
+				>
 					{#if photosState.isDownloading}
 						{#if photosState.downloadProgress >= 0}
-							<Icon name="download" size={16} />
+							<Download size={16} />
 							{Math.round(photosState.downloadProgress * 100)}%
 						{:else}
 							<Spinner size={16} />
 							Téléchargement...
 						{/if}
 					{:else}
-						<Icon name="download" size={16} />
+						<Download size={16} />
 						Télécharger ({photosState.selectedAssets.length})
 					{/if}
 				</button>
@@ -230,14 +239,16 @@ import { activeOperations } from '$lib/operations';
 						disabled={photosState.selectedAssets.length === 0}
 						class="btn-delete-selection px-3 py-2 rounded-lg text-white border-0 cursor-pointer flex items-center gap-2"
 					>
-						<Icon name="trash" size={16} />
+						<Trash size={16} />
 						Supprimer ({photosState.selectedAssets.length})
 					</button>
 				{/if}
 			</div>
 		</div>
 	{:else}
-		<div class="photos-count"><strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''}</div>
+		<div class="photos-count">
+			<strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''}
+		</div>
 	{/if}
 
 	<!-- Section Favoris -->
@@ -251,7 +262,7 @@ import { activeOperations } from '$lib/operations';
 					isSelecting={photosState.selecting}
 					canDelete={canManagePhotos}
 					albumVisibility={visibility}
-					albumId={albumId}
+					{albumId}
 					showFavorite={true}
 					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
 					onCardClick={() => handlePhotoCardClick(a.id)}
@@ -274,7 +285,7 @@ import { activeOperations } from '$lib/operations';
 					isSelecting={photosState.selecting}
 					canDelete={canManagePhotos}
 					albumVisibility={visibility}
-					albumId={albumId}
+					{albumId}
 					showFavorite={showFavorites}
 					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
 					onCardClick={() => handlePhotoCardClick(a.id)}
@@ -288,7 +299,7 @@ import { activeOperations } from '$lib/operations';
 {:else if !photosState.loading && !photosState.error}
 	<!-- État vide -->
 	<div class="empty-state">
-		<Icon name="image" size={48} />
+		<ImageIcon size={48} />
 		<p>Aucune photo trouvée</p>
 	</div>
 {/if}
@@ -298,26 +309,26 @@ import { activeOperations } from '$lib/operations';
 	<PhotoModal
 		bind:assetId={modalAssetId}
 		assets={assetsForModal}
-			albumVisibility={visibility}
-			albumId={albumId}
-			showFavorite={showFavorites}
-			onFavoriteToggle={handleFavoriteToggle}
-			onClose={() => {
-				if (history.state?.modalOpen) {
-					history.back();
-				} else {
-					closeModal();
-				}
-			}}
+		albumVisibility={visibility}
+		{albumId}
+		showFavorite={showFavorites}
+		onFavoriteToggle={handleFavoriteToggle}
+		onClose={() => {
+			if (history.state?.modalOpen) {
+				history.back();
+			} else {
+				closeModal();
+			}
+		}}
 		onAssetDeleted={(id) => {
-			photosState.assets = photosState.assets.filter(a => a.id !== id);
+			photosState.assets = photosState.assets.filter((a) => a.id !== id);
 			hasChanges = true;
 		}}
-			on:assetDeleted={(e) => {
-				const id = e.detail as string;
-				photosState.assets = photosState.assets.filter(a => a.id !== id);
-				hasChanges = true;
-			}}
+		on:assetDeleted={(e) => {
+			const id = e.detail as string;
+			photosState.assets = photosState.assets.filter((a) => a.id !== id);
+			hasChanges = true;
+		}}
 	/>
 {/if}
 
@@ -345,7 +356,10 @@ import { activeOperations } from '$lib/operations';
 	onConfirm={confirmDeleteSelected}
 >
 	{#snippet children()}
-		<p>Voulez-vous vraiment mettre {photosState.selectedAssets.length} photo(s) sélectionnée(s) à la corbeille ?</p>
+		<p>
+			Voulez-vous vraiment mettre {photosState.selectedAssets.length} photo(s) sélectionnée(s) à la corbeille
+			?
+		</p>
 	{/snippet}
 </Modal>
 
@@ -359,112 +373,115 @@ import { activeOperations } from '$lib/operations';
 	onConfirm={confirmDownloadSelected}
 >
 	{#snippet children()}
-		<p>Voulez-vous télécharger {photosState.selectedAssets.length} photo(s) sélectionnée(s) en une archive ?</p>
+		<p>
+			Voulez-vous télécharger {photosState.selectedAssets.length} photo(s) sélectionnée(s) en une archive
+			?
+		</p>
 	{/snippet}
 </Modal>
 
 <style>
-  .selection-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    margin-bottom: 2rem;
-    background: var(--bg-elevated);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
-  }
+	.selection-toolbar {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+		padding: 1rem;
+		margin-bottom: 2rem;
+		background: var(--bg-elevated);
+		border-radius: var(--radius-md);
+		border: 1px solid var(--border-color);
+	}
 
-  .selection-count {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
+	.selection-count {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
 
-  .selection-actions {
-    display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
+	.selection-actions {
+		display: flex;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
 
-  .selection-actions button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1rem;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-  }
+	.selection-actions button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.625rem 1rem;
+		border: none;
+		border-radius: var(--radius-sm);
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		white-space: nowrap;
+	}
 
-  .selection-actions button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+	.selection-actions button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 
-  .photos-count {
-    margin-bottom: 2rem;
-    color: var(--text-secondary);
-    font-size: 0.9375rem;
-  }
+	.photos-count {
+		margin-bottom: 2rem;
+		color: var(--text-secondary);
+		font-size: 0.9375rem;
+	}
 
-  .day-label {
-    margin-top: 3rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    opacity: 0.6;
-  }
+	.day-label {
+		margin-top: 3rem;
+		margin-bottom: 1.5rem;
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		opacity: 0.6;
+	}
 
-  .day-label:first-of-type {
-    margin-top: 0;
-  }
+	.day-label:first-of-type {
+		margin-top: 0;
+	}
 
-  .favorites-label {
-    color: var(--accent);
-    opacity: 1;
-  }
+	.favorites-label {
+		color: var(--accent);
+		opacity: 1;
+	}
 
-  .photos-grid {
-    position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 2rem;
-  }
+	.photos-grid {
+		position: relative;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-bottom: 2rem;
+	}
 
-  /* Élément fantôme pour empêcher l'étirement de la dernière ligne */
-  .photos-grid::after {
-    content: '';
-    flex-grow: 999999;
-  }
+	/* Élément fantôme pour empêcher l'étirement de la dernière ligne */
+	.photos-grid::after {
+		content: '';
+		flex-grow: 999999;
+	}
 
-  .btn-primary {
-    background: var(--accent);
-    color: white;
-  }
+	.btn-primary {
+		background: var(--accent);
+		color: white;
+	}
 
-  .btn-primary:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
+	.btn-primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+	}
 
-  .btn-secondary {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-  }
+	.btn-secondary {
+		background: var(--bg-elevated);
+		color: var(--text-primary);
+	}
 
-  .btn-secondary:hover {
-    background: var(--bg-tertiary);
-  }
+	.btn-secondary:hover {
+		background: var(--bg-tertiary);
+	}
 
 	:global(.btn-delete-selection) {
 		background: #dc2626 !important;
@@ -476,54 +493,54 @@ import { activeOperations } from '$lib/operations';
 		background: #b91c1c !important;
 	}
 
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: var(--text-muted);
-  }
+	.empty-state {
+		text-align: center;
+		padding: 4rem 2rem;
+		color: var(--text-muted);
+	}
 
-  .empty-state p {
-    margin-top: 1rem;
-    font-size: 1.125rem;
-  }
+	.empty-state p {
+		margin-top: 1rem;
+		font-size: 1.125rem;
+	}
 
-  /* Responsive - grille carrée sur mobile */
-  @media (max-width: 768px) {
-    .photos-grid {
-      gap: 3px;
-    }
+	/* Responsive - grille carrée sur mobile */
+	@media (max-width: 768px) {
+		.photos-grid {
+			gap: 3px;
+		}
 
-    .selection-toolbar {
-      flex-direction: column;
-      gap: 0.75rem;
-      padding: 0.75rem;
-    }
+		.selection-toolbar {
+			flex-direction: column;
+			gap: 0.75rem;
+			padding: 0.75rem;
+		}
 
-    .selection-actions {
-      width: 100%;
-      justify-content: center;
-    }
+		.selection-actions {
+			width: 100%;
+			justify-content: center;
+		}
 
-    .selection-actions button {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
-    }
+		.selection-actions button {
+			padding: 0.5rem 0.75rem;
+			font-size: 0.75rem;
+		}
 
-    .day-label {
-      font-size: 0.8125rem;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
-    }
+		.day-label {
+			font-size: 0.8125rem;
+			margin-top: 2rem;
+			margin-bottom: 1rem;
+		}
 
-    .photos-count {
-      font-size: 0.8125rem;
-      margin-bottom: 1rem;
-    }
-  }
+		.photos-count {
+			font-size: 0.8125rem;
+			margin-bottom: 1rem;
+		}
+	}
 
-  @media (max-width: 480px) {
-    .photos-grid {
-      gap: 2px;
-    }
-  }
+	@media (max-width: 480px) {
+		.photos-grid {
+			gap: 2px;
+		}
+	}
 </style>

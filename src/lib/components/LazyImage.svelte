@@ -55,8 +55,15 @@
     let hasStartedLoading = $state(false);
     let imgElement: HTMLImageElement | null = $state(null);
     let containerElement: HTMLDivElement | null = $state(null);
-    let displaySrc = $state(src);
+    let srcOverride = $state<string | undefined>(undefined);
+    let displaySrc = $derived(srcOverride ?? src);
     let highResLoaded = $state(false);
+
+    $effect(() => {
+        src;
+        srcOverride = undefined;
+        highResLoaded = false;
+    });
 
     onMount(() => {
         if (!containerElement) return;
@@ -79,7 +86,7 @@
 
     $effect(() => {
         if (isInView && hasStartedLoading) {
-            displaySrc = src;
+            srcOverride = undefined;
             if (highRes && !highResLoaded) {
                 const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1;
                 if (dpr < (highResDprThreshold || 1)) {
@@ -88,14 +95,14 @@
                 try {
                     const cachedHigh = getCached(highRes);
                     if (cachedHigh) {
-                        displaySrc = cachedHigh;
+                        srcOverride = cachedHigh;
                         highResLoaded = true;
                     } else {
                         fetch(highRes).then(r => r.ok ? r.blob() : Promise.reject())
                             .then(b => {
                                 const url = URL.createObjectURL(b);
                                 setCached(highRes, url);
-                                displaySrc = url;
+                                srcOverride = url;
                                 highResLoaded = true;
                             }).catch(() => {
                             });
@@ -107,17 +114,17 @@
                     if (typeof src === 'string' && src.includes('/api/immich') && src.includes('thumbnail')) {
                         const cached = getCached(src);
                         if (cached) {
-                            displaySrc = cached;
+                            srcOverride = cached;
                         } else {
                             fetch(src).then(r => r.ok ? r.blob() : Promise.reject())
                                 .then(b => {
                                     const url = URL.createObjectURL(b);
                                     setCached(src, url);
-                                    displaySrc = url;
-                                }).catch(() => { displaySrc = src; });
+                                    srcOverride = url;
+                                }).catch(() => { srcOverride = undefined; });
                         }
                     }
-                } catch (e) { displaySrc = src; }
+                } catch (e) { srcOverride = undefined; }
             }
         }
     });
