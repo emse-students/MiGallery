@@ -14,7 +14,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Folder, User as UserIcon, Camera, Users, Trash, Settings } from 'lucide-svelte';
+	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings } from 'lucide-svelte';
 	import type { User } from '$lib/types/api';
 
 	let user = $derived(page.data?.session?.user as User | undefined);
@@ -89,7 +89,7 @@
 				class:active={isActive('/corbeille')}
 				data-sveltekit-preload-data
 			>
-				<Trash size={24} />
+				<Trash2 size={24} />
 				<span class="nav-label">Corbeille</span>
 			</a>
 		{/if}

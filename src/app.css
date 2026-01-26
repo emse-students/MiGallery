@@ -1848,3 +1848,9 @@
 		}
 	}
 }
+
+/* Lucide Icon safe-guard */
+:global(.lucide) {
+	min-width: 0.9em;
+	min-height: 0.9em;
+}

@@ -45,7 +45,7 @@
         class?: string;
         aspectRatio?: string;
         isVideo?: boolean;
-        radius?: string; 
+        radius?: string;
     }
 
     let { src, highRes = undefined, highResDprThreshold = 1.25, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
