@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckSquare, Square, Download, Trash, Image as ImageIcon } from 'lucide-svelte';
+	import { CheckSquare, Square, Download, Trash2, Image as ImageIcon } from 'lucide-svelte';
 	import PhotoCard from '$lib/components/PhotoCard.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -239,7 +239,7 @@
 						disabled={photosState.selectedAssets.length === 0}
 						class="btn-delete-selection px-3 py-2 rounded-lg text-white border-0 cursor-pointer flex items-center gap-2"
 					>
-						<Trash size={16} />
+						<Trash2 size={16} />
 						Supprimer ({photosState.selectedAssets.length})
 					</button>
 				{/if}

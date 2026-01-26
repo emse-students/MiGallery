@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { XCircle, Trash, X, CheckSquare, Square, ArrowLeft } from 'lucide-svelte';
+	import { XCircle, Trash2, X, CheckSquare, Square, ArrowLeft } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
@@ -269,7 +269,7 @@
 
 	{#if !loading && !error && assets.length === 0}
 		<div class="empty-state">
-			<Trash size={48} />
+			<Trash2 size={48} />
 			<p>La corbeille est vide</p>
 		</div>
 	{/if}
@@ -323,7 +323,7 @@
 						onclick={() => deleteAssetsPermanently(selectedAssets)}
 						class="btn-delete-selection px-2 py-2 text-white"
 					>
-						<Trash size={16} />
+						<Trash2 size={16} />
 						Supprimer définitivement ({selectedAssets.length})
 					</button>
 				</div>
@@ -378,7 +378,7 @@
 									deleteAssetsPermanently([asset.id]);
 								}}
 							>
-								<Trash size={16} />
+								<Trash2 size={16} />
 							</button>
 						{/if}
 

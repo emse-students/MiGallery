@@ -7,7 +7,7 @@
 		RefreshCw,
 		Heart,
 		Download,
-		Trash,
+		Trash2,
 		X,
 		ChevronLeft,
 		ChevronRight
@@ -542,7 +542,7 @@
 						title="Supprimer (Suppr)"
 						disabled={!asset}
 					>
-						<Trash size={20} />
+						<Trash2 size={20} />
 					</button>
 				{/if}
 				<button class="btn-icon" onclick={onClose} title="Fermer">

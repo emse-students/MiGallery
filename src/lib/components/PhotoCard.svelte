@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Heart, Download, Trash } from 'lucide-svelte';
+	import { Heart, Download, Trash2 } from 'lucide-svelte';
 	import LazyImage from './LazyImage.svelte';
 	import Skeleton from './Skeleton.svelte';
 	import type { Asset } from '$lib/photos.svelte';
@@ -228,7 +228,7 @@
 					onclick={handleDeleteClick}
 					aria-label="Delete {fileName}"
 				>
-					<Trash size={18} />
+					<Trash2 size={18} />
 				</button>
 			{/if}
 		{/if}

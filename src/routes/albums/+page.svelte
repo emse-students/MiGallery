@@ -7,7 +7,7 @@
 		Image as ImageIcon,
 		Search,
 		Download,
-		Trash,
+		Trash2,
 		Lock,
 		Link as LinkIcon,
 		Eye
@@ -402,7 +402,7 @@
 												{#if downloadingAlbumId === a.id}
 													<Spinner size={14} />
 												{:else}
-													<Download size={16} />
+													<Download />
 												{/if}
 											</button>
 
@@ -415,7 +415,7 @@
 													}}
 													title="Supprimer"
 												>
-													<Trash size={16} />
+													<Trash2 />
 												</button>
 											{/if}
 										</div>
@@ -762,6 +762,12 @@
 		background-color: rgba(0, 0, 0, 0.4);
 		backdrop-filter: blur(8px);
 		transition: all 0.2s;
+	}
+	.action-btn :global(svg) {
+		width: 20px !important;
+		height: 20px !important;
+		min-width: 20px !important;
+		min-height: 20px !important;
 	}
 	.action-btn:hover {
 		background-color: var(--alb-accent);

@@ -6,7 +6,7 @@
 	import { navigationModalStore } from '$lib/navigation-store';
 	import { theme } from '$lib/theme';
 	import type { User } from '$lib/types/api';
-	import { Folder, User as UserIcon, Camera, Users, Trash, Settings } from 'lucide-svelte';
+	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings } from 'lucide-svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
@@ -125,7 +125,7 @@
 				{/if}
 				{#if canManagePhotos}
 					<a href="/corbeille">
-						<Trash size={18} />
+						<Trash2 size={18} />
 						<span class="link-text">Corbeille</span>
 					</a>
 				{/if}

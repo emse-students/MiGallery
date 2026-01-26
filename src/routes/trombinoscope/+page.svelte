@@ -9,7 +9,7 @@
 		XCircle,
 		Users,
 		Search,
-		Edit2,
+		Pencil,
 		Trash2,
 		Camera,
 		CheckCircle,
@@ -459,14 +459,14 @@
 													onclick={(e) => openEditUserModal(user, e)}
 													title="Éditer"
 												>
-													<Edit2 size={14} />
+													<Pencil />
 												</button>
 												<button
 													class="control-btn delete"
 													onclick={(e) => deleteUserConfirm(user, e)}
 													title="Supprimer"
 												>
-													<Trash2 size={14} />
+													<Trash2 />
 												</button>
 											</div>
 										{/if}
@@ -874,6 +874,12 @@
 		cursor: pointer;
 		backdrop-filter: blur(4px);
 		transition: all 0.2s;
+	}
+	.control-btn :global(svg) {
+		width: 20px !important;
+		height: 20px !important;
+		min-width: 20px !important;
+		min-height: 20px !important;
 	}
 	.control-btn.edit {
 		background: color-mix(in srgb, var(--accent) 20%, transparent);
