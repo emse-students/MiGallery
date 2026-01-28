@@ -13,10 +13,10 @@
 	const hour = new Date().getHours();
 	const greeting = hour < 18 ? 'Bonjour' : 'Bonsoir';
 
-	async function handleSignIn() {
+	async function handleSignIn(providerId: string) {
 		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
 		// Sans callbackUrl, redirige vers la page d'origine après authentification
-		await signIn('cas-emse', { callbackUrl: window.location.href });
+		await signIn(providerId, { callbackUrl: window.location.href });
 	}
 </script>
 
@@ -41,8 +41,11 @@
 				<div class="card glass-card">
 					<h2>Bienvenue sur MiGallery</h2>
 					<p>Connectez-vous pour accéder à vos photos.</p>
-					<button onclick={() => handleSignIn()} class="btn btn-primary">
-						<LogIn size={20} /> Se connecter
+					<button onclick={() => handleSignIn('cas-emse')} class="btn btn-primary">
+						<LogIn size={20} /> Connexion CAS
+					</button>
+					<button onclick={() => handleSignIn('mines-alumni')} class="btn btn-secondary" style="margin-top: 0.5rem;">
+						<LogIn size={20} /> Connexion Alumni
 					</button>
 				</div>
 			{:else if !hasIdPhotos}

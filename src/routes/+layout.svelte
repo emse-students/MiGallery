@@ -6,7 +6,7 @@
 	import { navigationModalStore } from '$lib/navigation-store';
 	import { theme } from '$lib/theme';
 	import type { User } from '$lib/types/api';
-	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings } from 'lucide-svelte';
+	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings, LogIn } from 'lucide-svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
@@ -22,10 +22,12 @@
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
 	let isFirstLogin = $derived(u?.first_login === 1);
+	let alumniEnabled = $derived(page.data?.alumniEnabled ?? false);
 
 	let { children } = $props();
 
 	let showFirstLoginModal = $state(false);
+	let showLoginModal = $state(false);
 
 	onMount(() => {
 		theme.initialize();
@@ -76,9 +78,14 @@
 	}
 
 	async function handleSignIn() {
+		showLoginModal = true;
+	}
+
+	async function performSignIn(providerId: string) {
+		showLoginModal = false;
 		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
 		// Sans callbackUrl, redirige vers la page d'origine après authentification
-		await signIn('cas-emse', { callbackUrl: window.location.href });
+		await signIn(providerId, { callbackUrl: window.location.href });
 	}
 </script>
 
@@ -189,3 +196,108 @@
 		<p><strong>Voulez-vous vraiment quitter ?</strong></p>
 	{/snippet}
 </Modal>
+
+<Modal
+	bind:show={showLoginModal}
+	title="Connexion"
+	type="info"
+	showActions={false}
+>
+	{#snippet children()}
+		<div class="login-modal-content">
+			<p>Veuillez choisir votre méthode de connexion :</p>
+
+			<div class="login-choices">
+				<button onclick={() => performSignIn('cas-emse')} class="btn btn-primary login-btn">
+					<LogIn size={20} />
+					<span>Connexion CAS (Étudiants/Staff)</span>
+				</button>
+
+				{#if alumniEnabled}
+					<div class="separator">
+						<span>OU</span>
+					</div>
+
+					<button onclick={() => performSignIn('mines-alumni')} class="btn btn-secondary login-btn">
+						<LogIn size={20} />
+						<span>Connexion Alumni</span>
+					</button>
+				{/if}
+			</div>
+
+			<div class="login-info">
+				<small>
+					Vous possédez un compte étudiant et un compte Alumni ?<br>
+					Connectez-vous avec {#if alumniEnabled}l'un ou l'autre{:else}le CAS{/if}, la liaison se fera automatiquement si vos informations (Nom/Prénom/Promo) correspondent.
+				</small>
+			</div>
+		</div>
+	{/snippet}
+</Modal>
+
+<style>
+	.login-modal-content {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		padding: 0.5rem 0;
+	}
+
+	.login-choices {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.login-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+		padding: 0.75rem 1rem;
+		font-size: 1rem;
+		font-weight: 500;
+		width: 100%;
+	}
+
+	.separator {
+		display: flex;
+		align-items: center;
+		text-align: center;
+		color: #888;
+		font-size: 0.8rem;
+		margin: 0.25rem 0;
+	}
+
+	.separator::before,
+	.separator::after {
+		content: '';
+		flex: 1;
+		border-bottom: 1px solid #ddd;
+	}
+
+	.separator:not(:empty)::before {
+		margin-right: .5em;
+	}
+
+	.separator:not(:empty)::after {
+		margin-left: .5em;
+	}
+
+	/* Dark mode support for separator */
+	:global(.dark) .separator::before,
+	:global(.dark) .separator::after {
+		border-color: #444;
+	}
+
+	.login-info {
+		margin-top: 0.5rem;
+		padding: 0.75rem;
+		background-color: rgba(255, 255, 255, 0.05); /* very light background */
+		border-radius: 0.5rem;
+		color: #888;
+		text-align: center;
+		font-size: 0.85rem;
+		line-height: 1.4;
+	}
+</style>
