@@ -24,6 +24,7 @@
 		wide?: boolean;
 		confirmDisabled?: boolean;
 		showCloseButton?: boolean;
+		showActions?: boolean;
 	}
 
 	let {
@@ -38,7 +39,8 @@
 		children,
 		wide = false,
 		confirmDisabled = false,
-		showCloseButton = false
+		showCloseButton = false,
+		showActions = true
 	}: Props = $props();
 
 	let dialogElement: HTMLDialogElement;
@@ -167,6 +169,7 @@
 			{/if}
 		</div>
 
+		{#if showActions}
 		<div class="modal-actions">
 			{#if type === 'confirm'}
 				<button type="button" onclick={handleCancel} disabled={isProcessing} class="btn-secondary">
@@ -191,6 +194,7 @@
 				</button>
 			{/if}
 		</div>
+		{/if}
 	</div>
 </dialog>
 

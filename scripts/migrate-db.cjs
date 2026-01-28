@@ -12,7 +12,6 @@ if (!fs.existsSync(DB_PATH)) {
 
 let Database;
 try {
-
 	Database = require('bun:sqlite').Database;
 } catch {
 	// Sinon utiliser better-sqlite3
@@ -26,6 +25,7 @@ const migrations = [
 		name: 'Create users table',
 		sql: `CREATE TABLE IF NOT EXISTS users (
       id_user TEXT PRIMARY KEY,
+      alumni_id TEXT,
       email TEXT NOT NULL,
       prenom TEXT NOT NULL,
       nom TEXT NOT NULL,
@@ -104,9 +104,27 @@ let skipCount = 0;
 console.log('🚀 Début de la migration de la base de données...\n');
 
 try {
+	// --- MIGRATIONS MANUELLES DE COLONNES (POUR UPDATES) ---
+	// SQLite ne supporte pas IF NOT EXISTS dans ADD COLUMN, donc on check manuellement
+	try {
+		const userColumns = db.prepare('PRAGMA table_info(users)').all();
+		const hasAlumniId = userColumns.some((c) => c.name === 'alumni_id');
+		if (!hasAlumniId && userColumns.length > 0) {
+			// userColumns.length > 0 veut dire que la table existe
+			console.log('🔄 Ajout de la colonne alumni_id à la table users...');
+			db.exec('ALTER TABLE users ADD COLUMN alumni_id TEXT');
+			console.log('✅ Colonne alumni_id ajoutée.');
+		}
+	} catch (e) {
+		console.log(
+			"⚠️  Impossible de vérifier/ajouter alumni_id (peut-être la table n'existe pas encore).",
+			e.message
+		);
+	}
+	// --------------------------------------------------------
+
 	for (const migration of migrations) {
 		try {
-
 			const tableName = extractTableName(migration.sql);
 			const tableExists = checkTableExists(db, tableName);
 
