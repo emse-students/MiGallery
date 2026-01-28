@@ -70,7 +70,8 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 						nom: (profile.family_name as string) || '',
 						first_login: 1,
 						role: 'user',
-						promo_year: null
+						promo_year: null,
+						alumni_id: null
 					});
 				}
 				return true;

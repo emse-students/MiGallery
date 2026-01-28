@@ -16,7 +16,7 @@ export const GET: RequestHandler = async (event) => {
 	const db = getDatabase();
 	const row = db
 		.prepare(
-			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ? LIMIT 1'
+			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year, alumni_id FROM users WHERE id_user = ? LIMIT 1'
 		)
 		.get(targetId);
 	if (!row) {
@@ -45,8 +45,9 @@ export const PUT: RequestHandler = async (event) => {
 			role?: string;
 			promo_year?: number | null;
 			id_photos?: string | null;
+			alumni_id?: string | null;
 		};
-		const { email, prenom, nom, role, promo_year, id_photos } = body;
+		const { email, prenom, nom, role, promo_year, id_photos, alumni_id } = body;
 
 		// Prevent admin from removing their own admin status
 		if (auth.user && auth.user.id_user === targetId) {
@@ -65,7 +66,7 @@ export const PUT: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 		const stmt = db.prepare(
-			'UPDATE users SET email = ?, prenom = ?, nom = ?, role = ?, promo_year = ?, id_photos = ? WHERE id_user = ?'
+			'UPDATE users SET email = ?, prenom = ?, nom = ?, role = ?, promo_year = ?, id_photos = ?, alumni_id = ? WHERE id_user = ?'
 		);
 		const info = stmt.run(
 			email || null,
@@ -74,6 +75,7 @@ export const PUT: RequestHandler = async (event) => {
 			role || 'user',
 			promo_year || null,
 			id_photos || null,
+			alumni_id || null, // Permet de retirer le lien si vide (null passé explicitement)
 			targetId
 		);
 
@@ -83,7 +85,7 @@ export const PUT: RequestHandler = async (event) => {
 
 		const updated = db
 			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
+				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year, alumni_id FROM users WHERE id_user = ?'
 			)
 			.get(targetId);
 		try {
