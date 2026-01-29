@@ -61,11 +61,19 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 				const existingUser = getUserByCasId(casId);
 
 				if (!existingUser) {
+					const emailCandidate = profile.email;
+					// Assure que l'email est une string non-vide, sinon fallback
+					const email =
+						typeof emailCandidate === 'string' && emailCandidate.trim().length > 0
+							? emailCandidate
+							: `${casId}@etu.emse.fr`;
+
+					console.warn(`[auth] Creating new CAS user: ${casId} (${email})`);
+
 					// Création automatique si l'utilisateur n'existe pas
-					// Note: On pourrait raffiner ici (récupérer la promo via attributs LDAP/OIDC si dispo)
 					createUser({
 						id_user: casId,
-						email: profile.email || `${casId}@etu.emse.fr`,
+						email,
 						prenom: (profile.given_name as string) || casId,
 						nom: (profile.family_name as string) || '',
 						first_login: 1,
@@ -108,10 +116,18 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 				// Cas 2c: Nouvel utilisateur Alumni pur (jamais connecté au site via CAS avant)
 				// On crée un nouveau compte.
 				// Attention: ID collision. On préfixe pour éviter conflits avec login CAS.
+				const emailCandidate = profile.email;
+				const email =
+					typeof emailCandidate === 'string' && emailCandidate.trim().length > 0
+						? emailCandidate
+						: `${alumniId}@alumni.emse.fr`; // Fallback fictif pour éviter NOT NULL
+
+				console.warn(`[auth] Creating new Alumni user: ${alumniId} (${email})`);
+
 				createUser({
 					id_user: `alumni_${alumniId}`,
 					alumni_id: alumniId,
-					email: (profile.email as string) || '',
+					email,
 					prenom: (profile.given_name as string) || 'Alumni',
 					nom: (profile.family_name as string) || 'Inconnu',
 					first_login: 1,
