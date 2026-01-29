@@ -74,7 +74,7 @@ export const load: LayoutServerLoad = async (event) => {
 				providerUser.family_name ||
 				providerUser.nom ||
 				(providerUser.name ? String(providerUser.name).split(' ').slice(1).join(' ') : '');
-			const email = providerUser.email || null;
+			const email = providerUser.email || `${candidateId}@etu.emse.fr`;
 
 			const insert = db.prepare(
 				'INSERT INTO users (id_user, email, prenom, nom, role, id_photos, first_login, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -82,7 +82,7 @@ export const load: LayoutServerLoad = async (event) => {
 			try {
 				insert.run(candidateId, email, prenom, nom, 'user', null, 1, null);
 			} catch (_e) {
-				void _e;
+				console.warn('Auto-create in layout failed:', _e);
 			}
 
 			userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
