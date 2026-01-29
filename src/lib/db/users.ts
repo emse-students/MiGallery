@@ -55,11 +55,24 @@ export function findUserByIdentity(
 }
 
 export function createUser(user: DBUser) {
+	// Utilisation de paramètres positionnels (?) pour éviter tout problème de binding
+	// avec les objets contenant des propriétés supplémentaires ou des incompatibilités de nommage.
 	const stmt = db.prepare(`
 		INSERT INTO users (id_user, email, prenom, nom, first_login, role, promo_year, alumni_id)
-		VALUES (@id_user, @email, @prenom, @nom, @first_login, @role, @promo_year, @alumni_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`);
-	return stmt.run(user);
+
+	// On extrait explicitement les valeurs dans l'ordre
+	return stmt.run(
+		user.id_user,
+		user.email,
+		user.prenom,
+		user.nom,
+		user.first_login,
+		user.role,
+		user.promo_year || null,
+		user.alumni_id || null
+	);
 }
 
 export function updateUser(user: Partial<DBUser> & { id_user: string }) {
