@@ -17,7 +17,7 @@ jobs:
     runtime: [bun, npm]
   steps:
    - name: Checkout
-     uses: actions/checkout@v6
+     uses: actions/checkout@v4
 
    - name: Setup Bun
      if: matrix.runtime == 'bun'
@@ -27,7 +27,7 @@ jobs:
 
    - name: Setup Node.js
      if: matrix.runtime == 'npm'
-     uses: actions/setup-node@v6
+     uses: actions/setup-node@v4
      with:
       node-version: '24.x'
 

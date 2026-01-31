@@ -22,6 +22,9 @@ const providers: Provider[] = [
 		client: {
 			token_endpoint_auth_method: 'client_secret_post'
 		},
+		// Utilisation de 'state' uniquement pour éviter les erreurs "InvalidCheck: pkceCodeVerifier"
+		// en cas de doubles requêtes ou problèmes de cookies inter-domaines.
+		checks: ['state'],
 		authorization: {
 			scope: 'openid profile email'
 		}
