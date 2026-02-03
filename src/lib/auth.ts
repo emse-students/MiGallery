@@ -42,6 +42,7 @@ if (env.ALUMNI_ISSUER && env.ALUMNI_CLIENT_ID && env.ALUMNI_CLIENT_SECRET) {
 		client: {
 			token_endpoint_auth_method: 'client_secret_post'
 		},
+		checks: ['state'],
 		authorization: {
 			scope: 'openid profile email'
 		}
