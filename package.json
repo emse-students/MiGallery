@@ -31,7 +31,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
-		"prepare": "husky install",
+		"prepare": "husky",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "eslint src/lib --ext .ts,.tsx,.js,.jsx --cache && eslint src/routes --ext .ts,.tsx,.js,.jsx --cache",
