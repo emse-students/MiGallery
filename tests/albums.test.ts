@@ -351,6 +351,10 @@ describe('Albums API - PUT /api/albums/[id]/assets', () => {
 
 describe('Albums API - DELETE /api/albums/[id]/assets', () => {
 	it('devrait respecter les permissions WRITE', async () => {
+		if (!testAlbumId) {
+			throw new Error('testAlbumId not set - album creation in beforeAll may have failed');
+		}
+
 		const result = await testPermissions({
 			endpoint: `/api/albums/${testAlbumId}/assets`,
 			method: 'DELETE',
@@ -360,9 +364,9 @@ describe('Albums API - DELETE /api/albums/[id]/assets', () => {
 		});
 
 		// Sans auth -> rejeté
-		expect(result.noAuth.passed).toBe(true);
+		expect(result.noAuth.passed, `noAuth failed with status ${result.noAuth.status}`).toBe(true);
 		// Avec READ -> rejeté (car c'est un endpoint WRITE)
-		expect(result.read.passed).toBe(true);
+		expect(result.read.passed, `read failed with status ${result.read.status}`).toBe(true);
 
 		// Pour WRITE et ADMIN, on teste l'accès.
 		// Si l'auth passe, on peut avoir 200 (succès), 400 (bad request), 404 (not found).
