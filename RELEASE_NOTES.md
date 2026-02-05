@@ -1,3 +1,22 @@
+# MiGallery v1.1.0
+
+**Date**: 5 février 2026
+**Type**: Release Mineure
+
+## 🎯 Objectif
+
+Introduction de fonctionnalités de gestion avancée des albums pour améliorer la flexibilité sans compromettre les données.
+
+## ✨ Nouveautés et Améliorations
+
+### 📸 Gestion des Photos
+
+- **Retrait sans suppression** : Possibilité de retirer des photos d'un album spécifique sans les supprimer définitivement de la bibliothèque Immich.
+- **Interface améliorée** : Ajout d'options contextuelles claires dans la barre d'outils de sélection (« Retirer » vs « Supprimer »).
+- **Sécurité** : Modales de confirmation distinctes pour éviter les suppressions accidentelles.
+
+---
+
 # MiGallery v1.0.0
 
 **Date**: 22 décembre 2025
