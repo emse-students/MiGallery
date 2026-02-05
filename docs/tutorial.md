@@ -169,9 +169,10 @@ Si vous sélectionnez une image, le menu de gestion apparaîtra. Cela vous perme
 - ‘Tout sélectionner’
 - ‘Tout désélectionner’
 - ‘Télécharger’ (la sélection active)
+- ‘Retirer’ (la sélection active) -> Retirer de l'album sans supprimer (Uniquement dans un album)
 - ‘Supprimer’ (la sélection active) -> Déplacer dans la Corbeille
 
-À noter que les photos que vous ‘Supprimez’ sont bien déplacées dans la ‘Corbeille’. Vous pouvez les restaurer dans l’onglet ‘Corbeille’.
+À noter que les photos que vous ‘Supprimez’ sont bien déplacées dans la ‘Corbeille’ (suppression globale de Immich). Celles que vous ‘Retirez’ sont simplement enlevées de l'album mais restent dans la bibliothèque globale.
 
 ### D. Gestion des accès à l’album
 

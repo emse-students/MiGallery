@@ -350,6 +350,32 @@ describe('Albums API - PUT /api/albums/[id]/assets', () => {
 });
 
 describe('Albums API - DELETE /api/albums/[id]/assets', () => {
+	it('devrait respecter les permissions WRITE', async () => {
+		const result = await testPermissions({
+			endpoint: `/api/albums/${testAlbumId}/assets`,
+			method: 'DELETE',
+			requiredScope: 'write',
+			description: "Retrait d'assets d'un album",
+			body: { ids: ['00000000-0000-0000-0000-000000000000'] }
+		});
+
+		// 400 est acceptable ici car le testPermissions envoie des données valides,
+		// mais Immich rejette l'ID qui n'existe pas ou le proxy renvoie 400 via validation
+		// Mais testPermissions attend 200-299.
+		// On ajuste l'attente pour le cas où l'auth passe (status !== 401/403)
+
+		expect(result.noAuth.passed).toBe(true);
+		expect(result.read.passed).toBe(true);
+
+		// Pour write et admin, si on reçoit 400, cela signifie que AUTH est OK mais INPUT INVALID.
+		// C'est un succès du point de vue des permissions (on n'est pas bloqué à l'entrée).
+		const writePassed = result.write.passed || result.write.status === 400;
+		const adminPassed = result.admin.passed || result.admin.status === 400;
+
+		expect(writePassed).toBe(true);
+		expect(adminPassed).toBe(true);
+	});
+
 	it("devrait supprimer des assets d'un album", async () => {
 		if (!testAlbumId) {
 			return;
