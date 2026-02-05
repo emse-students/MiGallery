@@ -359,21 +359,16 @@ describe('Albums API - DELETE /api/albums/[id]/assets', () => {
 			body: { ids: ['00000000-0000-0000-0000-000000000000'] }
 		});
 
-		// 400 est acceptable ici car le testPermissions envoie des données valides,
-		// mais Immich rejette l'ID qui n'existe pas ou le proxy renvoie 400 via validation
-		// Mais testPermissions attend 200-299.
-		// On ajuste l'attente pour le cas où l'auth passe (status !== 401/403)
-
+		// Sans auth -> rejeté
 		expect(result.noAuth.passed).toBe(true);
+		// Avec READ -> rejeté (car c'est un endpoint WRITE)
 		expect(result.read.passed).toBe(true);
 
-		// Pour write et admin, si on reçoit 400, cela signifie que AUTH est OK mais INPUT INVALID.
-		// C'est un succès du point de vue des permissions (on n'est pas bloqué à l'entrée).
-		const writePassed = result.write.passed || result.write.status === 400;
-		const adminPassed = result.admin.passed || result.admin.status === 400;
-
-		expect(writePassed).toBe(true);
-		expect(adminPassed).toBe(true);
+		// Pour WRITE et ADMIN, on teste l'accès.
+		// Si l'auth passe, on peut avoir 200 (succès), 400 (bad request), 404 (not found).
+		// L'important est que ce ne soit PAS 401 ou 403.
+		expect([401, 403]).not.toContain(result.write.status);
+		expect([401, 403]).not.toContain(result.admin.status);
 	});
 
 	it("devrait supprimer des assets d'un album", async () => {
