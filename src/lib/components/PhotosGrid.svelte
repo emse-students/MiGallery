@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckSquare, Square, Download, Trash2, Image as ImageIcon } from 'lucide-svelte';
+	import { CheckSquare, Square, Download, Trash2, Image as ImageIcon, MinusCircle } from 'lucide-svelte';
 	import PhotoCard from '$lib/components/PhotoCard.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -39,6 +39,8 @@
 	let showDeleteSelectedModal = $state(false);
 	let idsToDelete = $state<string[] | null>(null);
 
+	let showRemoveFromAlbumModal = $state(false);
+
 	let showDownloadSelectedModal = $state(false);
 
 	async function handleDownloadSingle(id: string) {
@@ -64,6 +66,45 @@
 		if (photosState.selectedAssets.length === 0) return;
 		idsToDelete = [...photosState.selectedAssets];
 		showDeleteSelectedModal = true;
+	}
+
+	async function handleRemoveFromAlbum() {
+		if (photosState.selectedAssets.length === 0) return;
+		showRemoveFromAlbumModal = true;
+	}
+
+	async function confirmRemoveFromAlbum() {
+		if (!albumId || photosState.selectedAssets.length === 0) return;
+		const ids = photosState.selectedAssets;
+		const count = ids.length;
+		showRemoveFromAlbumModal = false;
+
+		const operationId = `remove-from-album-${Date.now()}`;
+		activeOperations.start(operationId);
+
+		try {
+			const res = await fetch(`/api/albums/${albumId}/assets`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ ids })
+			});
+
+			if (!res.ok) {
+				const errText = await res.text().catch(() => res.statusText);
+				throw new Error(errText || "Erreur lors du retrait de l'album");
+			}
+
+			// Local update: remove assets from view
+			photosState.assets = photosState.assets.filter((a) => !ids.includes(a.id));
+			photosState.assets = [...photosState.assets];
+			photosState.selectedAssets = [];
+			photosState.selecting = false;
+			toast.success(`${count} photo(s) retirée(s) de l'album !`);
+		} catch (e: unknown) {
+			toast.error("Erreur lors du retrait de l'album: " + (e as Error).message);
+		} finally {
+			activeOperations.end(operationId);
+		}
 	}
 
 	async function confirmDeleteSelected() {
@@ -233,6 +274,17 @@
 						Télécharger ({photosState.selectedAssets.length})
 					{/if}
 				</button>
+				{#if canManagePhotos && albumId}
+					<button
+						onclick={() => handleRemoveFromAlbum()}
+						disabled={photosState.selectedAssets.length === 0}
+						class="btn-secondary"
+						title="Retirer de l'album sans supprimer les photos"
+					>
+						<MinusCircle size={16} />
+						Retirer ({photosState.selectedAssets.length})
+					</button>
+				{/if}
 				{#if canManagePhotos}
 					<button
 						onclick={() => handleDeleteSelected()}
@@ -359,6 +411,29 @@
 		<p>
 			Voulez-vous vraiment mettre {photosState.selectedAssets.length} photo(s) sélectionnée(s) à la corbeille
 			?
+		</p>
+		<p class="text-sm text-muted" style="margin-top: 0.5rem;">
+			Attention : cela supprimera définitivement les fichiers de votre bibliothèque Immich.
+		</p>
+	{/snippet}
+</Modal>
+
+<!-- Modal retrait de l'album -->
+<Modal
+	bind:show={showRemoveFromAlbumModal}
+	title="Retirer de l'album"
+	type="confirm"
+	confirmText="Retirer de l'album"
+	cancelText="Annuler"
+	onConfirm={confirmRemoveFromAlbum}
+>
+	{#snippet children()}
+		<p>
+			Voulez-vous retirer {photosState.selectedAssets.length} photo(s) de cet album ?
+		</p>
+		<p class="text-sm text-muted" style="margin-top: 0.5rem;">
+			Les photos resteront dans votre bibliothèque principale (Mes photos) et ne seront pas
+			supprimées définitivement.
 		</p>
 	{/snippet}
 </Modal>
