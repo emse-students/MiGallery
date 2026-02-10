@@ -9,6 +9,10 @@ declare global {
 					[key: string]: unknown;
 				} | null;
 			} | null>;
+			sessionUser?: {
+				id?: string;
+				[key: string]: unknown;
+			} | null;
 			[key: string]: unknown;
 		}
 		interface PageData {
