@@ -105,7 +105,7 @@
 		"ffmpeg-static": "^5.1.0",
 		"ffprobe-static": "latest",
 		"form-data": "^4.0.5",
-		"jspdf": "^4.1.0",
+		"jspdf": "^4.2.0",
 		"jspdf-autotable": "^5.0.7",
 		"lucide-svelte": "^0.575.0",
 		"sharp": "^0.34.5",
