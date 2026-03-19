@@ -21,7 +21,13 @@ export async function logEvent(
 		try {
 			if (event?.locals) {
 				try {
-					if (typeof (event.locals as any).auth === 'function') {
+					// 1. Check cached session user (populated by hooks.server.ts)
+					if ((event.locals as any).sessionUser) {
+						const u = (event.locals as any).sessionUser;
+						actor = (u.id_user || u.id || u.email) as string;
+					} else if (typeof (event.locals as any).auth === 'function') {
+						// 2. Fallback to auth() call (risky if response already sent)
+
 						const s = await (event.locals as any).auth();
 						if (s && (s as any).user) {
 							actor = ((s as any).user.id_user || (s as any).user.id || (s as any).user.email) as string;

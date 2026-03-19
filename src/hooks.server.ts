@@ -111,4 +111,26 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle = sequence(corsAndCsrfHandler, authHandle);
+/**
+ * Hook pour résoudre la session utilisateur avant que la réponse ne soit générée.
+ * Cela permet d'éviter les erreurs "Cannot use cookies.set(...) after the response has been generated"
+ * qui surviennent si on appelle locals.auth() tardivement (ex: dans logEvent).
+ */
+const sessionCheck: Handle = async ({ event, resolve }) => {
+	if (event.locals.auth) {
+		try {
+			// On appelle auth() ici pour déclencher la vérification de session et le refresh cookie si nécessaire
+			// pendant qu'on peut encore modifier les headers de réponse.
+			const session = await event.locals.auth();
+			// On stocke l'user dans locals pour y accéder facilement plus tard sans rappeller auth()
+			if (session?.user) {
+				event.locals.sessionUser = session.user;
+			}
+		} catch (e) {
+			console.error('[hooks] Session check failed:', e);
+		}
+	}
+	return resolve(event);
+};
+
+export const handle = sequence(corsAndCsrfHandler, authHandle, sessionCheck);
