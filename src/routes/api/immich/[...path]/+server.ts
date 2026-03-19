@@ -209,6 +209,12 @@ async function handleChunkedUpload(
 		});
 	}
 
+	if (!/^[a-zA-Z0-9._-]+$/.test(fileId)) {
+		return new Response(JSON.stringify({ error: 'Invalid x-file-id header: must be alphanumeric' }), {
+			status: 400
+		});
+	}
+
 	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
 	if (!fs.existsSync(uploadDir)) {
 		fs.mkdirSync(uploadDir, { recursive: true });
@@ -265,10 +271,7 @@ async function handleChunkedUpload(
 		// Pipeline: RequestBody -> Hashing iterator -> File Write Stream
 		// We use Readable.fromWeb to convert the Web ReadableStream to a Node Readable for pipeline compatibility if needed,
 		// but pipeline handles async iterables locally.
-		await pipeline(
-			streamProcessor(request.body),
-			writeStream
-		);
+		await pipeline(streamProcessor(request.body), writeStream);
 
 		// verify per-chunk sha256
 		if (chunkSha && hasher) {
@@ -312,7 +315,8 @@ async function handleChunkedUpload(
 		} catch {
 			/* ignore decoding errors, use raw */
 		}
-		originalName = originalName.replace(/"/g, '');
+		// Sanitize filename to prevent breaking Content-Disposition
+		originalName = originalName.replace(/["\r\n]/g, '_');
 
 		// compute checksum (sha256) of the complete file
 		// Refactor to use stream not to buffer anything?
@@ -462,8 +466,8 @@ async function handleChunkedUpload(
 						try {
 							const reader = logBranch.getReader();
 							const chunks: Uint8Array[] = [];
-							while(true) {
-								const {done, value} = await reader.read();
+							while (true) {
+								const { done, value } = await reader.read();
 								if (done) {
 									break;
 								}
@@ -508,7 +512,6 @@ async function handleChunkedUpload(
 					status: response.status,
 					headers: forwardedHeaders
 				});
-
 			} catch (e) {
 				console.warn('Error teeing response', e);
 				// Fallback
@@ -653,6 +656,14 @@ const handle: RequestHandler = async function (event) {
 	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
 	if (base && !/^https?:\/\//i.test(base)) {
 		base = `http://${base}`;
+	}
+
+	// Prevent path traversal
+	if (pathParam.includes('..') || pathParam.includes('\0')) {
+		return new Response(JSON.stringify({ error: 'Invalid path' }), {
+			status: 400,
+			headers: { 'content-type': 'application/json' }
+		});
 	}
 
 	const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
