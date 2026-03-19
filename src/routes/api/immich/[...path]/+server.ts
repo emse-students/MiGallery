@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import { pipeline } from 'node:stream/promises';
 import NodeFormData from 'form-data';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
@@ -229,45 +230,70 @@ async function handleChunkedUpload(
 			});
 		}
 
-		const buffer = await request.arrayBuffer();
+		// Stream request body to disk instead of buffering
+		if (!request.body) {
+			throw new Error('No body in request');
+		}
+
+		const chunkSha = request.headers.get('x-chunk-sha256');
+		const hasher = chunkSha ? crypto.createHash('sha256') : null;
+
+		// Use an async generator to tap into the stream for hashing without buffering
+		const streamProcessor = async function* (source: ReadableStream<Uint8Array>) {
+			// Convert Web Stream to Async Iterator
+			const reader = source.getReader();
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) {
+						break;
+					}
+					if (hasher && value) {
+						hasher.update(value);
+					}
+					yield value;
+				}
+			} finally {
+				reader.releaseLock();
+			}
+		};
+
+		const writeStream = fs.createWriteStream(tempFilePath, {
+			flags: chunkIndex === 0 ? 'w' : 'a'
+		});
+
+		// Pipeline: RequestBody -> Hashing iterator -> File Write Stream
+		// We use Readable.fromWeb to convert the Web ReadableStream to a Node Readable for pipeline compatibility if needed,
+		// but pipeline handles async iterables locally.
+		await pipeline(
+			streamProcessor(request.body),
+			writeStream
+		);
 
 		// verify per-chunk sha256
-		try {
-			const chunkSha = request.headers.get('x-chunk-sha256');
-			if (chunkSha) {
-				const computed = crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex');
-				if (computed !== chunkSha) {
-					try {
-						if (fs.existsSync(lockPath)) {
-							fs.unlinkSync(lockPath);
-						}
-					} catch {
-						/* ignore */
+		if (chunkSha && hasher) {
+			const computed = hasher.digest('hex');
+			if (computed !== chunkSha) {
+				try {
+					if (fs.existsSync(lockPath)) {
+						fs.unlinkSync(lockPath);
 					}
-					return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
-						status: 400,
-						headers: { 'content-type': 'application/json' }
-					});
+				} catch {
+					/* ignore */
 				}
+				return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
+					status: 400,
+					headers: { 'content-type': 'application/json' }
+				});
 			}
-		} catch {
-			/* ignore verification errors */
 		}
 
 		try {
-			if (chunkIndex === 0) {
-				fs.writeFileSync(tempFilePath, Buffer.from(buffer));
-			} else {
-				fs.appendFileSync(tempFilePath, Buffer.from(buffer));
+			if (fs.existsSync(lockPath)) {
+				fs.unlinkSync(lockPath);
 			}
-		} finally {
-			try {
-				if (fs.existsSync(lockPath)) {
-					fs.unlinkSync(lockPath);
-				}
-			} catch {
-				/* ignore */
-			}
+		} catch {
+			/* ignore */
 		}
 
 		if (chunkIndex < totalChunks - 1) {
@@ -288,7 +314,10 @@ async function handleChunkedUpload(
 		}
 		originalName = originalName.replace(/"/g, '');
 
-		// compute checksum (sha256)
+		// compute checksum (sha256) of the complete file
+		// Refactor to use stream not to buffer anything?
+		// But we need the hash for x-proxy-sha256 header BEFORE starting the upload request?
+		// Immich ignores the header if we don't send it, but let's compute it efficiently.
 		const hash = crypto.createHash('sha256');
 		await new Promise<void>((resolve, reject) => {
 			const rs = fs.createReadStream(tempFilePath);
@@ -308,7 +337,6 @@ async function handleChunkedUpload(
 		}
 
 		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
-		// Use Node `form-data` package instance. Type checks disabled because typings conflict with DOM FormData
 		const formData: any = new NodeFormData();
 		const stats = fs.statSync(completePath);
 
@@ -334,7 +362,6 @@ async function handleChunkedUpload(
 			formData.append('isFavorite', isFavorite);
 		}
 
-		// On ajoute le fichier en dernier, c'est souvent mieux pour les parseurs multipart
 		formData.append('assetData', fs.createReadStream(completePath), {
 			filename: originalName,
 			knownLength: stats.size
@@ -343,7 +370,6 @@ async function handleChunkedUpload(
 		const immichUrl = `${baseUrl}/api/assets`;
 		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 
-		// Nettoyage des headers pour laisser form-data gérer le multipart
 		delete fetchHeaders['transfer-encoding'];
 		delete fetchHeaders['content-length'];
 		delete fetchHeaders['content-type'];
@@ -353,7 +379,8 @@ async function handleChunkedUpload(
 
 		console.debug(`[Immich-Proxy] Uploading to Immich: ${originalName} (${stats.size} bytes)`);
 
-		// Use formData.submit for more reliable multipart upload
+		// Use formData.submit but Wrap in a Promise that returns a Readable Stream for the response
+		// avoiding buffering the response body.
 		const response = await new Promise<Response>((resolve, reject) => {
 			const url = new URL(immichUrl);
 			const isHttps = url.protocol === 'https:';
@@ -373,27 +400,31 @@ async function handleChunkedUpload(
 						return;
 					}
 
-					const chunks: Buffer[] = [];
-					res.on('data', (chunk: Buffer) => chunks.push(chunk));
-					res.on('end', () => {
-						const body = Buffer.concat(chunks);
-						const headers = new Headers();
-						for (const [key, value] of Object.entries(res.headers)) {
-							if (value) {
-								if (Array.isArray(value)) {
-									value.forEach((v) => headers.append(key, v));
-								} else {
-									headers.set(key, value);
-								}
+					// Convert Node IncomingMessage to Web ReadableStream
+					const bodyStream = new ReadableStream({
+						start(controller) {
+							res.on('data', (chunk) => controller.enqueue(chunk));
+							res.on('end', () => controller.close());
+							res.on('error', (err) => controller.error(err));
+						}
+					});
+
+					const headers = new Headers();
+					for (const [key, value] of Object.entries(res.headers)) {
+						if (value) {
+							if (Array.isArray(value)) {
+								value.forEach((v) => headers.append(key, v));
+							} else {
+								headers.set(key, value);
 							}
 						}
-						resolve(
-							new Response(body, {
-								status: res.statusCode,
-								headers
-							})
-						);
-					});
+					}
+					resolve(
+						new Response(bodyStream, {
+							status: res.statusCode,
+							headers
+						})
+					);
 				}
 			);
 
@@ -406,50 +437,108 @@ async function handleChunkedUpload(
 		});
 		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 
+		// Clean up immediately if successful (but wait for stream to finish?)
+		// Actually, we can't delete the file until the upload stream is done.
+		// formData.submit starts the request. The 'res' callback fires when headers are received.
+		// The request body (our file) might still be sending?
+		// NodeFormData calls back when response starts.
+		// We should probably rely on a timeout or separate cleanup process, OR
+		// Since we wait for response, usually upload is done.
+
 		if (response.ok) {
 			console.debug(`[Immich-Proxy] Upload réussi pour ${originalName}`);
+
+			// We need to clone headers/status but stream body
+			// The logging logic at lines 405 reads the body to get AssetID.
+			// Currently it does: respClone.json().
+			// If we stream the response to the client, we cannot read it here unless we tee() it.
 			try {
-				const respClone = response.clone();
-				const respData = (await respClone.json()) as ImmichAssetResponse;
-				const assetId = respData.id;
-				if (assetId) {
-					await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+				const [logBranch, clientBranch] = response.body ? response.body.tee() : [null, null];
+
+				// Process log branch
+				if (logBranch) {
+					// We don't await this to keep response fast, but safe to do so
+					(async () => {
+						try {
+							const reader = logBranch.getReader();
+							const chunks: Uint8Array[] = [];
+							while(true) {
+								const {done, value} = await reader.read();
+								if (done) {
+									break;
+								}
+								if (value) {
+									chunks.push(value);
+								}
+							}
+							const text = new TextDecoder().decode(Buffer.concat(chunks));
+							const respData = JSON.parse(text) as ImmichAssetResponse;
+							const assetId = respData.id;
+							if (assetId) {
+								await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+							}
+
+							// Cleanup after successful upload and logging
+							try {
+								if (fs.existsSync(completePath)) {
+									fs.unlinkSync(completePath);
+								}
+								if (fs.existsSync(tempFilePath)) {
+									fs.unlinkSync(tempFilePath);
+								}
+							} catch {
+								/* ignore */
+							}
+						} catch (e) {
+							console.warn('Failed to log upload:', e);
+						}
+					})();
 				}
+
+				const forwardedHeaders = new Headers();
+				const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
+				for (const h of safeRespForward) {
+					const v = response.headers.get(h);
+					if (v !== null && v !== undefined) {
+						forwardedHeaders.set(h, v);
+					}
+				}
+
+				return new Response(clientBranch, {
+					status: response.status,
+					headers: forwardedHeaders
+				});
+
 			} catch (e) {
-				console.warn('Failed to log upload:', e);
+				console.warn('Error teeing response', e);
+				// Fallback
+				return response;
 			}
 		} else {
-			const errorBody = await response.clone().text();
+			// Error case - we can read body
+			const errorBody = await response.text();
 			console.error(
 				`[Immich-Proxy] Upload échoué pour ${originalName}: ${response.status} ${response.statusText}`,
 				errorBody
 			);
-		}
 
-		try {
-			if (fs.existsSync(completePath)) {
-				fs.unlinkSync(completePath);
+			// Cleanup
+			try {
+				if (fs.existsSync(completePath)) {
+					fs.unlinkSync(completePath);
+				}
+				if (fs.existsSync(tempFilePath)) {
+					fs.unlinkSync(tempFilePath);
+				}
+			} catch {
+				/* ignore */
 			}
-			if (fs.existsSync(tempFilePath)) {
-				fs.unlinkSync(tempFilePath);
-			}
-		} catch (e) {
-			console.warn('Failed to cleanup temp file', e);
-		}
 
-		// Forward response body but copy only safe headers (avoid forwarding content-length)
-		const forwardedHeaders = new Headers();
-		const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
-		for (const h of safeRespForward) {
-			const v = response.headers.get(h);
-			if (v !== null && v !== undefined) {
-				forwardedHeaders.set(h, v);
-			}
+			return new Response(errorBody, {
+				status: response.status,
+				headers: response.headers
+			});
 		}
-		return new Response(response.body, {
-			status: response.status,
-			headers: forwardedHeaders
-		});
 	} catch (err: unknown) {
 		const _err = ensureError(err);
 		console.error('[Immich-Proxy] Error processing chunk:', _err);
@@ -685,6 +774,7 @@ const handle: RequestHandler = async function (event) {
 		const resContentType = res.headers.get('content-type') || 'application/json';
 
 		const isBinary =
+			pathParam.includes('download') ||
 			resContentType.startsWith('image/') ||
 			resContentType.startsWith('video/') ||
 			resContentType.startsWith('application/octet-stream') ||
