@@ -11,7 +11,7 @@
 
 	let { show = $bindable(), onComplete }: Props = $props();
 
-let typedYear = $state<number | null>(null);
+	let typedYear = $state<number | null>(null);
         let isStaff = $state<boolean>(false);
         let loading = $state(false);
 
@@ -25,7 +25,8 @@ let typedYear = $state<number | null>(null);
                                 toast.error('Veuillez renseigner votre année de promotion');
                                 return;
                         }
-                        if (typedYear < 1816 || typedYear > new Date().getFullYear() + 10) {
+						const currentYear = new Date().getFullYear();
+						if (typedYear < 1816 || typedYear > currentYear) {
                                 toast.error('Veuillez entrer une année de promotion valide');
                                 return;
                         }
@@ -76,6 +77,8 @@ let typedYear = $state<number | null>(null);
 				type="number"
 				id="promoYear"
 				bind:value={typedYear}
+				min="1816"
+				max={new Date().getFullYear()}
 				placeholder="Ex: 2024"
 				disabled={loading || isStaff}
 				class:disabled={isStaff}

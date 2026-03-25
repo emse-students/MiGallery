@@ -44,10 +44,14 @@ export const PATCH: RequestHandler = async (event) => {
 
 		const body = (await request.json()) as { promo_year?: number | null };
 		const promoYear = body.promo_year;
+		const currentYear = new Date().getFullYear();
 
 		// On accepte null (personnel) ou un nombre (étudiant)
 		if (promoYear !== null && typeof promoYear !== 'number') {
 			return json({ error: 'promo_year must be a number or null' }, { status: 400 });
+		}
+		if (typeof promoYear === 'number' && (promoYear < 1816 || promoYear > currentYear)) {
+			return json({ error: `promo_year must be between 1816 and ${currentYear}` }, { status: 400 });
 		}
 
 		const stmt = db.prepare('UPDATE users SET promo_year = ?, first_login = 0 WHERE id_user = ?');
