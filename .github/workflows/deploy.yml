@@ -1,18 +1,19 @@
-name: Deploy to production
+name: Deploy to Production
 
 on:
  workflow_run:
-  workflows: ['CI (Bun)']
-  types:
-   - completed
-  branches:
-   - main
+  workflows: ['CI']
+  types: [completed]
+  branches: [main]
 
 jobs:
  deploy:
-  name: Deploy to production
+  name: Deploy to Production
   runs-on: self-hosted
-  if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+  if: |
+   github.event.workflow_run.conclusion == 'success' &&
+   github.event.workflow_run.event == 'push' &&
+   github.repository == 'emse-students/MiGallery'
   steps:
    - name: Checkout
      uses: actions/checkout@v6
@@ -22,61 +23,58 @@ jobs:
      with:
       bun-version: latest
 
-   - name: Setup dependencies
+   - name: Install dependencies
      run: bun install
-
-   - name: Type check and generate SvelteKit config
-     run: bun run check && bunx svelte-kit sync
-
-   - name: Lint code
-     env:
-      NODE_OPTIONS: '--max-old-space-size=16384'
-     run: bun run lint
 
    - name: Build project
      run: bun run build
 
-   - name: Paste files to server
+   - name: Sync SvelteKit
+     run: bunx svelte-kit sync
+
+   - name: Update server files
      run: |
       cd ~/MiGallery
-      # Supprimer tout SAUF .env, data et .svelte-kit
-      # On préserve 'data' car il contient la DB et les fichiers permanents
-      find . -mindepth 1 -maxdepth 1 -not -name '.env' -not -name 'data' -not -name '.svelte-kit' -exec rm -rf {} +
+      echo "📦 Mise à jour des fichiers du serveur..."
+      find . -mindepth 1 -maxdepth 1 \
+        -not -name '.env' \
+        -not -name 'data' \
+        -not -name '.svelte-kit' \
+        -not -name 'node_modules' \
+        -not -name '.git' \
+        -exec rm -rf {} +
 
-      # Copier les nouveaux fichiers depuis le runner
-      cp -r ~/actions-runner/_work/MiGallery/MiGallery/* .
+      cp -r $GITHUB_WORKSPACE/* .
+      cp -r $GITHUB_WORKSPACE/.github .
 
-   - name: Cleanup temporary data
+   - name: Cleanup temporary files
      run: |
       cd ~/MiGallery
       echo "🧹 Nettoyage des fichiers temporaires..."
-      # Supprimer les anciens chunks d'upload (> 24h)
+
       if [ -d "data/chunk-uploads" ]; then
         find data/chunk-uploads -type f -mtime +1 -delete
       fi
-      # Vider le cache Immich s'il est trop volumineux (optionnel, ici on le garde mais on pourrait le purger)
-      # find data/cache -type f -mtime +7 -delete
 
-      # Supprimer les backups de migration SQLite temporaires (> 7 jours)
       find data -name "migallery.db.before-*" -type f -mtime +7 -delete
 
    - name: Initialize database if needed
      run: |
       cd ~/MiGallery
       if [ ! -f "data/migallery.db" ]; then
-        echo "Base de données non trouvée, initialisation..."
+        echo "📝 Database not found, initializing..."
         bun run db:init
       else
-        echo "Base de données existante trouvée, pas d'initialisation"
+        echo "✓ Using existing database"
       fi
 
-      # Toujours exécuter les migrations pour mettre à jour le schéma si nécessaire
-      echo "Exécution des migrations..."
+      echo "🔄 Running migrations..."
       bun run db:migrate
 
-   - name: Restart server
+   - name: Restart application
      run: |
       cd ~/MiGallery
+      echo "🔌 Restarting application..."
       pm2 delete migallery || true
       pm2 start /home/mitv/.bun/bin/bun \
         --name migallery \
@@ -84,15 +82,13 @@ jobs:
         -- run /home/mitv/MiGallery/build/index.js
       pm2 save
 
-   - name: Wait for server to be ready
+   - name: Wait for server
      run: |
       cd ~/MiGallery
-      echo "Attente du démarrage du serveur..."
+      echo "⏳ Waiting for server to start..."
       node scripts/wait-for-server.mjs http://localhost:3000 30000
 
    - name: Health check
      run: |
-      cd ~/MiGallery
-      echo "🏥 Vérification de santé du serveur..."
-      curl -sf http://localhost:3000/api/health || echo "⚠️ Health check échoué"
-      echo "✅ Déploiement terminé"
+      echo "🏥 Running health check..."
+      curl -sf http://localhost:3000/api/health && echo "✅ Deployment successful" || echo "⚠️ Health check failed"

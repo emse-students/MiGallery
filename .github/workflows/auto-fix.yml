@@ -1,19 +1,22 @@
-name: Auto Fix Lint & Format
+name: Auto Fix Code
 
 on:
  push:
   branches: [main]
 
 jobs:
- fix-lint:
-  # Only run on the main repo, not on forks
+ fix:
+  # Only run on main repo, not forks
   if: github.repository == 'emse-students/MiGallery'
+  name: Fix Lint & Format
   runs-on: ubuntu-latest
   permissions:
    contents: write
   steps:
    - name: Checkout
-     uses: actions/checkout@v4
+     uses: actions/checkout@v6
+     with:
+      ref: main
 
    - name: Setup Bun
      uses: oven-sh/setup-bun@v2
@@ -23,15 +26,15 @@ jobs:
    - name: Install dependencies
      run: bun install
 
-   - name: Fix Lint Issues
+   - name: Fix lint issues
      run: bun run lint:fix
      continue-on-error: true
 
-   - name: Format Code
+   - name: Format code
      run: bun run format
      continue-on-error: true
 
-   - name: Commit changes
+   - name: Commit changes if any
      uses: stefanzweifel/git-auto-commit-action@v5
      with:
       commit_message: 'style: auto-fix linting and formatting issues'
