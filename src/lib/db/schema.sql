@@ -2,7 +2,6 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id_user TEXT PRIMARY KEY,
-    alumni_id TEXT, -- ID OIDC Alumni
     email TEXT NOT NULL,
     prenom TEXT NOT NULL,
     nom TEXT NOT NULL,

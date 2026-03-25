@@ -45,16 +45,7 @@ try {
 		.prepare(
 			'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 		)
-		.run(
-			'les.roots',
-			'les.roots@etu.emse.fr',
-			'System',
-			'Admin',
-			null,
-			0,
-			'admin',
-			null
-		);
+		.run('les.roots', 'les.roots@etu.emse.fr', 'System', 'Admin', null, 0, 'admin', null);
 	console.log('✅ Utilisateur système admin créé: les.roots');
 
 	const base = process.env.IMMICH_BASE_URL;

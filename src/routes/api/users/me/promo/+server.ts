@@ -42,11 +42,12 @@ export const PATCH: RequestHandler = async (event) => {
 			return json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
-		const body = (await request.json()) as { promo_year?: number };
+		const body = (await request.json()) as { promo_year?: number | null };
 		const promoYear = body.promo_year;
 
-		if (!promoYear || typeof promoYear !== 'number') {
-			return json({ error: 'promo_year is required and must be a number' }, { status: 400 });
+		// On accepte null (personnel) ou un nombre (étudiant)
+		if (promoYear !== null && typeof promoYear !== 'number') {
+			return json({ error: 'promo_year must be a number or null' }, { status: 400 });
 		}
 
 		const stmt = db.prepare('UPDATE users SET promo_year = ?, first_login = 0 WHERE id_user = ?');

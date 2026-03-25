@@ -34,7 +34,6 @@ const backupFileName = `migallery_backup_${timestamp}.db`;
 const backupPath = path.join(BACKUP_DIR, backupFileName);
 
 try {
-
 	fs.copyFileSync(DB_PATH, backupPath);
 	console.log('✅ Sauvegarde créée:', backupFileName);
 

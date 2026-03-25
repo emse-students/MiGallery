@@ -11,24 +11,27 @@
 
 	let { show = $bindable(), onComplete }: Props = $props();
 
-	let selectedYear = $state(new Date().getFullYear());
+	let typedYear = $state<string>('');
+	let isStaff = $state<boolean>(false);
 	let loading = $state(false);
-	let years = $state<number[]>([]);
-
-	onMount(() => {
-		const currentYear = new Date().getFullYear();
-		const yearList: number[] = [];
-		for (let year = currentYear; year >= 1816; year--) {
-			yearList.push(year);
-		}
-		years = yearList;
-		selectedYear = currentYear;
-	});
 
 	async function handleSubmit() {
-		if (!selectedYear) {
-			toast.error('Veuillez sélectionner une année de promotion');
-			return;
+		let finalYear: number | null = null;
+
+		if (isStaff) {
+			finalYear = null;
+		} else {
+			const yearStr = typedYear.trim();
+			if (!yearStr) {
+				toast.error('Veuillez renseigner votre année de promotion');
+				return;
+			}
+			const parsed = parseInt(yearStr, 10);
+			if (isNaN(parsed) || parsed < 1816 || parsed > new Date().getFullYear() + 10) {
+				toast.error('Veuillez entrer une année de promotion valide');
+				return;
+			}
+			finalYear = parsed;
 		}
 
 		loading = true;
@@ -36,7 +39,7 @@
 			const res = await fetch('/api/users/me/promo', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ promo_year: selectedYear })
+				body: JSON.stringify({ promo_year: finalYear })
 			});
 
 			if (!res.ok) {
@@ -59,23 +62,33 @@
 	bind:show
 	title="Bienvenue sur MiGallery"
 	confirmText="Valider"
-	confirmDisabled={loading}
+	confirmDisabled={loading || (!isStaff && !typedYear.trim())}
 	showCloseButton={false}
 	onConfirm={handleSubmit}
 	onCancel={() => {}}
 >
 	<div class="first-login-content">
 		<p class="welcome-text">
-			Pour finaliser votre inscription, veuillez sélectionner votre année de promotion :
+			Pour finaliser votre inscription, veuillez renseigner votre année de promotion :
 		</p>
 
 		<div class="year-selector">
 			<label for="promoYear">Année de promotion</label>
-			<select id="promoYear" bind:value={selectedYear} disabled={loading}>
-				{#each years as year}
-					<option value={year}>{year}</option>
-				{/each}
-			</select>
+			<input
+				type="number"
+				id="promoYear"
+				bind:value={typedYear}
+				placeholder="Ex: 2024"
+				disabled={loading || isStaff}
+				class:disabled={isStaff}
+			/>
+		</div>
+
+		<div class="staff-selector">
+			<label class="checkbox-label">
+				<input type="checkbox" bind:checked={isStaff} disabled={loading} />
+				Je suis un membre du personnel de l'École des Mines
+			</label>
 		</div>
 
 		<p class="info-text">
@@ -112,44 +125,51 @@
 		color: var(--text-primary);
 	}
 
-	.year-selector select {
+	.year-selector input {
 		padding: 0.75rem;
 		font-size: 1.125rem;
-		font-weight: 500;
 		text-align: center;
 		background: var(--bg-tertiary);
-		border: 2px solid var(--border);
-		border-radius: 8px;
+		border: 1px solid var(--border-color);
+		border-radius: 0.5rem;
 		color: var(--text-primary);
-		cursor: pointer;
-		transition: all 0.2s ease;
 	}
 
-	.year-selector select:hover:not(:disabled) {
-		border-color: var(--accent);
-	}
-
-	.year-selector select:focus {
-		outline: none;
-		border-color: var(--accent);
-		background: var(--bg-quaternary);
-	}
-
-	.year-selector select:disabled {
+	.year-selector input.disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
 	}
 
+	.staff-selector {
+		display: flex;
+		align-items: center;
+		margin-top: -0.5rem;
+	}
+
+	.checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.checkbox-label input[type="checkbox"] {
+		width: 1rem;
+		height: 1rem;
+		cursor: pointer;
+	}
+
 	.info-text {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		gap: 0.5rem;
-		font-size: 0.8125rem;
+		font-size: 0.875rem;
 		color: var(--text-secondary);
 		margin: 0;
+		background: var(--bg-tertiary);
 		padding: 0.75rem;
-		background: var(--bg-secondary);
-		border-radius: 6px;
-		line-height: 1.5;
+		border-radius: 0.5rem;
 	}
 </style>

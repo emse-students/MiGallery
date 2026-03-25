@@ -11,7 +11,7 @@ export const GET: RequestHandler = async (event) => {
 	const db = getDatabase();
 	const rows = db
 		.prepare(
-			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year, alumni_id FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
+			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
 		)
 		.all('les.roots@etu.emse.fr') as UserRow[];
 	return json({ success: true, users: rows });
@@ -29,18 +29,8 @@ export const POST: RequestHandler = async (event) => {
 			role?: string;
 			promo_year?: number | null;
 			id_photos?: string | null;
-			alumni_id?: string | null;
 		};
-		const {
-			id_user,
-			email,
-			prenom,
-			nom,
-			role = 'user',
-			promo_year = null,
-			id_photos = null,
-			alumni_id = null
-		} = body;
+		const { id_user, email, prenom, nom, role = 'user', promo_year = null, id_photos = null } = body;
 		if (!id_user || !email) {
 			return json({ error: 'id_user and email required' }, { status: 400 });
 		}
@@ -55,7 +45,7 @@ export const POST: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 		const insert = db.prepare(
-			'INSERT INTO users (id_user, email, prenom, nom, role, promo_year, id_photos, first_login, alumni_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+			'INSERT INTO users (id_user, email, prenom, nom, role, promo_year, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 		);
 		const info = insert.run(
 			id_user,
@@ -65,12 +55,11 @@ export const POST: RequestHandler = async (event) => {
 			role,
 			promo_year,
 			id_photos,
-			id_photos ? 0 : 1,
-			alumni_id
+			id_photos ? 0 : 1
 		);
 		const created = db
 			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year, alumni_id FROM users WHERE id_user = ?'
+				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
 			)
 			.get(id_user) as UserRow | undefined;
 

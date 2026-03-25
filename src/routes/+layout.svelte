@@ -22,7 +22,6 @@
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
 	let isFirstLogin = $derived(u?.first_login === 1);
-	let alumniEnabled = $derived(page.data?.alumniEnabled ?? false);
 
 	let { children } = $props();
 
@@ -205,31 +204,12 @@
 >
 	{#snippet children()}
 		<div class="login-modal-content">
-			<p>Veuillez choisir votre méthode de connexion :</p>
-
 			<div class="login-choices">
+				<!-- Bientôt remplacé par une authentification Authentik tierce -->
 				<button onclick={() => performSignIn('cas-emse')} class="btn btn-primary login-btn">
 					<LogIn size={20} />
-					<span>Connexion CAS (Étudiants/Staff)</span>
+					<span>Connexion CAS</span>
 				</button>
-
-				{#if alumniEnabled}
-					<div class="separator">
-						<span>OU</span>
-					</div>
-
-					<button onclick={() => performSignIn('mines-alumni')} class="btn btn-secondary login-btn">
-						<LogIn size={20} />
-						<span>Connexion Alumni</span>
-					</button>
-				{/if}
-			</div>
-
-			<div class="login-info">
-				<small>
-					Vous possédez un compte étudiant et un compte Alumni ?<br>
-					Connectez-vous avec {#if alumniEnabled}l'un ou l'autre{:else}le CAS{/if}, la liaison se fera automatiquement si vos informations (Nom/Prénom/Promo) correspondent.
-				</small>
 			</div>
 		</div>
 	{/snippet}
@@ -258,46 +238,5 @@
 		font-size: 1rem;
 		font-weight: 500;
 		width: 100%;
-	}
-
-	.separator {
-		display: flex;
-		align-items: center;
-		text-align: center;
-		color: #888;
-		font-size: 0.8rem;
-		margin: 0.25rem 0;
-	}
-
-	.separator::before,
-	.separator::after {
-		content: '';
-		flex: 1;
-		border-bottom: 1px solid #ddd;
-	}
-
-	.separator:not(:empty)::before {
-		margin-right: .5em;
-	}
-
-	.separator:not(:empty)::after {
-		margin-left: .5em;
-	}
-
-	/* Dark mode support for separator */
-	:global(.dark) .separator::before,
-	:global(.dark) .separator::after {
-		border-color: #444;
-	}
-
-	.login-info {
-		margin-top: 0.5rem;
-		padding: 0.75rem;
-		background-color: rgba(255, 255, 255, 0.05); /* very light background */
-		border-radius: 0.5rem;
-		color: #888;
-		text-align: center;
-		font-size: 0.85rem;
-		line-height: 1.4;
 	}
 </style>

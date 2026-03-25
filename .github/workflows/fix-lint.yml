@@ -1,0 +1,40 @@
+name: Auto Fix Lint & Format
+
+on:
+ push:
+  branches: [main]
+ pull_request:
+  branches: [main]
+
+jobs:
+ fix-lint:
+  runs-on: ubuntu-latest
+  permissions:
+   contents: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      ref: ${{ github.head_ref }}
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Fix Lint Issues
+     run: bun run lint:fix
+     continue-on-error: true
+
+   - name: Format Code
+     run: bun run format
+     continue-on-error: true
+
+   - name: Commit changes
+     uses: stefanzweifel/git-auto-commit-action@v5
+     with:
+      commit_message: 'style: auto-fix linting and formatting issues'
+      file_pattern: .

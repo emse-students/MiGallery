@@ -1,5 +1,4 @@
 import { getDatabase } from '$lib/db/database';
-import { env } from '$env/dynamic/private';
 import type { UserRow, SessionUser } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import { signId, verifySigned } from '$lib/auth/cookies';
@@ -19,7 +18,6 @@ export const load: LayoutServerLoad = async (event) => {
 		const db = getDatabase();
 
 		const cookieSigned = cookies.get('current_user_id');
-		const alumniEnabled = !!(env.ALUMNI_ISSUER && env.ALUMNI_CLIENT_ID && env.ALUMNI_CLIENT_SECRET);
 
 		if (cookieSigned) {
 			const verified = verifySigned(cookieSigned);
@@ -28,18 +26,18 @@ export const load: LayoutServerLoad = async (event) => {
 					| UserRow
 					| undefined;
 				if (userInfo) {
-					return { session: { user: userInfo }, alumniEnabled };
+					return { session: { user: userInfo } };
 				}
 			}
 		}
 
 		if (!locals || typeof locals.auth !== 'function') {
-			return { session: null, alumniEnabled };
+			return { session: null };
 		}
 
 		const session = await locals.auth();
 		if (!session || !session.user) {
-			return { session: null, alumniEnabled };
+			return { session: null };
 		}
 
 		const providerUser: SessionUser = {
@@ -131,12 +129,11 @@ export const load: LayoutServerLoad = async (event) => {
 		return {
 			session: {
 				user: userInfo
-			},
-			alumniEnabled
+			}
 		};
 	} catch (e: unknown) {
 		const _err = ensureError(e);
 		console.warn('Error while loading session from provider:', e);
-		return { session: null, alumniEnabled: false };
+		return { session: null };
 	}
 };

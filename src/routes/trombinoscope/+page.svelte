@@ -50,8 +50,7 @@
 		nom: '',
 		role: 'user',
 		promo_year: null as number | null,
-		id_photos: null as string | null,
-		alumni_id: null as string | null
+		id_photos: null as string | null
 	});
 	let selectedUser = $state<User | null>(null);
 
@@ -222,8 +221,7 @@
 			nom: '',
 			role: 'user',
 			promo_year: null,
-			id_photos: null,
-			alumni_id: null
+			id_photos: null
 		};
 		uploadPhotoFile = null;
 		showEditUserModal = true;
@@ -239,8 +237,7 @@
 			nom: user.nom || '',
 			role: user.role || 'user',
 			promo_year: user.promo_year || null,
-			id_photos: user.id_photos || null,
-			alumni_id: user.alumni_id || null
+			id_photos: user.id_photos || null
 		};
 		uploadPhotoFile = null;
 		selectedUser = user;
@@ -591,15 +588,6 @@
 									<option value="admin">Admin</option>
 								</select>
 								<div class="select-icon"><ChevronDown size={14} /></div>
-						<div class="input-group">
-							<label for="alumni_id">ID Alumni</label>
-							<input
-								id="alumni_id"
-								class="input-glass"
-								bind:value={editUserData.alumni_id}
-								placeholder="xxxxx-xxxxx-xxxxx"
-							/>
-						</div>
 							</div>
 						</div>
 					</div>
