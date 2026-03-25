@@ -1,0 +1,102 @@
+name: CI
+
+on:
+ push:
+  branches: [main]
+ pull_request:
+  branches: [main]
+
+jobs:
+ validate:
+  name: Lint, Test, Build
+  runs-on: ubuntu-latest
+  strategy:
+   matrix:
+    runtime: [bun, npm]
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v6
+
+   - name: Setup Bun
+     if: matrix.runtime == 'bun'
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Setup Node.js
+     if: matrix.runtime == 'npm'
+     uses: actions/setup-node@v6
+     with:
+      node-version: '24.x'
+
+   - name: Install dependencies
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun install
+      else
+        npm ci
+      fi
+
+   - name: Type check
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run check
+      else
+        npm run check
+      fi
+
+   - name: Lint code
+     env:
+      NODE_OPTIONS: '--max-old-space-size=16384'
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run lint
+      else
+        npm run lint
+      fi
+
+   - name: Build
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run build
+      else
+        npm run build
+      fi
+
+   - name: Setup test database
+     run: |
+      mkdir -p data
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run db:init || echo "Database already exists or init failed"
+      else
+        npm run db:init || echo "Database already exists or init failed"
+      fi
+
+   - name: Create .env file for tests
+     run: |
+      cat > .env << EOF
+      ENABLE_DEV_ROUTES=true
+      COOKIE_SECRET=ci-test-secret-not-for-production-use
+      DATABASE_PATH=./data/migallery.db
+      IMMICH_BASE_URL=
+      IMMICH_API_KEY=
+      AUTH_TRUSTED_HOST=true
+      EOF
+
+   - name: Run tests
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run test
+      else
+        npm run test
+      fi
+     env:
+      API_BASE_URL: http://localhost:3000
+
+   - name: Upload build artifact
+     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.runtime == 'bun'
+     uses: actions/upload-artifact@v7
+     with:
+      name: build-artifact
+      path: build/
+      retention-days: 1
