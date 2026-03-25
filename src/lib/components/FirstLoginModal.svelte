@@ -11,27 +11,25 @@
 
 	let { show = $bindable(), onComplete }: Props = $props();
 
-	let typedYear = $state<string>('');
-	let isStaff = $state<boolean>(false);
-	let loading = $state(false);
+let typedYear = $state<number | null>(null);
+        let isStaff = $state<boolean>(false);
+        let loading = $state(false);
 
-	async function handleSubmit() {
-		let finalYear: number | null = null;
+        async function handleSubmit() {
+                let finalYear: number | null = null;
 
-		if (isStaff) {
-			finalYear = null;
-		} else {
-			const yearStr = typedYear.trim();
-			if (!yearStr) {
-				toast.error('Veuillez renseigner votre année de promotion');
-				return;
-			}
-			const parsed = parseInt(yearStr, 10);
-			if (isNaN(parsed) || parsed < 1816 || parsed > new Date().getFullYear() + 10) {
-				toast.error('Veuillez entrer une année de promotion valide');
-				return;
-			}
-			finalYear = parsed;
+                if (isStaff) {
+                        finalYear = null;
+                } else {
+                        if (!typedYear) {
+                                toast.error('Veuillez renseigner votre année de promotion');
+                                return;
+                        }
+                        if (typedYear < 1816 || typedYear > new Date().getFullYear() + 10) {
+                                toast.error('Veuillez entrer une année de promotion valide');
+                                return;
+                        }
+                        finalYear = typedYear;
 		}
 
 		loading = true;
@@ -62,7 +60,7 @@
 	bind:show
 	title="Bienvenue sur MiGallery"
 	confirmText="Valider"
-	confirmDisabled={loading || (!isStaff && !typedYear.trim())}
+	confirmDisabled={loading || (!isStaff && !typedYear)}
 	showCloseButton={false}
 	onConfirm={handleSubmit}
 	onCancel={() => {}}
