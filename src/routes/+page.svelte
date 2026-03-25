@@ -44,9 +44,6 @@
 					<button onclick={() => handleSignIn('cas-emse')} class="btn btn-primary">
 						<LogIn size={20} /> Connexion CAS
 					</button>
-					<button onclick={() => handleSignIn('mines-alumni')} class="btn btn-secondary" style="margin-top: 0.5rem;">
-						<LogIn size={20} /> Connexion Alumni
-					</button>
 				</div>
 			{:else if !hasIdPhotos}
 				<div class="card glass-card warning">

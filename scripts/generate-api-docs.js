@@ -1,5 +1,3 @@
-
-
 const API_KEY = 'mAvmLgRgT7J1pJCCNNi4szLalbaMdNq28aprqvn129I';
 const BASE_URL = 'http://localhost:5173';
 

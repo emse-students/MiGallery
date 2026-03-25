@@ -19,7 +19,6 @@ export interface User {
 	role?: 'admin' | 'mitviste' | 'user';
 	promo_year?: number | null;
 	first_login?: number;
-	alumni_id?: string | null;
 }
 
 /**
@@ -35,7 +34,6 @@ export interface UserRow {
 	role: string | null;
 	promo_year: number | null;
 	first_login: number;
-	alumni_id: string | null;
 }
 
 /**
