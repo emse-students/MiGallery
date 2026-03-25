@@ -94,7 +94,7 @@
 		"tailwindcss": "^4.1.17",
 		"tar": "^7.5.12",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.1"
+		"vite": "^8.0.2"
 	},
 	"dependencies": {
 		"@auth/core": "^0.41.1",
