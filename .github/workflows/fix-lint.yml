@@ -3,19 +3,17 @@ name: Auto Fix Lint & Format
 on:
  push:
   branches: [main]
- pull_request:
-  branches: [main]
 
 jobs:
  fix-lint:
+  # Only run on the main repo, not on forks
+  if: github.repository == 'emse-students/MiGallery'
   runs-on: ubuntu-latest
   permissions:
    contents: write
   steps:
    - name: Checkout
      uses: actions/checkout@v4
-     with:
-      ref: ${{ github.head_ref }}
 
    - name: Setup Bun
      uses: oven-sh/setup-bun@v2
@@ -38,3 +36,4 @@ jobs:
      with:
       commit_message: 'style: auto-fix linting and formatting issues'
       file_pattern: .
+      push_options: '--force-with-lease'
