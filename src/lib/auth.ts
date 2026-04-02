@@ -94,7 +94,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
 	try {
 		console.log('[AUTH] Exchanging code for tokens...');
 
-		const tokenUrl = `${getIssuerBaseUrl()}/token`;
+		const tokenUrl = `${getIssuerBaseUrl()}/token/`;
 		const response = await fetch(tokenUrl, {
 			method: 'POST',
 			headers: {
@@ -139,7 +139,7 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
 	try {
 		console.log('[AUTH] Fetching user profile from userinfo endpoint...');
 
-		const userinfoUrl = `${getIssuerBaseUrl()}/userinfo`;
+		const userinfoUrl = `${getIssuerBaseUrl()}/userinfo/`;
 		const response = await fetch(userinfoUrl, {
 			headers: {
 				Authorization: `Bearer ${accessToken}`
@@ -366,7 +366,7 @@ export function generateAuthorizationUrl(
 		prompt: 'login'
 	});
 
-	const authUrl = `${getIssuerBaseUrl()}/authorize?${params.toString()}`;
+	const authUrl = `${getIssuerBaseUrl()}/authorize/?${params.toString()}`;
 	console.log('[AUTH] Generated authorization URL:', authUrl);
 	return authUrl;
 }
