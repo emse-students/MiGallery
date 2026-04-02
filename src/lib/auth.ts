@@ -25,7 +25,8 @@ interface OIDCProfile {
 }
 
 function getIssuerBaseUrl(): string {
-	return (env.MICONNECT_ISSUER || '').replace(/\/+$/, '');
+	const raw = (env.MICONNECT_ISSUER || '').trim();
+	return raw.replace(/\/+$/, '');
 }
 
 /**
