@@ -25,7 +25,7 @@ export const TEST_CONFIG = {
 
 	// Utilisateurs de test
 	TEST_USERS: {
-		SYSTEM: 'les.roots',
+		SYSTEM: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
 		PREFIX: 'test.user.'
 	}
 };
@@ -199,14 +199,20 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 		const db = new Database(DB_PATH, isBun ? undefined : { readonly: true });
 
 		try {
-			const user = db.prepare('SELECT id_user, role FROM users WHERE id_user = ?').get('les.roots');
+			const user = db
+				.prepare('SELECT id_user, role FROM users WHERE id_user = ?')
+				.get('dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782');
 			db.close();
 
 			if (user) {
-				console.debug(`✅ Utilisateur système les.roots existe (rôle: ${user.role})`);
+				console.debug(
+					`✅ Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 existe (rôle: ${user.role})`
+				);
 				return true;
 			} else {
-				console.warn('⚠️  Utilisateur système les.roots introuvable');
+				console.warn(
+					'⚠️  Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 introuvable'
+				);
 				return false;
 			}
 		} catch (dbError) {
@@ -261,10 +267,14 @@ async function ensureSystemUserExists(): Promise<boolean> {
 
 		try {
 			// Vérifier si l'utilisateur existe
-			const existingUser = db.prepare('SELECT id_user FROM users WHERE id_user = ?').get('les.roots');
+			const existingUser = db
+				.prepare('SELECT id_user FROM users WHERE id_user = ?')
+				.get('dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782');
 
 			if (existingUser) {
-				console.debug('✅ Utilisateur système les.roots existe déjà');
+				console.debug(
+					'✅ Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 existe déjà'
+				);
 				db.close();
 				return true;
 			}
@@ -274,9 +284,18 @@ async function ensureSystemUserExists(): Promise<boolean> {
 				.prepare(
 					'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, role, promo_year) VALUES (?, ?, ?, ?, ?, ?)'
 				)
-				.run('les.roots', 'les.roots@local', 'System', 'Root', 'admin', null);
+				.run(
+					'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+					'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782@miconnect.local',
+					'System',
+					'Root',
+					'admin',
+					null
+				);
 
-			console.debug('✅ Utilisateur système les.roots créé dans la DB');
+			console.debug(
+				'✅ Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 créé dans la DB'
+			);
 			db.close();
 			return true;
 		} catch (dbError) {
@@ -309,9 +328,12 @@ async function loginAsSystemUser(): Promise<string> {
 	}
 
 	try {
-		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=les.roots`, {
-			redirect: 'manual'
-		});
+		const response = await fetch(
+			`${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
+			{
+				redirect: 'manual'
+			}
+		);
 
 		// Accepter 302/303 (redirect) ou 200 (HTML avec cookie) selon la version de SvelteKit
 		if (response.status === 303 || response.status === 302 || response.status === 200) {

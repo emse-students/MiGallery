@@ -9,6 +9,7 @@
 	let user = $derived(page.data.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
 	let hasIdPhotos = $derived(!!user?.id_photos);
+	let displayName = $derived(user?.nom || user?.id_user || '');
 
 	const hour = new Date().getHours();
 	const greeting = hour < 18 ? 'Bonjour' : 'Bonsoir';
@@ -41,8 +42,8 @@
 				<div class="card glass-card">
 					<h2>Bienvenue sur MiGallery</h2>
 					<p>Connectez-vous pour accéder à vos photos.</p>
-				<button onclick={() => handleSignIn('miconnect')} class="btn btn-primary">
-					<LogIn size={20} /> Se connecter
+					<button onclick={() => handleSignIn('miconnect')} class="btn btn-primary">
+						<LogIn size={20} /> Se connecter
 					</button>
 				</div>
 			{:else if !hasIdPhotos}
@@ -50,7 +51,7 @@
 					<div class="icon-wrapper">
 						<UserPlus size={32} />
 					</div>
-					<h2>{greeting} {user?.prenom || ''} !</h2>
+					<h2>{greeting} {displayName} !</h2>
 					<p>
 						Pour profiter pleinement de MiGallery, veuillez terminer la configuration de votre profil.
 					</p>
@@ -58,7 +59,7 @@
 				</div>
 			{:else}
 				<div class="glass-card card">
-					<h2>{greeting} {user?.prenom || ''} !</h2>
+					<h2>{greeting} {displayName} !</h2>
 				</div>
 			{/if}
 		</div>

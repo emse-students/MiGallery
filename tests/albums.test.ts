@@ -621,7 +621,10 @@ describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
 		const addResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/users`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({ add: ['les.roots'], remove: [] })
+			body: JSON.stringify({
+				add: ['dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'],
+				remove: []
+			})
 		});
 
 		expect([200, 401, 403, 404]).toContain(addResponse.status);
@@ -640,7 +643,10 @@ describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
 				{
 					method: 'POST',
 					headers: getAuthHeaders(),
-					body: JSON.stringify({ add: [], remove: ['les.roots'] })
+					body: JSON.stringify({
+						add: [],
+						remove: ['dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782']
+					})
 				}
 			);
 

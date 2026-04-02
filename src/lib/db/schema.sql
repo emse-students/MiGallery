@@ -2,11 +2,8 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id_user TEXT PRIMARY KEY,
-    email TEXT NOT NULL,
-    prenom TEXT NOT NULL,
     nom TEXT NOT NULL,
     id_photos TEXT,
-    first_login INTEGER DEFAULT 1,
     -- role: 'admin' | 'mitviste' | 'user'
     role TEXT DEFAULT 'user',
     -- promo_year: e.g. 2024

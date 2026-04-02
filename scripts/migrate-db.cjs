@@ -25,11 +25,8 @@ const migrations = [
 		name: 'Create users table',
 		sql: `CREATE TABLE IF NOT EXISTS users (
       id_user TEXT PRIMARY KEY,
-      email TEXT NOT NULL,
-      prenom TEXT NOT NULL,
       nom TEXT NOT NULL,
       id_photos TEXT,
-      first_login INTEGER DEFAULT 1,
       role TEXT DEFAULT 'user',
       promo_year INTEGER
     )`
@@ -105,6 +102,65 @@ console.log('🚀 Début de la migration de la base de données...\n');
 try {
 	// --- MIGRATIONS MANUELLES DE COLONNES (POUR UPDATES) ---
 	// --------------------------------------------------------
+
+	try {
+		const columns = db.prepare('PRAGMA table_info(users)').all();
+		const hasLegacyCols = columns.some((c) => ['email', 'prenom', 'first_login'].includes(c.name));
+		if (hasLegacyCols) {
+			console.log('🔄 Migration users legacy -> compact schema...');
+			db.exec('BEGIN TRANSACTION');
+			db.exec(`
+				CREATE TABLE IF NOT EXISTS users_new (
+					id_user TEXT PRIMARY KEY,
+					nom TEXT NOT NULL,
+					id_photos TEXT,
+					role TEXT DEFAULT 'user',
+					promo_year INTEGER
+				)
+			`);
+			db.exec(`
+				INSERT INTO users_new (id_user, nom, id_photos, role, promo_year)
+				SELECT
+					id_user,
+					CASE
+						WHEN TRIM(COALESCE(prenom, '') || ' ' || COALESCE(nom, '')) <> '' THEN TRIM(COALESCE(prenom, '') || ' ' || COALESCE(nom, ''))
+						WHEN COALESCE(nom, '') <> '' THEN nom
+						ELSE id_user
+					END,
+					id_photos,
+					COALESCE(role, 'user'),
+					promo_year
+				FROM users
+			`);
+			db.exec('DROP TABLE users');
+			db.exec('ALTER TABLE users_new RENAME TO users');
+			db.exec('COMMIT');
+			console.log('✅ Migration users terminée');
+		}
+	} catch (e) {
+		db.exec('ROLLBACK');
+		console.error('❌ Migration users échouée:', e.message);
+		process.exit(1);
+	}
+
+	// Renommer l'ancien utilisateur système les.roots vers le nouveau hash ID Authentik
+	try {
+		const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+		const oldUser = db.prepare("SELECT id_user FROM users WHERE id_user = 'les.roots'").get();
+		if (oldUser) {
+			const newExists = db.prepare('SELECT id_user FROM users WHERE id_user = ?').get(SYSTEM_USER_ID);
+			if (newExists) {
+				// Le nouveau hash existe déjà, on supprime juste l'ancien
+				db.prepare("DELETE FROM users WHERE id_user = 'les.roots'").run();
+				console.log('🔄 Ancien utilisateur les.roots supprimé (le nouveau hash existait déjà)');
+			} else {
+				db.prepare("UPDATE users SET id_user = ? WHERE id_user = 'les.roots'").run(SYSTEM_USER_ID);
+				console.log('✅ Migration id système: les.roots → hash Authentik');
+			}
+		}
+	} catch (e) {
+		console.error('⚠️  Migration id système échouée:', e.message);
+	}
 
 	for (const migration of migrations) {
 		try {

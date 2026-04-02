@@ -23,6 +23,7 @@ let sessionCookie = '';
 let testApiKeyId: string | null = null;
 let testApiKeyReadId: string | null = null;
 let createdUserId: string | null = null;
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 // ========================================
 // Fonctions d'authentification et setup
@@ -67,14 +68,14 @@ async function ensureSystemUserExists(): Promise<boolean> {
 		const db = new Database(DB_PATH, isBun ? undefined : { readonly: true });
 
 		try {
-			const user = db.prepare('SELECT id_user, role FROM users WHERE id_user = ?').get('les.roots');
+			const user = db.prepare('SELECT id_user, role FROM users WHERE id_user = ?').get(SYSTEM_USER_ID);
 			db.close();
 
 			if (user) {
-				console.debug(`✅ Utilisateur système les.roots existe (rôle: ${user.role})`);
+				console.debug(`✅ Utilisateur système ${SYSTEM_USER_ID} existe (rôle: ${user.role})`);
 				return true;
 			} else {
-				console.warn('⚠️  Utilisateur système les.roots introuvable');
+				console.warn(`⚠️  Utilisateur système ${SYSTEM_USER_ID} introuvable`);
 				return false;
 			}
 		} catch (dbError) {
@@ -89,7 +90,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 
 async function loginAsSystemUser(): Promise<boolean> {
 	try {
-		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=les.roots`, {
+		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=${SYSTEM_USER_ID}`, {
 			redirect: 'manual'
 		});
 
@@ -303,7 +304,7 @@ describe('Users API', () => {
 	});
 
 	it("devrait récupérer l'utilisateur système", async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/les.roots`, {
+		const response = await fetch(`${API_BASE_URL}/api/users/${SYSTEM_USER_ID}`, {
 			headers: getAuthHeaders()
 		});
 
@@ -312,7 +313,7 @@ describe('Users API', () => {
 		if (response.status === 200) {
 			const data = (await response.json()) as UserResponse;
 			expect(data.success).toBe(true);
-			expect(data.user.id_user).toBe('les.roots');
+			expect(data.user.id_user).toBe(SYSTEM_USER_ID);
 		}
 	});
 });

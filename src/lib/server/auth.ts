@@ -68,24 +68,15 @@ export async function ensureAdmin({
 			return null;
 		}
 
-		const candidateId =
-			providerUser.id ||
-			providerUser.preferred_username ||
-			providerUser.sub ||
-			(providerUser.email ? String(providerUser.email).split('@')[0] : undefined);
+		const candidateId = providerUser.id || providerUser.sub;
 		if (!candidateId) {
 			return null;
 		}
 
 		const db = getDatabase();
-		let user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
+		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
 			| UserRow
 			| undefined;
-		if (!user && providerUser.email) {
-			user = db.prepare('SELECT * FROM users WHERE email = ? LIMIT 1').get(providerUser.email) as
-				| UserRow
-				| undefined;
-		}
 
 		if (user && (user.role || 'user') === 'admin') {
 			return user;
@@ -119,24 +110,15 @@ export async function getCurrentUser({
 			return null;
 		}
 
-		const candidateId =
-			providerUser.id ||
-			providerUser.preferred_username ||
-			providerUser.sub ||
-			(providerUser.email ? String(providerUser.email).split('@')[0] : undefined);
+		const candidateId = providerUser.id || providerUser.sub;
 		if (!candidateId) {
 			return null;
 		}
 
 		const db = getDatabase();
-		let user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
+		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
 			| UserRow
 			| undefined;
-		if (!user && providerUser.email) {
-			user = db.prepare('SELECT * FROM users WHERE email = ? LIMIT 1').get(providerUser.email) as
-				| UserRow
-				| undefined;
-		}
 		return user || null;
 	} catch (_e) {
 		void _e;

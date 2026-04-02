@@ -43,10 +43,18 @@ try {
 
 	db
 		.prepare(
-			'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+			'INSERT OR IGNORE INTO users (id_user, nom, id_photos, role, promo_year) VALUES (?, ?, ?, ?, ?)'
 		)
-		.run('les.roots', 'les.roots@etu.emse.fr', 'System', 'Admin', null, 0, 'admin', null);
-	console.log('✅ Utilisateur système admin créé: les.roots');
+		.run(
+			'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+			'System Admin',
+			null,
+			'admin',
+			null
+		);
+	console.log(
+		'✅ Utilisateur système admin créé: dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'
+	);
 
 	const base = process.env.IMMICH_BASE_URL;
 	const apiKey = process.env.IMMICH_API_KEY;

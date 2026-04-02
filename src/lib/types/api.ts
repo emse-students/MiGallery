@@ -12,13 +12,10 @@
  */
 export interface User {
 	id_user: string;
-	email: string;
-	prenom: string;
 	nom: string;
 	id_photos?: string | null;
 	role?: 'admin' | 'mitviste' | 'user';
 	promo_year?: number | null;
-	first_login?: number;
 }
 
 /**
@@ -27,13 +24,10 @@ export interface User {
  */
 export interface UserRow {
 	id_user: string;
-	email: string;
-	prenom: string;
 	nom: string;
 	id_photos: string | null;
 	role: string | null;
 	promo_year: number | null;
-	first_login: number;
 }
 
 /**
@@ -42,10 +36,8 @@ export interface UserRow {
  */
 export interface EditUserData {
 	id_user: string;
-	email: string;
-	prenom: string;
 	nom: string;
-	id_photos: string;
+	id_photos: string | null;
 	role: 'admin' | 'mitviste' | 'user';
 	promo_year: number | null;
 }
@@ -219,8 +211,9 @@ export interface ImmichPaginatedResponse<T> {
  */
 export interface SessionUser {
 	id?: string;
-	email?: string;
-	preferred_username?: string;
+	name?: string;
+	firstName?: string;
+	lastName?: string;
 	sub?: string;
 	[key: string]: unknown;
 }

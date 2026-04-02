@@ -5,6 +5,29 @@ import type { Session } from '@auth/core/types';
 import type { Provider } from '@auth/core/providers';
 import { getUserByCasId, createUser } from '$lib/db/users';
 
+function parsePromo(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return value;
+	}
+	if (typeof value === 'string' && value.trim().length > 0) {
+		const n = parseInt(value, 10);
+		return Number.isNaN(n) ? null : n;
+	}
+	return null;
+}
+
+function computeNom(profile: Record<string, unknown>, fallbackId: string) {
+	const given = typeof profile.firstName === 'string' ? profile.firstName.trim() : '';
+	const family = typeof profile.lastName === 'string' ? profile.lastName.trim() : '';
+	if (given || family) {
+		const full = `${given} ${family}`.trim();
+		return full || fallbackId;
+	}
+
+	const fullName = typeof profile.name === 'string' ? profile.name.trim() : '';
+	return fullName || fallbackId;
+}
+
 const providers: Provider[] = [
 	{
 		id: 'miconnect',
@@ -16,9 +39,8 @@ const providers: Provider[] = [
 		clientSecret: env.MICONNECT_CLIENT_SECRET,
 		checks: ['pkce', 'state'],
 		authorization: {
-			// Le claim 'promo' doit etre mappe dans Authentik via une Property Mapping
-			// sur le scope 'profile' (ou un scope personnalise si necessaire)
-			scope: 'openid profile email'
+			// Claims utilises: id (sub), name, firstName, lastName, promo
+			scope: 'openid profile promo name firstName lastName'
 		}
 	}
 ];
@@ -38,28 +60,13 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 				const existingUser = getUserByCasId(userId);
 
 				if (!existingUser) {
-					// Authentik fournit toujours l e-mail
-					const email =
-						typeof profile.email === 'string' && profile.email.trim().length > 0
-							? profile.email
-							: `${userId}@emse.fr`;
-
-					// Authentik expose l annee de promo via le claim 'promo'
-					const promoRaw = (profile as Record<string, unknown>).promo;
-					const promoYear =
-						typeof promoRaw === 'number'
-							? promoRaw
-							: typeof promoRaw === 'string' && promoRaw.trim().length > 0
-								? parseInt(promoRaw, 10) || null
-								: null;
+					const profileMap = profile as Record<string, unknown>;
+					const nom = computeNom(profileMap, userId);
+					const promoYear = parsePromo(profileMap.promo);
 
 					createUser({
 						id_user: userId,
-						email,
-						prenom: (profile.given_name as string) || userId,
-						nom: (profile.family_name as string) || '',
-						// Authentik fournit toutes les infos : first_login = 0 directement
-						first_login: 0,
+						nom,
 						role: 'user',
 						promo_year: promoYear
 					});
@@ -74,14 +81,8 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 			if (account && profile) {
 				if (account.provider === 'miconnect') {
 					token.id = profile.sub;
-					// Stocker la promo dans le JWT
-					const promoRaw = (profile as Record<string, unknown>).promo;
-					token.promo_year =
-						typeof promoRaw === 'number'
-							? promoRaw
-							: typeof promoRaw === 'string' && promoRaw.trim().length > 0
-								? parseInt(promoRaw, 10) || null
-								: null;
+					const profileMap = profile as Record<string, unknown>;
+					token.promo_year = parsePromo(profileMap.promo);
 				}
 			}
 			return token;
@@ -90,7 +91,6 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 		session({ session, token }: { session: Session; token: JWT }): Session {
 			if (token && session.user) {
 				session.user.id = token.id as string;
-				session.user.email = token.email as string;
 				session.user.name = token.name as string;
 			}
 			return session;

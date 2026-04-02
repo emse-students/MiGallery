@@ -6,12 +6,11 @@
 	import { navigationModalStore } from '$lib/navigation-store';
 	import { theme } from '$lib/theme';
 	import type { User } from '$lib/types/api';
-	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings, LogIn } from 'lucide-svelte';
+	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings } from 'lucide-svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
-	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
 	import '../app.css';
 
 	let u = $derived(page.data?.session?.user as User);
@@ -21,29 +20,12 @@
 	let hasPhoto = $derived(!!u?.id_photos);
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
-	let isFirstLogin = $derived(u?.first_login === 1);
 
 	let { children } = $props();
 
-	let showFirstLoginModal = $state(false);
-
 	onMount(() => {
 		theme.initialize();
-
-		if (isFirstLogin) {
-			showFirstLoginModal = true;
-		}
 	});
-
-	$effect(() => {
-		if (isFirstLogin && isAuthenticated && !showFirstLoginModal) {
-			showFirstLoginModal = true;
-		}
-	});
-
-	function handleFirstLoginComplete() {
-		window.location.reload();
-	}
 
 	let navigationModal = $derived($navigationModalStore);
 	let showNavigationWarning = $derived.by(() => navigationModal?.show ?? false);
@@ -140,7 +122,7 @@
 	<div class="user">
 		{#if u}
 			<a href="/mes-photos" class="avatar-link">
-				<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
+				<div class="avatar" title={u.nom || u.id_user}>
 					{#if u.id_photos}
 						<img
 							src={`/api/immich/people/${u.id_photos}/thumbnail`}
@@ -148,11 +130,13 @@
 							onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
 						/>
 					{:else}
-						<span class="initials">{(u.prenom || 'U').charAt(0)}{(u.nom || '').charAt(0) || 'U'}</span>
+						<span class="initials">
+							{(u.nom || u.id_user || 'U').trim().charAt(0)}
+						</span>
 					{/if}
 				</div>
 			</a>
-			<span class="user-name">{u.prenom} {u.nom}</span>
+			<span class="user-name">{u.nom || u.id_user}</span>
 			<button class="btn-logout" onclick={() => handleSignOut()}>Déconnexion</button>
 		{:else}
 			<button class="btn-login" onclick={() => handleSignIn()}>Connexion</button>
@@ -170,8 +154,6 @@
 
 <MobileNav />
 
-<FirstLoginModal bind:show={showFirstLoginModal} onComplete={handleFirstLoginComplete} />
-
 <Modal
 	bind:show={showNavigationWarning}
 	title="Opération en cours"
@@ -187,8 +169,6 @@
 		<p><strong>Voulez-vous vraiment quitter ?</strong></p>
 	{/snippet}
 </Modal>
-
-
 
 <style>
 </style>

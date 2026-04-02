@@ -24,13 +24,13 @@ export const GET: RequestHandler = async (event) => {
 			.prepare(
 				`SELECT
 					p.owner_id,
-					u.prenom as owner_prenom,
+					'' as owner_prenom,
 					u.nom as owner_nom,
 					p.created_at
 				FROM photo_access_permissions p
 				JOIN users u ON u.id_user = p.owner_id
 				WHERE p.authorized_id = ?
-				ORDER BY u.nom, u.prenom`
+				ORDER BY u.nom`
 			)
 			.all(user.id_user) as SharedWithMe[];
 

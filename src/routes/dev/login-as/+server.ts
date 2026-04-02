@@ -4,6 +4,8 @@ import { getDatabase } from '$lib/db/database';
 import { signId } from '$lib/auth/cookies';
 import type { RequestHandler } from './$types';
 
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+
 /**
  * Dev-only helper: set the signed `current_user_id` cookie so you can act as a local user.
  * Usage (dev only): GET /dev/login-as?u=<user_id>
@@ -33,13 +35,11 @@ export const GET: RequestHandler = ({ url, cookies }) => {
 		| UserRow
 		| undefined;
 	if (!user) {
-		if (process.env.NODE_ENV === 'test' && username === 'les.roots') {
+		if (process.env.NODE_ENV === 'test' && username === SYSTEM_USER_ID) {
 			try {
 				db
-					.prepare(
-						'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, role, promo_year) VALUES (?, ?, ?, ?, ?, ?)'
-					)
-					.run(username, 'les.roots@local', 'System', 'Root', 'admin', null);
+					.prepare('INSERT OR IGNORE INTO users (id_user, nom, role, promo_year) VALUES (?, ?, ?, ?)')
+					.run(username, 'System Root', 'admin', null);
 			} catch (e) {
 				return new Response(`Failed to create system user: ${(e as Error).message}`, { status: 500 });
 			}

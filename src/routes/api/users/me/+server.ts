@@ -3,6 +3,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+
 /**
  * GET /api/users/me
  * Récupère les informations de l'utilisateur connecté
@@ -16,9 +18,7 @@ export const GET: RequestHandler = async (event) => {
 		const db = getDatabase();
 
 		const userData = db
-			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
-			)
+			.prepare('SELECT id_user, nom, id_photos, role, promo_year FROM users WHERE id_user = ?')
 			.get(user.id_user);
 
 		if (!userData) {
@@ -50,7 +50,7 @@ export const DELETE: RequestHandler = async (event) => {
 		const user = await requireSession(event);
 		const db = getDatabase();
 
-		if (user.id_user === 'les.roots') {
+		if (user.id_user === SYSTEM_USER_ID) {
 			return json({ error: 'Cannot delete system user' }, { status: 403 });
 		}
 

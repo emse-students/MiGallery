@@ -247,7 +247,7 @@ node ./scripts/test-api.cjs
 
 ### ✅ Authentification
 
-- Détection de l'utilisateur système `les.roots`
+- Détection de l'utilisateur système `dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`
 - Connexion via `/dev/login-as`
 - Création/suppression de clés API
 
@@ -335,7 +335,7 @@ Voir `vitest.config.ts` :
    bun run db:init
    ```
 
-2. **Utilisateur système créé** (`les.roots`)
+2. **Utilisateur système créé** (`dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`)
 
    ```bash
    node scripts/create-system-user.cjs
@@ -370,7 +370,7 @@ Voir `vitest.config.ts` :
 bun run db:init
 ```
 
-### Erreur: "Utilisateur système les.roots introuvable"
+### Erreur: "Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 introuvable"
 
 ```bash
 node scripts/create-system-user.cjs
@@ -394,7 +394,7 @@ curl http://localhost:3000/api/health
 🚀 Setup des tests API
 📍 URL de base: http://localhost:3000
 
-✅ Utilisateur système les.roots existe (rôle: admin)
+✅ Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 existe (rôle: admin)
 ✅ Connexion réussie avec cookie de session
 ✅ Clé API créée: Fw0v6dGLtjlR...
 

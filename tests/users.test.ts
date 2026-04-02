@@ -210,16 +210,21 @@ describe('Users API - GET /api/users/[id]', () => {
 		expect([404]).toContain(response.status);
 	});
 
-	it("devrait récupérer l'utilisateur système les.roots", async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/les.roots`, {
-			headers: getAuthHeaders()
-		});
+	it("devrait récupérer l'utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782", async () => {
+		const response = await fetch(
+			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
+			{
+				headers: getAuthHeaders()
+			}
+		);
 
 		expect([200, 401, 403, 404]).toContain(response.status);
 
 		if (response.status === 200) {
 			const data = (await response.json()) as UserResponse;
-			expect(data.user.id_user).toBe('les.roots');
+			expect(data.user.id_user).toBe(
+				'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'
+			);
 			expect(data.user.role).toBe('admin');
 		}
 	});
@@ -327,9 +332,12 @@ describe('Users API - PATCH /api/users/me/promo', () => {
 
 describe('Users API - GET /api/users/[username]/avatar', () => {
 	it("devrait récupérer l'avatar d'un utilisateur", async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/les.roots/avatar`, {
-			headers: getAuthHeaders()
-		});
+		const response = await fetch(
+			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782/avatar`,
+			{
+				headers: getAuthHeaders()
+			}
+		);
 
 		expect([200, 302, 401, 404, 500]).toContain(response.status);
 
@@ -351,9 +359,12 @@ describe('Users API - GET /api/users/[username]/avatar', () => {
 		const sizes = ['small', 'medium', 'large'];
 
 		for (const size of sizes) {
-			const response = await fetch(`${API_BASE_URL}/api/users/les.roots/avatar?size=${size}`, {
-				headers: getAuthHeaders()
-			});
+			const response = await fetch(
+				`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782/avatar?size=${size}`,
+				{
+					headers: getAuthHeaders()
+				}
+			);
 
 			expect([200, 302, 401, 404, 500]).toContain(response.status);
 		}
@@ -393,10 +404,13 @@ describe('Users API - DELETE /api/users/[id]', () => {
 	});
 
 	it("devrait protéger la suppression de l'utilisateur système", async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/les.roots`, {
-			method: 'DELETE',
-			headers: getAuthHeaders()
-		});
+		const response = await fetch(
+			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
+			{
+				method: 'DELETE',
+				headers: getAuthHeaders()
+			}
+		);
 
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});

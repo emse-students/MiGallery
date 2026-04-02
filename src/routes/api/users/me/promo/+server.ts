@@ -6,7 +6,7 @@ import { requireScope } from '$lib/server/permissions';
 
 /**
  * PATCH /api/users/me/promo
- * Met à jour l'année de promotion et le statut first_login de l'utilisateur connecté
+ * Met à jour l'année de promotion de l'utilisateur connecté
  */
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
@@ -29,8 +29,8 @@ export const PATCH: RequestHandler = async (event) => {
 		if (!userId && locals && typeof locals.auth === 'function') {
 			const session = await locals.auth();
 			if (session?.user) {
-				const user = session.user as { id?: string; preferred_username?: string; sub?: string };
-				userId = user.id || user.preferred_username || user.sub || null;
+				const user = session.user as { id?: string; sub?: string };
+				userId = user.id || user.sub || null;
 			}
 		}
 
@@ -54,7 +54,7 @@ export const PATCH: RequestHandler = async (event) => {
 			return json({ error: `promo_year must be between 1816 and ${currentYear}` }, { status: 400 });
 		}
 
-		const stmt = db.prepare('UPDATE users SET promo_year = ?, first_login = 0 WHERE id_user = ?');
+		const stmt = db.prepare('UPDATE users SET promo_year = ? WHERE id_user = ?');
 		const result = stmt.run(promoYear, userId);
 
 		if (result.changes === 0) {

@@ -11,9 +11,9 @@ export const GET: RequestHandler = async (event) => {
 	const db = getDatabase();
 	const rows = db
 		.prepare(
-			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
+			'SELECT id_user, nom, id_photos, role, promo_year FROM users WHERE id_user != ? ORDER BY promo_year DESC, nom'
 		)
-		.all('les.roots@etu.emse.fr') as UserRow[];
+		.all('dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782') as UserRow[];
 	return json({ success: true, users: rows });
 };
 
@@ -23,20 +23,14 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const body = (await event.request.json()) as {
 			id_user?: string;
-			email?: string;
-			prenom?: string;
 			nom?: string;
 			role?: string;
 			promo_year?: number | null;
 			id_photos?: string | null;
 		};
-		const { id_user, email, prenom, nom, role = 'user', promo_year = null, id_photos = null } = body;
-		if (!id_user || !email) {
-			return json({ error: 'id_user and email required' }, { status: 400 });
-		}
-
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-			return json({ error: 'Invalid email format' }, { status: 400 });
+		const { id_user, nom, role = 'user', promo_year = null, id_photos = null } = body;
+		if (!id_user || !nom) {
+			return json({ error: 'id_user and nom required' }, { status: 400 });
 		}
 
 		if (!['user', 'admin', 'mitviste'].includes(role)) {
@@ -45,26 +39,15 @@ export const POST: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 		const insert = db.prepare(
-			'INSERT INTO users (id_user, email, prenom, nom, role, promo_year, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+			'INSERT INTO users (id_user, nom, role, promo_year, id_photos) VALUES (?, ?, ?, ?, ?)'
 		);
-		const info = insert.run(
-			id_user,
-			email,
-			prenom || '',
-			nom || '',
-			role,
-			promo_year,
-			id_photos,
-			id_photos ? 0 : 1
-		);
+		const info = insert.run(id_user, nom, role, promo_year, id_photos);
 		const created = db
-			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
-			)
+			.prepare('SELECT id_user, nom, id_photos, role, promo_year FROM users WHERE id_user = ?')
 			.get(id_user) as UserRow | undefined;
 
 		try {
-			await logEvent(event, 'create', 'user', id_user, { email, prenom, nom, role });
+			await logEvent(event, 'create', 'user', id_user, { nom, role });
 		} catch (logErr) {
 			console.warn('logEvent failed (users POST):', logErr);
 		}

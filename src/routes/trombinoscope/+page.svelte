@@ -36,7 +36,7 @@
 		const q = (searchQuery || '').trim().toLowerCase();
 		if (!q) return users;
 		return users.filter((u) => {
-			const hay = `${u.prenom || ''} ${u.nom || ''} ${u.email || ''} ${u.id_user || ''}`.toLowerCase();
+			const hay = `${u.nom || ''} ${u.id_user || ''}`.toLowerCase();
 			return hay.includes(q);
 		});
 	});
@@ -45,8 +45,6 @@
 	let editMode = $state<'add' | 'edit'>('add');
 	let editUserData = $state({
 		id_user: '',
-		email: '',
-		prenom: '',
 		nom: '',
 		role: 'user',
 		promo_year: null as number | null,
@@ -162,7 +160,7 @@
 						doc.setFontSize(9);
 						doc.setFont('helvetica', 'normal');
 						doc.setTextColor(60);
-						const name = `${user.prenom || ''}\n${user.nom || ''}`;
+						const name = `${user.nom || ''}`;
 						doc.text(name, x + colWidth / 2, y + imgSize + 5, { align: 'center' });
 					});
 
@@ -207,17 +205,14 @@
 	}
 
 	function getUserInitials(user: User): string {
-		const prenom = user.prenom || '';
 		const nom = user.nom || '';
-		return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
+		return `${nom.charAt(0) || user.id_user.charAt(0)}`.toUpperCase();
 	}
 
 	function openAddUserModal() {
 		editMode = 'add';
 		editUserData = {
 			id_user: '',
-			email: '',
-			prenom: '',
 			nom: '',
 			role: 'user',
 			promo_year: null,
@@ -232,8 +227,6 @@
 		editMode = 'edit';
 		editUserData = {
 			id_user: user.id_user,
-			email: user.email || '',
-			prenom: user.prenom || '',
 			nom: user.nom || '',
 			role: user.role || 'user',
 			promo_year: user.promo_year || null,
@@ -245,8 +238,8 @@
 	}
 
 	async function saveUser() {
-		if (!editUserData.id_user || !editUserData.email || !editUserData.prenom || !editUserData.nom) {
-			toast.error('Les champs ID, email, prénom et nom sont requis.');
+		if (!editUserData.id_user || !editUserData.nom) {
+			toast.error('Les champs ID et nom sont requis.');
 			return;
 		}
 
@@ -334,7 +327,10 @@
 			toast.error('Vous ne pouvez pas supprimer votre propre compte.');
 			return;
 		}
-		const ok = await showConfirm(`Supprimer ${user.prenom} ${user.nom} ?`, "Supprimer l'utilisateur");
+		const ok = await showConfirm(
+			`Supprimer ${user.nom || user.id_user} ?`,
+			"Supprimer l'utilisateur"
+		);
 		if (!ok) return;
 
 		try {
@@ -370,7 +366,7 @@
 			<div class="header-search">
 				<input
 					class="search-input"
-					placeholder="Rechercher (prénom, nom, email...)"
+					placeholder="Rechercher (nom, identifiant...)"
 					bind:value={searchQuery}
 					oninput={(e) => {
 						searchQuery = (e.target as HTMLInputElement).value;
@@ -420,12 +416,15 @@
 					<p>Aucun membre ne correspond à votre recherche</p>
 				</div>
 			{:else}
-				{@const usersByPromo = filteredUsers.reduce((acc, user) => {
-					const promo = user.promo_year ? `${user.promo_year}` : 'Staff / Autre';
-					if (!acc[promo]) acc[promo] = [];
-					acc[promo].push(user);
-					return acc;
-				}, {} as Record<string, User[]>)}
+				{@const usersByPromo = filteredUsers.reduce(
+					(acc, user) => {
+						const promo = user.promo_year ? `${user.promo_year}` : 'Staff / Autre';
+						if (!acc[promo]) acc[promo] = [];
+						acc[promo].push(user);
+						return acc;
+					},
+					{} as Record<string, User[]>
+				)}
 
 				<div class="content-area">
 					{#each Object.entries(usersByPromo).sort(([a], [b]) => {
@@ -475,7 +474,7 @@
 											{#if user.id_photos}
 												<img
 													src={`/api/immich/people/${user.id_photos}/thumbnail`}
-													alt={`${user.prenom} ${user.nom}`}
+													alt={user.nom || user.id_user}
 													loading="lazy"
 													onerror={(e) => {
 														const target = e.currentTarget as HTMLImageElement;
@@ -490,7 +489,7 @@
 										</div>
 
 										<div class="user-info">
-											<div class="name">{user.prenom} {user.nom}</div>
+											<div class="name">{user.nom || user.id_user}</div>
 											<div class="username" title="@{user.id_user}">@{user.id_user}</div>
 											{#if user.role && user.role !== 'user'}
 												<div class="role-tag {user.role}">{user.role}</div>
@@ -545,20 +544,6 @@
 								disabled={editMode === 'edit'}
 								placeholder="ex: p.nom"
 							/>
-						</div>
-						<div class="input-group">
-							<label for="email">Email *</label>
-							<input
-								id="email"
-								type="email"
-								class="input-glass"
-								bind:value={editUserData.email}
-								placeholder="@emse.fr"
-							/>
-						</div>
-						<div class="input-group">
-							<label for="prenom">Prénom *</label>
-							<input id="prenom" class="input-glass" bind:value={editUserData.prenom} />
 						</div>
 						<div class="input-group">
 							<label for="nom">Nom *</label>

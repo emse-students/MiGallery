@@ -5,11 +5,27 @@ import { signId, verifySigned } from '$lib/auth/cookies';
 import type { LayoutServerLoad } from './$types';
 import { logEvent } from '$lib/server/logs';
 
+function parsePromo(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return value;
+	}
+	if (typeof value === 'string' && value.trim().length > 0) {
+		const n = parseInt(value, 10);
+		return Number.isNaN(n) ? null : n;
+	}
+	return null;
+}
+
+function normalizeNom(fullName: string | undefined, fallbackId: string) {
+	const name = (fullName || '').trim();
+	return name || fallbackId;
+}
+
 /**
  * Load server-side: uniquement basé sur la session fournie par le provider (locals.auth())
  * - On récupère l'identité du provider
- * - On tente de trouver l'utilisateur local dans la table `users` via `id_user` ou `email`
- * - Si absent, on crée une entrée minimale automatiquement (first_login = 1)
+ * - On tente de trouver l'utilisateur local dans la table `users` via `id_user`
+ * - Si absent, on crée une entrée automatiquement (first_login = 0, promo depuis le provider)
  * - Aucun fallback via cookies n'est utilisé
  */
 export const load: LayoutServerLoad = async (event) => {
@@ -41,44 +57,32 @@ export const load: LayoutServerLoad = async (event) => {
 		}
 
 		const providerUser: SessionUser = {
-			...session.user,
-			email: typeof session.user.email === 'string' ? session.user.email : undefined
+			...session.user
 		};
+		const rawProvider = session.user as Record<string, unknown>;
 
-		const candidateId =
-			providerUser.id ||
-			providerUser.preferred_username ||
-			providerUser.sub ||
-			(providerUser.email ? String(providerUser.email).split('@')[0] : undefined);
+		const candidateId = providerUser.id || providerUser.sub;
 
 		if (!candidateId) {
 			return { session };
 		}
 
-		let stmt = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1');
+		const stmt = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1');
 		let userInfo = stmt.get(candidateId) as UserRow | undefined;
 
-		if (!userInfo && providerUser.email) {
-			stmt = db.prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
-			userInfo = stmt.get(providerUser.email) as UserRow | undefined;
-		}
-
 		if (!userInfo) {
-			const prenom =
-				providerUser.given_name ||
-				providerUser.prenom ||
-				(providerUser.name ? String(providerUser.name).split(' ')[0] : '');
-			const nom =
-				providerUser.family_name ||
-				providerUser.nom ||
-				(providerUser.name ? String(providerUser.name).split(' ').slice(1).join(' ') : '');
-			const email = providerUser.email || `${candidateId}@etu.emse.fr`;
+			const fullName =
+				typeof providerUser.name === 'string'
+					? providerUser.name
+					: `${providerUser.firstName || ''} ${providerUser.lastName || ''}`;
+			const nom = normalizeNom(fullName, candidateId);
+			const promoYear = parsePromo(rawProvider.promo);
 
 			const insert = db.prepare(
-				'INSERT INTO users (id_user, email, prenom, nom, role, id_photos, first_login, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+				'INSERT INTO users (id_user, nom, role, id_photos, promo_year) VALUES (?, ?, ?, ?, ?)'
 			);
 			try {
-				insert.run(candidateId, email, prenom, nom, 'user', null, 0, null);
+				insert.run(candidateId, nom, 'user', null, promoYear);
 			} catch (_e) {
 				console.warn('Auto-create in layout failed:', _e);
 			}
@@ -105,8 +109,7 @@ export const load: LayoutServerLoad = async (event) => {
 
 			if (isNewCookie) {
 				await logEvent(event, 'login', 'user', userInfo.id_user, {
-					method: 'provider',
-					email: userInfo.email
+					method: 'provider'
 				});
 			}
 		} catch (e: unknown) {
@@ -117,9 +120,9 @@ export const load: LayoutServerLoad = async (event) => {
 		try {
 			console.warn(
 				'[session] provider id:',
-				providerUser?.id || providerUser?.preferred_username || providerUser?.sub,
-				'email:',
-				providerUser?.email
+				providerUser?.id || providerUser?.sub,
+				'name:',
+				providerUser?.name
 			);
 			console.warn('[session] mapped local user:', { id_user: userInfo.id_user, role: userInfo.role });
 		} catch (_e) {

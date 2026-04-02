@@ -78,9 +78,10 @@ DATABASE_PATH=./data/migallery.db
 IMMICH_BASE_URL=http://votre-immich-url:2283
 IMMICH_API_KEY=votre_api_key
 
-# Authentification CAS EMSE
-CAS_CLIENT_ID=votre_client_id
-CAS_CLIENT_SECRET=votre_client_secret
+# Authentification MiConnect (Authentik OIDC)
+MICONNECT_ISSUER=https://auth.canari-emse.fr/application/o/migallery/
+MICONNECT_CLIENT_ID=votre_client_id
+MICONNECT_CLIENT_SECRET=votre_client_secret
 AUTH_TRUSTED_HOST=true # Mettre à true en production
 ```
 
@@ -93,7 +94,7 @@ bun run db:init
 Cela crée automatiquement :
 
 - La structure des tables (users, albums, permissions)
-- Un utilisateur système admin : **les.roots@etu.emse.fr** (n'apparaît pas sur le trombinoscope)
+- Un utilisateur système admin : **dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782@miconnect.local** (n'apparaît pas sur le trombinoscope)
 
 5. **Lancer le serveur de développement**
 
@@ -341,8 +342,8 @@ MiGallery/
 
 Un utilisateur système admin est créé automatiquement lors de l'initialisation :
 
-- **ID** : `les.roots`
-- **Email** : `les.roots@etu.emse.fr`
+- **ID** : `dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`
+- **Email** : `dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782@miconnect.local`
 - **Rôle** : `admin`
 - **Particularité** : N'apparaît pas sur le trombinoscope (promo_year = null)
 

@@ -16,7 +16,7 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 - Crée une nouvelle base de données SQLite si elle n'existe pas
 - Applique le schéma complet (tables, contraintes, indexes)
-- Crée l'utilisateur système admin (`les.roots@etu.emse.fr`)
+- Crée l'utilisateur système admin (`dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782@miconnect.local`)
 - N'écrase PAS une base de données existante (sécurité)
 
 **Quand l'utiliser** :

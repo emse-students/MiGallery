@@ -4,7 +4,9 @@ declare global {
 			auth?: () => Promise<{
 				user?: {
 					id?: string;
-					preferred_username?: string;
+					name?: string;
+					firstName?: string;
+					lastName?: string;
 					sub?: string;
 					[key: string]: unknown;
 				} | null;
@@ -19,11 +21,8 @@ declare global {
 			session?: {
 				user?: {
 					id_user: string;
-					email: string;
-					prenom: string;
 					nom: string;
 					id_photos: string | null;
-					first_login: number;
 					role?: 'admin' | 'mitviste' | 'user';
 					promo_year?: number | null;
 				} | null;

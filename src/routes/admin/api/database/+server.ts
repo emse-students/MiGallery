@@ -68,11 +68,8 @@ export const POST: RequestHandler = () => {
 				name: 'users',
 				sql: `CREATE TABLE IF NOT EXISTS users (
           id_user TEXT PRIMARY KEY,
-          email TEXT NOT NULL,
-          prenom TEXT NOT NULL,
           nom TEXT NOT NULL,
           id_photos TEXT,
-          first_login INTEGER DEFAULT 1,
           role TEXT DEFAULT 'user',
           promo_year INTEGER
         )`
