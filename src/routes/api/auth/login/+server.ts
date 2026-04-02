@@ -12,6 +12,7 @@ function generateRandomString(length: number): string {
 
 export const GET: RequestHandler = async ({ cookies, url }) => {
 	console.log('[LOGIN] Starting login flow');
+	let authUrl: string;
 
 	try {
 		// Generate state and nonce
@@ -41,13 +42,12 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 
 		// Determine redirect URI
 		const callbackUrl = new URL('/api/auth/callback', url.origin);
-		const authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
-
-		console.log('[LOGIN] ✓ Redirecting to authorization endpoint:', authUrl);
-
-		throw redirect(302, authUrl);
+		authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
 	} catch (e) {
 		console.error('[LOGIN] Error:', e);
 		throw error(500, 'Login failed');
 	}
+
+	console.log('[LOGIN] ✓ Redirecting to authorization endpoint:', authUrl);
+	throw redirect(302, authUrl);
 };
