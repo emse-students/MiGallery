@@ -62,7 +62,7 @@ describe('Users API - GET /api/users', () => {
 			if (data.users.length > 0) {
 				const user = data.users[0];
 				expect(user).toHaveProperty('id_user');
-				expect(user).toHaveProperty('email');
+				expect(user).toHaveProperty('name');
 				expect(user).toHaveProperty('role');
 			}
 		}
@@ -124,12 +124,10 @@ describe('Users API - POST /api/users', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter la création avec un email invalide', async () => {
+	it('devrait rejeter la création sans nom exploitable', async () => {
 		const invalidUser = {
 			id_user: 'test.invalid',
 			email: 'invalid-email',
-			prenom: 'Test',
-			nom: 'Invalid',
 			role: 'user'
 		};
 

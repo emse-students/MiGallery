@@ -43,7 +43,7 @@ const providers: Provider[] = [
 		checks: ['pkce', 'state'],
 		authorization: {
 			// Claims attendus depuis Authentik
-			scope: 'openid profile promo name firstName lastName'
+			scope: 'openid profile promo name formation'
 		}
 	}
 ];
@@ -59,6 +59,8 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 			}
 
 			if (account.provider === 'miconnect') {
+				console.log(`Utilisateur connecté ! Infos : ${JSON.stringify(profile)}`);
+
 				const userId = profile.sub!;
 				const existingUser = getUserByCasId(userId);
 
