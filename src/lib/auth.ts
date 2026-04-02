@@ -99,8 +99,8 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
 			body: new URLSearchParams({
 				grant_type: 'authorization_code',
 				code,
-				client_id: env.MICONNECT_CLIENT_ID,
-				client_secret: env.MICONNECT_CLIENT_SECRET,
+				client_id: env.MICONNECT_CLIENT_ID as string,
+				client_secret: env.MICONNECT_CLIENT_SECRET as string,
 				redirect_uri: redirectUri
 			}).toString()
 		});
@@ -354,7 +354,7 @@ export function generateAuthorizationUrl(
 
 	const params = new URLSearchParams({
 		response_type: 'code',
-		client_id: env.MICONNECT_CLIENT_ID,
+		client_id: env.MICONNECT_CLIENT_ID as string,
 		redirect_uri: redirectUri,
 		scope: scopes.join(' '),
 		state,
