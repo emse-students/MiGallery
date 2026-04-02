@@ -53,13 +53,15 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 	trustHost: env.AUTH_TRUSTED_HOST === 'true',
 	secret: env.AUTH_SECRET,
 	callbacks: {
-		signIn({ account, profile }) {
+		signIn({ user, account, profile }) {
 			if (!account || !profile) {
 				return false;
 			}
 
 			if (account.provider === 'miconnect') {
-				console.log(`Utilisateur connecté ! Infos : ${JSON.stringify(profile)}`);
+				console.debug(
+					`Utilisateur connecté ! Infos : ${JSON.stringify(user)}\n\n${JSON.stringify(profile)}\n\n${JSON.stringify(account)}`
+				);
 
 				const userId = profile.sub!;
 				const existingUser = getUserByCasId(userId);
