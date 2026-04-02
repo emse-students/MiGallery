@@ -32,7 +32,9 @@ export const GET: RequestHandler = async (event) => {
 
 		const getTargetUser = (): UserInfo | null => {
 			return db
-				.prepare('SELECT id_user, prenom, nom, id_photos FROM users WHERE id_user = ?')
+				.prepare(
+					'SELECT id_user, first_name as prenom, name as nom, photos_id as id_photos FROM users WHERE id_user = ?'
+				)
 				.get(targetUserId) as UserInfo | null;
 		};
 

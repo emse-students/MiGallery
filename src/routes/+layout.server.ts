@@ -5,11 +5,48 @@ import { signId, verifySigned } from '$lib/auth/cookies';
 import type { LayoutServerLoad } from './$types';
 import { logEvent } from '$lib/server/logs';
 
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+
+function parsePromo(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return value;
+	}
+	if (typeof value === 'string' && value.trim().length > 0) {
+		const n = parseInt(value, 10);
+		return Number.isNaN(n) ? null : n;
+	}
+	return null;
+}
+
+function computeNameFromProvider(user: SessionUser, fallbackId: string): string {
+	const fullName = typeof user.name === 'string' ? user.name.trim() : '';
+	if (fullName) {
+		return fullName;
+	}
+
+	const firstName = typeof user.firstName === 'string' ? user.firstName.trim() : '';
+	const lastName = typeof user.lastName === 'string' ? user.lastName.trim() : '';
+	const combined = `${firstName} ${lastName}`.trim();
+
+	return combined || fallbackId;
+}
+
+function toSessionUser(user: UserRow): UserRow {
+	return {
+		...user,
+		nom: user.name,
+		prenom: user.first_name || '',
+		id_photos: user.photos_id,
+		promo_year: user.promo,
+		first_login: 0
+	};
+}
+
 /**
  * Load server-side: uniquement basé sur la session fournie par le provider (locals.auth())
  * - On récupère l'identité du provider
- * - On tente de trouver l'utilisateur local dans la table `users` via `id_user` ou `email`
- * - Si absent, on crée une entrée minimale automatiquement (first_login = 1)
+ * - On tente de trouver l'utilisateur local dans la table `users` via `id_user`
+ * - Si absent, on crée une entrée automatiquement avec le schéma Authentik
  * - Aucun fallback via cookies n'est utilisé
  */
 export const load: LayoutServerLoad = async (event) => {
@@ -26,7 +63,7 @@ export const load: LayoutServerLoad = async (event) => {
 					| UserRow
 					| undefined;
 				if (userInfo) {
-					return { session: { user: userInfo } };
+					return { session: { user: toSessionUser(userInfo) } };
 				}
 			}
 		}
@@ -41,44 +78,35 @@ export const load: LayoutServerLoad = async (event) => {
 		}
 
 		const providerUser: SessionUser = {
-			...session.user,
-			email: typeof session.user.email === 'string' ? session.user.email : undefined
+			...session.user
 		};
+		const rawProvider = session.user as Record<string, unknown>;
 
-		const candidateId =
-			providerUser.id ||
-			providerUser.preferred_username ||
-			providerUser.sub ||
-			(providerUser.email ? String(providerUser.email).split('@')[0] : undefined);
+		const candidateId = providerUser.id || providerUser.sub;
 
 		if (!candidateId) {
 			return { session };
 		}
 
-		let stmt = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1');
+		const stmt = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1');
 		let userInfo = stmt.get(candidateId) as UserRow | undefined;
 
-		if (!userInfo && providerUser.email) {
-			stmt = db.prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
-			userInfo = stmt.get(providerUser.email) as UserRow | undefined;
-		}
-
 		if (!userInfo) {
-			const prenom =
-				providerUser.given_name ||
-				providerUser.prenom ||
-				(providerUser.name ? String(providerUser.name).split(' ')[0] : '');
-			const nom =
-				providerUser.family_name ||
-				providerUser.nom ||
-				(providerUser.name ? String(providerUser.name).split(' ').slice(1).join(' ') : '');
-			const email = providerUser.email || `${candidateId}@etu.emse.fr`;
+			const role = candidateId === SYSTEM_USER_ID ? 'admin' : 'user';
 
 			const insert = db.prepare(
-				'INSERT INTO users (id_user, email, prenom, nom, role, id_photos, first_login, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+				'INSERT INTO users (id_user, name, first_name, last_name, promo, role, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
 			);
 			try {
-				insert.run(candidateId, email, prenom, nom, 'user', null, 0, null);
+				insert.run(
+					candidateId,
+					computeNameFromProvider(providerUser, candidateId),
+					typeof rawProvider.firstName === 'string' ? rawProvider.firstName.trim() : null,
+					typeof rawProvider.lastName === 'string' ? rawProvider.lastName.trim() : null,
+					parsePromo(rawProvider.promo),
+					role,
+					null
+				);
 			} catch (_e) {
 				console.warn('Auto-create in layout failed:', _e);
 			}
@@ -105,8 +133,7 @@ export const load: LayoutServerLoad = async (event) => {
 
 			if (isNewCookie) {
 				await logEvent(event, 'login', 'user', userInfo.id_user, {
-					method: 'provider',
-					email: userInfo.email
+					method: 'provider'
 				});
 			}
 		} catch (e: unknown) {
@@ -117,9 +144,9 @@ export const load: LayoutServerLoad = async (event) => {
 		try {
 			console.warn(
 				'[session] provider id:',
-				providerUser?.id || providerUser?.preferred_username || providerUser?.sub,
-				'email:',
-				providerUser?.email
+				providerUser?.id || providerUser?.sub,
+				'name:',
+				providerUser?.name
 			);
 			console.warn('[session] mapped local user:', { id_user: userInfo.id_user, role: userInfo.role });
 		} catch (_e) {
@@ -128,7 +155,7 @@ export const load: LayoutServerLoad = async (event) => {
 
 		return {
 			session: {
-				user: userInfo
+				user: toSessionUser(userInfo)
 			}
 		};
 	} catch (e: unknown) {

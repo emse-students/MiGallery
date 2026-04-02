@@ -24,16 +24,16 @@ export const GET: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 
-		const userStmt = db.prepare('SELECT id_photos FROM users WHERE id_user = ?');
-		const user = userStmt.get(username) as { id_photos?: string | null } | undefined;
+		const userStmt = db.prepare('SELECT photos_id FROM users WHERE id_user = ?');
+		const user = userStmt.get(username) as { photos_id?: string | null } | undefined;
 
 		if (!user) {
 			return svelteError(404, 'Utilisateur non trouvé');
 		}
 
-		const userId = user.id_photos;
+		const userId = user.photos_id;
 		if (!userId || typeof userId !== 'string') {
-			return svelteError(404, 'Utilisateur sans id_photos');
+			return svelteError(404, 'Utilisateur sans photos_id');
 		}
 
 		if (!IMMICH_BASE_URL) {

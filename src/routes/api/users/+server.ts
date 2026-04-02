@@ -5,15 +5,31 @@ import { getDatabase } from '$lib/db/database';
 import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 
 	const db = getDatabase();
 	const rows = db
 		.prepare(
-			'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE email != ? ORDER BY promo_year DESC, nom, prenom'
+			`SELECT
+				id_user,
+				name,
+				first_name,
+				last_name,
+				photos_id,
+				role,
+				promo,
+				name as nom,
+				first_name as prenom,
+				photos_id as id_photos,
+				promo as promo_year
+			FROM users
+			WHERE id_user != ?
+			ORDER BY promo DESC, name, first_name`
 		)
-		.all('les.roots@etu.emse.fr') as UserRow[];
+		.all(SYSTEM_USER_ID) as UserRow[];
 	return json({ success: true, users: rows });
 };
 
@@ -23,20 +39,24 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const body = (await event.request.json()) as {
 			id_user?: string;
-			email?: string;
-			prenom?: string;
-			nom?: string;
+			name?: string;
+			first_name?: string | null;
+			last_name?: string | null;
 			role?: string;
-			promo_year?: number | null;
-			id_photos?: string | null;
+			promo?: number | null;
+			photos_id?: string | null;
 		};
-		const { id_user, email, prenom, nom, role = 'user', promo_year = null, id_photos = null } = body;
-		if (!id_user || !email) {
-			return json({ error: 'id_user and email required' }, { status: 400 });
-		}
-
-		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-			return json({ error: 'Invalid email format' }, { status: 400 });
+		const {
+			id_user,
+			name,
+			first_name = null,
+			last_name = null,
+			role = 'user',
+			promo = null,
+			photos_id = null
+		} = body;
+		if (!id_user || !name) {
+			return json({ error: 'id_user and name required' }, { status: 400 });
 		}
 
 		if (!['user', 'admin', 'mitviste'].includes(role)) {
@@ -45,26 +65,30 @@ export const POST: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 		const insert = db.prepare(
-			'INSERT INTO users (id_user, email, prenom, nom, role, promo_year, id_photos, first_login) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+			'INSERT INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
 		);
-		const info = insert.run(
-			id_user,
-			email,
-			prenom || '',
-			nom || '',
-			role,
-			promo_year,
-			id_photos,
-			id_photos ? 0 : 1
-		);
+		const effectiveRole = id_user === SYSTEM_USER_ID ? 'admin' : role;
+		const info = insert.run(id_user, name, first_name, last_name, effectiveRole, promo, photos_id);
 		const created = db
 			.prepare(
-				'SELECT id_user, email, prenom, nom, id_photos, role, promo_year FROM users WHERE id_user = ?'
+				`SELECT
+					id_user,
+					name,
+					first_name,
+					last_name,
+					photos_id,
+					role,
+					promo,
+					name as nom,
+					first_name as prenom,
+					photos_id as id_photos,
+					promo as promo_year
+				FROM users WHERE id_user = ?`
 			)
 			.get(id_user) as UserRow | undefined;
 
 		try {
-			await logEvent(event, 'create', 'user', id_user, { email, prenom, nom, role });
+			await logEvent(event, 'create', 'user', id_user, { name, first_name, last_name, role });
 		} catch (logErr) {
 			console.warn('logEvent failed (users POST):', logErr);
 		}

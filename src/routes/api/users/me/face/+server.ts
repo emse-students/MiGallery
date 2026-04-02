@@ -38,8 +38,8 @@ export const PATCH: RequestHandler = async (event) => {
 			if (!userId && locals && typeof locals.auth === 'function') {
 				const session = await locals.auth();
 				if (session?.user) {
-					const user = session.user as { id?: string; preferred_username?: string; sub?: string };
-					userId = user.id || user.preferred_username || user.sub || null;
+					const user = session.user as { id?: string; sub?: string };
+					userId = user.id || user.sub || null;
 				}
 			}
 
@@ -60,7 +60,7 @@ export const PATCH: RequestHandler = async (event) => {
 
 		if (personId) {
 			const existingUser = db
-				.prepare('SELECT id_user FROM users WHERE id_photos = ? AND id_user != ?')
+				.prepare('SELECT id_user FROM users WHERE photos_id = ? AND id_user != ?')
 				.get(personId, userId) as { id_user: string } | undefined;
 
 			if (existingUser) {
@@ -75,7 +75,7 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		const stmt = db.prepare('UPDATE users SET id_photos = ?, first_login = 0 WHERE id_user = ?');
+		const stmt = db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
 		const result = stmt.run(personId, userId);
 
 		if (result.changes === 0) {

@@ -16,6 +16,7 @@ if (isBunRuntime()) {
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const REPAIR_MODE = process.argv.includes('--repair');
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 console.log('🔍 Inspection de la base de données...');
 console.log('📍 Emplacement:', DB_PATH);
@@ -113,16 +114,16 @@ try {
 
 	console.log("\n5. Vérification de l'utilisateur système...");
 	try {
-		const systemAdmin = db.prepare("SELECT * FROM users WHERE id_user = 'les.roots'").get();
+		const systemAdmin = db.prepare('SELECT * FROM users WHERE id_user = ?').get(SYSTEM_USER_ID);
 		if (systemAdmin) {
-			console.log('   ✅ Utilisateur système présent:', systemAdmin.email);
+			console.log('   ✅ Utilisateur système présent:', systemAdmin.name || systemAdmin.id_user);
 			if (systemAdmin.role !== 'admin') {
 				console.warn("   ⚠️  Rôle incorrect pour l'utilisateur système (devrait être admin)");
 				hasErrors = true;
 				errors.push('system_user_wrong_role');
 			}
 		} else {
-			console.error('   ❌ Utilisateur système manquant (les.roots)');
+			console.error(`   ❌ Utilisateur système manquant (${SYSTEM_USER_ID})`);
 			hasErrors = true;
 			errors.push('system_user_missing');
 		}
@@ -135,10 +136,10 @@ try {
 	console.log('\n6. Exemples de données (premiers résultats):');
 	try {
 		console.log('\n   Utilisateurs (5 premiers):');
-		const users = db.prepare('SELECT id_user, email, role, promo_year FROM users LIMIT 5').all();
+		const users = db.prepare('SELECT id_user, name, role, promo FROM users LIMIT 5').all();
 		users.forEach((u) =>
 			console.log(
-				`      - ${u.id_user} (${u.email}) [${u.role}] ${u.promo_year ? `Promo ${u.promo_year}` : 'Système'}`
+				`      - ${u.id_user} (${u.name}) [${u.role}] ${u.promo ? `Promo ${u.promo}` : 'Système'}`
 			)
 		);
 
@@ -190,15 +191,15 @@ if (!hasErrors) {
 				console.log("   - Création de l'utilisateur système...");
 				dbWrite
 					.prepare(
-						'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+						'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, photos_id, role, promo) VALUES (?, ?, ?, ?, ?, ?, ?)'
 					)
-					.run('les.roots', 'les.roots@etu.emse.fr', 'System', 'Admin', null, 0, 'admin', null);
+					.run(SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', null, 'admin', null);
 				repaired = true;
 			}
 
 			if (errors.includes('system_user_wrong_role')) {
 				console.log("   - Correction du rôle de l'utilisateur système...");
-				dbWrite.prepare("UPDATE users SET role = 'admin' WHERE id_user = 'les.roots'").run();
+				dbWrite.prepare("UPDATE users SET role = 'admin' WHERE id_user = ?").run(SYSTEM_USER_ID);
 				repaired = true;
 			}
 

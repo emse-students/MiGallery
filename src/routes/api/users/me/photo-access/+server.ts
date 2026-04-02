@@ -30,13 +30,13 @@ export const GET: RequestHandler = async (event) => {
 			.prepare(
 				`SELECT
 					p.authorized_id,
-					u.prenom as authorized_prenom,
-					u.nom as authorized_nom,
+					u.first_name as authorized_prenom,
+					u.name as authorized_nom,
 					p.created_at
 				FROM photo_access_permissions p
 				JOIN users u ON u.id_user = p.authorized_id
 				WHERE p.owner_id = ?
-				ORDER BY u.nom, u.prenom`
+				ORDER BY u.name, u.first_name`
 			)
 			.all(user.id_user) as PhotoAccessPermission[];
 
@@ -73,7 +73,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const targetUser = db
-			.prepare('SELECT id_user, prenom, nom FROM users WHERE id_user = ?')
+			.prepare('SELECT id_user, first_name as prenom, name as nom FROM users WHERE id_user = ?')
 			.get(authorizedId) as UserBasic | undefined;
 
 		if (!targetUser) {

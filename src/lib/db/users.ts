@@ -2,13 +2,12 @@ import { getDatabase } from '$lib/db/database';
 
 export interface DBUser {
 	id_user: string;
-	email: string;
-	prenom: string;
-	nom: string;
-	id_photos?: string | null;
-	first_login: number;
+	name: string;
+	first_name?: string | null;
+	last_name?: string | null;
+	photos_id?: string | null;
 	role: 'admin' | 'mitviste' | 'user';
-	promo_year?: number | null;
+	promo?: number | null;
 }
 
 const db = getDatabase();
@@ -19,22 +18,19 @@ export function getUserByCasId(casId: string): DBUser | undefined {
 }
 
 export function createUser(user: DBUser) {
-	// Utilisation de paramètres positionnels (?) pour éviter tout problème de binding
-	// avec les objets contenant des propriétés supplémentaires ou des incompatibilités de nommage.
 	const stmt = db.prepare(`
-		INSERT INTO users (id_user, email, prenom, nom, first_login, role, promo_year)
+		INSERT INTO users (id_user, name, first_name, last_name, photos_id, role, promo)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`);
 
-	// On extrait explicitement les valeurs dans l'ordre
 	return stmt.run(
 		user.id_user,
-		user.email,
-		user.prenom,
-		user.nom,
-		user.first_login,
+		user.name,
+		user.first_name || null,
+		user.last_name || null,
+		user.photos_id || null,
 		user.role,
-		user.promo_year || null
+		user.promo || null
 	);
 }
 

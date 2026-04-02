@@ -2,6 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+
 function isBunRuntime() {
 	return typeof Bun !== 'undefined';
 }
@@ -43,10 +45,10 @@ try {
 
 	db
 		.prepare(
-			'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, id_photos, first_login, role, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+			'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, photos_id, role, promo) VALUES (?, ?, ?, ?, ?, ?, ?)'
 		)
-		.run('les.roots', 'les.roots@etu.emse.fr', 'System', 'Admin', null, 0, 'admin', null);
-	console.log('✅ Utilisateur système admin créé: les.roots');
+		.run(SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', null, 'admin', null);
+	console.log(`✅ Utilisateur système admin créé: ${SYSTEM_USER_ID}`);
 
 	const base = process.env.IMMICH_BASE_URL;
 	const apiKey = process.env.IMMICH_API_KEY;

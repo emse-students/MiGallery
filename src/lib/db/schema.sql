@@ -2,15 +2,14 @@
 
 CREATE TABLE IF NOT EXISTS users (
     id_user TEXT PRIMARY KEY,
-    email TEXT NOT NULL,
-    prenom TEXT NOT NULL,
-    nom TEXT NOT NULL,
-    id_photos TEXT,
-    first_login INTEGER DEFAULT 1,
+    name TEXT NOT NULL,
+    first_name TEXT,
+    last_name TEXT,
+    photos_id TEXT,
     -- role: 'admin' | 'mitviste' | 'user'
     role TEXT DEFAULT 'user',
-    -- promo_year: e.g. 2024
-    promo_year INTEGER
+    -- promo: e.g. 2024
+    promo INTEGER
 );
 
 -- No example users inserted by default. If you want to seed test users,

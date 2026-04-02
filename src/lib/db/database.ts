@@ -63,8 +63,8 @@ export function getDatabase(): DatabaseInstance {
 			if (!cols.includes('role')) {
 				dbInstance.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'").run();
 			}
-			if (!cols.includes('promo_year')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN promo_year INTEGER').run();
+			if (!cols.includes('promo')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN promo INTEGER').run();
 			}
 			try {
 				const acols = dbInstance
