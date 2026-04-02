@@ -272,8 +272,9 @@ describe('Albums API', () => {
 				signal: AbortSignal.timeout(10000) // 10s timeout
 			});
 
-			// Accepter 200 (succès) ou 500 (Immich down)
-			expect([200, 500]).toContain(response.status);
+			// Endpoint protégé (scope read): 401 possible si auth non disponible
+			// Accepter 200 (succès), 401 (auth requise) ou 500 (erreur serveur)
+			expect([200, 401, 500]).toContain(response.status);
 
 			if (response.status === 200) {
 				const data = (await response.json()) as unknown[];
@@ -434,7 +435,8 @@ describe('Photos-CV API', () => {
 				signal: AbortSignal.timeout(10000) // 10s timeout
 			});
 
-			expect([200, 404, 500]).toContain(response.status);
+			// Endpoint protégé (scope read): 401 possible si auth non disponible
+			expect([200, 401, 404, 500]).toContain(response.status);
 		} catch (error: unknown) {
 			// Si fetch échoue (Immich down), c'est acceptable
 			const err = error as { name?: string; code?: string };
