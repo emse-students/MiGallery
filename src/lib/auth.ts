@@ -16,8 +16,10 @@ interface OIDCToken {
 interface OIDCProfile {
 	sub: string;
 	name?: string;
-	given_name?: string; // firstName
-	family_name?: string; // lastName
+	firstName?: string;
+	lastName?: string;
+	given_name?: string;
+	family_name?: string;
 	email?: string;
 	promo?: string | number;
 	formation?: string;
@@ -53,17 +55,17 @@ function computeName(profile: OIDCProfile | Record<string, unknown>, fallbackId:
 	}
 
 	const firstName =
-		typeof profile.given_name === 'string'
-			? profile.given_name.trim()
-			: typeof (profile as any).firstName === 'string'
-				? (profile as any).firstName.trim()
+		typeof profile.firstName === 'string'
+			? profile.firstName.trim()
+			: typeof profile.given_name === 'string'
+				? profile.given_name.trim()
 				: '';
 
 	const lastName =
-		typeof profile.family_name === 'string'
-			? profile.family_name.trim()
-			: typeof (profile as any).lastName === 'string'
-				? (profile as any).lastName.trim()
+		typeof profile.lastName === 'string'
+			? profile.lastName.trim()
+			: typeof profile.family_name === 'string'
+				? profile.family_name.trim()
 				: '';
 
 	const combined = `${firstName} ${lastName}`.trim();
@@ -158,8 +160,8 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
 		console.log('[AUTH] Profile data (userinfo endpoint):', {
 			sub: profile.sub,
 			name: profile.name || 'N/A',
-			given_name: profile.given_name || 'N/A',
-			family_name: profile.family_name || 'N/A',
+			firstName: profile.firstName || profile.given_name || 'N/A',
+			lastName: profile.lastName || profile.family_name || 'N/A',
 			email: profile.email || 'N/A',
 			promo: profile.promo || 'N/A',
 			formation: profile.formation || 'N/A'
@@ -198,6 +200,8 @@ function extractCustomClaims(idToken: string): Record<string, unknown> | null {
 		'nonce',
 		'at_hash',
 		'name',
+		'firstName',
+		'lastName',
 		'given_name',
 		'family_name',
 		'email',
@@ -237,17 +241,17 @@ function handleUserInDatabase(
 
 		// Extract all available data
 		const firstName =
-			typeof profile.given_name === 'string'
-				? profile.given_name.trim()
-				: typeof (profile as any).firstName === 'string'
-					? (profile as any).firstName.trim()
+			typeof profile.firstName === 'string'
+				? profile.firstName.trim()
+				: typeof profile.given_name === 'string'
+					? profile.given_name.trim()
 					: null;
 
 		const lastName =
-			typeof profile.family_name === 'string'
-				? profile.family_name.trim()
-				: typeof (profile as any).lastName === 'string'
-					? (profile as any).lastName.trim()
+			typeof profile.lastName === 'string'
+				? profile.lastName.trim()
+				: typeof profile.family_name === 'string'
+					? profile.family_name.trim()
 					: null;
 
 		const promo = parsePromo(profile.promo || (profile as any).promo || customClaims.promo);
