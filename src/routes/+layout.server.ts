@@ -78,7 +78,7 @@ export const load: LayoutServerLoad = async (event) => {
 				'INSERT INTO users (id_user, email, prenom, nom, role, id_photos, first_login, promo_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 			);
 			try {
-				insert.run(candidateId, email, prenom, nom, 'user', null, 1, null);
+				insert.run(candidateId, email, prenom, nom, 'user', null, 0, null);
 			} catch (_e) {
 				console.warn('Auto-create in layout failed:', _e);
 			}

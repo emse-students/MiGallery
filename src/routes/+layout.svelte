@@ -26,7 +26,6 @@
 	let { children } = $props();
 
 	let showFirstLoginModal = $state(false);
-	let showLoginModal = $state(false);
 
 	onMount(() => {
 		theme.initialize();
@@ -77,14 +76,7 @@
 	}
 
 	async function handleSignIn() {
-		showLoginModal = true;
-	}
-
-	async function performSignIn(providerId: string) {
-		showLoginModal = false;
-		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
-		// Sans callbackUrl, redirige vers la page d'origine après authentification
-		await signIn(providerId, { callbackUrl: window.location.href });
+		await signIn('miconnect', { callbackUrl: window.location.href });
 	}
 </script>
 
@@ -196,47 +188,7 @@
 	{/snippet}
 </Modal>
 
-<Modal
-	bind:show={showLoginModal}
-	title="Connexion"
-	type="info"
-	showActions={false}
->
-	{#snippet children()}
-		<div class="login-modal-content">
-			<div class="login-choices">
-				<!-- Bientôt remplacé par une authentification Authentik tierce -->
-				<button onclick={() => performSignIn('cas-emse')} class="btn btn-primary login-btn">
-					<LogIn size={20} />
-					<span>Connexion CAS</span>
-				</button>
-			</div>
-		</div>
-	{/snippet}
-</Modal>
+
 
 <style>
-	.login-modal-content {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-		padding: 0.5rem 0;
-	}
-
-	.login-choices {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	.login-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.75rem;
-		padding: 0.75rem 1rem;
-		font-size: 1rem;
-		font-weight: 500;
-		width: 100%;
-	}
 </style>
