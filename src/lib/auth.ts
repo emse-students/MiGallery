@@ -363,8 +363,7 @@ export function generateAuthorizationUrl(
 		redirect_uri: redirectUri,
 		scope: scopes.join(' '),
 		state,
-		nonce,
-		prompt: 'login'
+		nonce
 	});
 
 	const authUrl = `${getIssuerBaseUrl()}/authorize/?${params.toString()}`;

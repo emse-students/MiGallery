@@ -5,6 +5,7 @@ import { setSessionCookie } from '$lib/session';
 
 export const GET: RequestHandler = async ({ cookies, url }) => {
 	console.log('[CALLBACK] OAuth callback received');
+	const targetRedirect = '/';
 
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
@@ -54,11 +55,11 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 		// Clear OIDC cookies
 		cookies.delete('__oidc_state', { path: '/' });
 		cookies.delete('__oidc_nonce', { path: '/' });
-
-		// Redirect to home
-		throw redirect(302, '/');
 	} catch (e) {
 		console.error('[CALLBACK] Error during authentication:', e);
 		throw error(500, 'Authentication error');
 	}
+
+	console.log('[CALLBACK] Redirecting to:', targetRedirect);
+	throw redirect(302, targetRedirect);
 };
