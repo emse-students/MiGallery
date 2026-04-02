@@ -67,7 +67,7 @@
 		"generate:secret": "node ./scripts/generate_cookie_secret.cjs",
 		"generate:auth-secret": "node ./scripts/generate-auth-secret.cjs",
 		"cleanup:chunked-temp": "node ./scripts/cleanup-chunked-temp.js",
-                "db:reset-users": "node ./scripts/reset-users-for-authentik.cjs"
+		"db:reset-users": "node ./scripts/reset-users-for-authentik.cjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.1",
@@ -130,4 +130,3 @@
 		]
 	}
 }
-

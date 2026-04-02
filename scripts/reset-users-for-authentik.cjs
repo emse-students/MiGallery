@@ -44,9 +44,7 @@ const db = new Database(DB_PATH);
 
 // Compter les entités avant suppression
 const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-const permCount = db
-	.prepare('SELECT COUNT(*) as count FROM album_user_permissions')
-	.get().count;
+const permCount = db.prepare('SELECT COUNT(*) as count FROM album_user_permissions').get().count;
 const favCount = db.prepare('SELECT COUNT(*) as count FROM user_favorites').get().count;
 const accessCount = db
 	.prepare('SELECT COUNT(*) as count FROM photo_access_permissions')
