@@ -3,7 +3,7 @@ config({ override: true }); // Override existing vars to ensure .env takes prece
 
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
-import { handle as authHandle } from '$lib/auth';
+import { getSessionUser } from '$lib/session';
 
 /**
  * Liste des domaines autorisés pour CORS.
@@ -21,7 +21,7 @@ const ALLOWED_ORIGINS = [
  * Ces routes utilisent une authentification par x-api-key, pas par cookies,
  * donc le risque CSRF est nul.
  */
-const CSRF_EXEMPT_PATHS = ['/api/external/'];
+const CSRF_EXEMPT_PATHS = ['/api/external/', '/api/auth/'];
 
 /**
  * Vérifie si une route est exemptée de CSRF.
@@ -113,24 +113,20 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 
 /**
  * Hook pour résoudre la session utilisateur avant que la réponse ne soit générée.
- * Cela permet d'éviter les erreurs "Cannot use cookies.set(...) after the response has been generated"
- * qui surviennent si on appelle locals.auth() tardivement (ex: dans logEvent).
  */
-const sessionCheck: Handle = async ({ event, resolve }) => {
-	if (event.locals.auth) {
-		try {
-			// On appelle auth() ici pour déclencher la vérification de session et le refresh cookie si nécessaire
-			// pendant qu'on peut encore modifier les headers de réponse.
-			const session = await event.locals.auth();
-			// On stocke l'user dans locals pour y accéder facilement plus tard sans rappeller auth()
-			if (session?.user) {
-				event.locals.sessionUser = session.user;
-			}
-		} catch (e) {
-			console.error('[hooks] Session check failed:', e);
-		}
+const sessionHandler: Handle = async ({ event, resolve }) => {
+	console.log('[HOOKS] Resolving session for:', event.url.pathname);
+
+	const user = getSessionUser(event.cookies);
+	if (user) {
+		console.log('[HOOKS] ✓ Session user found:', user.id);
+		event.locals.user = user;
+	} else {
+		console.log('[HOOKS] No session user');
+		event.locals.user = null;
 	}
+
 	return resolve(event);
 };
 
-export const handle = sequence(corsAndCsrfHandler, authHandle, sessionCheck);
+export const handle = sequence(corsAndCsrfHandler, sessionHandler);

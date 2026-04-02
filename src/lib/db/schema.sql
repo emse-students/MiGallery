@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
     -- role: 'admin' | 'mitviste' | 'user'
     role TEXT DEFAULT 'user',
     -- promo: e.g. 2024
-    promo INTEGER
+    promo INTEGER,
+    -- formation: e.g. 'InfoCom', 'DevOps', etc.
+    formation TEXT
 );
 
 -- No example users inserted by default. If you want to seed test users,
