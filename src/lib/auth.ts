@@ -42,8 +42,10 @@ const providers: Provider[] = [
 		clientSecret: env.MICONNECT_CLIENT_SECRET,
 		checks: ['pkce', 'state'],
 		authorization: {
-			// Claims attendus depuis Authentik
-			scope: 'openid profile promo name formation'
+			// Auth.js lit les scopes via authorization.params.scope
+			params: {
+				scope: 'openid profile promo name formation'
+			}
 		}
 	}
 ];
