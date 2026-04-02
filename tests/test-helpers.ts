@@ -7,6 +7,7 @@ export const TEST_CONFIG = {
 	DEFAULT_TIMEOUT: 10000,
 	LONG_TIMEOUT: 30000,
 	IMMICH_TIMEOUT: 15000,
+	SYSTEM_USER_ID: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
 
 	// Configuration des scopes
 	SCOPES: {
@@ -25,7 +26,7 @@ export const TEST_CONFIG = {
 
 	// Utilisateurs de test
 	TEST_USERS: {
-		SYSTEM: 'les.roots',
+		SYSTEM: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
 		PREFIX: 'test.user.'
 	}
 };
@@ -50,11 +51,11 @@ export function generateTestUser(prefix = 'test') {
 	const timestamp = Date.now();
 	return {
 		id_user: `${prefix}.user.${timestamp}`,
-		email: `${prefix}.${timestamp}@etu.emse.fr`,
-		prenom: 'Test',
-		nom: `User ${timestamp}`,
+		name: `Test User ${timestamp}`,
+		first_name: 'Test',
+		last_name: `User ${timestamp}`,
 		role: 'user' as const,
-		promo_year: 2025
+		promo: 2025
 	};
 }
 
@@ -199,14 +200,18 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 		const db = new Database(DB_PATH, isBun ? undefined : { readonly: true });
 
 		try {
-			const user = db.prepare('SELECT id_user, role FROM users WHERE id_user = ?').get('les.roots');
+			const user = db
+				.prepare('SELECT id_user, role FROM users WHERE id_user = ?')
+				.get(TEST_CONFIG.SYSTEM_USER_ID);
 			db.close();
 
 			if (user) {
-				console.debug(`✅ Utilisateur système les.roots existe (rôle: ${user.role})`);
+				console.debug(
+					`✅ Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} existe (rôle: ${user.role})`
+				);
 				return true;
 			} else {
-				console.warn('⚠️  Utilisateur système les.roots introuvable');
+				console.warn(`⚠️  Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} introuvable`);
 				return false;
 			}
 		} catch (dbError) {
@@ -261,10 +266,12 @@ async function ensureSystemUserExists(): Promise<boolean> {
 
 		try {
 			// Vérifier si l'utilisateur existe
-			const existingUser = db.prepare('SELECT id_user FROM users WHERE id_user = ?').get('les.roots');
+			const existingUser = db
+				.prepare('SELECT id_user FROM users WHERE id_user = ?')
+				.get(TEST_CONFIG.SYSTEM_USER_ID);
 
 			if (existingUser) {
-				console.debug('✅ Utilisateur système les.roots existe déjà');
+				console.debug(`✅ Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} existe déjà`);
 				db.close();
 				return true;
 			}
@@ -272,11 +279,11 @@ async function ensureSystemUserExists(): Promise<boolean> {
 			// Créer l'utilisateur système
 			db
 				.prepare(
-					'INSERT OR IGNORE INTO users (id_user, email, prenom, nom, role, promo_year) VALUES (?, ?, ?, ?, ?, ?)'
+					'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
 				)
-				.run('les.roots', 'les.roots@local', 'System', 'Root', 'admin', null);
+				.run(TEST_CONFIG.SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', 'admin', null, null);
 
-			console.debug('✅ Utilisateur système les.roots créé dans la DB');
+			console.debug(`✅ Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} créé dans la DB`);
 			db.close();
 			return true;
 		} catch (dbError) {
@@ -304,12 +311,13 @@ async function loginAsSystemUser(): Promise<string> {
 	// D'abord s'assurer que l'utilisateur existe dans la DB
 	const userExists = await ensureSystemUserExists();
 	if (!userExists) {
-		console.error("❌ Impossible de créer/vérifier l'utilisateur système");
-		return '';
+		console.warn(
+			"⚠️ Impossible de créer/vérifier l'utilisateur système localement, tentative via endpoint"
+		);
 	}
 
 	try {
-		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=les.roots`, {
+		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=${TEST_CONFIG.SYSTEM_USER_ID}`, {
 			redirect: 'manual'
 		});
 
@@ -380,16 +388,16 @@ async function createApiKey(
  */
 async function createTestUser(
 	adminApiKey: string
-): Promise<{ id_user: string; email: string } | null> {
+): Promise<{ id_user: string; name: string } | null> {
 	const { API_BASE_URL } = TEST_CONFIG;
 	const timestamp = Date.now();
 	const testUser = {
 		id_user: `test.user.${timestamp}`,
-		email: `test.${timestamp}@etu.emse.fr`,
-		prenom: 'Test',
-		nom: 'User',
+		name: `Test User ${timestamp}`,
+		first_name: 'Test',
+		last_name: 'User',
 		role: 'user' as const,
-		promo_year: 2025
+		promo: 2025
 	};
 
 	try {
@@ -425,7 +433,7 @@ async function createTestUser(
 		}
 
 		console.debug(`✅ Utilisateur de test créé et mis en admin: ${testUser.id_user}`);
-		return { id_user: testUser.id_user, email: testUser.email };
+		return { id_user: testUser.id_user, name: testUser.name };
 	} catch (error) {
 		console.error(`❌ Erreur lors de la création de l'utilisateur: ${(error as Error).message}`);
 		return null;

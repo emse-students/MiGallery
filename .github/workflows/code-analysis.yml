@@ -1,15 +1,13 @@
 name: Code Analysis
 
 on:
- push:
-  branches:
-   - main
  pull_request:
   branches:
    - main
  schedule:
   # Analyse quotidienne à 2h du matin
   - cron: '0 2 * * *'
+ workflow_dispatch:
 
 jobs:
  codeql:

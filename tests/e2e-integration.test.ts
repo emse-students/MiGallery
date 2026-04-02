@@ -22,9 +22,12 @@ let testReadApiKeyId: string | null = null;
 beforeAll(async () => {
 	console.debug("🚀 Démarrage des tests d'intégration end-to-end"); // Tentative de connexion en tant qu'utilisateur système
 	try {
-		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=les.roots`, {
-			redirect: 'manual'
-		});
+		const response = await fetch(
+			`${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
+			{
+				redirect: 'manual'
+			}
+		);
 
 		if (response.status === 303 || response.status === 302) {
 			const cookies = response.headers.get('set-cookie');

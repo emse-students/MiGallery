@@ -373,7 +373,7 @@ describe('Change User API - POST /api/change-user', () => {
 			method: 'POST',
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
-				userId: 'les.roots'
+				userId: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'
 			})
 		});
 

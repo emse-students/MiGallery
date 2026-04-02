@@ -42,19 +42,24 @@ export const POST: RequestHandler = async (event) => {
 			name?: string;
 			first_name?: string | null;
 			last_name?: string | null;
+			prenom?: string | null;
+			nom?: string | null;
+			promo_year?: number | null;
+			id_photos?: string | null;
 			role?: string;
 			promo?: number | null;
 			photos_id?: string | null;
 		};
-		const {
-			id_user,
-			name,
-			first_name = null,
-			last_name = null,
-			role = 'user',
-			promo = null,
-			photos_id = null
-		} = body;
+
+		const id_user = body.id_user;
+		const first_name = body.first_name ?? body.prenom ?? null;
+		const last_name = body.last_name ?? body.nom ?? null;
+		const legacyName = [first_name, last_name].filter(Boolean).join(' ').trim();
+		const name = body.name ?? (legacyName || null);
+		const role = body.role ?? 'user';
+		const promo = body.promo ?? body.promo_year ?? null;
+		const photos_id = body.photos_id ?? body.id_photos ?? null;
+
 		if (!id_user || !name) {
 			return json({ error: 'id_user and name required' }, { status: 400 });
 		}

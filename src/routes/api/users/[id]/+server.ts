@@ -56,11 +56,21 @@ export const PUT: RequestHandler = async (event) => {
 			name?: string;
 			first_name?: string | null;
 			last_name?: string | null;
+			prenom?: string | null;
+			nom?: string | null;
+			promo_year?: number | null;
+			id_photos?: string | null;
 			role?: string;
 			promo?: number | null;
 			photos_id?: string | null;
 		};
-		const { name, first_name, last_name, role, promo, photos_id } = body;
+		const first_name = body.first_name ?? body.prenom ?? null;
+		const last_name = body.last_name ?? body.nom ?? null;
+		const legacyName = [first_name, last_name].filter(Boolean).join(' ').trim();
+		const name = body.name ?? (legacyName || targetId);
+		const role = body.role;
+		const promo = body.promo ?? body.promo_year ?? null;
+		const photos_id = body.photos_id ?? body.id_photos ?? null;
 
 		// Prevent admin from removing their own admin status
 		if (auth.user && auth.user.id_user === targetId) {
@@ -78,15 +88,7 @@ export const PUT: RequestHandler = async (event) => {
 		const stmt = db.prepare(
 			'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ? WHERE id_user = ?'
 		);
-		const info = stmt.run(
-			name || targetId,
-			first_name || null,
-			last_name || null,
-			role || 'user',
-			promo || null,
-			photos_id || null,
-			targetId
-		);
+		const info = stmt.run(name, first_name, last_name, role || 'user', promo, photos_id, targetId);
 
 		if (info.changes === 0) {
 			return json({ error: 'User not found' }, { status: 404 });
