@@ -4,6 +4,8 @@ import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 
+const SESSION_COOKIE_NAME = '__session_user';
+
 /**
  * PATCH /api/users/me/promo
  * Met à jour l'année de promotion et le statut first_login de l'utilisateur connecté
@@ -11,13 +13,13 @@ import { requireScope } from '$lib/server/permissions';
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
 
-	await requireScope(event, 'read');
+	const auth = await requireScope(event, 'read');
 
 	try {
 		const db = getDatabase();
 
 		const cookieSigned = cookies.get('current_user_id') ?? null;
-		let userId: string | null = null;
+		let userId: string | null = auth.user?.id_user ?? null;
 
 		if (cookieSigned) {
 			const verified = verifySigned(cookieSigned);
@@ -26,16 +28,16 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		if (!userId && locals && typeof locals.auth === 'function') {
-			const session = await locals.auth();
-			if (session?.user) {
-				const user = session.user as { id?: string; sub?: string };
-				userId = user.id || user.sub || null;
+		if (!userId) {
+			const sessionUserId = cookies.get(SESSION_COOKIE_NAME) ?? null;
+			if (sessionUserId) {
+				userId = sessionUserId;
 			}
 		}
 
-		if (!userId && locals.userId) {
-			userId = locals.userId as string;
+		if (!userId) {
+			const localUser = locals.user as { id?: string; id_user?: string } | null | undefined;
+			userId = localUser?.id_user || localUser?.id || null;
 		}
 
 		if (!userId) {

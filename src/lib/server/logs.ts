@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { getDatabase } from '$lib/db/database';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getUserFromSignedCookie } from '$lib/server/auth';
@@ -20,21 +20,9 @@ export async function logEvent(
 		let actor: string | null = null;
 		try {
 			if (event?.locals) {
-				try {
-					// 1. Check cached session user (populated by hooks.server.ts)
-					if ((event.locals as any).sessionUser) {
-						const u = (event.locals as any).sessionUser;
-						actor = (u.id_user || u.id || u.email) as string;
-					} else if (typeof (event.locals as any).auth === 'function') {
-						// 2. Fallback to auth() call (risky if response already sent)
-
-						const s = await (event.locals as any).auth();
-						if (s && (s as any).user) {
-							actor = ((s as any).user.id_user || (s as any).user.id || (s as any).user.email) as string;
-						}
-					}
-				} catch (innerAuthErr) {
-					console.debug('locals.auth() failed while resolving actor for logEvent:', innerAuthErr);
+				const localUser = (event.locals as any).user;
+				if (localUser) {
+					actor = (localUser.id_user || localUser.id || localUser.email) as string;
 				}
 
 				if (!actor && (event.locals as any).userId) {

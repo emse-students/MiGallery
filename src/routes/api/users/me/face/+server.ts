@@ -4,6 +4,8 @@ import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 
+const SESSION_COOKIE_NAME = '__session_user';
+
 /**
  * PATCH /api/users/me/face
  * Met à jour l'ID de la personne (id_photos) et le statut first_login de l'utilisateur connecté
@@ -27,6 +29,7 @@ export const PATCH: RequestHandler = async (event) => {
 			userId = body.user_id;
 		} else {
 			const cookieSigned = cookies.get('current_user_id') ?? null;
+			userId = auth.user?.id_user ?? null;
 
 			if (cookieSigned) {
 				const verified = verifySigned(cookieSigned);
@@ -35,16 +38,16 @@ export const PATCH: RequestHandler = async (event) => {
 				}
 			}
 
-			if (!userId && locals && typeof locals.auth === 'function') {
-				const session = await locals.auth();
-				if (session?.user) {
-					const user = session.user as { id?: string; sub?: string };
-					userId = user.id || user.sub || null;
+			if (!userId) {
+				const sessionUserId = cookies.get(SESSION_COOKIE_NAME) ?? null;
+				if (sessionUserId) {
+					userId = sessionUserId;
 				}
 			}
 
-			if (!userId && locals.userId) {
-				userId = locals.userId as string;
+			if (!userId) {
+				const localUser = locals.user as { id?: string; id_user?: string } | null | undefined;
+				userId = localUser?.id_user || localUser?.id || null;
 			}
 		}
 

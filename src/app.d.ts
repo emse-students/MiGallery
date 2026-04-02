@@ -1,18 +1,11 @@
 declare global {
 	namespace App {
 		interface Locals {
-			auth?: () => Promise<{
-				user?: {
-					id?: string;
-					name?: string;
-					firstName?: string;
-					lastName?: string;
-					sub?: string;
-					[key: string]: unknown;
-				} | null;
-			} | null>;
-			sessionUser?: {
+			user?: {
 				id?: string;
+				id_user?: string;
+				name?: string;
+				role?: string;
 				[key: string]: unknown;
 			} | null;
 			[key: string]: unknown;

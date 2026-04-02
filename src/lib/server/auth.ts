@@ -1,7 +1,9 @@
 import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
-import type { SessionUser, UserRow } from '$lib/types/api';
+import type { UserRow } from '$lib/types/api';
 import type { Cookies } from '@sveltejs/kit';
+
+const SESSION_COOKIE_NAME = '__session_user';
 
 /**
  * Try to resolve a local DB user from the signed cookie `current_user_id`.
@@ -34,6 +36,56 @@ export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
 }
 
 /**
+ * Try to resolve a local DB user from the plain session cookie `__session_user`.
+ * Returns the DB row or null.
+ */
+export function getUserFromSessionCookie(cookies: Cookies): UserRow | null {
+	try {
+		const userId = cookies.get(SESSION_COOKIE_NAME);
+		if (!userId) {
+			return null;
+		}
+
+		const db = getDatabase();
+		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(userId) as
+			| UserRow
+			| undefined;
+
+		if (!user) {
+			console.warn('[auth] __session_user cookie references unknown user', { id: userId });
+			return null;
+		}
+
+		return user;
+	} catch (e) {
+		console.warn('[auth] error while resolving __session_user cookie', e);
+		return null;
+	}
+}
+
+function getUserFromLocals(locals: App.Locals): UserRow | null {
+	try {
+		const maybeUser = (locals as Record<string, unknown>)?.user as
+			| { id?: string; id_user?: string }
+			| null
+			| undefined;
+
+		const candidateId = maybeUser?.id_user || maybeUser?.id;
+		if (!candidateId) {
+			return null;
+		}
+
+		const db = getDatabase();
+		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
+			| UserRow
+			| undefined;
+		return user || null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Ensure the caller is an admin. Uses cookie fast-path first, then provider fallback via locals.auth()
  * IMPORTANT: this helper DOES NOT create users automatically from provider identity — it only maps
  * provider identities to existing DB users. This avoids accidental privilege escalations.
@@ -58,34 +110,17 @@ export async function ensureAdmin({
 		return null;
 	}
 
-	if (!locals || typeof locals.auth !== 'function') {
-		return null;
+	const fromSessionCookie = getUserFromSessionCookie(cookies);
+	if (fromSessionCookie && (fromSessionCookie.role || 'user') === 'admin') {
+		return fromSessionCookie;
 	}
-	try {
-		const session = await locals.auth();
-		const providerUser = session?.user as SessionUser | null | undefined;
-		if (!providerUser) {
-			return null;
-		}
 
-		const candidateId = providerUser.id || providerUser.sub;
-		if (!candidateId) {
-			return null;
-		}
-
-		const db = getDatabase();
-		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
-			| UserRow
-			| undefined;
-
-		if (user && (user.role || 'user') === 'admin') {
-			return user;
-		}
-		return null;
-	} catch (_e) {
-		void _e;
-		return null;
+	const fromLocals = getUserFromLocals(locals);
+	if (fromLocals && (fromLocals.role || 'user') === 'admin') {
+		return fromLocals;
 	}
+
+	return null;
 }
 
 export async function getCurrentUser({
@@ -100,28 +135,10 @@ export async function getCurrentUser({
 		return cookieUser;
 	}
 
-	if (!locals || typeof locals.auth !== 'function') {
-		return null;
+	const sessionCookieUser = getUserFromSessionCookie(cookies);
+	if (sessionCookieUser) {
+		return sessionCookieUser;
 	}
-	try {
-		const session = await locals.auth();
-		const providerUser = session?.user as SessionUser | null | undefined;
-		if (!providerUser) {
-			return null;
-		}
 
-		const candidateId = providerUser.id || providerUser.sub;
-		if (!candidateId) {
-			return null;
-		}
-
-		const db = getDatabase();
-		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
-			| UserRow
-			| undefined;
-		return user || null;
-	} catch (_e) {
-		void _e;
-		return null;
-	}
+	return getUserFromLocals(locals);
 }
