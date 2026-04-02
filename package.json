@@ -123,10 +123,10 @@
 	"lint-staged": {
 		"*.{js,ts,jsx,tsx,svelte}": [
 			"eslint --fix",
-			"prettier --write"
+			"prettier --write --ignore-unknown"
 		],
 		"*.{json,md,yml,yaml,css,html}": [
-			"prettier --write"
+			"prettier --write --ignore-unknown"
 		]
 	}
 }

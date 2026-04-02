@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { signIn, signOut } from '@auth/sveltekit/client';
 	import { activeOperations } from '$lib/operations';
 	import { navigationModalStore } from '$lib/navigation-store';
 	import { theme } from '$lib/theme';
@@ -72,11 +71,19 @@
 			console.warn('Failed to clear user cookie:', e);
 		}
 
-		await signOut({ callbackUrl: '/' });
+		try {
+			await fetch('/api/auth/logout', {
+				method: 'POST'
+			});
+		} catch (e: unknown) {
+			console.warn('Failed to call /api/auth/logout:', e);
+		}
+
+		window.location.href = '/';
 	}
 
-	async function handleSignIn() {
-		await signIn('miconnect', { callbackUrl: window.location.href });
+	function handleSignIn() {
+		window.location.href = '/api/auth/login';
 	}
 </script>
 

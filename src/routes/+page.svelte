@@ -4,7 +4,6 @@
 	import { LogIn, UserPlus } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { signIn } from '@auth/sveltekit/client';
 
 	let user = $derived(page.data.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
@@ -13,10 +12,8 @@
 	const hour = new Date().getHours();
 	const greeting = hour < 18 ? 'Bonjour' : 'Bonsoir';
 
-	async function handleSignIn(providerId: string) {
-		// signIn() gère automatiquement la mécanique CSRF/cookies/redirections
-		// Sans callbackUrl, redirige vers la page d'origine après authentification
-		await signIn(providerId, { callbackUrl: window.location.href });
+	function handleSignIn() {
+		window.location.href = '/api/auth/login';
 	}
 </script>
 
@@ -41,7 +38,7 @@
 				<div class="card glass-card">
 					<h2>Bienvenue sur MiGallery</h2>
 					<p>Connectez-vous pour accéder à vos photos.</p>
-				<button onclick={() => handleSignIn('miconnect')} class="btn btn-primary">
+				<button onclick={handleSignIn} class="btn btn-primary">
 					<LogIn size={20} /> Se connecter
 					</button>
 				</div>
