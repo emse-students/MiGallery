@@ -41,8 +41,8 @@
 				<div class="card glass-card">
 					<h2>Bienvenue sur MiGallery</h2>
 					<p>Connectez-vous pour accéder à vos photos.</p>
-					<button onclick={() => handleSignIn('cas-emse')} class="btn btn-primary">
-						<LogIn size={20} /> Connexion CAS
+				<button onclick={() => handleSignIn('miconnect')} class="btn btn-primary">
+					<LogIn size={20} /> Se connecter
 					</button>
 				</div>
 			{:else if !hasIdPhotos}

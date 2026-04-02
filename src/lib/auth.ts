@@ -7,19 +7,17 @@ import { getUserByCasId, createUser } from '$lib/db/users';
 
 const providers: Provider[] = [
 	{
-		id: 'cas-emse',
-		name: 'CAS EMSE',
+		id: 'miconnect',
+		name: 'MiConnect',
 		type: 'oidc',
-		issuer: 'https://cas.emse.fr/cas/oidc',
-		clientId: env.CAS_CLIENT_ID,
-		clientSecret: env.CAS_CLIENT_SECRET,
-		client: {
-			token_endpoint_auth_method: 'client_secret_post'
-		},
-		// Utilisation de 'state' uniquement pour éviter les erreurs "InvalidCheck: pkceCodeVerifier"
-		// en cas de doubles requêtes ou problèmes de cookies inter-domaines.
-		checks: ['state'],
+		// Issuer Authentik : https://auth.canari-emse.fr/application/o/migallery/
+		issuer: env.MICONNECT_ISSUER,
+		clientId: env.MICONNECT_CLIENT_ID,
+		clientSecret: env.MICONNECT_CLIENT_SECRET,
+		checks: ['pkce', 'state'],
 		authorization: {
+			// Le claim 'promo' doit etre mappe dans Authentik via une Property Mapping
+			// sur le scope 'profile' (ou un scope personnalise si necessaire)
 			scope: 'openid profile email'
 		}
 	}
@@ -35,30 +33,35 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 				return false;
 			}
 
-			// 1. Authentification CAS (Etudiants)
-			if (account.provider === 'cas-emse') {
-				const casId = profile.sub!;
-				const existingUser = getUserByCasId(casId);
+			if (account.provider === 'miconnect') {
+				const userId = profile.sub!;
+				const existingUser = getUserByCasId(userId);
 
 				if (!existingUser) {
-					const emailCandidate = profile.email;
-					// Assure que l'email est une string non-vide, sinon fallback
+					// Authentik fournit toujours l e-mail
 					const email =
-						typeof emailCandidate === 'string' && emailCandidate.trim().length > 0
-							? emailCandidate
-							: `${casId}@etu.emse.fr`;
+						typeof profile.email === 'string' && profile.email.trim().length > 0
+							? profile.email
+							: `${userId}@emse.fr`;
 
-					console.warn(`[auth] Creating new CAS user: ${casId} (${email})`);
+					// Authentik expose l annee de promo via le claim 'promo'
+					const promoRaw = (profile as Record<string, unknown>).promo;
+					const promoYear =
+						typeof promoRaw === 'number'
+							? promoRaw
+							: typeof promoRaw === 'string' && promoRaw.trim().length > 0
+								? parseInt(promoRaw, 10) || null
+								: null;
 
-					// Création automatique si l'utilisateur n'existe pas
 					createUser({
-						id_user: casId,
+						id_user: userId,
 						email,
-						prenom: (profile.given_name as string) || casId,
+						prenom: (profile.given_name as string) || userId,
 						nom: (profile.family_name as string) || '',
-						first_login: 1,
+						// Authentik fournit toutes les infos : first_login = 0 directement
+						first_login: 0,
 						role: 'user',
-						promo_year: null
+						promo_year: promoYear
 					});
 				}
 				return true;
@@ -68,10 +71,17 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 		},
 
 		jwt({ token, account, profile }): JWT {
-			// Lors de la connexion (première fois)
 			if (account && profile) {
-				if (account.provider === 'cas-emse') {
+				if (account.provider === 'miconnect') {
 					token.id = profile.sub;
+					// Stocker la promo dans le JWT
+					const promoRaw = (profile as Record<string, unknown>).promo;
+					token.promo_year =
+						typeof promoRaw === 'number'
+							? promoRaw
+							: typeof promoRaw === 'string' && promoRaw.trim().length > 0
+								? parseInt(promoRaw, 10) || null
+								: null;
 				}
 			}
 			return token;
