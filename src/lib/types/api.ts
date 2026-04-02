@@ -18,10 +18,7 @@ export interface User {
 	photos_id?: string | null;
 	role?: 'admin' | 'mitviste' | 'user';
 	promo?: number | null;
-	// Compatibilite front existant
 	email?: string;
-	nom?: string;
-	prenom?: string;
 	id_photos?: string | null;
 	promo_year?: number | null;
 	first_login?: number;
@@ -39,9 +36,6 @@ export interface UserRow {
 	photos_id: string | null;
 	role: string | null;
 	promo: number | null;
-	// Compatibilite front existant
-	nom?: string;
-	prenom?: string;
 	id_photos?: string | null;
 	promo_year?: number | null;
 	first_login?: number;
@@ -226,13 +220,13 @@ export interface ImmichPaginatedResponse<T> {
 // ----------------------------------------------------------------------------
 
 /**
- * Utilisateur dans une session (Auth.js)
+ * Utilisateur dans une session
  */
 export interface SessionUser {
 	id?: string;
 	name?: string;
-	firstName?: string;
-	lastName?: string;
+	first_name?: string | null;
+	last_name?: string | null;
 	sub?: string;
 	[key: string]: unknown;
 }

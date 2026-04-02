@@ -4,13 +4,13 @@ import { completeOIDCFlow } from '$lib/auth';
 import { setSessionCookie } from '$lib/session';
 
 export const GET: RequestHandler = async ({ cookies, url }) => {
-	console.log('[CALLBACK] OAuth callback received');
+	console.debug('[CALLBACK] OAuth callback received');
 	const targetRedirect = '/';
 
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
 
-	console.log('[CALLBACK] URL params:', {
+	console.debug('[CALLBACK] URL params:', {
 		code: code ? `${code.substring(0, 20)}...` : 'missing',
 		state
 	});
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 		throw error(400, 'State validation failed');
 	}
 
-	console.log('[CALLBACK] State validated ✓');
+	console.debug('[CALLBACK] State validated ✓');
 
 	try {
 		// Complete OIDC flow
@@ -44,13 +44,13 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 			throw error(500, 'Authentication failed');
 		}
 
-		console.log('[CALLBACK] ✓ OIDC flow completed successfully');
-		console.log('[CALLBACK] Setting session for user:', result.dbUser.id_user);
+		console.debug('[CALLBACK] ✓ OIDC flow completed successfully');
+		console.debug('[CALLBACK] Setting session for user:', result.dbUser.id_user);
 
 		// Set session cookie
 		setSessionCookie(cookies, result.dbUser.id_user);
 
-		console.log('[CALLBACK] ✓ Session cookie set, redirecting to home');
+		console.debug('[CALLBACK] ✓ Session cookie set, redirecting to home');
 
 		// Clear OIDC cookies
 		cookies.delete('__oidc_state', { path: '/' });
@@ -60,6 +60,6 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 		throw error(500, 'Authentication error');
 	}
 
-	console.log('[CALLBACK] Redirecting to:', targetRedirect);
+	console.debug('[CALLBACK] Redirecting to:', targetRedirect);
 	throw redirect(302, targetRedirect);
 };

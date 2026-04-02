@@ -5,18 +5,29 @@ import type { LayoutServerLoad } from './$types';
 
 const SESSION_COOKIE_NAME = '__session_user';
 
-function toSessionUser(user: UserRow): UserRow {
+type SessionPageUser = NonNullable<NonNullable<App.PageData['session']>['user']>;
+type SessionRole = NonNullable<SessionPageUser['role']>;
+
+function normalizeRole(role: UserRow['role']): SessionRole {
+	return role === 'admin' || role === 'mitviste' || role === 'user' ? role : 'user';
+}
+
+function toSessionUser(user: UserRow): SessionPageUser {
 	return {
-		...user,
-		nom: user.name,
-		prenom: user.first_name || '',
+		id_user: user.id_user,
+		name: user.name,
+		first_name: user.first_name,
+		last_name: user.last_name,
+		photos_id: user.photos_id,
+		role: normalizeRole(user.role),
+		promo: user.promo,
 		id_photos: user.photos_id,
 		promo_year: user.promo,
 		first_login: 0
 	};
 }
 
-export const load: LayoutServerLoad = async (event) => {
+export const load: LayoutServerLoad = (event) => {
 	const { cookies } = event;
 	try {
 		const db = getDatabase();

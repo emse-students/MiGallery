@@ -2,12 +2,12 @@ import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { clearSessionCookie } from '$lib/session';
 
-export const POST: RequestHandler = async ({ cookies }) => {
-	console.log('[LOGOUT] Logout requested');
+export const POST: RequestHandler = ({ cookies }) => {
+	console.debug('[LOGOUT] Logout requested');
 
 	try {
 		clearSessionCookie(cookies);
-		console.log('[LOGOUT] ✓ Session cleared, redirecting to home');
+		console.debug('[LOGOUT] ✓ Session cleared, redirecting to home');
 
 		throw redirect(302, '/');
 	} catch (e) {

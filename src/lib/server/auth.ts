@@ -92,13 +92,13 @@ function getUserFromLocals(locals: App.Locals): UserRow | null {
  *
  * Returns the DB user row when admin or null otherwise.
  */
-export async function ensureAdmin({
+export function ensureAdmin({
 	locals,
 	cookies
 }: {
 	locals: App.Locals;
 	cookies: Cookies;
-}): Promise<UserRow | null> {
+}): UserRow | null {
 	const fromCookie = getUserFromSignedCookie(cookies);
 	// If a signed cookie exists, use it as the single source of truth.
 	// Do NOT fall back to the provider identity when a cookie is present,
@@ -123,13 +123,13 @@ export async function ensureAdmin({
 	return null;
 }
 
-export async function getCurrentUser({
+export function getCurrentUser({
 	locals,
 	cookies
 }: {
 	locals: App.Locals;
 	cookies: Cookies;
-}): Promise<UserRow | null> {
+}): UserRow | null {
 	const cookieUser = getUserFromSignedCookie(cookies);
 	if (cookieUser) {
 		return cookieUser;

@@ -20,13 +20,11 @@ declare global {
 					photos_id: string | null;
 					role?: 'admin' | 'mitviste' | 'user';
 					promo?: number | null;
-					nom?: string;
-					prenom?: string;
 					id_photos?: string | null;
 					promo_year?: number | null;
 					first_login?: number;
 				} | null;
-			};
+			} | null;
 		}
 	}
 }

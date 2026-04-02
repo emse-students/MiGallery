@@ -36,7 +36,7 @@
 		const q = (searchQuery || '').trim().toLowerCase();
 		if (!q) return users;
 		return users.filter((u) => {
-			const hay = `${u.prenom || ''} ${u.nom || ''} ${u.email || ''} ${u.id_user || ''}`.toLowerCase();
+			const hay = `${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.email || ''} ${u.id_user || ''}`.toLowerCase();
 			return hay.includes(q);
 		});
 	});
@@ -46,8 +46,8 @@
 	let editUserData = $state({
 		id_user: '',
 		email: '',
-		prenom: '',
-		nom: '',
+		first_name: '',
+		last_name: '',
 		role: 'user',
 		promo_year: null as number | null,
 		id_photos: null as string | null
@@ -162,7 +162,7 @@
 						doc.setFontSize(9);
 						doc.setFont('helvetica', 'normal');
 						doc.setTextColor(60);
-						const name = `${user.prenom || ''}\n${user.nom || ''}`;
+						const name = user.name || `${user.first_name || ''}\n${user.last_name || ''}`.trim();
 						doc.text(name, x + colWidth / 2, y + imgSize + 5, { align: 'center' });
 					});
 
@@ -207,9 +207,9 @@
 	}
 
 	function getUserInitials(user: User): string {
-		const prenom = user.prenom || '';
-		const nom = user.nom || '';
-		return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
+		const firstName = user.first_name || '';
+		const lastName = user.last_name || '';
+		return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 	}
 
 	function openAddUserModal() {
@@ -217,8 +217,8 @@
 		editUserData = {
 			id_user: '',
 			email: '',
-			prenom: '',
-			nom: '',
+			first_name: '',
+			last_name: '',
 			role: 'user',
 			promo_year: null,
 			id_photos: null
@@ -233,8 +233,8 @@
 		editUserData = {
 			id_user: user.id_user,
 			email: user.email || '',
-			prenom: user.prenom || '',
-			nom: user.nom || '',
+			first_name: user.first_name || '',
+			last_name: user.last_name || '',
 			role: user.role || 'user',
 			promo_year: user.promo_year || null,
 			id_photos: user.id_photos || null
@@ -245,7 +245,12 @@
 	}
 
 	async function saveUser() {
-		if (!editUserData.id_user || !editUserData.email || !editUserData.prenom || !editUserData.nom) {
+		if (
+			!editUserData.id_user ||
+			!editUserData.email ||
+			!editUserData.first_name ||
+			!editUserData.last_name
+		) {
 			toast.error('Les champs ID, email, prénom et nom sont requis.');
 			return;
 		}
@@ -334,7 +339,7 @@
 			toast.error('Vous ne pouvez pas supprimer votre propre compte.');
 			return;
 		}
-		const ok = await showConfirm(`Supprimer ${user.prenom} ${user.nom} ?`, "Supprimer l'utilisateur");
+		const ok = await showConfirm(`Supprimer ${user.name} ?`, "Supprimer l'utilisateur");
 		if (!ok) return;
 
 		try {
@@ -475,7 +480,7 @@
 											{#if user.id_photos}
 												<img
 													src={`/api/immich/people/${user.id_photos}/thumbnail`}
-													alt={`${user.prenom} ${user.nom}`}
+													alt={user.name}
 													loading="lazy"
 													onerror={(e) => {
 														const target = e.currentTarget as HTMLImageElement;
@@ -490,7 +495,7 @@
 										</div>
 
 										<div class="user-info">
-											<div class="name">{user.prenom} {user.nom}</div>
+											<div class="name">{user.name}</div>
 											<div class="username" title="@{user.id_user}">@{user.id_user}</div>
 											{#if user.role && user.role !== 'user'}
 												<div class="role-tag {user.role}">{user.role}</div>
@@ -557,12 +562,12 @@
 							/>
 						</div>
 						<div class="input-group">
-							<label for="prenom">Prénom *</label>
-							<input id="prenom" class="input-glass" bind:value={editUserData.prenom} />
+							<label for="first_name">Prénom *</label>
+							<input id="first_name" class="input-glass" bind:value={editUserData.first_name} />
 						</div>
 						<div class="input-group">
-							<label for="nom">Nom *</label>
-							<input id="nom" class="input-glass" bind:value={editUserData.nom} />
+							<label for="last_name">Nom *</label>
+							<input id="last_name" class="input-glass" bind:value={editUserData.last_name} />
 						</div>
 						<div class="input-group">
 							<label for="promo">Promo</label>

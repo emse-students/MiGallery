@@ -47,7 +47,7 @@
 					<div class="icon-wrapper">
 						<UserPlus size={32} />
 					</div>
-					<h2>{greeting} {user?.prenom || ''} !</h2>
+					<h2>{greeting} {user?.first_name || user?.name || ''} !</h2>
 					<p>
 						Pour profiter pleinement de MiGallery, veuillez terminer la configuration de votre profil.
 					</p>
@@ -55,7 +55,7 @@
 				</div>
 			{:else}
 				<div class="glass-card card">
-					<h2>{greeting} {user?.prenom || ''} !</h2>
+					<h2>{greeting} {user?.first_name || user?.name || ''} !</h2>
 				</div>
 			{/if}
 		</div>

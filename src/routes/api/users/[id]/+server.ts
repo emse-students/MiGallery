@@ -26,8 +26,6 @@ export const GET: RequestHandler = async (event) => {
 				photos_id,
 				role,
 				promo,
-				name as nom,
-				first_name as prenom,
 				photos_id as id_photos,
 				promo as promo_year
 			FROM users WHERE id_user = ? LIMIT 1`
@@ -56,16 +54,14 @@ export const PUT: RequestHandler = async (event) => {
 			name?: string;
 			first_name?: string | null;
 			last_name?: string | null;
-			prenom?: string | null;
-			nom?: string | null;
 			promo_year?: number | null;
 			id_photos?: string | null;
 			role?: string;
 			promo?: number | null;
 			photos_id?: string | null;
 		};
-		const first_name = body.first_name ?? body.prenom ?? null;
-		const last_name = body.last_name ?? body.nom ?? null;
+		const first_name = body.first_name ?? null;
+		const last_name = body.last_name ?? null;
 		const legacyName = [first_name, last_name].filter(Boolean).join(' ').trim();
 		const name = body.name ?? (legacyName || targetId);
 		const role = body.role;
@@ -104,8 +100,6 @@ export const PUT: RequestHandler = async (event) => {
 					photos_id,
 					role,
 					promo,
-					name as nom,
-					first_name as prenom,
 					photos_id as id_photos,
 					promo as promo_year
 				FROM users WHERE id_user = ?`

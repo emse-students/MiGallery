@@ -7,7 +7,7 @@ import { getUserFromSignedCookie } from '$lib/server/auth';
  * Log an event to the local DB `logs` table.
  * event: the SvelteKit request event (used to extract actor/ip when possible)
  */
-export async function logEvent(
+export function logEvent(
 	event: RequestEvent | undefined | null,
 	eventType: string,
 	targetType: string | null = null,

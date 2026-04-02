@@ -68,7 +68,13 @@
 						success?: boolean;
 						hasAccess?: boolean;
 						reason?: string;
-						user?: { id_user: string; prenom: string; nom: string; id_photos: string | null };
+						user?: {
+							id_user: string;
+							name: string;
+							first_name: string | null;
+							last_name: string | null;
+							id_photos: string | null;
+						};
 					};
 
 					if (!accessData.success || !accessData.hasAccess) {
@@ -79,8 +85,7 @@
 					if (accessData.user?.id_photos) {
 						targetUserId = userIdParam;
 						photosState.peopleId = accessData.user.id_photos;
-						targetUserName =
-							(accessData.user.prenom || '') + (accessData.user.nom ? ' ' + accessData.user.nom : '');
+						targetUserName = accessData.user.name;
 						photosState.loadPerson(accessData.user.id_photos);
 					} else {
 						goto('/');
@@ -97,13 +102,18 @@
 				const accessRes = await fetch(`/api/users/${encodeURIComponent(userIdParam)}/photo-access`);
 				const accessData = (await accessRes.json()) as {
 					success?: boolean;
-					user?: { id_user: string; prenom: string; nom: string; id_photos: string | null };
+					user?: {
+						id_user: string;
+						name: string;
+						first_name: string | null;
+						last_name: string | null;
+						id_photos: string | null;
+					};
 				};
 
 				if (accessData.success && accessData.user?.id_photos) {
 					photosState.peopleId = accessData.user.id_photos;
-					targetUserName =
-						(accessData.user.prenom || '') + (accessData.user.nom ? ' ' + accessData.user.nom : '');
+					targetUserName = accessData.user.name;
 					photosState.loadPerson(accessData.user.id_photos);
 				} else {
 					goto('/');
@@ -120,7 +130,7 @@
 			goto('/');
 			return;
 		}
-		targetUserName = (user?.prenom || '') + (user?.nom ? ' ' + user.nom : '');
+		targetUserName = user?.name || null;
 
 		photosState.peopleId = user.id_photos;
 		photosState.loadPerson(user.id_photos);

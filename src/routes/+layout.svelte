@@ -147,7 +147,7 @@
 	<div class="user">
 		{#if u}
 			<a href="/mes-photos" class="avatar-link">
-				<div class="avatar" title={`${u.prenom || ''} ${u.nom || ''}`}>
+				<div class="avatar" title={u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()}>
 					{#if u.id_photos}
 						<img
 							src={`/api/immich/people/${u.id_photos}/thumbnail`}
@@ -155,11 +155,11 @@
 							onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
 						/>
 					{:else}
-						<span class="initials">{(u.prenom || 'U').charAt(0)}{(u.nom || '').charAt(0) || 'U'}</span>
+						<span class="initials">{(u.first_name || 'U').charAt(0)}{(u.last_name || '').charAt(0) || 'U'}</span>
 					{/if}
 				</div>
 			</a>
-			<span class="user-name">{u.prenom} {u.nom}</span>
+			<span class="user-name">{u.name}</span>
 			<button class="btn-logout" onclick={() => handleSignOut()}>Déconnexion</button>
 		{:else}
 			<button class="btn-login" onclick={() => handleSignIn()}>Connexion</button>

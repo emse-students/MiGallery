@@ -58,14 +58,16 @@
 
 	interface PhotoPermission {
 		authorized_id: string;
-		authorized_prenom: string;
-		authorized_nom: string;
+		authorized_name: string;
+		authorized_first_name: string | null;
+		authorized_last_name: string | null;
 		created_at: string;
 	}
 	interface SharedWithMe {
 		owner_id: string;
-		owner_prenom: string;
-		owner_nom: string;
+		owner_name: string;
+		owner_first_name: string | null;
+		owner_last_name: string | null;
 		created_at: string;
 	}
 	let photoPermissions = $state<PhotoPermission[]>([]);
@@ -591,7 +593,7 @@
 											<UserIcon size={14} />
 										</div>
 										<div class="chip-info">
-											<span class="chip-name">{perm.authorized_prenom} {perm.authorized_nom}</span>
+											<span class="chip-name">{perm.authorized_name}</span>
 											<span class="chip-id">{perm.authorized_id}</span>
 										</div>
 										<button
@@ -633,10 +635,10 @@
 						{#each sharedWithMe as shared}
 							<a href="/mes-photos?userId={shared.owner_id}" class="shared-item">
 								<div class="shared-avatar">
-									{shared.owner_prenom[0]}{shared.owner_nom[0]}
+									{(shared.owner_first_name || 'U')[0]}{(shared.owner_last_name || '')[0] || 'U'}
 								</div>
 								<div class="shared-info">
-									<span class="shared-name">{shared.owner_prenom} {shared.owner_nom}</span>
+									<span class="shared-name">{shared.owner_name}</span>
 									<span class="shared-date"
 										>Depuis le {new Date(shared.created_at).toLocaleDateString()}</span
 									>

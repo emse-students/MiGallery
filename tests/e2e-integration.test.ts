@@ -138,8 +138,9 @@ describe('E2E - Workflow complet utilisateur', () => {
 			body: JSON.stringify({
 				id_user: `e2e.test.${Date.now()}`,
 				email: `e2e.test.${Date.now()}@etu.emse.fr`,
-				prenom: 'E2E',
-				nom: 'Test',
+				name: 'E2E Test',
+				first_name: 'E2E',
+				last_name: 'Test',
 				role: 'user',
 				promo_year: 2025
 			})
@@ -167,8 +168,9 @@ describe('E2E - Workflow complet utilisateur', () => {
 				},
 				body: JSON.stringify({
 					email: `modified.${Date.now()}@etu.emse.fr`,
-					prenom: 'Modified',
-					nom: 'User',
+					name: 'Modified User',
+					first_name: 'Modified',
+					last_name: 'User',
 					role: 'user',
 					promo_year: 2026
 				})
@@ -260,8 +262,9 @@ describe('E2E - Workflow permissions et scopes', () => {
 			body: JSON.stringify({
 				id_user: 'test.forbidden',
 				email: 'test@etu.emse.fr',
-				prenom: 'Test',
-				nom: 'Forbidden',
+				name: 'Test Forbidden',
+				first_name: 'Test',
+				last_name: 'Forbidden',
 				role: 'user'
 			})
 		});
@@ -278,8 +281,9 @@ describe('E2E - Workflow permissions et scopes', () => {
 			body: JSON.stringify({
 				id_user: `e2e.scope.test.${Date.now()}`,
 				email: `scope.test.${Date.now()}@etu.emse.fr`,
-				prenom: 'Scope',
-				nom: 'Test',
+				name: 'Scope Test',
+				first_name: 'Scope',
+				last_name: 'Test',
 				role: 'user'
 			})
 		});

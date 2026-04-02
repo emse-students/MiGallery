@@ -344,8 +344,9 @@ describe('Users CRUD (Admin)', () => {
 			body: JSON.stringify({
 				id_user: 'test.user.vitest',
 				email: 'test.user.vitest@etu.emse.fr',
-				prenom: 'Test',
-				nom: 'Vitest',
+				name: 'Test Vitest',
+				first_name: 'Test',
+				last_name: 'Vitest',
 				role: 'user',
 				promo_year: 2025
 			})
@@ -389,8 +390,9 @@ describe('Users CRUD (Admin)', () => {
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
 				email: 'test.user.modified@etu.emse.fr',
-				prenom: 'Test Modified',
-				nom: 'Vitest Modified',
+				name: 'Test Modified Vitest Modified',
+				first_name: 'Test Modified',
+				last_name: 'Vitest Modified',
 				role: 'user',
 				promo_year: 2025
 			})
@@ -640,8 +642,9 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 			body: JSON.stringify({
 				id_user: 'test.apikey.user',
 				email: 'test.apikey@etu.emse.fr',
-				prenom: 'Test',
-				nom: 'API Key',
+				name: 'Test API Key',
+				first_name: 'Test',
+				last_name: 'API Key',
 				role: 'user',
 				promo_year: 2025
 			})
@@ -672,8 +675,9 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 			body: JSON.stringify({
 				id_user: 'test.put.apikey',
 				email: 'test.put.apikey@etu.emse.fr',
-				prenom: 'Test',
-				nom: 'PUT',
+				name: 'Test PUT',
+				first_name: 'Test',
+				last_name: 'PUT',
 				role: 'user',
 				promo_year: 2025
 			})
@@ -689,8 +693,9 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 				},
 				body: JSON.stringify({
 					email: 'test.put.modified@etu.emse.fr',
-					prenom: 'Modified',
-					nom: 'PUT',
+					name: 'Modified PUT',
+					first_name: 'Modified',
+					last_name: 'PUT',
 					role: 'user',
 					promo_year: 2025
 				})
@@ -719,8 +724,9 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 			body: JSON.stringify({
 				id_user: 'test.delete.apikey',
 				email: 'test.delete.apikey@etu.emse.fr',
-				prenom: 'Test',
-				nom: 'DELETE',
+				name: 'Test DELETE',
+				first_name: 'Test',
+				last_name: 'DELETE',
 				role: 'user',
 				promo_year: 2025
 			})

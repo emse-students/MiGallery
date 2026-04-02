@@ -27,8 +27,6 @@ export const GET: RequestHandler = async (event) => {
 					photos_id,
 					role,
 					promo,
-					name as nom,
-					first_name as prenom,
 					photos_id as id_photos,
 					promo as promo_year
 				FROM users WHERE id_user = ?`

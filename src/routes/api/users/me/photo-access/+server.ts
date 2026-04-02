@@ -5,15 +5,17 @@ import { requireSession } from '$lib/server/permissions';
 
 interface PhotoAccessPermission {
 	authorized_id: string;
-	authorized_prenom: string;
-	authorized_nom: string;
+	authorized_name: string;
+	authorized_first_name: string | null;
+	authorized_last_name: string | null;
 	created_at: string;
 }
 
 interface UserBasic {
 	id_user: string;
-	prenom: string;
-	nom: string;
+	name: string;
+	first_name: string | null;
+	last_name: string | null;
 }
 
 /**
@@ -30,8 +32,9 @@ export const GET: RequestHandler = async (event) => {
 			.prepare(
 				`SELECT
 					p.authorized_id,
-					u.first_name as authorized_prenom,
-					u.name as authorized_nom,
+					u.name as authorized_name,
+					u.first_name as authorized_first_name,
+					u.last_name as authorized_last_name,
 					p.created_at
 				FROM photo_access_permissions p
 				JOIN users u ON u.id_user = p.authorized_id
@@ -73,7 +76,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const targetUser = db
-			.prepare('SELECT id_user, first_name as prenom, name as nom FROM users WHERE id_user = ?')
+			.prepare('SELECT id_user, name, first_name, last_name FROM users WHERE id_user = ?')
 			.get(authorizedId) as UserBasic | undefined;
 
 		if (!targetUser) {
@@ -88,7 +91,7 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({
 			success: true,
-			message: `${targetUser.prenom} ${targetUser.nom} peut maintenant voir vos photos`,
+			message: `${targetUser.name} peut maintenant voir vos photos`,
 			user: targetUser
 		});
 	} catch (e) {

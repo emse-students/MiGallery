@@ -10,7 +10,7 @@ const MAX_AGE = 365 * 24 * 60 * 60; // 1 year
  * Set session cookie after successful login
  */
 export function setSessionCookie(cookies: Cookies, userId: string): void {
-	console.log('[SESSION] Setting session cookie for user:', userId);
+	console.debug('[SESSION] Setting session cookie for user:', userId);
 
 	cookies.set(SESSION_COOKIE_NAME, userId, {
 		path: '/',
@@ -20,16 +20,16 @@ export function setSessionCookie(cookies: Cookies, userId: string): void {
 		httpOnly: true
 	});
 
-	console.log('[SESSION] ✓ Session cookie set');
+	console.debug('[SESSION] ✓ Session cookie set');
 }
 
 /**
  * Clear session cookie on logout
  */
 export function clearSessionCookie(cookies: Cookies): void {
-	console.log('[SESSION] Clearing session cookie');
+	console.debug('[SESSION] Clearing session cookie');
 	cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-	console.log('[SESSION] ✓ Session cookie cleared');
+	console.debug('[SESSION] ✓ Session cookie cleared');
 }
 
 /**
@@ -42,7 +42,7 @@ export function getSessionUser(cookies: Cookies): SessionUser | null {
 		return null;
 	}
 
-	console.log('[SESSION] Retrieving user from DB with ID:', userId);
+	console.debug('[SESSION] Retrieving user from DB with ID:', userId);
 
 	try {
 		const dbUser = getUserByCasId(userId);
@@ -51,7 +51,7 @@ export function getSessionUser(cookies: Cookies): SessionUser | null {
 			return null;
 		}
 
-		console.log('[SESSION] ✓ User found, converting to session user');
+		console.debug('[SESSION] ✓ User found, converting to session user');
 		return toSessionUser(dbUser);
 	} catch (e) {
 		console.error('[SESSION] Error retrieving user:', e);

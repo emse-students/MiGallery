@@ -85,8 +85,9 @@ describe('Users API - POST /api/users', () => {
 		const newUser = {
 			id_user: `test.user.${Date.now()}`,
 			email: `test.${Date.now()}@etu.emse.fr`,
-			prenom: 'Test',
-			nom: 'User',
+			name: 'Test User',
+			first_name: 'Test',
+			last_name: 'User',
 			role: 'user',
 			promo_year: 2025
 		};
@@ -112,7 +113,7 @@ describe('Users API - POST /api/users', () => {
 	it('devrait rejeter la création avec des données manquantes', async () => {
 		const invalidUser = {
 			email: 'incomplete@etu.emse.fr'
-			// Manque id_user, prenom, nom, role
+			// Manque id_user, name, first_name, last_name, role
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -144,8 +145,9 @@ describe('Users API - POST /api/users', () => {
 		const invalidUser = {
 			id_user: 'test.invalid.role',
 			email: 'test@etu.emse.fr',
-			prenom: 'Test',
-			nom: 'Invalid',
+			name: 'Test Invalid',
+			first_name: 'Test',
+			last_name: 'Invalid',
 			role: 'super-admin-999' // Rôle invalide
 		};
 
@@ -166,8 +168,9 @@ describe('Users API - POST /api/users', () => {
 		const duplicateUser = {
 			id_user: createdUserId,
 			email: 'duplicate@etu.emse.fr',
-			prenom: 'Duplicate',
-			nom: 'User',
+			name: 'Duplicate User',
+			first_name: 'Duplicate',
+			last_name: 'User',
 			role: 'user'
 		};
 
@@ -236,8 +239,9 @@ describe('Users API - PUT /api/users/[id]', () => {
 
 		const updates = {
 			email: `modified.${Date.now()}@etu.emse.fr`,
-			prenom: 'Modified',
-			nom: 'User Updated',
+			name: 'Modified User Updated',
+			first_name: 'Modified',
+			last_name: 'User Updated',
 			role: 'user',
 			promo_year: 2026
 		};
@@ -281,8 +285,9 @@ describe('Users API - PUT /api/users/[id]', () => {
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
 				email: 'test@etu.emse.fr',
-				prenom: 'Test',
-				nom: 'Test',
+				name: 'Test Test',
+				first_name: 'Test',
+				last_name: 'Test',
 				role: 'user'
 			})
 		});
@@ -431,8 +436,9 @@ describe('Users API - Validation des permissions', () => {
 			body: JSON.stringify({
 				id_user: testPermUserId,
 				email: `test.perm.${Date.now()}@etu.emse.fr`,
-				prenom: 'Test',
-				nom: 'Permission',
+				name: 'Test Permission',
+				first_name: 'Test',
+				last_name: 'Permission',
 				role: 'user'
 			})
 		});
@@ -451,8 +457,9 @@ describe('Users API - Validation des permissions', () => {
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
 				email: 'modified@etu.emse.fr',
-				prenom: 'Modified',
-				nom: 'User',
+				name: 'Modified User',
+				first_name: 'Modified',
+				last_name: 'User',
 				role: 'user'
 			})
 		});

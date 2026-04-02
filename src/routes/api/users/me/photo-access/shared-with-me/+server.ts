@@ -5,8 +5,9 @@ import { requireSession } from '$lib/server/permissions';
 
 interface SharedWithMe {
 	owner_id: string;
-	owner_prenom: string;
-	owner_nom: string;
+	owner_name: string;
+	owner_first_name: string | null;
+	owner_last_name: string | null;
 	created_at: string;
 }
 
@@ -24,8 +25,9 @@ export const GET: RequestHandler = async (event) => {
 			.prepare(
 				`SELECT
 					p.owner_id,
-					u.first_name as owner_prenom,
-					u.name as owner_nom,
+					u.name as owner_name,
+					u.first_name as owner_first_name,
+					u.last_name as owner_last_name,
 					p.created_at
 				FROM photo_access_permissions p
 				JOIN users u ON u.id_user = p.owner_id

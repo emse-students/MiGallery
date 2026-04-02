@@ -5,8 +5,9 @@ import { requireSession } from '$lib/server/permissions';
 
 interface UserInfo {
 	id_user: string;
-	prenom: string;
-	nom: string;
+	name: string;
+	first_name: string | null;
+	last_name: string | null;
 	id_photos: string | null;
 }
 
@@ -17,7 +18,7 @@ interface UserInfo {
  * Retourne:
  * - hasAccess: boolean (true si admin, ou si l'utilisateur a donné l'autorisation)
  * - reason: string (explication de l'accès)
- * - user: { id_user, prenom, nom, id_photos } si hasAccess est true
+ * - user: { id_user, name, first_name, last_name, id_photos } si hasAccess est true
  */
 export const GET: RequestHandler = async (event) => {
 	const user = await requireSession(event);
@@ -33,7 +34,7 @@ export const GET: RequestHandler = async (event) => {
 		const getTargetUser = (): UserInfo | null => {
 			return db
 				.prepare(
-					'SELECT id_user, first_name as prenom, name as nom, photos_id as id_photos FROM users WHERE id_user = ?'
+					'SELECT id_user, name, first_name, last_name, photos_id as id_photos FROM users WHERE id_user = ?'
 				)
 				.get(targetUserId) as UserInfo | null;
 		};
