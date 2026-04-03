@@ -11,14 +11,14 @@ export interface DBUser {
 	formation?: string | null;
 }
 
-const db = getDatabase();
-
 export function getUserByCasId(casId: string): DBUser | undefined {
+	const db = getDatabase();
 	const stmt = db.prepare('SELECT * FROM users WHERE id_user = ?');
 	return stmt.get(casId) as DBUser | undefined;
 }
 
 export function createUser(user: DBUser) {
+	const db = getDatabase();
 	const stmt = db.prepare(`
 		INSERT INTO users (id_user, name, first_name, last_name, photos_id, role, promo, formation)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -37,6 +37,7 @@ export function createUser(user: DBUser) {
 }
 
 export function updateUser(user: Partial<DBUser> & { id_user: string }) {
+	const db = getDatabase();
 	// Helper simple pour mettre à jour des champs
 	const keys = Object.keys(user).filter((k) => k !== 'id_user');
 	const sets = keys.map((k) => `${k} = @${k}`).join(', ');
