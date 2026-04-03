@@ -11,15 +11,12 @@ function generateRandomString(length: number): string {
 }
 
 export const GET: RequestHandler = ({ cookies, url }) => {
-	console.debug('[LOGIN] Starting login flow');
 	let authUrl: string;
 
 	try {
 		// Generate state and nonce
 		const state = generateRandomString(32);
 		const nonce = generateRandomString(32);
-
-		console.debug('[LOGIN] Generated state and nonce');
 
 		// Store in cookies for validation on callback
 		cookies.set(STATE_COOKIE_NAME, state, {
@@ -38,8 +35,6 @@ export const GET: RequestHandler = ({ cookies, url }) => {
 			httpOnly: true
 		});
 
-		console.debug('[LOGIN] State and nonce cookies set');
-
 		// Determine redirect URI
 		const callbackUrl = new URL('/api/auth/callback', url.origin);
 		authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
@@ -48,6 +43,5 @@ export const GET: RequestHandler = ({ cookies, url }) => {
 		throw error(500, 'Login failed');
 	}
 
-	console.debug('[LOGIN] ✓ Redirecting to authorization endpoint:', authUrl);
 	throw redirect(302, authUrl);
 };

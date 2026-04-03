@@ -113,8 +113,6 @@ function decodeJWT(token: string): Record<string, unknown> | null {
  */
 async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<OIDCToken | null> {
 	try {
-		console.debug('[AUTH] Exchanging code for tokens...');
-
 		const tokenUrl = `${getIssuerBaseUrl()}/token/`;
 		const response = await fetch(tokenUrl, {
 			method: 'POST',
@@ -136,17 +134,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
 			return null;
 		}
 
-		const tokens = (await response.json()) as OIDCToken;
-		console.debug('[AUTH] ✓ Token exchange successful');
-		console.debug('[AUTH] Token response:', {
-			access_token: tokens.access_token ? `${tokens.access_token.substring(0, 20)}...` : 'N/A',
-			token_type: tokens.token_type,
-			expires_in: tokens.expires_in,
-			scope: tokens.scope || 'N/A',
-			has_refresh_token: !!tokens.refresh_token
-		});
-
-		return tokens;
+		return (await response.json()) as OIDCToken;
 	} catch (e) {
 		console.error('[AUTH] Token exchange error:', e);
 		return null;
@@ -158,8 +146,6 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
  */
 async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null> {
 	try {
-		console.debug('[AUTH] Fetching user profile from userinfo endpoint...');
-
 		const userinfoUrl = `${getIssuerBaseUrl()}/userinfo/`;
 		const response = await fetch(userinfoUrl, {
 			headers: {
@@ -173,19 +159,7 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
 			return null;
 		}
 
-		const profile = (await response.json()) as OIDCProfile;
-		console.debug('[AUTH] ✓ User profile fetched');
-		console.debug('[AUTH] Profile data (userinfo endpoint):', {
-			sub: profile.sub,
-			name: profile.name || 'N/A',
-			firstName: profile.firstName || profile.given_name || 'N/A',
-			lastName: profile.lastName || profile.family_name || 'N/A',
-			email: profile.email || 'N/A',
-			promo: profile.promo || 'N/A',
-			formation: profile.formation || 'N/A'
-		});
-
-		return profile;
+		return (await response.json()) as OIDCProfile;
 	} catch (e) {
 		console.error('[AUTH] Failed to fetch user profile:', e);
 		return null;
@@ -196,15 +170,11 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
  * Parse custom claims from ID token
  */
 function extractCustomClaims(idToken: string): Record<string, unknown> | null {
-	console.debug('[AUTH] Extracting custom claims from ID token...');
-
 	const decoded = decodeJWT(idToken);
 	if (!decoded) {
 		console.warn('[AUTH] Could not decode ID token');
 		return null;
 	}
-
-	console.debug('[AUTH] Full ID token payload:', decoded);
 
 	// Extract all custom claims (everything that's not standard OIDC)
 	const standardClaims = [
@@ -234,7 +204,6 @@ function extractCustomClaims(idToken: string): Record<string, unknown> | null {
 		}
 	}
 
-	console.debug('[AUTH] Custom claims extracted:', customClaims);
 	return customClaims;
 }
 
@@ -292,11 +261,11 @@ function handleUserInDatabase(
 		};
 
 		if (!existingUser) {
-			console.debug('[AUTH] Creating new user:', userData);
 			createUser(userData);
-			console.debug('[AUTH] ✓ User created in database');
+			console.warn(
+				`[AUTH] New user: ${userData.name} (promo:${userData.promo ?? '?'}, ${userData.formation ?? '?'})`
+			);
 		} else {
-			console.debug('[AUTH] User already exists, updating profile...');
 			// Update profile fields only (not creating duplicate)
 			updateUser({
 				id_user: userId,
@@ -306,7 +275,6 @@ function handleUserInDatabase(
 				promo,
 				formation
 			});
-			console.debug('[AUTH] ✓ User updated in database');
 		}
 
 		return userData;
@@ -323,14 +291,10 @@ export async function completeOIDCFlow(
 	code: string,
 	redirectUri: string
 ): Promise<{ tokens: OIDCToken; profile: OIDCProfile; dbUser: DBUser } | null> {
-	console.debug('\n========== OIDC FLOW START ==========');
-	console.debug('[AUTH] Started OIDC flow with code:', `${code.substring(0, 20)}...`);
-
 	// Step 1: Exchange code for tokens
 	const tokens = await exchangeCodeForTokens(code, redirectUri);
 	if (!tokens) {
-		console.error('[AUTH] ✗ OIDC Flow failed at token exchange');
-		console.debug('========== OIDC FLOW FAILED ==========\n');
+		console.error('[AUTH] OIDC flow failed at token exchange');
 		return null;
 	}
 
@@ -340,31 +304,16 @@ export async function completeOIDCFlow(
 	// Step 3: Fetch user profile from userinfo endpoint
 	const profile = await fetchUserProfile(tokens.access_token);
 	if (!profile) {
-		console.error('[AUTH] ✗ OIDC Flow failed at userinfo fetch');
-		console.debug('========== OIDC FLOW FAILED ==========\n');
+		console.error('[AUTH] OIDC flow failed at userinfo fetch');
 		return null;
 	}
 
 	// Step 4: Handle user in database
 	const dbUser = handleUserInDatabase(profile, customClaims);
 	if (!dbUser) {
-		console.error('[AUTH] ✗ OIDC Flow failed at database operation');
-		console.debug('========== OIDC FLOW FAILED ==========\n');
+		console.error('[AUTH] OIDC flow failed at database operation');
 		return null;
 	}
-
-	console.debug('\n[AUTH] ✓ OIDC FLOW COMPLETE');
-	console.debug('[AUTH] Final user object:', {
-		id: dbUser.id_user,
-		name: dbUser.name,
-		first_name: dbUser.first_name,
-		last_name: dbUser.last_name,
-		role: dbUser.role,
-		promo: dbUser.promo,
-		formation: dbUser.formation,
-		photosId: dbUser.photos_id
-	});
-	console.debug('========== OIDC FLOW SUCCESS ==========\n');
 
 	return { tokens, profile, dbUser };
 }
@@ -389,7 +338,6 @@ export function generateAuthorizationUrl(
 	});
 
 	const authUrl = `${getIssuerBaseUrl()}/authorize/?${params.toString()}`;
-	console.debug('[AUTH] Generated authorization URL:', authUrl);
 	return authUrl;
 }
 
