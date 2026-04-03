@@ -38,6 +38,9 @@
 	let selectedUserIds = $state<string[]>([]);
 	let selectedFormations = $state<string[]>([]);
 	let selectedPromos = $state<number[]>([]);
+	let customPromoInput = $state('');
+	let promosManuallyEdited = $state(false);
+	let formationsManuallyEdited = $state(false);
 
 	let userSearch = $state('');
 	let showUserSuggestions = $state(false);
@@ -53,6 +56,34 @@
 		const month = String(today.getMonth() + 1).padStart(2, '0');
 		const day = String(today.getDate()).padStart(2, '0');
 		return `${year}-${month}-${day}`;
+	}
+
+	function getCurrentSchoolYear(referenceDate: Date = new Date()): number {
+		const year = referenceDate.getFullYear();
+		const month = referenceDate.getMonth() + 1;
+		return month >= 9 ? year + 1 : year;
+	}
+
+	function getDefaultPromosFromDate(dateValue: string): number[] {
+		const parsed = new Date(`${dateValue}T00:00:00`);
+		const baseDate = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+		const currentSchoolYear = getCurrentSchoolYear(baseDate);
+		return [
+			currentSchoolYear - 3,
+			currentSchoolYear - 2,
+			currentSchoolYear - 1,
+			currentSchoolYear
+		];
+	}
+
+	function applyDefaultPromosFromDate() {
+		if (isEditMode || promosManuallyEdited) return;
+		const defaultPromos = getDefaultPromosFromDate(albumDate);
+		selectedPromos = [...defaultPromos];
+		const mergedPromos = [...new Set([...availablePromos, ...defaultPromos])].sort((a, b) => a - b);
+		if (mergedPromos.length !== availablePromos.length) {
+			availablePromos = mergedPromos;
+		}
 	}
 
 	function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
@@ -91,23 +122,39 @@
 	});
 
 	function addFormation(formation: string) {
+		formationsManuallyEdited = true;
 		if (!selectedFormations.includes(formation)) {
 			selectedFormations = [...selectedFormations, formation];
 		}
 	}
 
 	function removeFormation(formation: string) {
+		formationsManuallyEdited = true;
 		selectedFormations = selectedFormations.filter((f) => f !== formation);
 	}
 
 	function addPromo(promo: number) {
+		promosManuallyEdited = true;
 		if (!selectedPromos.includes(promo)) {
 			selectedPromos = [...selectedPromos, promo].sort((a, b) => a - b);
 		}
 	}
 
 	function removePromo(promo: number) {
+		promosManuallyEdited = true;
 		selectedPromos = selectedPromos.filter((p) => p !== promo);
+	}
+
+	function addCustomPromo() {
+		const n = Number.parseInt(customPromoInput.trim(), 10);
+		if (!Number.isFinite(n)) {
+			return;
+		}
+		addPromo(n);
+		if (!availablePromos.includes(n)) {
+			availablePromos = [...availablePromos, n].sort((a, b) => a - b);
+		}
+		customPromoInput = '';
 	}
 
 	function addUser(user: UserOption) {
@@ -140,6 +187,16 @@
 			availableUsers = data.users || [];
 			availableFormations = data.formations || [];
 			availablePromos = data.promos || [];
+
+			if (!isEditMode) {
+				if (!formationsManuallyEdited && selectedFormations.length === 0) {
+					selectedFormations = ['ICM'];
+				}
+
+				if (!promosManuallyEdited && selectedPromos.length === 0) {
+					applyDefaultPromosFromDate();
+				}
+			}
 		} catch (e: unknown) {
 			error = (e as Error).message;
 		} finally {
@@ -312,7 +369,13 @@
 			<div class="meta-grid">
 				<div class="form-group">
 					<label for="albumDate">Date (optionnel)</label>
-					<input id="albumDate" type="date" bind:value={albumDate} disabled={loading} />
+					<input
+						id="albumDate"
+						type="date"
+						bind:value={albumDate}
+						onchange={applyDefaultPromosFromDate}
+						disabled={loading}
+					/>
 				</div>
 
 				<div class="form-group">
@@ -381,6 +444,21 @@
 									{promo}
 								</button>
 							{/each}
+						</div>
+						<div class="promo-custom-row">
+							<input
+								type="number"
+								bind:value={customPromoInput}
+								placeholder="Ajouter une promo (ex: 2031)"
+								onkeydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										addCustomPromo();
+									}
+								}}
+								disabled={loading}
+							/>
+							<button type="button" class="chip" onclick={addCustomPromo}>Ajouter</button>
 						</div>
 					</div>
 
@@ -563,6 +641,16 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.45rem;
+	}
+
+	.promo-custom-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.promo-custom-row input {
+		flex: 1;
 	}
 
 	.chip,
