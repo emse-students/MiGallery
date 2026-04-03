@@ -46,6 +46,22 @@ CREATE TABLE IF NOT EXISTS album_tag_permissions (
     FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
 
+-- Formation-based permissions (e.g. ICM, ISMIN, FSSS, Master)
+CREATE TABLE IF NOT EXISTS album_formation_permissions (
+    album_id TEXT NOT NULL,
+    formation TEXT NOT NULL,
+    PRIMARY KEY (album_id, formation),
+    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
+);
+
+-- Promo-based permissions (e.g. 2022, 2023, ...)
+CREATE TABLE IF NOT EXISTS album_promo_permissions (
+    album_id TEXT NOT NULL,
+    promo_year INTEGER NOT NULL,
+    PRIMARY KEY (album_id, promo_year),
+    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
+);
+
 -- User favorites: stores favorite photos per user (not shared with Immich)
 CREATE TABLE IF NOT EXISTS user_favorites (
     user_id TEXT NOT NULL,

@@ -37,7 +37,19 @@ export const GET: RequestHandler = async (event) => {
 
 		const usersRows = db
 			.prepare('SELECT id_user FROM album_user_permissions WHERE album_id = ?')
-			.all(id) as { id_user: number }[];
+			.all(id) as { id_user: string }[];
+
+		const formationsRows = db
+			.prepare(
+				'SELECT formation FROM album_formation_permissions WHERE album_id = ? ORDER BY formation ASC'
+			)
+			.all(id) as { formation: string }[];
+
+		const promosRows = db
+			.prepare(
+				'SELECT promo_year FROM album_promo_permissions WHERE album_id = ? ORDER BY promo_year ASC'
+			)
+			.all(id) as { promo_year: number }[];
 
 		return json({
 			success: true,
@@ -50,7 +62,9 @@ export const GET: RequestHandler = async (event) => {
 				visible: albumRow.visible
 			},
 			tags: tagsRows.map((r) => r.tag),
-			users: usersRows.map((r) => r.id_user)
+			users: usersRows.map((r) => r.id_user),
+			formations: formationsRows.map((r) => r.formation),
+			promos: promosRows.map((r) => r.promo_year)
 		});
 	} catch (err: unknown) {
 		const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';

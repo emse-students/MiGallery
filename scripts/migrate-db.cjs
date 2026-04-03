@@ -86,6 +86,24 @@ const migrations = [
     )`
 	},
 	{
+		name: 'Create album_formation_permissions table',
+		sql: `CREATE TABLE IF NOT EXISTS album_formation_permissions (
+			album_id TEXT NOT NULL,
+			formation TEXT NOT NULL,
+			PRIMARY KEY (album_id, formation),
+			FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
+		)`
+	},
+	{
+		name: 'Create album_promo_permissions table',
+		sql: `CREATE TABLE IF NOT EXISTS album_promo_permissions (
+			album_id TEXT NOT NULL,
+			promo_year INTEGER NOT NULL,
+			PRIMARY KEY (album_id, promo_year),
+			FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
+		)`
+	},
+	{
 		name: 'Create api_keys table',
 		sql: `CREATE TABLE IF NOT EXISTS api_keys (
       id INTEGER PRIMARY KEY,

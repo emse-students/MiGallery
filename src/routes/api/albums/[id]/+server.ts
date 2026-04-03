@@ -10,6 +10,33 @@ import { logEvent } from '$lib/server/logs';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
+function normalizePromos(values: unknown[] | undefined): number[] {
+	if (!Array.isArray(values)) {
+		return [];
+	}
+	const out = new Set<number>();
+	for (const value of values) {
+		const n = typeof value === 'number' ? value : Number.parseInt(String(value), 10);
+		if (Number.isFinite(n)) {
+			out.add(n);
+		}
+	}
+	return [...out].sort((a, b) => a - b);
+}
+
+function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
+	const out = new Set<number>();
+	for (const rawTag of tags) {
+		const match = String(rawTag)
+			.trim()
+			.match(/^promo\s+(\d{4})$/i);
+		if (match) {
+			out.add(Number.parseInt(match[1], 10));
+		}
+	}
+	return [...out].sort((a, b) => a - b);
+}
+
 /**
  * GET /api/albums/[id]
  * Récupère les détails d'un album avec ses assets
@@ -67,6 +94,8 @@ export const DELETE: RequestHandler = async (event) => {
 			const db = getDatabase();
 			db.prepare('DELETE FROM albums WHERE id = ?').run(id);
 			db.prepare('DELETE FROM album_tag_permissions WHERE album_id = ?').run(id);
+			db.prepare('DELETE FROM album_formation_permissions WHERE album_id = ?').run(id);
+			db.prepare('DELETE FROM album_promo_permissions WHERE album_id = ?').run(id);
 			db.prepare('DELETE FROM album_user_permissions WHERE album_id = ?').run(id);
 			console.warn(`Album ${id} supprimé de la BDD locale`);
 		} catch (dbErr: unknown) {
@@ -140,7 +169,9 @@ export const DELETE: RequestHandler = async (event) => {
  *   location?: string | null,
  *   visibility?: 'private' | 'authenticated' | 'unlisted',
  *   visible?: boolean,
- *   tags?: string[],
+ *   formations?: string[],
+ *   promos?: number[],
+ *   tags?: string[], // legacy support
  *   allowedUsers?: string[]
  * }
  */
@@ -154,10 +185,13 @@ export const PATCH: RequestHandler = async (event) => {
 			location?: string | null;
 			visibility?: 'private' | 'authenticated' | 'unlisted';
 			visible?: boolean;
+			formations?: string[];
+			promos?: number[];
 			tags?: string[];
 			allowedUsers?: string[];
 		};
-		const { name, date, location, visibility, visible, tags, allowedUsers } = body;
+		const { name, date, location, visibility, visible, formations, promos, tags, allowedUsers } =
+			body;
 
 		const db = getDatabase();
 
@@ -239,6 +273,59 @@ export const PATCH: RequestHandler = async (event) => {
 				db
 					.prepare('DELETE FROM album_user_permissions WHERE album_id = ? AND id_user = ?')
 					.run(id, userId);
+			}
+		}
+
+		if (Array.isArray(formations)) {
+			const normalizedFormations = [
+				...new Set(formations.map((f) => String(f).trim()).filter(Boolean))
+			];
+			const existingFormations = db
+				.prepare('SELECT formation FROM album_formation_permissions WHERE album_id = ?')
+				.all(id) as { formation: string }[];
+			const existingFormationNames = existingFormations.map((f) => f.formation);
+
+			const formationsToAdd = normalizedFormations.filter(
+				(formation) => !existingFormationNames.includes(formation)
+			);
+			for (const formation of formationsToAdd) {
+				db
+					.prepare('INSERT INTO album_formation_permissions (album_id, formation) VALUES (?, ?)')
+					.run(id, formation);
+			}
+
+			const formationsToRemove = existingFormationNames.filter(
+				(formation) => !normalizedFormations.includes(formation)
+			);
+			for (const formation of formationsToRemove) {
+				db
+					.prepare('DELETE FROM album_formation_permissions WHERE album_id = ? AND formation = ?')
+					.run(id, formation);
+			}
+		}
+
+		if (Array.isArray(promos) || Array.isArray(tags)) {
+			const normalizedPromos = normalizePromos([
+				...(Array.isArray(promos) ? promos : []),
+				...extractPromoYearsFromLegacyTags(Array.isArray(tags) ? tags : [])
+			]);
+			const existingPromos = db
+				.prepare('SELECT promo_year FROM album_promo_permissions WHERE album_id = ?')
+				.all(id) as { promo_year: number }[];
+			const existingPromoYears = existingPromos.map((p) => p.promo_year);
+
+			const promosToAdd = normalizedPromos.filter((promo) => !existingPromoYears.includes(promo));
+			for (const promo of promosToAdd) {
+				db
+					.prepare('INSERT INTO album_promo_permissions (album_id, promo_year) VALUES (?, ?)')
+					.run(id, promo);
+			}
+
+			const promosToRemove = existingPromoYears.filter((promo) => !normalizedPromos.includes(promo));
+			for (const promo of promosToRemove) {
+				db
+					.prepare('DELETE FROM album_promo_permissions WHERE album_id = ? AND promo_year = ?')
+					.run(id, promo);
 			}
 		}
 

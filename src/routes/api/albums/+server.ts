@@ -10,6 +10,33 @@ import { ensureError } from '$lib/ts-utils';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
+function normalizePromos(values: unknown[] | undefined): number[] {
+	if (!Array.isArray(values)) {
+		return [];
+	}
+	const out = new Set<number>();
+	for (const value of values) {
+		const n = typeof value === 'number' ? value : Number.parseInt(String(value), 10);
+		if (Number.isFinite(n)) {
+			out.add(n);
+		}
+	}
+	return [...out].sort((a, b) => a - b);
+}
+
+function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
+	const out = new Set<number>();
+	for (const rawTag of tags) {
+		const match = String(rawTag)
+			.trim()
+			.match(/^promo\s+(\d{4})$/i);
+		if (match) {
+			out.add(Number.parseInt(match[1], 10));
+		}
+	}
+	return [...out].sort((a, b) => a - b);
+}
+
 /**
  * GET /api/albums
  * Récupère la liste des albums de la BDD locale (pas Immich directement)
@@ -55,7 +82,9 @@ export const GET: RequestHandler = async (event) => {
  *   location?: string,
  *   visibility?: 'private' | 'authenticated' | 'unlisted',
  *   visible?: boolean,
- *   tags?: string[],
+ *   formations?: string[],
+ *   promos?: number[],
+ *   tags?: string[], // legacy support
  *   allowedUsers?: string[]
  * }
  */
@@ -69,6 +98,8 @@ export const POST: RequestHandler = async (event) => {
 			location?: string | null;
 			visibility?: 'private' | 'authenticated' | 'unlisted';
 			visible?: boolean;
+			formations?: string[];
+			promos?: number[];
 			tags?: string[];
 			allowedUsers?: string[];
 		};
@@ -78,9 +109,16 @@ export const POST: RequestHandler = async (event) => {
 			location,
 			visibility = 'private',
 			visible = true,
+			formations = [],
+			promos = [],
 			tags = [],
 			allowedUsers = []
 		} = body;
+
+		const normalizedFormations = [
+			...new Set(formations.map((f) => String(f).trim()).filter(Boolean))
+		];
+		const normalizedPromos = normalizePromos([...promos, ...extractPromoYearsFromLegacyTags(tags)]);
 
 		if (!albumName || typeof albumName !== 'string') {
 			throw svelteError(400, 'albumName is required');
@@ -130,6 +168,24 @@ export const POST: RequestHandler = async (event) => {
 					if (trimmedTag) {
 						tagStmt.run(albumId, trimmedTag);
 					}
+				}
+			}
+
+			if (normalizedFormations.length > 0) {
+				const formationStmt = db.prepare(
+					'INSERT OR IGNORE INTO album_formation_permissions (album_id, formation) VALUES (?, ?)'
+				);
+				for (const formation of normalizedFormations) {
+					formationStmt.run(albumId, formation);
+				}
+			}
+
+			if (normalizedPromos.length > 0) {
+				const promoStmt = db.prepare(
+					'INSERT OR IGNORE INTO album_promo_permissions (album_id, promo_year) VALUES (?, ?)'
+				);
+				for (const promo of normalizedPromos) {
+					promoStmt.run(albumId, promo);
 				}
 			}
 

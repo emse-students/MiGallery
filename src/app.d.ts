@@ -13,6 +13,7 @@ declare global {
 					name: string;
 					first_name?: string | null;
 					last_name?: string | null;
+					formation?: string | null;
 					photos_id: string | null;
 					role?: 'admin' | 'mitviste' | 'user';
 					promo?: number | null;

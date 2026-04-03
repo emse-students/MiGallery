@@ -7,10 +7,12 @@ import type { User, AlbumRow } from '$lib/types/api';
  * - not logged-in => no access
  * - role 'mitviste' or 'admin' => full access
  * - explicit user permission in album_user_permissions => access
- * - tag permission matching user's promo_year (tag = `Promo <year>`) => access
+ * - formation permission matching user formation => access
+ * - promo permission matching user's promo => access
+ * - legacy tag permission matching user's promo_year (tag = `Promo <year>`) => access
  * - visibility 'authenticated' => any logged-in user has access
- * - visibility 'unlisted' => only users with explicit permission or promo tag or mitviste/admin
- * - visibility 'private' => only users with explicit permission or promo tag or mitviste/admin
+ * - visibility 'unlisted' => only users with explicit permission/criteria or mitviste/admin
+ * - visibility 'private' => only users with explicit permission/criteria or mitviste/admin
  */
 export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow): boolean {
 	const vis = (album.visibility || 'authenticated').toLowerCase();
@@ -34,8 +36,30 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 		return true;
 	}
 
-	if (user.promo_year) {
-		const tag = `Promo ${user.promo_year}`;
+	const normalizedFormation = (user.formation || '').trim().toLowerCase();
+	if (normalizedFormation) {
+		const formationPerm = db
+			.prepare(
+				'SELECT 1 FROM album_formation_permissions WHERE album_id = ? AND lower(formation) = ? LIMIT 1'
+			)
+			.get(album.id, normalizedFormation) as { 1: number } | undefined;
+		if (formationPerm) {
+			return true;
+		}
+	}
+
+	const promoYear = user.promo_year ?? user.promo;
+	if (typeof promoYear === 'number') {
+		const promoPerm = db
+			.prepare('SELECT 1 FROM album_promo_permissions WHERE album_id = ? AND promo_year = ? LIMIT 1')
+			.get(album.id, promoYear) as { 1: number } | undefined;
+		if (promoPerm) {
+			return true;
+		}
+	}
+
+	if (promoYear) {
+		const tag = `Promo ${promoYear}`;
 		const tagPerm = db
 			.prepare('SELECT 1 FROM album_tag_permissions WHERE album_id = ? AND tag = ? LIMIT 1')
 			.get(album.id, tag) as { 1: number } | undefined;
