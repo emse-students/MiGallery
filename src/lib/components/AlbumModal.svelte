@@ -488,8 +488,10 @@
 							<div class="suggestions">
 								{#each userSuggestions as user}
 									<button type="button" class="suggestion" onclick={() => addUser(user)}>
-										<div class="s-main">{userLabel(user)}</div>
-										<div class="s-sub">@{user.id_user}</div>
+										<span class="s-main">{userLabel(user)}</span>
+										<span class="suggestion-add" aria-hidden="true">
+											<Plus size={14} />
+										</span>
 									</button>
 								{/each}
 							</div>
@@ -734,9 +736,9 @@
 	.suggestion {
 		width: 100%;
 		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.1rem;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.6rem;
 		padding: 0.55rem 0.7rem;
 		border: 0;
 		background: transparent;
@@ -753,9 +755,16 @@
 		font-size: 0.86rem;
 	}
 
-	.s-sub {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
+	.suggestion-add {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.4rem;
+		height: 1.4rem;
+		border-radius: 50%;
+		background: color-mix(in oklab, var(--accent) 82%, black 4%);
+		color: white;
+		flex-shrink: 0;
 	}
 
 	@media (max-width: 640px) {
