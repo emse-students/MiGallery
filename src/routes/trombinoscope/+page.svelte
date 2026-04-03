@@ -36,7 +36,7 @@
 		const q = (searchQuery || '').trim().toLowerCase();
 		if (!q) return users;
 		return users.filter((u) => {
-			const hay = `${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.email || ''} ${u.id_user || ''}`.toLowerCase();
+			const hay = `${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.formation || ''} ${u.id_user || ''}`.toLowerCase();
 			return hay.includes(q);
 		});
 	});
@@ -45,9 +45,10 @@
 	let editMode = $state<'add' | 'edit'>('add');
 	let editUserData = $state({
 		id_user: '',
-		email: '',
+		name: '',
 		first_name: '',
 		last_name: '',
+		formation: null as string | null,
 		role: 'user',
 		promo_year: null as number | null,
 		id_photos: null as string | null
@@ -216,9 +217,10 @@
 		editMode = 'add';
 		editUserData = {
 			id_user: '',
-			email: '',
+			name: '',
 			first_name: '',
 			last_name: '',
+			formation: null,
 			role: 'user',
 			promo_year: null,
 			id_photos: null
@@ -232,9 +234,10 @@
 		editMode = 'edit';
 		editUserData = {
 			id_user: user.id_user,
-			email: user.email || '',
+			name: user.name || '',
 			first_name: user.first_name || '',
 			last_name: user.last_name || '',
+			formation: user.formation || null,
 			role: user.role || 'user',
 			promo_year: user.promo_year || null,
 			id_photos: user.id_photos || null
@@ -245,13 +248,8 @@
 	}
 
 	async function saveUser() {
-		if (
-			!editUserData.id_user ||
-			!editUserData.email ||
-			!editUserData.first_name ||
-			!editUserData.last_name
-		) {
-			toast.error('Les champs ID, email, prénom et nom sont requis.');
+		if (!editUserData.id_user || !editUserData.first_name || !editUserData.last_name) {
+			toast.error('Les champs ID, prénom et nom sont requis.');
 			return;
 		}
 
@@ -375,7 +373,7 @@
 			<div class="header-search">
 				<input
 					class="search-input"
-					placeholder="Rechercher (prénom, nom, email...)"
+				placeholder="Rechercher (prénom, nom, formation...)"
 					bind:value={searchQuery}
 					oninput={(e) => {
 						searchQuery = (e.target as HTMLInputElement).value;
@@ -552,34 +550,30 @@
 							/>
 						</div>
 						<div class="input-group">
-							<label for="email">Email *</label>
-							<input
-								id="email"
-								type="email"
-								class="input-glass"
-								bind:value={editUserData.email}
-								placeholder="@emse.fr"
-							/>
-						</div>
-						<div class="input-group">
-							<label for="first_name">Prénom *</label>
-							<input id="first_name" class="input-glass" bind:value={editUserData.first_name} />
-						</div>
-						<div class="input-group">
-							<label for="last_name">Nom *</label>
-							<input id="last_name" class="input-glass" bind:value={editUserData.last_name} />
-						</div>
-						<div class="input-group">
-							<label for="promo">Promo</label>
-							<input
-								id="promo"
-								type="number"
-								class="input-glass"
-								bind:value={editUserData.promo_year}
-								placeholder="2026"
-							/>
-						</div>
-						<div class="input-group">
+						<label for="name">Nom complet</label>
+						<input
+							id="name"
+							class="input-glass"
+							bind:value={editUserData.name}
+							placeholder="Prénom NOM"
+						/>
+					</div>
+					<div class="input-group">
+						<label for="first_name">Prénom *</label>
+						<input id="first_name" class="input-glass" bind:value={editUserData.first_name} />
+					</div>
+					<div class="input-group">
+						<label for="last_name">Nom *</label>
+						<input id="last_name" class="input-glass" bind:value={editUserData.last_name} />
+					</div>
+					<div class="input-group">
+						<label for="formation">Formation</label>
+						<input
+							id="formation"
+							class="input-glass"
+							bind:value={editUserData.formation}
+							placeholder="ex: ICM, DevOps..."
+						/>
 							<label for="role">Rôle</label>
 							<div class="select-wrapper">
 								<select

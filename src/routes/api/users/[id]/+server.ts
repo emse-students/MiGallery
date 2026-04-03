@@ -26,6 +26,7 @@ export const GET: RequestHandler = async (event) => {
 				photos_id,
 				role,
 				promo,
+				formation,
 				photos_id as id_photos,
 				promo as promo_year
 			FROM users WHERE id_user = ? LIMIT 1`
@@ -59,6 +60,7 @@ export const PUT: RequestHandler = async (event) => {
 			role?: string;
 			promo?: number | null;
 			photos_id?: string | null;
+			formation?: string | null;
 		};
 		const first_name = body.first_name ?? null;
 		const last_name = body.last_name ?? null;
@@ -67,6 +69,7 @@ export const PUT: RequestHandler = async (event) => {
 		const role = body.role;
 		const promo = body.promo ?? body.promo_year ?? null;
 		const photos_id = body.photos_id ?? body.id_photos ?? null;
+		const formation = body.formation ?? null;
 
 		// Prevent admin from removing their own admin status
 		if (auth.user && auth.user.id_user === targetId) {
@@ -82,9 +85,18 @@ export const PUT: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 		const stmt = db.prepare(
-			'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ? WHERE id_user = ?'
+			'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ?, formation = ? WHERE id_user = ?'
 		);
-		const info = stmt.run(name, first_name, last_name, role || 'user', promo, photos_id, targetId);
+		const info = stmt.run(
+			name,
+			first_name,
+			last_name,
+			role || 'user',
+			promo,
+			photos_id,
+			formation,
+			targetId
+		);
 
 		if (info.changes === 0) {
 			return json({ error: 'User not found' }, { status: 404 });
@@ -100,6 +112,7 @@ export const PUT: RequestHandler = async (event) => {
 					photos_id,
 					role,
 					promo,
+					formation,
 					photos_id as id_photos,
 					promo as promo_year
 				FROM users WHERE id_user = ?`

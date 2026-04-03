@@ -115,14 +115,14 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
  * Hook pour résoudre la session utilisateur avant que la réponse ne soit générée.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
-	console.log('[HOOKS] Resolving session for:', event.url.pathname);
+	console.debug('[HOOKS] Resolving session for:', event.url.pathname);
 
 	const user = getSessionUser(event.cookies);
 	if (user) {
-		console.log('[HOOKS] ✓ Session user found:', user.id);
+		console.debug('[HOOKS] ✓ Session user found:', user.id);
 		event.locals.user = user;
 	} else {
-		console.log('[HOOKS] No session user');
+		console.debug('[HOOKS] No session user');
 		event.locals.user = null;
 	}
 

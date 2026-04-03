@@ -404,7 +404,6 @@ export interface SessionUser {
 	role: string;
 	promo?: number | null;
 	formation?: string | null;
-	[key: string]: unknown;
 }
 
 /**

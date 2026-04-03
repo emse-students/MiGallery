@@ -1,13 +1,9 @@
+import type { SessionUser } from '$lib/auth';
+
 declare global {
 	namespace App {
 		interface Locals {
-			user?: {
-				id?: string;
-				id_user?: string;
-				name?: string;
-				role?: string;
-				[key: string]: unknown;
-			} | null;
+			user?: SessionUser | null;
 			[key: string]: unknown;
 		}
 		interface PageData {

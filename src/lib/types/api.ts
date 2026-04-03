@@ -18,7 +18,7 @@ export interface User {
 	photos_id?: string | null;
 	role?: 'admin' | 'mitviste' | 'user';
 	promo?: number | null;
-	email?: string;
+	formation?: string | null;
 	id_photos?: string | null;
 	promo_year?: number | null;
 	first_login?: number;
@@ -36,6 +36,7 @@ export interface UserRow {
 	photos_id: string | null;
 	role: string | null;
 	promo: number | null;
+	formation?: string | null;
 	id_photos?: string | null;
 	promo_year?: number | null;
 	first_login?: number;

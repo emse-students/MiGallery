@@ -21,6 +21,7 @@ export const GET: RequestHandler = async (event) => {
 				photos_id,
 				role,
 				promo,
+				formation,
 				photos_id as id_photos,
 				promo as promo_year
 			FROM users
@@ -45,6 +46,7 @@ export const POST: RequestHandler = async (event) => {
 			role?: string;
 			promo?: number | null;
 			photos_id?: string | null;
+			formation?: string | null;
 		};
 
 		const id_user = body.id_user;
@@ -55,6 +57,7 @@ export const POST: RequestHandler = async (event) => {
 		const role = body.role ?? 'user';
 		const promo = body.promo ?? body.promo_year ?? null;
 		const photos_id = body.photos_id ?? body.id_photos ?? null;
+		const formation = body.formation ?? null;
 
 		if (!id_user || !name) {
 			return json({ error: 'id_user and name required' }, { status: 400 });
@@ -66,10 +69,19 @@ export const POST: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 		const insert = db.prepare(
-			'INSERT INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+			'INSERT INTO users (id_user, name, first_name, last_name, role, promo, photos_id, formation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
 		);
 		const effectiveRole = id_user === SYSTEM_USER_ID ? 'admin' : role;
-		const info = insert.run(id_user, name, first_name, last_name, effectiveRole, promo, photos_id);
+		const info = insert.run(
+			id_user,
+			name,
+			first_name,
+			last_name,
+			effectiveRole,
+			promo,
+			photos_id,
+			formation
+		);
 		const created = db
 			.prepare(
 				`SELECT
@@ -80,6 +92,7 @@ export const POST: RequestHandler = async (event) => {
 					photos_id,
 					role,
 					promo,
+					formation,
 					photos_id as id_photos,
 					promo as promo_year
 				FROM users WHERE id_user = ?`

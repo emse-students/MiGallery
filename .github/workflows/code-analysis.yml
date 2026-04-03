@@ -78,6 +78,7 @@ jobs:
 
    # SONAR_TOKEN est optionnel - configure dans GitHub secrets si SonarCloud est utilisé
    - name: SonarCloud Scan
+     if: ${{ secrets.SONAR_TOKEN != '' }}
      uses: SonarSource/sonarcloud-github-action@master
      env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
