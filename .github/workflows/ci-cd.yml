@@ -1,0 +1,712 @@
+name: CI/CD
+
+# ─── Déclencheurs ────────────────────────────────────────────────────────────
+on:
+ push:
+  branches: [main]
+  tags:
+   - 'v*.*.*'
+   - 'v*.*.*-*'
+ pull_request:
+  branches: [main]
+ schedule:
+  - cron: '0 2 * * *' # Analyse de sécurité quotidienne à 2h
+ workflow_dispatch:
+
+# ─── Jobs ────────────────────────────────────────────────────────────────────
+jobs:
+ # ───────────────────────────────────────────────────────────────────────────
+ # 1. VALIDATE — Lint · TypeCheck · Build · Test
+ #    Déclenché : push sur main, pull_request vers main
+ # ───────────────────────────────────────────────────────────────────────────
+ validate:
+  name: Validate (${{ matrix.runtime }})
+  if: |
+   (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')) ||
+   github.event_name == 'pull_request'
+  runs-on: ubuntu-latest
+  strategy:
+   matrix:
+    runtime: [bun, npm]
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Setup Bun
+     if: matrix.runtime == 'bun'
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Setup Node.js
+     if: matrix.runtime == 'npm'
+     uses: actions/setup-node@v4
+     with:
+      node-version: '24.x'
+
+   - name: Install dependencies
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun install
+      else
+        npm ci
+      fi
+
+   - name: Type check
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run check
+      else
+        npm run check
+      fi
+
+   - name: Lint
+     env:
+      NODE_OPTIONS: '--max-old-space-size=16384'
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run lint
+      else
+        npm run lint
+      fi
+
+   - name: Build
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run build
+      else
+        npm run build
+      fi
+
+   - name: Setup test database
+     run: |
+      mkdir -p data
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run db:init || true
+      else
+        npm run db:init || true
+      fi
+
+   - name: Create .env for tests
+     run: |
+      cat > .env << 'EOF'
+      ENABLE_DEV_ROUTES=true
+      COOKIE_SECRET=ci-test-secret-not-for-production-use
+      DATABASE_PATH=./data/migallery.db
+      IMMICH_BASE_URL=
+      IMMICH_API_KEY=
+      AUTH_TRUSTED_HOST=true
+      EOF
+
+   - name: Run tests
+     env:
+      API_BASE_URL: http://localhost:3000
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun run test
+      else
+        npm run test
+      fi
+
+   - name: Upload build artifact
+     if: >
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      matrix.runtime == 'bun'
+     uses: actions/upload-artifact@v4
+     with:
+      name: build-artifact
+      path: build/
+      retention-days: 1
+
+ # ───────────────────────────────────────────────────────────────────────────
+ # 2. AUTO-FIX — Lint & format avec auto-commit
+ #    Déclenché : push sur main (repo principal uniquement), après validate
+ # ───────────────────────────────────────────────────────────────────────────
+ auto-fix:
+  name: Auto-fix Lint & Format
+  needs: validate
+  if: |
+   github.event_name == 'push' &&
+   github.ref == 'refs/heads/main' &&
+   github.repository == 'emse-students/MiGallery'
+  runs-on: ubuntu-latest
+  permissions:
+   contents: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      ref: main
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Fix lint issues
+     run: bun run lint:fix
+     continue-on-error: true
+
+   - name: Format code
+     run: bun run format
+     continue-on-error: true
+
+   - name: Commit changes if any
+     uses: stefanzweifel/git-auto-commit-action@v5
+     with:
+      commit_message: 'style: auto-fix linting and formatting issues'
+      file_pattern: .
+      push_options: '--force-with-lease'
+
+ # ───────────────────────────────────────────────────────────────────────────
+ # 3. DEPLOY — Déploiement en production
+ #    Déclenché : push sur main (repo principal uniquement), après validate
+ # ───────────────────────────────────────────────────────────────────────────
+ deploy:
+  name: Deploy to Production
+  needs: validate
+  if: |
+   github.event_name == 'push' &&
+   github.ref == 'refs/heads/main' &&
+   github.repository == 'emse-students/MiGallery'
+  runs-on: self-hosted
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Install Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Build project
+     run: bun run build
+
+   - name: Sync SvelteKit
+     run: bunx svelte-kit sync
+
+   - name: Update server files
+     run: |
+      cd ~/MiGallery
+      find . -mindepth 1 -maxdepth 1 \
+        -not -name '.env' \
+        -not -name 'data' \
+        -not -name '.svelte-kit' \
+        -not -name 'node_modules' \
+        -not -name '.git' \
+        -exec rm -rf {} +
+      cp -r $GITHUB_WORKSPACE/* .
+      cp -r $GITHUB_WORKSPACE/.github .
+
+   - name: Cleanup temporary files
+     run: |
+      cd ~/MiGallery
+      [ -d "data/chunk-uploads" ] && find data/chunk-uploads -type f -mtime +1 -delete || true
+      find data -name "migallery.db.before-*" -type f -mtime +7 -delete
+
+   - name: Initialize database if needed
+     run: |
+      cd ~/MiGallery
+      if [ ! -f "data/migallery.db" ]; then
+        echo "Database not found, initializing..."
+        bun run db:init
+      else
+        echo "Using existing database"
+      fi
+
+   - name: Restart application
+     run: |
+      cd ~/MiGallery
+      pm2 delete migallery || true
+      pm2 start /home/mitv/.bun/bin/bun \
+        --name migallery \
+        --cwd /home/mitv/MiGallery \
+        -- run /home/mitv/MiGallery/build/index.js
+      pm2 save
+
+   - name: Wait for server
+     run: node scripts/wait-for-server.mjs http://localhost:3000 30000
+     working-directory: /home/mitv/MiGallery
+
+   - name: Health check
+     run: |
+      curl -sf http://localhost:3000/api/health \
+        && echo "✅ Deployment successful" \
+        || echo "⚠️ Health check failed"
+
+ # ───────────────────────────────────────────────────────────────────────────
+ # 4. DOCS — Build et déploiement GitHub Pages
+ #    Déclenché : push sur main
+ # ───────────────────────────────────────────────────────────────────────────
+ docs-build:
+  name: Build Documentation
+  if: |
+   github.event_name == 'push' &&
+   github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Setup Node.js
+     uses: actions/setup-node@v4
+     with:
+      node-version: '20'
+
+   - name: Create documentation site
+     run: |
+      mkdir -p _site
+
+      cat > _site/index.html << 'EOF'
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+       <title>MiGallery - Documentation</title>
+       <style>
+        :root {
+         --primary: #667eea;
+         --secondary: #764ba2;
+         --text: #333;
+         --bg: #f6f8fa;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+         line-height: 1.6;
+         color: var(--text);
+         background: var(--bg);
+         min-height: 100vh;
+         display: flex;
+         flex-direction: column;
+        }
+        .header {
+         background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+         color: white;
+         padding: 4rem 2rem;
+         text-align: center;
+         margin-bottom: 3rem;
+         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 3rem; margin-bottom: 1rem; font-weight: 800; letter-spacing: -1px; }
+        .header p { font-size: 1.2rem; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+        .container {
+         max-width: 1200px;
+         margin: 0 auto;
+         padding: 0 2rem;
+         width: 100%;
+         flex: 1;
+        }
+        .section-title {
+         font-size: 1.8rem;
+         color: var(--secondary);
+         margin-bottom: 1.5rem;
+         border-bottom: 2px solid #e2e8f0;
+         padding-bottom: 0.5rem;
+         display: flex;
+         align-items: center;
+         gap: 0.5rem;
+        }
+        .grid {
+         display: grid;
+         grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+         gap: 2rem;
+         margin-bottom: 4rem;
+        }
+        .card {
+         background: white;
+         border-radius: 12px;
+         padding: 2rem;
+         box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+         transition: transform 0.2s, box-shadow 0.2s;
+         text-decoration: none;
+         color: inherit;
+         border: 1px solid #e2e8f0;
+         display: flex;
+         flex-direction: column;
+         height: 100%;
+        }
+        .card:hover {
+         transform: translateY(-5px);
+         box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+         border-color: var(--primary);
+        }
+        .card h3 {
+         color: var(--primary);
+         font-size: 1.4rem;
+         margin-bottom: 0.75rem;
+        }
+        .card p {
+         color: #666;
+         flex-grow: 1;
+         font-size: 0.95rem;
+        }
+        .footer {
+         text-align: center;
+         padding: 3rem;
+         color: #666;
+         border-top: 1px solid #e2e8f0;
+         background: white;
+         margin-top: auto;
+        }
+       </style>
+      </head>
+      <body>
+       <div class="header">
+        <h1>📸 MiGallery Docs</h1>
+        <p>Documentation officielle de l'application de galerie photo de MiTV</p>
+       </div>
+       <div class="container">
+        <h2 class="section-title">📚 Manuel Utilisateur</h2>
+        <div class="grid">
+         <a href="tutorial.html" class="card">
+          <h3>🎓 Mode d'emploi</h3>
+          <p>Guide complet pour les utilisateurs et les membres MiTV : albums, photos, biométrie, gestion des droits...</p>
+         </a>
+         <a href="README.html" class="card">
+          <h3>📖 À propos</h3>
+          <p>Présentation générale du projet, installation et informations essentielles.</p>
+         </a>
+        </div>
+        <h2 class="section-title">🛠 Documentation Technique</h2>
+        <div class="grid">
+         <a href="COMPONENTS.html" class="card">
+          <h3>🧩 Composants</h3>
+          <p>Documentation des composants Svelte et de l'interface utilisateur.</p>
+         </a>
+         <a href="STYLES.html" class="card">
+          <h3>🎨 Styles</h3>
+          <p>Guide des styles, thèmes et design system de l'application.</p>
+         </a>
+         <a href="SCRIPTS.html" class="card">
+          <h3>📜 Scripts</h3>
+          <p>Documentation des scripts utilitaires et outils de maintenance.</p>
+         </a>
+         <a href="NAVBAR_ACCESS_MATRIX.html" class="card">
+          <h3>🧭 Navigation</h3>
+          <p>Matrice des droits d'accès et structure de la navigation.</p>
+         </a>
+        </div>
+       </div>
+       <div class="footer">
+        <p>MiGallery - Développé avec ❤️ par MiTV</p>
+        <p style="margin-top: 0.5rem;"><a href="https://github.com/emse-students/MiGallery" style="color: var(--primary); text-decoration: none;">📦 Voir le code source sur GitHub</a></p>
+       </div>
+      </body>
+      </html>
+      EOF
+
+   - name: Convert Markdown to HTML
+     run: |
+      npm install -g marked
+
+      convert_md_to_html() {
+        local input_file="$1"
+        local output_file="_site/$(basename "${input_file%.md}.html")"
+        local title=$(basename "${input_file%.md}")
+
+        cat > "$output_file" << EOF
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+       <meta charset="UTF-8">
+       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+       <title>${title} - MiGallery Documentation</title>
+       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown.min.css">
+       <style>
+        body { margin: 0; padding: 0; background: #f6f8fa; }
+        .container { max-width: 980px; margin: 0 auto; padding: 2rem; }
+        .header {
+         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+         color: white;
+         padding: 2rem;
+         margin: -2rem -2rem 2rem -2rem;
+         border-radius: 8px 8px 0 0;
+        }
+        .header a { color: white; text-decoration: none; opacity: 0.9; }
+        .header a:hover { opacity: 1; }
+        .markdown-body {
+         background: white;
+         padding: 2rem;
+         border-radius: 8px;
+         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+       </style>
+      </head>
+      <body>
+       <div class="container">
+        <div class="header">
+         <a href="index.html">← Retour à l'accueil</a>
+         <h1>${title}</h1>
+        </div>
+        <div class="markdown-body">
+      EOF
+
+        marked "$input_file" >> "$output_file"
+
+        cat >> "$output_file" << EOF
+        </div>
+       </div>
+      </body>
+      </html>
+      EOF
+      }
+
+      find docs -name "*.md" -type f | while read -r file; do
+        convert_md_to_html "$file"
+      done
+
+      find src/lib/docs -name "*.md" -type f | while read -r file; do
+        convert_md_to_html "$file"
+      done
+
+      [ -f "README.md" ] && convert_md_to_html "README.md" || true
+
+   - name: Setup Pages
+     uses: actions/configure-pages@v5
+
+   - name: Upload Pages artifact
+     uses: actions/upload-pages-artifact@v4
+     with:
+      path: '_site'
+
+ docs-deploy:
+  name: Deploy Documentation
+  needs: docs-build
+  if: |
+   github.event_name == 'push' &&
+   github.ref == 'refs/heads/main'
+  runs-on: ubuntu-latest
+  concurrency:
+   group: pages
+   cancel-in-progress: false
+  environment:
+   name: github-pages
+   url: ${{ steps.deployment.outputs.page_url }}
+  permissions:
+   pages: write
+   id-token: write
+  steps:
+   - name: Deploy to GitHub Pages
+     id: deployment
+     uses: actions/deploy-pages@v4
+
+ # ───────────────────────────────────────────────────────────────────────────
+ # 5. SECURITY — CodeQL · TruffleHog · ESLint · SonarCloud
+ #    Déclenché : pull_request vers main, schedule quotidien, workflow_dispatch
+ # ───────────────────────────────────────────────────────────────────────────
+ codeql:
+  name: CodeQL Analysis
+  if: |
+   github.event_name == 'pull_request' ||
+   github.event_name == 'schedule' ||
+   github.event_name == 'workflow_dispatch'
+  runs-on: ubuntu-latest
+  permissions:
+   actions: read
+   contents: read
+   security-events: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Initialize CodeQL
+     uses: github/codeql-action/init@v3
+     with:
+      languages: javascript, typescript
+      queries: security-extended, security-and-quality
+
+   - name: Autobuild
+     uses: github/codeql-action/autobuild@v3
+
+   - name: Perform CodeQL Analysis
+     uses: github/codeql-action/analyze@v3
+
+ secret-scan:
+  name: Secret Scan
+  if: |
+   github.event_name == 'pull_request' ||
+   github.event_name == 'schedule' ||
+   github.event_name == 'workflow_dispatch'
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      fetch-depth: 0
+
+   - name: TruffleHog Secret Scan
+     uses: trufflesecurity/trufflehog@main
+     with:
+      path: ./
+      extra_args: --debug --only-verified
+
+ code-quality:
+  name: Code Quality (ESLint + SonarCloud)
+  if: |
+   github.event_name == 'pull_request' ||
+   github.event_name == 'schedule' ||
+   github.event_name == 'workflow_dispatch'
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      fetch-depth: 0
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: ESLint Security Check
+     run: bun run lint
+     continue-on-error: true
+
+   - name: SonarCloud Scan
+     if: ${{ secrets.SONAR_TOKEN != '' }}
+     uses: SonarSource/sonarcloud-github-action@master
+     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+     continue-on-error: true
+
+ # ───────────────────────────────────────────────────────────────────────────
+ # 6. RELEASE — Tests multi-Node + création de la release GitHub
+ #    Déclenché : push d'un tag v*.*.*
+ # ───────────────────────────────────────────────────────────────────────────
+ release-validate:
+  name: Release Tests (Node ${{ matrix.node-version }})
+  if: startsWith(github.ref, 'refs/tags/')
+  runs-on: ubuntu-latest
+  strategy:
+   matrix:
+    node-version: [18, 20, 22]
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+
+   - name: Setup Node.js ${{ matrix.node-version }}
+     uses: actions/setup-node@v4
+     with:
+      node-version: ${{ matrix.node-version }}
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Type check
+     run: bun run check
+
+   - name: Lint
+     run: bun run lint
+
+   - name: Build
+     run: bun run build
+
+   - name: Setup test database
+     run: |
+      mkdir -p data
+      bun run db:init || true
+
+   - name: Create .env for tests
+     run: |
+      cat > .env << 'EOF'
+      ENABLE_DEV_ROUTES=true
+      COOKIE_SECRET=ci-test-secret-not-for-production-use
+      DATABASE_PATH=./data/migallery.db
+      IMMICH_BASE_URL=
+      IMMICH_API_KEY=
+      AUTH_TRUSTED_HOST=true
+      EOF
+
+   - name: Run tests
+     env:
+      API_BASE_URL: http://localhost:3000
+     run: bun run test
+
+ release:
+  name: Create GitHub Release
+  needs: release-validate
+  if: startsWith(github.ref, 'refs/tags/')
+  runs-on: ubuntu-latest
+  permissions:
+   contents: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v4
+     with:
+      fetch-depth: 0
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Sync version with tag
+     run: |
+      VERSION=${GITHUB_REF_NAME#v}
+      npm version $VERSION --no-git-tag-version --allow-same-version
+
+   - name: Build
+     run: bun run build
+
+   - name: Package application
+     run: bun run package
+
+   - name: Generate changelog
+     id: changelog
+     run: |
+      PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "$(git describe --tags)" | head -n 1)
+      CURRENT_TAG=$(git describe --tags)
+
+      if [ -z "$PREVIOUS_TAG" ]; then
+        CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+      else
+        CHANGELOG=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s (%h)" --no-merges)
+      fi
+
+      cat > release_notes.md << EOF
+      ## 🚀 What's Changed
+
+      ${CHANGELOG}
+
+      ## 📦 Installation
+
+      \`\`\`bash
+      tar -xzf migallery-package.tgz
+      cd package
+      bun install --production
+      cp .env.example .env
+      # Éditer .env avec vos paramètres
+      bun run db:init
+      bun run build/index.js
+      \`\`\`
+
+      **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}
+      EOF
+
+   - name: Create GitHub Release
+     uses: softprops/action-gh-release@v2
+     with:
+      body_path: release_notes.md
+      files: |
+       build/artifacts/*.tgz
