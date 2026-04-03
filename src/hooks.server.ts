@@ -4,6 +4,10 @@ config({ override: true }); // Override existing vars to ensure .env takes prece
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { getSessionUser } from '$lib/session';
+import { startBackupScheduler } from '$lib/server/backup';
+
+// Démarre la sauvegarde automatique quotidienne dès le démarrage du serveur
+startBackupScheduler();
 
 /**
  * Liste des domaines autorisés pour CORS.
@@ -13,6 +17,7 @@ const ALLOWED_ORIGINS = [
 	'https://portail-etu.emse.fr',
 	'https://gallery.mitv.fr',
 	'http://localhost:5173',
+	'http://localhost:5174',
 	'http://localhost:3000'
 ];
 
@@ -115,17 +120,8 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
  * Hook pour résoudre la session utilisateur avant que la réponse ne soit générée.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
-	console.debug('[HOOKS] Resolving session for:', event.url.pathname);
-
 	const user = getSessionUser(event.cookies);
-	if (user) {
-		console.debug('[HOOKS] ✓ Session user found:', user.id);
-		event.locals.user = user;
-	} else {
-		console.debug('[HOOKS] No session user');
-		event.locals.user = null;
-	}
-
+	event.locals.user = user ?? null;
 	return resolve(event);
 };
 
