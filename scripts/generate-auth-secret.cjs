@@ -28,9 +28,11 @@ function main() {
 		console.log('📝 Fichier .env mis à jour avec la nouvelle clé');
 	} catch (err) {
 		if (err && err.code === 'ENOENT') {
-		console.log('⚠️  Fichier .env non trouvé');
-		console.log('   Le secret a été généré mais n\'a pas été affiché en clair.');
-		console.log('   Créez un fichier .env puis relancez ce script pour une mise à jour automatique.\n');
+			console.log('⚠️  Fichier .env non trouvé');
+			console.log("   Le secret a été généré mais n'a pas été affiché en clair.");
+			console.log(
+				'   Créez un fichier .env puis relancez ce script pour une mise à jour automatique.\n'
+			);
 		} else {
 			throw err;
 		}
