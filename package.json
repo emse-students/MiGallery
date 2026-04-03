@@ -51,7 +51,6 @@
 		"db:init": "node ./scripts/init-db.cjs",
 		"db:backup": "node ./scripts/backup-db.cjs",
 		"db:inspect": "node ./scripts/inspect-db.cjs",
-		"db:migrate": "node ./scripts/migrate-db.cjs",
 		"test:cleanup": "node ./scripts/cleanup-test-artifacts.cjs",
 		"test": "node scripts/test-with-server.mjs",
 		"test:watch": "vitest",

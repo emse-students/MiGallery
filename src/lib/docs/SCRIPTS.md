@@ -36,6 +36,10 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 **Utilisation** : `bun run db:backup` ou `node scripts/backup-db.cjs`
 
+> **✨ Sauvegarde automatique** : depuis la version actuelle, le serveur déclenche automatiquement une sauvegarde
+> quotidienne à minuit dès son démarrage (`src/lib/server/backup.ts` → `startBackupScheduler()`). **Aucun cron
+> extérieur n'est nécessaire.** Le script ci-dessous reste utile pour des sauvegardes manuelles ponctuelles.
+
 **Description** :
 
 - Crée une copie de la base de données avec timestamp
@@ -47,14 +51,11 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 - ✅ Avant une mise à jour importante
 - ✅ Avant des modifications massives de données
-- ✅ Automatiquement via cron/tâche planifiée (recommandé)
 - ✅ Avant de tester le script de réparation
 
 **Emplacement des sauvegardes** : `data/backups/`
 
 **Format des fichiers** : `migallery_backup_YYYY-MM-DD_HH-MM-SS.db`
-
-**Configuration automatique** : Voir `CRON_SETUP.md`
 
 ---
 
@@ -185,8 +186,8 @@ nano .env  # Créer et remplir avec les variables
 # 3. Initialiser la base de données
 bun run db:init
 
-# 4. Configurer les sauvegardes automatiques
-# Voir CRON_SETUP.md
+# 4. La sauvegarde automatique est gérée par le serveur (startBackupScheduler).
+#    Elle se déclenche à minuit dès le démarrage — rien à configurer.
 
 # 5. Lancer l'application
 bun run dev  # Développement
@@ -303,12 +304,12 @@ Avant de déployer en production :
 - [ ] Base de données initialisée (`bun run db:init`)
 - [ ] Secret cookie généré et configuré dans `.env`
 - [ ] Variables Immich configurées dans `.env`
-- [ ] Sauvegarde automatique configurée (cron/tâche planifiée)
 - [ ] Test de l'application en local (`bun run dev`)
 - [ ] Build de production réussie (`bun run build`)
 - [ ] Inspection de la DB sans erreur (`bun run db:inspect`)
 - [ ] Package complet créé (`bun run package`)
+- [ ] Vérifier que les sauvegardes automatiques se créent bien dans `data/backups/` après minuit
 
 ---
 
-**Documentation à jour : Novembre 2025**
+**Documentation à jour : Avril 2026**

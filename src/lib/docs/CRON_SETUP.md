@@ -1,6 +1,13 @@
 # Configuration des tâches automatiques
 
-Ce document explique comment configurer les sauvegardes automatiques de la base de données.
+> **✨ Bonne nouvelle — cron optionnel depuis Avril 2026**
+>
+> La sauvegarde automatique quotidienne est désormais **intégrée au serveur** : au démarrage de l’application,
+> `startBackupScheduler()` programme une sauvegarde à minuit (puis toutes les 24 h). **Aucun cron extérieur
+> n’est requis.** Vous pouvez tout de même configurer un cron en complément si vous souhaitez une rédondance
+> (ex. : sauvegarde toutes les 6 h, ou export vers un stockage distant).
+
+Ce document explique comment configurer des sauvegardes supplémentaires via cron ou tâche planifiée.
 
 ## 🐧 Linux / Mac (cron)
 
@@ -203,15 +210,15 @@ tail -f /var/log/migallery-backup.log
 
 ### Les anciennes sauvegardes ne sont pas supprimées
 
-- Vérifier que le script `backup-db.cjs` s'exécute correctement
-- Vérifier les permissions sur le dossier `data/backups/`
-- Lancer le script manuellement pour voir les messages d'erreur
+- Vérifier que les sauvegardes se créent bien dans `data/backups/` après minuit (géré par le serveur)
+- Lancer manuellement `bun run db:backup` pour tester la logique de sauvegarde
 
 ---
 
 ## ✅ Récapitulatif
 
-- **Script** : `scripts/backup-db.cjs`
+- **Mécanisme par défaut** : `startBackupScheduler()` dans `src/lib/server/backup.ts` (intégré au serveur)
+- **Script CLI** : `scripts/backup-db.cjs` (sauvegarde manuelle ou cron supplémentaire)
 - **Fréquence recommandée** : Quotidienne (minuit)
 - **Rétention** : 10 dernières sauvegardes
 - **Emplacement** : `data/backups/`

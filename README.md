@@ -140,6 +140,12 @@ bun run db:init
 
 ### Sauvegardes
 
+#### Sauvegarde automatique (intégrée)
+
+Depuis la version 1.1, **le serveur effectue automatiquement une sauvegarde quotidienne à minuit** sans
+configuration supplémentaire. Les sauvegardes sont stockées dans `data/backups/` (10 fichiers conservés
+maximum).
+
 #### Sauvegarde manuelle
 
 ```bash
@@ -149,29 +155,10 @@ bun run db:backup
 
 Les sauvegardes sont stockées dans `data/backups/` et seules les **10 dernières** sont conservées.
 
-#### Sauvegardes automatiques
+#### Sauvegardes supplémentaires via cron (optionnel)
 
-Pour configurer des sauvegardes automatiques quotidiennes à minuit :
-
-**Sur Linux/Mac (cron)** :
-
-```bash
-crontab -e
-# Ajouter cette ligne :
-0 0 * * * cd /chemin/vers/MiGallery && bun run db:backup
-```
-
-**Sur Windows (Planificateur de tâches)** :
-
-1. Ouvrir le Planificateur de tâches
-2. Créer une tâche de base
-3. Déclencheur : Quotidien à 00:00
-4. Action : Démarrer un programme
-   - Programme : `bun`
-   - Arguments : `run db:backup`
-   - Répertoire : `C:\chemin\vers\MiGallery`
-
-Consultez `src/lib/docs/CRON_SETUP.md` pour plus de détails.
+Si vous souhaitez une redondance (ex. : toutes les 6 h ou export vers un stockage distant), consultez
+`src/lib/docs/CRON_SETUP.md`.
 
 ### Inspection et réparation
 
@@ -311,9 +298,9 @@ MiGallery/
 │  └─ backups/             # Sauvegardes automatiques
 ├─ scripts/                # Scripts utilitaires
 │  ├─ init-db.cjs          # Initialisation DB
-│  ├─ backup-db.cjs        # Sauvegarde DB
+│  ├─ backup-db.cjs        # Sauvegarde DB manuelle
 │  ├─ inspect-db.cjs       # Inspection/réparation DB
-│  ├─ test-api.cjs         # Tests unitaires API
+│  ├─ migrate-export-db.cjs  # Migration depuis ancienne DB (usage unique)
 │  ├─ generate_cookie_secret.cjs  # Génération secret
 │  └─ pack-bun.js          # Packaging complet
 ├─ static/                 # Fichiers statiques
