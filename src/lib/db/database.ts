@@ -60,11 +60,73 @@ export function getDatabase(): DatabaseInstance {
 				.prepare('PRAGMA table_info(users)')
 				.all()
 				.map((c) => (c as { name: string }).name);
+			const hasPrenom = cols.includes('prenom');
+			const hasNom = cols.includes('nom');
+			const hasEmail = cols.includes('email');
+			const hasIdPhotos = cols.includes('id_photos');
+			const hasPromoYear = cols.includes('promo_year');
+			if (!cols.includes('name')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN name TEXT').run();
+				if (hasPrenom || hasNom) {
+					dbInstance
+						.prepare(
+							"UPDATE users SET name = trim(COALESCE(prenom, '') || ' ' || COALESCE(nom, '')) WHERE name IS NULL OR name = ''"
+						)
+						.run();
+				}
+				if (hasEmail) {
+					dbInstance
+						.prepare(
+							"UPDATE users SET name = COALESCE(name, email, id_user) WHERE name IS NULL OR name = ''"
+						)
+						.run();
+				} else {
+					dbInstance
+						.prepare("UPDATE users SET name = COALESCE(name, id_user) WHERE name IS NULL OR name = ''")
+						.run();
+				}
+			}
+			if (!cols.includes('first_name')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN first_name TEXT').run();
+				if (hasPrenom) {
+					dbInstance
+						.prepare(
+							'UPDATE users SET first_name = prenom WHERE first_name IS NULL AND prenom IS NOT NULL'
+						)
+						.run();
+				}
+			}
+			if (!cols.includes('last_name')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN last_name TEXT').run();
+				if (hasNom) {
+					dbInstance
+						.prepare('UPDATE users SET last_name = nom WHERE last_name IS NULL AND nom IS NOT NULL')
+						.run();
+				}
+			}
+			if (!cols.includes('photos_id')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_id TEXT').run();
+				if (hasIdPhotos) {
+					dbInstance
+						.prepare(
+							'UPDATE users SET photos_id = id_photos WHERE photos_id IS NULL AND id_photos IS NOT NULL'
+						)
+						.run();
+				}
+			}
 			if (!cols.includes('role')) {
 				dbInstance.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'").run();
 			}
 			if (!cols.includes('promo')) {
 				dbInstance.prepare('ALTER TABLE users ADD COLUMN promo INTEGER').run();
+				if (hasPromoYear) {
+					dbInstance
+						.prepare('UPDATE users SET promo = promo_year WHERE promo IS NULL AND promo_year IS NOT NULL')
+						.run();
+				}
+			}
+			if (!cols.includes('formation')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN formation TEXT').run();
 			}
 			try {
 				const acols = dbInstance
