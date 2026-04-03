@@ -45,6 +45,7 @@
 
 	let isProcessing = $state<boolean>(false);
 	let needsNewPhoto = $state<boolean>(false);
+	let detectionTimeout = $state<boolean>(false);
 	let abortController: AbortController | null = null;
 
 	let showDeleteAccountModal = $state<boolean>(false);
@@ -231,7 +232,8 @@
 
 	async function checkForPeople(
 		shouldDeleteAfter: boolean = false,
-		assetIdToDelete: string | null = null
+		assetIdToDelete: string | null = null,
+		isTimeoutCheck: boolean = false
 	) {
 		const userId = (page.data.session?.user as User)?.id_user;
 		if (!userId || !assetId) return;
@@ -266,44 +268,94 @@
 				if (updateData.error === 'face_already_assigned') {
 					uploadStatus = 'Ce visage est déjà associé à un autre compte.';
 					showFaceAlreadyAssignedModal = true;
-					if (shouldCleanup) await cleanupAsset(assetIdToDelete);
+					if (shouldCleanup) {
+						try {
+							await cleanupAsset(assetIdToDelete);
+						} catch (e) {
+							console.warn('Cleanup failed (but face was assigned):', e);
+						}
+					}
 					return;
 				}
 
 				if (updateData.success) {
 					uploadStatus = `Visage reconnu avec succès !`;
-					if (shouldCleanup) await cleanupAsset(assetIdToDelete);
+					if (shouldCleanup) {
+						try {
+							await cleanupAsset(assetIdToDelete);
+						} catch (e) {
+							console.warn('Cleanup failed (but face was assigned):', e);
+						}
+					}
 					isProcessing = false;
-					setTimeout(() => {
-						window.location.href = window.location.href;
-					}, 100);
+					// Augmenter le délai pour laisser le temps à la DB de se synchroniser
+					await new Promise((resolve) => setTimeout(resolve, 1500));
+					window.location.href = window.location.href;
 				} else {
 					uploadStatus = `Erreur mise à jour BDD: ${updateData.error || 'Erreur inconnue'}`;
+					if (shouldCleanup) {
+						try {
+							await cleanupAsset(assetIdToDelete);
+						} catch (e) {
+							console.warn('Cleanup after error:', e);
+						}
+					}
 				}
 			} else if (people.length === 0) {
-				uploadStatus = 'Aucun visage détecté. Veuillez utiliser une photo claire.';
-				if (shouldCleanup) await cleanupAsset(assetIdToDelete);
+				// Différencier vrai "aucun visage" vs "timeout"
+				if (isTimeoutCheck) {
+					uploadStatus =
+						'Délai de détection dépassé. Immich peut être occupé. Veuillez réessayer.';
+					detectionTimeout = true;
+				} else {
+					uploadStatus = 'Aucun visage détecté. Veuillez utiliser une photo claire.';
+				}
+				if (shouldCleanup) {
+					try {
+						await cleanupAsset(assetIdToDelete);
+					} catch (e) {
+						console.warn('Cleanup failed:', e);
+					}
+				}
 			} else {
 				uploadStatus = `${people.length} visages détectés. Veuillez utiliser une photo avec un seul visage.`;
 				needsNewPhoto = true;
-				if (shouldCleanup) await cleanupAsset(assetIdToDelete);
+				if (shouldCleanup) {
+					try {
+						await cleanupAsset(assetIdToDelete);
+					} catch (e) {
+						console.warn('Cleanup failed:', e);
+					}
+				}
 			}
 		} catch (error: unknown) {
 			uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
-			if (shouldCleanup) await cleanupAsset(assetIdToDelete);
+			if (shouldCleanup) {
+				try {
+					await cleanupAsset(assetIdToDelete);
+				} catch (e) {
+					console.warn('Cleanup after error:', e);
+				}
+			}
 		}
 	}
 
 	async function cleanupAsset(id: string | null) {
 		if (!id) return;
 		try {
-			await fetch(`/api/immich/assets`, {
+			const response = await fetch(`/api/immich/assets`, {
 				method: 'DELETE',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ ids: [id] })
 			});
+			if (!response.ok) {
+				throw new Error(
+					`Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`
+				);
+			}
 		} catch (e) {
-			console.warn(e);
+			// Relancer l'erreur pour que le caller puisse la gérer
+			throw e;
 		}
 	}
 
@@ -316,6 +368,7 @@
 		}
 
 		isProcessing = true;
+		detectionTimeout = false;
 		uploadStatus = 'Upload en cours...';
 		assetId = null;
 		personId = null;
@@ -349,7 +402,8 @@
 
 			assetId = uploadedAssetId;
 
-			const maxAttempts = 15;
+			// Augmenter à 60 secondes pour donner à Immich le temps de traiter
+			const maxAttempts = 60;
 			let attempt = 0;
 			let faceDetected = false;
 			while (attempt < maxAttempts && !faceDetected) {
@@ -373,10 +427,18 @@
 			}
 
 			const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
-			await checkForPeople(shouldDeleteAfter, uploadedAssetId);
+			// Passer le flag isTimeoutCheck=true si on a atteint le max d'attempts
+			const isTimeout = attempt >= maxAttempts && !faceDetected;
+			await checkForPeople(shouldDeleteAfter, uploadedAssetId, isTimeout);
 		} catch (error: unknown) {
 			if (error instanceof Error && error.name === 'AbortError') return;
-			if (!isDuplicate && uploadedAssetId) await cleanupAsset(uploadedAssetId);
+			if (!isDuplicate && uploadedAssetId) {
+				try {
+					await cleanupAsset(uploadedAssetId);
+				} catch (e) {
+					console.warn('Cleanup after error:', e);
+				}
+			}
 			uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
 		} finally {
 			isProcessing = false;
@@ -513,7 +575,7 @@
 				</div>
 			</div>
 
-			<div class="card-body">
+				<div class="card-body">
 				<div class="info-box">
 					<p>
 						<Info size={18} class="flex-shrink-0" />
@@ -532,7 +594,7 @@
 							<div class="status-processing">
 								<Spinner size={20} /> <span>{uploadStatus}</span>
 							</div>
-						{:else if assetId && !needsNewPhoto}
+						{:else if assetId && !needsNewPhoto && !detectionTimeout}
 							<div class="status-success">
 								<CheckCircle size={20} />
 								<span>Visage configuré avec succès !</span>
@@ -540,7 +602,56 @@
 						{:else if needsNewPhoto}
 							<div class="status-error">
 								<AlertCircle size={20} />
-								<span>Erreur : Plusieurs visages détectés.</span>
+								<div class="error-message">
+									<span>Erreur : Plusieurs visages détectés.</span>
+									<p class="text-sm">{uploadStatus}</p>
+									<button
+										onclick={() => {
+											assetId = null;
+											needsNewPhoto = false;
+											detectionTimeout = false;
+											uploadStatus = '';
+										}}
+										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
+									>
+										Réessayer
+									</button>
+								</div>
+							</div>
+						{:else if detectionTimeout}
+							<div class="status-warning">
+								<AlertTriangle size={20} />
+								<div class="error-message">
+									<span>{uploadStatus}</span>
+									<button
+										onclick={() => {
+											assetId = null;
+											detectionTimeout = false;
+											uploadStatus = '';
+										}}
+										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
+									>
+										Réessayer
+									</button>
+								</div>
+							</div>
+						{:else if uploadStatus && !isProcessing}
+							<div class="status-error">
+								<AlertCircle size={20} />
+								<div class="error-message">
+									<span>{uploadStatus}</span>
+									<button
+										onclick={() => {
+											assetId = null;
+											needsNewPhoto = false;
+											detectionTimeout = false;
+											uploadStatus = '';
+										}}
+										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
+									>
+										Réessayer
+									</button>
+								</div>
 							</div>
 						{:else}
 							<p class="text-hint">Prenez un selfie ou importez une photo claire de votre visage.</p>
@@ -961,6 +1072,18 @@
 		align-items: center;
 		gap: 0.5rem;
 		font-weight: 500;
+	}
+	.status-warning {
+		color: #f59e0b;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 500;
+	}
+	.error-message {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
 	}
 	.text-hint {
 		color: var(--st-text-muted);
