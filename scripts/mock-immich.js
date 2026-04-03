@@ -26,7 +26,7 @@ const server = http.createServer((req, res) => {
 		}
 
 		const boundary = boundaryMatch[1] || boundaryMatch[2];
-		console.log(`[MockImmich] Boundary: ${boundary}`);
+		console.log(`[MockImmich] Multipart boundary received (length=${boundary.length})`);
 
 		// Simple stream to file to verify reception
 		const timestamp = Date.now();
@@ -41,7 +41,7 @@ const server = http.createServer((req, res) => {
 
 		req.on('end', () => {
 			writeStream.end();
-			console.log(`[MockImmich] Upload complete. Received ${receivedBytes} bytes.`);
+			console.log('[MockImmich] Upload complete.');
 			console.log(`[MockImmich] Saved to ${filePath}`);
 
 			res.writeHead(201, { 'Content-Type': 'application/json' });

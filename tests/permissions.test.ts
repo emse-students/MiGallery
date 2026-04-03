@@ -14,8 +14,7 @@ import {
 	setupTestAuth,
 	teardownTestAuth,
 	globalTestContext,
-	testPermissions,
-	formatPermissionResults
+	testPermissions
 } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -87,13 +86,6 @@ describe('Permissions Albums - Opérations WRITE', () => {
 				description: "Suppression d'album"
 			});
 
-			console.debug(
-				formatPermissionResults(
-					{ endpoint: `/api/albums/${album.id}`, method: 'DELETE', requiredScope: 'write' },
-					result
-				)
-			);
-
 			expect(result.noAuth.passed).toBe(true); // 401/403
 			expect(result.read.passed).toBe(true); // 401/403
 			expect(result.write.passed).toBe(true); // 200
@@ -114,13 +106,6 @@ describe('Permissions Albums - Opérations WRITE', () => {
 			requiredScope: 'write',
 			description: "Ajout d'assets à l'album"
 		});
-
-		console.debug(
-			formatPermissionResults(
-				{ endpoint: `/api/albums/${testAlbumId}/assets`, method: 'PUT', requiredScope: 'write' },
-				result
-			)
-		);
 
 		expect(result.noAuth.passed).toBe(true);
 		expect(result.read.passed).toBe(true);
@@ -186,13 +171,6 @@ describe('Permissions Albums - Opérations READ', () => {
 			requiredScope: 'read',
 			description: "Récupération des covers d'albums"
 		});
-
-		console.debug(
-			formatPermissionResults(
-				{ endpoint: '/api/albums/covers', method: 'POST', requiredScope: 'read' },
-				result
-			)
-		);
 
 		expect(result.noAuth.passed).toBe(true); // 401/403
 		expect(result.read.passed).toBe(true); // 200

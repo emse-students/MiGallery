@@ -19,6 +19,10 @@ self.addEventListener('activate', (event) => {
  * The library communicates with this worker to coordinate stream relaying.
  */
 self.addEventListener('message', (evt) => {
+	if (evt.origin && evt.origin !== self.location.origin) {
+		return;
+	}
+
 	const msg = evt.data || {};
 	if (!msg || !msg.type) return;
 

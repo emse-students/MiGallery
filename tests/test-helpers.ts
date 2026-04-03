@@ -519,9 +519,9 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 				method: 'DELETE',
 				headers: { Cookie: context.sessionCookie }
 			});
-			console.debug(`✅ Clé API supprimée: ${keyId}`);
+			console.debug('✅ Clé API supprimée');
 		} catch {
-			console.warn(`⚠️  Impossible de supprimer la clé API: ${keyId}`);
+			console.warn('⚠️  Impossible de supprimer une clé API');
 		}
 	}
 

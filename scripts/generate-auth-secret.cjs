@@ -12,29 +12,28 @@ function main() {
 	console.log('\n🔐 Générateur de AUTH_SECRET pour MiGallery\n');
 
 	const secret = generateAuthSecret();
-	console.log('✅ Nouvelle clé AUTH_SECRET générée :');
-	console.log(`   ${secret}\n`);
+	console.log('✅ Nouvelle clé AUTH_SECRET générée');
 
 	const envPath = path.join(process.cwd(), '.env');
 
-	if (fs.existsSync(envPath)) {
+	try {
 		const envContent = fs.readFileSync(envPath, 'utf8');
+		const updatedContent = envContent.includes('AUTH_SECRET=')
+			? envContent.replace(/AUTH_SECRET=.*/, `AUTH_SECRET=${secret}`)
+			: envContent + `\nAUTH_SECRET=${secret}\n`;
 
-		if (envContent.includes('AUTH_SECRET=')) {
-			// Remplacer la clé existante
-			const updatedContent = envContent.replace(/AUTH_SECRET=.*/, `AUTH_SECRET=${secret}`);
-			fs.writeFileSync(envPath, updatedContent, 'utf8');
-			console.log('📝 Fichier .env mis à jour avec la nouvelle clé');
-		} else {
-			// Ajouter la clé
-			const updatedContent = envContent + `\nAUTH_SECRET=${secret}\n`;
-			fs.writeFileSync(envPath, updatedContent, 'utf8');
-			console.log('➕ AUTH_SECRET ajouté au fichier .env');
-		}
-	} else {
+		const tmpPath = `${envPath}.tmp`;
+		fs.writeFileSync(tmpPath, updatedContent, 'utf8');
+		fs.renameSync(tmpPath, envPath);
+		console.log('📝 Fichier .env mis à jour avec la nouvelle clé');
+	} catch (err) {
+		if (err && err.code === 'ENOENT') {
 		console.log('⚠️  Fichier .env non trouvé');
 		console.log('   Veuillez ajouter cette ligne à votre .env :');
 		console.log(`   AUTH_SECRET=${secret}\n`);
+		} else {
+			throw err;
+		}
 	}
 
 	console.log('✨ Configuration terminée!\n');

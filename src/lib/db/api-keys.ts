@@ -74,8 +74,5 @@ export function verifyRawKeyWithScope(raw?: string, requiredScope?: string): boo
 	if (scopes.includes('admin')) {
 		return true;
 	}
-	if (!requiredScope) {
-		return true;
-	}
 	return scopes.includes(requiredScope);
 }

@@ -19,8 +19,6 @@ console.log("📦 Création du package complet de l'application...");
 console.log(`📍 Destination: ${outPath}`);
 console.log('');
 
-const filesToInclude = [];
-
 const buildDir = path.resolve(process.cwd(), 'build');
 if (!fs.existsSync(buildDir)) {
 	console.error('❌ Le dossier build/ n\'existe pas. Lancez d\'abord "npm run build".');

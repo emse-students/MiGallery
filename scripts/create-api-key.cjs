@@ -60,10 +60,13 @@ try {
 	const stmt = db.prepare(
 		'INSERT INTO api_keys (key_hash, label, scopes, revoked, created_at) VALUES (?, ?, ?, 0, ?)'
 	);
-	const info = stmt.run(keyHash, label || null, scopes, now);
+	const result = stmt.run(keyHash, label || null, scopes, now);
 
 	console.log('API key created:');
 	console.log(raw);
+	if (result && result.lastInsertRowid) {
+		console.log(`Key ID: ${result.lastInsertRowid}`);
+	}
 	console.log('\n---- Store this key securely. This raw key will NOT be shown again. ----');
 	process.exit(0);
 } catch (err) {

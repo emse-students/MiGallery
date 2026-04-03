@@ -180,10 +180,6 @@ export function getDatabase(): DatabaseInstance {
 		db = dbInstance;
 	}
 
-	if (!db) {
-		throw new Error('Database initialization failed');
-	}
-
 	return db;
 }
 

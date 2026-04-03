@@ -32,8 +32,12 @@ export const POST: RequestHandler = async (event) => {
 
 		resetDatabase();
 
-		if (fs.existsSync(DB_PATH)) {
+		try {
 			fs.copyFileSync(DB_PATH, BACKUP_PATH);
+		} catch (backupError) {
+			if ((backupError as NodeJS.ErrnoException).code !== 'ENOENT') {
+				throw backupError;
+			}
 		}
 
 		const buffer = Buffer.from(await file.arrayBuffer());
