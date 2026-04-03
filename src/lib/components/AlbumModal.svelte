@@ -456,11 +456,12 @@
 								class="promo-add-btn"
 								onclick={addPromoFromSelector}
 								disabled={loading || selectedPromos.includes(promoSelectorYear)}
+								aria-label="Ajouter la promotion sélectionnée"
 								title={selectedPromos.includes(promoSelectorYear)
 									? 'Déjà ajoutée'
 									: 'Ajouter cette promotion'}
 							>
-								<Plus size={16} />
+								<Plus size={18} strokeWidth={2.5} />
 							</button>
 						</div>
 					</div>
@@ -490,7 +491,7 @@
 									<button type="button" class="suggestion" onclick={() => addUser(user)}>
 										<span class="s-main">{userLabel(user)}</span>
 										<span class="suggestion-add" aria-hidden="true">
-											<Plus size={14} />
+											<Plus size={16} strokeWidth={2.6} />
 										</span>
 									</button>
 								{/each}
@@ -686,6 +687,12 @@
 		transition: opacity 0.15s;
 	}
 
+	.promo-add-btn :global(svg) {
+		display: block;
+		width: 1rem;
+		height: 1rem;
+	}
+
 	.promo-add-btn:not(:disabled):hover {
 		opacity: 0.82;
 	}
@@ -765,6 +772,12 @@
 		background: color-mix(in oklab, var(--accent) 82%, black 4%);
 		color: white;
 		flex-shrink: 0;
+	}
+
+	.suggestion-add :global(svg) {
+		display: block;
+		width: 0.95rem;
+		height: 0.95rem;
 	}
 
 	@media (max-width: 640px) {
