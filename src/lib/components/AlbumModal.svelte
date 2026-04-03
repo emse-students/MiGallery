@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { AlertCircle, Search, X } from 'lucide-svelte';
+	import { AlertCircle, Search, X, Plus } from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
 
@@ -33,14 +33,19 @@
 
 	let availableUsers = $state<UserOption[]>([]);
 	let availableFormations = $state<string[]>([]);
-	let availablePromos = $state<number[]>([]);
 
 	let selectedUserIds = $state<string[]>([]);
 	let selectedFormations = $state<string[]>([]);
 	let selectedPromos = $state<number[]>([]);
-	let customPromoInput = $state('');
 	let promosManuallyEdited = $state(false);
 	let formationsManuallyEdited = $state(false);
+
+	const CURRENT_SCHOOL_YEAR = getCurrentSchoolYear();
+	const promoYears: number[] = Array.from(
+		{ length: CURRENT_SCHOOL_YEAR - 1816 + 1 },
+		(_, i) => CURRENT_SCHOOL_YEAR - i
+	);
+	let promoSelectorYear = $state(CURRENT_SCHOOL_YEAR);
 
 	let userSearch = $state('');
 	let showUserSuggestions = $state(false);
@@ -78,12 +83,7 @@
 
 	function applyDefaultPromosFromDate() {
 		if (isEditMode || promosManuallyEdited) return;
-		const defaultPromos = getDefaultPromosFromDate(albumDate);
-		selectedPromos = [...defaultPromos];
-		const mergedPromos = [...new Set([...availablePromos, ...defaultPromos])].sort((a, b) => a - b);
-		if (mergedPromos.length !== availablePromos.length) {
-			availablePromos = mergedPromos;
-		}
+		selectedPromos = [...getDefaultPromosFromDate(albumDate)];
 	}
 
 	function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
@@ -145,16 +145,8 @@
 		selectedPromos = selectedPromos.filter((p) => p !== promo);
 	}
 
-	function addCustomPromo() {
-		const n = Number.parseInt(customPromoInput.trim(), 10);
-		if (!Number.isFinite(n)) {
-			return;
-		}
-		addPromo(n);
-		if (!availablePromos.includes(n)) {
-			availablePromos = [...availablePromos, n].sort((a, b) => a - b);
-		}
-		customPromoInput = '';
+	function addPromoFromSelector() {
+		addPromo(promoSelectorYear);
 	}
 
 	function addUser(user: UserOption) {
@@ -186,7 +178,6 @@
 			};
 			availableUsers = data.users || [];
 			availableFormations = data.formations || [];
-			availablePromos = data.promos || [];
 
 			if (!isEditMode) {
 				if (!formationsManuallyEdited && selectedFormations.length === 0) {
@@ -433,32 +424,44 @@
 
 					<div class="share-section">
 						<div class="share-title">Promotions</div>
-						<div class="choice-row">
-							{#each availablePromos as promo}
-								<button
-									type="button"
-									class="chip {selectedPromos.includes(promo) ? 'active' : ''}"
-									onclick={() =>
-										selectedPromos.includes(promo) ? removePromo(promo) : addPromo(promo)}
-								>
-									{promo}
-								</button>
-							{/each}
-						</div>
-						<div class="promo-custom-row">
-							<input
-								type="number"
-								bind:value={customPromoInput}
-								placeholder="Ajouter une promo (ex: 2031)"
-								onkeydown={(e) => {
-									if (e.key === 'Enter') {
-										e.preventDefault();
-										addCustomPromo();
-									}
-								}}
+						{#if selectedPromos.length > 0}
+							<div class="choice-row">
+								{#each selectedPromos as promo}
+									<button
+										type="button"
+										class="selected-chip"
+										onclick={() => removePromo(promo)}
+										title="Supprimer la promo {promo}"
+									>
+										<span>{promo}</span>
+										<X size={12} />
+									</button>
+								{/each}
+							</div>
+						{:else}
+							<p class="no-promos">Aucune promotion sélectionnée</p>
+						{/if}
+						<div class="promo-add-row">
+							<select
+								bind:value={promoSelectorYear}
+								class="promo-select"
 								disabled={loading}
-							/>
-							<button type="button" class="chip" onclick={addCustomPromo}>Ajouter</button>
+							>
+								{#each promoYears as year}
+									<option value={year}>{year}</option>
+								{/each}
+							</select>
+							<button
+								type="button"
+								class="promo-add-btn"
+								onclick={addPromoFromSelector}
+								disabled={loading || selectedPromos.includes(promoSelectorYear)}
+								title={selectedPromos.includes(promoSelectorYear)
+									? 'Déjà ajoutée'
+									: 'Ajouter cette promotion'}
+							>
+								<Plus size={16} />
+							</button>
 						</div>
 					</div>
 
@@ -643,14 +646,58 @@
 		gap: 0.45rem;
 	}
 
-	.promo-custom-row {
+	.promo-add-row {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
 	}
 
-	.promo-custom-row input {
+	.promo-select {
 		flex: 1;
+		background: var(--bg-tertiary);
+		border: 1px solid var(--border);
+		color: var(--text-primary);
+		padding: 0.55rem 0.65rem;
+		border-radius: 10px;
+		font-size: 0.9rem;
+		cursor: pointer;
+		transition: border-color 0.2s;
+	}
+
+	.promo-select:focus {
+		outline: none;
+		border-color: var(--accent);
+	}
+
+	.promo-add-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.1rem;
+		height: 2.1rem;
+		border-radius: 50%;
+		border: none;
+		background: var(--accent);
+		color: white;
+		cursor: pointer;
+		flex-shrink: 0;
+		transition: opacity 0.15s;
+	}
+
+	.promo-add-btn:not(:disabled):hover {
+		opacity: 0.82;
+	}
+
+	.promo-add-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+
+	.no-promos {
+		margin: 0;
+		font-size: 0.82rem;
+		color: var(--text-secondary);
+		font-style: italic;
 	}
 
 	.chip,
