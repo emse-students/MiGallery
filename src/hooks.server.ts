@@ -5,6 +5,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import { getSessionUser } from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
+import { verifySigned } from '$lib/auth/cookies';
 
 // Démarre la sauvegarde automatique quotidienne dès le démarrage du serveur
 startBackupScheduler();
@@ -129,15 +130,19 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 	// ou cookies non-valides (format trop court ou mal formé)
 	const cookieSigned = event.cookies.get('current_user_id');
 	if (cookieSigned) {
-		// Les IDs OIDC sont des UUID longs (36+ caractères). Les vieux formats "prenom.nom"
-		// sont généralement plus courts ou contiennent des caractères non-UUID (points, tirets simples, etc.)
-		// Si le cookie décodé ne correspond pas à un UUID valide, c'est un vieux cookie.
-		const decodedLength = cookieSigned.length; // C'est le cookie signé, on fait une heuristique simple
-		// Les cookies signés OIDC sont généralement longs; les vieux cookies plus courts
-		// On les expire automatiquement
-		if (decodedLength < 20) {
-			// Format legacy, suppression
-			event.cookies.delete('current_user_id', { path: '/' });
+		// Vérifier que le cookie peut être décodé et a un format valide
+		const decoded = verifySigned(cookieSigned);
+		if (decoded) {
+			// Les IDs OIDC sont des UUID longs (64 caractères hexadécimaux ou 36 UUID standard)
+			// Les vieux formats "prenom.nom" sont court (10-20 caractères) et contiennent des points
+			const isLegacyFormat =
+				decoded.length < 32 || // UUID hex = 64 chars, trop court c'est legacy
+				(decoded.includes('.') && !decoded.includes('-')); // Format "prenom.nom"
+
+			if (isLegacyFormat) {
+				console.warn('🗑️  [Auth] Suppression du cookie legacy current_user_id:', decoded);
+				event.cookies.delete('current_user_id', { path: '/' });
+			}
 		}
 	}
 
