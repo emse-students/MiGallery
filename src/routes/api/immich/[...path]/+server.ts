@@ -822,6 +822,16 @@ const handle: RequestHandler = async function (event) {
 		const headers = new Headers();
 
 		if (!res.ok) {
+			if (request.method === 'DELETE') {
+				const assetMatch = pathParam.match(/assets\/([^/]+)/);
+				console.error(
+					'❌ [Face Pairing] Échec de la suppression photo Immich:',
+					assetMatch ? assetMatch[1] : pathParam,
+					'(état:',
+					res.status,
+					')'
+				);
+			}
 			if (resContentType.includes('text/html')) {
 				headers.set('content-type', 'application/json');
 				return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), {
@@ -877,6 +887,7 @@ const handle: RequestHandler = async function (event) {
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids && Array.isArray(parsed.ids)) {
+									console.warn('🗑️  [Face Pairing] Suppression en masse de photos Immich:', parsed.ids);
 									await logEvent(event, 'delete', 'asset', 'bulk', {
 										count: parsed.ids.length,
 										ids: parsed.ids
@@ -887,10 +898,13 @@ const handle: RequestHandler = async function (event) {
 							/* ignore */
 						}
 					} else if (assetIdMatch) {
+						console.warn('🗑️  [Face Pairing] Suppression de la photo Immich:', assetIdMatch[1]);
 						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
 					} else if (albumIdMatch) {
+						console.debug("🗑️  [Immich] Suppression d'album:", albumIdMatch[1]);
 						await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
 					} else if (personIdMatch) {
+						console.debug('🗑️  [Immich] Suppression de personne:', personIdMatch[1]);
 						await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
 					}
 				} else if (request.method === 'POST') {
@@ -948,6 +962,14 @@ const handle: RequestHandler = async function (event) {
 		}
 
 		if (res.status === 204) {
+			if (request.method === 'DELETE') {
+				const assetMatch = pathParam.match(/assets\/([^/]+)/);
+				if (assetMatch) {
+					console.debug("✅ [Face Pairing] Photo supprimée d'Immich avec succès:", assetMatch[1]);
+				} else if (pathParam === 'assets') {
+					console.debug('✅ [Face Pairing] Suppression en masse terminée avec succès');
+				}
+			}
 			return new Response(null, { status: 204, headers });
 		}
 		return new Response(textBody, { status: res.status, headers });
