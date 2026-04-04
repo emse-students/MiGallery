@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Book, Server, ScanFace, Database, Copyright, Info } from 'lucide-svelte';
+	import { Book, Server, ScanEye, Database, Copyright, Info } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 </script>
 
@@ -71,7 +71,7 @@
 			</section>
 
 			<section id="biometrie" class="section">
-				<h2><ScanFace size={24} /> 3. Reconnaissance Faciale (Biométrie)</h2>
+				<h2><ScanEye size={24} /> 3. Reconnaissance Faciale (Biométrie)</h2>
 				<p>
 					MiGallery utilise une technologie de reconnaissance faciale pour faciliter le tri des photos.
 					Ce traitement de <strong>données biométriques</strong> repose strictement sur votre

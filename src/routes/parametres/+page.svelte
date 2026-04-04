@@ -8,7 +8,7 @@
 		Palette,
 		Sun,
 		Moon,
-		ScanFace,
+		ScanEye,
 		Info,
 		CheckCircle,
 		AlertCircle,
@@ -649,7 +649,7 @@
 		<section class="settings-card glass-card">
 			<div class="card-header">
 				<div class="icon-wrapper purple">
-					<ScanFace size={24} />
+					<ScanEye size={24} />
 				</div>
 				<div>
 					<h2>Reconnaissance Faciale</h2>
