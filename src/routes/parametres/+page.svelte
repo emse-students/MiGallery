@@ -678,7 +678,7 @@
 						<input
 							type="text"
 							bind:value={newAuthUserId}
-							placeholder="Identifiant utilisateur (ex: prenom.nom)"
+							placeholder="Identifiant utilisateur MiGallery"
 							class="settings-input"
 							disabled={isAddingPermission}
 							onkeydown={(e) => e.key === 'Enter' && addPhotoPermission()}

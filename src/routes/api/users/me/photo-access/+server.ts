@@ -56,7 +56,10 @@ export const GET: RequestHandler = async (event) => {
  * Ajoute une autorisation pour qu'un utilisateur puisse voir mes photos
  *
  * Body:
- * - user_id: string (l'identifiant de l'utilisateur à autoriser)
+ * - user_id: string (l'identifiant utilisateur MiGallery complet, fourni par le système OIDC)
+ *
+ * NOTE: Les identifiants utilisateurs MiGallery sont des ID complets (UUID-like) fournis par le service d'authentification OIDC.
+ * Ils ne sont pas au format "prenom.nom" - utilisez l'ID complet affiché dans le profil de l'utilisateur.
  */
 export const POST: RequestHandler = async (event) => {
 	const user = await requireSession(event);
@@ -80,7 +83,13 @@ export const POST: RequestHandler = async (event) => {
 			.get(authorizedId) as UserBasic | undefined;
 
 		if (!targetUser) {
-			return json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+			return json(
+				{
+					error:
+						"Utilisateur non trouvé. Veuillez vérifier l'identifiant utilisateur MiGallery (disponible sur le profil de la personne)."
+				},
+				{ status: 404 }
+			);
 		}
 
 		db

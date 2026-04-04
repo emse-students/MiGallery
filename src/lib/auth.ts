@@ -34,6 +34,13 @@ function getProfileSub(profile: OIDCProfile | Record<string, unknown>): string |
 	return getTrimmedString(profile.sub);
 }
 
+/**
+ * The OIDC 'sub' claim is the authoritative user identifier.
+ * This is the unique ID assigned by the authentication service and never changes.
+ * It becomes id_user in MiGallery's database - this is NOT a "prenom.nom" format,
+ * but a long UUID-like identifier from the OIDC provider.
+ */
+
 function getProfilePromo(
 	profile: OIDCProfile | Record<string, unknown>,
 	customClaims: Record<string, unknown>
