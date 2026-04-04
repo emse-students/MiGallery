@@ -268,23 +268,32 @@
 		isTimeoutCheck: boolean = false
 	) {
 		const userId = (page.data.session?.user as User)?.id_user;
-		if (!userId || !assetId) return;
+		if (!userId || !assetId) {
+			console.warn('⚠️  [Face Pairing] checkForPeople: userId ou assetId manquant', { userId, assetId });
+			return;
+		}
 		let shouldCleanup = shouldDeleteAfter && assetIdToDelete;
+		console.log('🔍 [Face Pairing] checkForPeople début:', { userId, assetId, shouldCleanup, isTimeoutCheck });
 
 		try {
 			uploadStatus = 'Récupération des personnes détectées...';
 			const assetInfoResponse = await fetch(`/api/immich/assets/${assetId}`);
-			if (!assetInfoResponse.ok)
-				throw new Error(`Erreur récupération asset: ${assetInfoResponse.statusText}`);
+			if (!assetInfoResponse.ok) {
+				const errMsg = `Erreur récupération asset: ${assetInfoResponse.statusText}`;
+				console.error('❌ [Face Pairing] Récupération asset échouée:', errMsg);
+				throw new Error(errMsg);
+			}
 			const assetInfoData = await assetInfoResponse.json();
 			const assetInfo = assetInfoData as { people?: Array<{ id: string }> };
 			const people = assetInfo.people || [];
+			console.log(`📊 [Face Pairing] Asset récupéré: ${people.length} personne(s) détectée(s)`);
 
 			uploadStatus = `${people.length} personne(s) détectée(s)`;
 
 			if (people.length === 1) {
 				personId = people[0].id;
 				uploadStatus = `Visage détecté, enregistrement...`;
+				console.log('👤 [Face Pairing] Enregistrement du visage:', personId);
 
 				const updateResponse = await fetch('/api/users/me/face', {
 					method: 'PATCH',
@@ -298,38 +307,45 @@
 				};
 
 				if (updateData.error === 'face_already_assigned') {
+					console.warn('⚠️  [Face Pairing] Visage déjà assigné à un autre compte');
 					uploadStatus = 'Ce visage est déjà associé à un autre compte.';
 					showFaceAlreadyAssignedModal = true;
 					if (shouldCleanup) {
 						try {
+							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (face already assigned):', assetIdToDelete);
 							await cleanupAsset(assetIdToDelete);
 						} catch (e) {
-							console.warn('Cleanup failed (but face was assigned):', e);
+							console.error('❌ [Face Pairing] Cleanup échoué (mais face assigné):', e);
 						}
 					}
 					return;
 				}
 
 				if (updateData.success) {
+					console.log('🎉 [Face Pairing] Visage enregistré avec succès!');
 					uploadStatus = `Visage reconnu avec succès !`;
 					if (shouldCleanup) {
 						try {
+							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (succès):', assetIdToDelete);
 							await cleanupAsset(assetIdToDelete);
 						} catch (e) {
-							console.warn('Cleanup failed (but face was assigned):', e);
+							console.error('❌ [Face Pairing] Cleanup échoué (mais face assigné):', e);
 						}
 					}
 					isProcessing = false;
 					// Augmenter le délai pour laisser le temps à la DB de se synchroniser
 					await new Promise((resolve) => setTimeout(resolve, 1500));
+					console.log('🔄 [Face Pairing] Rechargement de la page...');
 					window.location.href = window.location.href;
 				} else {
+					console.error('❌ [Face Pairing] Erreur enregistrement:', updateData.error);
 					uploadStatus = `Erreur mise à jour BDD: ${updateData.error || 'Erreur inconnue'}`;
 					if (shouldCleanup) {
 						try {
+							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (erreur DB):', assetIdToDelete);
 							await cleanupAsset(assetIdToDelete);
 						} catch (e) {
-							console.warn('Cleanup after error:', e);
+							console.error('❌ [Face Pairing] Cleanup échoué après erreur:', e);
 						}
 					}
 				}
@@ -361,19 +377,25 @@
 				}
 			}
 		} catch (error: unknown) {
+			console.error('❌ [Face Pairing] Erreur checkForPeople:', error);
 			uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
 			if (shouldCleanup) {
 				try {
+					console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (après erreur):', assetIdToDelete);
 					await cleanupAsset(assetIdToDelete);
 				} catch (e) {
-					console.warn('Cleanup after error:', e);
+					console.error('❌ [Face Pairing] Cleanup after error échoué:', e);
 				}
 			}
 		}
 	}
 
 	async function cleanupAsset(id: string | null) {
-		if (!id) return;
+		if (!id) {
+			console.warn('⚠️  [Face Pairing] cleanupAsset appelé sans ID');
+			return;
+		}
+		console.log('🗑️  [Face Pairing] Suppression de l\'asset Immich:', id);
 		try {
 			const response = await fetch(`/api/immich/assets`, {
 				method: 'DELETE',
@@ -381,12 +403,14 @@
 				body: JSON.stringify({ ids: [id] })
 			});
 			if (!response.ok) {
-				throw new Error(
-					`Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`
-				);
+				const errMsg = `Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`;
+				console.error('❌ [Face Pairing]', errMsg);
+				throw new Error(errMsg);
 			}
+			console.log('✅ [Face Pairing] Asset supprimé avec succès:', id);
 		} catch (e) {
 			// Relancer l'erreur pour que le caller puisse la gérer
+			console.error('❌ [Face Pairing] cleanupAsset erreur:', e);
 			throw e;
 		}
 	}
@@ -398,6 +422,8 @@
 			toast.error("Pas d'utilisateur connecté");
 			return;
 		}
+
+		console.log('🔍 [Face Pairing] Début import photo:', { fileName: file.name, fileSize: file.size, userId });
 
 		isProcessing = true;
 		detectionTimeout = false;
@@ -415,26 +441,36 @@
 			let uploadResponse: Response;
 			uploadResponse = await uploadFileChunked(file, signal);
 
-			if (!uploadResponse.ok) throw new Error(`Erreur upload: ${uploadResponse.statusText}`);
+			if (!uploadResponse.ok) {
+				const errMsg = `Erreur upload: ${uploadResponse.statusText}`;
+				console.error('❌ [Face Pairing] Upload échoué:', errMsg);
+				throw new Error(errMsg);
+			}
+			console.log('✅ [Face Pairing] Upload réussi');
 			const uploadData = (await uploadResponse.json()) as Record<string, unknown>;
 
 			if (uploadData.status === 'duplicate' && uploadData.id) {
 				isDuplicate = true;
 				uploadedAssetId = String(uploadData.id);
 				uploadStatus = 'Utilisation de la photo existante.';
+				console.log('ℹ️  [Face Pairing] Duplicate détecté, réutilisation asset:', uploadedAssetId);
 			} else if (uploadData.duplicateId) {
 				isDuplicate = true;
 				uploadedAssetId = String(uploadData.duplicateId);
 				uploadStatus = 'Utilisation de la photo existante.';
+				console.log('ℹ️  [Face Pairing] Duplicate détecté, réutilisation asset:', uploadedAssetId);
 			} else if (uploadData.id) {
 				uploadedAssetId = String(uploadData.id);
+				console.log('✅ [Face Pairing] Asset créé:', uploadedAssetId);
 			} else {
+				console.error('❌ [Face Pairing] Pas d\'ID retourné:', uploadData);
 				throw new Error("Pas d'ID retourné");
 			}
 
 			assetId = uploadedAssetId;
 
 			// Augmenter à 60 secondes pour donner à Immich le temps de traiter
+			console.log('⏳ [Face Pairing] Attente de la détection de visage (max 60s)...');
 			const maxAttempts = 60;
 			let attempt = 0;
 			let faceDetected = false;
@@ -449,6 +485,7 @@
 					if (checkResponse.ok) {
 						const checkData = await checkResponse.json();
 						if (checkData.people && checkData.people.length > 0) {
+							console.log(`✅ [Face Pairing] Visage détecté à ${attempt}s! People count:`, checkData.people.length);
 							faceDetected = true;
 							break;
 						}
@@ -457,24 +494,34 @@
 					if (err instanceof Error && err.name === 'AbortError') throw err;
 				}
 			}
+			if (!faceDetected) {
+				console.warn('⏱️  [Face Pairing] Timeout atteint (60s), aucun visage détecté');
+			}
 
 			const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
 			// Passer le flag isTimeoutCheck=true si on a atteint le max d'attempts
 			const isTimeout = attempt >= maxAttempts && !faceDetected;
+			console.log('🔄 [Face Pairing] Appel checkForPeople:', { shouldDeleteAfter, uploadedAssetId, isTimeout, isDuplicate });
 			await checkForPeople(shouldDeleteAfter, uploadedAssetId, isTimeout);
 		} catch (error: unknown) {
-			if (error instanceof Error && error.name === 'AbortError') return;
+			if (error instanceof Error && error.name === 'AbortError') {
+				console.log('⚠️  [Face Pairing] Import annulé par l\'utilisateur');
+				return;
+			}
+			console.error('❌ [Face Pairing] Erreur import:', error);
 			if (!isDuplicate && uploadedAssetId) {
 				try {
+					console.log('🗑️  [Face Pairing] Cleanup de l\'asset après erreur:', uploadedAssetId);
 					await cleanupAsset(uploadedAssetId);
 				} catch (e) {
-					console.warn('Cleanup after error:', e);
+					console.error('❌ [Face Pairing] Cleanup after error échoué:', e);
 				}
 			}
 			uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
 		} finally {
 			isProcessing = false;
 			abortController = null;
+			console.log('✔️  [Face Pairing] Import terminé');
 		}
 	}
 
