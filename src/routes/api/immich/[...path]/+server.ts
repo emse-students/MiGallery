@@ -824,13 +824,16 @@ const handle: RequestHandler = async function (event) {
 		if (!res.ok) {
 			if (request.method === 'DELETE') {
 				const assetMatch = pathParam.match(/assets\/([^/]+)/);
-				console.error(
-					'❌ [Face Pairing] Échec de la suppression photo Immich:',
-					assetMatch ? assetMatch[1] : pathParam,
-					'(état:',
-					res.status,
-					')'
-				);
+				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
+				if (isFacePairingCleanup) {
+					console.error(
+						'❌ [Face Pairing] Échec de la suppression photo Immich:',
+						assetMatch ? assetMatch[1] : pathParam,
+						'(état:',
+						res.status,
+						')'
+					);
+				}
 			}
 			if (resContentType.includes('text/html')) {
 				headers.set('content-type', 'application/json');
@@ -882,12 +885,17 @@ const handle: RequestHandler = async function (event) {
 				const personIdMatch = pathParam.match(/people\/([^/]+)/);
 
 				if (request.method === 'DELETE') {
+					const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
 					if (pathParam === 'assets') {
 						try {
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids && Array.isArray(parsed.ids)) {
-									console.warn('🗑️  [Face Pairing] Suppression en masse de photos Immich:', parsed.ids);
+									if (isFacePairingCleanup) {
+										console.warn('🗑️  [Face Pairing] Suppression en masse de photos Immich:', parsed.ids);
+									} else {
+										console.debug('🗑️  [Immich] Suppression en masse de photos:', parsed.ids);
+									}
 									await logEvent(event, 'delete', 'asset', 'bulk', {
 										count: parsed.ids.length,
 										ids: parsed.ids
@@ -964,10 +972,13 @@ const handle: RequestHandler = async function (event) {
 		if (res.status === 204) {
 			if (request.method === 'DELETE') {
 				const assetMatch = pathParam.match(/assets\/([^/]+)/);
-				if (assetMatch) {
-					console.debug("✅ [Face Pairing] Photo supprimée d'Immich avec succès:", assetMatch[1]);
-				} else if (pathParam === 'assets') {
-					console.debug('✅ [Face Pairing] Suppression en masse terminée avec succès');
+				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
+				if (isFacePairingCleanup) {
+					if (assetMatch) {
+						console.debug("✅ [Face Pairing] Photo supprimée d'Immich avec succès:", assetMatch[1]);
+					} else if (pathParam === 'assets') {
+						console.debug('✅ [Face Pairing] Suppression de photos Immich terminée avec succès');
+					}
 				}
 			}
 			return new Response(null, { status: 204, headers });

@@ -399,7 +399,10 @@
 		try {
 			const response = await fetch(`/api/immich/assets`, {
 				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Face-Pairing-Cleanup': 'true'
+				},
 				body: JSON.stringify({ ids: [id] })
 			});
 			if (!response.ok) {
