@@ -5,7 +5,7 @@
 		CheckCircle,
 		XCircle,
 		AlertTriangle,
-		CircleHelp,
+		HelpCircle,
 		X,
 		UserX,
 		Camera
@@ -52,7 +52,7 @@
 		'check-circle': CheckCircle,
 		'x-circle': XCircle,
 		'alert-triangle': AlertTriangle,
-		'help-circle': CircleHelp,
+		'help-circle': HelpCircle,
 		'user-x': UserX,
 		camera: Camera,
 		x: X

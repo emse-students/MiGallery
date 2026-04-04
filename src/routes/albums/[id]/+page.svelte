@@ -6,7 +6,7 @@
 	import {
 		Check,
 		CheckCircle,
-		Edit2,
+		Pencil,
 		Trash2,
 		Share2,
 		Download,
@@ -193,7 +193,7 @@
 		<!-- Admin Actions -->
 		{#if canManagePhotos}
 			<button onclick={() => (showAlbumModal = true)} class="btn-glass edit" title="Modifier">
-				<Edit2 size={18} />
+				<Pencil size={18} />
 				{#if !mobile}<span class="label">Éditer</span>{/if}
 			</button>
 			<button onclick={() => deleteAlbum()} class="btn-glass delete" title="Supprimer">

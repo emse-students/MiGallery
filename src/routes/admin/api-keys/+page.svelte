@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Key, Book, PlusCircle, Check, Info, AlertCircle, RefreshCw, Trash2 } from 'lucide-svelte';
+	import { Key, Book, CirclePlus, Check, Info, AlertCircle, RefreshCw, Trash2 } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { showConfirm } from '$lib/confirm';
@@ -113,7 +113,7 @@
 		<!-- Section Création -->
 		<section class="glass-card create-section">
 			<div class="card-header">
-				<h3><PlusCircle size={20} /> Nouvelle clé</h3>
+				<h3><CirclePlus size={20} /> Nouvelle clé</h3>
 			</div>
 			<div class="card-body">
 				<div class="form-row">

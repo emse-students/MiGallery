@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { XCircle, Trash2, X, CheckSquare2, Square, ArrowLeft } from 'lucide-svelte';
+	import { XCircle, Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
@@ -290,7 +290,7 @@
 					{#if selecting}
 						<X size={16} />
 					{:else}
-						<CheckSquare2 size={16} />
+						<SquareCheck size={16} />
 					{/if}
 					{selecting ? 'Annuler' : 'Sélectionner'}
 				</button>
@@ -300,12 +300,12 @@
 		{#if selecting && selectedAssets.length > 0}
 			<div class="selection-toolbar">
 				<div class="selection-count">
-				<CheckSquare2 size={18} />
+				<SquareCheck size={18} />
 					{selectedAssets.length} sélectionné{selectedAssets.length > 1 ? 's' : ''}
 				</div>
 				<div class="selection-actions">
 					<button onclick={selectAll} class="px-2 py-2">
-					<CheckSquare2 size={16} />
+					<SquareCheck size={16} />
 						Tout sélectionner
 					</button>
 					<button onclick={deselectAll} class="px-2 py-2 bg-gray-400">

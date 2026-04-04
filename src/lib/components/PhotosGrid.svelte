@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckSquare2, Square, Download, Trash2, Image as ImageIcon, MinusCircle } from 'lucide-svelte';
+	import { SquareCheck, Square, Download, Trash2, Image as ImageIcon, CircleMinus } from 'lucide-svelte';
 	import PhotoCard from '$lib/components/PhotoCard.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -242,14 +242,14 @@
 	{#if photosState.selecting}
 		<div class="selection-toolbar">
 			<div class="selection-count">
-				<CheckSquare2 size={18} />
+				<SquareCheck size={18} />
 				{photosState.selectedAssets.length} sélectionné{photosState.selectedAssets.length > 1
 					? 's'
 					: ''}
 			</div>
 			<div class="selection-actions">
 				<button onclick={() => photosState.selectAll()} class="btn-secondary">
-					<CheckSquare2 size={16} />
+					<SquareCheck size={16} />
 					Tout sélectionner
 				</button>
 				<button onclick={() => photosState.deselectAll()} class="btn-secondary">
@@ -281,7 +281,7 @@
 						class="btn-secondary"
 						title="Retirer de l'album sans supprimer les photos"
 					>
-						<MinusCircle size={16} />
+								<CircleMinus size={16} />
 						Retirer ({photosState.selectedAssets.length})
 					</button>
 				{/if}
