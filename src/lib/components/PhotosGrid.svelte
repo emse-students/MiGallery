@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CheckSquare, Square, Download, Trash2, Image as ImageIcon, MinusCircle } from 'lucide-svelte';
+	import { CheckSquare2, Square, Download, Trash2, Image as ImageIcon, MinusCircle } from 'lucide-svelte';
 	import PhotoCard from '$lib/components/PhotoCard.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -242,14 +242,14 @@
 	{#if photosState.selecting}
 		<div class="selection-toolbar">
 			<div class="selection-count">
-				<CheckSquare size={18} />
+				<CheckSquare2 size={18} />
 				{photosState.selectedAssets.length} sélectionné{photosState.selectedAssets.length > 1
 					? 's'
 					: ''}
 			</div>
 			<div class="selection-actions">
 				<button onclick={() => photosState.selectAll()} class="btn-secondary">
-					<CheckSquare size={16} />
+					<CheckSquare2 size={16} />
 					Tout sélectionner
 				</button>
 				<button onclick={() => photosState.deselectAll()} class="btn-secondary">
