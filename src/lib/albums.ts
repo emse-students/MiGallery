@@ -7,9 +7,7 @@ import type { User, AlbumRow } from '$lib/types/api';
  * - not logged-in => no access
  * - role 'mitviste' or 'admin' => full access
  * - explicit user permission in album_user_permissions => access
- * - formation permission matching user formation => access
- * - promo permission matching user's promo => access
- * - legacy tag permission matching user's promo_year (tag = `Promo <year>`) => access
+ * - (formation permission AND promo permission matching user criteria) => access
  * - visibility 'authenticated' => any logged-in user has access
  * - visibility 'unlisted' => only users with explicit permission/criteria or mitviste/admin
  * - visibility 'private' => only users with explicit permission/criteria or mitviste/admin
@@ -29,6 +27,7 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 
 	const db = getDatabase();
 
+	// Check explicit user permission
 	const userPerm = db
 		.prepare('SELECT 1 FROM album_user_permissions WHERE album_id = ? AND id_user = ? LIMIT 1')
 		.get(album.id, user.id_user) as { 1: number } | undefined;
@@ -36,37 +35,26 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 		return true;
 	}
 
+	// Check (Formation AND Promo) permissions combined
 	const normalizedFormation = (user.formation || '').trim().toLowerCase();
-	if (normalizedFormation) {
-		const formationPerm = db
-			.prepare(
-				'SELECT 1 FROM album_formation_permissions WHERE album_id = ? AND lower(formation) = ? LIMIT 1'
-			)
-			.get(album.id, normalizedFormation) as { 1: number } | undefined;
-		if (formationPerm) {
-			return true;
-		}
-	}
-
 	const promoYear = user.promo_year ?? user.promo;
-	if (typeof promoYear === 'number') {
-		const promoPerm = db
-			.prepare('SELECT 1 FROM album_promo_permissions WHERE album_id = ? AND promo_year = ? LIMIT 1')
-			.get(album.id, promoYear) as { 1: number } | undefined;
-		if (promoPerm) {
+
+	if (normalizedFormation && typeof promoYear === 'number') {
+		const combinedPerm = db
+			.prepare(
+				`SELECT 1 FROM album_formation_permissions af
+				 INNER JOIN album_promo_permissions ap
+				 ON af.album_id = ap.album_id
+				 WHERE af.album_id = ? AND lower(af.formation) = ? AND ap.promo_year = ?
+				 LIMIT 1`
+			)
+			.get(album.id, normalizedFormation, promoYear) as { 1: number } | undefined;
+		if (combinedPerm) {
 			return true;
 		}
 	}
 
-	if (promoYear) {
-		const tag = `Promo ${promoYear}`;
-		const tagPerm = db
-			.prepare('SELECT 1 FROM album_tag_permissions WHERE album_id = ? AND tag = ? LIMIT 1')
-			.get(album.id, tag) as { 1: number } | undefined;
-		if (tagPerm) {
-			return true;
-		}
-	} // visibility rules
+	// visibility rules
 	if (vis === 'authenticated') {
 		return true;
 	} // any logged-in user
