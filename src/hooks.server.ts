@@ -119,10 +119,28 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 
 /**
  * Hook pour résoudre la session utilisateur avant que la réponse ne soit générée.
+ * Nettoie aussi les vieux cookies au format legacy (prenom.nom) en les supprimant.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
 	const user = getSessionUser(event.cookies);
 	event.locals.user = user ?? null;
+
+	// Nettoyer les vieux cookies au format legacy (contenant des points = "prenom.nom")
+	// ou cookies non-valides (format trop court ou mal formé)
+	const cookieSigned = event.cookies.get('current_user_id');
+	if (cookieSigned) {
+		// Les IDs OIDC sont des UUID longs (36+ caractères). Les vieux formats "prenom.nom"
+		// sont généralement plus courts ou contiennent des caractères non-UUID (points, tirets simples, etc.)
+		// Si le cookie décodé ne correspond pas à un UUID valide, c'est un vieux cookie.
+		const decodedLength = cookieSigned.length; // C'est le cookie signé, on fait une heuristique simple
+		// Les cookies signés OIDC sont généralement longs; les vieux cookies plus courts
+		// On les expire automatiquement
+		if (decodedLength < 20) {
+			// Format legacy, suppression
+			event.cookies.delete('current_user_id', { path: '/' });
+		}
+	}
+
 	return resolve(event);
 };
 

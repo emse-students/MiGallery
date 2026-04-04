@@ -78,10 +78,25 @@
 	let isLoadingPermissions = $state<boolean>(false);
 	let isLoadingSharedWithMe = $state<boolean>(false);
 
+	interface AvailableUser {
+		id_user: string;
+		name: string;
+		first_name: string | null;
+		last_name: string | null;
+		formation: string | null;
+		promo: number | null;
+	}
+
+	let availableUsers = $state<AvailableUser[]>([]);
+	let isLoadingAvailableUsers = $state<boolean>(false);
+	let searchQuery = $state<string>('');
+	let showUserDropdown = $state<boolean>(false);
+
 	$effect(() => {
 		loadCurrentUserFaceStatus();
 		loadPhotoPermissions();
 		loadSharedWithMe();
+		loadAvailableUsers();
 		try {
 			const u = page.data.session?.user as User | undefined;
 			isAdmin = !!(u && u.role === 'admin');
@@ -145,6 +160,21 @@
 		}
 	}
 
+	async function loadAvailableUsers() {
+		isLoadingAvailableUsers = true;
+		try {
+			const response = await fetch('/api/users/me/photo-access/options');
+			const data = (await response.json()) as { success?: boolean; users?: AvailableUser[] };
+			if (data.success && data.users) {
+				availableUsers = data.users;
+			}
+		} catch (e) {
+			console.warn('Erreur chargement utilisateurs disponibles:', e);
+		} finally {
+			isLoadingAvailableUsers = false;
+		}
+	}
+
 	async function loadSharedWithMe() {
 		isLoadingSharedWithMe = true;
 		try {
@@ -162,7 +192,7 @@
 
 	async function addPhotoPermission() {
 		if (!newAuthUserId.trim()) {
-			toast.error('Veuillez entrer un identifiant utilisateur');
+			toast.error('Veuillez sélectionner un utilisateur');
 			return;
 		}
 		isAddingPermission = true;
@@ -176,6 +206,8 @@
 			if (data.success) {
 				toast.success(data.message || 'Autorisation ajoutée');
 				newAuthUserId = '';
+				searchQuery = '';
+				showUserDropdown = false;
 				await loadPhotoPermissions();
 			} else {
 				toast.error(data.error || "Erreur lors de l'ajout");
@@ -675,14 +707,66 @@
 
 				<div class="card-body">
 					<div class="permission-add-row">
-						<input
-							type="text"
-							bind:value={newAuthUserId}
-							placeholder="Identifiant utilisateur MiGallery"
-							class="settings-input"
-							disabled={isAddingPermission}
-							onkeydown={(e) => e.key === 'Enter' && addPhotoPermission()}
-						/>
+						<div class="user-selector">
+							<input
+								type="text"
+								bind:value={searchQuery}
+								placeholder="Rechercher un profil à autoriser..."
+								class="settings-input selector-input"
+								disabled={isAddingPermission || isLoadingAvailableUsers}
+								onfocus={() => {
+									showUserDropdown = true;
+									if (availableUsers.length === 0) loadAvailableUsers();
+								}}
+								onblur={() => {
+									setTimeout(() => {
+										showUserDropdown = false;
+									}, 200);
+								}}
+							/>
+							{#if showUserDropdown && availableUsers.length > 0}
+								<div class="user-dropdown">
+									{#if isLoadingAvailableUsers}
+										<div class="dropdown-loading"><Spinner size={16} /> Chargement...</div>
+									{:else}
+										{#each availableUsers.filter((u) => {
+											const query = searchQuery.toLowerCase();
+											return (
+												u.name.toLowerCase().includes(query) ||
+												(u.first_name?.toLowerCase() ?? '').includes(query) ||
+												(u.last_name?.toLowerCase() ?? '').includes(query) ||
+												(u.formation?.toLowerCase() ?? '').includes(query) ||
+												u.id_user.toLowerCase().includes(query)
+											);
+										}) as user (user.id_user)}
+											<button
+												type="button"
+												class="dropdown-item"
+												onclick={() => {
+													newAuthUserId = user.id_user;
+													searchQuery = user.name;
+													showUserDropdown = false;
+												}}
+												disabled={isAddingPermission}
+											>
+												<div class="user-item-content">
+													<div class="user-item-name">{user.name}</div>
+													{#if user.formation || user.promo}
+														<div class="user-item-meta">
+															{#if user.promo}{user.promo}{/if}
+															{#if user.formation}
+																{#if user.promo}•{/if}
+																{user.formation}
+															{/if}
+														</div>
+													{/if}
+												</div>
+											</button>
+										{/each}
+									{/if}
+								</div>
+							{/if}
+						</div>
 						<button
 							onclick={addPhotoPermission}
 							class="theme-toggle-btn"
@@ -1112,7 +1196,79 @@
 		display: flex;
 		gap: 0.5rem;
 		margin-bottom: 1.5rem;
+		align-items: flex-start;
 	}
+
+	.user-selector {
+		flex: 1;
+		position: relative;
+	}
+
+	.selector-input {
+		width: 100%;
+	}
+
+	.user-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		background: var(--st-card-bg);
+		border: 1px solid var(--st-border);
+		border-top: none;
+		border-radius: 0 0 0.5rem 0.5rem;
+		max-height: 300px;
+		overflow-y: auto;
+		z-index: 10;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+	}
+
+	.dropdown-loading {
+		padding: 1rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--st-text-muted);
+		justify-content: center;
+	}
+
+	.dropdown-item {
+		width: 100%;
+		padding: 0.75rem 1rem;
+		border: none;
+		background: none;
+		text-align: left;
+		cursor: pointer;
+		color: var(--st-text);
+		font-size: 0.95rem;
+		transition: background-color 0.2s;
+	}
+
+	.dropdown-item:hover:not(:disabled) {
+		background: var(--st-bg);
+	}
+
+	.dropdown-item:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.user-item-content {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.user-item-name {
+		font-weight: 500;
+		color: var(--st-text);
+	}
+
+	.user-item-meta {
+		font-size: 0.85rem;
+		color: var(--st-text-muted);
+	}
+
 	.permission-add-row input {
 		flex: 1;
 	}
