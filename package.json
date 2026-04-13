@@ -110,7 +110,7 @@
 		"sharp": "^0.34.5",
 		"streamsaver": "^2.0.6",
 		"svelte-adapter-bun": "^1.0.1",
-		"typescript-eslint": "^8.57.1",
+		"typescript-eslint": "^8.58.1",
 		"undici": "^7.24.5",
 		"vitest": "^4.0.10"
 	},
