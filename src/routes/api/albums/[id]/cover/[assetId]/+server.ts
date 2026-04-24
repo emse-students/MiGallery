@@ -18,6 +18,36 @@ try {
 	console.error('Failed to create cache directory', e);
 }
 
+// Sémaphore pour limiter les traitements Sharp simultanés et éviter les crashs mémoire
+// quand de nombreux albums sont chargés en même temps.
+const MAX_CONCURRENT_SHARP = 4;
+const MAX_QUEUE_SIZE = 30;
+let runningSharp = 0;
+const sharpQueue: Array<() => void> = [];
+
+function acquireSharp(): Promise<(() => void) | null> {
+	if (sharpQueue.length >= MAX_QUEUE_SIZE) {
+		return Promise.resolve(null);
+	}
+	return new Promise((resolve) => {
+		const tryAcquire = () => {
+			if (runningSharp < MAX_CONCURRENT_SHARP) {
+				runningSharp++;
+				resolve(() => {
+					runningSharp--;
+					const next = sharpQueue.shift();
+					if (next) {
+						next();
+					}
+				});
+			} else {
+				sharpQueue.push(tryAcquire);
+			}
+		};
+		tryAcquire();
+	});
+}
+
 /**
  * GET: Récupère l'image de couverture (avec redimensionnement et cache)
  */
@@ -117,9 +147,19 @@ export const PUT: RequestHandler = async (event) => {
 };
 
 /**
- * Utilitaire de traitement d'image avec Sharp
+ * Utilitaire de traitement d'image avec Sharp (protégé par sémaphore)
  */
 async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<Response> {
+	const release = await acquireSharp();
+	if (!release) {
+		// Trop de traitements en attente : renvoyer l'image brute plutôt que de crasher
+		console.warn('[Cover] Sharp queue full, returning raw image');
+		return new Response(new Uint8Array(buffer), {
+			status: 200,
+			headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' }
+		});
+	}
+
 	try {
 		const processed = await sharp(buffer)
 			.resize(400, 400, { fit: 'cover', position: 'center' })
@@ -143,5 +183,7 @@ async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<
 		console.error('Sharp processing failed', e);
 		// Retourne l'image brute en cas d'échec de Sharp
 		return new Response(new Uint8Array(buffer), { headers: { 'Content-Type': 'image/jpeg' } });
+	} finally {
+		release();
 	}
 }

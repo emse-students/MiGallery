@@ -273,18 +273,39 @@ function handleUserInDatabase(
 				`[AUTH] New user: ${userData.name} (promo:${userData.promo ?? '?'}, ${userData.formation ?? '?'})`
 			);
 		} else {
-			// Update profile fields only (not creating duplicate)
-			updateUser({
+			// Toujours écraser avec les données SSO à chaque connexion.
+			// On ne passe que les champs non-null pour ne pas effacer les valeurs
+			// manuelles quand le SSO ne fournit pas le champ (ex: promo pour le personnel).
+			const updatePayload: Partial<DBUser> & { id_user: string } = {
 				id_user: userId,
-				name: userData.name,
-				first_name: firstName,
-				last_name: lastName,
-				promo,
-				formation
-			});
+				name: userData.name
+			};
+			if (firstName !== null) {
+				updatePayload.first_name = firstName;
+			}
+			if (lastName !== null) {
+				updatePayload.last_name = lastName;
+			}
+			if (promo !== null) {
+				updatePayload.promo = promo;
+			}
+			if (formation !== null) {
+				updatePayload.formation = formation;
+			}
+
+			updateUser(updatePayload);
+			console.debug(
+				`[AUTH] Updated user: ${userData.name} (promo:${promo ?? 'unchanged'}, formation:${formation ?? 'unchanged'})`
+			);
 		}
 
-		return userData;
+		// Re-fetcher depuis la DB pour avoir l'état réel (role mitviste, photos_id, etc.)
+		const freshUser = getUserByCasId(userId);
+		if (!freshUser) {
+			console.error('[AUTH] Could not re-fetch user after create/update');
+			return userData;
+		}
+		return freshUser;
 	} catch (e) {
 		console.error('[AUTH] Error handling user in database:', e);
 		return null;

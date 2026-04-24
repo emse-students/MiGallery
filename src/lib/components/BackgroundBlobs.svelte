@@ -46,7 +46,7 @@
         style:left={blob.left}
         style:width={blob.width}
         style:height={blob.height}
-        style:background-color={blob.color}
+        style="--blob-color: {blob.color};"
       ></div>
     {/each}
   </div>
@@ -77,14 +77,14 @@
   .blobs-container {
     position: absolute;
     inset: 0;
-    /* Le flou est calculé une seule fois = pas de lag */
-    filter: blur(100px);
-    transform: scale(1.1); /* Zoom léger pour cacher les bords flous */
+    /* Le filtre blur a été retiré ici pour sauver les performances du GPU */
   }
 
   .gradient-blob {
     position: absolute;
     border-radius: 50%;
+    /* Optimisation : création du halo de couleur sans utiliser de flou */
+    background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
     /* Opacité standard pour le mode clair */
     opacity: 0.5;
     mix-blend-mode: multiply;
@@ -98,7 +98,26 @@
     mix-blend-mode: screen;
   }
 
-  /* Le grain reste pour la texture "premium" */
+  /*
+   * Sur mobile (et iOS en particulier), mix-blend-mode sur plusieurs éléments
+   * crée autant de couches composites GPU et provoque des crashs mémoire Safari
+   * ("un problème récurrent est survenu sur cette page").
+   * On désactive le blend mode et le grain SVG sur les petits écrans / écrans tactiles.
+   */
+  @media (max-width: 768px), (hover: none) {
+    .gradient-blob {
+      mix-blend-mode: normal;
+      opacity: 0.12;
+    }
+    :global([data-theme='dark']) .gradient-blob {
+      opacity: 0.08;
+    }
+    .noise-overlay {
+      display: none;
+    }
+  }
+
+  /* Le grain reste pour la texture "premium" sur desktop */
   .noise-overlay {
     position: absolute;
     inset: 0;
