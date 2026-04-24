@@ -94,7 +94,13 @@ self.addEventListener('fetch', (event) => {
 		if (fwdHeaders.has('Content-Disposition'))
 			responseHeaders.set('Content-Disposition', fwdHeaders.get('Content-Disposition'));
 
-		event.respondWith(new Response(stream, { headers: responseHeaders }));
+		// Pipe stream through a TransformStream so that event.waitUntil() can
+		// track completion and keep the SW alive for arbitrarily long downloads.
+		// Without this, Chrome terminates the SW after ~30 s of no JS activity
+		// even while the response body is still being consumed.
+		const { readable, writable } = new TransformStream();
+		event.waitUntil(stream.pipeTo(writable).catch(() => {}));
+		event.respondWith(new Response(readable, { headers: responseHeaders }));
 		port.postMessage({ debug: 'Download started' });
 		return;
 	}
