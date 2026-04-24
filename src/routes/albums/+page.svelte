@@ -23,7 +23,7 @@
 	import { toast } from '$lib/toast';
 	import { clientCache } from '$lib/client-cache';
 	import type { User, Album, ImmichAsset } from '$lib/types/api';
-	import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+	import { downloadInBatches } from '$lib/immich/download';
 	import { onDestroy } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 
@@ -194,13 +194,12 @@
 				toast.info('Aucun asset à télécharger');
 				return;
 			}
-			const blob = await fetchArchive(assetIds, {
+			await downloadInBatches(assetIds, albumName || immichId, {
 				onProgress: (p) => {
 					downloadingProgress = { ...downloadingProgress, [immichId]: p };
 				},
 				signal: controller.signal
 			});
-			saveBlobAs(blob, `${albumName || immichId}.zip`);
 		} catch (e: unknown) {
 			if ((e as Error).name !== 'AbortError') {
 				toast.error('Erreur téléchargement: ' + (e as Error).message);

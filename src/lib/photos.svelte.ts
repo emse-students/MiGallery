@@ -1,4 +1,4 @@
-import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+import { downloadInBatches } from '$lib/immich/download';
 import type { ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import { consumeNDJSONStream } from '$lib/streaming';
@@ -507,13 +507,12 @@ export class PhotosState {
 		this.isDownloading = true;
 		this.downloadProgress = 0;
 		try {
-			const blob = await fetchArchive(this.selectedAssets, {
+			await downloadInBatches(this.selectedAssets, 'mes-photos', {
 				onProgress: (p) => {
 					this.downloadProgress = p;
 				},
 				signal: controller.signal
 			});
-			saveBlobAs(blob, 'mes-photos.zip');
 			this.selectedAssets = [];
 			this.selecting = false;
 		} catch (e: unknown) {

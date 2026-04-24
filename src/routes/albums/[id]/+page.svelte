@@ -25,7 +25,7 @@
 	import { toast } from '$lib/toast';
 	import { showConfirm } from '$lib/confirm';
 	import { handleAlbumUpload } from '$lib/album-operations';
-	import { fetchArchive, saveBlobAs } from '$lib/immich/download';
+	import { downloadInBatches } from '$lib/immich/download';
 	import { activeOperations } from '$lib/operations';
 	import { navigationModalStore } from '$lib/navigation-store';
 	import type { User, Album } from '$lib/types/api';
@@ -86,13 +86,12 @@
 
 		try {
 			const assetIds = photosState.assets.map((a) => a.id);
-			const blob = await fetchArchive(assetIds, {
+			await downloadInBatches(assetIds, title || 'album', {
 				onProgress: (p) => {
 					photosState.downloadProgress = p;
 				},
 				signal: controller.signal
 			});
-			saveBlobAs(blob, `${title || 'album'}.zip`);
 			toast.success('Téléchargement terminé');
 		} catch (e: unknown) {
 			if ((e as Error).name !== 'AbortError')
