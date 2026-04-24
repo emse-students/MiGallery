@@ -1,12 +1,19 @@
 import { ensureError } from '$lib/ts-utils';
-import streamSaver from 'streamsaver';
-
-// Use our locally hosted mitm to avoid CDN dependency
-if (typeof window !== 'undefined') {
-	streamSaver.mitm = '/mitm.html';
-}
 
 const BATCH_SIZE = 200;
+
+// Lazy singleton — only loaded in the browser (streamsaver accesses `document`
+// at module-load time, which crashes Node.js during SvelteKit SSR).
+let _ss: Awaited<typeof import('streamsaver')>['default'] | null = null;
+
+async function getStreamSaver() {
+	if (!_ss) {
+		const mod = await import('streamsaver');
+		_ss = mod.default;
+		_ss.mitm = '/mitm.html';
+	}
+	return _ss;
+}
 
 /**
  * Fetch one archive batch and pipe it directly to disk via StreamSaver.
@@ -40,7 +47,8 @@ async function fetchAndSave(
 	let received = 0;
 
 	// StreamSaver path — stream directly to disk, ~0 RAM
-	const fileStream = streamSaver.createWriteStream(filename, {
+	const ss = await getStreamSaver();
+	const fileStream = ss.createWriteStream(filename, {
 		size: total || undefined
 	});
 
