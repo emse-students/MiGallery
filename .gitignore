@@ -39,6 +39,10 @@ npm-shrinkwrap.json
 yarn.lock
 pnpm-lock.yaml
 bun.lockb
+bun.lock
+
+# Claude Code
+.claude/
 
 # Packaging artifacts
 build/artifacts/*.tgz
