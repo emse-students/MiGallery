@@ -228,8 +228,6 @@ function handleUserInDatabase(
 			return null;
 		}
 
-		console.debug('[AUTH] Processing user in database for ID:', userId);
-
 		const existingUser = getUserByCasId(userId);
 		const isAdmin = userId === SYSTEM_USER_ID;
 
@@ -248,13 +246,25 @@ function handleUserInDatabase(
 					? profile.family_name.trim()
 					: null;
 
-		const promo = parsePromo(getProfilePromo(profile, customClaims));
+		const rawPromo = getProfilePromo(profile, customClaims);
+		const promo = parsePromo(rawPromo);
 		const formation =
 			typeof profile.formation === 'string'
 				? profile.formation.trim()
 				: typeof customClaims.formation === 'string'
 					? (customClaims.formation as string).trim()
 					: null;
+
+		console.log(
+			`[AUTH] Login: ${userId} — OIDC: promo=${JSON.stringify(rawPromo)} (parsed:${promo ?? 'null'}), formation=${JSON.stringify(profile.formation ?? customClaims.formation ?? null)}`
+		);
+		if (existingUser) {
+			console.log(
+				`[AUTH] DB actuelle: promo=${existingUser.promo ?? 'null'}, formation=${existingUser.formation ?? 'null'}, role=${existingUser.role}`
+			);
+		} else {
+			console.log('[AUTH] DB actuelle: aucun utilisateur trouvé → création');
+		}
 
 		const userData: DBUser = {
 			id_user: userId,
@@ -270,7 +280,7 @@ function handleUserInDatabase(
 		if (!existingUser) {
 			createUser(userData);
 			console.warn(
-				`[AUTH] New user: ${userData.name} (promo:${userData.promo ?? '?'}, ${userData.formation ?? '?'})`
+				`[AUTH] Nouvel utilisateur: ${userData.name} (promo:${userData.promo ?? '?'}, formation:${userData.formation ?? '?'})`
 			);
 		} else {
 			// Toujours écraser avec les données SSO à chaque connexion.
@@ -293,9 +303,10 @@ function handleUserInDatabase(
 				updatePayload.formation = formation;
 			}
 
+			console.log(`[AUTH] updatePayload: ${JSON.stringify(updatePayload)}`);
 			updateUser(updatePayload);
-			console.debug(
-				`[AUTH] Updated user: ${userData.name} (promo:${promo ?? 'unchanged'}, formation:${formation ?? 'unchanged'})`
+			console.log(
+				`[AUTH] Après update: promo=${promo !== null ? promo : '(non écrasé, SSO null)'}, formation=${formation !== null ? formation : '(non écrasé, SSO null)'}`
 			);
 		}
 
