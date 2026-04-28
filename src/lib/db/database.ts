@@ -128,6 +128,11 @@ export function getDatabase(): DatabaseInstance {
 			if (!cols.includes('formation')) {
 				dbInstance.prepare('ALTER TABLE users ADD COLUMN formation TEXT').run();
 			}
+			if (!cols.includes('first_login')) {
+				dbInstance.prepare('ALTER TABLE users ADD COLUMN first_login INTEGER DEFAULT 1').run();
+				// Existing users who already have a promo set don't need the modal
+				dbInstance.prepare('UPDATE users SET first_login = 0 WHERE promo IS NOT NULL').run();
+			}
 			try {
 				const acols = dbInstance
 					.prepare('PRAGMA table_info(albums)')

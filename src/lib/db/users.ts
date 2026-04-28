@@ -9,6 +9,7 @@ export interface DBUser {
 	role: 'admin' | 'mitviste' | 'user';
 	promo?: number | null;
 	formation?: string | null;
+	first_login?: number | null;
 }
 
 export function getUserByCasId(casId: string): DBUser | undefined {
@@ -20,8 +21,8 @@ export function getUserByCasId(casId: string): DBUser | undefined {
 export function createUser(user: DBUser) {
 	const db = getDatabase();
 	const stmt = db.prepare(`
-		INSERT INTO users (id_user, name, first_name, last_name, photos_id, role, promo, formation)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO users (id_user, name, first_name, last_name, photos_id, role, promo, formation, first_login)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`);
 
 	return stmt.run(
@@ -32,7 +33,8 @@ export function createUser(user: DBUser) {
 		user.photos_id || null,
 		user.role,
 		user.promo || null,
-		user.formation || null
+		user.formation || null,
+		user.first_login ?? 1
 	);
 }
 

@@ -63,7 +63,7 @@ export const PATCH: RequestHandler = async (event) => {
 			);
 		}
 
-		const stmt = db.prepare('UPDATE users SET promo = ? WHERE id_user = ?');
+		const stmt = db.prepare('UPDATE users SET promo = ?, first_login = 0 WHERE id_user = ?');
 		const result = stmt.run(promoYear, userId);
 
 		if (result.changes === 0) {

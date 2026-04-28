@@ -16,7 +16,10 @@
 		UploadCloud,
 		Check,
 		ChevronDown,
-		UserCheck
+		UserCheck,
+		Funnel,
+		GraduationCap,
+		BookOpen
 	} from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
@@ -31,14 +34,88 @@
 	let error = $state<string | null>(null);
 	let users = $state<User[]>([]);
 	let searchQuery = $state<string>('');
+	let groupBy = $state<'promo' | 'formation'>('promo');
+
+	// PDF export modal state
+	let showPdfModal = $state(false);
+	let pdfSelectedPromos = $state<string[]>([]);
+	let pdfSelectedFormations = $state<string[]>([]);
+
+	function promoKey(u: User): string {
+		return u.promo_year ? u.promo_year.toString() : 'Staff / Autre';
+	}
+	function formationKey(u: User): string {
+		return u.formation || 'Sans formation';
+	}
+
+	function sortByLastName(arr: User[]): User[] {
+		return [...arr].sort((a, b) => {
+			const la = (a.last_name || a.name || '').toLowerCase();
+			const lb = (b.last_name || b.name || '').toLowerCase();
+			const cmp = la.localeCompare(lb, 'fr');
+			if (cmp !== 0) return cmp;
+			return (a.first_name || '')
+				.toLowerCase()
+				.localeCompare((b.first_name || '').toLowerCase(), 'fr');
+		});
+	}
 
 	let filteredUsers = $derived.by(() => {
 		const q = (searchQuery || '').trim().toLowerCase();
 		if (!q) return users;
 		return users.filter((u) => {
-			const hay = `${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.formation || ''} ${u.id_user || ''}`.toLowerCase();
+			const hay =
+				`${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.formation || ''} ${u.id_user || ''}`.toLowerCase();
 			return hay.includes(q);
 		});
+	});
+
+	let availablePromos = $derived(
+		[...new Set(users.map(promoKey))].sort((a, b) => {
+			if (a === 'Staff / Autre') return 1;
+			if (b === 'Staff / Autre') return -1;
+			return Number(b) - Number(a);
+		})
+	);
+
+	let availableFormations = $derived(
+		[...new Set(users.map(formationKey))].sort((a, b) => {
+			if (a === 'Sans formation') return 1;
+			if (b === 'Sans formation') return -1;
+			return a.localeCompare(b, 'fr');
+		})
+	);
+
+	let groupedAndSortedUsers = $derived.by(() => {
+		const sorted = sortByLastName(filteredUsers);
+		const grouped: Record<string, User[]> = {};
+		for (const user of sorted) {
+			const key = groupBy === 'promo' ? promoKey(user) : formationKey(user);
+			if (!grouped[key]) grouped[key] = [];
+			grouped[key].push(user);
+		}
+		return grouped;
+	});
+
+	let sortedGroupEntries = $derived.by(() =>
+		Object.entries(groupedAndSortedUsers).sort(([a], [b]) => {
+			if (groupBy === 'promo') {
+				if (a === 'Staff / Autre') return 1;
+				if (b === 'Staff / Autre') return -1;
+				return Number(b) - Number(a);
+			} else {
+				if (a === 'Sans formation') return 1;
+				if (b === 'Sans formation') return -1;
+				return a.localeCompare(b, 'fr');
+			}
+		})
+	);
+
+	let pdfSelectedCount = $derived.by(() => {
+		const promoSet = new Set(pdfSelectedPromos);
+		const formationSet = new Set(pdfSelectedFormations);
+		return users.filter((u) => promoSet.has(promoKey(u)) && formationSet.has(formationKey(u)))
+			.length;
 	});
 
 	let showEditUserModal = $state(false);
@@ -62,8 +139,40 @@
 	let currentUserId = $derived((page.data.session?.user as User)?.id_user);
 	let canAccess = $derived(userRole === 'admin');
 
-	async function exportToPDF() {
-		if (filteredUsers.length === 0) {
+	function openPdfModal() {
+		pdfSelectedPromos = [...availablePromos];
+		pdfSelectedFormations = [...availableFormations];
+		showPdfModal = true;
+	}
+
+	function togglePromo(promo: string) {
+		if (pdfSelectedPromos.includes(promo)) {
+			pdfSelectedPromos = pdfSelectedPromos.filter((p) => p !== promo);
+		} else {
+			pdfSelectedPromos = [...pdfSelectedPromos, promo];
+		}
+	}
+
+	function toggleFormation(f: string) {
+		if (pdfSelectedFormations.includes(f)) {
+			pdfSelectedFormations = pdfSelectedFormations.filter((x) => x !== f);
+		} else {
+			pdfSelectedFormations = [...pdfSelectedFormations, f];
+		}
+	}
+
+	function startPdfExport() {
+		const promoSet = new Set(pdfSelectedPromos);
+		const formationSet = new Set(pdfSelectedFormations);
+		const usersToExport = sortByLastName(
+			users.filter((u) => promoSet.has(promoKey(u)) && formationSet.has(formationKey(u)))
+		);
+		exportToPDF(usersToExport);
+	}
+
+	async function exportToPDF(usersToExport: User[]) {
+		showPdfModal = false;
+		if (usersToExport.length === 0) {
 			toast.info('Aucun utilisateur à exporter');
 			return;
 		}
@@ -94,15 +203,15 @@
 			};
 
 			await Promise.all(
-				filteredUsers.map(async (u) => {
+				usersToExport.map(async (u) => {
 					const dataUrl = await loadImage(u.id_user);
 					if (dataUrl) images[u.id_user] = dataUrl;
 				})
 			);
 
 			const usersByPromo: Record<string, User[]> = {};
-			filteredUsers.forEach((u) => {
-				const p = u.promo_year ? u.promo_year.toString() : 'Staff / Autre';
+			usersToExport.forEach((u) => {
+				const p = promoKey(u);
 				if (!usersByPromo[p]) usersByPromo[p] = [];
 				usersByPromo[p].push(u);
 			});
@@ -119,8 +228,8 @@
 			const contentWidth = pageWidth - margin * 2;
 			const colCount = 5;
 			const colWidth = contentWidth / colCount;
-			const imgSize = 25; // Square
-			const rowHeight = 45; // Image + text + padding
+			const imgSize = 25;
+			const rowHeight = 45;
 
 			promos.forEach((promo) => {
 				if (y + 20 > doc.internal.pageSize.getHeight() - margin) {
@@ -131,7 +240,7 @@
 				doc.setFontSize(16);
 				doc.setTextColor(0);
 				doc.setFont('helvetica', 'bold');
-				doc.text(`Promo ${promo}`, margin, y);
+				doc.text(promo === 'Staff / Autre' ? promo : `Promo ${promo}`, margin, y);
 				y += 10;
 
 				const promoUsers = usersByPromo[promo];
@@ -163,14 +272,15 @@
 						doc.setFontSize(9);
 						doc.setFont('helvetica', 'normal');
 						doc.setTextColor(60);
-						const name = user.name || `${user.first_name || ''}\n${user.last_name || ''}`.trim();
+						const name =
+							user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
 						doc.text(name, x + colWidth / 2, y + imgSize + 5, { align: 'center' });
 					});
 
 					y += rowHeight;
 				}
 
-				y += 5; // Space between promos
+				y += 5;
 			});
 
 			doc.save('trombinoscope.pdf');
@@ -277,7 +387,9 @@
 					await new Promise((resolve) => setTimeout(resolve, 1000));
 					attempt++;
 					try {
-						const checkResponse = await fetch(`/api/immich/assets/${assetId}?nocache=${Date.now()}`);
+						const checkResponse = await fetch(
+							`/api/immich/assets/${assetId}?nocache=${Date.now()}`
+						);
 						if (checkResponse.ok) {
 							const checkData = await checkResponse.json();
 							const checkInfo = checkData as { people?: { id: string }[] };
@@ -310,7 +422,9 @@
 
 			const method = editMode === 'add' ? 'POST' : 'PUT';
 			const url =
-				editMode === 'add' ? '/api/users' : `/api/users/${encodeURIComponent(editUserData.id_user)}`;
+				editMode === 'add'
+					? '/api/users'
+					: `/api/users/${encodeURIComponent(editUserData.id_user)}`;
 
 			const res = await fetch(url, {
 				method,
@@ -341,7 +455,9 @@
 		if (!ok) return;
 
 		try {
-			const res = await fetch(`/api/users/${encodeURIComponent(user.id_user)}`, { method: 'DELETE' });
+			const res = await fetch(`/api/users/${encodeURIComponent(user.id_user)}`, {
+				method: 'DELETE'
+			});
 			if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
 			await fetchUsers();
 			toast.success('Utilisateur supprimé');
@@ -373,7 +489,7 @@
 			<div class="header-search">
 				<input
 					class="search-input"
-				placeholder="Rechercher (prénom, nom, formation...)"
+					placeholder="Rechercher (prénom, nom, formation...)"
 					bind:value={searchQuery}
 					oninput={(e) => {
 						searchQuery = (e.target as HTMLInputElement).value;
@@ -382,8 +498,25 @@
 				/>
 			</div>
 
+			<div class="group-tabs">
+				<button
+					class="group-tab {groupBy === 'promo' ? 'active' : ''}"
+					onclick={() => (groupBy = 'promo')}
+				>
+					<GraduationCap size={15} />
+					Par promotion
+				</button>
+				<button
+					class="group-tab {groupBy === 'formation' ? 'active' : ''}"
+					onclick={() => (groupBy = 'formation')}
+				>
+					<BookOpen size={15} />
+					Par formation
+				</button>
+			</div>
+
 			<div class="header-actions">
-				<button class="action-pill" onclick={exportToPDF} title="Exporter en PDF">
+				<button class="action-pill" onclick={openPdfModal} title="Exporter en PDF">
 					<Download size={18} />
 					<span>PDF</span>
 				</button>
@@ -423,27 +556,20 @@
 					<p>Aucun membre ne correspond à votre recherche</p>
 				</div>
 			{:else}
-				{@const usersByPromo = filteredUsers.reduce((acc, user) => {
-					const promo = user.promo_year ? `${user.promo_year}` : 'Staff / Autre';
-					if (!acc[promo]) acc[promo] = [];
-					acc[promo].push(user);
-					return acc;
-				}, {} as Record<string, User[]>)}
-
 				<div class="content-area">
-					{#each Object.entries(usersByPromo).sort(([a], [b]) => {
-						if (a === 'Staff / Autre') return 1;
-						if (b === 'Staff / Autre') return -1;
-						return Number(b) - Number(a);
-					}) as [promo, promoUsers], i}
+					{#each sortedGroupEntries as [groupKey, groupUsers], i}
 						<section class="promo-section" in:fade={{ delay: i * 100, duration: 400 }}>
 							<div class="section-header">
-								<h2>{promo}</h2>
-								<span class="count-badge">{promoUsers.length}</span>
+								<h2>
+									{groupBy === 'promo' && groupKey !== 'Staff / Autre'
+										? `Promo ${groupKey}`
+										: groupKey}
+								</h2>
+								<span class="count-badge">{groupUsers.length}</span>
 							</div>
 
 							<div class="users-grid">
-								{#each promoUsers as user (user.id_user)}
+								{#each groupUsers as user (user.id_user)}
 									<div
 										class="user-card"
 										role="button"
@@ -509,6 +635,100 @@
 		{/if}
 	</div>
 
+	<!-- PDF Export Modal -->
+	{#if showPdfModal}
+		<div
+			class="modal-backdrop"
+			onclick={() => (showPdfModal = false)}
+			role="presentation"
+			transition:fade={{ duration: 200 }}
+		>
+			<div
+				class="modal-glass pdf-modal"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={(e) => {
+					if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+				}}
+				tabindex="0"
+				role="dialog"
+				transition:fly={{ y: 20, duration: 300 }}
+			>
+				<div class="modal-header">
+					<h3><Funnel size={20} /> Exporter en PDF</h3>
+				</div>
+
+				<div class="modal-body">
+					<div class="pdf-filters">
+						<div class="pdf-filter-col">
+							<div class="pdf-filter-heading">
+								<GraduationCap size={15} />
+								<span>Promotions</span>
+								<div class="quick-btns">
+									<button onclick={() => (pdfSelectedPromos = [...availablePromos])}>Tout</button>
+									<button onclick={() => (pdfSelectedPromos = [])}>Rien</button>
+								</div>
+							</div>
+							<div class="checkbox-list">
+								{#each availablePromos as promo}
+									<label class="checkbox-item">
+										<input
+											type="checkbox"
+											checked={pdfSelectedPromos.includes(promo)}
+											onchange={() => togglePromo(promo)}
+										/>
+										<span>{promo}</span>
+									</label>
+								{/each}
+							</div>
+						</div>
+
+						<div class="pdf-filter-col">
+							<div class="pdf-filter-heading">
+								<BookOpen size={15} />
+								<span>Formations</span>
+								<div class="quick-btns">
+									<button onclick={() => (pdfSelectedFormations = [...availableFormations])}
+										>Tout</button
+									>
+									<button onclick={() => (pdfSelectedFormations = [])}>Rien</button>
+								</div>
+							</div>
+							<div class="checkbox-list">
+								{#each availableFormations as formation}
+									<label class="checkbox-item">
+										<input
+											type="checkbox"
+											checked={pdfSelectedFormations.includes(formation)}
+											onchange={() => toggleFormation(formation)}
+										/>
+										<span>{formation}</span>
+									</label>
+								{/each}
+							</div>
+						</div>
+					</div>
+
+					<p class="export-count">
+						{pdfSelectedCount} utilisateur{pdfSelectedCount !== 1 ? 's' : ''} sélectionné{pdfSelectedCount !== 1 ? 's' : ''}
+					</p>
+				</div>
+
+				<div class="modal-actions">
+					<button class="btn-text" onclick={() => (showPdfModal = false)}>Annuler</button>
+					<button
+						class="action-pill primary"
+						onclick={startPdfExport}
+						disabled={pdfSelectedCount === 0}
+					>
+						<Download size={16} />
+						Exporter
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Edit/Add User Modal -->
 	{#if showEditUserModal}
 		<div
 			class="modal-backdrop"
@@ -550,30 +770,30 @@
 							/>
 						</div>
 						<div class="input-group">
-						<label for="name">Nom complet</label>
-						<input
-							id="name"
-							class="input-glass"
-							bind:value={editUserData.name}
-							placeholder="Prénom NOM"
-						/>
-					</div>
-					<div class="input-group">
-						<label for="first_name">Prénom *</label>
-						<input id="first_name" class="input-glass" bind:value={editUserData.first_name} />
-					</div>
-					<div class="input-group">
-						<label for="last_name">Nom *</label>
-						<input id="last_name" class="input-glass" bind:value={editUserData.last_name} />
-					</div>
-					<div class="input-group">
-						<label for="formation">Formation</label>
-						<input
-							id="formation"
-							class="input-glass"
-							bind:value={editUserData.formation}
-							placeholder="ex: ICM, DevOps..."
-						/>
+							<label for="name">Nom complet</label>
+							<input
+								id="name"
+								class="input-glass"
+								bind:value={editUserData.name}
+								placeholder="Prénom NOM"
+							/>
+						</div>
+						<div class="input-group">
+							<label for="first_name">Prénom *</label>
+							<input id="first_name" class="input-glass" bind:value={editUserData.first_name} />
+						</div>
+						<div class="input-group">
+							<label for="last_name">Nom *</label>
+							<input id="last_name" class="input-glass" bind:value={editUserData.last_name} />
+						</div>
+						<div class="input-group">
+							<label for="formation">Formation</label>
+							<input
+								id="formation"
+								class="input-glass"
+								bind:value={editUserData.formation}
+								placeholder="ex: ICM, DevOps..."
+							/>
 							<label for="role">Rôle</label>
 							<div class="select-wrapper">
 								<select
@@ -600,7 +820,9 @@
 								<div class="photo-status success">
 									<CheckCircle size={16} />
 									<span
-										>Lié : <code class="code-pill">{editUserData.id_photos.substring(0, 8)}...</code></span
+										>Lié : <code class="code-pill"
+											>{editUserData.id_photos.substring(0, 8)}...</code
+										></span
 									>
 								</div>
 							{/if}
@@ -633,8 +855,10 @@
 				</div>
 
 				<div class="modal-actions">
-					<button class="btn-text" onclick={() => (showEditUserModal = false)} disabled={uploadingPhoto}
-						>Annuler</button
+					<button
+						class="btn-text"
+						onclick={() => (showEditUserModal = false)}
+						disabled={uploadingPhoto}>Annuler</button
 					>
 					<button class="action-pill primary" onclick={saveUser} disabled={uploadingPhoto}>
 						{#if uploadingPhoto}
@@ -723,6 +947,38 @@
 	}
 	.header-actions {
 		margin-top: 1.5rem;
+		display: flex;
+		gap: 0.75rem;
+	}
+
+	/* Group tabs */
+	.group-tabs {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+	.group-tab {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.4rem 0.9rem;
+		border-radius: 99px;
+		border: 1px solid var(--tm-border);
+		background: transparent;
+		color: var(--tm-text-muted);
+		cursor: pointer;
+		font-size: 0.85rem;
+		font-weight: 600;
+		transition: all 0.2s;
+	}
+	.group-tab.active {
+		background: var(--tm-accent);
+		border-color: var(--tm-accent);
+		color: white;
+	}
+	.group-tab:hover:not(.active) {
+		border-color: var(--tm-accent);
+		color: var(--tm-accent);
 	}
 
 	.action-pill {
@@ -1011,6 +1267,10 @@
 		display: flex;
 		flex-direction: column;
 	}
+	.modal-glass.pdf-modal {
+		max-width: 560px;
+		text-align: left;
+	}
 	.modal-header {
 		padding: 1.5rem;
 		border-bottom: 1px solid var(--tm-border);
@@ -1039,6 +1299,83 @@
 		justify-content: flex-end;
 		gap: 1rem;
 		flex-shrink: 0;
+	}
+
+	/* PDF Filter Modal */
+	.pdf-filters {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+		margin-bottom: 1.25rem;
+	}
+	.pdf-filter-col {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+	.pdf-filter-heading {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.85rem;
+		font-weight: 700;
+		color: var(--tm-text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.quick-btns {
+		margin-left: auto;
+		display: flex;
+		gap: 0.35rem;
+	}
+	.quick-btns button {
+		background: transparent;
+		border: 1px solid var(--tm-border);
+		border-radius: 6px;
+		padding: 0.1rem 0.45rem;
+		font-size: 0.75rem;
+		color: var(--tm-text-muted);
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.quick-btns button:hover {
+		border-color: var(--tm-accent);
+		color: var(--tm-accent);
+	}
+	.checkbox-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		max-height: 200px;
+		overflow-y: auto;
+		padding-right: 0.25rem;
+	}
+	.checkbox-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		color: var(--tm-text);
+		cursor: pointer;
+		padding: 0.3rem 0.5rem;
+		border-radius: 8px;
+		transition: background 0.15s;
+	}
+	.checkbox-item:hover {
+		background: rgba(59, 130, 246, 0.07);
+	}
+	.checkbox-item input[type='checkbox'] {
+		accent-color: var(--tm-accent);
+		width: 15px;
+		height: 15px;
+		flex-shrink: 0;
+	}
+	.export-count {
+		font-size: 0.85rem;
+		color: var(--tm-text-muted);
+		text-align: right;
+		margin: 0;
+		font-style: italic;
 	}
 
 	/* Form Elements */
@@ -1198,6 +1535,9 @@
 		.modal-glass {
 			max-height: 100vh;
 			border-radius: 0;
+		}
+		.pdf-filters {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

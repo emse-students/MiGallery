@@ -104,7 +104,10 @@ function decodeJWT(token: string): Record<string, unknown> | null {
 			return null;
 		}
 
-		const decoded = atob(parts[1]);
+		// JWT uses base64url encoding: replace - with + and _ with / then add padding
+		const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+		const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+		const decoded = atob(padded);
 		const parsed: unknown = JSON.parse(decoded);
 		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
 			? (parsed as Record<string, unknown>)
@@ -255,15 +258,15 @@ function handleUserInDatabase(
 					? (customClaims.formation as string).trim()
 					: null;
 
-		console.log(
+		console.warn(
 			`[AUTH] Login: ${userId} — OIDC: promo=${JSON.stringify(rawPromo)} (parsed:${promo ?? 'null'}), formation=${JSON.stringify(profile.formation ?? customClaims.formation ?? null)}`
 		);
 		if (existingUser) {
-			console.log(
+			console.warn(
 				`[AUTH] DB actuelle: promo=${existingUser.promo ?? 'null'}, formation=${existingUser.formation ?? 'null'}, role=${existingUser.role}`
 			);
 		} else {
-			console.log('[AUTH] DB actuelle: aucun utilisateur trouvé → création');
+			console.warn('[AUTH] DB actuelle: aucun utilisateur trouvé → création');
 		}
 
 		const userData: DBUser = {
@@ -274,7 +277,9 @@ function handleUserInDatabase(
 			role: isAdmin ? 'admin' : 'user',
 			promo,
 			formation,
-			photos_id: null
+			photos_id: null,
+			// first_login=0 if OIDC already provided the promo, 1 otherwise (modal will ask)
+			first_login: promo !== null ? 0 : 1
 		};
 
 		if (!existingUser) {
@@ -303,9 +308,9 @@ function handleUserInDatabase(
 				updatePayload.formation = formation;
 			}
 
-			console.log(`[AUTH] updatePayload: ${JSON.stringify(updatePayload)}`);
+			console.warn(`[AUTH] updatePayload: ${JSON.stringify(updatePayload)}`);
 			updateUser(updatePayload);
-			console.log(
+			console.warn(
 				`[AUTH] Après update: promo=${promo !== null ? promo : '(non écrasé, SSO null)'}, formation=${formation !== null ? formation : '(non écrasé, SSO null)'}`
 			);
 		}

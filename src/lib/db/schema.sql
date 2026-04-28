@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
     -- promo: e.g. 2024
     promo INTEGER,
     -- formation: e.g. 'InfoCom', 'DevOps', etc.
-    formation TEXT
+    formation TEXT,
+    -- first_login: 1 = first time (promo modal shown), 0 = already completed
+    first_login INTEGER DEFAULT 1
 );
 
 -- No example users inserted by default. If you want to seed test users,
