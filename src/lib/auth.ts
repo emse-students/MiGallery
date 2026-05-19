@@ -303,6 +303,7 @@ function handleUserInDatabase(
 			}
 			if (promo !== null) {
 				updatePayload.promo = promo;
+				updatePayload.first_login = 0;
 			}
 			if (formation !== null) {
 				updatePayload.formation = formation;
