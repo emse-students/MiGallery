@@ -113,7 +113,7 @@ jobs:
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       matrix.runtime == 'bun'
-     uses: actions/upload-artifact@v4
+     uses: actions/upload-artifact@v7
      with:
       name: build-artifact
       path: build/
