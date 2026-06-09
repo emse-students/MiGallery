@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { getDatabase } from '$lib/db/database';
+import { requireScope } from '$lib/server/permissions';
 import type { ImmichAlbum } from '$lib/types/api';
 
 const CACHE_DIR = path.resolve('data/cache/og-covers');
@@ -20,14 +21,16 @@ try {
 /**
  * GET /api/albums/[id]/og-cover
  *
- * Endpoint public (sans authentification) qui sert la couverture d'un album
- * redimensionnée au format Open Graph (1200×630 WebP). Utilisé pour les
- * previews de liens dans des applications externes comme Canari.
+ * Sert la couverture d'un album redimensionnée au format Open Graph (1200×630 WebP).
+ * Utilisé pour les previews de liens dans Canari.
  *
- * Seuls les albums non-privés (authenticated, unlisted) sont servis.
+ * - Albums unlisted / authenticated : accès libre (pas d'auth requise).
+ * - Albums privés : requiert une clé API avec scope 'read' (ex. Canari via x-api-key).
+ *
  * L'image est mise en cache sur disque pour les requêtes suivantes.
  */
-export const GET: RequestHandler = async ({ params, fetch }) => {
+export const GET: RequestHandler = async (event) => {
+	const { params, fetch } = event;
 	const { id } = params;
 	if (!id) {
 		throw error(400, 'Missing album ID');
@@ -41,8 +44,10 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 	if (!row) {
 		throw error(404, 'Album not found');
 	}
+
+	// Les albums privés nécessitent une clé API ; les autres sont publics.
 	if (row.visibility === 'private') {
-		throw error(403, 'Album is private');
+		await requireScope(event, 'read');
 	}
 
 	const cacheFile = path.join(CACHE_DIR, `${id}.webp`);
