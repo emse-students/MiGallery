@@ -4,7 +4,24 @@ import { checkAlbumAccess } from '$lib/albums';
 import type { User, Album } from '$lib/types/api';
 import { redirect } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+/** Formate la date et le lieu en description OG lisible (ex. "15 mai 2024 · Paris"). */
+function buildOgDescription(date?: string | null, location?: string | null): string {
+	const parts: string[] = [];
+	if (date) {
+		try {
+			const d = new Date(`${date}T12:00:00`);
+			parts.push(d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }));
+		} catch {
+			parts.push(date);
+		}
+	}
+	if (location) {
+		parts.push(location);
+	}
+	return parts.join(' · ') || 'Album photo · MiGallery';
+}
+
+export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const paramId = params.id;
 	if (!paramId) {
 		throw redirect(303, '/');
@@ -34,8 +51,12 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		visibility: albumRow.visibility
 	};
 
+	const ogCoverUrl =
+		album.visibility !== 'private' ? `${url.origin}/api/albums/${album.id}/og-cover` : null;
+	const ogDescription = buildOgDescription(album.date, album.location);
+
 	if ((album.visibility || '').toLowerCase() === 'unlisted') {
-		return { album };
+		return { album, ogCoverUrl, ogDescription };
 	}
 
 	const { session } = await parent();
@@ -50,5 +71,5 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 		throw redirect(303, '/');
 	}
 
-	return { album };
+	return { album, ogCoverUrl, ogDescription };
 };

@@ -162,10 +162,33 @@
 		unsubOps();
 		photosState.cleanup();
 	});
+
+	// Données Open Graph pour les link previews externes (ex. Canari)
+	const ogAlbumName = $derived(
+		((page.data as { album?: Album }).album?.name) || 'Album photo'
+	);
+	const ogDescription = $derived(
+		((page.data as { ogDescription?: string }).ogDescription) || ''
+	);
+	const ogCoverUrl = $derived(
+		((page.data as { ogCoverUrl?: string | null }).ogCoverUrl) || null
+	);
 </script>
 
 <svelte:head>
-	<title>{title || 'Album'} - MiGallery</title>
+	<title>{title || ogAlbumName} - MiGallery</title>
+	<meta property="og:title" content={ogAlbumName} />
+	<meta property="og:site_name" content="MiGallery" />
+	<meta property="og:type" content="website" />
+	{#if ogDescription}
+		<meta property="og:description" content={ogDescription} />
+	{/if}
+	{#if ogCoverUrl}
+		<meta property="og:image" content={ogCoverUrl} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:type" content="image/webp" />
+	{/if}
 </svelte:head>
 
 <!-- SNIPPET DES BOUTONS D'ACTION (Mobile & Desktop) -->
