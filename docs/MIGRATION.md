@@ -9,13 +9,13 @@ d un nouveau serveur et la restauration des donnees.
 
 ## Architecture de deploiement
 
-| Element | Detail |
-| --- | --- |
-| Runtime | conteneur Docker `migallery` (SvelteKit + Bun), port 3000 |
-| Donnees | `data/` monte en volume (`/home/mitv/MiGallery/data`) : SQLite + caches |
-| Image | `ghcr.io/emse-students/migallery:latest` (buildee par la CD) |
-| CD | `.github/workflows/ci-cd.yml` : validate -> build-image -> deploy (self-hosted) |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root 05h) |
+| Element | Detail                                                                          |
+| ------- | ------------------------------------------------------------------------------- |
+| Runtime | conteneur Docker `migallery` (SvelteKit + Bun), port 3000                       |
+| Donnees | `data/` monte en volume (`/home/mitv/MiGallery/data`) : SQLite + caches         |
+| Image   | `ghcr.io/emse-students/migallery:latest` (buildee par la CD)                    |
+| CD      | `.github/workflows/ci-cd.yml` : validate -> build-image -> deploy (self-hosted) |
+| Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root 05h)        |
 
 ## 0. Pre-requis
 
@@ -34,12 +34,12 @@ installer en service. L utilisateur du runner doit pouvoir lancer `docker`
 
 La CD genere `.env` a partir des secrets du repo (Settings -> Secrets -> Actions) :
 
-| Secret | Role |
-| --- | --- |
-| `IMMICH_API_KEY` | acces a l API Immich |
-| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik |
-| `AUTH_SECRET` | signatures Auth.js (`node ./scripts/generate-auth-secret.cjs`) |
-| `COOKIE_SECRET` | chiffrement cookies (`node ./scripts/generate_cookie_secret.cjs`) |
+| Secret                                            | Role                                                              |
+| ------------------------------------------------- | ----------------------------------------------------------------- |
+| `IMMICH_API_KEY`                                  | acces a l API Immich                                              |
+| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                    |
+| `AUTH_SECRET`                                     | signatures Auth.js (`node ./scripts/generate-auth-secret.cjs`)    |
+| `COOKIE_SECRET`                                   | chiffrement cookies (`node ./scripts/generate_cookie_secret.cjs`) |
 
 Les valeurs non-secretes (ORIGIN, IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
 ont des defauts dans `docker-compose.prod.yml`, surchargeables si besoin.
