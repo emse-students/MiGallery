@@ -1,0 +1,34 @@
+# Stack de production MiGallery.
+# La CD build et pousse l image sur GHCR, puis fait `docker compose pull && up -d`
+# sur le serveur. Le .env (secrets) est genere par la CD depuis les secrets GitHub.
+#
+# data/ est monte depuis le dossier de deploiement pour conserver la base SQLite
+# existante (et les caches) entre les versions.
+services:
+  migallery:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-emse-students/migallery}:${TAG:-latest}
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${MIGALLERY_HOST_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN:-https://gallery.mitv.fr}
+      DATABASE_PATH: /app/data/migallery.db
+      # Immich (publie sur l hote mitv). Depuis le conteneur, l hote est joignable
+      # via son IP LAN.
+      IMMICH_BASE_URL: ${IMMICH_BASE_URL:-http://10.0.0.4:2283}
+      IMMICH_API_KEY: ${IMMICH_API_KEY:?IMMICH_API_KEY requis}
+      MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://auth.canari-emse.fr/application/o/migallery}
+      MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}
+      MICONNECT_CLIENT_SECRET: ${MICONNECT_CLIENT_SECRET:?MICONNECT_CLIENT_SECRET requis}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
+      AUTH_TRUSTED_HOST: "true"
+      COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET requis}
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-20G}
+      ENABLE_DEV_ROUTES: "false"
+    volumes:
+      - ./data:/app/data

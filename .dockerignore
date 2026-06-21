@@ -1,0 +1,16 @@
+# Artefacts regeneres / volumineux / non necessaires au build de l image
+node_modules
+.svelte-kit
+build
+data
+.git
+.github
+tests
+coverage
+*.log
+.env
+.env.*
+!.env.example
+.vscode
+docs/**/*.html
+_site
