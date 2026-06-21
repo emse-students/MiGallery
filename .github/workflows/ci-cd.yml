@@ -120,50 +120,7 @@ jobs:
       retention-days: 1
 
  # ───────────────────────────────────────────────────────────────────────────
- # 2. AUTO-FIX — Lint & format avec auto-commit
- #    Déclenché : push sur main (repo principal uniquement), après validate
- # ───────────────────────────────────────────────────────────────────────────
- auto-fix:
-  name: Auto-fix Lint & Format
-  needs: validate
-  if: |
-   github.event_name == 'push' &&
-   github.ref == 'refs/heads/main' &&
-   github.repository == 'emse-students/MiGallery'
-  runs-on: ubuntu-latest
-  permissions:
-   contents: write
-  steps:
-   - name: Checkout
-     uses: actions/checkout@v4
-     with:
-      ref: main
-
-   - name: Setup Bun
-     uses: oven-sh/setup-bun@v2
-     with:
-      bun-version: latest
-
-   - name: Install dependencies
-     run: bun install
-
-   - name: Fix lint issues
-     run: bun run lint:fix
-     continue-on-error: true
-
-   - name: Format code
-     run: bun run format
-     continue-on-error: true
-
-   - name: Commit changes if any
-     uses: stefanzweifel/git-auto-commit-action@v5
-     with:
-      commit_message: 'style: auto-fix linting and formatting issues'
-      file_pattern: .
-      push_options: '--force-with-lease'
-
- # ───────────────────────────────────────────────────────────────────────────
- # 3. BUILD IMAGE — Build et push de l'image Docker sur GHCR
+ # 2. BUILD IMAGE — Build et push de l'image Docker sur GHCR
  #    Déclenché : push sur main (repo principal uniquement), après validate
  # ───────────────────────────────────────────────────────────────────────────
  build-image:
