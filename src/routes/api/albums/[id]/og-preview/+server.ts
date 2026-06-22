@@ -14,7 +14,7 @@ import { getDatabase } from '$lib/db/database';
  *
  * `coverUrl` pointe vers /api/albums/[id]/og-cover, qui sert l'image publiquement.
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = ({ params, url }) => {
 	const { id } = params;
 	if (!id) {
 		throw error(400, 'Album ID missing');
