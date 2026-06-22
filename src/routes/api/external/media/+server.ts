@@ -139,7 +139,7 @@ export const DELETE: RequestHandler = async (event) => {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
 
-	let assetIds: string[] = [];
+	let assetIds: string[];
 	try {
 		const body = (await request.json()) as { assetIds?: string[] };
 		assetIds = body.assetIds || [];
