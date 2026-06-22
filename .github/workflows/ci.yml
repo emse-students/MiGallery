@@ -1,0 +1,77 @@
+name: CI
+
+# Validation (lint / type-check / build / tests) sur les PR et, via workflow_call,
+# comme barriere de la CD (cd.yml l appelle avant de construire/deployer l image).
+# Pas de declencheur `push` : sur main, la CD execute cette CI une seule fois.
+on:
+ pull_request:
+  branches: [main]
+ workflow_call:
+
+jobs:
+ validate:
+  name: Validate (${{ matrix.runtime }})
+  runs-on: ubuntu-latest
+  strategy:
+   fail-fast: false
+   matrix:
+    runtime: [bun, npm]
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v6
+
+   - name: Setup Bun
+     if: matrix.runtime == 'bun'
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Setup Node.js
+     if: matrix.runtime == 'npm'
+     uses: actions/setup-node@v6
+     with:
+      node-version: '24.x'
+
+   - name: Install dependencies
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then
+        bun install --frozen-lockfile
+      else
+        npm install
+      fi
+
+   - name: Type check
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run check; else npm run check; fi
+
+   - name: Lint
+     env:
+      NODE_OPTIONS: '--max-old-space-size=16384'
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run lint; else npm run lint; fi
+
+   - name: Build
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run build; else npm run build; fi
+
+   - name: Setup test database
+     run: |
+      mkdir -p data
+      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run db:init || true; else npm run db:init || true; fi
+
+   - name: Create .env for tests
+     run: |
+      cat > .env << 'EOF'
+      ENABLE_DEV_ROUTES=true
+      COOKIE_SECRET=ci-test-secret-not-for-production-use
+      DATABASE_PATH=./data/migallery.db
+      IMMICH_BASE_URL=
+      IMMICH_API_KEY=
+      AUTH_TRUSTED_HOST=true
+      EOF
+
+   - name: Run tests
+     env:
+      API_BASE_URL: http://localhost:3000
+     run: |
+      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run test; else npm run test; fi

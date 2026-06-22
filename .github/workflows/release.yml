@@ -1,0 +1,132 @@
+name: Release
+
+# Sur push d un tag v*.*.* : tests multi-Node puis creation de la release GitHub.
+on:
+ push:
+  tags:
+   - 'v*.*.*'
+   - 'v*.*.*-*'
+
+jobs:
+ release-validate:
+  name: Release Tests (Node ${{ matrix.node-version }})
+  runs-on: ubuntu-latest
+  strategy:
+   matrix:
+    node-version: [18, 20, 22]
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v6
+
+   - name: Setup Node.js ${{ matrix.node-version }}
+     uses: actions/setup-node@v6
+     with:
+      node-version: ${{ matrix.node-version }}
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Type check
+     run: bun run check
+
+   - name: Lint
+     run: bun run lint
+
+   - name: Build
+     run: bun run build
+
+   - name: Setup test database
+     run: |
+      mkdir -p data
+      bun run db:init || true
+
+   - name: Create .env for tests
+     run: |
+      cat > .env << 'EOF'
+      ENABLE_DEV_ROUTES=true
+      COOKIE_SECRET=ci-test-secret-not-for-production-use
+      DATABASE_PATH=./data/migallery.db
+      IMMICH_BASE_URL=
+      IMMICH_API_KEY=
+      AUTH_TRUSTED_HOST=true
+      EOF
+
+   - name: Run tests
+     env:
+      API_BASE_URL: http://localhost:3000
+     run: bun run test
+
+ release:
+  name: Create GitHub Release
+  needs: release-validate
+  runs-on: ubuntu-latest
+  permissions:
+   contents: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v6
+     with:
+      fetch-depth: 0
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version: latest
+
+   - name: Install dependencies
+     run: bun install
+
+   - name: Sync version with tag
+     run: |
+      VERSION=${GITHUB_REF_NAME#v}
+      npm version $VERSION --no-git-tag-version --allow-same-version
+
+   - name: Build
+     run: bun run build
+
+   - name: Package application
+     run: bun run package
+
+   - name: Generate changelog
+     id: changelog
+     run: |
+      PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "$(git describe --tags)" | head -n 1)
+      CURRENT_TAG=$(git describe --tags)
+
+      if [ -z "$PREVIOUS_TAG" ]; then
+        CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+      else
+        CHANGELOG=$(git log ${PREVIOUS_TAG}..${CURRENT_TAG} --pretty=format:"- %s (%h)" --no-merges)
+      fi
+
+      cat > release_notes.md << EOF
+      ## 🚀 What's Changed
+
+      ${CHANGELOG}
+
+      ## 📦 Installation
+
+      \`\`\`bash
+      tar -xzf migallery-package.tgz
+      cd package
+      bun install --production
+      cp .env.example .env
+      # Éditer .env avec vos paramètres
+      bun run db:init
+      bun run build/index.js
+      \`\`\`
+
+      **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}
+      EOF
+
+   - name: Create GitHub Release
+     uses: softprops/action-gh-release@v2
+     with:
+      body_path: release_notes.md
+      files: |
+       build/artifacts/*.tgz

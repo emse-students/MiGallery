@@ -1,0 +1,136 @@
+name: CD - Deploy to Production
+
+# Sur push main : execute la CI (barriere), construit/pousse l image GHCR, puis
+# deploie sur le runner self-hosted (mitv) et met a jour la stack Immich.
+on:
+ push:
+  branches: [main]
+ workflow_dispatch:
+
+jobs:
+ run-ci:
+  name: Run CI Checks
+  uses: ./.github/workflows/ci.yml
+
+ build-image:
+  name: Build & Push Image
+  needs: run-ci
+  if: github.repository == 'emse-students/MiGallery'
+  runs-on: ubuntu-latest
+  permissions:
+   contents: read
+   packages: write
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v6
+
+   - name: Set up Docker Buildx
+     uses: docker/setup-buildx-action@v3
+
+   - name: Log in to GHCR
+     uses: docker/login-action@v3
+     with:
+      registry: ghcr.io
+      username: ${{ github.actor }}
+      password: ${{ secrets.GITHUB_TOKEN }}
+
+   - name: Extract metadata
+     id: meta
+     uses: docker/metadata-action@v5
+     with:
+      images: ghcr.io/emse-students/migallery
+      tags: |
+       type=raw,value=latest,enable={{is_default_branch}}
+       type=sha,prefix=main-
+
+   - name: Build and push
+     uses: docker/build-push-action@v6
+     with:
+      context: .
+      push: true
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      cache-from: type=gha
+      cache-to: type=gha,mode=max
+
+ deploy:
+  name: Deploy to Production
+  needs: build-image
+  if: github.repository == 'emse-students/MiGallery'
+  runs-on: self-hosted
+  permissions:
+   contents: read
+   packages: read
+  env:
+   DEPLOY_DIR: /home/mitv/MiGallery
+   IMMICH_DIR: /srv/dev-disk-by-uuid-ff73ed20-08b7-4b38-b53c-6de6a86bfd6a/immich-app
+   COMPOSE: docker compose -f /home/mitv/MiGallery/docker-compose.prod.yml --project-directory /home/mitv/MiGallery
+  steps:
+   - name: Checkout
+     uses: actions/checkout@v6
+
+   - name: Log in to GHCR
+     run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+   - name: Generate .env from secrets
+     env:
+      IMMICH_API_KEY: ${{ secrets.IMMICH_API_KEY }}
+      MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
+      MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
+     run: |
+      for v in IMMICH_API_KEY MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET AUTH_SECRET COOKIE_SECRET; do
+        if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
+      done
+      mkdir -p "$DEPLOY_DIR"
+      umask 077
+      {
+        printf 'IMMICH_API_KEY=%s\n' "$IMMICH_API_KEY"
+        printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
+        printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
+        printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
+        printf 'COOKIE_SECRET=%s\n' "$COOKIE_SECRET"
+      } > "$DEPLOY_DIR/.env"
+
+   - name: Sync deploy files
+     run: |
+      cp docker-compose.prod.yml "$DEPLOY_DIR/"
+      mkdir -p "$DEPLOY_DIR/scripts"
+      cp scripts/backup-offsite.sh scripts/restore-offsite.sh "$DEPLOY_DIR/scripts/"
+      chmod +x "$DEPLOY_DIR/scripts/backup-offsite.sh" "$DEPLOY_DIR/scripts/restore-offsite.sh"
+
+   - name: Pull image
+     run: $COMPOSE pull
+
+   - name: Stop legacy pm2 process (cutover idempotent)
+     run: |
+      /home/mitv/.bun/bin/pm2 delete migallery 2>/dev/null || true
+      /home/mitv/.bun/bin/pm2 save 2>/dev/null || true
+
+   - name: Deploy
+     run: $COMPOSE up -d --remove-orphans
+
+   - name: Update Immich
+     run: |
+      # Mise a jour d Immich en meme temps que MiGallery (sur demande). NB: cela
+      # redemarre Immich a chaque deploiement MiGallery ; on evite `down` pour
+      # limiter l indisponibilite. A reconsiderer (job hebdomadaire) si besoin.
+      docker compose -f "$IMMICH_DIR/docker-compose.yml" --project-directory "$IMMICH_DIR" pull
+      docker compose -f "$IMMICH_DIR/docker-compose.yml" --project-directory "$IMMICH_DIR" up -d
+
+   - name: Health check
+     run: |
+      for i in $(seq 1 20); do
+        code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/health || true)
+        if [ "$code" = "200" ]; then echo "✅ MiGallery healthy"; exit 0; fi
+        sleep 3
+      done
+      echo "::error::Health check KO apres deploiement"
+      $COMPOSE logs --tail 50
+      exit 1
+
+   - name: Cleanup Docker
+     run: |
+      docker image prune -af --filter 'until=24h' || true
+      docker builder prune -af --filter 'until=168h' || true
