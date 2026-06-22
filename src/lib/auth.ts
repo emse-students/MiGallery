@@ -48,9 +48,19 @@ function getProfilePromo(
 	return profile.promo ?? customClaims.promo;
 }
 
-function getIssuerBaseUrl(): string {
+/**
+ * Base des endpoints OIDC Authentik, comme Canari : origine de l issuer +
+ * `/application/o`. Les endpoints authorize/token/userinfo sont a ce chemin
+ * global ; le chemin slugge `/application/o/<slug>/authorize/` renvoie 404 sous
+ * Authentik (le slug ne sert qu a identifier l issuer des tokens).
+ */
+function getAuthEndpointBase(): string {
 	const raw = (env.MICONNECT_ISSUER || '').trim();
-	return raw.replace(/\/+$/, '');
+	try {
+		return `${new URL(raw).origin}/application/o`;
+	} catch {
+		return '';
+	}
 }
 
 /**
@@ -123,7 +133,7 @@ function decodeJWT(token: string): Record<string, unknown> | null {
  */
 async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<OIDCToken | null> {
 	try {
-		const tokenUrl = `${getIssuerBaseUrl()}/token/`;
+		const tokenUrl = `${getAuthEndpointBase()}/token/`;
 		const response = await fetch(tokenUrl, {
 			method: 'POST',
 			headers: {
@@ -156,7 +166,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
  */
 async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null> {
 	try {
-		const userinfoUrl = `${getIssuerBaseUrl()}/userinfo/`;
+		const userinfoUrl = `${getAuthEndpointBase()}/userinfo/`;
 		const response = await fetch(userinfoUrl, {
 			headers: {
 				Authorization: `Bearer ${accessToken}`
@@ -382,7 +392,7 @@ export function generateAuthorizationUrl(
 		nonce
 	});
 
-	const authUrl = `${getIssuerBaseUrl()}/authorize/?${params.toString()}`;
+	const authUrl = `${getAuthEndpointBase()}/authorize/?${params.toString()}`;
 	return authUrl;
 }
 
