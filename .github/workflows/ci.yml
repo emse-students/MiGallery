@@ -3,6 +3,10 @@ name: CI
 # Validation (lint / type-check / build / tests) sur les PR et, via workflow_call,
 # comme barriere de la CD (cd.yml l appelle avant de construire/deployer l image).
 # Pas de declencheur `push` : sur main, la CD execute cette CI une seule fois.
+#
+# CI Bun uniquement : MiGallery est un projet Bun (Dockerfile et bun.lock font foi).
+# Le runtime npm n est pas teste car svelte-adapter-bun declare `peer typescript@^5`,
+# ce que le resolveur strict de npm refuse avec TypeScript 6 (Bun, lui, l accepte).
 on:
  pull_request:
   branches: [main]
@@ -10,54 +14,35 @@ on:
 
 jobs:
  validate:
-  name: Validate (${{ matrix.runtime }})
+  name: Validate
   runs-on: ubuntu-latest
-  strategy:
-   fail-fast: false
-   matrix:
-    runtime: [bun, npm]
   steps:
    - name: Checkout
      uses: actions/checkout@v6
 
    - name: Setup Bun
-     if: matrix.runtime == 'bun'
      uses: oven-sh/setup-bun@v2
      with:
       bun-version: latest
 
-   - name: Setup Node.js
-     if: matrix.runtime == 'npm'
-     uses: actions/setup-node@v6
-     with:
-      node-version: '24.x'
-
    - name: Install dependencies
-     run: |
-      if [ "${{ matrix.runtime }}" = "bun" ]; then
-        bun install --frozen-lockfile
-      else
-        npm install
-      fi
+     run: bun install --frozen-lockfile
 
    - name: Type check
-     run: |
-      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run check; else npm run check; fi
+     run: bun run check
 
    - name: Lint
      env:
       NODE_OPTIONS: '--max-old-space-size=16384'
-     run: |
-      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run lint; else npm run lint; fi
+     run: bun run lint
 
    - name: Build
-     run: |
-      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run build; else npm run build; fi
+     run: bun run build
 
    - name: Setup test database
      run: |
       mkdir -p data
-      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run db:init || true; else npm run db:init || true; fi
+      bun run db:init || true
 
    - name: Create .env for tests
      run: |
@@ -73,5 +58,4 @@ jobs:
    - name: Run tests
      env:
       API_BASE_URL: http://localhost:3000
-     run: |
-      if [ "${{ matrix.runtime }}" = "bun" ]; then bun run test; else npm run test; fi
+     run: bun run test

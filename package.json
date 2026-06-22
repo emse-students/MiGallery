@@ -125,8 +125,5 @@
 		"*.{json,md,yml,yaml,css,html}": [
 			"prettier --write --ignore-unknown"
 		]
-	},
-	"trustedDependencies": [
-		"core-js"
-	]
+	}
 }
