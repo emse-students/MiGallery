@@ -32,8 +32,9 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "husky",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
+		"check": "npm run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "npm run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "eslint src/lib --ext .ts,.tsx,.js,.jsx --cache && eslint src/routes --ext .ts,.tsx,.js,.jsx --cache",
 		"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**' --fix",
 		"format": "prettier --write .",
@@ -69,6 +70,7 @@
 		"db:reset-users": "node ./scripts/reset-users-for-authentik.cjs"
 	},
 	"devDependencies": {
+		"@inlang/paraglide-js": "^2.20.0",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.66.0",

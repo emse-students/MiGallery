@@ -6,6 +6,7 @@ import type { Handle } from '@sveltejs/kit';
 import { getSessionUser } from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
 import { verifySigned } from '$lib/auth/cookies';
+import { paraglideMiddleware } from '$lib/paraglide/server';
 
 // Démarre la sauvegarde automatique quotidienne dès le démarrage du serveur
 startBackupScheduler();
@@ -149,4 +150,18 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-export const handle = sequence(corsAndCsrfHandler, sessionHandler);
+/**
+ * Binds the request locale (resolved from the paraglide cookie / Accept-Language
+ * header, falling back to the base locale fr) to the server-side async context so
+ * that `m.*()` renders in the right language during SSR, and injects it into the
+ * <html lang> tag. Runs first so every downstream handler and page sees the locale.
+ */
+const paraglideHandler: Handle = ({ event, resolve }) =>
+	paraglideMiddleware(event.request, ({ request, locale }) => {
+		event.request = request;
+		return resolve(event, {
+			transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale)
+		});
+	});
+
+export const handle = sequence(paraglideHandler, corsAndCsrfHandler, sessionHandler);
