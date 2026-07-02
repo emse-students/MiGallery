@@ -352,7 +352,12 @@ Cet utilisateur est destiné à l'administration système et ne doit pas être s
 
 ## 📚 Documentation complète
 
-La documentation complète se trouve dans le dossier `docs/` :
+La documentation technique de reference (anglais) se trouve dans
+**[`docs/wiki/`](docs/wiki/index.md)** : architecture, authentification, proxy
+Immich, albums et permissions, photos CV, telechargements, modele de donnees,
+reference API, deploiement.
+
+Autres documents dans le dossier `docs/` :
 
 ### 📖 Guides généraux
 
