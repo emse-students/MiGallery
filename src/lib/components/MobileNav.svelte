@@ -1,21 +1,15 @@
 <!--
-  MobileNav.svelte - Barre de navigation mobile fixe en bas de l'écran
+  MobileNav.svelte - Fixed bottom navigation bar on mobile
 
-  Ce composant affiche une barre de navigation en bas de l'écran sur mobile,
-  similaire aux applications natives. Il gère automatiquement :
-  - L'affichage conditionnel selon les permissions de l'utilisateur
-  - L'indication de la page active
-  - L'animation de transition entre les pages
-
-  Usage:
-    <MobileNav />
-
-  Le composant est automatiquement inclus dans le layout principal.
+  Shows a native-app-like navigation bar at the bottom of the screen on mobile.
+  It automatically handles conditional display per user permissions, the active
+  page indication, and the tap transition. Included in the root layout.
 -->
 <script lang="ts">
 	import { page } from '$app/state';
 	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings } from 'lucide-svelte';
 	import type { User } from '$lib/types/api';
+	import { m } from '$lib/paraglide/messages';
 
 	let user = $derived(page.data?.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
@@ -29,9 +23,9 @@
 	let isAlbumDetailPage = $derived(currentPath.startsWith('/albums/') && currentPath !== '/albums/');
 
 	/**
-	 * Vérifie si un lien est actif
-	 * @param href - Le chemin du lien
-	 * @param exact - Si true, vérifie une correspondance exacte
+	 * Whether a nav link is active.
+	 * @param href - the link path
+	 * @param exact - if true, require an exact match
 	 */
 	function isActive(href: string, exact = false): boolean {
 		if (exact) return currentPath === href;
@@ -40,10 +34,10 @@
 </script>
 
 {#if isAuthenticated && !isAlbumDetailPage}
-	<nav class="mobile-nav" aria-label="Navigation mobile">
+	<nav class="mobile-nav" aria-label={m.nav_mobile_aria()}>
 		<a href="/albums" class="nav-item" class:active={isActive('/albums')} data-sveltekit-preload-data>
 			<Folder size={24} />
-			<span class="nav-label">Albums</span>
+			<span class="nav-label">{m.nav_albums()}</span>
 		</a>
 
 		{#if hasPhoto}
@@ -54,7 +48,7 @@
 				data-sveltekit-preload-data
 			>
 				<UserIcon size={24} />
-				<span class="nav-label">Mes photos</span>
+				<span class="nav-label">{m.nav_my_photos()}</span>
 			</a>
 		{/if}
 
@@ -66,7 +60,7 @@
 				data-sveltekit-preload-data
 			>
 				<Camera size={24} />
-				<span class="nav-label">Photos CV</span>
+				<span class="nav-label">{m.nav_photos_cv()}</span>
 			</a>
 		{/if}
 
@@ -78,7 +72,7 @@
 				data-sveltekit-preload-data
 			>
 				<Users size={24} />
-				<span class="nav-label">Trombi</span>
+				<span class="nav-label">{m.nav_trombinoscope_short()}</span>
 			</a>
 		{/if}
 
@@ -90,7 +84,7 @@
 				data-sveltekit-preload-data
 			>
 				<Trash2 size={24} />
-				<span class="nav-label">Corbeille</span>
+				<span class="nav-label">{m.nav_trash()}</span>
 			</a>
 		{/if}
 
@@ -101,14 +95,14 @@
 			data-sveltekit-preload-data
 		>
 			<Settings size={24} />
-			<span class="nav-label">Paramètres</span>
+			<span class="nav-label">{m.nav_settings()}</span>
 		</a>
 	</nav>
 {/if}
 
 <style>
 	.mobile-nav {
-		display: none; /* Caché par défaut sur desktop */
+		display: none; /* Hidden by default on desktop */
 		position: fixed;
 		bottom: 0;
 		left: 0;
@@ -119,7 +113,7 @@
 		-webkit-backdrop-filter: blur(12px);
 		border-top: 1px solid var(--border);
 		padding: 0.5rem 0;
-		padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); /* Support iPhone notch */
+		padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); /* iPhone notch support */
 		z-index: 1000;
 		box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
 	}
@@ -160,7 +154,7 @@
 		text-align: center;
 	}
 
-	/* Animation au tap */
+	/* Tap animation */
 	.nav-item:active {
 		transform: scale(0.95);
 	}

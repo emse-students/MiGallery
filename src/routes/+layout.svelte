@@ -11,6 +11,8 @@
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
 	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
+	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
+	import { m } from '$lib/paraglide/messages';
 	import '../app.css';
 
 	let u = $derived(page.data?.session?.user as User);
@@ -89,7 +91,7 @@
 
 <svelte:head>
 	<link rel="icon" type="image/png" sizes="32x32" href="/icon.png" />
-	<meta name="description" content="MiGallery - Galerie photo des étudiants EMSE" />
+	<meta name="description" content={m.app_meta_description()} />
 	<meta name="theme-color" content="#3b82f6" />
 	<title>MiGallery</title>
 </svelte:head>
@@ -105,18 +107,18 @@
 			<div class="links-left">
 				<a href="/albums" data-sveltekit-preload-data>
 					<Folder size={18} />
-					<span class="link-text">Albums</span>
+					<span class="link-text">{m.nav_albums()}</span>
 				</a>
 				{#if hasPhoto}
 					<a href="/mes-photos" data-sveltekit-preload-data>
 						<UserIcon size={18} />
-						<span class="link-text">Mes photos</span>
+						<span class="link-text">{m.nav_my_photos()}</span>
 					</a>
 				{/if}
 				{#if hasPhoto || canManagePhotos}
 					<a href="/photos-cv" data-sveltekit-preload-data>
 						<Camera size={18} />
-						<span class="link-text">Photos CV</span>
+						<span class="link-text">{m.nav_photos_cv()}</span>
 					</a>
 				{/if}
 			</div>
@@ -125,18 +127,18 @@
 				{#if isAdmin}
 					<a href="/trombinoscope">
 						<Users size={18} />
-						<span class="link-text">Trombinoscope</span>
+						<span class="link-text">{m.nav_trombinoscope()}</span>
 					</a>
 				{/if}
 				{#if canManagePhotos}
 					<a href="/corbeille">
 						<Trash2 size={18} />
-						<span class="link-text">Corbeille</span>
+						<span class="link-text">{m.nav_trash()}</span>
 					</a>
 				{/if}
 				<a href="/parametres">
 					<Settings size={18} />
-					<span class="link-text">Paramètres</span>
+					<span class="link-text">{m.nav_settings()}</span>
 				</a>
 			</div>
 		{/if}
@@ -160,9 +162,11 @@
 				</div>
 			</a>
 			<span class="user-name">{u.name}</span>
-			<button class="btn-logout" onclick={() => handleSignOut()}>Déconnexion</button>
+			<LocaleSwitcher />
+			<button class="btn-logout" onclick={() => handleSignOut()}>{m.nav_logout()}</button>
 		{:else}
-			<button class="btn-login" onclick={() => handleSignIn()}>Connexion</button>
+			<LocaleSwitcher />
+			<button class="btn-login" onclick={() => handleSignIn()}>{m.nav_login()}</button>
 		{/if}
 	</div>
 </nav>
@@ -181,17 +185,17 @@
 
 <Modal
 	bind:show={showNavigationWarning}
-	title="Opération en cours"
+	title={m.nav_op_title()}
 	type="warning"
-	confirmText="Quitter quand même"
-	cancelText="Continuer l'opération"
+	confirmText={m.nav_op_leave_anyway()}
+	cancelText={m.nav_op_continue()}
 	onConfirm={confirmNavigation}
 	onCancel={cancelNavigation}
 >
 	{#snippet children()}
-		<p>Des opérations sont en cours (uploads, suppressions, etc.).</p>
-		<p>Si vous quittez maintenant, ces opérations seront annulées.</p>
-		<p><strong>Voulez-vous vraiment quitter ?</strong></p>
+		<p>{m.nav_op_body_running()}</p>
+		<p>{m.nav_op_body_cancelled()}</p>
+		<p><strong>{m.nav_op_body_confirm()}</strong></p>
 	{/snippet}
 </Modal>
 

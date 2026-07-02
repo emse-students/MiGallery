@@ -2,5 +2,22 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"lang_label": "Language",
 	"lang_french": "Français",
-	"lang_english": "English"
+	"lang_english": "English",
+	"app_meta_description": "MiGallery - EMSE students photo gallery",
+	"nav_albums": "Albums",
+	"nav_my_photos": "My photos",
+	"nav_photos_cv": "CV photos",
+	"nav_trombinoscope": "Directory",
+	"nav_trombinoscope_short": "Directory",
+	"nav_mobile_aria": "Mobile navigation",
+	"nav_trash": "Trash",
+	"nav_settings": "Settings",
+	"nav_logout": "Sign out",
+	"nav_login": "Sign in",
+	"nav_op_title": "Operation in progress",
+	"nav_op_leave_anyway": "Leave anyway",
+	"nav_op_continue": "Continue the operation",
+	"nav_op_body_running": "Operations are in progress (uploads, deletions, etc.).",
+	"nav_op_body_cancelled": "If you leave now, these operations will be cancelled.",
+	"nav_op_body_confirm": "Do you really want to leave?"
 }
