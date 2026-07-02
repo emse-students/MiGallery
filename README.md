@@ -10,7 +10,6 @@
 
 [![CI (Bun)](https://github.com/emse-students/MiGallery/actions/workflows/ci-bun.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/ci-bun.yml)
 [![Code Analysis](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml)
-[![Documentation](https://github.com/emse-students/MiGallery/actions/workflows/docs.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/docs.yml)
 
 </div>
 
