@@ -13,17 +13,17 @@ the effective minimum.
 
 ## Albums
 
-| Path                                                           | Auth                           | Purpose                           |
-| -------------------------------------------------------------- | ------------------------------ | --------------------------------- | ------------------------ |
-| `GET/POST /api/albums`                                         | read / write                   | List / create albums              |
-| `GET/PATCH/DELETE /api/albums/[id]`                            | per `checkAlbumAccess` / write | Album detail and edit             |
-| `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`  | album access                   | Album assets                      |
-| `/api/albums/[id]/asset-original                               | asset-thumbnail/[assetId]`     | album access                      | Single asset / thumbnail |
-| `/api/albums/[id]/cover/[assetId]`, `/og-cover`, `/og-preview` | album access                   | Cover and social preview          |
-| `/api/albums/[id]/info`, `/metadata`                           | album access                   | Album info/metadata               |
-| `/api/albums/[id]/permissions/users`, `/tags`                  | write                          | Edit album permissions            |
-| `/api/albums/covers`                                           | read                           | Cover batch                       |
-| `/api/albums/permissions/options`                              | write                          | Options for the permission editor |
+| Path                                                                         | Auth                           | Purpose                           |
+| ---------------------------------------------------------------------------- | ------------------------------ | --------------------------------- |
+| `GET/POST /api/albums`                                                       | read / write                   | List / create albums              |
+| `GET/PATCH/DELETE /api/albums/[id]`                                          | per `checkAlbumAccess` / write | Album detail and edit             |
+| `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`                | album access                   | Album assets                      |
+| `/api/albums/[id]/asset-original/[assetId]` and `/asset-thumbnail/[assetId]` | album access                   | Single asset / thumbnail          |
+| `/api/albums/[id]/cover/[assetId]`, `/og-cover`, `/og-preview`               | album access                   | Cover and social preview          |
+| `/api/albums/[id]/info`, `/metadata`                                         | album access                   | Album info/metadata               |
+| `/api/albums/[id]/permissions/users`, `/tags`                                | write                          | Edit album permissions            |
+| `/api/albums/covers`                                                         | read                           | Cover batch                       |
+| `/api/albums/permissions/options`                                            | write                          | Options for the permission editor |
 
 ## People / CV directory
 
