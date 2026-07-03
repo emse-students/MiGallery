@@ -29,6 +29,7 @@
 	import { activeOperations } from '$lib/operations';
 	import { navigationModalStore } from '$lib/navigation-store';
 	import type { User, Album } from '$lib/types/api';
+	import { m } from '$lib/paraglide/messages';
 
 	const photosState = new PhotosState();
 	let title = $state('');
@@ -73,8 +74,8 @@
 
 	async function downloadAll() {
 		const ok = await showConfirm(
-			`Télécharger ${photosState.assets.length} image(s) ?`,
-			'Télécharger ZIP'
+			m.albumd_download_confirm({ count: photosState.assets.length }),
+			m.albumd_download_zip()
 		);
 		if (!ok) return;
 
@@ -92,10 +93,10 @@
 				},
 				signal: controller.signal
 			});
-			toast.success('Téléchargement terminé');
+			toast.success(m.albumd_download_done());
 		} catch (e: unknown) {
 			if ((e as Error).name !== 'AbortError')
-				toast.error('Erreur téléchargement: ' + (e as Error).message);
+				toast.error(m.albums_download_error({ error: (e as Error).message }));
 		} finally {
 			photosState.isDownloading = false;
 			photosState.downloadProgress = 0;
@@ -108,18 +109,18 @@
 		if (!albumId) return;
 
 		confirmModalConfig = {
-			title: "Supprimer l'album",
-			message: `Voulez-vous vraiment supprimer "${title}" ?\n\nCela supprimera l'album d'Immich. Les photos resteront dans la bibliothèque globale.`,
-			confirmText: 'Supprimer définitivement',
+			title: m.albums_delete_title(),
+			message: m.albumd_delete_message({ title }),
+			confirmText: m.albumd_delete_confirm(),
 			onConfirm: async () => {
 				showConfirmModal = false;
 				try {
 					const res = await fetch(`/api/albums/${albumId}`, { method: 'DELETE' });
-					if (!res.ok && res.status !== 204) throw new Error('Erreur suppression');
-					toast.success('Album supprimé');
+					if (!res.ok && res.status !== 204) throw new Error(m.albums_delete_failed());
+					toast.success(m.albums_deleted());
 					goto('/albums');
 				} catch (e: unknown) {
-					toast.error('Erreur: ' + (e as Error).message);
+					toast.error(m.common_error_detail({ error: (e as Error).message }));
 				}
 			}
 		};
@@ -133,10 +134,10 @@
 				await navigator.share({ title: title || 'Album', url });
 			} else {
 				await navigator.clipboard.writeText(url);
-				toast.success('Lien copié !');
+				toast.success(m.albumd_link_copied());
 			}
 		} catch (e) {
-			toast.error('Erreur partage');
+			toast.error(m.albumd_share_error());
 		}
 	}
 
@@ -146,7 +147,7 @@
 		onFileResult?: (res: any) => void
 	) {
 		const albumId = page.params.id;
-		if (!albumId) throw new Error('ID manquant');
+		if (!albumId) throw new Error(m.albumd_id_missing());
 
 		return await handleAlbumUpload(files, albumId, photosState, {
 			onProgress,
@@ -163,9 +164,9 @@
 		photosState.cleanup();
 	});
 
-	// Données Open Graph pour les link previews externes (ex. Canari)
+	// Open Graph data for external link previews (e.g. Canari)
 	const ogAlbumName = $derived(
-		((page.data as { album?: Album }).album?.name) || 'Album photo'
+		((page.data as { album?: Album }).album?.name) || m.albumd_default_title()
 	);
 	const ogDescription = $derived(
 		((page.data as { ogDescription?: string }).ogDescription) || ''
@@ -194,12 +195,12 @@
 <!-- SNIPPET DES BOUTONS D'ACTION (Mobile & Desktop) -->
 {#snippet actionButtons(mobile = false)}
 	<div class="actions-group {mobile ? 'mobile' : 'desktop'}">
-		<!-- Mode Sélection -->
+		<!-- Selection mode -->
 		{#if canManagePhotos && photosState.assets.length > 0}
 			<button
 				onclick={() => (photosState.selecting = !photosState.selecting)}
 				class="btn-glass {photosState.selecting ? 'active' : ''}"
-				title={photosState.selecting ? 'Terminer la sélection' : 'Sélectionner'}
+				title={photosState.selecting ? m.albumd_select_finish() : m.albumd_select()}
 			>
 				{#if photosState.selecting}
 					<Check size={18} />
@@ -207,18 +208,18 @@
 					<CheckCircle size={18} />
 				{/if}
 				{#if !mobile || photosState.selecting}
-					<span class="label">{photosState.selecting ? 'OK' : 'Sélection'}</span>
+					<span class="label">{photosState.selecting ? 'OK' : m.albumd_selection()}</span>
 				{/if}
 			</button>
 		{/if}
 
-		<!-- Admin Actions -->
+		<!-- Admin actions -->
 		{#if canManagePhotos}
-			<button onclick={() => (showAlbumModal = true)} class="btn-glass edit" title="Modifier">
+			<button onclick={() => (showAlbumModal = true)} class="btn-glass edit" title={m.common_edit()}>
 				<Pencil size={18} />
-				{#if !mobile}<span class="label">Éditer</span>{/if}
+				{#if !mobile}<span class="label">{m.common_edit()}</span>{/if}
 			</button>
-			<button onclick={() => deleteAlbum()} class="btn-glass delete" title="Supprimer">
+			<button onclick={() => deleteAlbum()} class="btn-glass delete" title={m.common_delete()}>
 				<Trash2 size={18} />
 			</button>
 		{/if}
@@ -226,17 +227,17 @@
 		<!-- Divider -->
 		{#if canManagePhotos}<div class="divider"></div>{/if}
 
-		<!-- Public Actions -->
-		<button onclick={shareAlbum} class="btn-glass share" title="Partager">
+		<!-- Public actions -->
+		<button onclick={shareAlbum} class="btn-glass share" title={m.albumd_share()}>
 			<Share2 size={18} />
-			{#if !mobile}<span class="label">Partager</span>{/if}
+			{#if !mobile}<span class="label">{m.albumd_share()}</span>{/if}
 		</button>
 
 		<button
 			onclick={downloadAll}
 			disabled={photosState.isDownloading || photosState.assets.length === 0}
 			class="btn-glass download"
-			title="Télécharger tout"
+			title={m.albumd_download_all()}
 		>
 			{#if photosState.isDownloading}
 				<Spinner size={18} />
@@ -249,7 +250,7 @@
 				{/if}
 			{:else}
 				<Download size={18} />
-				{#if !mobile}<span class="label">Télécharger</span>{/if}
+				{#if !mobile}<span class="label">{m.common_download()}</span>{/if}
 			{/if}
 		</button>
 	</div>
@@ -259,15 +260,15 @@
 	<BackgroundBlobs />
 
 	<div class="page-container">
-		<!-- Navigation Retour -->
+		<!-- Back navigation -->
 		<nav class="top-nav" in:fade={{ duration: 200 }}>
 			<button class="back-btn" onclick={handleBackClick}>
 				<ArrowLeft size={20} />
-				<span>Retour aux albums</span>
+				<span>{m.albumd_back()}</span>
 			</button>
 		</nav>
 
-		<!-- En-tête Album -->
+		<!-- Album header -->
 		<header class="page-header" in:fly={{ y: 20, duration: 400 }}>
 			<div class="header-main">
 				<div class="title-wrapper">
@@ -276,7 +277,7 @@
 						<p class="meta"><MapPin size={14} /> {locationInfo}</p>
 					{/if}
 					<p class="count">
-						{photosState.assets.length} photo{photosState.assets.length > 1 ? 's' : ''}
+						{m.albumd_photo_count({ count: photosState.assets.length })}
 					</p>
 				</div>
 			</div>
@@ -293,27 +294,27 @@
 			</div>
 		{/if}
 
-		<!-- Zone Upload (Admin) -->
+		<!-- Upload zone (admin) -->
 		{#if canManagePhotos}
 			<div class="upload-container glass-card" in:fade>
 				<div class="upload-header">
-					<h3>Ajouter des photos</h3>
-					<p>Glissez-déposez vos fichiers ici</p>
+					<h3>{m.albumd_add_photos()}</h3>
+					<p>{m.albumd_drop_here()}</p>
 				</div>
 				<UploadZone onUpload={onUploadFiles} />
 			</div>
 		{/if}
 
-		<!-- Grille Photos -->
+		<!-- Photos grid -->
 		{#if photosState.loading && photosState.assets.length === 0}
 			<div class="loading-state">
 				<Spinner size={40} />
-				<p>Chargement de l'album...</p>
+				<p>{m.albumd_loading()}</p>
 			</div>
 		{:else if !photosState.loading && photosState.assets.length === 0}
 			<div class="empty-state glass-card">
 				<ImageIcon size={48} />
-				<p>Cet album est vide pour le moment.</p>
+				<p>{m.albumd_empty()}</p>
 			</div>
 		{:else}
 			<div class="gallery-wrapper" in:fade={{ duration: 300 }}>

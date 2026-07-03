@@ -10,6 +10,7 @@
 	import { page } from '$app/stores';
 	import { toast } from '$lib/toast';
 	import { activeOperations } from '$lib/operations';
+	import { m } from '$lib/paraglide/messages';
 	interface Props {
 		state: PhotosState;
 		onModalClose?: (hasChanges: boolean) => void;
@@ -49,9 +50,9 @@
 
 		try {
 			await photosState.downloadSingle(id);
-			toast.success('Photo téléchargée !');
+			toast.success(m.pg_photo_downloaded());
 		} catch (e: unknown) {
-			toast.error('Erreur lors du téléchargement: ' + (e as Error).message);
+			toast.error(m.download_error_long({ error: (e as Error).message }));
 		} finally {
 			activeOperations.end(operationId);
 		}
@@ -99,9 +100,9 @@
 			photosState.assets = [...photosState.assets];
 			photosState.selectedAssets = [];
 			photosState.selecting = false;
-			toast.success(`${count} photo(s) retirée(s) de l'album !`);
+			toast.success(m.pg_removed_count({ count }));
 		} catch (e: unknown) {
-			toast.error("Erreur lors du retrait de l'album: " + (e as Error).message);
+			toast.error(m.pg_remove_error({ error: (e as Error).message }));
 		} finally {
 			activeOperations.end(operationId);
 		}
@@ -125,16 +126,16 @@
 
 			if (!res.ok && res.status !== 204) {
 				const errText = await res.text().catch(() => res.statusText);
-				throw new Error(errText || 'Erreur lors de la suppression');
+				throw new Error(errText || m.albums_delete_failed());
 			}
 
 			photosState.assets = photosState.assets.filter((a) => !ids.includes(a.id));
 			photosState.assets = [...photosState.assets];
 			photosState.selectedAssets = [];
 			photosState.selecting = false;
-			toast.success(`${count} photo(s) mise(s) à la corbeille !`);
+			toast.success(m.pg_trashed_count({ count }));
 		} catch (e: unknown) {
-			toast.error('Erreur lors de la suppression: ' + (e as Error).message);
+			toast.error(m.delete_error_long({ error: (e as Error).message }));
 		} finally {
 			activeOperations.end(operationId);
 		}
@@ -150,7 +151,7 @@
 		try {
 			await photosState.downloadSelected(true);
 		} catch (e: unknown) {
-			toast.error('Erreur lors du téléchargement: ' + (e as Error).message);
+			toast.error(m.download_error_long({ error: (e as Error).message }));
 		}
 	}
 
@@ -169,14 +170,14 @@
 
 			if (!res.ok && res.status !== 204) {
 				const errText = await res.text().catch(() => res.statusText);
-				throw new Error(errText || 'Erreur lors de la suppression');
+				throw new Error(errText || m.albums_delete_failed());
 			}
 
 			photosState.assets = photosState.assets.filter((a) => a.id !== assetToDelete);
 			photosState.assets = [...photosState.assets];
-			toast.success('Photo mise à la corbeille !');
+			toast.success(m.pg_photo_trashed());
 		} catch (e: unknown) {
-			toast.error('Erreur lors de la suppression: ' + (e as Error).message);
+			toast.error(m.delete_error_long({ error: (e as Error).message }));
 		} finally {
 			activeOperations.end(operationId);
 			assetToDelete = null;
@@ -219,9 +220,9 @@
 	async function handleFavoriteToggle(assetId: string) {
 		try {
 			const newValue = await photosState.toggleFavorite(assetId);
-			toast.success(newValue ? 'Ajouté aux favoris' : 'Retiré des favoris');
+			toast.success(newValue ? m.pg_fav_added() : m.pg_fav_removed());
 		} catch (e: unknown) {
-			toast.error('Erreur: ' + (e as Error).message);
+			toast.error(m.common_error_detail({ error: (e as Error).message }));
 		}
 	}
 
@@ -279,7 +280,7 @@
 						onclick={() => handleRemoveFromAlbum()}
 						disabled={photosState.selectedAssets.length === 0}
 						class="btn-secondary"
-						title="Retirer de l'album sans supprimer les photos"
+						title={m.pg_remove_from_album_title()}
 					>
 								<CircleMinus size={16} />
 						Retirer ({photosState.selectedAssets.length})
@@ -352,7 +353,7 @@
 	<!-- État vide -->
 	<div class="empty-state">
 		<ImageIcon size={48} />
-		<p>Aucune photo trouvée</p>
+		<p>{m.pg_empty()}</p>
 	</div>
 {/if}
 
@@ -387,33 +388,32 @@
 <!-- Modal de confirmation de suppression -->
 <Modal
 	bind:show={showDeleteModal}
-	title="Supprimer la photo"
+	title={m.photo_delete_title()}
 	type="confirm"
-	confirmText="Mettre à la corbeille"
-	cancelText="Annuler"
+	confirmText={m.trash_to_bin()}
+	cancelText={m.common_cancel()}
 	onConfirm={confirmDelete}
 >
 	{#snippet children()}
-		<p>Voulez-vous vraiment mettre cette photo à la corbeille ?</p>
+		<p>{m.photo_trash_confirm()}</p>
 	{/snippet}
 </Modal>
 
 <!-- Modal suppression multiple -->
 <Modal
 	bind:show={showDeleteSelectedModal}
-	title="Supprimer les photos sélectionnées"
+	title={m.pg_delete_selected_title()}
 	type="confirm"
-	confirmText="Mettre à la corbeille"
-	cancelText="Annuler"
+	confirmText={m.trash_to_bin()}
+	cancelText={m.common_cancel()}
 	onConfirm={confirmDeleteSelected}
 >
 	{#snippet children()}
 		<p>
-			Voulez-vous vraiment mettre {photosState.selectedAssets.length} photo(s) sélectionnée(s) à la corbeille
-			?
+			{m.pg_delete_selected_body({ count: photosState.selectedAssets.length })}
 		</p>
 		<p class="text-sm text-muted" style="margin-top: 0.5rem;">
-			Attention : cela supprimera définitivement les fichiers de votre bibliothèque Immich.
+			{m.pg_delete_selected_warn()}
 		</p>
 	{/snippet}
 </Modal>
@@ -421,19 +421,18 @@
 <!-- Modal retrait de l'album -->
 <Modal
 	bind:show={showRemoveFromAlbumModal}
-	title="Retirer de l'album"
+	title={m.pg_remove_from_album()}
 	type="confirm"
-	confirmText="Retirer de l'album"
-	cancelText="Annuler"
+	confirmText={m.pg_remove_from_album()}
+	cancelText={m.common_cancel()}
 	onConfirm={confirmRemoveFromAlbum}
 >
 	{#snippet children()}
 		<p>
-			Voulez-vous retirer {photosState.selectedAssets.length} photo(s) de cet album ?
+			{m.pg_remove_body({ count: photosState.selectedAssets.length })}
 		</p>
 		<p class="text-sm text-muted" style="margin-top: 0.5rem;">
-			Les photos resteront dans votre bibliothèque principale (Mes photos) et ne seront pas
-			supprimées définitivement.
+			{m.pg_remove_warn()}
 		</p>
 	{/snippet}
 </Modal>
@@ -441,16 +440,15 @@
 <!-- Modal téléchargement multiple -->
 <Modal
 	bind:show={showDownloadSelectedModal}
-	title="Télécharger les photos sélectionnées"
+	title={m.pg_download_selected_title()}
 	type="confirm"
-	confirmText="Télécharger"
-	cancelText="Annuler"
+	confirmText={m.common_download()}
+	cancelText={m.common_cancel()}
 	onConfirm={confirmDownloadSelected}
 >
 	{#snippet children()}
 		<p>
-			Voulez-vous télécharger {photosState.selectedAssets.length} photo(s) sélectionnée(s) en une archive
-			?
+			{m.pg_download_body({ count: photosState.selectedAssets.length })}
 		</p>
 	{/snippet}
 </Modal>

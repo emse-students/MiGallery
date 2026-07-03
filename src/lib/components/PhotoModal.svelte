@@ -19,6 +19,7 @@
 	import { toast } from '$lib/toast';
 	import { setAlbumCover } from '$lib/immich/albums';
 	import { clientCache } from '$lib/client-cache';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		assetId: string;
@@ -109,8 +110,8 @@
 		if (!id) return;
 		loading = true;
 
-		// IMPORTANT : On ne reset l'état chargé que si l'ID a changé.
-		// Cela permet de garder l'image "preview" affichée pendant que l'image "original" charge.
+		// IMPORTANT: only reset the loaded state when the ID actually changed, so the
+		// "preview" image stays visible while the "original" image loads.
 		if (id !== lastProcessedAssetId) {
 			imageLoaded = false;
 		}
@@ -288,7 +289,7 @@
 			mediaUrl = `/api/immich/assets/${asset.id}/original`;
 			highResLoaded = true;
 		} catch (e) {
-			console.warn('Échec chargement haute résolution', e);
+			console.warn('High-resolution load failed', e);
 		}
 	}
 
@@ -384,7 +385,7 @@
 				URL.revokeObjectURL(url);
 			}
 		} catch (e) {
-			console.error('Erreur téléchargement:', e);
+			console.error('Download error:', e);
 		}
 	}
 
@@ -392,10 +393,10 @@
 		if (!albumId || !assetId) return;
 		try {
 			await setAlbumCover(albumId, assetId);
-			toast.success('Couverture mise à jour');
+			toast.success(m.pm_cover_updated());
 			clientCache.delete('album-covers', albumId);
 		} catch (e) {
-			toast.error('Erreur: ' + (e as Error).message);
+			toast.error(m.common_error_detail({ error: (e as Error).message }));
 		}
 	}
 
@@ -411,7 +412,7 @@
 				});
 				if (!res.ok && res.status !== 204) {
 					const errText = await res.text().catch(() => res.statusText);
-					throw new Error(errText || 'Erreur lors de la suppression');
+					throw new Error(errText || m.albums_delete_failed());
 				}
 				const nextIndexSnapshot =
 					currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
@@ -424,15 +425,15 @@
 				if (nextAssetId) assetId = nextAssetId;
 				else onClose();
 			} catch (e) {
-				toast.error('Erreur suppression: ' + (e as Error).message);
+				toast.error(m.albums_delete_error({ error: (e as Error).message }));
 			}
 		};
 		if (skipConfirmation) await performDelete();
 		else {
 			confirmModalConfig = {
-				title: 'Supprimer la photo',
-				message: 'Voulez-vous vraiment mettre cette photo à la corbeille ?',
-				confirmText: 'Mettre à la corbeille',
+				title: m.photo_delete_title(),
+				message: m.photo_trash_confirm(),
+				confirmText: m.trash_to_bin(),
 				onConfirm: performDelete
 			};
 			showConfirmModal = true;
@@ -485,12 +486,12 @@
 					<ImageIcon size={20} />
 					<span>{asset.originalFileName}</span>
 				{:else}
-					<span>Chargement...</span>
+					<span>{m.common_loading()}</span>
 				{/if}
 			</div>
 			<div class="modal-actions">
 				{#if canManagePhotos && albumId}
-					<button class="btn-icon" onclick={handleSetCover} title="Définir comme couverture">
+					<button class="btn-icon" onclick={handleSetCover} title={m.pm_set_cover()}>
 						<ImageIcon size={20} />
 					</button>
 				{/if}
@@ -524,22 +525,22 @@
 							try {
 								await onFavoriteToggle!(asset!.id);
 							} catch {
-								toast.error('Erreur favori');
+								toast.error(m.pm_favorite_error());
 							}
 						}}
-						title={asset.isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+						title={asset.isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
 					>
 						<Heart size={20} fill={asset.isFavorite ? 'currentColor' : 'none'} />
 					</button>
 				{/if}
-				<button class="btn-icon" onclick={downloadAsset} title="Télécharger" disabled={!asset}>
+				<button class="btn-icon" onclick={downloadAsset} title={m.common_download()} disabled={!asset}>
 					<Download size={20} />
 				</button>
 				{#if canManagePhotos}
 					<button
 						class="btn-icon btn-delete"
 						onclick={() => deleteCurrentAsset(false)}
-						title="Supprimer (Suppr)"
+						title={m.pm_delete_key()}
 						disabled={!asset}
 					>
 						<Trash2 size={20} />

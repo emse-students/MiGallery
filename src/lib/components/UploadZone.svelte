@@ -10,6 +10,7 @@
 		Upload
 	} from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	interface FileResult {
 		file: File;
@@ -178,7 +179,7 @@
 				if (statusIndex >= 0) {
 					if (result.isDuplicate) {
 						fileStatuses[statusIndex].status = 'duplicate';
-						fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
+						fileStatuses[statusIndex].error = m.uz_duplicate();
 						duplicateCountPersist = duplicateCountPersist + 1;
 						setTimeout(() => {
 							fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
@@ -204,7 +205,7 @@
 					const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
 					if (statusIndex >= 0) {
 						fileStatuses[statusIndex].status = 'duplicate';
-						fileStatuses[statusIndex].error = 'Ce fichier a déjà été uploadé';
+						fileStatuses[statusIndex].error = m.uz_duplicate();
 						duplicateCountPersist = duplicateCountPersist + 1;
 
 						setTimeout(() => {
@@ -293,7 +294,7 @@
 				{#if isUploading}
 					<div class="summary-item uploading">
 						<Spinner size={24} />
-						<span>Upload en cours...</span>
+						<span>{m.uz_uploading()}</span>
 					</div>
 					<div class="progress-bar global">
 						<div class="progress-fill" style="width: {globalProgress}%"></div>
@@ -303,23 +304,19 @@
 				{#if successCount > 0}
 					<div class="summary-item success">
 						<CheckCircle size={24} />
-						<span
-							>{successCount} fichier{successCount > 1 ? 's' : ''} uploadé{successCount > 1
-								? 's'
-								: ''}</span
-						>
+						<span>{m.uz_uploaded_count({ count: successCount })}</span>
 					</div>
 				{/if}
 				{#if errorCountPersist > 0}
 					<div class="summary-item error">
 						<XCircle size={24} />
-						<span>{errorCountPersist} erreur{errorCountPersist > 1 ? 's' : ''}</span>
+						<span>{m.uz_error_count({ count: errorCountPersist })}</span>
 					</div>
 				{/if}
 				{#if duplicateCountPersist > 0}
 					<div class="summary-item duplicate">
 						<AlertCircle size={24} />
-						<span>{duplicateCountPersist} doublon{duplicateCountPersist > 1 ? 's' : ''}</span>
+						<span>{m.uz_duplicate_count({ count: duplicateCountPersist })}</span>
 					</div>
 				{/if}
 
@@ -359,7 +356,7 @@
 						}}
 					>
 						<RefreshCw size={16} />
-						Réessayer les uploads échoués
+						{m.uz_retry_failed()}
 					</button>
 				{/if}
 
@@ -371,7 +368,7 @@
 							clearStatuses();
 						}}
 					>
-						Fermer
+						{m.common_close()}
 					</button>
 				{/if}
 			</div>
@@ -381,13 +378,13 @@
 			</div>
 			<p class="upload-text">
 				{#if isDragging}
-					Déposez vos fichiers ou dossiers ici
+					{m.uz_drop_active()}
 				{:else}
-					Glissez-déposez des fichiers ou dossiers ici
+					{m.uz_drop_idle()}
 				{/if}
 			</p>
-			<p class="upload-subtext">ou cliquez pour sélectionner</p>
-			<p class="upload-hint">Images et vidéos acceptées</p>
+			<p class="upload-subtext">{m.uz_or_click()}</p>
+			<p class="upload-hint">{m.uz_accepted()}</p>
 		{/if}
 	</div>
 </div>

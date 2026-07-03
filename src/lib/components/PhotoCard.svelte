@@ -3,6 +3,7 @@
 	import LazyImage from './LazyImage.svelte';
 	import Skeleton from './Skeleton.svelte';
 	import type { Asset } from '$lib/photos.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		asset: Asset;
@@ -201,7 +202,7 @@
 		{#if showFavorite && !isSelecting}
 			<button
 				class="favorite-btn {isFavorite ? 'active' : ''}"
-				title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+				title={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
 				onclick={handleFavoriteClick}
 				aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
 			>
@@ -213,7 +214,7 @@
 		{#if !isSelecting}
 			<button
 				class="download-btn"
-				title="Télécharger"
+				title={m.common_download()}
 				onclick={handleDownloadClick}
 				aria-label="Download {fileName}"
 			>
@@ -224,7 +225,7 @@
 			{#if canDelete}
 				<button
 					class="delete-btn"
-					title="Mettre à la corbeille"
+					title={m.trash_to_bin()}
 					onclick={handleDeleteClick}
 					aria-label="Delete {fileName}"
 				>
