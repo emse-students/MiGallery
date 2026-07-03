@@ -20,6 +20,8 @@
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import { consumeNDJSONStream } from '$lib/streaming';
 	import { showConfirm } from '$lib/confirm';
+	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 	import { toast } from '$lib/toast';
 	import { clientCache } from '$lib/client-cache';
 	import type { User, Album, ImmichAsset } from '$lib/types/api';
@@ -72,10 +74,10 @@
 	});
 
 	function monthLabelFor(dateStr?: string | null) {
-		if (!dateStr) return 'Sans date';
+		if (!dateStr) return m.albums_no_date();
 		const d = new Date(dateStr);
-		if (isNaN(d.getTime())) return 'Sans date';
-		const label = d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+		if (isNaN(d.getTime())) return m.albums_no_date();
+		const label = d.toLocaleString(getLocale(), { month: 'long', year: 'numeric' });
 		return label.charAt(0).toUpperCase() + label.slice(1);
 	}
 
@@ -168,8 +170,8 @@
 
 	async function downloadAlbumAssets(immichId: string, albumName?: string) {
 		const ok = await showConfirm(
-			`Télécharger "${albumName || immichId}" au format ZIP ?`,
-			'Télécharger'
+			m.albums_download_confirm({ name: albumName || immichId }),
+			m.albums_download()
 		);
 		if (!ok) return;
 		downloadingAlbumId = immichId;
@@ -186,12 +188,12 @@
 
 		try {
 			const res = await fetch(`/api/albums/${immichId}`);
-			if (!res.ok) throw new Error('Erreur récupération assets');
+			if (!res.ok) throw new Error(m.albums_assets_error());
 			const data = (await res.json()) as { assets: ImmichAsset[] };
 			const list: ImmichAsset[] = Array.isArray(data?.assets) ? data.assets : [];
 			const assetIds = list.map((x) => x.id).filter(Boolean);
 			if (assetIds.length === 0) {
-				toast.info('Aucun asset à télécharger');
+				toast.info(m.albums_download_empty());
 				return;
 			}
 			await downloadInBatches(assetIds, albumName || immichId, {
@@ -202,7 +204,7 @@
 			});
 		} catch (e: unknown) {
 			if ((e as Error).name !== 'AbortError') {
-				toast.error('Erreur téléchargement: ' + (e as Error).message);
+				toast.error(m.albums_download_error({ error: (e as Error).message }));
 			}
 		} finally {
 			const copy = { ...downloadingProgress };
@@ -215,20 +217,20 @@
 
 	async function deleteAlbum(immichId: string, albumName?: string) {
 		confirmModalConfig = {
-			title: "Supprimer l'album",
-			message: `Voulez-vous vraiment supprimer l'album "${albumName || immichId}" ?\n\nCette action supprimera l'album d'Immich et de la base de données locale.`,
-			confirmText: 'Supprimer',
+			title: m.albums_delete_title(),
+			message: m.albums_delete_message({ name: albumName || immichId }),
+			confirmText: m.common_delete(),
 			onConfirm: async () => {
 				showConfirmModal = false;
 				try {
 					const res = await fetch(`/api/albums/${immichId}`, { method: 'DELETE' });
-					if (!res.ok) throw new Error((await res.text()) || 'Erreur suppression');
+					if (!res.ok) throw new Error((await res.text()) || m.albums_delete_failed());
 					await clientCache.delete('album-covers', immichId);
 					await clientCache.delete('albums', immichId);
 					albums = albums.filter((a) => a.id !== immichId);
-					toast.success('Album supprimé');
+					toast.success(m.albums_deleted());
 				} catch (e: unknown) {
-					toast.error('Erreur suppression: ' + (e as Error).message);
+					toast.error(m.albums_delete_error({ error: (e as Error).message }));
 				}
 			}
 		};
@@ -258,7 +260,7 @@
 </script>
 
 <svelte:head>
-	<title>Albums - MiGallery</title>
+	<title>{m.albums_page_title()}</title>
 </svelte:head>
 
 <main class="albums-main">
@@ -267,19 +269,19 @@
 	<div class="albums-container">
 		<header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
 			<div class="header-content">
-				<h1>Albums</h1>
+				<h1>{m.nav_albums()}</h1>
 				<p class="subtitle">Vos souvenirs et événements</p>
 			</div>
 
 			<div class="header-search">
 				<input
 					class="search-input"
-					placeholder="Rechercher un album..."
+					placeholder={m.albums_search_placeholder()}
 					bind:value={searchQuery}
 					oninput={(e) => {
 						searchQuery = (e.target as HTMLInputElement).value;
 					}}
-					aria-label="Rechercher des albums"
+					aria-label={m.albums_search_aria()}
 				/>
 			</div>
 
@@ -287,7 +289,7 @@
 				<div class="header-actions">
 					<button class="btn-glass primary" onclick={() => (showAlbumModal = true)}>
 						<Plus size={18} />
-						<span>Créer un album</span>
+						<span>{m.albums_create()}</span>
 					</button>
 				</div>
 			{/if}
@@ -295,20 +297,20 @@
 
 		{#if error}
 			<div class="state-message error" in:fade>
-				<XCircle size={20} /> Erreur: {error}
+				<XCircle size={20} /> {m.common_error()}: {error}
 			</div>
 		{/if}
 
 		{#if loading}
 			<div class="state-message loading" in:fade>
-				<Spinner size={20} /> Chargement des albums...
+				<Spinner size={20} /> {m.albums_loading()}
 			</div>
 		{/if}
 
 		{#if !loading && !error && albums.length === 0}
 			<div class="empty-state" in:fade>
 				<div class="empty-icon"><ImageIcon size={48} /></div>
-				<p>Aucun album trouvé</p>
+				<p>{m.albums_empty()}</p>
 			</div>
 		{/if}
 
@@ -316,7 +318,7 @@
 			{#if filteredAlbums.length === 0}
 				<div class="empty-state" in:fade>
 					<div class="empty-icon"><Search size={48} /></div>
-					<p>Aucun album ne correspond à votre recherche</p>
+					<p>{m.albums_no_match()}</p>
 				</div>
 			{:else}
 				<div class="albums-timeline">
@@ -365,7 +367,7 @@
 														<div class="album-meta">
 															{#if a.date}
 																<span class="album-date">
-																	{new Date(a.date).toLocaleDateString('fr-FR', {
+																	{new Date(a.date).toLocaleDateString(getLocale(), {
 																		day: 'numeric',
 																		month: 'short',
 																		year: 'numeric'
@@ -396,7 +398,7 @@
 													downloadAlbumAssets(a.id, a.name);
 												}}
 												disabled={downloadingAlbumId === a.id}
-												title="Télécharger (ZIP)"
+												title={m.albums_download_zip()}
 											>
 												{#if downloadingAlbumId === a.id}
 													<Spinner size={14} />
@@ -412,7 +414,7 @@
 														e.preventDefault();
 														deleteAlbum(a.id, a.name);
 													}}
-													title="Supprimer"
+													title={m.common_delete()}
 												>
 													<Trash2 />
 												</button>

@@ -3,6 +3,7 @@
 	import { AlertCircle, Search, X, Plus } from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		albumId?: string;
@@ -225,7 +226,7 @@
 			};
 
 			if (!result.success || !result.album) {
-				throw new Error('Album non trouvé');
+				throw new Error(m.am_not_found());
 			}
 
 			const album = result.album;
@@ -276,7 +277,7 @@
 
 				if (!res.ok) {
 					const errData = (await res.json().catch(() => ({}))) as { error?: string };
-					throw new Error(errData.error || "Erreur lors de la mise à jour de l'album");
+					throw new Error(errData.error || m.am_update_error());
 				}
 			} else {
 				const res = await fetch('/api/albums', {
@@ -290,7 +291,7 @@
 
 				if (!res.ok) {
 					const errText = await res.text().catch(() => res.statusText);
-					throw new Error(errText || "Erreur lors de la création de l'album");
+					throw new Error(errText || m.am_create_error());
 				}
 
 				const createdAlbum = (await res.json()) as { id?: string };
@@ -318,9 +319,9 @@
 
 <Modal
 	bind:show
-	title={isEditMode ? "Modifier l'album" : 'Créer un nouvel album'}
+	title={isEditMode ? m.am_edit_title() : m.am_create_title()}
 	icon={isEditMode ? 'edit' : 'folder-plus'}
-	confirmText={isEditMode ? 'Enregistrer' : "Créer l'album"}
+	confirmText={isEditMode ? m.common_save() : m.am_create_confirm()}
 	confirmDisabled={loading || loadingData || loadingOptions}
 	showCloseButton={true}
 	onConfirm={handleSubmit}
@@ -336,7 +337,7 @@
 	{#if loadingData || loadingOptions}
 		<div class="loading-state">
 			<Spinner size={40} />
-			<p>Chargement des données...</p>
+			<p>{m.am_loading()}</p>
 		</div>
 	{:else}
 		<form
@@ -346,12 +347,12 @@
 			}}
 		>
 			<div class="form-group">
-				<label for="albumName">Nom de l'album *</label>
+				<label for="albumName">{m.am_name_label()}</label>
 				<input
 					id="albumName"
 					type="text"
 					bind:value={albumName}
-					placeholder="Ex: Soirée Gala 2025"
+					placeholder={m.am_name_placeholder()}
 					required
 					disabled={loading}
 				/>
@@ -359,7 +360,7 @@
 
 			<div class="meta-grid">
 				<div class="form-group">
-					<label for="albumDate">Date (optionnel)</label>
+					<label for="albumDate">{m.am_date_label()}</label>
 					<input
 						id="albumDate"
 						type="date"
@@ -370,42 +371,42 @@
 				</div>
 
 				<div class="form-group">
-					<label for="albumLocation">Lieu (optionnel)</label>
+					<label for="albumLocation">{m.am_location_label()}</label>
 					<input
 						id="albumLocation"
 						type="text"
 						bind:value={albumLocation}
-						placeholder="Ex: Campus Mines Saint-Etienne"
+						placeholder={m.am_location_placeholder()}
 						disabled={loading}
 					/>
 				</div>
 			</div>
 
 			<div class="form-group">
-				<label for="albumVisibility">Visibilité</label>
+				<label for="albumVisibility">{m.am_visibility_label()}</label>
 				<select id="albumVisibility" bind:value={albumVisibility} disabled={loading}>
-					<option value="private">Privé</option>
-					<option value="authenticated">Authentifié (tous les utilisateurs connectés)</option>
-					<option value="unlisted">Accès par lien</option>
+					<option value="private">{m.am_vis_private()}</option>
+					<option value="authenticated">{m.am_vis_authenticated()}</option>
+					<option value="unlisted">{m.am_vis_unlisted()}</option>
 				</select>
 			</div>
 
 			<div class="form-group-checkbox">
 				<label>
 					<input type="checkbox" bind:checked={albumVisible} disabled={loading} />
-					<span>Visible dans la liste des albums</span>
+					<span>{m.am_visible_toggle()}</span>
 				</label>
 			</div>
 
 			{#if albumVisibility === 'private'}
 				<div class="share-panel">
-					<h4>Partage ciblé</h4>
+					<h4>{m.am_share_title()}</h4>
 					<p class="share-hint">
-						Choisissez une ou plusieurs formations, promos, ou des utilisateurs précis.
+						{m.am_share_desc()}
 					</p>
 
 					<div class="share-section">
-						<div class="share-title">Formations</div>
+						<div class="share-title">{m.am_formations()}</div>
 						<div class="choice-row">
 							{#each availableFormations as formation}
 								<button
@@ -423,7 +424,7 @@
 					</div>
 
 					<div class="share-section">
-						<div class="share-title">Promotions</div>
+						<div class="share-title">{m.am_promotions()}</div>
 						{#if selectedPromos.length > 0}
 							<div class="choice-row">
 								{#each selectedPromos as promo}
@@ -431,7 +432,7 @@
 										type="button"
 										class="selected-chip"
 										onclick={() => removePromo(promo)}
-										title="Supprimer la promo {promo}"
+										title={m.am_remove_promo({ promo })}
 									>
 										<span>{promo}</span>
 										<X size={12} />
@@ -439,7 +440,7 @@
 								{/each}
 							</div>
 						{:else}
-							<p class="no-promos">Aucune promotion sélectionnée</p>
+							<p class="no-promos">{m.am_no_promos()}</p>
 						{/if}
 						<div class="promo-add-row">
 							<select
@@ -456,10 +457,10 @@
 								class="promo-add-btn"
 								onclick={addPromoFromSelector}
 								disabled={loading || selectedPromos.includes(promoSelectorYear)}
-								aria-label="Ajouter la promotion sélectionnée"
+								aria-label={m.am_add_promo_aria()}
 								title={selectedPromos.includes(promoSelectorYear)
-									? 'Déjà ajoutée'
-									: 'Ajouter cette promotion'}
+									? m.am_already_added()
+									: m.am_add_promo_title()}
 							>
 								<Plus size={18} strokeWidth={2.5} />
 							</button>
@@ -467,7 +468,7 @@
 					</div>
 
 					<div class="share-section">
-						<label for="userSearch" class="share-title">Utilisateurs spécifiques</label>
+						<label for="userSearch" class="share-title">{m.am_users_label()}</label>
 						<div class="search-box">
 							<Search size={16} />
 							<input
@@ -480,7 +481,7 @@
 										showUserSuggestions = false;
 									}, 120);
 								}}
-								placeholder="Rechercher par nom, prénom ou identifiant"
+								placeholder={m.am_user_search_placeholder()}
 								disabled={loading}
 							/>
 						</div>
