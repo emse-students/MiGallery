@@ -151,5 +151,15 @@
 	"pm_fav_remove": "Retirer des favoris",
 	"pm_fav_add": "Ajouter aux favoris",
 	"albumd_id_missing": "ID manquant",
-	"albumd_default_title": "Album photo"
+	"albumd_default_title": "Album photo",
+	"common_processing": "Traitement...",
+	"ci_video_init_error": "Impossible d'initialiser la vidéo",
+	"ci_camera_error": "Impossible d'accéder à la caméra",
+	"ci_camera_denied": "Accès à la caméra refusé. Veuillez autoriser l'accès dans les paramètres du navigateur.",
+	"ci_no_camera": "Aucune caméra détectée sur cet appareil.",
+	"cpm_title": "Changer la photo de profil",
+	"cpm_current": "Photo de profil actuelle",
+	"cpm_pick": "Cliquez sur une photo ci-dessous pour la définir comme photo de profil",
+	"cpm_updating": "Mise à jour en cours...",
+	"cpm_loading": "Chargement de vos photos..."
 }

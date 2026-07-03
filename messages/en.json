@@ -151,5 +151,15 @@
 	"pm_fav_remove": "Remove from favorites",
 	"pm_fav_add": "Add to favorites",
 	"albumd_id_missing": "Missing ID",
-	"albumd_default_title": "Photo album"
+	"albumd_default_title": "Photo album",
+	"common_processing": "Processing…",
+	"ci_video_init_error": "Could not initialize the video",
+	"ci_camera_error": "Could not access the camera",
+	"ci_camera_denied": "Camera access denied. Please allow access in your browser settings.",
+	"ci_no_camera": "No camera detected on this device.",
+	"cpm_title": "Change profile picture",
+	"cpm_current": "Current profile picture",
+	"cpm_pick": "Click a photo below to set it as your profile picture",
+	"cpm_updating": "Updating…",
+	"cpm_loading": "Loading your photos…"
 }

@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { AlertCircle, Camera, X, Upload } from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		onPhoto: (file: File) => void;
@@ -60,21 +61,20 @@
 				videoElement.srcObject = stream;
 				await videoElement.play();
 			} else {
-				throw new Error("Impossible d'initialiser la vidéo");
+				throw new Error(m.ci_video_init_error());
 			}
 		} catch (err: unknown) {
 			cameraOpen = false;
-			const errorMsg = err instanceof Error ? err.message : "Impossible d'accéder à la caméra";
+			const errorMsg = err instanceof Error ? err.message : m.ci_camera_error();
 
 			if (errorMsg.includes('Permission denied') || errorMsg.includes('NotAllowedError')) {
-				error =
-					"Accès à la caméra refusé. Veuillez autoriser l'accès dans les paramètres du navigateur.";
+				error = m.ci_camera_denied();
 			} else if (errorMsg.includes('NotFoundError') || errorMsg.includes('DevicesNotFoundError')) {
-				error = 'Aucune caméra détectée sur cet appareil.';
+				error = m.ci_no_camera();
 			} else {
 				error = errorMsg;
 			}
-			console.error('Erreur caméra:', err);
+			console.error('Camera error:', err);
 		} finally {
 			loading = false;
 		}

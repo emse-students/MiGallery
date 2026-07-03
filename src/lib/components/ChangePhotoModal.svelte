@@ -5,6 +5,7 @@
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
 	import type { ImmichAsset } from '$lib/types/api';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		currentPhotoUrl?: string;
@@ -90,10 +91,10 @@
 
 <Modal
 	bind:show
-	title="Changer la photo de profil"
+	title={m.cpm_title()}
 	icon="camera"
 	wide={true}
-	confirmText={loading ? 'Traitement...' : 'Valider'}
+	confirmText={loading ? m.common_processing() : m.common_validate()}
 	confirmDisabled={!selectedAssetId || loading}
 	showCloseButton={true}
 	onConfirm={confirmSelection}
@@ -102,14 +103,14 @@
 	<div class="current-photo-section">
 		{#if currentPhotoUrl}
 			<div class="current-photo">
-				<img src={currentPhotoUrl} alt="Profil actuel" />
-				<p>Photo de profil actuelle</p>
+				<img src={currentPhotoUrl} alt={m.cpm_current()} />
+				<p>{m.cpm_current()}</p>
 			</div>
 		{/if}
 
 		<div class="instructions">
 			<ImageIcon size={20} />
-			<p>Cliquez sur une photo ci-dessous pour la définir comme photo de profil</p>
+			<p>{m.cpm_pick()}</p>
 		</div>
 	</div>
 
@@ -123,12 +124,12 @@
 	{#if loading}
 		<div class="loading-state">
 			<Spinner size={40} />
-			<p>Mise à jour en cours...</p>
+			<p>{m.cpm_updating()}</p>
 		</div>
 	{:else if loadingAssets}
 		<div class="loading-state">
 			<Spinner size={40} />
-			<p>Chargement de vos photos...</p>
+			<p>{m.cpm_loading()}</p>
 		</div>
 	{:else if assets.length > 0}
 		<div class="photos-grid">
@@ -157,7 +158,7 @@
 	{:else}
 		<div class="empty-state">
 			<ImageIcon size={48} />
-			<p>Aucune photo trouvée</p>
+			<p>{m.pg_empty()}</p>
 		</div>
 	{/if}
 </Modal>
