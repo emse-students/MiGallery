@@ -4,13 +4,14 @@
 	import { LogIn, UserPlus } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import { fade, fly } from 'svelte/transition';
+	import { m } from '$lib/paraglide/messages';
 
 	let user = $derived(page.data.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
 	let hasIdPhotos = $derived(!!user?.id_photos);
 
 	const hour = new Date().getHours();
-	const greeting = hour < 18 ? 'Bonjour' : 'Bonsoir';
+	const greeting = hour < 18 ? m.greeting_day() : m.greeting_evening();
 
 	function handleSignIn() {
 		window.location.href = '/api/auth/login';
@@ -18,7 +19,7 @@
 </script>
 
 <svelte:head>
-	<title>MiGallery - Accueil</title>
+	<title>{m.home_page_title()}</title>
 </svelte:head>
 
 <main class="home-main">
@@ -36,10 +37,10 @@
 		<div class="actions-container" in:fly={{ y: 20, duration: 800, delay: 200 }}>
 			{#if !isAuthenticated}
 				<div class="card glass-card">
-					<h2>Bienvenue sur MiGallery</h2>
-					<p>Connectez-vous pour accéder à vos photos.</p>
+					<h2>{m.home_welcome_title()}</h2>
+					<p>{m.home_welcome_sub()}</p>
 				<button onclick={handleSignIn} class="btn btn-primary">
-					<LogIn size={20} /> Se connecter
+					<LogIn size={20} /> {m.home_signin()}
 					</button>
 				</div>
 			{:else if !hasIdPhotos}
@@ -49,9 +50,9 @@
 					</div>
 					<h2>{greeting} {user?.first_name || user?.name || ''} !</h2>
 					<p>
-						Pour profiter pleinement de MiGallery, veuillez terminer la configuration de votre profil.
+						{m.home_finish_profile()}
 					</p>
-					<a href="/parametres" class="btn btn-warning"> Configurer mon profil </a>
+					<a href="/parametres" class="btn btn-warning"> {m.home_configure_profile()} </a>
 				</div>
 			{:else}
 				<div class="glass-card card">

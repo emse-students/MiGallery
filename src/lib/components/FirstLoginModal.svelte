@@ -3,6 +3,7 @@
 	import { Info } from 'lucide-svelte';
 	import Modal from './Modal.svelte';
 	import { toast } from '$lib/toast';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		show: boolean;
@@ -22,12 +23,12 @@
                         finalYear = null;
                 } else {
                         if (!typedYear) {
-                                toast.error('Veuillez renseigner votre année de promotion');
+                                toast.error(m.flogin_err_promo_required());
                                 return;
                         }
 						const currentYear = new Date().getFullYear();
 						if (typedYear < 1816 || typedYear > currentYear) {
-                                toast.error('Veuillez entrer une année de promotion valide');
+                                toast.error(m.flogin_err_promo_invalid());
                                 return;
                         }
                         finalYear = typedYear;
@@ -43,10 +44,10 @@
 
 			if (!res.ok) {
 				const errData = (await res.json().catch(() => ({}))) as { error?: string };
-				throw new Error(errData.error || 'Erreur lors de la mise à jour');
+				throw new Error(errData.error || m.flogin_err_update());
 			}
 
-			toast.success('Bienvenue ! Votre profil a été configuré.');
+			toast.success(m.flogin_success());
 			show = false;
 			onComplete();
 		} catch (e: unknown) {
@@ -59,8 +60,8 @@
 
 <Modal
 	bind:show
-	title="Bienvenue sur MiGallery"
-	confirmText="Valider"
+	title={m.home_welcome_title()}
+	confirmText={m.common_validate()}
 	confirmDisabled={loading || (!isStaff && !typedYear)}
 	showCloseButton={false}
 	onConfirm={handleSubmit}
@@ -68,18 +69,18 @@
 >
 	<div class="first-login-content">
 		<p class="welcome-text">
-			Pour finaliser votre inscription, veuillez renseigner votre année de promotion :
+			{m.flogin_intro()}
 		</p>
 
 		<div class="year-selector">
-			<label for="promoYear">Année de promotion</label>
+			<label for="promoYear">{m.flogin_promo_label()}</label>
 			<input
 				type="number"
 				id="promoYear"
 				bind:value={typedYear}
 				min="1816"
 				max={new Date().getFullYear()}
-				placeholder="Ex: 2024"
+				placeholder={m.flogin_promo_placeholder()}
 				disabled={loading || isStaff}
 				class:disabled={isStaff}
 			/>
@@ -88,13 +89,13 @@
 		<div class="staff-selector">
 			<label class="checkbox-label">
 				<input type="checkbox" bind:checked={isStaff} disabled={loading} />
-				Je suis un membre du personnel de l'École des Mines
+				{m.flogin_staff_label()}
 			</label>
 		</div>
 
 		<p class="info-text">
 			<Info size={16} />
-			Cette information nous permet de personnaliser votre accès aux albums.
+			{m.flogin_info()}
 		</p>
 	</div>
 </Modal>
