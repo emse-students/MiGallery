@@ -30,6 +30,7 @@
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
 	import { uploadFileChunked } from '$lib/album-operations';
+	import { m } from '$lib/paraglide/messages';
 
 	const photosState = new PhotosState();
 	let showChangePhotoModal = $state(false);
@@ -110,7 +111,7 @@
 	async function handlePhotoSelected(assetId: string) {
 		const u = page.data.session?.user as User | undefined;
 		if (!u?.id_photos) {
-			toast.error("Vous n'êtes pas lié à une personne Immich.");
+			toast.error(m.param_no_immich_link());
 			return;
 		}
 
@@ -122,10 +123,10 @@
 
 		if (!updateRes.ok) {
 			const txt = await updateRes.text().catch(() => updateRes.statusText);
-			throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
+			throw new Error(txt || m.param_photo_update_error());
 		}
 
-		toast.success('Photo de profil mise à jour !');
+		toast.success(m.param_photo_updated());
 		window.location.reload();
 	}
 
@@ -192,7 +193,7 @@
 
 	async function addPhotoPermission() {
 		if (!newAuthUserId.trim()) {
-			toast.error('Veuillez sélectionner un utilisateur');
+			toast.error(m.param_select_user());
 			return;
 		}
 		isAddingPermission = true;
@@ -204,16 +205,16 @@
 			});
 			const data = (await response.json()) as { success?: boolean; error?: string; message?: string };
 			if (data.success) {
-				toast.success(data.message || 'Autorisation ajoutée');
+				toast.success(data.message || m.param_auth_added());
 				newAuthUserId = '';
 				searchQuery = '';
 				showUserDropdown = false;
 				await loadPhotoPermissions();
 			} else {
-				toast.error(data.error || "Erreur lors de l'ajout");
+				toast.error(data.error || m.param_add_error());
 			}
 		} catch (e) {
-			toast.error(`Erreur: ${e instanceof Error ? e.message : 'Erreur inconnue'}`);
+			toast.error(m.common_error_detail({ error: e instanceof Error ? e.message : m.common_unknown_error() }));
 		} finally {
 			isAddingPermission = false;
 		}
@@ -228,13 +229,13 @@
 			});
 			const data = (await response.json()) as { success?: boolean; error?: string };
 			if (data.success) {
-				toast.success('Autorisation révoquée');
+				toast.success(m.param_auth_revoked());
 				await loadPhotoPermissions();
 			} else {
-				toast.error(data.error || 'Erreur lors de la révocation');
+				toast.error(data.error || m.param_revoke_error());
 			}
 		} catch (e) {
-			toast.error(`Erreur: ${e instanceof Error ? e.message : 'Erreur inconnue'}`);
+			toast.error(m.common_error_detail({ error: e instanceof Error ? e.message : m.common_unknown_error() }));
 		}
 	}
 
@@ -248,15 +249,15 @@
 			});
 			const data = (await response.json()) as { success?: boolean; error?: string };
 			if (data.success) {
-				toast.success('Votre visage a été dissocié de votre compte.');
+				toast.success(m.param_face_unlinked());
 				showUnlinkFaceModal = false;
 				currentUserHasFace = false;
 				personId = null;
 			} else {
-				toast.error(`Erreur: ${data.error || 'Erreur inconnue'}`);
+				toast.error(m.common_error_detail({ error: data.error || m.common_unknown_error() }));
 			}
 		} catch (e) {
-			toast.error(`Erreur: ${e instanceof Error ? e.message : 'Erreur inconnue'}`);
+			toast.error(m.common_error_detail({ error: e instanceof Error ? e.message : m.common_unknown_error() }));
 		} finally {
 			isUnlinkingFace = false;
 		}
@@ -276,7 +277,7 @@
 		console.log('🔍 [Face Pairing] checkForPeople début:', { userId, assetId, shouldCleanup, isTimeoutCheck });
 
 		try {
-			uploadStatus = 'Récupération des personnes détectées...';
+			uploadStatus = m.param_status_fetching();
 			const assetInfoResponse = await fetch(`/api/immich/assets/${assetId}`);
 			if (!assetInfoResponse.ok) {
 				const errMsg = `Erreur récupération asset: ${assetInfoResponse.statusText}`;
@@ -353,10 +354,10 @@
 				// Différencier vrai "aucun visage" vs "timeout"
 				if (isTimeoutCheck) {
 					uploadStatus =
-						'Délai de détection dépassé. Immich peut être occupé. Veuillez réessayer.';
+						m.param_status_timeout();
 					detectionTimeout = true;
 				} else {
-					uploadStatus = 'Aucun visage détecté. Veuillez utiliser une photo claire.';
+					uploadStatus = m.param_status_no_face();
 				}
 				if (shouldCleanup) {
 					try {
@@ -422,7 +423,7 @@
 		if (!file) return;
 		const userId = (page.data.session?.user as User)?.id_user;
 		if (!userId) {
-			toast.error("Pas d'utilisateur connecté");
+			toast.error(m.param_no_user());
 			return;
 		}
 
@@ -467,7 +468,7 @@
 				console.log('✅ [Face Pairing] Asset créé:', uploadedAssetId);
 			} else {
 				console.error('❌ [Face Pairing] Pas d\'ID retourné:', uploadData);
-				throw new Error("Pas d'ID retourné");
+				throw new Error(m.param_no_id_returned());
 			}
 
 			assetId = uploadedAssetId;
@@ -544,7 +545,7 @@
 
 	async function deleteMyAccount() {
 		if (deleteConfirmText !== 'CONFIRMATION') {
-			toast.error('Veuillez taper "CONFIRMATION"');
+			toast.error(m.param_type_confirmation());
 			return;
 		}
 		isDeletingAccount = true;
@@ -552,16 +553,16 @@
 			const response = await fetch('/api/users/me', { method: 'DELETE' });
 			const data = (await response.json()) as { success?: boolean; error?: string };
 			if (data.success) {
-				toast.success('Compte supprimé.');
+				toast.success(m.param_account_deleted());
 				showDeleteAccountModal = false;
 				setTimeout(() => {
 					goto('/api/auth/signout');
 				}, 1000);
 			} else {
-				toast.error(data.error || 'Erreur inconnue');
+				toast.error(data.error || m.common_unknown_error());
 			}
 		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Erreur inconnue');
+			toast.error(e instanceof Error ? e.message : m.common_unknown_error());
 		} finally {
 			isDeletingAccount = false;
 		}

@@ -379,7 +379,14 @@ Autres documents dans le dossier `docs/` :
 
 ## 📄 Licence
 
-Ce projet est sous licence **GNU GPL v3**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+Ce projet est sous licence **PolyForm Noncommercial 1.0.0** : open source, usage non commercial
+uniquement. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+
+MiGallery est une surcouche qui ajoute des fonctionnalités par-dessus **[Immich](https://github.com/immich-app/immich)**,
+un projet distinct sous licence **AGPL-3.0**. L'intégration se fait uniquement via l'API HTTP publique
+d'Immich (aucun code source d'Immich n'est inclus) ; Immich reste soumis à ses propres termes AGPL-3.0.
+
+Credits : **MiTV** et **Les ROOTZ** (EMSE) - Jolan BOUDIN, avec une participation de Gabriel DUPONT.
 
 ---
 
