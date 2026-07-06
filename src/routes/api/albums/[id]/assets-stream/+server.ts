@@ -1,10 +1,11 @@
 import { error } from '@sveltejs/kit';
-import type { ImmichAlbum, ImmichAsset } from '$lib/types/api';
+import type { ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -32,37 +33,22 @@ export const GET: RequestHandler = async (event) => {
 			albumHeaders['x-api-key'] = IMMICH_API_KEY;
 		}
 
-		const albumRes = await fetch(`/api/immich/albums/${id}`, {
-			headers: {
-				'x-internal-immich-key': IMMICH_API_KEY,
-				Accept: 'application/json'
+		let albumVisibility: string | undefined;
+		try {
+			const albumMetaRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
+				headers: albumHeaders
+			});
+			if (albumMetaRes.ok) {
+				const albumMeta = (await albumMetaRes.json()) as { visibility?: string };
+				albumVisibility = albumMeta.visibility;
 			}
-		});
-
-		if (!albumRes.ok) {
-			try {
-				const snippet = await albumRes.clone().text();
-				console.error('[assets-stream] Immich album fetch failed', {
-					status: albumRes.status,
-					statusText: albumRes.statusText,
-					bodySnippet: snippet.slice(0, 400)
-				});
-			} catch (ie: unknown) {
-				const _ie = ensureError(ie);
-				console.error(
-					'[assets-stream] Immich album fetch failed and body could not be read',
-					_ie.message || _ie
-				);
-			}
+		} catch (metaErr: unknown) {
+			const _metaErr = ensureError(metaErr);
+			console.warn(
+				'[assets-stream] failed to read album visibility metadata',
+				_metaErr.message || _metaErr
+			);
 		}
-
-		if (!albumRes.ok) {
-			const errorText = await albumRes.text();
-			throw error(albumRes.status, `Failed to fetch album: ${errorText}`);
-		}
-
-		const album = (await albumRes.json()) as ImmichAlbum;
-		const albumVisibility = (album as unknown as { visibility?: string }).visibility;
 
 		let visibilityHint: string | null = null;
 		try {
@@ -95,7 +81,7 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		const assets = Array.isArray(album?.assets) ? album.assets : [];
+		const assets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
 
 		const encoder = new TextEncoder();
 		let streamClosed = false; // Track stream state to prevent double close
@@ -127,11 +113,14 @@ export const GET: RequestHandler = async (event) => {
 							break;
 						}
 
+						const exif = (asset as ImmichAsset).exifInfo as
+							| { exifImageWidth?: number; exifImageHeight?: number }
+							| undefined;
 						const minimalData = {
 							id: asset.id,
 							type: asset.type,
-							width: asset.exifInfo?.exifImageWidth || null,
-							height: asset.exifInfo?.exifImageHeight || null,
+							width: exif?.exifImageWidth ?? null,
+							height: exif?.exifImageHeight ?? null,
 							aspectRatio: null as number | null
 						};
 

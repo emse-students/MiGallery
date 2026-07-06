@@ -6,6 +6,7 @@ import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -65,7 +66,8 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const album = (await res.json()) as ImmichAlbum;
-		return json(album);
+		const assetList = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
+		return json({ ...album, assets: assetList });
 	} catch (e: unknown) {
 		const err = ensureError(e);
 		console.error(`Error in /api/albums/${id} GET:`, err);

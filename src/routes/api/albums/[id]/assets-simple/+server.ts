@@ -1,7 +1,8 @@
 import { error as svelteError } from '@sveltejs/kit';
-import type { ImmichAlbum, ImmichAsset } from '$lib/types/api';
+import type { ImmichAsset } from '$lib/types/api';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -22,20 +23,7 @@ export const GET: RequestHandler = async (event) => {
 			throw svelteError(500, 'IMMICH_BASE_URL not configured');
 		}
 
-		const albumRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
-			headers: {
-				'x-api-key': IMMICH_API_KEY,
-				Accept: 'application/json'
-			}
-		});
-
-		if (!albumRes.ok) {
-			const errorText = await albumRes.text();
-			throw svelteError(albumRes.status, `Failed to fetch album: ${errorText}`);
-		}
-
-		const album = (await albumRes.json()) as ImmichAlbum;
-		const rawAssets = Array.isArray(album?.assets) ? album.assets : [];
+		const rawAssets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
 
 		const assets = rawAssets.map((asset: ImmichAsset) => ({
 			id: asset.id,
@@ -47,7 +35,7 @@ export const GET: RequestHandler = async (event) => {
 			createdAt: asset.createdAt || null,
 			updatedAt: asset.updatedAt || null,
 			fileModifiedAt: asset.fileModifiedAt || null,
-			albumName: album.albumName || null
+			albumName: null
 		}));
 
 		return new Response(JSON.stringify({ assets }), {

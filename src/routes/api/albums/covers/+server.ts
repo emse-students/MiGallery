@@ -4,6 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -64,7 +65,7 @@ export const POST: RequestHandler = async (event) => {
 
 								if (res.ok) {
 									const album = (await res.json()) as ImmichAlbum;
-									const assets = album.assets || [];
+									const assets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, album.id);
 
 									if (assets.length > 0 || album.albumThumbnailAssetId) {
 										let coverAsset: ImmichAsset | undefined;
