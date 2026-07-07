@@ -344,18 +344,10 @@ async function handleChunkedUpload(
 		const formData: any = new NodeFormData();
 		const stats = fs.statSync(completePath);
 
-		const deviceId = request.headers.get('x-immich-device-id');
-		const deviceAssetId = request.headers.get('x-immich-asset-id');
 		const fileCreatedAt = request.headers.get('x-immich-created-at');
 		const fileModifiedAt = request.headers.get('x-immich-modified-at');
 		const isFavorite = request.headers.get('x-immich-is-favorite');
 
-		if (deviceId) {
-			formData.append('deviceId', deviceId);
-		}
-		if (deviceAssetId) {
-			formData.append('deviceAssetId', deviceAssetId);
-		}
 		if (fileCreatedAt) {
 			formData.append('fileCreatedAt', fileCreatedAt);
 		}

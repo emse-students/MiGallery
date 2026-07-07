@@ -179,8 +179,6 @@ export interface ImmichAsset {
 		birthDate?: string;
 	}>;
 	checksum?: string;
-	deviceAssetId?: string;
-	deviceId?: string;
 	libraryId?: string;
 	ownerId?: string;
 }

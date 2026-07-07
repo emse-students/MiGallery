@@ -39,14 +39,8 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const immichFormData = new FormData();
-	immichFormData.append('assetData', file);
-
 	const now = new Date().toISOString();
-	const deviceId = 'external-api'; // Generic device ID for external uploads
-	const deviceAssetId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`; // Unique ID
-
-	immichFormData.append('deviceId', deviceId);
-	immichFormData.append('deviceAssetId', deviceAssetId);
+	immichFormData.append('assetData', file);
 	immichFormData.append('fileCreatedAt', now);
 	immichFormData.append('fileModifiedAt', now);
 	immichFormData.append('isFavorite', 'false');

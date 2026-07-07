@@ -1,22 +1,21 @@
 import { activeOperations } from '$lib/operations';
 import { toast } from '$lib/toast';
 import type { PhotosState } from '$lib/photos.svelte';
+import { buildImmichUploadFormData } from '$lib/immich/upload';
 
 const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 const SIMPLE_UPLOAD_THRESHOLD = 1024 * 1024 * 10; // 10MB
 
 async function uploadFileSimple(file: File, signal?: AbortSignal): Promise<Response> {
 	const formData = new FormData();
-	const deviceAssetId = `${file.name}-${Date.now()}`;
-	const deviceId = 'MiGallery-Web';
 	const fileCreatedAt = new Date().toISOString();
 	const fileModifiedAt = new Date().toISOString();
 
-	formData.append('assetData', file);
-	formData.append('deviceId', deviceId);
-	formData.append('deviceAssetId', deviceAssetId);
-	formData.append('fileCreatedAt', fileCreatedAt);
-	formData.append('fileModifiedAt', fileModifiedAt);
+	buildImmichUploadFormData(formData, {
+		file,
+		createdAt: fileCreatedAt,
+		modifiedAt: fileModifiedAt
+	});
 
 	return await fetch('/api/immich/assets', {
 		method: 'POST',
@@ -32,8 +31,6 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 
 	const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 	const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-	const deviceAssetId = `migallery-${fileId}`;
-	const deviceId = 'MiGallery-Web';
 	const fileCreatedAt = new Date().toISOString();
 	const fileModifiedAt = new Date().toISOString();
 
@@ -66,8 +63,6 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 			'x-chunk-total': String(totalChunks),
 			'x-file-id': fileId,
 			'x-original-name': encodeURIComponent(file.name),
-			'x-immich-device-id': deviceId,
-			'x-immich-asset-id': deviceAssetId,
 			'x-immich-created-at': fileCreatedAt,
 			'x-immich-modified-at': fileModifiedAt
 		};
