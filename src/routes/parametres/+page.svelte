@@ -31,6 +31,7 @@
 	import { toast } from '$lib/toast';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 
 	const photosState = new PhotosState();
 	let showChangePhotoModal = $state(false);
@@ -280,7 +281,7 @@
 			uploadStatus = m.param_status_fetching();
 			const assetInfoResponse = await fetch(`/api/immich/assets/${assetId}`);
 			if (!assetInfoResponse.ok) {
-				const errMsg = `Erreur récupération asset: ${assetInfoResponse.statusText}`;
+				const errMsg = `Asset fetch error: ${assetInfoResponse.statusText}`;
 				console.error('❌ [Face Pairing] Récupération asset échouée:', errMsg);
 				throw new Error(errMsg);
 			}
@@ -289,11 +290,11 @@
 			const people = assetInfo.people || [];
 			console.log(`📊 [Face Pairing] Asset récupéré: ${people.length} personne(s) détectée(s)`);
 
-			uploadStatus = `${people.length} personne(s) détectée(s)`;
+			uploadStatus = m.param_status_detected_count({ count: people.length });
 
 			if (people.length === 1) {
 				personId = people[0].id;
-				uploadStatus = `Visage détecté, enregistrement...`;
+				uploadStatus = m.param_status_saving();
 				console.log('👤 [Face Pairing] Enregistrement du visage:', personId);
 
 				const updateResponse = await fetch('/api/users/me/face', {
@@ -309,7 +310,7 @@
 
 				if (updateData.error === 'face_already_assigned') {
 					console.warn('⚠️  [Face Pairing] Visage déjà assigné à un autre compte');
-					uploadStatus = 'Ce visage est déjà associé à un autre compte.';
+					uploadStatus = m.param_status_face_taken();
 					showFaceAlreadyAssignedModal = true;
 					if (shouldCleanup) {
 						try {
@@ -324,7 +325,7 @@
 
 				if (updateData.success) {
 					console.log('🎉 [Face Pairing] Visage enregistré avec succès!');
-					uploadStatus = `Visage reconnu avec succès !`;
+					uploadStatus = m.param_face_ok();
 					if (shouldCleanup) {
 						try {
 							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (succès):', assetIdToDelete);
@@ -340,7 +341,9 @@
 					window.location.href = window.location.href;
 				} else {
 					console.error('❌ [Face Pairing] Erreur enregistrement:', updateData.error);
-					uploadStatus = `Erreur mise à jour BDD: ${updateData.error || 'Erreur inconnue'}`;
+					uploadStatus = m.param_db_update_error({
+						error: updateData.error || m.common_unknown_error()
+					});
 					if (shouldCleanup) {
 						try {
 							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (erreur DB):', assetIdToDelete);
@@ -367,7 +370,7 @@
 					}
 				}
 			} else {
-				uploadStatus = `${people.length} visages détectés. Veuillez utiliser une photo avec un seul visage.`;
+				uploadStatus = m.param_status_multi_count({ count: people.length });
 				needsNewPhoto = true;
 				if (shouldCleanup) {
 					try {
@@ -379,7 +382,9 @@
 			}
 		} catch (error: unknown) {
 			console.error('❌ [Face Pairing] Erreur checkForPeople:', error);
-			uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+			uploadStatus = m.common_error_detail({
+				error: error instanceof Error ? error.message : m.common_unknown_error()
+			});
 			if (shouldCleanup) {
 				try {
 					console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (après erreur):', assetIdToDelete);
@@ -431,7 +436,7 @@
 
 		isProcessing = true;
 		detectionTimeout = false;
-		uploadStatus = 'Upload en cours...';
+		uploadStatus = m.param_status_uploading();
 		assetId = null;
 		personId = null;
 		needsNewPhoto = false;
@@ -446,7 +451,7 @@
 			uploadResponse = await uploadFileChunked(file, signal);
 
 			if (!uploadResponse.ok) {
-				const errMsg = `Erreur upload: ${uploadResponse.statusText}`;
+				const errMsg = `Upload error: ${uploadResponse.statusText}`;
 				console.error('❌ [Face Pairing] Upload échoué:', errMsg);
 				throw new Error(errMsg);
 			}
@@ -456,12 +461,12 @@
 			if (uploadData.status === 'duplicate' && uploadData.id) {
 				isDuplicate = true;
 				uploadedAssetId = String(uploadData.id);
-				uploadStatus = 'Utilisation de la photo existante.';
+				uploadStatus = m.param_status_existing();
 				console.log('ℹ️  [Face Pairing] Duplicate détecté, réutilisation asset:', uploadedAssetId);
 			} else if (uploadData.duplicateId) {
 				isDuplicate = true;
 				uploadedAssetId = String(uploadData.duplicateId);
-				uploadStatus = 'Utilisation de la photo existante.';
+				uploadStatus = m.param_status_existing();
 				console.log('ℹ️  [Face Pairing] Duplicate détecté, réutilisation asset:', uploadedAssetId);
 			} else if (uploadData.id) {
 				uploadedAssetId = String(uploadData.id);
@@ -481,7 +486,7 @@
 			while (attempt < maxAttempts && !faceDetected) {
 				await new Promise((resolve) => setTimeout(resolve, 1000));
 				attempt++;
-				uploadStatus = `Analyse de l'image... (${attempt}s)`;
+				uploadStatus = m.param_status_analyzing({ seconds: attempt });
 				try {
 					const checkResponse = await fetch(`/api/immich/assets/${assetId}?nocache=${Date.now()}`, {
 						signal
@@ -521,7 +526,9 @@
 					console.error('❌ [Face Pairing] Cleanup after error échoué:', e);
 				}
 			}
-			uploadStatus = `Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`;
+			uploadStatus = m.common_error_detail({
+				error: error instanceof Error ? error.message : m.common_unknown_error()
+			});
 		} finally {
 			isProcessing = false;
 			abortController = null;
@@ -575,7 +582,7 @@
 </script>
 
 <svelte:head>
-	<title>Paramètres - MiGallery</title>
+	<title>{m.param_page_title()}</title>
 </svelte:head>
 
 <main class="settings-main">
@@ -584,8 +591,8 @@
 	<div class="settings-container">
 		<header class="page-header settings-header centered">
 			<div class="header-content">
-				<h1>Paramètres</h1>
-				<p class="subtitle">Gérez votre profil, vos préférences et votre confidentialité</p>
+				<h1>{m.nav_settings()}</h1>
+				<p class="subtitle">{m.param_subtitle()}</p>
 			</div>
 		</header>
 
@@ -595,25 +602,25 @@
 					<UserIcon size={24} />
 				</div>
 				<div>
-					<h2>Profil</h2>
-					<p>Gérez vos informations personnelles</p>
+					<h2>{m.param_profile()}</h2>
+					<p>{m.param_profile_sub()}</p>
 				</div>
 			</div>
 
 			<div class="card-body">
 				<div class="preference-row">
 					<div class="pref-info">
-						<span class="pref-title">Photo de profil</span>
-						<span class="pref-desc">Modifier la photo affichée sur votre profil</span>
+						<span class="pref-title">{m.param_profile_photo()}</span>
+						<span class="pref-desc">{m.param_profile_photo_desc()}</span>
 					</div>
 					<button
 						onclick={() => (showChangePhotoModal = true)}
 						class="btn-secondary"
 						disabled={!currentUserHasFace}
-						title={!currentUserHasFace ? "Vous devez d'abord configurer la reconnaissance faciale" : ''}
+						title={!currentUserHasFace ? m.param_need_face_first() : ''}
 					>
 						<Camera size={18} />
-						<span>Choisir sa photo</span>
+						<span>{m.param_choose_photo()}</span>
 					</button>
 				</div>
 			</div>
@@ -625,22 +632,22 @@
 					<Palette size={24} />
 				</div>
 				<div>
-					<h2>Apparence</h2>
-					<p>Personnalisez votre expérience visuelle</p>
+					<h2>{m.param_appearance()}</h2>
+					<p>{m.param_appearance_sub()}</p>
 				</div>
 			</div>
 
 			<div class="card-body">
 				<div class="preference-row">
 					<div class="pref-info">
-						<span class="pref-title">Thème de l'interface</span>
-						<span class="pref-desc">Basculer entre le mode clair et sombre</span>
+						<span class="pref-title">{m.param_theme_label()}</span>
+						<span class="pref-desc">{m.param_theme_desc()}</span>
 					</div>
-					<button onclick={() => theme.toggle()} class="theme-toggle-btn" aria-label="Basculer le thème">
+					<button onclick={() => theme.toggle()} class="theme-toggle-btn" aria-label={m.param_theme_toggle_aria()}>
 						{#if $theme === 'dark'}
-							<Sun size={20} /> <span>Mode Clair</span>
+							<Sun size={20} /> <span>{m.param_theme_light()}</span>
 						{:else}
-							<Moon size={20} /> <span>Mode Sombre</span>
+							<Moon size={20} /> <span>{m.param_theme_dark()}</span>
 						{/if}
 					</button>
 				</div>
@@ -653,8 +660,8 @@
 					<ScanEye size={24} />
 				</div>
 				<div>
-					<h2>Reconnaissance Faciale</h2>
-					<p>Pour activer la fonctionnalité "Mes photos"</p>
+					<h2>{m.param_face_title()}</h2>
+					<p>{m.param_face_sub()}</p>
 				</div>
 			</div>
 
@@ -662,8 +669,8 @@
 				<div class="info-box">
 					<p>
 						<Info size={18} class="flex-shrink-0" />
-						Cette photo sert uniquement à générer votre empreinte biométrique. Elle sera
-						<strong>supprimée automatiquement sous 24h</strong> après traitement.
+						{m.param_face_note_before()}
+						<strong>{m.param_face_note_strong()}</strong> {m.param_face_note_after()}
 					</p>
 				</div>
 
@@ -680,13 +687,13 @@
 						{:else if assetId && !needsNewPhoto && !detectionTimeout}
 							<div class="status-success">
 								<CheckCircle size={20} />
-								<span>Visage configuré avec succès !</span>
+								<span>{m.param_face_ok()}</span>
 							</div>
 						{:else if needsNewPhoto}
 							<div class="status-error">
 								<AlertCircle size={20} />
 								<div class="error-message">
-									<span>Erreur : Plusieurs visages détectés.</span>
+									<span>{m.param_face_multi()}</span>
 									<p class="text-sm">{uploadStatus}</p>
 									<button
 										onclick={() => {
@@ -697,7 +704,7 @@
 										}}
 										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
 									>
-										Réessayer
+										{m.common_retry()}
 									</button>
 								</div>
 							</div>
@@ -714,7 +721,7 @@
 										}}
 										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
 									>
-										Réessayer
+										{m.common_retry()}
 									</button>
 								</div>
 							</div>
@@ -732,12 +739,12 @@
 										}}
 										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
 									>
-										Réessayer
+										{m.common_retry()}
 									</button>
 								</div>
 							</div>
 						{:else}
-							<p class="text-hint">Prenez un selfie ou importez une photo claire de votre visage.</p>
+							<p class="text-hint">{m.param_face_hint()}</p>
 						{/if}
 					</div>
 				</div>
@@ -751,8 +758,8 @@
 						<Share2 size={24} />
 					</div>
 					<div>
-						<h2>Partage de mes photos</h2>
-						<p>Contrôlez qui peut voir les photos où vous apparaissez</p>
+						<h2>{m.param_share_title()}</h2>
+						<p>{m.param_share_sub()}</p>
 					</div>
 				</div>
 
@@ -762,7 +769,7 @@
 							<input
 								type="text"
 								bind:value={searchQuery}
-								placeholder="Rechercher un profil à autoriser..."
+								placeholder={m.param_search_profile()}
 								class="settings-input selector-input"
 								disabled={isAddingPermission || isLoadingAvailableUsers}
 								onfocus={() => {
@@ -778,7 +785,7 @@
 							{#if showUserDropdown && availableUsers.length > 0}
 								<div class="user-dropdown">
 									{#if isLoadingAvailableUsers}
-										<div class="dropdown-loading"><Spinner size={16} /> Chargement...</div>
+										<div class="dropdown-loading"><Spinner size={16} /> {m.common_loading()}</div>
 									{:else}
 										{#each availableUsers.filter((u) => {
 											const query = searchQuery.toLowerCase();
@@ -824,13 +831,13 @@
 							disabled={isAddingPermission || !newAuthUserId.trim()}
 						>
 							{#if isAddingPermission}<Spinner size={16} />{/if}
-							<span>Autoriser</span>
+							<span>{m.param_authorize()}</span>
 						</button>
 					</div>
 
 					<div class="permissions-container">
 						{#if isLoadingPermissions}
-							<div class="loading-state"><Spinner size={20} /> Chargement...</div>
+							<div class="loading-state"><Spinner size={20} /> {m.common_loading()}</div>
 						{:else if photoPermissions.length > 0}
 							<div class="permissions-grid">
 								{#each photoPermissions as perm}
@@ -845,7 +852,7 @@
 										<button
 											class="chip-remove"
 											onclick={() => revokePhotoPermission(perm.authorized_id)}
-											title="Révoquer l'accès"
+											title={m.param_revoke_access()}
 										>
 											<X size={14} />
 										</button>
@@ -854,7 +861,7 @@
 							</div>
 						{:else}
 							<div class="empty-state">
-								<p>Aucune autorisation active. Vos photos sont privées.</p>
+								<p>{m.param_no_auth()}</p>
 							</div>
 						{/if}
 					</div>
@@ -868,8 +875,8 @@
 					<Users size={24} />
 				</div>
 				<div>
-					<h2>Profils partagés avec moi</h2>
-					<p>Accédez aux photos des amis qui vous ont autorisé</p>
+					<h2>{m.param_shared_title()}</h2>
+					<p>{m.param_shared_sub()}</p>
 				</div>
 			</div>
 
@@ -886,7 +893,9 @@
 								<div class="shared-info">
 									<span class="shared-name">{shared.owner_name}</span>
 									<span class="shared-date"
-										>Depuis le {new Date(shared.created_at).toLocaleDateString()}</span
+										>{m.param_since_date({
+											date: new Date(shared.created_at).toLocaleDateString(getLocale())
+										})}</span
 									>
 								</div>
 								<ChevronRight size={16} class="text-gray-400" />
@@ -895,7 +904,7 @@
 					</div>
 				{:else}
 					<div class="empty-state">
-						<p>Personne ne vous a encore partagé l'accès à ses photos.</p>
+						<p>{m.param_no_shared()}</p>
 					</div>
 				{/if}
 			</div>
@@ -907,8 +916,8 @@
 					<AlertTriangle size={24} />
 				</div>
 				<div>
-					<h2>Zone de Danger</h2>
-					<p>Actions irréversibles sur votre compte</p>
+					<h2>{m.param_danger_title()}</h2>
+					<p>{m.param_danger_sub()}</p>
 				</div>
 			</div>
 
@@ -916,8 +925,8 @@
 				{#if currentUserHasFace}
 					<div class="danger-row">
 						<div class="danger-info">
-							<strong>Dissocier mon visage</strong>
-							<p>Supprime votre empreinte biométrique. Vous perdrez l'accès à "Mes photos".</p>
+							<strong>{m.param_unlink_face()}</strong>
+							<p>{m.param_unlink_face_desc()}</p>
 						</div>
 						<button
 							onclick={() => {
@@ -925,7 +934,7 @@
 							}}
 							class="btn-outline-danger"
 						>
-							Dissocier
+							{m.param_unlink()}
 						</button>
 					</div>
 					<div class="separator"></div>
@@ -933,10 +942,10 @@
 
 				<div class="danger-row">
 					<div class="danger-info">
-						<strong>Supprimer mon compte</strong>
-						<p>Supprime définitivement vos données, préférences et accès.</p>
+						<strong>{m.param_delete_account()}</strong>
+						<p>{m.param_delete_account_desc()}</p>
 					</div>
-					<button onclick={openDeleteAccountModal} class="btn-danger"> Supprimer </button>
+					<button onclick={openDeleteAccountModal} class="btn-danger"> {m.common_delete()} </button>
 				</div>
 			</div>
 		</section>
@@ -944,21 +953,21 @@
 		<footer class="settings-footer">
 			<div class="footer-links">
 				<a href="https://mitv.fr" target="_blank">MiTV</a> •
-				<a href="/cgu">CGU</a> •
+				<a href="/cgu">{m.param_terms()}</a> •
 				<a href="mailto:bureau@mitv.fr">Contact</a>
 			</div>
-			<p class="copyright">2025 MiTV - Développé par Jolan BOUDIN & Gabriel DUPONT</p>
+			<p class="copyright">{m.param_copyright()}</p>
 		</footer>
 	</div>
 </main>
 
 <Modal
 	bind:show={showDeleteAccountModal}
-	title="Supprimer votre compte"
+	title={m.param_delete_account_title()}
 	type="warning"
 	icon="alert-triangle"
-	confirmText={isDeletingAccount ? 'Suppression...' : 'Supprimer définitivement'}
-	cancelText="Annuler"
+	confirmText={isDeletingAccount ? m.param_deleting() : m.param_delete_permanent()}
+	cancelText={m.common_cancel()}
 	confirmDisabled={deleteConfirmText !== 'CONFIRMATION' || isDeletingAccount}
 	onConfirm={deleteMyAccount}
 	onCancel={() => {
@@ -968,12 +977,14 @@
 >
 	{#snippet children()}
 		<div class="modal-content">
-			<p class="text-danger font-bold mb-4">Cette action est irréversible !</p>
-			<p class="mb-4">Tapez <strong>CONFIRMATION</strong> pour valider :</p>
+			<p class="text-danger font-bold mb-4">{m.param_delete_irreversible()}</p>
+			<p class="mb-4">
+				{m.param_type_confirm_prefix()} <strong>CONFIRMATION</strong> {m.param_type_confirm_suffix()}
+			</p>
 			<input
 				type="text"
 				bind:value={deleteConfirmText}
-				placeholder="Tapez CONFIRMATION"
+				placeholder={m.param_type_confirm_placeholder()}
 				class="settings-input w-full"
 				disabled={isDeletingAccount}
 			/>
@@ -983,11 +994,11 @@
 
 <Modal
 	bind:show={showUnlinkFaceModal}
-	title="Dissocier mon visage"
+	title={m.param_unlink_face()}
 	type="warning"
 	icon="user-x"
-	confirmText={isUnlinkingFace ? 'Dissociation...' : 'Dissocier'}
-	cancelText="Annuler"
+	confirmText={isUnlinkingFace ? m.param_unlinking() : m.param_unlink()}
+	cancelText={m.common_cancel()}
 	confirmDisabled={isUnlinkingFace}
 	onConfirm={unlinkMyFace}
 	onCancel={() => {
@@ -995,22 +1006,22 @@
 	}}
 >
 	{#snippet children()}
-		<p>Vous perdrez l'accès à la page "Mes photos". Votre compte restera actif.</p>
+		<p>{m.param_unlink_confirm()}</p>
 	{/snippet}
 </Modal>
 
 <Modal
 	bind:show={showFaceAlreadyAssignedModal}
-	title="Visage déjà associé"
+	title={m.param_face_taken_title()}
 	type="warning"
 	icon="alert-circle"
-	confirmText="J'ai compris"
+	confirmText={m.param_confirm_understood()}
 	onConfirm={() => {
 		showFaceAlreadyAssignedModal = false;
 	}}
 >
 	{#snippet children()}
-		<p>Ce visage est déjà assigné à un autre compte. Contactez le bureau MiTV si c'est une erreur.</p>
+		<p>{m.param_face_taken_body()}</p>
 	{/snippet}
 </Modal>
 
