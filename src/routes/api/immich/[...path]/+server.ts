@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import NodeFormData from 'form-data';
 
@@ -266,34 +267,19 @@ async function handleChunkedUpload(
 		const chunkSha = request.headers.get('x-chunk-sha256');
 		const hasher = chunkSha ? crypto.createHash('sha256') : null;
 
-		// Use an async generator to tap into the stream for hashing without buffering
-		const streamProcessor = async function* (source: ReadableStream<Uint8Array>) {
-			// Convert Web Stream to Async Iterator
-			const reader = source.getReader();
-			try {
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) {
-						break;
-					}
-					if (hasher && value) {
-						hasher.update(value);
-					}
-					yield value;
-				}
-			} finally {
-				reader.releaseLock();
-			}
-		};
-
 		const writeStream = fs.createWriteStream(tempFilePath, {
 			flags: chunkIndex === 0 ? 'w' : 'a'
 		});
 
-		// Pipeline: RequestBody -> Hashing iterator -> File Write Stream
-		// We use Readable.fromWeb to convert the Web ReadableStream to a Node Readable for pipeline compatibility if needed,
-		// but pipeline handles async iterables locally.
-		await pipeline(streamProcessor(request.body), writeStream);
+		// Pipeline: RequestBody -> Node Readable -> File Write Stream
+		// Readable.fromWeb keeps the request body streaming without building a manual async iterator.
+		const requestStream = Readable.fromWeb(request.body as any);
+		if (hasher) {
+			requestStream.on('data', (chunk: Buffer) => {
+				hasher.update(chunk);
+			});
+		}
+		await pipeline(requestStream, writeStream);
 		logUploadDiagnostic('chunk written to disk', {
 			fileId,
 			chunkIndex,
@@ -338,7 +324,7 @@ async function handleChunkedUpload(
 			fileId,
 			totalChunks,
 			completePath,
-			sizeBytes: fs.statSync(completePath).size
+			sizeBytes: fs.statSync(tempFilePath).size
 		});
 
 		let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
@@ -364,18 +350,20 @@ async function handleChunkedUpload(
 		});
 		const sha256 = hash.digest('hex');
 
+		let finalFilePath = tempFilePath;
 		try {
 			if (fs.existsSync(completePath)) {
 				fs.unlinkSync(completePath);
 			}
 			fs.renameSync(tempFilePath, completePath);
+			finalFilePath = completePath;
 		} catch (e) {
 			console.warn('Failed to rename temp file to complete:', e);
 		}
 
 		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 		const formData: any = new NodeFormData();
-		const stats = fs.statSync(completePath);
+		const stats = fs.statSync(finalFilePath);
 
 		const fileCreatedAt = request.headers.get('x-immich-created-at');
 		const fileModifiedAt = request.headers.get('x-immich-modified-at');
@@ -391,7 +379,7 @@ async function handleChunkedUpload(
 			formData.append('isFavorite', isFavorite);
 		}
 
-		formData.append('assetData', fs.createReadStream(completePath), {
+		formData.append('assetData', fs.createReadStream(finalFilePath), {
 			filename: originalName,
 			knownLength: stats.size
 		});
@@ -536,8 +524,8 @@ async function handleChunkedUpload(
 
 							// Cleanup after successful upload and logging
 							try {
-								if (fs.existsSync(completePath)) {
-									fs.unlinkSync(completePath);
+								if (fs.existsSync(finalFilePath)) {
+									fs.unlinkSync(finalFilePath);
 								}
 								if (fs.existsSync(tempFilePath)) {
 									fs.unlinkSync(tempFilePath);
@@ -587,8 +575,8 @@ async function handleChunkedUpload(
 
 			// Cleanup
 			try {
-				if (fs.existsSync(completePath)) {
-					fs.unlinkSync(completePath);
+				if (fs.existsSync(finalFilePath)) {
+					fs.unlinkSync(finalFilePath);
 				}
 				if (fs.existsSync(tempFilePath)) {
 					fs.unlinkSync(tempFilePath);
@@ -915,7 +903,14 @@ const handle: RequestHandler = async function (event) {
 			}
 		}
 
-		if (request.method === 'GET' && res.ok && resContentType.includes('application/json')) {
+		const isLargeSearchResponse = pathParam.startsWith('search/metadata');
+		const shouldCacheJson =
+			res.ok &&
+			resContentType.includes('application/json') &&
+			!isLargeSearchResponse &&
+			textBody.length <= 250_000;
+
+		if (request.method === 'GET' && shouldCacheJson) {
 			try {
 				const jsonData: unknown = JSON.parse(textBody);
 				const etag = res.headers.get('etag') || undefined;
