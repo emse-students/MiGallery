@@ -6,7 +6,9 @@
     { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
     { href: '/admin/logs', label: 'Logs', icon: '📜' },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
-    { href: '/admin/database', label: 'Base de données', icon: '🗄️' }
+    { href: '/admin/database', label: 'Base de données', icon: '🗄️' },
+    { href: '/trombinoscope', label: 'Trombinoscope', icon: '👥' },
+    { href: '/corbeille', label: 'Corbeille', icon: '🗑️' }
   ];
     let { children } = $props();
 </script>

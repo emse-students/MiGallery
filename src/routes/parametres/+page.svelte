@@ -16,7 +16,9 @@
 		X,
 		Users,
 		ChevronRight,
-		AlertTriangle
+		AlertTriangle,
+		Languages,
+		Shield
 	} from 'lucide-svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -31,7 +33,7 @@
 	import { toast } from '$lib/toast';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import { m } from '$lib/paraglide/messages';
-	import { getLocale } from '$lib/paraglide/runtime';
+	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
 
 	const photosState = new PhotosState();
 	let showChangePhotoModal = $state(false);
@@ -651,6 +653,24 @@
 						{/if}
 					</button>
 				</div>
+
+				<div class="preference-row">
+					<div class="pref-info">
+						<span class="pref-title">{m.param_language()}</span>
+						<span class="pref-desc">{m.param_language_desc()}</span>
+					</div>
+					<label class="lang-select">
+						<Languages size={18} />
+						<select
+							value={getLocale()}
+							onchange={(e) => setLocale((e.currentTarget as HTMLSelectElement).value as Locale)}
+							aria-label={m.param_language()}
+						>
+							<option value="fr">{m.lang_french()}</option>
+							<option value="en">{m.lang_english()}</option>
+						</select>
+					</label>
+				</div>
 			</div>
 		</section>
 
@@ -909,6 +929,30 @@
 				{/if}
 			</div>
 		</section>
+
+		{#if isAdmin}
+			<section class="settings-card glass-card">
+				<div class="card-header">
+					<div class="icon-wrapper indigo">
+						<Shield size={24} />
+					</div>
+					<div>
+						<h2>{m.param_admin_title()}</h2>
+						<p>{m.param_admin_sub()}</p>
+					</div>
+				</div>
+
+				<div class="card-body">
+					<a href="/admin" class="admin-link-row">
+						<div class="pref-info">
+							<span class="pref-title">{m.param_admin_open()}</span>
+							<span class="pref-desc">{m.param_admin_open_desc()}</span>
+						</div>
+						<ChevronRight size={20} />
+					</a>
+				</div>
+			</section>
+		{/if}
 
 		<section class="settings-card danger-zone">
 			<div class="card-header">
@@ -1176,6 +1220,48 @@
 	}
 	.theme-toggle-btn:hover {
 		border-color: var(--st-accent);
+		color: var(--st-accent);
+	}
+
+	.lang-select {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.4rem 0.75rem;
+		background: var(--st-bg);
+		border: 1px solid var(--st-border);
+		border-radius: 99px;
+		color: var(--st-text);
+	}
+	.lang-select select {
+		background: transparent;
+		border: none;
+		outline: none;
+		color: var(--st-text);
+		font-weight: 500;
+		font-family: inherit;
+		cursor: pointer;
+		padding-right: 0.25rem;
+	}
+
+	.preference-row + .preference-row {
+		margin-top: 1.25rem;
+		padding-top: 1.25rem;
+		border-top: 1px solid var(--st-border);
+	}
+
+	.admin-link-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1rem;
+		text-decoration: none;
+		color: var(--st-text);
+	}
+	.admin-link-row:hover {
+		color: var(--st-accent);
+	}
+	.admin-link-row:hover .pref-title {
 		color: var(--st-accent);
 	}
 

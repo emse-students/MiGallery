@@ -9,8 +9,8 @@ export const load: PageServerLoad = async ({ parent }) => {
 		throw redirect(303, '/');
 	}
 
-	const canManagePhotos = user.role === 'admin' || user.role === 'mitviste';
-	if (!canManagePhotos) {
+	// Trash is admin-only: mitviste no longer has access (moved under /admin).
+	if (user.role !== 'admin') {
 		throw redirect(303, '/');
 	}
 
