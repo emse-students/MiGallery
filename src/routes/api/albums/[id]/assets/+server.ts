@@ -24,6 +24,24 @@ export const PUT: RequestHandler = async (event) => {
 		if (!IMMICH_BASE_URL) {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
+
+		// A re-uploaded photo can be an Immich duplicate that currently sits in the
+		// trash; adding it to an album would then never make it visible. Restore the
+		// ids from trash first (no-op for assets that are not trashed).
+		const ids = (body as { ids?: unknown })?.ids;
+		if (Array.isArray(ids) && ids.length > 0) {
+			try {
+				await fetch(`${IMMICH_BASE_URL}/api/trash/restore/assets`, {
+					method: 'POST',
+					headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
+					body: JSON.stringify({ ids })
+				});
+			} catch (restoreErr) {
+				// Non-fatal: still try to add even if the restore call fails.
+				console.warn('[album-assets] trash restore failed (continuing):', restoreErr);
+			}
+		}
+
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
 			method: 'PUT',
 			headers: {
