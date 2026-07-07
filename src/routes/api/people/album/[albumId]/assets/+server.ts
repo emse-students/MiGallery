@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import type { ImmichAlbum } from '$lib/types/api';
 import { env } from '$env/dynamic/private';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -24,8 +24,8 @@ export const GET: RequestHandler = async (event) => {
 	if (!res.ok) {
 		throw error(500, `Failed to fetch album: ${res.statusText}`);
 	}
-	const data = (await res.json()) as ImmichAlbum;
-	return json({ assets: data.assets || [] });
+	const assets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, albumId);
+	return json({ assets });
 };
 
 export const PUT: RequestHandler = async (event) => {

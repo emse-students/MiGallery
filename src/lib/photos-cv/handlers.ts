@@ -6,6 +6,7 @@ import {
 	getOrCreateSystemAlbum,
 	getAssetIdsInSystemAlbum
 } from '$lib/immich/system-albums';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { immichCache } from '$lib/server/immich-cache';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -70,14 +71,12 @@ export async function getPersonAssets(
 
 export async function getAlbumAssets(fetchFn: typeof fetch): Promise<ImmichAsset[]> {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
-	const albumRes = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
-		headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
-	});
-	if (!albumRes.ok) {
-		throw error(500, `Failed to fetch album: ${albumRes.statusText}`);
-	}
-	const albumData = (await albumRes.json()) as ImmichAlbum;
-	return albumData.assets || [];
+	return (await fetchAlbumAssets(
+		fetchFn,
+		IMMICH_BASE_URL,
+		IMMICH_API_KEY,
+		albumId
+	)) as ImmichAsset[];
 }
 
 export async function getAlbumInfo(fetchFn: typeof fetch): Promise<{
@@ -99,7 +98,7 @@ export async function getAlbumInfo(fetchFn: typeof fetch): Promise<{
 	return {
 		id: albumData.id,
 		name: albumData.albumName || 'Photos CV',
-		assetCount: albumData.assetCount || albumData.assets?.length || 0
+		assetCount: albumData.assetCount || 0
 	};
 }
 
