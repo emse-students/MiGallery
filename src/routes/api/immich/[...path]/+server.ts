@@ -869,6 +869,31 @@ const handle: RequestHandler = async function (event) {
 			return new Response(res.body, { status: res.status, headers });
 		}
 
+		// Réponses de recherche (search/*) : potentiellement volumineuses (métadonnées
+		// v3), jamais mises en cache, et dont on n'inspecte pas le corps ici. On les
+		// streame directement au lieu de matérialiser tout le JSON via res.text(), ce
+		// qui évite un pic natif `external` proportionnel à la taille de la réponse.
+		if (res.ok && pathParam.startsWith('search/') && resContentType.includes('application/json')) {
+			const headers = new Headers();
+			headers.set('content-type', resContentType);
+			headers.set('x-cache', 'MISS');
+			const safeForward = [
+				'etag',
+				'cache-control',
+				'expires',
+				'x-immich-cid',
+				'content-length',
+				'last-modified'
+			];
+			for (const h of safeForward) {
+				const v = res.headers.get(h);
+				if (v) {
+					headers.set(h, v);
+				}
+			}
+			return new Response(res.body, { status: res.status, headers });
+		}
+
 		const textBody = await res.text();
 		const headers = new Headers();
 

@@ -27,7 +27,10 @@ async function fetchAllPersonAssets(
 				'x-api-key': IMMICH_API_KEY,
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 1000 })
+			// Pages plus petites (500 au lieu de 1000) : réduit le pic mémoire natif
+			// par réponse. Le plafond de pages est relevé en conséquence ci-dessous
+			// pour ne pas tronquer les personnes très photographiées.
+			body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 500 })
 		});
 
 		if (!res.ok) {
@@ -48,7 +51,7 @@ async function fetchAllPersonAssets(
 		allAssets.push(...items);
 		hasNext = data.assets?.nextPage !== null && data.assets?.nextPage !== undefined;
 		page++;
-		if (page > 10) {
+		if (page > 20) {
 			break;
 		}
 	}

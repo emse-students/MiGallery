@@ -30,5 +30,9 @@ services:
    COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET requis}
    BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-20G}
    ENABLE_DEV_ROUTES: 'false'
+   # Limite la fragmentation d'arènes glibc pour les allocations natives de
+   # libvips (Sharp) : la mémoire native libérée est bien mieux rendue à l'OS,
+   # ce qui évite que la RSS stagne à plusieurs Go après des rafales de vignettes.
+   MALLOC_ARENA_MAX: '2'
   volumes:
    - ./data:/app/data

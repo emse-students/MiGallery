@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import fs from 'node:fs';
 import path from 'node:path';
-import sharp from 'sharp';
+import sharp from '$lib/server/sharp-config';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
 
@@ -21,7 +21,7 @@ try {
 // Sémaphore pour limiter les traitements Sharp simultanés et éviter les crashs mémoire
 // quand de nombreux albums sont chargés en même temps.
 const MAX_CONCURRENT_SHARP = 4;
-const MAX_QUEUE_SIZE = 30;
+const MAX_QUEUE_SIZE = 12;
 let runningSharp = 0;
 const sharpQueue: Array<() => void> = [];
 
@@ -91,28 +91,45 @@ export const GET: RequestHandler = async (event) => {
 		throw error(500, 'Immich config missing');
 	}
 
-	try {
-		const immichUrl = `${baseUrl}/api/assets/${assetId}/original`;
-		const res = await fetch(immichUrl, { headers: { 'x-api-key': apiKey } });
-
-		if (!res.ok || !res.headers.get('content-type')?.startsWith('image/')) {
-			// Fallback sur miniature si l'original n'est pas une image ou est introuvable
-			const thumbUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
-			const thumbRes = await fetch(thumbUrl, { headers: { 'x-api-key': apiKey } });
-
-			if (!thumbRes.ok) {
-				throw error(thumbRes.status, 'Image source not found');
+	// On acquiert le verrou AVANT tout téléchargement : sinon N requêtes
+	// simultanées matérialisent N buffers en RAM native, hors de tout contrôle
+	// (le sémaphore ne bornerait que le traitement Sharp). En bornant aussi le
+	// fetch, au plus MAX_CONCURRENT_SHARP images sont résidentes à la fois.
+	const release = await acquireSharp();
+	if (!release) {
+		// File d'attente pleine : on redirige vers la miniature Immich proxifiée
+		// plutôt que de charger une image en RAM et risquer un OOM sous rafale.
+		console.warn('[Cover] Sharp queue full, redirecting to proxied thumbnail');
+		return new Response(null, {
+			status: 307,
+			headers: {
+				Location: `/api/immich/assets/${assetId}/thumbnail?size=preview`,
+				'Cache-Control': 'no-store'
 			}
+		});
+	}
 
-			const thumbBuf = Buffer.from(await thumbRes.arrayBuffer());
-			return await processAndCacheImage(thumbBuf, cacheFile);
+	try {
+		// Source = miniature "preview" (≈ quelques centaines de Ko) et non
+		// l'original pleine résolution (JPEG 5-30 Mo, RAW 50 Mo+) : on ne
+		// matérialise jamais un gros buffer natif pour produire une vignette 400×400.
+		const thumbUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
+		const thumbRes = await fetch(thumbUrl, { headers: { 'x-api-key': apiKey } });
+		if (!thumbRes.ok) {
+			throw error(thumbRes.status, 'Image source not found');
 		}
 
-		const buf = Buffer.from(await res.arrayBuffer());
+		const buf = Buffer.from(await thumbRes.arrayBuffer());
 		return await processAndCacheImage(buf, cacheFile);
 	} catch (e) {
+		// Préserve les erreurs HTTP typées (404, etc.) au lieu de les masquer en 500.
+		if (e && typeof e === 'object' && 'status' in e) {
+			throw e;
+		}
 		console.error('Error processing cover:', e);
 		throw error(500, 'Internal Server Error');
+	} finally {
+		release();
 	}
 };
 
@@ -147,19 +164,11 @@ export const PUT: RequestHandler = async (event) => {
 };
 
 /**
- * Utilitaire de traitement d'image avec Sharp (protégé par sémaphore)
+ * Utilitaire de traitement d'image avec Sharp.
+ * Le sémaphore Sharp est acquis/relâché par l'appelant (voir GET), qui l'obtient
+ * AVANT le téléchargement afin de borner aussi la mémoire des fetch en cours.
  */
 async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<Response> {
-	const release = await acquireSharp();
-	if (!release) {
-		// Trop de traitements en attente : renvoyer l'image brute plutôt que de crasher
-		console.warn('[Cover] Sharp queue full, returning raw image');
-		return new Response(new Uint8Array(buffer), {
-			status: 200,
-			headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'no-store' }
-		});
-	}
-
 	try {
 		const processed = await sharp(buffer)
 			.resize(400, 400, { fit: 'cover', position: 'center' })
@@ -183,7 +192,5 @@ async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<
 		console.error('Sharp processing failed', e);
 		// Retourne l'image brute en cas d'échec de Sharp
 		return new Response(new Uint8Array(buffer), { headers: { 'Content-Type': 'image/jpeg' } });
-	} finally {
-		release();
 	}
 }

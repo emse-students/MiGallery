@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import fs from 'node:fs';
 import path from 'node:path';
-import sharp from 'sharp';
+import sharp from '$lib/server/sharp-config';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import type { ImmichAlbum } from '$lib/types/api';
