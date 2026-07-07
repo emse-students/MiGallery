@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings } from 'lucide-svelte';
+	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings, Shield } from 'lucide-svelte';
 	import type { User } from '$lib/types/api';
 	import { m } from '$lib/paraglide/messages';
 
@@ -97,6 +97,13 @@
 			<Settings size={24} />
 			<span class="nav-label">{m.nav_settings()}</span>
 		</a>
+
+		{#if isAdmin}
+			<a href="/admin" class="nav-item" class:active={isActive('/admin')} data-sveltekit-preload-data>
+				<Shield size={24} />
+				<span class="nav-label">{m.nav_admin()}</span>
+			</a>
+		{/if}
 	</nav>
 {/if}
 

@@ -30,14 +30,21 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 		return new Response(`User ${username} not found in database.`, { status: 404 });
 	}
 
-	const signed = signId(String(user.id_user));
-	cookies.set('current_user_id', signed, {
+	const cookieOpts = {
 		httpOnly: true,
 		secure: String(process.env.NODE_ENV) === 'production',
-		sameSite: 'lax',
+		sameSite: 'lax' as const,
 		path: '/',
 		maxAge: 60 * 60 * 24 * 30 // 30 days
-	});
+	};
+
+	// Remember the original admin so they can return to their account (see
+	// /admin/stop-impersonating). ensureAdmin already guaranteed the caller is
+	// admin here, so this cookie can only be set by an admin.
+	cookies.set('impersonator_admin_id', signId(String(admin.id_user)), cookieOpts);
+
+	const signed = signId(String(user.id_user));
+	cookies.set('current_user_id', signed, cookieOpts);
 
 	// Redirect to home where the layout will pick up the new cookie
 	throw redirect(303, '/');

@@ -86,7 +86,11 @@ scripts/                # Scripts Node.js : init-db, backup, cleanup-chunks, tes
 3. `hooks.server.ts` valide la session à chaque requête
 4. `requireScope(event, 'read'|'write')` protège les endpoints API
 
-Rôles : `admin` · `mitviste` (admin-like) · `user` (défaut)
+Rôles : `admin` · `mitviste` · `user` (défaut)
+
+- `admin` : seul rôle avec accès à `/admin` et à l'API admin (`ensureAdmin`).
+- `mitviste` : rôle galerie élevé (gestion des photos : photos-cv, corbeille…) mais **aucun accès admin**.
+- `user` : accès de base.
 
 ### Proxy Immich
 

@@ -7,6 +7,10 @@ export const POST: RequestHandler = ({ cookies }) => {
 
 	try {
 		clearSessionCookie(cookies);
+		// Also clear impersonation cookies: an orphaned `current_user_id` (set by
+		// /admin/login-as) otherwise survives logout and locks admin access for ~30 days.
+		cookies.delete('current_user_id', { path: '/' });
+		cookies.delete('impersonator_admin_id', { path: '/' });
 		console.debug('[LOGOUT] ✓ Session cleared, redirecting to home');
 
 		throw redirect(302, '/');

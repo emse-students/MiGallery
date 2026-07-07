@@ -5,7 +5,16 @@
 	import { navigationModalStore } from '$lib/navigation-store';
 	import { theme } from '$lib/theme';
 	import type { User } from '$lib/types/api';
-	import { Folder, User as UserIcon, Camera, Users, Trash2, Settings, LogIn } from 'lucide-svelte';
+	import {
+		Folder,
+		User as UserIcon,
+		Camera,
+		Users,
+		Trash2,
+		Settings,
+		Shield,
+		LogIn
+	} from 'lucide-svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
@@ -140,6 +149,12 @@
 					<Settings size={18} />
 					<span class="link-text">{m.nav_settings()}</span>
 				</a>
+				{#if isAdmin}
+					<a href="/admin">
+						<Shield size={18} />
+						<span class="link-text">{m.nav_admin()}</span>
+					</a>
+				{/if}
 			</div>
 		{/if}
 	</div>
