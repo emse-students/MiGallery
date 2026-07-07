@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import type { ImmichAlbum } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -81,14 +82,7 @@ export async function getAllAssetIdsInSystemAlbums(fetchFn: typeof fetch): Promi
 	const allAssetIds = new Set<string>();
 	for (const aid of albumIds) {
 		try {
-			const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${aid}`, {
-				headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
-			});
-			if (!res.ok) {
-				continue;
-			}
-			const album = (await res.json()) as ImmichAlbum;
-			const assets = album.assets || [];
+			const assets = await fetchAlbumAssets(fetchFn, IMMICH_BASE_URL, IMMICH_API_KEY, aid);
 			for (const a of assets) {
 				allAssetIds.add(a.id);
 			}
@@ -114,8 +108,8 @@ export async function getAssetIdsInSystemAlbum(
 		if (!res.ok) {
 			return [];
 		}
-		const album = (await res.json()) as ImmichAlbum;
-		return (album.assets || []).map((a) => a.id);
+		const assets = await fetchAlbumAssets(fetchFn, IMMICH_BASE_URL, IMMICH_API_KEY, albumId);
+		return assets.map((a) => a.id);
 	} catch (_e) {
 		void _e;
 		return [];

@@ -1,9 +1,9 @@
 import { error, json } from '@sveltejs/kit';
-import type { ImmichAlbum } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
+import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -106,15 +106,7 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	const albumId = await getOrCreateSystemAlbum(fetch, 'PortailEtu');
-	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
-		headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
-	});
-	if (!res.ok) {
-		const txt = await res.text().catch(() => res.statusText);
-		throw error(res.status, `Failed to fetch album assets: ${txt}`);
-	}
-	const album = (await res.json()) as ImmichAlbum;
-	const assets = album.assets || [];
+	const assets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, albumId);
 	return json({ success: true, assets });
 };
 

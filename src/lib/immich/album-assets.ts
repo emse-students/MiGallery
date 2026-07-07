@@ -47,7 +47,7 @@ export async function fetchAlbumAssets(
 			'x-api-key': apiKey,
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify({ albumIds: [albumId], type: 'IMAGE', page: 1, size: 1000 })
+		body: JSON.stringify({ albumIds: [albumId], page: 1, size: 1000 })
 	});
 
 	if (!searchRes.ok) {
