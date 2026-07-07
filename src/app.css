@@ -3,9 +3,12 @@
 @tailwind utilities;
 
 :root {
-	/* Single system font stack (no external font request: lighter, no render-blocking
-	   Google Fonts call, works offline on any device). */
-	--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	/* Typography. Web fonts are loaded in app.html (preconnect + display=swap) so
+	   the app looks the same on every device; the system stack is only a fallback
+	   while the font loads. Inter = body/UI, Space Grotesk = headings/brand. */
+	--font-sans:
+		'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-display: 'Space Grotesk', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 	--font-mono: ui-monospace, SFMono-Regular, 'Fira Code', 'Courier New', monospace;
 
 	/* Core colors - Dark theme (default) */
@@ -188,8 +191,10 @@
 	h4,
 	h5,
 	h6 {
+		font-family: var(--font-display);
 		font-weight: 600;
 		line-height: 1.2;
+		letter-spacing: -0.01em;
 		margin: 0 0 1rem;
 	}
 
@@ -269,8 +274,10 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		font-family: var(--font-display);
 		font-size: 1.125rem;
 		font-weight: 700;
+		letter-spacing: -0.01em;
 		color: var(--text-primary);
 	}
 
@@ -518,14 +525,15 @@
 		-moz-osx-font-smoothing: grayscale;
 	}
 
-	/* Ensure headings inherit the same system font */
+	/* Headings use the display font (set in the base layer); this component-layer
+	   rule would otherwise win and reset them, so keep it consistent. */
 	h1,
 	h2,
 	h3,
 	h4,
 	h5,
 	h6 {
-		font-family: inherit;
+		font-family: var(--font-display);
 	}
 
 	/* Keep monospace where explicitly requested (code blocks, ids, admin tables) */

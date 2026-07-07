@@ -8,6 +8,14 @@
 		/>
 		<meta name="view-transition" content="same-origin" />
 		<link rel="icon" type="image/png" href="/icon.png" />
+		<!-- Web fonts: Inter (body/UI) + Space Grotesk (headings). preconnect + display=swap
+		     so text stays visible while the font loads; only the used weights are fetched. -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+		/>
 		%sveltekit.head%
 	</head>
 	<body>
