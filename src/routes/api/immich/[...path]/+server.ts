@@ -31,6 +31,20 @@ function sanitizeHeaderValue(value: string | null | undefined): string | undefin
 	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
 }
 
+function formatMemoryUsage(): string {
+	const memory = process.memoryUsage();
+	const toMb = (value: number) => `${(value / 1024 / 1024).toFixed(1)}MB`;
+	return `rss=${toMb(memory.rss)} heapUsed=${toMb(memory.heapUsed)} heapTotal=${toMb(memory.heapTotal)} ext=${toMb(memory.external)} arrayBuffers=${toMb(memory.arrayBuffers)}`;
+}
+
+function logUploadDiagnostic(message: string, extra?: Record<string, unknown>): void {
+	if (extra) {
+		console.info(`[Immich-Proxy] ${message}`, extra, formatMemoryUsage());
+		return;
+	}
+	console.info(`[Immich-Proxy] ${message}`, formatMemoryUsage());
+}
+
 interface ImmichAlbumResponse {
 	id: string;
 	albumName?: string;
@@ -215,6 +229,14 @@ async function handleChunkedUpload(
 		});
 	}
 
+	logUploadDiagnostic('chunk upload received', {
+		fileId,
+		chunkIndex,
+		totalChunks,
+		method: request.method,
+		contentLength: request.headers.get('content-length')
+	});
+
 	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
 	if (!fs.existsSync(uploadDir)) {
 		fs.mkdirSync(uploadDir, { recursive: true });
@@ -272,6 +294,12 @@ async function handleChunkedUpload(
 		// We use Readable.fromWeb to convert the Web ReadableStream to a Node Readable for pipeline compatibility if needed,
 		// but pipeline handles async iterables locally.
 		await pipeline(streamProcessor(request.body), writeStream);
+		logUploadDiagnostic('chunk written to disk', {
+			fileId,
+			chunkIndex,
+			totalChunks,
+			tempFilePath
+		});
 
 		// verify per-chunk sha256
 		if (chunkSha && hasher) {
@@ -306,7 +334,12 @@ async function handleChunkedUpload(
 			});
 		}
 
-		console.debug(`[Immich-Proxy] Réassemblage terminé pour ${fileId}, envoi à Immich...`);
+		logUploadDiagnostic('chunked upload fully reassembled, sending to Immich', {
+			fileId,
+			totalChunks,
+			completePath,
+			sizeBytes: fs.statSync(completePath).size
+		});
 
 		let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
 		try {
@@ -392,6 +425,11 @@ async function handleChunkedUpload(
 				},
 				(err: Error | null, res: http.IncomingMessage) => {
 					if (err) {
+						console.error('[Immich-Proxy] formData.submit failed', {
+							fileId,
+							err,
+							memory: formatMemoryUsage()
+						});
 						reject(err);
 						return;
 					}
@@ -403,6 +441,13 @@ async function handleChunkedUpload(
 							res.on('end', () => controller.close());
 							res.on('error', (err) => controller.error(err));
 						}
+					});
+
+					console.info('[Immich-Proxy] Immich response headers received', {
+						fileId,
+						status: res.statusCode,
+						contentType: res.headers['content-type'],
+						memory: formatMemoryUsage()
 					});
 
 					const headers = new Headers();
@@ -426,7 +471,11 @@ async function handleChunkedUpload(
 
 			if (req) {
 				req.on('error', (err: Error) => {
-					console.error('[Immich-Proxy] Request error to Immich:', err);
+					console.error('[Immich-Proxy] Request error to Immich:', {
+						fileId,
+						err,
+						memory: formatMemoryUsage()
+					});
 					reject(err);
 				});
 			}
@@ -442,7 +491,12 @@ async function handleChunkedUpload(
 		// Since we wait for response, usually upload is done.
 
 		if (response.ok) {
-			console.debug(`[Immich-Proxy] Upload réussi pour ${originalName}`);
+			console.info('[Immich-Proxy] Upload réussi', {
+				fileId,
+				originalName,
+				status: response.status,
+				memory: formatMemoryUsage()
+			});
 
 			// We need to clone headers/status but stream body
 			// The logging logic at lines 405 reads the body to get AssetID.
@@ -473,6 +527,12 @@ async function handleChunkedUpload(
 							if (assetId) {
 								await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
 							}
+							console.info('[Immich-Proxy] Immich upload response parsed', {
+								fileId,
+								assetId,
+								responseBytes: text.length,
+								memory: formatMemoryUsage()
+							});
 
 							// Cleanup after successful upload and logging
 							try {
@@ -516,6 +576,14 @@ async function handleChunkedUpload(
 				`[Immich-Proxy] Upload échoué pour ${originalName}: ${response.status} ${response.statusText}`,
 				errorBody
 			);
+			console.error('[Immich-Proxy] Upload error diagnostics', {
+				fileId,
+				originalName,
+				status: response.status,
+				statusText: response.statusText,
+				errorBodyLength: errorBody.length,
+				memory: formatMemoryUsage()
+			});
 
 			// Cleanup
 			try {
@@ -536,7 +604,10 @@ async function handleChunkedUpload(
 		}
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error('[Immich-Proxy] Error processing chunk:', _err);
+		console.error('[Immich-Proxy] Error processing chunk:', {
+			error: _err,
+			memory: formatMemoryUsage()
+		});
 		try {
 			if (fs.existsSync(tempFilePath)) {
 				fs.unlinkSync(tempFilePath);
