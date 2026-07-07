@@ -1,10 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+	/* Single system font stack (no external font request: lighter, no render-blocking
+	   Google Fonts call, works offline on any device). */
+	--font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, 'Fira Code', 'Courier New', monospace;
+
 	/* Core colors - Dark theme (default) */
 	--bg-primary: #0d0d0d;
 	--bg-secondary: #171717;
@@ -14,7 +17,8 @@
 
 	--text-primary: #ffffff;
 	--text-secondary: #a3a3a3;
-	--text-muted: #737373;
+	/* Bumped from #737373 to reach WCAG AA (>=4.5:1) for small text on dark bg. */
+	--text-muted: #8a8a8a;
 
 	--accent: #3b82f6;
 	--accent-hover: #2563eb;
@@ -34,10 +38,15 @@
 	--mobile-nav-height: 72px;
 	--max-width: 1600px;
 	--container-padding: clamp(1rem, 3vw, 2rem);
+	/* Blur radius for the decorative background blobs. Big blurs (90-120px) over
+	   700px elements are very expensive on the GPU; the radial-gradient already
+	   softens the halo, so a small blur is enough. Lowered again on small screens. */
+	--blob-blur: 48px;
+	/* Coherent radius scale: xs < sm < md < base < lg. */
 	--radius-lg: 20px;
 	--radius: 16px;
 	--radius-md: 12px;
-	--radius-sm: 12px;
+	--radius-sm: 10px;
 	--radius-xs: 8px;
 
 	/* Shadows */
@@ -64,7 +73,8 @@
 
 	--text-primary: #111827;
 	--text-secondary: #6b7280;
-	--text-muted: #9ca3af;
+	/* Bumped from #9ca3af to reach WCAG AA for small text on light bg. */
+	--text-muted: #6e747d;
 
 	--accent: #3b82f6;
 	--accent-hover: #2563eb;
@@ -158,12 +168,7 @@
 	body {
 		height: 100%;
 		margin: 0;
-		font-family:
-			'Inter',
-			-apple-system,
-			BlinkMacSystemFont,
-			'Segoe UI',
-			sans-serif;
+		font-family: var(--font-sans);
 		background: var(--bg-primary);
 		color: var(--text-primary);
 		font-size: 15px;
@@ -428,7 +433,7 @@
 	.gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(90px);
+		filter: blur(var(--blob-blur));
 		opacity: 0.12;
 		pointer-events: none;
 	}
@@ -508,14 +513,7 @@
 	.trombi-main,
 	.page-main,
 	.settings-main {
-		font-family:
-			system-ui,
-			-apple-system,
-			'Segoe UI',
-			Roboto,
-			'Helvetica Neue',
-			Arial,
-			sans-serif;
+		font-family: var(--font-sans);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 	}
@@ -536,7 +534,7 @@
 	.mono,
 	.id-cell,
 	.t-count {
-		font-family: ui-monospace, SFMono-Regular, 'Fira Code', 'Courier New', monospace;
+		font-family: var(--font-mono);
 	}
 
 	.subtitle {
@@ -953,7 +951,7 @@
 	.home-main .gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(120px);
+		filter: blur(var(--blob-blur));
 		opacity: 0.15;
 		animation: float 25s ease-in-out infinite;
 	}
@@ -1339,7 +1337,7 @@
 	.settings-main .gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(110px);
+		filter: blur(var(--blob-blur));
 		opacity: 0.14;
 		animation: float 24s ease-in-out infinite;
 	}
@@ -1486,7 +1484,7 @@
 	.albums-main .gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(115px);
+		filter: blur(var(--blob-blur));
 		opacity: 0.13;
 	}
 
@@ -1696,7 +1694,7 @@
 		width: 600px;
 		height: 600px;
 		border-radius: 50%;
-		filter: blur(100px);
+		filter: blur(var(--blob-blur));
 		opacity: 0.15;
 		animation: float 22s ease-in-out infinite;
 	}
@@ -1853,4 +1851,38 @@
 :global(.lucide) {
 	min-width: 0.9em;
 	min-height: 0.9em;
+}
+
+/* =============================================
+   MOTION / PERFORMANCE GUARDS
+   Always-on animations (floating blurred blobs, view transitions) are costly on
+   low-end GPUs and drain battery. Honour reduced-motion, and stop the infinite
+   blob float on small / touch devices.
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+		scroll-behavior: auto !important;
+	}
+
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none !important;
+	}
+}
+
+@media (max-width: 768px) {
+	:root {
+		--blob-blur: 24px;
+	}
+
+	.gradient-blob,
+	.mesphotos-main .page-background::before,
+	.mesphotos-main .page-background::after {
+		animation: none !important;
+	}
 }
