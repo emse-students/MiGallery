@@ -1,7 +1,7 @@
 name: CD - Deploy to Production
 
 # Sur push main : execute la CI (barriere), construit/pousse l image GHCR, puis
-# deploie sur le runner self-hosted (mitv) et met a jour la stack Immich.
+# déploie sur le runner self-hosted (mitv). Immich est géré independamment.
 on:
  push:
   branches: [main]
@@ -63,7 +63,6 @@ jobs:
    packages: read
   env:
    DEPLOY_DIR: /home/mitv/MiGallery
-   IMMICH_DIR: /srv/dev-disk-by-uuid-ff73ed20-08b7-4b38-b53c-6de6a86bfd6a/immich-app
    COMPOSE: docker compose -f /home/mitv/MiGallery/docker-compose.prod.yml --project-directory /home/mitv/MiGallery
   steps:
    - name: Checkout
@@ -105,14 +104,6 @@ jobs:
 
    - name: Deploy
      run: $COMPOSE up -d --remove-orphans
-
-   - name: Update Immich
-     run: |
-      # Mise a jour d Immich en meme temps que MiGallery (sur demande). NB: cela
-      # redemarre Immich a chaque deploiement MiGallery ; on evite `down` pour
-      # limiter l indisponibilite. A reconsiderer (job hebdomadaire) si besoin.
-      docker compose -f "$IMMICH_DIR/docker-compose.yml" --project-directory "$IMMICH_DIR" pull
-      docker compose -f "$IMMICH_DIR/docker-compose.yml" --project-directory "$IMMICH_DIR" up -d
 
    - name: Health check
      run: |
