@@ -81,14 +81,6 @@ export const GET: RequestHandler = async (event) => {
 						return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
 					});
 
-					// TEMP diagnostic: pinpoint which set is empty for the "Mes photos CV"
-					// intersection (person assets vs PhotoCV album vs their intersection).
-					console.warn(
-						`[photos-cv-diag] person=${personId} inAlbum=${inAlbum} ` +
-							`personAssets=${allAssets.length} photoCVAssets=${photoCVAssetIds.size} ` +
-							`intersection=${filtered.length}`
-					);
-
 					for (const asset of filtered) {
 						const minimalData = {
 							id: asset.id,
