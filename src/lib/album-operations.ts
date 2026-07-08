@@ -59,6 +59,10 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 		const chunk = file.slice(start, end);
 
 		const headers: Record<string, string> = {
+			// Explicit Content-Type: a Blob from file.slice() has an empty type, so
+			// without this the request carries no Content-Type and adapter-node does
+			// not expose its body to the handler (chunk reads come back empty -> 502).
+			'Content-Type': 'application/octet-stream',
 			'x-chunk-index': String(chunkIndex),
 			'x-chunk-total': String(totalChunks),
 			'x-file-id': fileId,
