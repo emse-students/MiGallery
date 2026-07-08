@@ -1304,6 +1304,11 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 		});
 
 		console.warn(`[probe] simple.resp rss=${rssMB()} status=${response.status}`);
+		// TEST: Bun's GC is lazy; rapid uploads pile up the per-read native
+		// allocation before it runs. Force a synchronous collection and measure.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).Bun?.gc?.(true);
+		console.warn(`[probe] simple.gc rss=${rssMB()}`);
 		return await finishImmichUpload(event, response, 'simple-upload', () => {}, 'simple');
 	} catch (err: unknown) {
 		const _err = ensureError(err);
