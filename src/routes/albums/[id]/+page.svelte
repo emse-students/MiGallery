@@ -198,6 +198,7 @@
 		<!-- Selection mode -->
 		{#if canManagePhotos && photosState.assets.length > 0}
 			<button
+				type="button"
 				onclick={() => (photosState.selecting = !photosState.selecting)}
 				class="btn-glass {photosState.selecting ? 'active' : ''}"
 				title={photosState.selecting ? m.albumd_select_finish() : m.albumd_select()}
@@ -215,11 +216,11 @@
 
 		<!-- Admin actions -->
 		{#if canManagePhotos}
-			<button onclick={() => (showAlbumModal = true)} class="btn-glass edit" title={m.common_edit()}>
+			<button type="button" onclick={() => (showAlbumModal = true)} class="btn-glass edit" title={m.common_edit()}>
 				<Pencil size={18} />
 				{#if !mobile}<span class="label">{m.common_edit()}</span>{/if}
 			</button>
-			<button onclick={() => deleteAlbum()} class="btn-glass danger" title={m.common_delete()}>
+			<button type="button" onclick={() => deleteAlbum()} class="btn-glass danger" title={m.common_delete()}>
 				<Trash2 size={18} />
 			</button>
 		{/if}
@@ -228,12 +229,13 @@
 		{#if canManagePhotos}<div class="divider"></div>{/if}
 
 		<!-- Public actions -->
-		<button onclick={shareAlbum} class="btn-glass info" title={m.albumd_share()}>
+		<button type="button" onclick={shareAlbum} class="btn-glass info" title={m.albumd_share()}>
 			<Share2 size={18} />
 			{#if !mobile}<span class="label">{m.albumd_share()}</span>{/if}
 		</button>
 
 		<button
+			type="button"
 			onclick={downloadAll}
 			disabled={photosState.isDownloading || photosState.assets.length === 0}
 			class="btn-glass success"
@@ -262,7 +264,7 @@
 	<div class="page-container">
 		<!-- Back navigation -->
 		<nav class="top-nav" in:fade={{ duration: 200 }}>
-			<button class="back-btn" onclick={handleBackClick}>
+			<button type="button" class="back-btn" onclick={handleBackClick}>
 				<ArrowLeft size={20} />
 				<span>{m.albumd_back()}</span>
 			</button>

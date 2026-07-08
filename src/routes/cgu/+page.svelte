@@ -193,7 +193,7 @@
 		--cgu-card-bg: var(--bg-secondary, #ffffff);
 		--cgu-border: var(--border, #e5e7eb);
 		--cgu-accent: var(--accent, #3b82f6);
-		--cgu-accent-glow: rgba(59, 130, 246, 0.15);
+		--cgu-accent-glow: color-mix(in srgb, var(--accent) 15%, transparent);
 
 		position: relative;
 		min-height: 100vh;
@@ -202,14 +202,14 @@
 		overflow-x: hidden;
 	}
 
-	/* Support du Dark Mode via l'attribut data-theme */
+	/* Support for Dark Mode via the data-theme attribute */
 	:global([data-theme='dark']) .cgu-main {
 		--cgu-bg: var(--bg-primary, #0f172a);
 		--cgu-text: var(--text-primary, #f3f4f6);
 		--cgu-text-muted: var(--text-secondary, #9ca3af);
 		--cgu-card-bg: var(--bg-secondary, #1e293b);
 		--cgu-border: var(--border, #334155);
-		--cgu-accent-glow: rgba(59, 130, 246, 0.25);
+		--cgu-accent-glow: color-mix(in srgb, var(--accent) 25%, transparent);
 	}
 
 	/* --- LAYOUT --- */
@@ -230,7 +230,7 @@
 		font-size: 2.5rem;
 		font-weight: 800;
 		margin-bottom: 0.5rem;
-		background: linear-gradient(135deg, var(--cgu-accent), #8b5cf6);
+		background: linear-gradient(135deg, var(--cgu-accent), var(--edit));
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
 		background-clip: text;
@@ -281,7 +281,7 @@
 		padding: 2rem;
 		background: var(--cgu-card-bg);
 		border: 1px solid var(--cgu-border);
-		border-radius: 1rem;
+		border-radius: var(--radius);
 		scroll-margin-top: 2rem;
 	}
 
@@ -342,7 +342,7 @@
 
 	/* --- FOOTER SPECIFIC --- */
 	.footer-section {
-		background: var(--cgu-card-bg); /* S'assure qu'il suit le thème */
+		background: var(--cgu-card-bg); /* Ensures it follows the theme */
 		border: 1px solid var(--cgu-border);
 		margin-top: 4rem;
 	}

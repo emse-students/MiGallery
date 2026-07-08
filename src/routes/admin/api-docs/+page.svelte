@@ -14,7 +14,7 @@
     params?: Param[];
     exampleCurl?: string;
     noteAuth?: string;
-    exampleResponse?: string;  // Nouveau champ
+    exampleResponse?: string;  // New field
   }
   interface EndpointGroup {
     group: string;
@@ -430,7 +430,7 @@ requests.get(
     font-size: 2.5rem;
     font-weight: 700;
     margin: 0 0 0.5rem 0;
-    background: linear-gradient(90deg, var(--accent), #8b5cf6);
+    background: linear-gradient(90deg, var(--accent), var(--edit));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -454,7 +454,7 @@ requests.get(
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    background: linear-gradient(90deg, var(--accent), #8b5cf6);
+    background: linear-gradient(90deg, var(--accent), var(--edit));
     color: white;
     text-decoration: none;
     border-radius: var(--radius-xs);
@@ -514,12 +514,12 @@ requests.get(
 
   .card.highlight {
     border-color: var(--accent);
-    background: rgba(59, 130, 246, 0.03);
+    background: color-mix(in srgb, var(--accent) 3%, transparent);
   }
 
   .card.info {
-    background: rgba(59, 130, 246, 0.05);
-    border-color: rgba(59, 130, 246, 0.2);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   .card h2 {
@@ -576,13 +576,13 @@ requests.get(
   }
 
   .info-box {
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-left: 4px solid var(--accent);
   }
 
   .warning-box {
-    background: rgba(239, 68, 68, 0.1);
-    border-left: 4px solid #ef4444;
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    border-left: 4px solid var(--error);
   }
 
   .info-box strong, .warning-box strong {
@@ -614,7 +614,7 @@ requests.get(
   .pros {
     margin-top: 1rem;
     padding: 0.75rem;
-    background: rgba(34, 197, 94, 0.1);
+    background: color-mix(in srgb, var(--success) 10%, transparent);
     border-radius: 4px;
     color: var(--text-secondary);
     font-size: 0.875rem;
@@ -624,7 +624,7 @@ requests.get(
   .info-note {
     margin-top: 1rem;
     padding: 0.75rem;
-    background: rgba(59, 130, 246, 0.1);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
     border-radius: 4px;
     color: var(--text-secondary);
     font-size: 0.875rem;
@@ -666,28 +666,28 @@ requests.get(
   }
 
   .scope-badge.read {
-    background: rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent);
   }
 
   .scope-badge.write {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    color: var(--success);
   }
 
   .scope-badge.delete {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: color-mix(in srgb, var(--error) 20%, transparent);
+    color: var(--error);
   }
 
   .scope-badge.admin {
-    background: rgba(168, 85, 247, 0.2);
-    color: #a855f7;
+    background: color-mix(in srgb, var(--purple) 20%, transparent);
+    color: var(--purple);
   }
 
   .scope-badge.session {
     background: rgba(251, 191, 36, 0.2);
-    color: #f59e0b;
+    color: var(--warning);
   }
 
   .endpoint-group {
@@ -749,23 +749,23 @@ requests.get(
   }
 
   .method.get {
-    background: rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent);
   }
 
   .method.post {
-    background: rgba(34, 197, 94, 0.2);
-    color: #22c55e;
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    color: var(--success);
   }
 
   .method.patch, .method.put {
-    background: rgba(245, 158, 11, 0.2);
-    color: #f59e0b;
+    background: color-mix(in srgb, var(--warning) 20%, transparent);
+    color: var(--warning);
   }
 
   .method.delete {
-    background: rgba(239, 68, 68, 0.2);
-    color: #ef4444;
+    background: color-mix(in srgb, var(--error) 20%, transparent);
+    color: var(--error);
   }
 
   .path {
@@ -790,7 +790,7 @@ requests.get(
     font-size: 0.875rem;
     margin-bottom: 0.75rem;
     padding: 0.5rem 0.75rem;
-    background: rgba(59, 130, 246, 0.05);
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
     border-left: 2px solid var(--accent);
     border-radius: 4px;
   }
@@ -843,23 +843,23 @@ requests.get(
   }
 
   .example-details.response {
-    border-color: rgba(34, 197, 94, 0.3);
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
   }
 
   .example-details.response summary {
-    background: rgba(34, 197, 94, 0.05);
-    color: #22c55e;
+    background: color-mix(in srgb, var(--success) 5%, transparent);
+    color: var(--success);
   }
 
   .example-details.response summary:hover {
-    background: rgba(34, 197, 94, 0.1);
+    background: color-mix(in srgb, var(--success) 10%, transparent);
   }
 
   .auth-note {
     margin-top: 0.75rem;
     padding: 0.5rem 0.75rem;
-    background: rgba(168, 85, 247, 0.1);
-    border-left: 2px solid #a855f7;
+    background: color-mix(in srgb, var(--purple) 10%, transparent);
+    border-left: 2px solid var(--purple);
     border-radius: 4px;
     font-size: 0.875rem;
     color: var(--text-secondary);

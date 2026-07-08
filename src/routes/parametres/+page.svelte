@@ -145,7 +145,7 @@
 				personId = data.user.id_photos ?? null;
 			}
 		} catch {
-			/* Ignorer */
+			/* Ignore */
 		}
 	}
 
@@ -158,7 +158,7 @@
 				photoPermissions = data.permissions;
 			}
 		} catch {
-			/* Ignorer */
+			/* Ignore */
 		} finally {
 			isLoadingPermissions = false;
 		}
@@ -173,7 +173,7 @@
 				availableUsers = data.users;
 			}
 		} catch (e) {
-			console.warn('Erreur chargement utilisateurs disponibles:', e);
+			/* Ignore load error */
 		} finally {
 			isLoadingAvailableUsers = false;
 		}
@@ -188,10 +188,25 @@
 				sharedWithMe = data.shared_by;
 			}
 		} catch {
-			/* Ignorer */
+			/* Ignore */
 		} finally {
 			isLoadingSharedWithMe = false;
 		}
+	}
+
+	// Two-letter initials for a person avatar placeholder, robust to missing names.
+	function getInitials(
+		first: string | null,
+		last: string | null,
+		fallbackName?: string | null
+	): string {
+		const f = (first || '').trim();
+		const l = (last || '').trim();
+		if (f || l) return `${f[0] ?? ''}${l[0] ?? ''}`.toUpperCase() || '?';
+		const parts = (fallbackName || '').trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) return '?';
+		if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+		return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 	}
 
 	async function addPhotoPermission() {
@@ -273,31 +288,26 @@
 	) {
 		const userId = (page.data.session?.user as User)?.id_user;
 		if (!userId || !assetId) {
-			console.warn('⚠️  [Face Pairing] checkForPeople: userId ou assetId manquant', { userId, assetId });
 			return;
 		}
 		let shouldCleanup = shouldDeleteAfter && assetIdToDelete;
-		console.log('🔍 [Face Pairing] checkForPeople début:', { userId, assetId, shouldCleanup, isTimeoutCheck });
 
 		try {
 			uploadStatus = m.param_status_fetching();
 			const assetInfoResponse = await fetch(`/api/immich/assets/${assetId}`);
 			if (!assetInfoResponse.ok) {
 				const errMsg = `Asset fetch error: ${assetInfoResponse.statusText}`;
-				console.error('❌ [Face Pairing] Récupération asset échouée:', errMsg);
 				throw new Error(errMsg);
 			}
 			const assetInfoData = await assetInfoResponse.json();
 			const assetInfo = assetInfoData as { people?: Array<{ id: string }> };
 			const people = assetInfo.people || [];
-			console.log(`📊 [Face Pairing] Asset récupéré: ${people.length} personne(s) détectée(s)`);
 
 			uploadStatus = m.param_status_detected_count({ count: people.length });
 
 			if (people.length === 1) {
 				personId = people[0].id;
 				uploadStatus = m.param_status_saving();
-				console.log('👤 [Face Pairing] Enregistrement du visage:', personId);
 
 				const updateResponse = await fetch('/api/users/me/face', {
 					method: 'PATCH',
@@ -311,52 +321,45 @@
 				};
 
 				if (updateData.error === 'face_already_assigned') {
-					console.warn('⚠️  [Face Pairing] Visage déjà assigné à un autre compte');
 					uploadStatus = m.param_status_face_taken();
 					showFaceAlreadyAssignedModal = true;
 					if (shouldCleanup) {
 						try {
-							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (face already assigned):', assetIdToDelete);
 							await cleanupAsset(assetIdToDelete);
 						} catch (e) {
-							console.error('❌ [Face Pairing] Cleanup échoué (mais face assigné):', e);
+							/* Ignore cleanup error */
 						}
 					}
 					return;
 				}
 
 				if (updateData.success) {
-					console.log('🎉 [Face Pairing] Visage enregistré avec succès!');
 					uploadStatus = m.param_face_ok();
 					if (shouldCleanup) {
 						try {
-							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (succès):', assetIdToDelete);
 							await cleanupAsset(assetIdToDelete);
 						} catch (e) {
-							console.error('❌ [Face Pairing] Cleanup échoué (mais face assigné):', e);
+							/* Ignore cleanup error */
 						}
 					}
 					isProcessing = false;
-					// Augmenter le délai pour laisser le temps à la DB de se synchroniser
+					// Increase delay to give DB time to sync
 					await new Promise((resolve) => setTimeout(resolve, 1500));
-					console.log('🔄 [Face Pairing] Rechargement de la page...');
 					window.location.href = window.location.href;
 				} else {
-					console.error('❌ [Face Pairing] Erreur enregistrement:', updateData.error);
 					uploadStatus = m.param_db_update_error({
 						error: updateData.error || m.common_unknown_error()
 					});
 					if (shouldCleanup) {
 						try {
-							console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (erreur DB):', assetIdToDelete);
 							await cleanupAsset(assetIdToDelete);
 						} catch (e) {
-							console.error('❌ [Face Pairing] Cleanup échoué après erreur:', e);
+							/* Ignore cleanup error */
 						}
 					}
 				}
 			} else if (people.length === 0) {
-				// Différencier vrai "aucun visage" vs "timeout"
+				// Distinguish actual "no face" vs "timeout"
 				if (isTimeoutCheck) {
 					uploadStatus =
 						m.param_status_timeout();
@@ -383,16 +386,14 @@
 				}
 			}
 		} catch (error: unknown) {
-			console.error('❌ [Face Pairing] Erreur checkForPeople:', error);
 			uploadStatus = m.common_error_detail({
 				error: error instanceof Error ? error.message : m.common_unknown_error()
 			});
 			if (shouldCleanup) {
 				try {
-					console.log('🗑️  [Face Pairing] Nettoyage de l\'asset (après erreur):', assetIdToDelete);
 					await cleanupAsset(assetIdToDelete);
 				} catch (e) {
-					console.error('❌ [Face Pairing] Cleanup after error échoué:', e);
+					/* Ignore cleanup error */
 				}
 			}
 		}
@@ -400,10 +401,8 @@
 
 	async function cleanupAsset(id: string | null) {
 		if (!id) {
-			console.warn('⚠️  [Face Pairing] cleanupAsset appelé sans ID');
 			return;
 		}
-		console.log('🗑️  [Face Pairing] Suppression de l\'asset Immich:', id);
 		try {
 			const response = await fetch(`/api/immich/assets`, {
 				method: 'DELETE',
@@ -415,13 +414,10 @@
 			});
 			if (!response.ok) {
 				const errMsg = `Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`;
-				console.error('❌ [Face Pairing]', errMsg);
 				throw new Error(errMsg);
 			}
-			console.log('✅ [Face Pairing] Asset supprimé avec succès:', id);
 		} catch (e) {
-			// Relancer l'erreur pour que le caller puisse la gérer
-			console.error('❌ [Face Pairing] cleanupAsset erreur:', e);
+			// Rethrow error so the caller can handle it
 			throw e;
 		}
 	}
@@ -433,8 +429,6 @@
 			toast.error(m.param_no_user());
 			return;
 		}
-
-		console.log('🔍 [Face Pairing] Début import photo:', { fileName: file.name, fileSize: file.size, userId });
 
 		isProcessing = true;
 		detectionTimeout = false;
@@ -454,34 +448,27 @@
 
 			if (!uploadResponse.ok) {
 				const errMsg = `Upload error: ${uploadResponse.statusText}`;
-				console.error('❌ [Face Pairing] Upload échoué:', errMsg);
 				throw new Error(errMsg);
 			}
-			console.log('✅ [Face Pairing] Upload réussi');
 			const uploadData = (await uploadResponse.json()) as Record<string, unknown>;
 
 			if (uploadData.status === 'duplicate' && uploadData.id) {
 				isDuplicate = true;
 				uploadedAssetId = String(uploadData.id);
 				uploadStatus = m.param_status_existing();
-				console.log('ℹ️  [Face Pairing] Duplicate détecté, réutilisation asset:', uploadedAssetId);
 			} else if (uploadData.duplicateId) {
 				isDuplicate = true;
 				uploadedAssetId = String(uploadData.duplicateId);
 				uploadStatus = m.param_status_existing();
-				console.log('ℹ️  [Face Pairing] Duplicate détecté, réutilisation asset:', uploadedAssetId);
 			} else if (uploadData.id) {
 				uploadedAssetId = String(uploadData.id);
-				console.log('✅ [Face Pairing] Asset créé:', uploadedAssetId);
 			} else {
-				console.error('❌ [Face Pairing] Pas d\'ID retourné:', uploadData);
 				throw new Error(m.param_no_id_returned());
 			}
 
 			assetId = uploadedAssetId;
 
-			// Augmenter à 60 secondes pour donner à Immich le temps de traiter
-			console.log('⏳ [Face Pairing] Attente de la détection de visage (max 60s)...');
+			// Increase to 60 seconds to give Immich time to process
 			const maxAttempts = 60;
 			let attempt = 0;
 			let faceDetected = false;
@@ -496,7 +483,6 @@
 					if (checkResponse.ok) {
 						const checkData = await checkResponse.json();
 						if (checkData.people && checkData.people.length > 0) {
-							console.log(`✅ [Face Pairing] Visage détecté à ${attempt}s! People count:`, checkData.people.length);
 							faceDetected = true;
 							break;
 						}
@@ -505,27 +491,20 @@
 					if (err instanceof Error && err.name === 'AbortError') throw err;
 				}
 			}
-			if (!faceDetected) {
-				console.warn('⏱️  [Face Pairing] Timeout atteint (60s), aucun visage détecté');
-			}
 
 			const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
-			// Passer le flag isTimeoutCheck=true si on a atteint le max d'attempts
+			// Pass the isTimeoutCheck=true flag if we reached max attempts
 			const isTimeout = attempt >= maxAttempts && !faceDetected;
-			console.log('🔄 [Face Pairing] Appel checkForPeople:', { shouldDeleteAfter, uploadedAssetId, isTimeout, isDuplicate });
 			await checkForPeople(shouldDeleteAfter, uploadedAssetId, isTimeout);
 		} catch (error: unknown) {
 			if (error instanceof Error && error.name === 'AbortError') {
-				console.log('⚠️  [Face Pairing] Import annulé par l\'utilisateur');
 				return;
 			}
-			console.error('❌ [Face Pairing] Erreur import:', error);
 			if (!isDuplicate && uploadedAssetId) {
 				try {
-					console.log('🗑️  [Face Pairing] Cleanup de l\'asset après erreur:', uploadedAssetId);
 					await cleanupAsset(uploadedAssetId);
 				} catch (e) {
-					console.error('❌ [Face Pairing] Cleanup after error échoué:', e);
+					/* Ignore cleanup error */
 				}
 			}
 			uploadStatus = m.common_error_detail({
@@ -534,7 +513,6 @@
 		} finally {
 			isProcessing = false;
 			abortController = null;
-			console.log('✔️  [Face Pairing] Import terminé');
 		}
 	}
 
@@ -616,6 +594,7 @@
 						<span class="pref-desc">{m.param_profile_photo_desc()}</span>
 					</div>
 					<button
+						type="button"
 						onclick={() => (showChangePhotoModal = true)}
 						class="btn-secondary"
 						disabled={!currentUserHasFace}
@@ -645,7 +624,7 @@
 						<span class="pref-title">{m.param_theme_label()}</span>
 						<span class="pref-desc">{m.param_theme_desc()}</span>
 					</div>
-					<button onclick={() => theme.toggle()} class="theme-toggle-btn" aria-label={m.param_theme_toggle_aria()}>
+					<button type="button" onclick={() => theme.toggle()} class="theme-toggle-btn" aria-label={m.param_theme_toggle_aria()}>
 						{#if $theme === 'dark'}
 							<Sun size={20} /> <span>{m.param_theme_light()}</span>
 						{:else}
@@ -716,6 +695,7 @@
 									<span>{m.param_face_multi()}</span>
 									<p class="text-sm">{uploadStatus}</p>
 									<button
+										type="button"
 										onclick={() => {
 											assetId = null;
 											needsNewPhoto = false;
@@ -734,6 +714,7 @@
 								<div class="error-message">
 									<span>{uploadStatus}</span>
 									<button
+										type="button"
 										onclick={() => {
 											assetId = null;
 											detectionTimeout = false;
@@ -751,6 +732,7 @@
 								<div class="error-message">
 									<span>{uploadStatus}</span>
 									<button
+										type="button"
 										onclick={() => {
 											assetId = null;
 											needsNewPhoto = false;
@@ -846,6 +828,7 @@
 							{/if}
 						</div>
 						<button
+							type="button"
 							onclick={addPhotoPermission}
 							class="theme-toggle-btn"
 							disabled={isAddingPermission || !newAuthUserId.trim()}
@@ -863,13 +846,22 @@
 								{#each photoPermissions as perm}
 									<div class="permission-chip">
 										<div class="chip-avatar">
-											<UserIcon size={14} />
+											{getInitials(
+												perm.authorized_first_name,
+												perm.authorized_last_name,
+												perm.authorized_name
+											)}
 										</div>
 										<div class="chip-info">
 											<span class="chip-name">{perm.authorized_name}</span>
-											<span class="chip-id">{perm.authorized_id}</span>
+											<span class="chip-date">
+												{m.param_since_date({
+													date: new Date(perm.created_at).toLocaleDateString(getLocale())
+												})}
+											</span>
 										</div>
 										<button
+											type="button"
 											class="chip-remove"
 											onclick={() => revokePhotoPermission(perm.authorized_id)}
 											title={m.param_revoke_access()}
@@ -973,6 +965,7 @@
 							<p>{m.param_unlink_face_desc()}</p>
 						</div>
 						<button
+							type="button"
 							onclick={() => {
 								showUnlinkFaceModal = true;
 							}}
@@ -989,7 +982,7 @@
 						<strong>{m.param_delete_account()}</strong>
 						<p>{m.param_delete_account_desc()}</p>
 					</div>
-					<button onclick={openDeleteAccountModal} class="btn-danger"> {m.common_delete()} </button>
+					<button type="button" onclick={openDeleteAccountModal} class="btn-danger"> {m.common_delete()} </button>
 				</div>
 			</div>
 		</section>
@@ -1085,7 +1078,7 @@
 		--st-text-muted: var(--text-secondary, #6b7280);
 		--st-border: var(--border, #e5e7eb);
 		--st-accent: var(--accent, #3b82f6);
-		--st-danger: #ef4444;
+		--st-danger: var(--error);
 		--st-danger-bg: #fef2f2;
 		--st-danger-border: #fecaca;
 
@@ -1127,7 +1120,7 @@
 	.settings-card {
 		background: var(--st-card-bg);
 		border: 1px solid var(--st-border);
-		border-radius: 1rem;
+		border-radius: var(--radius);
 		margin-bottom: 2rem;
 		overflow: hidden;
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
@@ -1171,16 +1164,16 @@
 		font-weight: bold;
 	}
 	.icon-wrapper.blue {
-		background: linear-gradient(135deg, #3b82f6, #2563eb);
+		background: var(--gradient-blue);
 	}
 	.icon-wrapper.purple {
-		background: linear-gradient(135deg, #a855f7, #7c3aed);
+		background: var(--gradient-purple);
 	}
 	.icon-wrapper.green {
-		background: linear-gradient(135deg, #10b981, #059669);
+		background: var(--gradient-green);
 	}
 	.icon-wrapper.indigo {
-		background: linear-gradient(135deg, #6366f1, #4f46e5);
+		background: var(--gradient-indigo);
 	}
 	.icon-wrapper.red {
 		background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -1271,7 +1264,7 @@
 		background: rgba(59, 130, 246, 0.1);
 		color: var(--st-text);
 		padding: 1rem;
-		border-radius: 0.75rem;
+		border-radius: var(--radius-md);
 		font-size: 0.95rem;
 		margin-bottom: 1.5rem;
 	}
@@ -1292,21 +1285,21 @@
 		gap: 0.5rem;
 	}
 	.status-success {
-		color: #10b981;
+		color: var(--success);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 		font-weight: 500;
 	}
 	.status-error {
-		color: #ef4444;
+		color: var(--error);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 		font-weight: 500;
 	}
 	.status-warning {
-		color: #f59e0b;
+		color: var(--warning);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -1326,7 +1319,7 @@
 	.settings-input {
 		padding: 0.75rem 1rem;
 		border: 1px solid var(--st-border);
-		border-radius: 0.5rem;
+		border-radius: var(--radius-xs);
 		background: var(--st-bg);
 		color: var(--st-text);
 		outline: none;
@@ -1364,7 +1357,7 @@
 		background: var(--st-card-bg);
 		border: 1px solid var(--st-border);
 		border-top: none;
-		border-radius: 0 0 0.5rem 0.5rem;
+		border-radius: 0 0 var(--radius-xs) var(--radius-xs);
 		max-height: 300px;
 		overflow-y: auto;
 		z-index: 10;
@@ -1429,29 +1422,32 @@
 		padding: 0.5rem 0.75rem;
 		background: var(--st-bg);
 		border: 1px solid var(--st-border);
-		border-radius: 99px;
+		border-radius: var(--radius-md);
 	}
 	.chip-avatar {
-		width: 28px;
-		height: 28px;
-		background: var(--st-border);
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+		background: var(--gradient-purple-pink);
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--st-text-muted);
+		color: #fff;
+		font-size: 0.75rem;
+		font-weight: 700;
 	}
 	.chip-info {
 		display: flex;
 		flex-direction: column;
-		line-height: 1.1;
+		line-height: 1.15;
 	}
 	.chip-name {
 		font-size: 0.9rem;
 		font-weight: 600;
 		color: var(--st-text);
 	}
-	.chip-id {
+	.chip-date {
 		font-size: 0.75rem;
 		color: var(--st-text-muted);
 	}
@@ -1465,10 +1461,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		transition: all 0.15s var(--ease);
 	}
 	.chip-remove:hover {
-		background: #fee2e2;
-		color: #ef4444;
+		background: color-mix(in srgb, var(--error) 15%, transparent);
+		color: var(--error);
 	}
 
 	/* --- SHARED LIST --- */
@@ -1484,7 +1481,7 @@
 		gap: 1rem;
 		padding: 0.75rem;
 		background: var(--st-bg);
-		border-radius: 0.75rem;
+		border-radius: var(--radius-md);
 		text-decoration: none;
 		border: 1px solid transparent;
 		transition: all 0.2s;
@@ -1496,7 +1493,7 @@
 	.shared-avatar {
 		width: 40px;
 		height: 40px;
-		background: linear-gradient(135deg, #a855f7, #ec4899);
+		background: var(--gradient-purple-pink);
 		border-radius: 50%;
 		color: white;
 		font-weight: bold;
@@ -1551,20 +1548,20 @@
 		color: white;
 		border: none;
 		padding: 0.5rem 1rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-xs);
 		font-weight: 600;
 		cursor: pointer;
 		transition: background 0.2s;
 	}
 	.btn-danger:hover {
-		background: #dc2626;
+		background: var(--error-hover);
 	}
 	.btn-outline-danger {
 		background: transparent;
 		color: var(--st-danger);
 		border: 1px solid var(--st-danger);
 		padding: 0.5rem 1rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-xs);
 		font-weight: 600;
 		cursor: pointer;
 		transition: all 0.2s;

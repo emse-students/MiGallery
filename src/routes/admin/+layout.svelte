@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import './shared-admin.css';
   const links = [
     { href: '/admin', label: 'Documentation', icon: '📚' },
@@ -22,7 +22,7 @@
     <div class="brand">🛠️ Admin</div>
     <nav>
       {#each links as l}
-        <a class:active={$page.url.pathname === l.href} href={l.href}>
+        <a class:active={page.url.pathname === l.href} href={l.href}>
           <span class="icon">{l.icon}</span>
           <span>{l.label}</span>
         </a>

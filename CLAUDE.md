@@ -8,6 +8,12 @@ The SvelteKit server acts mostly as an **authenticated proxy** to the Immich API
 
 ---
 
+## Model / agent delegation (cost)
+
+To avoid burning expensive tokens, **reserve Opus for reasoning tasks** (architecture, design decisions, filtering/judging findings, tricky fixes). **Delegate everything else to cheaper models** via subagents: **Haiku** for crawling/auditing/searching the codebase, mechanical edits, running commands, commits/pushes; **Sonnet** only if a task is too hard for Haiku but does not need Opus-level reasoning. Concretely: spawn Haiku subagents to read/crawl large files and report findings, then have Opus decide and either fix the delicate parts itself or hand mechanical fixes back to Haiku. Never use Opus to read thousands of lines just to locate issues.
+
+---
+
 ## Tech stack
 
 | Layer    | Technology                                              |

@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
-	import { fade, slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import {
 		User as UserIcon,
 		Users,
@@ -116,6 +116,7 @@
 			<div class="tabs-wrapper" in:fade={{ duration: 300, delay: 200 }}>
 				<div class="glass-tabs">
 					<button
+						type="button"
 						class="tab-item {currentView === 'my' ? 'active' : ''}"
 						onclick={() => switchView('my')}
 					>
@@ -123,20 +124,21 @@
 						<span>Mes photos</span>
 					</button>
 					<button
+						type="button"
 						class="tab-item {currentView === 'all' ? 'active' : ''}"
 						onclick={() => switchView('all')}
 					>
 						<Users size={18} />
 						<span>Tout le monde</span>
 					</button>
-					<!-- Indicateur glissant pour l'effet visuel -->
+					<!-- Sliding indicator for visual effect -->
 					<div class="tab-indicator {currentView === 'my' ? 'left' : 'right'}"></div>
 				</div>
 			</div>
 		{/if}
 
 		<div class="content-area">
-			<!-- VUE: MES PHOTOS -->
+			<!-- VIEW: MY PHOTOS -->
 			{#if currentView === 'my' && hasIdPhotos}
 				<div class="view-container" in:fade={{ duration: 300 }}>
 					{#if myPhotosState.personName}
@@ -167,7 +169,7 @@
 				</div>
 			{/if}
 
-			<!-- VUE: ADMIN / TOUT LE MONDE -->
+			<!-- VIEW: ADMIN / ALL USERS -->
 			{#if currentView === 'all' && canManagePhotos}
 				<div class="view-container" in:fade={{ duration: 300 }}>
 					<!-- Upload Card -->
@@ -207,6 +209,7 @@
 						<!-- Pagination Bottom -->
 						<div class="pagination-container bottom">
 							<button
+								type="button"
 								class="btn-nav"
 								onclick={async () => {
 									await allPhotosState.loadPrevPagePhotosCV();
@@ -220,6 +223,7 @@
 							<span class="page-badge">Page {allPhotosState.photoCVCurrentPage}</span>
 
 							<button
+								type="button"
 								class="btn-nav"
 								onclick={async () => {
 									await allPhotosState.loadNextPagePhotosCV();
@@ -320,7 +324,7 @@
 		border-radius: 99px;
 		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		width: calc(50% - 0.4rem);
-		box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+		box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent);
 	}
 	.tab-indicator.left {
 		left: 0.4rem;
@@ -361,7 +365,7 @@
 		width: 42px;
 		height: 42px;
 		border-radius: var(--radius-sm);
-		background: rgba(59, 130, 246, 0.1);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		color: var(--accent);
 		display: flex;
 		align-items: center;
@@ -401,7 +405,7 @@
 		text-transform: uppercase;
 		padding: 0.2rem 0.6rem;
 		border-radius: 6px;
-		background: rgba(59, 130, 246, 0.1);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		color: var(--accent);
 	}
 
@@ -470,12 +474,12 @@
 		}
 	}
 
-	/* Mobile: améliorer la lisibilité des zones d'upload et cartes glass */
+	/* Mobile: improve readability of upload areas and glass cards */
 	@media (max-width: 768px) {
 		.upload-section,
 		.glass-card.upload-section,
 		.glass-card.upload-section .upload-content {
-			/* Rendre le fond plus opaque sur mobile pour meilleur contraste */
+			/* Make background more opaque on mobile for better contrast */
 			background: rgba(255, 255, 255, 0.96) !important;
 			border-color: rgba(0, 0, 0, 0.06) !important;
 			color: var(--text-primary) !important;

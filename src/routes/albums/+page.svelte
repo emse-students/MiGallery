@@ -293,7 +293,7 @@
 
 			{#if canCreateAlbum}
 				<div class="header-actions">
-					<button class="btn-glass primary" onclick={() => (showAlbumModal = true)}>
+					<button type="button" class="btn-glass primary" onclick={() => (showAlbumModal = true)}>
 						<Plus size={18} />
 						<span>{m.albums_create()}</span>
 					</button>
@@ -398,6 +398,7 @@
 										<!-- Actions -->
 										<div class="album-actions">
 											<button
+												type="button"
 												class="action-btn"
 												onclick={(e) => {
 													e.preventDefault();
@@ -415,6 +416,7 @@
 
 											{#if canCreateAlbum}
 												<button
+													type="button"
 													class="action-btn delete"
 													onclick={(e) => {
 														e.preventDefault();
@@ -807,7 +809,7 @@
 	}
 	.search-input:focus {
 		outline: none;
-		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 12%, transparent);
 		border-color: var(--accent);
 	}
 </style>

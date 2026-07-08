@@ -39,7 +39,7 @@
 				<div class="card glass-card">
 					<h2>{m.home_welcome_title()}</h2>
 					<p>{m.home_welcome_sub()}</p>
-				<button onclick={handleSignIn} class="btn btn-primary">
+				<button type="button" onclick={handleSignIn} class="btn btn-primary">
 					<LogIn size={20} /> {m.home_signin()}
 					</button>
 				</div>
@@ -157,7 +157,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.75rem 1.5rem;
-		border-radius: 0.75rem;
+		border-radius: var(--radius-md);
 		text-decoration: none;
 		font-weight: 600;
 		transition: all 0.2s;

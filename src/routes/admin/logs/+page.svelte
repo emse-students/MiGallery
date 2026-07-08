@@ -59,8 +59,8 @@
 </div>
 
 <style>
-	/* Configuration de la grille : C'est ici que l'alignement est garanti */
-	/* On définit les largeurs : fixe | fixe | fixe | pourcentage | reste */
+	/* Grid configuration: alignment is guaranteed here */
+	/* Define widths: fixed | fixed | fixed | percentage | remaining */
 	:global(.grid-table) {
 		--col-layout: 180px 140px 100px 25% 1fr;
 	}
@@ -105,7 +105,7 @@
 
 	/* Style de l'en-tête */
 	.table-header {
-		background: rgba(0, 0, 0, 0.2); /* Fond légèrement plus sombre */
+		background: rgba(0, 0, 0, 0.2); /* Slightly darker background */
 		font-weight: 600;
 		color: var(--text-muted);
 		text-transform: uppercase;
@@ -113,11 +113,11 @@
 		letter-spacing: 0.05em;
 		border-bottom: 1px solid var(--border);
 		z-index: 10;
-		/* Le header reste en haut du conteneur parent */
+		/* Header stays at top of parent container */
 		flex-shrink: 0;
 	}
 
-	/* Zone de scroll pour le contenu */
+	/* Scrollable content area */
 	.table-body {
 		overflow-y: auto;
 		flex-grow: 1;
@@ -153,7 +153,7 @@
 		border-right: none;
 	}
 
-	/* --- Styles du contenu (identique à avant) --- */
+	/* Content styles (same as before) */
 	.col-date {
 		color: var(--text-secondary);
 		font-size: 0.9rem;
@@ -167,14 +167,14 @@
 		font-weight: 600;
 	}
 	.badge.user {
-		background: rgba(59, 130, 246, 0.15);
-		color: #60a5fa;
-		border: 1px solid rgba(59, 130, 246, 0.2);
+		background: color-mix(in srgb, var(--accent) 15%, transparent);
+		color: var(--accent);
+		border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
 	}
 	.badge.system {
-		background: rgba(107, 114, 128, 0.15);
-		color: #9ca3af;
-		border: 1px solid rgba(107, 114, 128, 0.2);
+		background: color-mix(in srgb, var(--text-secondary) 15%, transparent);
+		color: var(--text-secondary);
+		border: 1px solid color-mix(in srgb, var(--text-secondary) 20%, transparent);
 	}
 
 	.action-tag {
@@ -184,10 +184,10 @@
 		color: var(--accent);
 	}
 	.action-tag.delete {
-		color: #ef4444;
+		color: var(--error);
 	}
 	.action-tag.create {
-		color: #10b981;
+		color: var(--success);
 	}
 
 	.target-wrapper {

@@ -13,7 +13,7 @@
 		ChevronRight
 	} from 'lucide-svelte';
 	import Modal from './Modal.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import type { ImmichAsset, User } from '$lib/types/api';
 	import type { Asset } from '$lib/photos.svelte';
 	import { toast } from '$lib/toast';
@@ -61,7 +61,7 @@
 	// Tracking flag to avoid resetting when the high-resolution image loads
 	let lastProcessedAssetId = $state<string | null>(null);
 
-	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
+	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	let showConfirmModal = $state(false);
@@ -167,7 +167,7 @@
 				}
 			}
 		} catch (e) {
-			console.error('Erreur chargement asset:', e);
+			console.error('Asset load error:', e);
 		} finally {
 			loading = false;
 		}

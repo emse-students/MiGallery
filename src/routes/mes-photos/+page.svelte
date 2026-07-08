@@ -153,7 +153,7 @@
 				L'utilisateur doit vous autoriser depuis ses paramètres pour que vous puissiez accéder à ses
 				photos.
 			</p>
-			<button class="btn-primary" onclick={() => goto('/')}>
+			<button type="button" class="btn-primary" onclick={() => goto('/')}>
 				<ArrowLeft size={18} />
 				Retour à l'accueil
 			</button>
@@ -163,6 +163,7 @@
 			<div class="header-section">
 				{#if canEditProfilePhoto}
 					<button
+						type="button"
 						class="profile-photo-btn"
 						onclick={openChangePhotoModal}
 						title="Changer la photo de profil"
@@ -268,7 +269,7 @@
 		content: '';
 		position: absolute;
 		inset: -3px;
-		background: linear-gradient(135deg, var(--accent), #8b5cf6, #ec4899);
+		background: linear-gradient(135deg, var(--accent), var(--edit), var(--pink));
 		border-radius: 50%;
 		z-index: -1;
 		opacity: 0;
@@ -308,8 +309,8 @@
 		border-radius: 50%;
 		color: white;
 		backdrop-filter: blur(8px);
-		opacity: 0; /* Cache l'overlay par défaut */
-		transition: opacity 0.3s ease; /* Animation fluide */
+		opacity: 0; /* Hide the overlay by default */
+		transition: opacity 0.3s ease; /* Smooth animation */
 	}
 
 	.change-photo-text {
