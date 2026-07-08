@@ -39,7 +39,7 @@
 				<div class="card glass-card">
 					<h2>{m.home_welcome_title()}</h2>
 					<p>{m.home_welcome_sub()}</p>
-				<button type="button" onclick={handleSignIn} class="btn btn-primary">
+				<button type="button" onclick={handleSignIn} class="btn-glass primary">
 					<LogIn size={20} /> {m.home_signin()}
 					</button>
 				</div>
@@ -52,7 +52,7 @@
 					<p>
 						{m.home_finish_profile()}
 					</p>
-					<a href="/parametres" class="btn btn-warning"> {m.home_configure_profile()} </a>
+					<a href="/parametres" class="btn-glass warning"> {m.home_configure_profile()} </a>
 				</div>
 			{:else}
 				<div class="glass-card card">
@@ -152,38 +152,6 @@
 		line-height: 1.6;
 	}
 
-	/* --- Buttons --- */
-	.btn {
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.5rem;
-		border-radius: var(--radius-md);
-		text-decoration: none;
-		font-weight: 600;
-		transition: all 0.2s;
-		border: none;
-		cursor: pointer;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: white;
-		box-shadow: 0 0 15px color-mix(in srgb, var(--accent) 40%, transparent);
-	}
-	.btn-primary:hover {
-		background: var(--accent-hover);
-		transform: scale(1.05);
-	}
-
-	.btn-warning {
-		background: var(--warning);
-		color: #0f172a;
-		box-shadow: 0 0 15px color-mix(in srgb, var(--warning) 40%, transparent);
-	}
-	.btn-warning:hover {
-		background: color-mix(in srgb, var(--warning) 80%, black);
-		transform: scale(1.05);
-	}
 
 	.icon-wrapper {
 		margin-bottom: 1rem;

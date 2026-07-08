@@ -657,6 +657,12 @@
 		border-color: transparent;
 		box-shadow: 0 4px 12px color-mix(in srgb, var(--edit) 30%, transparent);
 	}
+	.btn-glass.warning:hover:not(:disabled) {
+		background: var(--warning);
+		color: #fff;
+		border-color: transparent;
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent);
+	}
 
 	/* Toggle "on" state (e.g. selection mode) */
 	.btn-glass.active {

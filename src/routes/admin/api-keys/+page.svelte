@@ -136,7 +136,7 @@
 						/>
 					</div>
 					<div class="input-group button-group">
-						<button type="button" class="btn-primary" onclick={createKey} disabled={creating || !newLabel}>
+						<button type="button" class="btn-glass primary" onclick={createKey} disabled={creating || !newLabel}>
 							{#if creating}
 								<Spinner size={18} /> Création...
 							{:else}
@@ -353,29 +353,6 @@
 		padding-bottom: 1px;
 	}
 
-	.btn-primary {
-		padding: 0.75rem 1.5rem;
-		background: var(--accent);
-		color: white;
-		border: none;
-		border-radius: var(--radius-md);
-		font-weight: 600;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		transition: all 0.2s;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
-	}
-	.btn-primary:hover:not(:disabled) {
-		background: var(--accent-hover);
-		transform: translateY(-2px);
-	}
-	.btn-primary:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-		box-shadow: none;
-	}
 
 	.hint-text {
 		margin-top: 1rem;
@@ -539,9 +516,6 @@
 		}
 		.button-group {
 			align-self: stretch;
-		}
-		.btn-primary {
-			justify-content: center;
 		}
 	}
 </style>

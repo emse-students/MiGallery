@@ -969,7 +969,7 @@
 							onclick={() => {
 								showUnlinkFaceModal = true;
 							}}
-							class="btn-outline-danger"
+							class="btn-glass danger"
 						>
 							{m.param_unlink()}
 						</button>
@@ -982,7 +982,7 @@
 						<strong>{m.param_delete_account()}</strong>
 						<p>{m.param_delete_account_desc()}</p>
 					</div>
-					<button type="button" onclick={openDeleteAccountModal} class="btn-danger"> {m.common_delete()} </button>
+					<button type="button" onclick={openDeleteAccountModal} class="btn-glass danger"> {m.common_delete()} </button>
 				</div>
 			</div>
 		</section>
@@ -1543,33 +1543,6 @@
 		margin: 1rem 0;
 	}
 
-	.btn-danger {
-		background: var(--st-danger);
-		color: white;
-		border: none;
-		padding: 0.5rem 1rem;
-		border-radius: var(--radius-xs);
-		font-weight: 600;
-		cursor: pointer;
-		transition: background 0.2s;
-	}
-	.btn-danger:hover {
-		background: var(--error-hover);
-	}
-	.btn-outline-danger {
-		background: transparent;
-		color: var(--st-danger);
-		border: 1px solid var(--st-danger);
-		padding: 0.5rem 1rem;
-		border-radius: var(--radius-xs);
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-	.btn-outline-danger:hover {
-		background: var(--st-danger);
-		color: white;
-	}
 
 	/* --- FOOTER --- */
 	.settings-footer {

@@ -324,7 +324,7 @@
 
 					<button
 						type="button"
-						class="btn-full-danger mt-4"
+						class="btn-glass danger btn-full-danger mt-4"
 						onclick={importDatabase}
 						disabled={importing || !uploadFile}
 					>
@@ -724,26 +724,6 @@
 
 	.btn-full-danger {
 		width: 100%;
-		padding: 1rem;
-		margin-top: 1rem;
-		background: linear-gradient(135deg, var(--error), var(--error-hover));
-		color: white;
-		border: none;
-		border-radius: var(--radius-sm);
-		font-weight: 600;
-		cursor: pointer;
-		transition:
-			transform 0.2s,
-			opacity 0.2s;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--error) 30%, transparent);
-	}
-	.btn-full-danger:hover:not(:disabled) {
-		transform: translateY(-2px);
-		opacity: 0.95;
-	}
-	.btn-full-danger:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	/* --- STATUS BADGES & TABLES --- */
