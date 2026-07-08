@@ -13,11 +13,11 @@ Le serveur SvelteKit agit principalement comme **proxy authentifié** vers l'API
 | Couche          | Technologie                                              |
 | --------------- | -------------------------------------------------------- |
 | Frontend        | Svelte 5, SvelteKit 2, TypeScript, Tailwind CSS 4        |
-| Backend         | SvelteKit SSR (Node.js/Bun), adapter-node                |
+| Backend         | SvelteKit SSR (Node.js), adapter-node                    |
 | Base de données | SQLite via `better-sqlite3` (synchrone)                  |
 | Auth            | Auth.js + Authentik OIDC (SSO MiConnect)                 |
 | Photo backend   | Immich (API REST, proxiée via `/api/immich/*`)           |
-| Build           | Vite, Bun de préférence                                  |
+| Build           | Vite (build via npm)                                     |
 | Qualité         | ESLint, Prettier, Husky (pre-commit : lint + type-check) |
 
 ---
@@ -25,15 +25,15 @@ Le serveur SvelteKit agit principalement comme **proxy authentifié** vers l'API
 ## Commandes essentielles
 
 ```bash
-bun run dev          # Serveur de dev avec HMR
-bun run build        # Build de production → build/
-bun run check        # Type-check (svelte-check + tsc)
-bun run lint         # ESLint
-bun run format       # Prettier
-bun run db:init      # Initialiser le schéma SQLite
-bun run db:backup    # Backup manuel de la DB
-bun run test         # Suite d'intégration complète
-bun run test:unit    # Vitest unitaire uniquement
+npm run dev          # Serveur de dev avec HMR
+npm run build        # Build de production → build/
+npm run check        # Type-check (svelte-check + tsc)
+npm run lint         # ESLint
+npm run format       # Prettier
+npm run db:init      # Initialiser le schéma SQLite
+npm run db:backup    # Backup manuel de la DB
+npm run test         # Suite d'intégration complète
+npm run test:unit    # Vitest unitaire uniquement
 ```
 
 > Le hook pre-commit Husky exécute ESLint + Prettier + svelte-check. Un commit échoue si l'un d'eux échoue. Corriger le problème plutôt que de contourner le hook.

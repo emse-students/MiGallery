@@ -10,7 +10,7 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 #### `init-db.cjs` - Initialisation de la base de données
 
-**Utilisation** : `bun run db:init` ou `node scripts/init-db.cjs`
+**Utilisation** : `npm run db:init` ou `node scripts/init-db.cjs`
 
 **Description** :
 
@@ -34,7 +34,7 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 #### `backup-db.cjs` - Sauvegarde de la base de données
 
-**Utilisation** : `bun run db:backup` ou `node scripts/backup-db.cjs`
+**Utilisation** : `npm run db:backup` ou `node scripts/backup-db.cjs`
 
 > **✨ Sauvegarde automatique** : depuis la version actuelle, le serveur déclenche automatiquement une sauvegarde
 > quotidienne à minuit dès son démarrage (`src/lib/server/backup.ts` → `startBackupScheduler()`). **Aucun cron
@@ -63,8 +63,8 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 **Utilisation** :
 
-- Inspection : `bun run db:inspect`
-- Réparation : `bun run db:inspect -- --repair`
+- Inspection : `npm run db:inspect`
+- Réparation : `npm run db:inspect -- --repair`
 
 **Description** :
 
@@ -101,7 +101,7 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 #### `generate_cookie_secret.cjs` - Génération de secret cryptographique
 
-**Utilisation** : `bun run generate:secret` ou `node scripts/generate_cookie_secret.cjs`
+**Utilisation** : `npm run generate:secret` ou `node scripts/generate_cookie_secret.cjs`
 
 **Description** :
 
@@ -119,7 +119,7 @@ Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
 
 ```bash
 # Générer et copier dans .env
-echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
+echo "COOKIE_SECRET=$(npm run generate:secret)" >> .env
 ```
 
 **Important** :
@@ -131,9 +131,9 @@ echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
 
 ### 📦 Packaging et déploiement
 
-#### `pack-bun.js` - Création d'un package complet
+#### Packaging (`npm run package`)
 
-**Utilisation** : `bun run package` ou `bun scripts/pack-bun.js`
+**Utilisation** : `npm run package`
 
 **Description** :
 
@@ -153,7 +153,7 @@ echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
 
 **Prérequis** :
 
-- Avoir exécuté `bun run build` au préalable
+- Avoir exécuté `npm run build` au préalable
 - Avoir configuré `.env` et la base de données
 
 **Déploiement** :
@@ -162,9 +162,9 @@ echo "COOKIE_SECRET=$(bun run generate:secret)" >> .env
 # Sur la machine cible
 tar -xzf migallery-x.x.x-full.tgz
 cd migallery
-bun install --production
+npm ci --omit=dev
 # Vérifier/adapter .env si nécessaire
-bun run build/index.js
+node build/index.js
 ```
 
 ---
@@ -177,32 +177,32 @@ bun run build/index.js
 # 1. Cloner et installer
 git clone https://github.com/emse-students/MiGallery.git
 cd MiGallery
-bun install
+npm install
 
 # 2. Configurer l'environnement
-bun run generate:secret  # Copier la sortie
+npm run generate:secret  # Copier la sortie
 nano .env  # Créer et remplir avec les variables
 
 # 3. Initialiser la base de données
-bun run db:init
+npm run db:init
 
 # 4. La sauvegarde automatique est gérée par le serveur (startBackupScheduler).
 #    Elle se déclenche à minuit dès le démarrage — rien à configurer.
 
 # 5. Lancer l'application
-bun run dev  # Développement
+npm run dev  # Développement
 # ou
-bun run build && bun run build/index.js  # Production
+npm run build && node build/index.js  # Production
 ```
 
 ### Maintenance régulière
 
 ```bash
 # Vérifier la santé de la DB (mensuel recommandé)
-bun run db:inspect
+npm run db:inspect
 
 # Créer une sauvegarde manuelle avant une grosse opération
-bun run db:backup
+npm run db:backup
 
 # Vérifier les sauvegardes automatiques
 ls -lh data/backups/
@@ -212,33 +212,33 @@ ls -lh data/backups/
 
 ```bash
 # 1. Sauvegarder la base de données
-bun run db:backup
+npm run db:backup
 
 # 2. Créer un package complet (snapshot)
-bun run build
-bun run package
+npm run build
+npm run package
 
 # 3. Vérifier l'intégrité
-bun run db:inspect
+npm run db:inspect
 
 # 4. Procéder à la mise à jour
 git pull
-bun install
-bun run build
+npm install
+npm run build
 ```
 
 ### En cas de problème
 
 ```bash
 # 1. Inspecter et diagnostiquer
-bun run db:inspect
+npm run db:inspect
 
 # 2. Tenter une réparation automatique
-bun run db:inspect -- --repair
+npm run db:inspect -- --repair
 
 # 3. Si échec : sauvegarder et réinitialiser
 cp data/migallery.db data/migallery.db.corrupt
-bun run db:init
+npm run db:init
 # Puis restaurer les données manuellement ou depuis une sauvegarde
 ```
 
@@ -262,7 +262,7 @@ Les scripts utilisent les variables d'environnement suivantes :
 Les scripts nécessitent les packages suivants (installés automatiquement) :
 
 - **better-sqlite3** - Interface SQLite pour Node.js
-- **tar** - Création d'archives (pack-bun.js)
+- **tar** - Création d'archives
 - **crypto** (natif) - Génération de secrets
 
 ---
@@ -301,13 +301,13 @@ build/
 
 Avant de déployer en production :
 
-- [ ] Base de données initialisée (`bun run db:init`)
+- [ ] Base de données initialisée (`npm run db:init`)
 - [ ] Secret cookie généré et configuré dans `.env`
 - [ ] Variables Immich configurées dans `.env`
-- [ ] Test de l'application en local (`bun run dev`)
-- [ ] Build de production réussie (`bun run build`)
-- [ ] Inspection de la DB sans erreur (`bun run db:inspect`)
-- [ ] Package complet créé (`bun run package`)
+- [ ] Test de l'application en local (`npm run dev`)
+- [ ] Build de production réussie (`npm run build`)
+- [ ] Inspection de la DB sans erreur (`npm run db:inspect`)
+- [ ] Package complet créé (`npm run package`)
 - [ ] Vérifier que les sauvegardes automatiques se créent bien dans `data/backups/` après minuit
 
 ---

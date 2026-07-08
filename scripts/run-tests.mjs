@@ -59,7 +59,7 @@ if (!categories[category]) {
 console.log(`🧪 Lancement des tests: ${category}\n`);
 
 const testFiles = categories[category];
-const args = ['test'];
+const args = ['vitest', 'run'];
 
 if (category === 'full') {
 	args.push('--coverage');
@@ -67,7 +67,7 @@ if (category === 'full') {
 
 args.push(...testFiles);
 
-const vitest = spawn('bun', args, {
+const vitest = spawn('npx', args, {
 	cwd: projectRoot,
 	stdio: 'inherit',
 	env: {

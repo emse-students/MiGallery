@@ -5,7 +5,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 export default defineConfig({
 	plugins: [
 		// Paraglide compiles the message runtime into src/lib/paraglide before
-		// SvelteKit. MiGallery is server-rendered (adapter-node/bun), so locale
+		// SvelteKit. MiGallery is server-rendered (adapter-node), so locale
 		// detection is server-driven: the cookie set by the language switcher, then
 		// the browser Accept-Language header, then the base locale (fr). The server
 		// middleware in hooks.server.ts binds the resolved locale during SSR.

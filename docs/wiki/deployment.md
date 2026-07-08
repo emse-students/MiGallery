@@ -1,6 +1,6 @@
 # Deployment
 
-MiGallery runs as a single Docker container (SvelteKit + Bun) on port `3000`,
+MiGallery runs as a single Docker container (SvelteKit + Node) on port `3000`,
 behind a reverse proxy terminating TLS for `gallery.mitv.fr`. The image is built
 and published to GHCR by the CD. This page is the operational summary;
 [MIGRATION.md](../MIGRATION.md) is the authoritative runbook for cloning
@@ -14,7 +14,7 @@ database, via Immich's own procedure).
 
 | Element       | Detail                                                                                |
 | ------------- | ------------------------------------------------------------------------------------- |
-| Runtime       | Docker container `migallery` (SvelteKit + Bun), port 3000                             |
+| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                            |
 | Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches            |
 | Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                                |
 | CD            | `.github/workflows/ci-cd.yml`: validate -> build-image -> deploy (self-hosted runner) |
@@ -54,11 +54,11 @@ does not manage Immich's data.
 ## Local development
 
 ```bash
-bun run dev          # dev server with HMR
-bun run build        # production build -> build/
-bun run check        # svelte-kit sync + svelte-check
-bun run lint         # ESLint
-bun run test         # integration suite; bun run test:unit for Vitest only
+npm run dev          # dev server with HMR
+npm run build        # production build -> build/
+npm run check        # svelte-kit sync + svelte-check
+npm run lint         # ESLint
+npm run test         # integration suite; npm run test:unit for Vitest only
 ```
 
 The Husky pre-commit hook runs ESLint + Prettier + svelte-check; keep all three

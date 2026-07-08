@@ -8,14 +8,11 @@ import { startBackupScheduler } from '$lib/server/backup';
 import { verifySigned } from '$lib/auth/cookies';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { startMemMonitor, recordRequest } from '$lib/server/mem-monitor';
-import { startMallocTrim } from '$lib/server/malloc-trim';
 
 // Démarre la sauvegarde automatique quotidienne dès le démarrage du serveur
 startBackupScheduler();
-// Memory investigation: periodic rss/heap/native heartbeat + busiest routes,
-// and periodic glibc malloc_trim to return freed memory to the OS.
+// Periodic rss/heap/native heartbeat + busiest routes, for memory visibility.
 startMemMonitor();
-void startMallocTrim();
 
 /**
  * Liste des domaines autorisés pour CORS.

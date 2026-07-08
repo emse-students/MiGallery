@@ -222,7 +222,7 @@ MiGallery a été conçue comme une **interface légère et sécurisée** (faça
   - **SSR (Server-Side Rendering)** : Pour une meilleure performance initiale et le SEO.
   - **Routing** : Basé sur le système de fichiers (`src/routes`).
   - **API** : Endpoints internes (`src/routes/api`) pour sécuriser les appels vers Immich.
-- **Runtime** : [Bun](https://bun.sh/) (compatible Node.js)
+- **Runtime** : [Node.js](https://nodejs.org/)
   - Utilisé pour sa rapidité d'exécution et son gestionnaire de paquets intégré.
 - **Base de Données** : **SQLite**
   - Fichier local (`data/migallery.db`).

@@ -9,7 +9,6 @@
 | [STYLES.md](./STYLES.md)                             | Guide CSS et système de design         |
 | [SCRIPTS.md](./SCRIPTS.md)                           | Scripts utilitaires disponibles        |
 | [CRON_SETUP.md](./CRON_SETUP.md)                     | Configuration des tâches CRON          |
-| [MIGRATION_BUN_SQLITE.md](./MIGRATION_BUN_SQLITE.md) | Guide de migration vers Bun SQLite     |
 | [NAVBAR_ACCESS_MATRIX.md](./NAVBAR_ACCESS_MATRIX.md) | Matrice d'accès selon les rôles        |
 
 > **Documentation API** : Disponible dans l'interface admin `/admin/api-docs`
@@ -26,7 +25,7 @@ MiGallery est une galerie photo moderne pour les étudiants de l'École des Mine
 | ---------------- | ------- | ----------------------------- |
 | **SvelteKit**    | 2.x     | Framework full-stack          |
 | **Svelte**       | 5.x     | Framework UI avec runes       |
-| **Bun**          | 1.x     | Runtime & package manager     |
+| **Node.js**      | >= 20   | Runtime                       |
 | **SQLite**       | -       | Base de données locale        |
 | **Tailwind CSS** | 3.x     | Framework CSS utilitaire      |
 | **TypeScript**   | 5.x     | Typage statique               |
@@ -146,14 +145,14 @@ DATABASE_PATH=./data/migallery.db
 ## Scripts disponibles
 
 ```bash
-bun run dev           # Développement
-bun run build         # Build production
-bun run preview       # Prévisualisation
-bun run check         # Vérification TypeScript
-bun run lint          # Linting
-bun run lint:fix      # Linting avec corrections
-bun run db:init       # Initialiser la DB
-bun run db:backup     # Sauvegarder la DB
+npm run dev           # Développement
+npm run build         # Build production
+npm run preview       # Prévisualisation
+npm run check         # Vérification TypeScript
+npm run lint          # Linting
+npm run lint:fix      # Linting avec corrections
+npm run db:init       # Initialiser la DB
+npm run db:backup     # Sauvegarder la DB
 ```
 
 ## Conventions de Code

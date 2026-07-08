@@ -56,47 +56,47 @@ Tests modernes avec Vitest, exécutés dans la CI/CD.
 
 ```bash
 # Lancer tous les tests (nécessite un serveur qui tourne)
-bun test
+npm run test
 
 # Lancer un fichier de test spécifique
-bun test tests/albums.test.ts
-bun test tests/users.test.ts
-bun test tests/admin-auth.test.ts
-bun test tests/e2e-integration.test.ts
+npx vitest run tests/albums.test.ts
+npx vitest run tests/users.test.ts
+npx vitest run tests/admin-auth.test.ts
+npx vitest run tests/e2e-integration.test.ts
 
 # Mode watch (développement)
-bun test:watch
+npm run test:watch
 
 # Tests avec coverage
-bun test:coverage
+npm run test:coverage
 
 # Tests avec démarrage automatique du serveur
-bun test:api:full
+npm run test
 ```
 
 ### 2. Tests par domaine
 
 ```bash
 # Tests Albums uniquement
-bun test tests/albums.test.ts
+npx vitest run tests/albums.test.ts
 
 # Tests Utilisateurs uniquement
-bun test tests/users.test.ts
+npx vitest run tests/users.test.ts
 
 # Tests Favoris et External Media
-bun test tests/favorites-external.test.ts
+npx vitest run tests/favorites-external.test.ts
 
 # Tests Admin et Auth
-bun test tests/admin-auth.test.ts
+npx vitest run tests/admin-auth.test.ts
 
 # Tests People/Photos-CV
-bun test tests/people-photoscv.test.ts
+npx vitest run tests/people-photoscv.test.ts
 
 # Tests Proxy Immich
-bun test tests/immich-proxy.test.ts
+npx vitest run tests/immich-proxy.test.ts
 
 # Tests E2E complets
-bun test tests/e2e-integration.test.ts
+npx vitest run tests/e2e-integration.test.ts
 ```
 
 ### 3. Tests legacy (script Node.js)
@@ -105,7 +105,7 @@ Script de test Node.js classique avec output coloré.
 
 ```bash
 # Lancer le script de test original
-bun run test:api
+npm run test:api
 # ou
 node ./scripts/test-api.cjs
 ```
@@ -291,7 +291,7 @@ node ./scripts/test-api.cjs
 
 Les tests sont automatiquement exécutés dans deux workflows :
 
-#### 1. CI (Bun) - `.github/workflows/ci-bun.yml`
+#### 1. CI - `.github/workflows/ci.yml`
 
 - ✅ Build du projet
 - ✅ Initialisation de la base de données de test
@@ -332,7 +332,7 @@ Voir `vitest.config.ts` :
 1. **Base de données initialisée**
 
    ```bash
-   bun run db:init
+   npm run db:init
    ```
 
 2. **Utilisateur système créé** (`les.roots`)
@@ -345,11 +345,11 @@ Voir `vitest.config.ts` :
 
    ```bash
    # Mode développement
-   bun run dev
+   npm run dev
 
    # ou mode production
-   bun run build
-   bun run build/index.js
+   npm run build
+   node build/index.js
    ```
 
 4. **Variables d'environnement configurées** (`.env`)
@@ -367,7 +367,7 @@ Voir `vitest.config.ts` :
 ### Erreur: "Base de données introuvable"
 
 ```bash
-bun run db:init
+npm run db:init
 ```
 
 ### Erreur: "Utilisateur système les.roots introuvable"
@@ -426,4 +426,4 @@ curl http://localhost:3000/api/health
 
 - [Vitest Documentation](https://vitest.dev/)
 - [SvelteKit Testing](https://kit.svelte.dev/docs/testing)
-- [Bun Test Runner](https://bun.sh/docs/cli/test)
+- [Vitest](https://vitest.dev/)

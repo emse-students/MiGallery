@@ -22,7 +22,7 @@ crontab -e
 2. Ajouter cette ligne pour une sauvegarde quotidienne à minuit :
 
 ```bash
-0 0 * * * cd /chemin/absolu/vers/MiGallery && bun run db:backup >> /var/log/migallery-backup.log 2>&1
+0 0 * * * cd /chemin/absolu/vers/MiGallery && npm run db:backup >> /var/log/migallery-backup.log 2>&1
 ```
 
 3. Sauvegarder et quitter (généralement : `Ctrl+X`, puis `Y`, puis `Entrée`)
@@ -50,16 +50,16 @@ crontab -l
 
 ```bash
 # Tous les jours à minuit
-0 0 * * * cd /chemin/vers/MiGallery && bun run db:backup
+0 0 * * * cd /chemin/vers/MiGallery && npm run db:backup
 
 # Tous les jours à 2h du matin
-0 2 * * * cd /chemin/vers/MiGallery && bun run db:backup
+0 2 * * * cd /chemin/vers/MiGallery && npm run db:backup
 
 # Tous les dimanches à 3h du matin
-0 3 * * 0 cd /chemin/vers/MiGallery && bun run db:backup
+0 3 * * 0 cd /chemin/vers/MiGallery && npm run db:backup
 
 # Toutes les 6 heures
-0 */6 * * * cd /chemin/vers/MiGallery && bun run db:backup
+0 */6 * * * cd /chemin/vers/MiGallery && npm run db:backup
 ```
 
 ---
@@ -89,7 +89,7 @@ crontab -l
 4. **Configurer l'action**
    - Sélectionner **"Démarrer un programme"**
    - Cliquer sur **Suivant**
-   - Programme/script : `bun` (ou chemin complet : `C:\Users\VotreNom\.bun\bin\bun.exe`)
+   - Programme/script : `npm` (ou chemin complet : `C:\Users\VotreNom\.npm\bin\npm.exe`)
    - Ajouter des arguments : `run db:backup`
    - Commencer dans : `D:\Projets Programmation\EMSE\Portail etu\MiGallery`
    - Cliquer sur **Suivant**
@@ -114,7 +114,7 @@ crontab -l
 # Définir les variables
 $taskName = "MiGallery-BackupDB"
 $taskDescription = "Sauvegarde quotidienne de la base de données MiGallery"
-$bunPath = "bun"  # ou chemin complet
+$bunPath = "npm"  # ou chemin complet
 $projectPath = "D:\Projets Programmation\EMSE\Portail etu\MiGallery"
 $time = "00:00"  # minuit
 
@@ -188,30 +188,30 @@ tail -f /var/log/migallery-backup.log
 
 ### La tâche ne s'exécute pas
 
-1. **Vérifier que Bun est dans le PATH**
+1. **Vérifier que npm est dans le PATH**
 
    ```bash
-   which bun  # Linux/Mac
-   where bun  # Windows
+   which npm  # Linux/Mac
+   where npm  # Windows
    ```
 
 2. **Tester manuellement**
 
    ```bash
    cd /chemin/vers/MiGallery
-   bun run db:backup
+   npm run db:backup
    ```
 
 3. **Vérifier les permissions**
    - L'utilisateur qui exécute la tâche doit avoir les droits d'écriture dans `data/backups/`
 
 4. **Utiliser des chemins absolus**
-   - Remplacer `bun` par le chemin complet : `/usr/local/bin/bun` ou `C:\Users\...\bun.exe`
+   - Remplacer `npm` par le chemin complet : `/usr/local/bin/npm` ou `C:\Users\...\npm.exe`
 
 ### Les anciennes sauvegardes ne sont pas supprimées
 
 - Vérifier que les sauvegardes se créent bien dans `data/backups/` après minuit (géré par le serveur)
-- Lancer manuellement `bun run db:backup` pour tester la logique de sauvegarde
+- Lancer manuellement `npm run db:backup` pour tester la logique de sauvegarde
 
 ---
 

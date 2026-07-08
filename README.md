@@ -6,9 +6,9 @@
 **by MiTV**
 
 [![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
-[![Powered by Bun](https://img.shields.io/badge/Powered%20by-Bun-000000?logo=bun)](https://bun.sh/)
+[![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-[![CI (Bun)](https://github.com/emse-students/MiGallery/actions/workflows/ci-bun.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/ci-bun.yml)
+[![CI](https://github.com/emse-students/MiGallery/actions/workflows/ci.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/ci.yml)
 [![Code Analysis](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml)
 
 </div>
@@ -17,7 +17,7 @@
 
 ## 📋 Vue d'ensemble
 
-MiGallery est une application web moderne de gestion de galeries photos, développée avec **SvelteKit** et optimisée pour **Bun**. Elle permet de gérer des albums, des permissions utilisateurs, et s'intègre avec Immich pour la gestion avancée des photos.
+MiGallery est une application web moderne de gestion de galeries photos, développée avec **SvelteKit** et tournant sur **Node.js**. Elle permet de gérer des albums, des permissions utilisateurs, et s'intègre avec Immich pour la gestion avancée des photos.
 
 ### ✨ Fonctionnalités principales
 
@@ -36,13 +36,13 @@ MiGallery est une application web moderne de gestion de galeries photos, dévelo
 
 ### Prérequis
 
-- **Bun** (recommandé) ou Node.js >= 18
+- **Node.js** >= 20
 - SQLite (inclus avec better-sqlite3)
 
-Vérifier Bun :
+Vérifier Node.js :
 
 ```bash
-bun --version
+node --version
 ```
 
 ### Étapes d'installation
@@ -57,7 +57,7 @@ cd MiGallery
 2. **Installer les dépendances**
 
 ```bash
-bun install
+npm install
 ```
 
 3. **Configurer l'environnement**
@@ -66,7 +66,7 @@ Créez un fichier `.env` à la racine :
 
 ```env
 # Générer un secret pour les cookies et Auth.js
-# bun run generate:secret
+# npm run generate:secret
 COOKIE_SECRET=votre_secret_genere
 AUTH_SECRET=votre_secret_genere
 
@@ -86,7 +86,7 @@ AUTH_TRUSTED_HOST=true # Mettre à true en production
 4. **Initialiser la base de données**
 
 ```bash
-bun run db:init
+npm run db:init
 ```
 
 Cela crée automatiquement :
@@ -97,7 +97,7 @@ Cela crée automatiquement :
 5. **Lancer le serveur de développement**
 
 ```bash
-bun run dev
+npm run dev
 ```
 
 L'application sera accessible sur `http://localhost:5173`
@@ -110,20 +110,20 @@ L'application sera accessible sur `http://localhost:5173`
 
 ```bash
 # Lancer le serveur de développement avec HMR
-bun run dev
+npm run dev
 
 # Vérifier les types TypeScript et Svelte
-bun run check
+npm run check
 ```
 
 ### Production
 
 ```bash
 # Compiler l'application pour la production
-bun run build
+npm run build
 
 # Prévisualiser la version de production
-bun run preview
+npm run preview
 ```
 
 ---
@@ -134,7 +134,7 @@ bun run preview
 
 ```bash
 # Initialiser une nouvelle base de données (si elle n'existe pas)
-bun run db:init
+npm run db:init
 ```
 
 ### Sauvegardes
@@ -149,7 +149,7 @@ maximum).
 
 ```bash
 # Créer une sauvegarde de la base de données
-bun run db:backup
+npm run db:backup
 ```
 
 Les sauvegardes sont stockées dans `data/backups/` et seules les **10 dernières** sont conservées.
@@ -163,10 +163,10 @@ Si vous souhaitez une redondance (ex. : toutes les 6 h ou export vers un stockag
 
 ```bash
 # Inspecter la base de données et détecter les erreurs
-bun run db:inspect
+npm run db:inspect
 
 # Tenter de réparer les erreurs automatiquement
-bun run db:inspect -- --repair
+npm run db:inspect -- --repair
 ```
 
 ### Gestion via l'interface admin
@@ -188,36 +188,36 @@ L'interface d'administration (`/admin/database`) permet de :
 
 | Commande          | Description                                |
 | ----------------- | ------------------------------------------ |
-| `bun run dev`     | Lance le serveur de développement avec HMR |
-| `bun run build`   | Compile l'application pour la production   |
-| `bun run preview` | Prévisualise la version de production      |
-| `bun run check`   | Vérifie les types TypeScript et Svelte     |
+| `npm run dev`     | Lance le serveur de développement avec HMR |
+| `npm run build`   | Compile l'application pour la production   |
+| `npm run preview` | Prévisualise la version de production      |
+| `npm run check`   | Vérifie les types TypeScript et Svelte     |
 
 ### Scripts de base de données
 
 | Commande                         | Description                               |
 | -------------------------------- | ----------------------------------------- |
-| `bun run db:init`                | Initialise une nouvelle base de données   |
-| `bun run db:backup`              | Crée une sauvegarde de la base de données |
-| `bun run db:inspect`             | Inspecte la base de données               |
-| `bun run db:inspect -- --repair` | Répare les erreurs détectées              |
+| `npm run db:init`                | Initialise une nouvelle base de données   |
+| `npm run db:backup`              | Crée une sauvegarde de la base de données |
+| `npm run db:inspect`             | Inspecte la base de données               |
+| `npm run db:inspect -- --repair` | Répare les erreurs détectées              |
 
 ### Scripts utilitaires
 
 | Commande                  | Description                                        |
 | ------------------------- | -------------------------------------------------- |
-| `bun run generate:secret` | Génère un secret cryptographique pour les cookies  |
-| `bun run test:api`        | Lance les tests unitaires de l'API                 |
-| `bun run package`         | Crée un package complet (.tgz) avec DB, .env, etc. |
+| `npm run generate:secret` | Génère un secret cryptographique pour les cookies  |
+| `npm run test:api`        | Lance les tests unitaires de l'API                 |
+| `npm run package`         | Crée un package complet (.tgz) avec DB, .env, etc. |
 
 ### Tests de l'API
 
 ```bash
 # Tests avec l'URL par défaut (localhost:5173)
-bun run test:api
+npm run test:api
 
 # Tests avec une URL personnalisée et API Key
-API_BASE_URL=http://mon-serveur:3000 API_KEY=ma_cle bun run test:api
+API_BASE_URL=http://mon-serveur:3000 API_KEY=ma_cle npm run test:api
 ```
 
 Les tests vérifient :
@@ -244,8 +244,8 @@ Le script `package` crée une archive `.tgz` incluant :
 - La documentation
 
 ```bash
-bun run build
-bun run package
+npm run build
+npm run package
 ```
 
 Le package sera créé dans `build/artifacts/migallery-<version>-full.tgz`
@@ -264,7 +264,7 @@ cd migallery
 3. **Installer les dépendances**
 
 ```bash
-bun install --production
+npm ci --omit=dev
 ```
 
 4. **Vérifier/Modifier la configuration**
@@ -276,7 +276,7 @@ nano .env  # Adapter les URLs et chemins si nécessaire
 5. **Lancer l'application**
 
 ```bash
-bun run build/index.js
+node build/index.js
 ```
 
 ---
@@ -301,7 +301,6 @@ MiGallery/
 │  ├─ inspect-db.cjs       # Inspection/réparation DB
 │  ├─ migrate-export-db.cjs  # Migration depuis ancienne DB (usage unique)
 │  ├─ generate_cookie_secret.cjs  # Génération secret
-│  └─ pack-bun.js          # Packaging complet
 ├─ static/                 # Fichiers statiques
 └─ src/                    # Code source
    ├─ app.html             # Template HTML principal
@@ -341,7 +340,7 @@ Cet utilisateur est destiné à l'administration système et ne doit pas être s
 - **[SvelteKit](https://kit.svelte.dev/)** - Framework web moderne et performant
 - **[Svelte 5](https://svelte.dev/)** - Framework UI réactif
 - **[Vite](https://vitejs.dev/)** - Build tool ultra-rapide
-- **[Bun](https://bun.sh/)** - Runtime JavaScript performant
+- **[Node.js](https://nodejs.org/)** - Runtime JavaScript
 - **[Tailwind CSS](https://tailwindcss.com/)** - Framework CSS utilitaire
 - **[Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)** - Base de données SQLite synchrone
 - **[Auth.js](https://authjs.dev/)** - Authentification flexible
@@ -407,7 +406,7 @@ La qualité du code est assurée par une chaîne d'outils complète :
 - **ESLint** : Analyse statique du code (configuration stricte)
 - **Prettier** : Formatage automatique du code
 - **Husky** : Hooks git pour vérifier le code avant chaque commit
-- **CI/CD** : Scripts de vérification (`bun run check`, `bun run lint`)
+- **CI/CD** : Scripts de vérification (`npm run check`, `npm run lint`)
 
 ---
 
@@ -438,7 +437,7 @@ Développé avec ❤️ par **[DeMASKe](https://github.com/DeMASKe)** et **[gd-p
 pip install pre-commit
 
 # 2. Installer dépendances
-bun install
+npm install
 
 # 3. Activer les hooks
 pre-commit install
@@ -447,11 +446,11 @@ pre-commit install
 pre-commit run --all-files
 
 # Vérifier les erreurs
-bun run lint
+npm run lint
 
 # Corriger automatiquement
-bun run lint:fix
-bun run format
+npm run lint:fix
+npm run format
 
 # Commiter (hooks s'exécutent automatiquement)
 git add .
@@ -473,7 +472,7 @@ python --version
 2. Installation express (résumé) :
 
 ```powershell
-bun install
+npm install
 pre-commit install
 pre-commit run --all-files
 ```
@@ -482,7 +481,7 @@ pre-commit run --all-files
 
 ```powershell
 pre-commit run --all-files
-bun run lint
+npm run lint
 ```
 
 </details>
@@ -493,9 +492,9 @@ bun run lint
 Usage quotidien :
 
 ```powershell
-bun run lint              # Vérifier les erreurs
-bun run lint:fix          # Corriger automatiquement
-bun run format            # Formater le code
+npm run lint              # Vérifier les erreurs
+npm run lint:fix          # Corriger automatiquement
+npm run format            # Formater le code
 git commit -m "message"   # Les hooks s'exécutent automatiquement !
 ```
 
@@ -520,7 +519,7 @@ pip install --upgrade pre-commit
 pre-commit --version
 ```
 
-- `bun: command not found` → Installez Bun depuis <https://bun.sh>
+- `node: command not found` → Installez Node.js depuis <https://nodejs.org>
 
 - Les hooks ne s'exécutent pas :
 
@@ -532,8 +531,8 @@ pre-commit install
 - Erreurs ESLint au linting :
 
 ```powershell
-bun run lint:fix
-bun run format
+npm run lint:fix
+npm run format
 ```
 
 - `Type tag 'typescript' is not recognized` :

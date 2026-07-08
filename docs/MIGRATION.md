@@ -11,7 +11,7 @@ d un nouveau serveur et la restauration des donnees.
 
 | Element | Detail                                                                          |
 | ------- | ------------------------------------------------------------------------------- |
-| Runtime | conteneur Docker `migallery` (SvelteKit + Bun), port 3000                       |
+| Runtime | conteneur Docker `migallery` (SvelteKit + Node), port 3000                      |
 | Donnees | `data/` monte en volume (`/home/mitv/MiGallery/data`) : SQLite + caches         |
 | Image   | `ghcr.io/emse-students/migallery:latest` (buildee par la CD)                    |
 | CD      | `.github/workflows/ci-cd.yml` : validate -> build-image -> deploy (self-hosted) |

@@ -107,16 +107,16 @@ tar -xzf migallery-0.1.0-alpha.1-full.tgz
 cd migallery
 
 # Installer les dépendances
-bun install --production
+npm ci --omit=dev
 
 # Configurer .env (éditer selon votre environnement)
 # Ajuster IMMICH_URL, IMMICH_API_KEY, AUTH_SECRET, COOKIE_SECRET
 
 # Initialiser la base de données (si besoin)
-bun run db:init
+npm run db:init
 
 # Lancer l'application
-bun run build/index.js
+node build/index.js
 ```
 
 Accédez à http://localhost:3000

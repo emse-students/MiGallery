@@ -15,7 +15,7 @@
 		"sveltekit",
 		"svelte",
 		"vite",
-		"bun",
+		"node",
 		"gallery"
 	],
 	"files": [
@@ -24,8 +24,7 @@
 		"README.md"
 	],
 	"engines": {
-		"node": ">=18.0.0",
-		"bun": "*"
+		"node": ">=20.0.0"
 	},
 	"scripts": {
 		"dev": "vite dev",
@@ -39,15 +38,11 @@
 		"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**' --fix",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"deps:install": "bun install",
-		"deps:install:pnpm": "pnpm install",
-		"deps:install:npm": "npm install",
-		"ci:install": "bun install --production",
-		"ci:build": "bun install --production && npm run build",
-		"prebuild": "npm run deps:install || npm run deps:install:pnpm || npm run deps:install:npm || true",
-		"start": "bun run dev",
-		"package": "bun run build && bun ./scripts/pack-bun.js",
-		"package:legacy": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
+		"deps:install": "npm install",
+		"ci:install": "npm ci",
+		"ci:build": "npm ci && npm run build",
+		"start": "node build/index.js",
+		"package": "npm run build && node -e \"require('fs').mkdirSync('build/artifacts',{ recursive: true })\" && npm pack --pack-destination build/artifacts",
 		"version:show": "node -e \"console.log(require('./package.json').version)\"",
 		"db:init": "node ./scripts/init-db.cjs",
 		"db:backup": "node ./scripts/backup-db.cjs",
@@ -101,7 +96,6 @@
 	"dependencies": {
 		"@eslint/js": "^10.0.1",
 		"better-sqlite3": "^12.9.0",
-		"bun-types": "^1.3.11",
 		"dotenv": "^17.4.2",
 		"form-data": "^4.0.5",
 		"jspdf": "^4.2.1",
@@ -109,7 +103,6 @@
 		"lucide-svelte": "^1.0.1",
 		"sharp": "^0.34.5",
 		"streamsaver": "^2.0.6",
-		"svelte-adapter-bun": "^1.0.1",
 		"typescript-eslint": "^8.61.1",
 		"undici": "^8.0.3",
 		"vitest": "^4.0.10"

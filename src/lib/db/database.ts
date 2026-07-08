@@ -19,10 +19,6 @@ type DatabaseInstance = {
 
 let db: DatabaseInstance | null = null;
 
-function isBunRuntime(): boolean {
-	return typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined';
-}
-
 export function getDatabase(): DatabaseInstance {
 	if (!db) {
 		const dir = dirname(DB_PATH);
@@ -31,19 +27,9 @@ export function getDatabase(): DatabaseInstance {
 			mkdirSync(dir, { recursive: true });
 		}
 
-		let dbInstance: DatabaseInstance;
-
 		const require = createRequire(import.meta.url);
-
-		if (isBunRuntime()) {
-			const { Database } = require('bun:sqlite') as {
-				Database: new (path: string) => DatabaseInstance;
-			};
-			dbInstance = new Database(DB_PATH) as DatabaseInstance;
-		} else {
-			const Database = require('better-sqlite3') as new (path: string) => DatabaseInstance;
-			dbInstance = new Database(DB_PATH) as DatabaseInstance;
-		}
+		const Database = require('better-sqlite3') as new (path: string) => DatabaseInstance;
+		const dbInstance: DatabaseInstance = new Database(DB_PATH) as DatabaseInstance;
 
 		try {
 			dbInstance.exec('PRAGMA foreign_keys = ON');

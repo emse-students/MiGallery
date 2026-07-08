@@ -63,12 +63,10 @@ body:
      - OS: [ex: Windows 11, macOS 14, Ubuntu 22.04]
      - Navigateur: [ex: Chrome 120, Firefox 121]
      - Version de Node.js: [ex: 20.10.0]
-     - Version de Bun: [ex: 1.0.20]
     value: |
      - OS:
      - Navigateur:
      - Version de Node.js:
-     - Version de Bun:
    validations:
     required: true
 

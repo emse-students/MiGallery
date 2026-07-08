@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Script pour lancer les tests API avec un serveur local
- * Usage: bun run test:api:full
+ * Usage: npm run test
  */
 
 import { spawn } from 'child_process';
@@ -43,22 +43,10 @@ function loadEnv() {
 async function buildServer() {
 	console.log('🔨 Building SvelteKit...\n');
 
-	// Détecter si Bun est disponible
-	const isBunAvailable =
-		process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
-	const runner = isBunAvailable ? 'bun' : 'npm';
-	const args = isBunAvailable ? ['run', 'build'] : ['run', 'build'];
-
-	console.log(`Using runner: ${runner}`);
-
 	const env = { ...process.env, NODE_ENV: 'test' };
-	if (!isBunAvailable) {
-		env.ADAPTER = 'node';
-		console.log('Using Node adapter');
-	}
 
 	return new Promise((resolve, reject) => {
-		const build = spawn(runner, args, {
+		const build = spawn('npm', ['run', 'build'], {
 			stdio: 'inherit',
 			shell: process.platform === 'win32',
 			env
@@ -114,12 +102,8 @@ async function main() {
 
 		console.log('🚀 Démarrage du serveur de test...\n');
 
-		const isBun =
-			process.versions.bun !== undefined || process.env.npm_config_user_agent?.startsWith('bun');
-		const serverRunner = isBun ? 'bun' : 'node';
-
 		// 2. Démarrer le serveur
-		server = spawn(serverRunner, ['./build/index.js'], {
+		server = spawn('node', ['./build/index.js'], {
 			stdio: 'inherit',
 			detached: false,
 			env: { ...process.env, ...envVars, NODE_ENV: 'test' }
@@ -140,11 +124,8 @@ async function main() {
 
 		console.log('🧪 Lancement des tests...\n');
 
-		const testRunner = isBun ? 'bun' : 'npm';
-		const testArgs = isBun ? ['run', 'vitest', 'run'] : ['run', 'test:unit'];
-
 		// 4. Lancer les tests
-		const tests = spawn(testRunner, testArgs, {
+		const tests = spawn('npm', ['run', 'test:unit'], {
 			stdio: 'inherit',
 			shell: process.platform === 'win32',
 			env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' }

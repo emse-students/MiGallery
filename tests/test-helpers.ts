@@ -176,8 +176,6 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 			return false;
 		}
 
-		const isBun = typeof (globalThis as Record<string, unknown>).Bun !== 'undefined';
-
 		interface SqliteDatabase {
 			prepare: (sql: string) => {
 				get: (param: string) => { id_user: string; role: string } | undefined;
@@ -187,17 +185,9 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 
 		type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => SqliteDatabase;
 
-		let Database: DatabaseConstructor;
+		const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
 
-		if (isBun) {
-			// @ts-expect-error - bun:sqlite is a Bun-specific module
-			const bunSqlite = (await import('bun:sqlite')) as { Database: DatabaseConstructor };
-			Database = bunSqlite.Database;
-		} else {
-			Database = (await import('better-sqlite3')).default as DatabaseConstructor;
-		}
-
-		const db = new Database(DB_PATH, isBun ? undefined : { readonly: true });
+		const db = new Database(DB_PATH, { readonly: true });
 
 		try {
 			const user = db
@@ -240,8 +230,6 @@ async function ensureSystemUserExists(): Promise<boolean> {
 			return false;
 		}
 
-		const isBun = typeof (globalThis as Record<string, unknown>).Bun !== 'undefined';
-
 		interface SqliteDatabase {
 			prepare: (sql: string) => {
 				get: (param?: unknown) => unknown;
@@ -252,17 +240,9 @@ async function ensureSystemUserExists(): Promise<boolean> {
 
 		type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => SqliteDatabase;
 
-		let Database: DatabaseConstructor;
+		const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
 
-		if (isBun) {
-			// @ts-expect-error - bun:sqlite is a Bun-specific module
-			const bunSqlite = (await import('bun:sqlite')) as { Database: DatabaseConstructor };
-			Database = bunSqlite.Database;
-		} else {
-			Database = (await import('better-sqlite3')).default as DatabaseConstructor;
-		}
-
-		const db = new Database(DB_PATH, isBun ? undefined : undefined);
+		const db = new Database(DB_PATH);
 
 		try {
 			// Vérifier si l'utilisateur existe

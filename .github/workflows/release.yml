@@ -13,37 +13,33 @@ jobs:
   runs-on: ubuntu-latest
   strategy:
    matrix:
-    node-version: [18, 20, 22]
+    node-version: [20, 22]
   steps:
    - name: Checkout
      uses: actions/checkout@v6
 
    - name: Setup Node.js ${{ matrix.node-version }}
-     uses: actions/setup-node@v6
+     uses: actions/setup-node@v4
      with:
       node-version: ${{ matrix.node-version }}
-
-   - name: Setup Bun
-     uses: oven-sh/setup-bun@v2
-     with:
-      bun-version: latest
+      cache: npm
 
    - name: Install dependencies
-     run: bun install
+     run: npm ci
 
    - name: Type check
-     run: bun run check
+     run: npm run check
 
    - name: Lint
-     run: bun run lint
+     run: npm run lint
 
    - name: Build
-     run: bun run build
+     run: npm run build
 
    - name: Setup test database
      run: |
       mkdir -p data
-      bun run db:init || true
+      npm run db:init || true
 
    - name: Create .env for tests
      run: |
@@ -59,7 +55,7 @@ jobs:
    - name: Run tests
      env:
       API_BASE_URL: http://localhost:3000
-     run: bun run test
+     run: npm run test
 
  release:
   name: Create GitHub Release
@@ -73,13 +69,14 @@ jobs:
      with:
       fetch-depth: 0
 
-   - name: Setup Bun
-     uses: oven-sh/setup-bun@v2
+   - name: Setup Node
+     uses: actions/setup-node@v4
      with:
-      bun-version: latest
+      node-version: 22
+      cache: npm
 
    - name: Install dependencies
-     run: bun install
+     run: npm ci
 
    - name: Sync version with tag
      run: |
@@ -87,10 +84,10 @@ jobs:
       npm version $VERSION --no-git-tag-version --allow-same-version
 
    - name: Build
-     run: bun run build
+     run: npm run build
 
    - name: Package application
-     run: bun run package
+     run: npm run package
 
    - name: Generate changelog
      id: changelog
@@ -114,11 +111,11 @@ jobs:
       \`\`\`bash
       tar -xzf migallery-package.tgz
       cd package
-      bun install --production
+      npm ci --omit=dev
       cp .env.example .env
       # Éditer .env avec vos paramètres
-      bun run db:init
-      bun run build/index.js
+      npm run db:init
+      node build/index.js
       \`\`\`
 
       **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}

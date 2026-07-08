@@ -1,6 +1,6 @@
 # Architecture
 
-MiGallery is a single SvelteKit application. The same Node/Bun process serves the
+MiGallery is a single SvelteKit application. The same Node process serves the
 SSR pages, the `/api/*` REST endpoints, the local SQLite access layer, and the
 proxy to Immich. There are no separate backend services.
 
@@ -65,7 +65,7 @@ scripts/               # Node scripts: init-db, backup, cleanup-chunks, tests
 
 ## Deployment topology
 
-Production runs as a single Docker container (`migallery`, SvelteKit + Bun) on
+Production runs as a single Docker container (`migallery`, SvelteKit + Node) on
 port `3000`, behind a reverse proxy terminating TLS for `gallery.mitv.fr`. The
 `data/` directory is a mounted volume holding the SQLite DB and caches. Immich
 runs separately (its own stack, reachable at `IMMICH_BASE_URL`); MiGallery is a

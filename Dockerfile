@@ -1,45 +1,52 @@
 # syntax=docker/dockerfile:1
 #
-# Image de production MiGallery (SvelteKit servi par Bun).
-# Base debian (glibc) car les dependances natives (better-sqlite3, sharp,
-# ffmpeg-static/ffprobe-static) ne fonctionnent pas sur la base alpine/musl.
+# Production image for MiGallery (SvelteKit served by Node).
+#
+# Runtime is Node, NOT Bun: Bun inflates every incoming request-body read ~80x
+# and retains it under mimalloc (neither Bun.gc nor glibc malloc_trim reclaim
+# it), so upload bursts OOM the box. Node reads bodies normally and returns
+# freed memory to glibc. Both stages use the SAME Node image so the native
+# addons (better-sqlite3 is a V8-ABI addon) are compiled against the runtime.
+#
+# Debian (glibc) base: native deps (better-sqlite3, sharp) do not work on
+# alpine/musl.
 
-# ── Build ─────────────────────────────────────────────────────────────────────
-FROM oven/bun:1-debian AS build
+# -- Build ----------------------------------------------------------------------
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
-# Outils de compilation pour les modules natifs (better-sqlite3 via node-gyp).
+# Skip husky (git hooks) during install; there is no .git in the build context.
+ENV HUSKY=0
+# Build tools for native modules (better-sqlite3 via node-gyp).
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
   && rm -rf /var/lib/apt/lists/*
-# Cache des deps : on copie d abord les manifestes.
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+# Cache deps: copy manifests first.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 COPY . .
-RUN bun run build
+RUN npm run build
 
-# ── Runtime ───────────────────────────────────────────────────────────────────
-FROM oven/bun:1-debian AS runtime
+# -- Runtime --------------------------------------------------------------------
+FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# On reutilise node_modules du stage build (natifs deja compiles) plutot qu un
-# reinstall --production : evite que bun saute les postinstall (trustedDependencies)
-# et garantit des binaires natifs identiques a ceux testes au build.
+# Reuse node_modules from the build stage (native binaries already compiled).
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/build ./build
-# Fichiers lus a l execution (hors build/) : schema SQL, scripts admin, docs.
+# Files read at runtime (outside build/): SQL schema, admin scripts, docs.
 COPY --from=build /app/src/lib/db/schema.sql ./src/lib/db/schema.sql
 COPY --from=build /app/scripts ./scripts
 COPY --from=build /app/docs ./docs
 
-# data/ (base SQLite + caches) est monte en volume, persiste hors image.
+# data/ (SQLite db + caches) is a mounted volume, persists outside the image.
 RUN mkdir -p data
 VOLUME ["/app/data"]
 
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=5 \
-  CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["bun", "./build/index.js"]
+CMD ["node", "./build/index.js"]

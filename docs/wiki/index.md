@@ -18,7 +18,7 @@ the page is a bug.
 - **Local database**: SQLite via `better-sqlite3` (synchronous by design)
 - **Auth**: Authentik OIDC (MiConnect) + signed session cookies
 - **Photo backend**: Immich, proxied through `/api/immich/*`
-- **Runtime**: Bun preferred for tooling; Node in the production container
+- **Runtime**: Node.js (production container)
 
 ## What MiGallery owns vs delegates
 

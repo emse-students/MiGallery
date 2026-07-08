@@ -33,9 +33,8 @@ vite.config.ts.timestamp-*
 
 .eslintcache
 
-# Lockfiles and package manager artifacts
-package-lock.json
-npm-shrinkwrap.json
+# Lockfiles: package-lock.json IS tracked (npm is the project's package manager,
+# and the Docker build needs it for `npm ci`). Other managers' lockfiles are not.
 yarn.lock
 pnpm-lock.yaml
 bun.lockb

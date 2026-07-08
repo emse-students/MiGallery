@@ -28,11 +28,9 @@ services:
    AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
    AUTH_TRUSTED_HOST: 'true'
    COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET requis}
-   # Bun.serve reserves a per-request body buffer sized against this limit. A
-   # huge value (was 20G) makes each upload allocate ~512MB under mimalloc that
-   # is not returned to the OS, so upload bursts ratchet RSS to OOM. Nothing
-   # legitimately needs a big body: simple uploads are < 10MB and large files
-   # are sent in 5MB chunks. Keep a small, safe cap.
+   # Max request body accepted by adapter-node. Nothing legitimately needs a big
+   # body: simple uploads are < 10MB and large files are sent in 5MB chunks, so
+   # keep a small, safe cap.
    BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-64M}
    ENABLE_DEV_ROUTES: 'false'
    # Limite la fragmentation d'arènes glibc pour les allocations natives de

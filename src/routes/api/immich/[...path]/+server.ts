@@ -33,11 +33,6 @@ function sanitizeHeaderValue(value: string | null | undefined): string | undefin
 	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
 }
 
-// TEMP memory probe: single-line rss in MB, easy to grep from prod logs.
-function rssMB(): number {
-	return Math.round(process.memoryUsage().rss / 1048576);
-}
-
 function formatMemoryUsage(): string {
 	const memory = process.memoryUsage();
 	const toMb = (value: number) => `${(value / 1024 / 1024).toFixed(1)}MB`;
@@ -1230,11 +1225,9 @@ async function finishImmichUpload(
 
 /**
  * Handle a small "simple" upload: the client sends the whole multipart envelope
- * in one request. We stream that envelope to a temp file and replay it to Immich
- * from disk with a plain streaming http.request, instead of forwarding
- * request.body through fetch({ duplex: 'half' }) which leaks native memory under
- * Bun. The content-type (with its multipart boundary) is forwarded verbatim, so
- * Immich receives the exact same body without us re-parsing the form.
+ * in one request. We buffer it and replay it to Immich with a plain http.request.
+ * The content-type (with its multipart boundary) is forwarded verbatim, so Immich
+ * receives the exact same body without us re-parsing the form.
  */
 async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise<Response> {
 	const request = event.request;
@@ -1245,31 +1238,14 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 		});
 	}
 
-	console.warn(`[probe] simple.enter rss=${rssMB()}`);
 	const contentType = request.headers.get('content-type') || 'application/octet-stream';
 
 	try {
-		// Read the whole (already size-capped) body via Bun's native arrayBuffer()
-		// instead of the Readable.fromWeb() web->node stream bridge, which inflates
-		// the read ~50-80x under Bun and never returns the memory. Send the buffer
-		// straight to Immich: no stream bridge, no temp file.
-		// Read the ORIGINAL un-cloned Bun request (event.platform.request) rather
-		// than SvelteKit's event.request: the adapter builds the latter via
-		// `new Request(url, request)`, and cloning a streaming body makes Bun
-		// buffer it ~80x. Fall back to event.request if the original is unavailable
-		// or its body was already locked by the clone.
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const originalReq = (event.platform as any)?.request as Request | undefined;
-		let buf: Buffer;
-		try {
-			buf = Buffer.from(await (originalReq ?? request).arrayBuffer());
-			console.warn(
-				`[probe] simple.buf rss=${rssMB()} size=${buf.length} src=${originalReq ? 'platform' : 'event'}`
-			);
-		} catch {
-			buf = Buffer.from(await request.arrayBuffer());
-			console.warn(`[probe] simple.buf rss=${rssMB()} size=${buf.length} src=fallback`);
-		}
+		// Read the whole (< 10MB, size-capped by BODY_SIZE_LIMIT) body into a
+		// buffer and send it straight to Immich; no temp file. Node streams the
+		// incoming body and releases it after the request, so buffering a small
+		// upload stays flat.
+		const buf = Buffer.from(await request.arrayBuffer());
 		logUploadDiagnostic('simple upload buffered, sending to Immich', { sizeBytes: buf.length });
 
 		const url = new URL(`${baseUrl}/api/assets`);
@@ -1318,12 +1294,6 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 			req.end(buf);
 		});
 
-		console.warn(`[probe] simple.resp rss=${rssMB()} status=${response.status}`);
-		// TEST: Bun's GC is lazy; rapid uploads pile up the per-read native
-		// allocation before it runs. Force a synchronous collection and measure.
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		(globalThis as any).Bun?.gc?.(true);
-		console.warn(`[probe] simple.gc rss=${rssMB()}`);
 		return await finishImmichUpload(event, response, 'simple-upload', () => {}, 'simple');
 	} catch (err: unknown) {
 		const _err = ensureError(err);
