@@ -257,10 +257,8 @@ export class PhotosState {
 	 * Utilisé par: page Photos CV (onglet "Mes photos CV")
 	 */
 	async loadMyPhotosCV(id: string): Promise<void> {
-		console.warn('📸 PhotosState.loadMyPhotosCV appelé:', id);
 		if (!id) {
 			this.error = 'Aucun id_photos configuré pour cet utilisateur';
-			console.warn("  ✗ Pas d'id");
 			return;
 		}
 
@@ -269,31 +267,57 @@ export class PhotosState {
 		this.assets = [];
 
 		try {
-			const res = await fetch(`/api/people/people/${encodeURIComponent(id)}/photos?in_album=true`);
+			// Use the same NDJSON streaming endpoint as /mes-photos (loadPerson),
+			// only with in_album=true to keep the PhotoCV portraits. The former
+			// non-streaming /photos endpoint was the odd one out and stopped
+			// returning after the Immich v3 migration.
+			const res = await fetch(
+				`/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=true`
+			);
 
 			if (!res.ok) {
 				const text = await res.text().catch(() => res.statusText);
 				throw new Error(text || `HTTP ${res.status}`);
 			}
 
-			const data = (await res.json()) as { assets?: ImmichAsset[] };
-			const allAssets = data.assets || [];
+			const assetsMap = new Map<string, Asset>();
+			await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: ImmichAsset }>(
+				res,
+				({ phase, asset }) => {
+					if (phase === 'minimal') {
+						assetsMap.set(asset.id, {
+							...asset,
+							date: null,
+							isFavorite: false,
+							exifInfo:
+								asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
+									? {
+											exifImageWidth: asset.exifInfo.exifImageWidth,
+											exifImageHeight: asset.exifInfo.exifImageHeight
+										}
+									: null,
+							_raw: asset
+						});
+						if (assetsMap.size === 1) {
+							this.loading = false;
+						}
+					} else if (phase === 'full') {
+						const existing = assetsMap.get(asset.id);
+						assetsMap.set(asset.id, {
+							...asset,
+							date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+							isFavorite: existing?.isFavorite ?? false,
+							_raw: asset
+						});
+					}
+					this.assets = [...Array.from(assetsMap.values())];
+				}
+			);
 
-			this.assets = allAssets.map((it) => ({
-				id: it.id,
-				originalFileName: it.originalFileName,
-				type: it.type,
-				fileCreatedAt: it.fileCreatedAt,
-				createdAt: it.createdAt,
-				updatedAt: it.updatedAt,
-				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-				isFavorite: false,
-				_raw: it
-			}));
+			this.loading = false;
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			this.error = (e as Error).message;
-		} finally {
 			this.loading = false;
 		}
 	}
