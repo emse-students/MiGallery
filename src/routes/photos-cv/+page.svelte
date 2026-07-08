@@ -238,27 +238,14 @@
 </main>
 
 <style>
-	/* --- THEME VARIABLES --- */
+	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.page-main {
-		--cv-text: var(--text-primary, #1f2937);
-		--cv-text-muted: var(--text-secondary, #6b7280);
-		--cv-accent: var(--accent, #3b82f6);
-		--cv-border: var(--border, #e5e7eb);
-		/* Do not override glass variables here — rely on global theme variables to avoid flashes */
-
 		position: relative;
 		min-height: 100vh;
 		padding: 4rem 0 6rem;
-		color: var(--cv-text);
+		color: var(--text-primary);
 		overflow-x: hidden;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
 	}
-
-	/* --- BACKGROUND --- */
-	/* Removed */
 
 	.page-container {
 		position: relative;
@@ -280,7 +267,7 @@
 		text-align: center;
 	}
 	.subtitle {
-		color: var(--cv-text-muted);
+		color: var(--text-secondary);
 		font-size: 1.1rem;
 		margin: 0.25rem 0 0;
 	}
@@ -296,8 +283,8 @@
 		display: flex;
 		gap: 0.5rem;
 		padding: 0.4rem;
-		background: var(--cv-glass-bg);
-		border: 1px solid var(--cv-glass-border);
+		background: var(--glass-bg);
+		border: 1px solid var(--glass-border);
 		border-radius: 99px;
 		backdrop-filter: blur(12px);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -311,7 +298,7 @@
 		padding: 0.6rem 1.5rem;
 		border: none;
 		background: transparent;
-		color: var(--cv-text-muted);
+		color: var(--text-secondary);
 		font-weight: 600;
 		cursor: pointer;
 		transition: color 0.3s ease;
@@ -321,7 +308,7 @@
 		color: white;
 	}
 	.tab-item:hover:not(.active) {
-		color: var(--cv-text);
+		color: var(--text-primary);
 	}
 
 	.tab-indicator {
@@ -329,7 +316,7 @@
 		top: 0.4rem;
 		bottom: 0.4rem;
 		z-index: 1;
-		background: var(--cv-accent);
+		background: var(--accent);
 		border-radius: 99px;
 		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		width: calc(50% - 0.4rem);
@@ -346,9 +333,9 @@
 
 	/* --- CARDS & GRID --- */
 	.glass-card {
-		background: var(--cv-glass-bg);
+		background: var(--glass-bg);
 		backdrop-filter: blur(20px);
-		border: 1px solid var(--cv-glass-border);
+		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 		margin-bottom: 1.5em;
@@ -363,19 +350,19 @@
 	}
 	.upload-header {
 		padding: 1.5rem;
-		border-bottom: 1px solid var(--cv-border);
+		border-bottom: 1px solid var(--border);
 		display: flex;
 		align-items: center;
 		gap: 1rem;
 		/* Use theme-aware glass background for better contrast */
-		background: var(--cv-glass-bg);
+		background: var(--glass-bg);
 	}
 	.icon-box {
 		width: 42px;
 		height: 42px;
 		border-radius: var(--radius-sm);
 		background: rgba(59, 130, 246, 0.1);
-		color: var(--cv-accent);
+		color: var(--accent);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -384,12 +371,12 @@
 		margin: 0;
 		font-size: 1.1rem;
 		font-weight: 700;
-		color: var(--cv-text);
+		color: var(--text-primary);
 	}
 	.upload-header p {
 		margin: 0;
 		font-size: 0.9rem;
-		color: var(--cv-text-muted);
+		color: var(--text-secondary);
 	}
 	.upload-content {
 		padding: 1.5rem;
@@ -415,7 +402,7 @@
 		padding: 0.2rem 0.6rem;
 		border-radius: 6px;
 		background: rgba(59, 130, 246, 0.1);
-		color: var(--cv-accent);
+		color: var(--accent);
 	}
 
 	/* --- PAGINATION --- */
@@ -434,17 +421,17 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
-		background: var(--cv-item-bg);
-		border: 1px solid var(--cv-glass-border);
+		background: var(--glass-bg);
+		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-sm);
-		color: var(--cv-text);
+		color: var(--text-primary);
 		cursor: pointer;
 		transition: all 0.2s;
 	}
 	.btn-nav:hover:not(:disabled) {
-		background: var(--cv-glass-bg);
-		border-color: var(--cv-accent);
-		color: var(--cv-accent);
+		background: var(--glass-bg);
+		border-color: var(--accent);
+		color: var(--accent);
 		transform: translateY(-2px);
 	}
 	.btn-nav:disabled {
@@ -455,21 +442,21 @@
 	.page-badge {
 		font-family: monospace;
 		font-weight: 600;
-		color: var(--cv-text-muted);
+		color: var(--text-secondary);
 	}
 
 	/* --- STATES --- */
 	.state-message {
 		padding: 3rem;
 		text-align: center;
-		color: var(--cv-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		justify-content: center;
 		align-items: center;
 		gap: 0.75rem;
-		background: var(--cv-glass-bg);
+		background: var(--glass-bg);
 		border-radius: var(--radius);
-		border: 1px solid var(--cv-border);
+		border: 1px solid var(--border);
 		margin-bottom: 2rem;
 	}
 	.state-message.error {
@@ -491,13 +478,13 @@
 			/* Rendre le fond plus opaque sur mobile pour meilleur contraste */
 			background: rgba(255, 255, 255, 0.96) !important;
 			border-color: rgba(0, 0, 0, 0.06) !important;
-			color: var(--cv-text) !important;
+			color: var(--text-primary) !important;
 			box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08) !important;
 			backdrop-filter: none !important;
 		}
 		.upload-section .upload-header h3,
 		.upload-section .upload-header p {
-			color: var(--cv-text) !important;
+			color: var(--text-primary) !important;
 		}
 		/* Add spacing between upload card and grid content on mobile. Use padding-top to avoid margin collapse when grid content renders */
 		.upload-section {
@@ -515,13 +502,13 @@
 		.glass-card.upload-section .upload-content {
 			background: rgba(10, 12, 16, 0.92) !important;
 			border-color: rgba(255, 255, 255, 0.06) !important;
-			color: var(--cv-text) !important;
+			color: var(--text-primary) !important;
 			box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
 			backdrop-filter: none !important;
 		}
 		.upload-section .upload-header h3,
 		.upload-section .upload-header p {
-			color: var(--cv-text) !important;
+			color: var(--text-primary) !important;
 		}
 	}
 

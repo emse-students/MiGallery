@@ -875,33 +875,13 @@
 </main>
 
 <style>
+	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.trombi-main {
-		--tm-bg: var(--bg-primary, #ffffff);
-		--tm-card-bg: var(--bg-secondary, rgba(255, 255, 255, 0.7));
-		--tm-text: var(--text-primary, #1f2937);
-		--tm-text-muted: var(--text-secondary, #6b7280);
-		--tm-border: var(--border, #e5e7eb);
-		--tm-accent: var(--accent, #3b82f6);
-		--tm-glass-border: rgba(255, 255, 255, 0.5);
-
 		position: relative;
 		min-height: 100vh;
 		padding: 4rem 0 6rem;
-		color: var(--tm-text);
+		color: var(--text-primary);
 		overflow-x: hidden;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
-	}
-
-	:global([data-theme='dark']) .trombi-main {
-		--tm-bg: var(--bg-primary, #0f172a);
-		--tm-card-bg: var(--bg-secondary, rgba(30, 41, 59, 0.7));
-		--tm-text: var(--text-primary, #f3f4f6);
-		--tm-text-muted: var(--text-secondary, #94a3b8);
-		--tm-border: var(--border, #334155);
-		--tm-glass-border: rgba(255, 255, 255, 0.1);
 	}
 
 	.trombi-container {
@@ -921,14 +901,14 @@
 		width: 100%;
 		padding: 0.5rem 0.75rem;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--tm-border);
-		background: var(--tm-card-bg);
-		color: var(--tm-text);
+		border: 1px solid var(--border);
+		background: var(--bg-secondary);
+		color: var(--text-primary);
 	}
 	.search-input:focus {
 		outline: none;
 		box-shadow: 0 6px 18px rgba(59, 130, 246, 0.08);
-		border-color: var(--tm-accent);
+		border-color: var(--accent);
 	}
 
 	/* --- HEADER --- */
@@ -941,7 +921,7 @@
 		gap: 0.5rem;
 	}
 	.subtitle {
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		font-size: 1.1rem;
 		margin: 0;
 	}
@@ -963,22 +943,22 @@
 		gap: 0.4rem;
 		padding: 0.4rem 0.9rem;
 		border-radius: 99px;
-		border: 1px solid var(--tm-border);
+		border: 1px solid var(--border);
 		background: transparent;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		cursor: pointer;
 		font-size: 0.85rem;
 		font-weight: 600;
 		transition: all 0.2s;
 	}
 	.group-tab.active {
-		background: var(--tm-accent);
-		border-color: var(--tm-accent);
+		background: var(--accent);
+		border-color: var(--accent);
 		color: white;
 	}
 	.group-tab:hover:not(.active) {
-		border-color: var(--tm-accent);
-		color: var(--tm-accent);
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	.action-pill {
@@ -995,7 +975,7 @@
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 	}
 	.action-pill.primary {
-		background: var(--tm-accent);
+		background: var(--accent);
 		color: white;
 	}
 	.action-pill.primary:hover {
@@ -1012,14 +992,14 @@
 	.state-message {
 		padding: 3rem;
 		text-align: center;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		gap: 1rem;
-		background: var(--tm-card-bg);
+		background: var(--bg-secondary);
 		border-radius: 1rem;
-		border: 1px solid var(--tm-border);
+		border: 1px solid var(--border);
 	}
 	.state-message.error {
 		color: var(--error);
@@ -1029,7 +1009,7 @@
 	.empty-state {
 		padding: 4rem;
 		text-align: center;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1047,17 +1027,17 @@
 		gap: 1rem;
 		margin-bottom: 1.5rem;
 		padding-bottom: 0.5rem;
-		border-bottom: 1px solid var(--tm-border);
+		border-bottom: 1px solid var(--border);
 	}
 	.section-header h2 {
 		font-size: 1.5rem;
 		margin: 0;
-		color: var(--tm-text);
+		color: var(--text-primary);
 		font-weight: 700;
 		letter-spacing: -0.01em;
 	}
 	.count-badge {
-		background: var(--tm-accent);
+		background: var(--accent);
 		color: white;
 		opacity: 0.2;
 		padding: 0.2rem 0.6rem;
@@ -1075,10 +1055,10 @@
 	/* --- USER CARD (Glassmorphism) --- */
 	.user-card {
 		position: relative;
-		background: var(--tm-card-bg);
+		background: var(--bg-secondary);
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
-		border: 1px solid var(--tm-glass-border);
+		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-lg);
 		padding: 2rem 1.5rem;
 		display: flex;
@@ -1093,7 +1073,7 @@
 	.user-card:hover {
 		transform: translateY(-5px);
 		box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
-		border-color: var(--tm-accent);
+		border-color: var(--accent);
 	}
 
 	.card-glow {
@@ -1161,14 +1141,14 @@
 		margin-bottom: 1.2rem;
 		position: relative;
 		z-index: 1;
-		border: 4px solid var(--tm-card-bg);
+		border: 4px solid var(--bg-secondary);
 		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-		background: var(--tm-border);
+		background: var(--border);
 		overflow: hidden;
 		transition: border-color 0.3s;
 	}
 	.user-card:hover .avatar-container {
-		border-color: var(--tm-accent);
+		border-color: var(--accent);
 	}
 
 	.avatar-container img {
@@ -1184,8 +1164,8 @@
 		justify-content: center;
 		font-size: 2.5rem;
 		font-weight: 700;
-		color: var(--tm-text-muted);
-		background: var(--tm-bg);
+		color: var(--text-secondary);
+		background: var(--bg-primary);
 	}
 	.hidden {
 		display: none;
@@ -1205,14 +1185,14 @@
 	.name {
 		font-weight: 700;
 		font-size: 1.15rem;
-		color: var(--tm-text);
+		color: var(--text-primary);
 		margin-bottom: 0.1rem;
 		line-height: 1.2;
 	}
 	.username {
 		font-family: monospace;
 		font-size: 0.85rem;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		opacity: 0.8;
 		max-width: 100%;
 		white-space: nowrap;
@@ -1252,12 +1232,12 @@
 		padding: 1rem;
 	}
 	.modal-glass {
-		background: var(--tm-card-bg);
+		background: var(--bg-secondary);
 		width: 90%;
 		max-width: 520px;
 		padding: 1.75rem;
 		border-radius: 18px;
-		border: 1px solid var(--tm-glass-border);
+		border: 1px solid var(--glass-border);
 		box-shadow: 0 20px 50px rgba(2, 6, 23, 0.6);
 		text-align: center;
 		position: relative;
@@ -1273,7 +1253,7 @@
 	}
 	.modal-header {
 		padding: 1.5rem;
-		border-bottom: 1px solid var(--tm-border);
+		border-bottom: 1px solid var(--border);
 		background: rgba(255, 255, 255, 0.02);
 		flex-shrink: 0;
 	}
@@ -1283,7 +1263,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		color: var(--tm-text);
+		color: var(--text-primary);
 	}
 
 	.modal-body {
@@ -1293,7 +1273,7 @@
 	}
 	.modal-actions {
 		padding: 1.5rem;
-		border-top: 1px solid var(--tm-border);
+		border-top: 1px solid var(--border);
 		background: rgba(255, 255, 255, 0.02);
 		display: flex;
 		justify-content: flex-end;
@@ -1319,7 +1299,7 @@
 		gap: 0.4rem;
 		font-size: 0.85rem;
 		font-weight: 700;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 	}
@@ -1330,17 +1310,17 @@
 	}
 	.quick-btns button {
 		background: transparent;
-		border: 1px solid var(--tm-border);
+		border: 1px solid var(--border);
 		border-radius: 6px;
 		padding: 0.1rem 0.45rem;
 		font-size: 0.75rem;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		cursor: pointer;
 		transition: all 0.15s;
 	}
 	.quick-btns button:hover {
-		border-color: var(--tm-accent);
-		color: var(--tm-accent);
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 	.checkbox-list {
 		display: flex;
@@ -1355,7 +1335,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		font-size: 0.9rem;
-		color: var(--tm-text);
+		color: var(--text-primary);
 		cursor: pointer;
 		padding: 0.3rem 0.5rem;
 		border-radius: var(--radius-xs);
@@ -1365,14 +1345,14 @@
 		background: rgba(59, 130, 246, 0.07);
 	}
 	.checkbox-item input[type='checkbox'] {
-		accent-color: var(--tm-accent);
+		accent-color: var(--accent);
 		width: 15px;
 		height: 15px;
 		flex-shrink: 0;
 	}
 	.export-count {
 		font-size: 0.85rem;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		text-align: right;
 		margin: 0;
 		font-style: italic;
@@ -1393,23 +1373,23 @@
 	.input-group label {
 		font-size: 0.85rem;
 		font-weight: 600;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		margin-left: 2px;
 	}
 
 	.input-glass {
 		padding: 0.75rem 1rem;
 		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid var(--tm-border);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		font-size: 0.95rem;
-		color: var(--tm-text);
+		color: var(--text-primary);
 		width: 100%;
 		transition: all 0.2s;
 	}
 	.input-glass:focus {
 		outline: none;
-		border-color: var(--tm-accent);
+		border-color: var(--accent);
 		background: rgba(255, 255, 255, 0.05);
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 	}
@@ -1425,8 +1405,8 @@
 		appearance: none;
 		cursor: pointer;
 		background: transparent;
-		color: var(--tm-text);
-		border: 1px solid var(--tm-border);
+		color: var(--text-primary);
+		border: 1px solid var(--border);
 		padding: 0.6rem 0.9rem;
 		border-radius: var(--radius-sm);
 	}
@@ -1436,13 +1416,13 @@
 		top: 50%;
 		transform: translateY(-50%);
 		pointer-events: none;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 	}
 
 	/* Photo Section in Modal */
 	.photo-section {
 		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid var(--tm-border);
+		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		padding: 1.5rem;
 	}
@@ -1452,7 +1432,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		color: var(--tm-text);
+		color: var(--text-primary);
 	}
 	.photo-content {
 		display: flex;
@@ -1481,17 +1461,17 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.6rem 1.2rem;
-		background: var(--tm-border);
+		background: var(--border);
 		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		cursor: pointer;
 		transition: all 0.2s;
 		font-weight: 600;
-		color: var(--tm-text);
+		color: var(--text-primary);
 	}
 	.file-upload-btn:hover {
 		background: rgba(255, 255, 255, 0.1);
-		color: var(--tm-accent);
+		color: var(--accent);
 	}
 	.file-upload-btn.disabled {
 		opacity: 0.6;
@@ -1503,7 +1483,7 @@
 
 	.photo-hint {
 		font-size: 0.8rem;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		margin-top: 0.8rem;
 		font-style: italic;
 	}
@@ -1511,14 +1491,14 @@
 	.btn-text {
 		background: transparent;
 		border: none;
-		color: var(--tm-text-muted);
+		color: var(--text-secondary);
 		font-weight: 600;
 		cursor: pointer;
 		padding: 0.5rem 1rem;
 		transition: color 0.2s;
 	}
 	.btn-text:hover {
-		color: var(--tm-text);
+		color: var(--text-primary);
 	}
 
 	@media (max-width: 640px) {

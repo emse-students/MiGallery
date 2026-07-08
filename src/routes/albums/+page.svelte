@@ -462,37 +462,12 @@
 </main>
 
 <style>
-	/* --- THEME VARIABLES --- */
+	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.albums-main {
-		--alb-bg: var(--bg-primary, #ffffff);
-		--alb-text: var(--text-primary, #1f2937);
-		--alb-text-muted: var(--text-secondary, #6b7280);
-		--alb-accent: var(--accent, #3b82f6);
-		--alb-border: var(--border, #e5e7eb);
-		--alb-glass-bg: rgba(255, 255, 255, 0.7);
-		--alb-glass-border: rgba(255, 255, 255, 0.5);
-		--alb-item-bg: rgba(255, 255, 255, 0.5);
-		--alb-item-hover: rgba(255, 255, 255, 0.8);
-
 		position: relative;
 		min-height: 100vh;
-		color: var(--alb-text);
+		color: var(--text-primary);
 		overflow-x: hidden;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
-	}
-
-	:global([data-theme='dark']) .albums-main {
-		--alb-bg: var(--bg-primary, #020617);
-		--alb-text: var(--text-primary, #f3f4f6);
-		--alb-text-muted: var(--text-secondary, #94a3b8);
-		--alb-border: rgba(255, 255, 255, 0.08);
-		--alb-glass-bg: rgba(15, 23, 42, 0.6);
-		--alb-glass-border: rgba(255, 255, 255, 0.08);
-		--alb-item-bg: rgba(255, 255, 255, 0.03);
-		--alb-item-hover: rgba(255, 255, 255, 0.08);
 	}
 
 	/* --- LAYOUT --- */
@@ -520,7 +495,7 @@
 		letter-spacing: -0.02em;
 	}
 	.subtitle {
-		color: var(--alb-text-muted);
+		color: var(--text-secondary);
 		font-size: 1rem;
 		margin: 0.25rem 0 0;
 	}
@@ -541,14 +516,14 @@
 	.month-title {
 		font-size: 1.25rem;
 		font-weight: 700;
-		color: var(--alb-text);
+		color: var(--text-primary);
 		text-transform: capitalize;
 		white-space: nowrap;
 		margin: 0;
 	}
 	.month-badge {
-		background: var(--alb-glass-border);
-		color: var(--alb-text);
+		background: var(--glass-border);
+		color: var(--text-primary);
 		opacity: 0.7;
 		padding: 0.2rem 0.6rem;
 		border-radius: var(--radius-xs);
@@ -558,7 +533,7 @@
 	.divider {
 		height: 1px;
 		flex: 1;
-		background: var(--alb-border);
+		background: var(--border);
 		opacity: 0.5;
 	}
 
@@ -577,8 +552,8 @@
 		aspect-ratio: 1;
 		-webkit-mask-image: -webkit-radial-gradient(white, black);
 		mask-image: radial-gradient(white, black);
-		background: var(--alb-item-bg);
-		border: 1px solid var(--alb-glass-border);
+		background: var(--glass-bg);
+		border: 1px solid var(--glass-border);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 		transition:
 			transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
@@ -592,7 +567,7 @@
 		transform: scale(1.02);
 		box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.2);
 		z-index: 10;
-		border-color: var(--alb-accent);
+		border-color: var(--accent);
 	}
 	/* Hidden albums are shown greyed-out to privileged users */
 	.album-item.album-hidden {
@@ -620,7 +595,7 @@
 		width: 100%;
 		height: 100%;
 		display: block;
-		background-color: var(--alb-item-bg);
+		background-color: var(--glass-bg);
 		margin: 0;
 		padding: 0;
 	}
@@ -696,7 +671,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--alb-text-muted);
+		color: var(--text-secondary);
 		opacity: 0.3;
 	}
 
@@ -737,7 +712,7 @@
 		min-height: 20px !important;
 	}
 	.action-btn:hover {
-		background-color: var(--alb-accent);
+		background-color: var(--accent);
 		transform: scale(1.1);
 	}
 	.action-btn.delete:hover {
@@ -748,13 +723,13 @@
 	.state-message {
 		text-align: center;
 		padding: 4rem;
-		color: var(--alb-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		justify-content: center;
 		gap: 0.5rem;
-		background: var(--alb-glass-bg);
+		background: var(--glass-bg);
 		border-radius: var(--radius);
-		border: 1px solid var(--alb-border);
+		border: 1px solid var(--border);
 	}
 	.state-message.error {
 		color: var(--error, #ef4444);
@@ -764,7 +739,7 @@
 	.empty-state {
 		text-align: center;
 		padding: 4rem;
-		color: var(--alb-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -825,14 +800,14 @@
 		width: 100%;
 		padding: 0.5rem 0.75rem;
 		border-radius: var(--radius-sm);
-		border: 1px solid var(--alb-border);
-		background: var(--alb-item-bg);
-		color: var(--alb-text);
+		border: 1px solid var(--border);
+		background: var(--glass-bg);
+		color: var(--text-primary);
 		font-size: 0.95rem;
 	}
 	.search-input:focus {
 		outline: none;
 		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.12);
-		border-color: var(--alb-accent);
+		border-color: var(--accent);
 	}
 </style>

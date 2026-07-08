@@ -225,50 +225,16 @@
 </div>
 
 <style>
-	/* --- THEME & VARIABLES (Identique AdminDatabase) --- */
+	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.admin-main {
-		/* LIGHT MODE */
-		--adm-bg: #f8fafc;
-		--adm-text: #1e293b;
-		--adm-text-muted: #64748b;
-		--adm-border: #e2e8f0;
-		--adm-accent: #3b82f6;
-
-		/* Variables Glassmorphism Light */
-		--adm-glass-bg: rgba(255, 255, 255, 0.7);
-		--adm-glass-border: rgba(255, 255, 255, 0.6);
-		--adm-item-bg: rgba(255, 255, 255, 0.5);
-		--adm-item-hover: rgba(255, 255, 255, 0.8);
-
 		position: relative;
 		min-height: 100vh;
-		color: var(--adm-text);
-		background-color: var(--adm-bg);
+		color: var(--text-primary);
+		background-color: var(--bg-primary);
 		overflow-x: hidden;
 		padding: 2rem 1rem 6rem;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
 		border-radius: 1.5rem;
 	}
-
-	:global([data-theme='dark']) .admin-main {
-		/* DARK MODE */
-		--adm-bg: #020617;
-		--adm-text: #f8fafc;
-		--adm-text-muted: #94a3b8;
-		--adm-border: rgba(255, 255, 255, 0.08);
-
-		/* Variables Glassmorphism Dark */
-		--adm-glass-bg: rgba(15, 23, 42, 0.6);
-		--adm-glass-border: rgba(255, 255, 255, 0.08);
-		--adm-item-bg: rgba(255, 255, 255, 0.03);
-		--adm-item-hover: rgba(255, 255, 255, 0.08);
-	}
-
-	/* --- BACKGROUND ANIMÉ --- */
-	/* Removed */
 
 	.admin-container {
 		position: relative;
@@ -287,7 +253,7 @@
 	.header-icon {
 		width: 56px;
 		height: 56px;
-		background: linear-gradient(135deg, var(--adm-accent), #8b5cf6);
+		background: linear-gradient(135deg, var(--accent), #8b5cf6);
 		color: white;
 		border-radius: var(--radius);
 		display: flex;
@@ -303,7 +269,7 @@
 		letter-spacing: -0.02em;
 	}
 	.subtitle {
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		font-size: 1rem;
 		margin: 0.25rem 0 0;
 	}
@@ -312,10 +278,10 @@
 
 	/* --- CARDS --- */
 	.glass-card {
-		background: var(--adm-glass-bg);
+		background: var(--glass-bg);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid var(--adm-glass-border);
+		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 		overflow: hidden;
@@ -324,7 +290,7 @@
 
 	.card-header {
 		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid var(--adm-border);
+		border-bottom: 1px solid var(--border);
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -337,7 +303,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.card-body {
 		padding: 1.5rem;
@@ -358,7 +324,7 @@
 	.input-group label {
 		font-size: 0.85rem;
 		font-weight: 600;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		margin-left: 2px;
 	}
 	.input-group.flex-1 {
@@ -368,17 +334,17 @@
 
 	.input-glass {
 		padding: 0.75rem 1rem;
-		background: var(--adm-item-bg);
-		border: 1px solid var(--adm-border);
+		background: var(--glass-bg);
+		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
 		font-size: 0.95rem;
-		color: var(--adm-text);
+		color: var(--text-primary);
 		transition: all 0.2s;
 	}
 	.input-glass:focus {
 		outline: none;
-		border-color: var(--adm-accent);
-		background: var(--adm-item-hover);
+		border-color: var(--accent);
+		background: var(--bg-tertiary);
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 	}
 
@@ -388,7 +354,7 @@
 
 	.btn-primary {
 		padding: 0.75rem 1.5rem;
-		background: var(--adm-accent);
+		background: var(--accent);
 		color: white;
 		border: none;
 		border-radius: var(--radius-md);
@@ -413,7 +379,7 @@
 	.hint-text {
 		margin-top: 1rem;
 		font-size: 0.85rem;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -436,39 +402,39 @@
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
-		color: var(--adm-text-muted);
-		border-bottom: 1px solid var(--adm-border);
+		color: var(--text-secondary);
+		border-bottom: 1px solid var(--border);
 		background: rgba(0, 0, 0, 0.02);
 	}
 
 	td {
 		padding: 1rem 1.5rem;
-		border-bottom: 1px solid var(--adm-border);
+		border-bottom: 1px solid var(--border);
 		font-size: 0.95rem;
 		vertical-align: middle;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 
 	tr:last-child td {
 		border-bottom: none;
 	}
 	tr:hover td {
-		background: var(--adm-item-hover);
+		background: var(--bg-tertiary);
 	}
 
 	.id-cell {
 		font-family: monospace;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		font-size: 0.85rem;
 	}
 	.text-right {
 		text-align: right;
 	}
 	.text-muted {
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 	}
 	.text-main {
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.text-sm {
 		font-size: 0.85rem;
@@ -493,7 +459,7 @@
 	}
 	.badge.scope {
 		background: rgba(59, 130, 246, 0.15);
-		color: var(--adm-accent);
+		color: var(--accent);
 		border: 1px solid rgba(59, 130, 246, 0.2);
 	}
 	.badge.all {
@@ -505,15 +471,15 @@
 	.btn-refresh {
 		background: transparent;
 		border: none;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		cursor: pointer;
 		padding: 0.5rem;
 		border-radius: var(--radius-xs);
 		transition: all 0.2s;
 	}
 	.btn-refresh:hover {
-		background: var(--adm-item-hover);
-		color: var(--adm-accent);
+		background: var(--bg-tertiary);
+		color: var(--accent);
 	}
 	.animate-spin {
 		animation: spin 1s linear infinite;
@@ -546,7 +512,7 @@
 	.empty-state {
 		padding: 4rem 2rem;
 		text-align: center;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;

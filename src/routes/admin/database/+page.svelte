@@ -445,50 +445,16 @@
 </div>
 
 <style>
-	/* --- THEME & VARIABLES --- */
+	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.admin-main {
-		/* LIGHT MODE */
-		--adm-bg: #f8fafc;
-		--adm-text: #1e293b;
-		--adm-text-muted: #64748b;
-		--adm-border: #e2e8f0;
-		--adm-accent: #3b82f6;
-
-		/* Variables Glassmorphism Light */
-		--adm-glass-bg: rgba(255, 255, 255, 0.7);
-		--adm-glass-border: rgba(255, 255, 255, 0.6);
-		--adm-item-bg: rgba(255, 255, 255, 0.5);
-		--adm-item-hover: rgba(255, 255, 255, 0.8);
-
 		position: relative;
 		min-height: 100vh;
-		color: var(--adm-text);
-		background-color: var(--adm-bg);
+		color: var(--text-primary);
+		background-color: var(--bg-primary);
 		overflow-x: hidden;
 		padding: 2rem 1rem 6rem;
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
 		border-radius: 1.5rem;
 	}
-
-	:global([data-theme='dark']) .admin-main {
-		/* DARK MODE */
-		--adm-bg: #020617;
-		--adm-text: #f8fafc;
-		--adm-text-muted: #94a3b8;
-		--adm-border: rgba(255, 255, 255, 0.08);
-
-		/* Variables Glassmorphism Dark */
-		--adm-glass-bg: rgba(15, 23, 42, 0.6);
-		--adm-glass-border: rgba(255, 255, 255, 0.08);
-		--adm-item-bg: rgba(255, 255, 255, 0.03);
-		--adm-item-hover: rgba(255, 255, 255, 0.08);
-	}
-
-	/* --- BACKGROUND ANIMÉ --- */
-	/* Removed */
 
 	.admin-container {
 		position: relative;
@@ -507,7 +473,7 @@
 	.header-icon {
 		width: 56px;
 		height: 56px;
-		background: linear-gradient(135deg, var(--adm-accent), #8b5cf6);
+		background: linear-gradient(135deg, var(--accent), #8b5cf6);
 		color: white;
 		border-radius: var(--radius);
 		display: flex;
@@ -523,7 +489,7 @@
 		letter-spacing: -0.02em;
 	}
 	.subtitle {
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		font-size: 1rem;
 		margin: 0.25rem 0 0;
 	}
@@ -552,10 +518,10 @@
 
 	/* --- CARDS --- */
 	.glass-card {
-		background: var(--adm-glass-bg);
+		background: var(--glass-bg);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid var(--adm-glass-border);
+		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 		padding: 2rem; /* Padding interne explicite */
@@ -572,7 +538,7 @@
 	}
 	.backup-header {
 		padding: 1.5rem 2rem;
-		border-bottom: 1px solid var(--adm-border);
+		border-bottom: 1px solid var(--border);
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -594,7 +560,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.section-title.m-0 {
 		margin-bottom: 0;
@@ -613,8 +579,8 @@
 	}
 
 	.stat-item {
-		background: var(--adm-item-bg);
-		border: 1px solid var(--adm-border);
+		background: var(--glass-bg);
+		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		padding: 1.25rem 1rem;
 		text-align: center;
@@ -622,13 +588,13 @@
 	}
 	.stat-item:hover {
 		transform: translateY(-2px);
-		border-color: var(--adm-glass-border);
+		border-color: var(--glass-border);
 	}
 	.stat-label {
 		display: block;
 		font-size: 0.8rem;
 		font-weight: 600;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		margin-bottom: 0.5rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -636,10 +602,10 @@
 	.stat-value {
 		font-size: 1.5rem;
 		font-weight: 800;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.stat-value.highlight {
-		background: linear-gradient(135deg, var(--adm-accent), #8b5cf6);
+		background: linear-gradient(135deg, var(--accent), #8b5cf6);
 		background-clip: text;
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
@@ -660,15 +626,15 @@
 		padding: 1.25rem;
 		border-radius: var(--radius);
 		border: 1px solid transparent;
-		background: var(--adm-item-bg);
+		background: var(--glass-bg);
 		text-align: left;
 		cursor: pointer;
 		transition: all 0.2s;
 	}
 	.action-btn:hover:not(:disabled) {
 		transform: translateY(-2px);
-		background: var(--adm-item-hover);
-		border-color: var(--adm-glass-border);
+		background: var(--bg-tertiary);
+		border-color: var(--glass-border);
 		box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
 	}
 	.action-btn:disabled {
@@ -710,11 +676,11 @@
 	.btn-title {
 		font-weight: 700;
 		font-size: 1rem;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.btn-desc {
 		font-size: 0.85rem;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 	}
 
 	/* --- DANGER ZONE / IMPORT --- */
@@ -743,14 +709,14 @@
 		align-items: center;
 		justify-content: center;
 		padding: 2.5rem;
-		border: 2px dashed var(--adm-border);
+		border: 2px dashed var(--border);
 		border-radius: var(--radius);
-		background: var(--adm-item-bg);
+		background: var(--glass-bg);
 		transition: all 0.2s;
 	}
 	.file-drop-area input:hover + label {
-		border-color: var(--adm-accent);
-		background: var(--adm-item-hover);
+		border-color: var(--accent);
+		background: var(--bg-tertiary);
 	}
 
 	.btn-full-danger {
@@ -806,8 +772,8 @@
 		gap: 0.5rem;
 		padding: 0.75rem;
 		border-radius: var(--radius-xs);
-		border: 1px solid var(--adm-border);
-		background: var(--adm-item-bg);
+		border: 1px solid var(--border);
+		background: var(--glass-bg);
 		font-size: 0.85rem;
 	}
 	.table-check-item.valid {
@@ -821,11 +787,11 @@
 	.t-name {
 		flex: 1;
 		font-weight: 500;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.t-count {
 		font-family: monospace;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		font-size: 0.75rem;
 	}
 
@@ -835,21 +801,21 @@
 		align-items: center;
 		gap: 1rem;
 		padding: 1rem;
-		background: var(--adm-item-bg);
+		background: var(--glass-bg);
 		border-radius: var(--radius-md);
 		border: 1px solid transparent;
 		transition: all 0.2s;
 	}
 	.backup-row:hover {
-		background: var(--adm-item-hover);
-		border-color: var(--adm-glass-border);
+		background: var(--bg-tertiary);
+		border-color: var(--glass-border);
 	}
 
 	.backup-icon {
 		width: 40px;
 		height: 40px;
 		background: rgba(59, 130, 246, 0.1);
-		color: var(--adm-accent);
+		color: var(--accent);
 		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
@@ -861,11 +827,11 @@
 	.backup-name {
 		font-weight: 600;
 		font-size: 0.9rem;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.backup-meta {
 		font-size: 0.75rem;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		margin-top: 2px;
 	}
 
@@ -874,7 +840,7 @@
 		height: 36px;
 		border: none;
 		background: transparent;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		border-radius: var(--radius-xs);
 		cursor: pointer;
 		display: flex;
@@ -884,13 +850,13 @@
 	}
 	.btn-restore:hover {
 		background: rgba(59, 130, 246, 0.15);
-		color: var(--adm-accent);
+		color: var(--accent);
 	}
 
 	.empty-placeholder {
 		padding: 3rem;
 		text-align: center;
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -948,10 +914,10 @@
 	.modal-glass h3 {
 		font-size: 1.5rem;
 		margin-bottom: 0.5rem;
-		color: var(--adm-text);
+		color: var(--text-primary);
 	}
 	.modal-glass p {
-		color: var(--adm-text-muted);
+		color: var(--text-secondary);
 		margin-bottom: 2rem;
 		line-height: 1.6;
 	}
