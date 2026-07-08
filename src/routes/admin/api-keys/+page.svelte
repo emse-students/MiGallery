@@ -289,7 +289,7 @@
 		height: 56px;
 		background: linear-gradient(135deg, var(--adm-accent), #8b5cf6);
 		color: white;
-		border-radius: 16px;
+		border-radius: var(--radius);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -316,7 +316,7 @@
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
 		border: 1px solid var(--adm-glass-border);
-		border-radius: 20px;
+		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 		overflow: hidden;
 		margin-bottom: 2rem;
@@ -370,7 +370,7 @@
 		padding: 0.75rem 1rem;
 		background: var(--adm-item-bg);
 		border: 1px solid var(--adm-border);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		font-size: 0.95rem;
 		color: var(--adm-text);
 		transition: all 0.2s;
@@ -391,7 +391,7 @@
 		background: var(--adm-accent);
 		color: white;
 		border: none;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		font-weight: 600;
 		cursor: pointer;
 		display: flex;
@@ -508,7 +508,7 @@
 		color: var(--adm-text-muted);
 		cursor: pointer;
 		padding: 0.5rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		transition: all 0.2s;
 	}
 	.btn-refresh:hover {
@@ -529,7 +529,7 @@
 		color: #ef4444;
 		width: 36px;
 		height: 36px;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		border: none;
 		display: inline-flex;
 		align-items: center;

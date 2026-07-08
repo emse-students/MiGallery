@@ -458,7 +458,7 @@
 
 	.selection-toolbar {
 		background: rgba(255, 255, 255, 0.05);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		padding: 1rem 1.5rem;
 		margin-bottom: 1.5rem;
 		display: flex;
@@ -485,7 +485,7 @@
 	.selection-actions button {
 		padding: 0.5rem 1rem;
 		border: none;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s;

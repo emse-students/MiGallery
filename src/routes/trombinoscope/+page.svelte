@@ -920,7 +920,7 @@
 	.search-input {
 		width: 100%;
 		padding: 0.5rem 0.75rem;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		border: 1px solid var(--tm-border);
 		background: var(--tm-card-bg);
 		color: var(--tm-text);
@@ -1061,7 +1061,7 @@
 		color: white;
 		opacity: 0.2;
 		padding: 0.2rem 0.6rem;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		font-size: 0.8rem;
 		font-weight: 700;
 	}
@@ -1079,7 +1079,7 @@
 		backdrop-filter: blur(12px);
 		-webkit-backdrop-filter: blur(12px);
 		border: 1px solid var(--tm-glass-border);
-		border-radius: 20px;
+		border-radius: var(--radius-lg);
 		padding: 2rem 1.5rem;
 		display: flex;
 		flex-direction: column;
@@ -1121,7 +1121,7 @@
 	.control-btn {
 		width: 32px;
 		height: 32px;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		border: none;
 		display: flex;
 		align-items: center;
@@ -1358,7 +1358,7 @@
 		color: var(--tm-text);
 		cursor: pointer;
 		padding: 0.3rem 0.5rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		transition: background 0.15s;
 	}
 	.checkbox-item:hover {
@@ -1401,7 +1401,7 @@
 		padding: 0.75rem 1rem;
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--tm-border);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		font-size: 0.95rem;
 		color: var(--tm-text);
 		width: 100%;
@@ -1428,7 +1428,7 @@
 		color: var(--tm-text);
 		border: 1px solid var(--tm-border);
 		padding: 0.6rem 0.9rem;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 	}
 	.select-icon {
 		position: absolute;
@@ -1443,7 +1443,7 @@
 	.photo-section {
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--tm-border);
-		border-radius: 16px;
+		border-radius: var(--radius);
 		padding: 1.5rem;
 	}
 	.photo-header {
@@ -1482,7 +1482,7 @@
 		gap: 0.5rem;
 		padding: 0.6rem 1.2rem;
 		background: var(--tm-border);
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		cursor: pointer;
 		transition: all 0.2s;

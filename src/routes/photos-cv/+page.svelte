@@ -349,7 +349,7 @@
 		background: var(--cv-glass-bg);
 		backdrop-filter: blur(20px);
 		border: 1px solid var(--cv-glass-border);
-		border-radius: 20px;
+		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 		margin-bottom: 1.5em;
 	}
@@ -373,7 +373,7 @@
 	.icon-box {
 		width: 42px;
 		height: 42px;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		background: rgba(59, 130, 246, 0.1);
 		color: var(--cv-accent);
 		display: flex;
@@ -436,7 +436,7 @@
 		padding: 0.5rem 1rem;
 		background: var(--cv-item-bg);
 		border: 1px solid var(--cv-glass-border);
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		color: var(--cv-text);
 		cursor: pointer;
 		transition: all 0.2s;
@@ -468,13 +468,13 @@
 		align-items: center;
 		gap: 0.75rem;
 		background: var(--cv-glass-bg);
-		border-radius: 16px;
+		border-radius: var(--radius);
 		border: 1px solid var(--cv-border);
 		margin-bottom: 2rem;
 	}
 	.state-message.error {
-		color: #ef4444;
-		border-color: rgba(239, 68, 68, 0.2);
+		color: var(--error);
+		border-color: color-mix(in srgb, var(--error) 20%, transparent);
 	}
 
 	@media (max-width: 640px) {

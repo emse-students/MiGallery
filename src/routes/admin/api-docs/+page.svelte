@@ -457,7 +457,7 @@ requests.get(
     background: linear-gradient(90deg, var(--accent), #8b5cf6);
     color: white;
     text-decoration: none;
-    border-radius: 8px;
+    border-radius: var(--radius-xs);
     font-weight: 600;
     transition: transform 0.2s;
   }
@@ -658,7 +658,7 @@ requests.get(
   .scope-badge {
     display: inline-block;
     padding: 0.25rem 0.75rem;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;

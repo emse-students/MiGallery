@@ -148,7 +148,7 @@
 		min-width: 48px;
 		background: linear-gradient(135deg, var(--doc-accent), #8b5cf6);
 		color: white;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -185,7 +185,7 @@
 		background: var(--doc-card-bg);
 		backdrop-filter: blur(12px);
 		border: 1px solid var(--doc-border);
-		border-radius: 16px;
+		border-radius: var(--radius);
 		padding: 1.5rem;
 		max-height: calc(100vh - 4rem);
 		overflow-y: auto;
@@ -217,7 +217,7 @@
 		border: none;
 		background: transparent;
 		color: var(--doc-text);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		cursor: pointer;
 		transition: all 0.2s;
 		font-size: 0.9rem;
@@ -257,7 +257,7 @@
 		background: var(--doc-card-bg);
 		backdrop-filter: blur(16px);
 		border: 1px solid var(--doc-border);
-		border-radius: 16px;
+		border-radius: var(--radius);
 		padding: 2.5rem;
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
 		overflow: hidden;
@@ -347,7 +347,7 @@
 		background: var(--doc-code-bg);
 		color: var(--doc-code-text);
 		padding: 1.25rem;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		overflow-x: auto;
 		margin: 1.5rem 0;
 		border: 1px solid rgba(255, 255, 255, 0.1);

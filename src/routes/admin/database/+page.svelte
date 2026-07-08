@@ -509,7 +509,7 @@
 		height: 56px;
 		background: linear-gradient(135deg, var(--adm-accent), #8b5cf6);
 		color: white;
-		border-radius: 16px;
+		border-radius: var(--radius);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -556,7 +556,7 @@
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
 		border: 1px solid var(--adm-glass-border);
-		border-radius: 20px;
+		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 		padding: 2rem; /* Padding interne explicite */
 	}
@@ -615,7 +615,7 @@
 	.stat-item {
 		background: var(--adm-item-bg);
 		border: 1px solid var(--adm-border);
-		border-radius: 16px;
+		border-radius: var(--radius);
 		padding: 1.25rem 1rem;
 		text-align: center;
 		transition: transform 0.2s;
@@ -658,7 +658,7 @@
 		gap: 1.25rem;
 		width: 100%;
 		padding: 1.25rem;
-		border-radius: 16px;
+		border-radius: var(--radius);
 		border: 1px solid transparent;
 		background: var(--adm-item-bg);
 		text-align: left;
@@ -680,7 +680,7 @@
 	.btn-icon-wrapper {
 		width: 48px;
 		height: 48px;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -744,7 +744,7 @@
 		justify-content: center;
 		padding: 2.5rem;
 		border: 2px dashed var(--adm-border);
-		border-radius: 16px;
+		border-radius: var(--radius);
 		background: var(--adm-item-bg);
 		transition: all 0.2s;
 	}
@@ -760,7 +760,7 @@
 		background: linear-gradient(135deg, #ef4444, #dc2626);
 		color: white;
 		border: none;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		font-weight: 600;
 		cursor: pointer;
 		transition:
@@ -805,7 +805,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.75rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		border: 1px solid var(--adm-border);
 		background: var(--adm-item-bg);
 		font-size: 0.85rem;
@@ -836,7 +836,7 @@
 		gap: 1rem;
 		padding: 1rem;
 		background: var(--adm-item-bg);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		border: 1px solid transparent;
 		transition: all 0.2s;
 	}
@@ -850,7 +850,7 @@
 		height: 40px;
 		background: rgba(59, 130, 246, 0.1);
 		color: var(--adm-accent);
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -875,7 +875,7 @@
 		border: none;
 		background: transparent;
 		color: var(--adm-text-muted);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
@@ -939,7 +939,7 @@
 		height: 64px;
 		background: rgba(245, 158, 11, 0.1);
 		color: #f59e0b;
-		border-radius: 20px;
+		border-radius: var(--radius-lg);
 		display: flex;
 		align-items: center;
 		justify-content: center;

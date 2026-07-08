@@ -1163,7 +1163,7 @@
 	.icon-wrapper {
 		width: 48px;
 		height: 48px;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		display: flex;
 		align-items: center;
 		justify-content: center;
