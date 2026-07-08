@@ -7,12 +7,9 @@ import { getSessionUser } from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
 import { verifySigned } from '$lib/auth/cookies';
 import { paraglideMiddleware } from '$lib/paraglide/server';
-import { startMemMonitor, recordRequest } from '$lib/server/mem-monitor';
 
 // Démarre la sauvegarde automatique quotidienne dès le démarrage du serveur
 startBackupScheduler();
-// Periodic rss/heap/native heartbeat + busiest routes, for memory visibility.
-startMemMonitor();
 
 /**
  * Liste des domaines autorisés pour CORS.
@@ -175,16 +172,4 @@ const paraglideHandler: Handle = ({ event, resolve }) => {
 	});
 };
 
-// Count every request by (id-collapsed) path so the memory heartbeat can show
-// which routes are busiest when RSS grows.
-const monitorHandler: Handle = ({ event, resolve }) => {
-	recordRequest(event.url.pathname);
-	return resolve(event);
-};
-
-export const handle = sequence(
-	monitorHandler,
-	paraglideHandler,
-	corsAndCsrfHandler,
-	sessionHandler
-);
+export const handle = sequence(paraglideHandler, corsAndCsrfHandler, sessionHandler);

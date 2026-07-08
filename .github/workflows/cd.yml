@@ -1,6 +1,6 @@
 name: CD - Deploy to Production
 
-# Sur push main : execute la CI (barriere), construit/pousse l image GHCR, puis
+# Sur push main : exécute la CI (barrière), construit/pousse l'image GHCR, puis
 # déploie sur le runner self-hosted (mitv). Immich est géré independamment.
 on:
  push:
