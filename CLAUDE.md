@@ -170,3 +170,13 @@ ENABLE_DEV_ROUTES=false
 - **DB synchrone** : `better-sqlite3` est synchrone par design. Les requêtes sont dans des handlers serveur, c'est intentionnel.
 - **Concurrence uploads** : verrou par fichier via `fs.openSync(lockPath, 'wx')`. Ne pas supprimer cette logique.
 - **Iconographie** : uniquement `lucide-svelte`. Ne pas utiliser d'alias (`ScanFace`, `CheckSquare`) — vérifier que le nom existe dans la version installée.
+
+---
+
+## Conventions de langue et de caractères
+
+Reprises de `C:\Users\jolan\Documents\Programmation\canari\CLAUDE.md` (sections "Language" et "Text characters"). Adaptées à MiGallery.
+
+- **Langue du code** : commentaires (`//`, `/* */`, `/** */`) et strings destinées au dev (`console.*`, erreurs jetées en interne) en **anglais**. Tout texte visible par l'utilisateur passe par Paraglide (`messages/fr.json` + `messages/en.json`), jamais en littéral inline.
+- **Normalisation de la PONCTUATION en ASCII** (code, strings, commentaires, docs, JSON de trad) : apostrophe droite `'` (jamais `’`), guillemet droit `"` (jamais `“ ” « »`), trait d'union `-` (jamais `—` / `–`). Exception : l'ellipse `…` est conservée. Dans le code, échapper `\'` / `\"` plutôt que réintroduire un caractère typographique.
+- **Les accents des lettres françaises sont TOUJOURS conservés** (`é è ê à ù ç î ô` ...). Cette règle ne vise QUE la ponctuation typographique : "ASCII" ne veut PAS dire "français sans accents". Écrire "evenements" ou "privee" au lieu de "évènements" / "privée" est une ERREUR. Vaut pour les valeurs i18n FR, le français dans les commentaires, et ce fichier.

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import {
 		Plus,
@@ -27,7 +27,7 @@
 	import type { User, Album, ImmichAsset } from '$lib/types/api';
 	import { downloadInBatches } from '$lib/immich/download';
 	import { onDestroy } from 'svelte';
-	import { fade, fly } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -59,13 +59,13 @@
 		onConfirm: () => void;
 	} | null>(null);
 
-	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
+	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canCreateAlbum = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	$effect(() => {
-		if (typeof $page.data !== 'undefined') {
-			if ($page.data?.albums) {
-				albums = $page.data.albums as Album[];
+		if (typeof page.data !== 'undefined') {
+			if (page.data?.albums) {
+				albums = page.data.albums as Album[];
 			} else {
 				albums = [];
 			}
@@ -166,6 +166,12 @@
 		if (visibility === 'unlisted') return 'link';
 		if (visibility === 'authenticated') return 'eye';
 		return 'eye';
+	}
+
+	function getVisibilityLabel(visibility?: string): string {
+		if (visibility === 'unlisted') return m.albums_visibility_unlisted();
+		if (visibility === 'authenticated') return m.albums_visibility_authenticated();
+		return m.albums_visibility_private();
 	}
 
 	async function downloadAlbumAssets(immichId: string, albumName?: string) {
@@ -270,7 +276,7 @@
 		<header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
 			<div class="header-content">
 				<h1>{m.nav_albums()}</h1>
-				<p class="subtitle">Vos souvenirs et événements</p>
+				<p class="subtitle">{m.albums_subtitle()}</p>
 			</div>
 
 			<div class="header-search">
@@ -374,7 +380,7 @@
 																	})}
 																</span>
 															{/if}
-															<span class="visibility-icon" title="Visibilité: {a.visibility}">
+															<span class="visibility-icon" title={getVisibilityLabel(a.visibility)}>
 																{#if getVisibilityIcon(a.visibility) === 'lock'}
 																	<Lock size={12} />
 																{:else if getVisibilityIcon(a.visibility) === 'link'}
@@ -427,10 +433,7 @@
 					{/each}
 
 					{#if pageLimit < filteredAlbums.length}
-						<div
-							style="height: 50px; display: flex; justify-content: center; align-items: center; width: 100%; margin-top: 2rem;"
-							bind:this={loadMoreElement}
-						>
+						<div class="load-more-sentinel" bind:this={loadMoreElement}>
 							<Spinner size={32} />
 						</div>
 					{/if}
@@ -453,7 +456,7 @@
 			onConfirm={confirmModalConfig.onConfirm}
 			onCancel={() => (showConfirmModal = false)}
 		>
-			<p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
+			<p class="confirm-message">{confirmModalConfig.message}</p>
 		</Modal>
 	{/if}
 </main>
@@ -492,9 +495,6 @@
 		--alb-item-hover: rgba(255, 255, 255, 0.08);
 	}
 
-	/* --- BACKGROUND --- */
-	/* Removed */
-
 	/* --- LAYOUT --- */
 	.albums-container {
 		position: relative;
@@ -528,40 +528,6 @@
 		margin-left: auto;
 	}
 
-	/* --- BUTTONS --- */
-	.btn-glass {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.6rem 1.2rem;
-		background: var(--alb-item-bg);
-		border: 1px solid var(--alb-glass-border);
-		border-radius: 10px;
-		color: var(--alb-text);
-		font-weight: 600;
-		transition: all 0.2s;
-		cursor: pointer;
-		backdrop-filter: blur(4px);
-	}
-	.btn-glass:hover {
-		transform: translateY(-2px);
-		background: var(--alb-item-hover);
-		border-color: var(--alb-accent);
-		color: var(--alb-accent);
-	}
-
-	.btn-glass.primary {
-		background: var(--alb-accent);
-		color: white;
-		border-color: transparent;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--alb-accent) 30%, transparent);
-	}
-	.btn-glass.primary:hover {
-		background: color-mix(in srgb, var(--alb-accent) 90%, black);
-		color: white;
-		transform: translateY(-2px);
-	}
-
 	/* --- TIMELINE --- */
 	.month-group {
 		margin-bottom: 3rem;
@@ -585,7 +551,7 @@
 		color: var(--alb-text);
 		opacity: 0.7;
 		padding: 0.2rem 0.6rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		font-size: 0.8rem;
 		font-weight: 700;
 	}
@@ -606,7 +572,7 @@
 	/* --- CARD (Glassmorphism / Borderless) --- */
 	.album-item {
 		position: relative;
-		border-radius: 16px;
+		border-radius: var(--radius);
 		overflow: hidden;
 		aspect-ratio: 1;
 		-webkit-mask-image: -webkit-radial-gradient(white, black);
@@ -628,7 +594,7 @@
 		z-index: 10;
 		border-color: var(--alb-accent);
 	}
-	/* Affichage des albums invisibles pour les utilisateurs privilégiés */
+	/* Hidden albums are shown greyed-out to privileged users */
 	.album-item.album-hidden {
 		filter: grayscale(100%);
 		opacity: 0.6;
@@ -637,7 +603,7 @@
 			opacity 0.25s ease;
 	}
 	.album-item.album-hidden:hover {
-		/* léger retour visuel au survol tout en restant distinct */
+		/* Slight visual feedback on hover while staying distinct */
 		opacity: 0.75;
 	}
 	.album-link {
@@ -753,7 +719,7 @@
 	.action-btn {
 		width: 36px;
 		height: 36px;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		border: none;
 		display: flex;
 		align-items: center;
@@ -778,7 +744,7 @@
 		background-color: var(--error, #ef4444);
 	}
 
-	/* --- ETATS --- */
+	/* --- STATES --- */
 	.state-message {
 		text-align: center;
 		padding: 4rem;
@@ -787,7 +753,7 @@
 		justify-content: center;
 		gap: 0.5rem;
 		background: var(--alb-glass-bg);
-		border-radius: 1rem;
+		border-radius: var(--radius);
 		border: 1px solid var(--alb-border);
 	}
 	.state-message.error {
@@ -804,6 +770,19 @@
 		align-items: center;
 		gap: 1rem;
 		opacity: 0.7;
+	}
+
+	.load-more-sentinel {
+		height: 50px;
+		width: 100%;
+		margin-top: 2rem;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.confirm-message {
+		white-space: pre-wrap;
 	}
 
 	@media (max-width: 640px) {
@@ -845,7 +824,7 @@
 	.search-input {
 		width: 100%;
 		padding: 0.5rem 0.75rem;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		border: 1px solid var(--alb-border);
 		background: var(--alb-item-bg);
 		color: var(--alb-text);

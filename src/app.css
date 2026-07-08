@@ -31,6 +31,12 @@
 	--success-hover: #059669;
 	--error: #ef4444;
 	--warning: #f59e0b;
+	/* Semantic action accents (share / edit). Theme-agnostic, so declared once
+	   here and inherited by the light theme. Used by .btn-glass modifiers. */
+	--info: #0ea5e9;
+	--info-hover: #0284c7;
+	--edit: #8b5cf6;
+	--edit-hover: #7c3aed;
 
 	--border: rgba(255, 255, 255, 0.08);
 	--border-color: rgba(255, 255, 255, 0.08);
@@ -551,34 +557,97 @@
 		margin: 0.25rem 0 0;
 	}
 
-	/* Glass button used across pages */
+	/* =====================================================================
+	   Canonical glass button - single source used across every page.
+	   Base = translucent "glass" pill; modifiers add semantic color.
+	   Solid variants (.primary/.success) are colored by default; the others
+	   (.danger/.info/.edit) stay neutral glass and color only on hover.
+	   Icon-only variant (.icon) is square/compact for action overlays.
+	   ===================================================================== */
 	.btn-glass {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: 0.5rem;
 		padding: 0.6rem 1.1rem;
 		background: rgba(255, 255, 255, 0.06);
 		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		color: var(--text-primary);
 		font-weight: 600;
-		transition: all 0.18s ease;
+		line-height: 1;
+		white-space: nowrap;
+		transition: all 0.18s var(--ease);
 		cursor: pointer;
 		backdrop-filter: blur(6px) saturate(120%);
 	}
 
-	.btn-glass:hover {
+	.btn-glass:hover:not(:disabled) {
 		transform: translateY(-2px);
 		background: rgba(255, 255, 255, 0.09);
 		border-color: rgba(59, 130, 246, 0.14);
 		color: var(--accent);
 	}
 
+	.btn-glass:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none;
+		box-shadow: none;
+		filter: grayscale(1);
+	}
+
+	/* Icon-only (square, compact) */
+	.btn-glass.icon {
+		padding: 0.5rem;
+	}
+
 	.btn-glass.primary {
 		background: var(--accent);
-		color: white;
+		color: #fff;
 		border-color: transparent;
 		box-shadow: 0 6px 18px rgba(59, 130, 246, 0.16);
+	}
+	.btn-glass.primary:hover:not(:disabled) {
+		background: var(--accent-hover);
+		color: #fff;
+	}
+
+	.btn-glass.success {
+		background: var(--success);
+		color: #fff;
+		border-color: transparent;
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 30%, transparent);
+	}
+	.btn-glass.success:hover:not(:disabled) {
+		background: var(--success-hover);
+		color: #fff;
+	}
+
+	.btn-glass.danger:hover:not(:disabled) {
+		background: var(--error);
+		color: #fff;
+		border-color: transparent;
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--error) 30%, transparent);
+	}
+	.btn-glass.info:hover:not(:disabled) {
+		background: var(--info);
+		color: #fff;
+		border-color: transparent;
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--info) 30%, transparent);
+	}
+	.btn-glass.edit:hover:not(:disabled) {
+		background: var(--edit);
+		color: #fff;
+		border-color: transparent;
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--edit) 30%, transparent);
+	}
+
+	/* Toggle "on" state (e.g. selection mode) */
+	.btn-glass.active {
+		background: var(--text-primary);
+		color: var(--bg-primary);
+		border-color: transparent;
 	}
 
 	/* Reusable glass card modifier */

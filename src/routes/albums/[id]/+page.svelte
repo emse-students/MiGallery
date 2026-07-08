@@ -62,7 +62,7 @@
 	$effect(() => {
 		const albumData = (page.data as { album?: Album }).album;
 		if (albumData?.id) {
-			title = albumData.name || 'Album';
+			title = albumData.name || m.albumd_default_title();
 			locationInfo = albumData.location || '';
 			photosState.loadAlbumWithStreaming(
 				albumData.id,
@@ -131,7 +131,7 @@
 		try {
 			const url = window.location.href;
 			if (navigator.share) {
-				await navigator.share({ title: title || 'Album', url });
+				await navigator.share({ title: title || m.albumd_default_title(), url });
 			} else {
 				await navigator.clipboard.writeText(url);
 				toast.success(m.albumd_link_copied());
@@ -192,7 +192,7 @@
 	{/if}
 </svelte:head>
 
-<!-- SNIPPET DES BOUTONS D'ACTION (Mobile & Desktop) -->
+<!-- Action buttons snippet (mobile & desktop) -->
 {#snippet actionButtons(mobile = false)}
 	<div class="actions-group {mobile ? 'mobile' : 'desktop'}">
 		<!-- Selection mode -->
@@ -208,7 +208,7 @@
 					<CheckCircle size={18} />
 				{/if}
 				{#if !mobile || photosState.selecting}
-					<span class="label">{photosState.selecting ? 'OK' : m.albumd_selection()}</span>
+					<span class="label">{photosState.selecting ? m.common_ok() : m.albumd_selection()}</span>
 				{/if}
 			</button>
 		{/if}
@@ -219,7 +219,7 @@
 				<Pencil size={18} />
 				{#if !mobile}<span class="label">{m.common_edit()}</span>{/if}
 			</button>
-			<button onclick={() => deleteAlbum()} class="btn-glass delete" title={m.common_delete()}>
+			<button onclick={() => deleteAlbum()} class="btn-glass danger" title={m.common_delete()}>
 				<Trash2 size={18} />
 			</button>
 		{/if}
@@ -228,7 +228,7 @@
 		{#if canManagePhotos}<div class="divider"></div>{/if}
 
 		<!-- Public actions -->
-		<button onclick={shareAlbum} class="btn-glass share" title={m.albumd_share()}>
+		<button onclick={shareAlbum} class="btn-glass info" title={m.albumd_share()}>
 			<Share2 size={18} />
 			{#if !mobile}<span class="label">{m.albumd_share()}</span>{/if}
 		</button>
@@ -236,7 +236,7 @@
 		<button
 			onclick={downloadAll}
 			disabled={photosState.isDownloading || photosState.assets.length === 0}
-			class="btn-glass download"
+			class="btn-glass success"
 			title={m.albumd_download_all()}
 		>
 			{#if photosState.isDownloading}
@@ -318,7 +318,7 @@
 			</div>
 		{:else}
 			<div class="gallery-wrapper" in:fade={{ duration: 300 }}>
-				<!-- Le composant PhotosGrid gère l'affichage, la sélection et la modale plein écran -->
+				<!-- PhotosGrid handles rendering, selection and the fullscreen modal -->
 				<PhotosGrid
 					state={photosState}
 					albumId={page.params.id}
@@ -330,7 +330,7 @@
 		{/if}
 	</div>
 
-	<!-- Barre d'actions Mobile (Sticky Bottom) -->
+	<!-- Mobile action bar (sticky bottom) -->
 	<div class="mobile-bar">
 		{@render actionButtons(true)}
 	</div>
@@ -372,22 +372,13 @@
 		min-height: 100vh;
 		color: var(--am-text);
 		overflow-x: hidden;
-		padding-bottom: 100px; /* Espace pour la barre mobile */
+		padding-bottom: 100px; /* Room for the mobile action bar */
 		font-family:
 			system-ui,
 			-apple-system,
 			sans-serif;
 	}
 
-	:global([data-theme='dark']) .page-main {
-		--am-bg: var(--bg-primary, #020617);
-		--am-text: var(--text-primary, #f3f4f6);
-		--am-text-muted: var(--text-secondary, #94a3b8);
-		--am-border: rgba(255, 255, 255, 0.08);
-		--am-glass-bg: rgba(15, 23, 42, 0.6);
-		--am-glass-border: rgba(255, 255, 255, 0.08);
-		--am-item-bg: rgba(255, 255, 255, 0.03);
-	}
 	:global([data-theme='dark']) .page-main {
 		--am-bg: var(--bg-primary, #020617);
 		--am-text: var(--text-primary, #f3f4f6);
@@ -408,9 +399,6 @@
 		--am-glass-border: rgba(255, 255, 255, 0.08);
 		--am-item-bg: rgba(255, 255, 255, 0.5);
 	}
-
-	/* --- BACKGROUND --- */
-	/* Removed */
 
 	.page-container {
 		position: relative;
@@ -473,14 +461,14 @@
 		margin: 0.2rem 0 0;
 	}
 
-	/* --- ACTIONS BUTTONS (Colors & Styles) --- */
+	/* --- ACTIONS TOOLBAR --- */
 	.actions-group {
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
 		background: var(--am-glass-bg);
 		padding: 0.5rem;
-		border-radius: 16px;
+		border-radius: var(--radius);
 		border: 1px solid var(--am-glass-border);
 		backdrop-filter: blur(12px);
 	}
@@ -491,80 +479,16 @@
 		margin: 0 0.25rem;
 	}
 
-	.btn-glass {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.6rem 1.2rem;
-		border-radius: 12px;
-		background: var(--am-item-bg);
-		color: var(--am-text);
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.2s;
-		white-space: nowrap;
-		border: 1px solid var(--am-glass-border);
-		backdrop-filter: blur(10px);
-	}
-	/* Base hover */
-	.btn-glass:hover {
-		background: rgba(255, 255, 255, 0.1);
-		border-color: var(--am-glass-border);
-		transform: translateY(-2px);
-	}
-
-	/* Codes couleurs spécifiques au survol */
-	.btn-glass.edit:hover {
-		background: #8b5cf6;
-		color: white;
-		border-color: transparent;
-		box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-	}
-	.btn-glass.delete:hover {
-		background: var(--error);
-		color: white;
-		border-color: transparent;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--error) 30%, transparent);
-	}
-	.btn-glass.share:hover {
-		background: #0ea5e9;
-		color: white;
-		border-color: transparent;
-		box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-	}
-
-	/* Download est l'action primaire, donc verte par défaut */
-	.btn-glass.download {
-		background: var(--success);
-		color: white;
-		border-color: transparent;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 30%, transparent);
-	}
-	.btn-glass.download:hover {
-		background: var(--success-hover);
-		transform: translateY(-2px);
-	}
-
-	/* Active toggle state */
-	.btn-glass.active {
-		background: var(--am-text);
-		color: var(--am-bg);
-	}
-
-	.btn-glass:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-		transform: none;
-		box-shadow: none;
-		filter: grayscale(1);
-	}
+	/* Buttons use the canonical .btn-glass system from app.css (base + primary/
+	   success/danger/info/edit/active/icon modifiers). Only the toolbar layout
+	   and the mobile bar overrides live here. */
 
 	/* --- CARDS & CONTENT --- */
 	.glass-card {
 		background: var(--am-glass-bg);
 		backdrop-filter: blur(20px);
 		border: 1px solid var(--am-glass-border);
-		border-radius: 20px;
+		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 	}
 
@@ -590,7 +514,7 @@
 	.upload-header {
 		background: var(--am-glass-bg);
 		padding: 1rem;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 	}
 
 	.error-card {
@@ -669,19 +593,19 @@
 			background: var(--accent-light);
 		}
 
-		/* Mobile Colors */
-		.actions-group.mobile .btn-glass.download {
+		/* Mobile: flatten the semantic buttons to colored text on a transparent bar */
+		.actions-group.mobile .btn-glass.success {
 			color: var(--success);
 			background: transparent;
 		}
-		.actions-group.mobile .btn-glass.delete {
+		.actions-group.mobile .btn-glass.danger {
 			color: var(--error);
 		}
-		.actions-group.mobile .btn-glass.share {
-			color: #0ea5e9;
+		.actions-group.mobile .btn-glass.info {
+			color: var(--info);
 		}
 		.actions-group.mobile .btn-glass.edit {
-			color: #8b5cf6;
+			color: var(--edit);
 		}
 
 		.page-header {
@@ -709,7 +633,7 @@
 		}
 	}
 
-	/* Mobile: améliorer la lisibilité des zones d'upload et cartes glass */
+	/* Mobile: improve readability of upload areas and glass cards */
 	@media (max-width: 768px) {
 		.upload-container,
 		.upload-container .upload-header,
