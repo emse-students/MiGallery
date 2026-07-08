@@ -682,7 +682,7 @@
 		border-radius: 50%;
 		border: none;
 		background: var(--accent);
-		color: white;
+		color: #fff;
 		cursor: pointer;
 		flex-shrink: 0;
 		transition: opacity 0.15s;
@@ -770,8 +770,8 @@
 		width: 1.4rem;
 		height: 1.4rem;
 		border-radius: 50%;
-		background: color-mix(in oklab, var(--accent) 82%, black 4%);
-		color: white;
+		background: var(--accent);
+		color: #fff;
 		flex-shrink: 0;
 	}
 

@@ -8,8 +8,10 @@
   .spinner {
     display: inline-block;
     vertical-align: middle;
-    border: 3px solid rgba(255, 255, 255, 0.2);
-    border-top-color: white;
+    /* Inherit the surrounding text color so it stays visible in both themes
+       and on colored buttons (e.g. white on an accent background). */
+    border: 3px solid color-mix(in srgb, currentColor 25%, transparent);
+    border-top-color: currentColor;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }

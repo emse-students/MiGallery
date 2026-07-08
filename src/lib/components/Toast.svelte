@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount, type Component } from 'svelte';
+	import { onMount } from 'svelte';
 	import { Info, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-svelte';
+	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
 		message: string;
@@ -13,6 +14,7 @@
 
 	let visible = $state(true);
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const iconMap: Record<string, any> = {
 		info: Info,
 		success: CheckCircle,
@@ -20,14 +22,7 @@
 		warning: AlertTriangle
 	};
 
-	const typeConfig = $derived(
-		{
-			info: { icon: Info, color: 'bg-blue-500' },
-			success: { icon: CheckCircle, color: 'bg-green-500' },
-			error: { icon: XCircle, color: 'bg-red-500' },
-			warning: { icon: AlertTriangle, color: 'bg-yellow-500' }
-		}[type]
-	);
+	const ToastIcon = $derived(iconMap[type] ?? Info);
 
 	onMount(() => {
 		if (duration > 0) {
@@ -50,11 +45,11 @@
 	}
 </script>
 
-<div class="toast {typeConfig.color}" class:visible>
-	<typeConfig.icon size={20} class="text-white" />
+<div class="toast toast-{type}" class:visible>
+	<ToastIcon size={20} />
 	<span class="toast-message">{message}</span>
-	<button type="button" class="toast-close" onclick={handleClose} aria-label="Fermer">
-		<X size={16} class="text-white" />
+	<button type="button" class="toast-close" onclick={handleClose} aria-label={m.common_close()}>
+		<X size={16} />
 	</button>
 </div>
 
@@ -64,17 +59,28 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 0.75rem 1rem;
-		border-radius: 0.5rem;
-		box-shadow:
-			0 10px 15px -3px rgba(0, 0, 0, 0.1),
-			0 4px 6px -2px rgba(0, 0, 0, 0.05);
-		color: white;
+		border-radius: var(--radius-sm);
+		box-shadow: var(--shadow-lg);
+		color: #fff;
 		min-width: 300px;
 		max-width: 500px;
 		opacity: 0;
 		transform: translateY(-1rem);
 		transition: all 0.3s ease;
 		pointer-events: all;
+	}
+
+	.toast-info {
+		background: var(--info);
+	}
+	.toast-success {
+		background: var(--success);
+	}
+	.toast-error {
+		background: var(--error);
+	}
+	.toast-warning {
+		background: var(--warning);
 	}
 
 	.toast.visible {
