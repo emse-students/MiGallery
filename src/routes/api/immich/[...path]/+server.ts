@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import https from 'node:https';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import NodeFormData from 'form-data';
@@ -745,6 +746,19 @@ const handle: RequestHandler = async function (event) {
 		return handleChunkedUpload(event, chunkHeaders, base);
 	}
 
+	// Small "simple" uploads (< 10MB, single multipart request). Stream the body
+	// through disk instead of forwarding request.body to fetch(): under Bun that
+	// streaming-fetch forward retains a native ArrayBuffer per upload that is
+	// never released, so batches of small uploads ratchet RSS up until OOM.
+	if (
+		request.method === 'POST' &&
+		pathParam === 'assets' &&
+		request.body &&
+		(request.headers.get('content-type') || '').includes('multipart/form-data')
+	) {
+		return handleSimpleUpload(event, base);
+	}
+
 	if (request.method === 'GET' && event.url.searchParams.has('chunk-status')) {
 		return handleChunkStatus(event);
 	}
@@ -1109,4 +1123,215 @@ function handleChunkStatus(event: RequestEvent) {
 		status: 200,
 		headers: { 'content-type': 'application/json' }
 	});
+}
+
+/**
+ * Adapt an Immich upload response (streaming body) for the client and release
+ * the on-disk temp file. On success the body is tee'd so we can log the created
+ * asset id without buffering the client-facing branch; cleanup runs once the log
+ * branch is fully drained. On error the (small) error body is read and returned.
+ */
+async function finishImmichUpload(
+	event: RequestEvent,
+	response: Response,
+	originalName: string,
+	cleanup: () => void,
+	logId: string
+): Promise<Response> {
+	if (!response.ok) {
+		const errorBody = await response.text();
+		console.error(
+			`[Immich-Proxy] Upload échoué pour ${originalName}: ${response.status} ${response.statusText}`,
+			errorBody
+		);
+		console.error('[Immich-Proxy] Upload error diagnostics', {
+			logId,
+			originalName,
+			status: response.status,
+			statusText: response.statusText,
+			errorBodyLength: errorBody.length,
+			memory: formatMemoryUsage()
+		});
+		cleanup();
+		return new Response(errorBody, { status: response.status, headers: response.headers });
+	}
+
+	console.info('[Immich-Proxy] Upload réussi', {
+		logId,
+		originalName,
+		status: response.status,
+		memory: formatMemoryUsage()
+	});
+
+	try {
+		const [logBranch, clientBranch] = response.body ? response.body.tee() : [null, null];
+
+		if (logBranch) {
+			// Drain the log branch out of band; do not block the client response.
+			(async () => {
+				try {
+					const reader = logBranch.getReader();
+					const chunks: Uint8Array[] = [];
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) {
+							break;
+						}
+						if (value) {
+							chunks.push(value);
+						}
+					}
+					const text = new TextDecoder().decode(Buffer.concat(chunks));
+					const respData = JSON.parse(text) as ImmichAssetResponse;
+					const assetId = respData.id;
+					if (assetId) {
+						await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+					}
+					console.info('[Immich-Proxy] Immich upload response parsed', {
+						logId,
+						assetId,
+						responseBytes: text.length,
+						memory: formatMemoryUsage()
+					});
+				} catch (e) {
+					console.warn('Failed to log upload:', e);
+				} finally {
+					cleanup();
+				}
+			})();
+		} else {
+			cleanup();
+		}
+
+		const forwardedHeaders = new Headers();
+		const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
+		for (const h of safeRespForward) {
+			const v = response.headers.get(h);
+			if (v !== null && v !== undefined) {
+				forwardedHeaders.set(h, v);
+			}
+		}
+
+		return new Response(clientBranch, {
+			status: response.status,
+			headers: forwardedHeaders
+		});
+	} catch (e) {
+		console.warn('Error teeing response', e);
+		cleanup();
+		return response;
+	}
+}
+
+/**
+ * Handle a small "simple" upload: the client sends the whole multipart envelope
+ * in one request. We stream that envelope to a temp file and replay it to Immich
+ * from disk with a plain streaming http.request, instead of forwarding
+ * request.body through fetch({ duplex: 'half' }) which leaks native memory under
+ * Bun. The content-type (with its multipart boundary) is forwarded verbatim, so
+ * Immich receives the exact same body without us re-parsing the form.
+ */
+async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise<Response> {
+	const request = event.request;
+	if (!request.body) {
+		return new Response(JSON.stringify({ error: 'No body in request' }), {
+			status: 400,
+			headers: { 'content-type': 'application/json' }
+		});
+	}
+
+	const contentType = request.headers.get('content-type') || 'application/octet-stream';
+
+	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
+	if (!fs.existsSync(uploadDir)) {
+		fs.mkdirSync(uploadDir, { recursive: true });
+	}
+	const tempFilePath = path.join(
+		uploadDir,
+		`immich_simple_${Date.now()}_${crypto.randomBytes(6).toString('hex')}.part`
+	);
+	const cleanup = () => {
+		try {
+			if (fs.existsSync(tempFilePath)) {
+				fs.unlinkSync(tempFilePath);
+			}
+		} catch {
+			/* ignore */
+		}
+	};
+
+	try {
+		// Stream the multipart envelope to disk (no RAM retention).
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		await pipeline(Readable.fromWeb(request.body as any), fs.createWriteStream(tempFilePath));
+		const stats = fs.statSync(tempFilePath);
+		logUploadDiagnostic('simple upload streamed to disk, sending to Immich', {
+			sizeBytes: stats.size
+		});
+
+		const url = new URL(`${baseUrl}/api/assets`);
+		const isHttps = url.protocol === 'https:';
+
+		const options: http.RequestOptions = {
+			protocol: url.protocol,
+			hostname: url.hostname,
+			port: url.port || (isHttps ? '443' : '80'),
+			path: url.pathname + url.search,
+			method: 'POST',
+			headers: {
+				'x-api-key': apiKey,
+				accept: request.headers.get('accept') || 'application/json',
+				'content-type': contentType,
+				'content-length': String(stats.size)
+			},
+			timeout: 600000 // 10 minutes
+		};
+
+		const response = await new Promise<Response>((resolve, reject) => {
+			const onResponse = (res: http.IncomingMessage) => {
+				const bodyStream = new ReadableStream({
+					start(controller) {
+						res.on('data', (chunk) => controller.enqueue(chunk));
+						res.on('end', () => controller.close());
+						res.on('error', (err) => controller.error(err));
+					}
+				});
+				const headers = new Headers();
+				for (const [key, value] of Object.entries(res.headers)) {
+					if (value) {
+						if (Array.isArray(value)) {
+							value.forEach((v) => headers.append(key, v));
+						} else {
+							headers.set(key, value);
+						}
+					}
+				}
+				resolve(new Response(bodyStream, { status: res.statusCode ?? 502, headers }));
+			};
+
+			const req = isHttps ? https.request(options, onResponse) : http.request(options, onResponse);
+			req.on('error', reject);
+			req.on('timeout', () => req.destroy(new Error('Immich upload timeout')));
+
+			const rs = fs.createReadStream(tempFilePath);
+			rs.on('error', reject);
+			rs.pipe(req);
+		});
+
+		return await finishImmichUpload(event, response, 'simple-upload', cleanup, 'simple');
+	} catch (err: unknown) {
+		cleanup();
+		const _err = ensureError(err);
+		console.error('[Immich-Proxy] Simple upload failed:', {
+			error: _err,
+			memory: formatMemoryUsage()
+		});
+		return new Response(
+			JSON.stringify({ error: _err.message || 'Internal Server Error during upload' }),
+			{
+				status: 500,
+				headers: { 'content-type': 'application/json' }
+			}
+		);
+	}
 }
