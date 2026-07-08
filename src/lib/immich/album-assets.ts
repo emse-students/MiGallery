@@ -36,28 +36,49 @@ export async function fetchAlbumAssets(
 	}
 
 	const album = (await albumRes.json()) as ImmichAlbumPayload;
-	const assets = Array.isArray(album?.assets) ? album.assets : [];
-	if (assets.length > 0) {
-		return assets;
+	const inline = Array.isArray(album?.assets) ? album.assets : [];
+	if (inline.length > 0) {
+		return inline;
 	}
 
-	const searchRes = await fetchFn(`${baseUrl.replace(/\/$/, '')}/api/search/metadata`, {
-		method: 'POST',
-		headers: {
-			'x-api-key': apiKey,
-			'Content-Type': 'application/json'
-		},
-		body: JSON.stringify({ albumIds: [albumId], page: 1, size: 1000 })
-	});
+	// Immich v3 no longer inlines the assets in the album detail, so fall back to
+	// the metadata search - and PAGINATE it: a single page is capped at `size`
+	// (1000), which silently truncated large albums (e.g. PhotoCV) and broke the
+	// "Mes photos CV" intersection.
+	const base = baseUrl.replace(/\/$/, '');
+	const all: ImmichAlbumAssetLike[] = [];
+	let page = 1;
+	while (page <= 50) {
+		const searchRes = await fetchFn(`${base}/api/search/metadata`, {
+			method: 'POST',
+			headers: {
+				'x-api-key': apiKey,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ albumIds: [albumId], page, size: 1000 })
+		});
 
-	if (!searchRes.ok) {
-		return [];
-	}
+		if (!searchRes.ok) {
+			break;
+		}
 
-	const searchData = (await searchRes.json()) as {
-		assets?: {
-			items?: ImmichAlbumAssetLike[];
+		const searchData = (await searchRes.json()) as {
+			assets?: {
+				items?: ImmichAlbumAssetLike[];
+				nextPage?: number | string | null;
+			};
 		};
-	};
-	return Array.isArray(searchData?.assets?.items) ? searchData.assets.items : [];
+		const items = Array.isArray(searchData?.assets?.items) ? searchData.assets.items : [];
+		if (items.length === 0) {
+			break;
+		}
+		all.push(...items);
+
+		const nextPage = searchData.assets?.nextPage;
+		if (nextPage === null || nextPage === undefined) {
+			break;
+		}
+		page++;
+	}
+	return all;
 }
