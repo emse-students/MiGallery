@@ -194,6 +194,21 @@
 		}
 	}
 
+	// Two-letter initials for a person avatar placeholder, robust to missing names.
+	function getInitials(
+		first: string | null,
+		last: string | null,
+		fallbackName?: string | null
+	): string {
+		const f = (first || '').trim();
+		const l = (last || '').trim();
+		if (f || l) return `${f[0] ?? ''}${l[0] ?? ''}`.toUpperCase() || '?';
+		const parts = (fallbackName || '').trim().split(/\s+/).filter(Boolean);
+		if (parts.length === 0) return '?';
+		if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+		return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+	}
+
 	async function addPhotoPermission() {
 		if (!newAuthUserId.trim()) {
 			toast.error(m.param_select_user());
@@ -863,11 +878,19 @@
 								{#each photoPermissions as perm}
 									<div class="permission-chip">
 										<div class="chip-avatar">
-											<UserIcon size={14} />
+											{getInitials(
+												perm.authorized_first_name,
+												perm.authorized_last_name,
+												perm.authorized_name
+											)}
 										</div>
 										<div class="chip-info">
 											<span class="chip-name">{perm.authorized_name}</span>
-											<span class="chip-id">{perm.authorized_id}</span>
+											<span class="chip-date">
+												{m.param_since_date({
+													date: new Date(perm.created_at).toLocaleDateString(getLocale())
+												})}
+											</span>
 										</div>
 										<button
 											class="chip-remove"
@@ -1429,29 +1452,32 @@
 		padding: 0.5rem 0.75rem;
 		background: var(--st-bg);
 		border: 1px solid var(--st-border);
-		border-radius: 99px;
+		border-radius: var(--radius-md);
 	}
 	.chip-avatar {
-		width: 28px;
-		height: 28px;
-		background: var(--st-border);
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+		background: linear-gradient(135deg, #a855f7, #ec4899);
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: var(--st-text-muted);
+		color: #fff;
+		font-size: 0.75rem;
+		font-weight: 700;
 	}
 	.chip-info {
 		display: flex;
 		flex-direction: column;
-		line-height: 1.1;
+		line-height: 1.15;
 	}
 	.chip-name {
 		font-size: 0.9rem;
 		font-weight: 600;
 		color: var(--st-text);
 	}
-	.chip-id {
+	.chip-date {
 		font-size: 0.75rem;
 		color: var(--st-text-muted);
 	}
@@ -1465,10 +1491,11 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
+		transition: all 0.15s var(--ease);
 	}
 	.chip-remove:hover {
-		background: #fee2e2;
-		color: #ef4444;
+		background: color-mix(in srgb, var(--error) 15%, transparent);
+		color: var(--error);
 	}
 
 	/* --- SHARED LIST --- */
