@@ -308,27 +308,7 @@
 		margin: 0.25rem 0 0;
 	}
 
-	.btn-glass {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.6rem 1rem;
-		background: var(--adm-item-bg);
-		border: 1px solid var(--adm-glass-border);
-		border-radius: 10px;
-		color: var(--adm-text);
-		text-decoration: none;
-		font-weight: 500;
-		transition: all 0.2s;
-		cursor: pointer;
-		backdrop-filter: blur(4px);
-	}
-	.btn-glass:hover {
-		transform: translateY(-2px);
-		background: var(--adm-item-hover);
-		border-color: var(--adm-accent);
-		color: var(--adm-accent);
-	}
+	/* Buttons use the canonical .btn-glass from app.css. */
 
 	/* --- CARDS --- */
 	.glass-card {

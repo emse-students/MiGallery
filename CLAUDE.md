@@ -109,7 +109,7 @@ Flow: `POST /api/download` (creates a UUID token) -> `GET /api/download/{token}`
 ### File upload
 
 - < 10 MB: `POST /api/immich/assets` with a plain `FormData`
-- > = 10 MB: 5 MB chunks with resume, SHA256 hash per chunk, disk storage in `data/chunk-uploads/`
+- 10 MB and above: 5 MB chunks with resume, SHA256 hash per chunk, disk storage in `data/chunk-uploads/`
 - The server streams chunks to disk with no RAM buffer (`fs.createWriteStream`)
 - On completion: stream to Immich via `fs.createReadStream` inside a FormData
 
