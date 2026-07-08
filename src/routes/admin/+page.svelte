@@ -94,31 +94,22 @@
 </div>
 
 <style>
-	/* --- THEME VARIABLES --- */
+	/* --- LOCAL SURFACE TOKENS (non-mirror: card + code block) --- */
 	.docs-main {
-		--doc-bg: var(--bg-primary, #f8fafc);
-		--doc-text: var(--text-primary, #1e293b);
-		--doc-text-muted: var(--text-secondary, #64748b);
-		--doc-border: var(--border, #e2e8f0);
-		--doc-accent: var(--accent, #3b82f6);
 		--doc-card-bg: rgba(255, 255, 255, 0.8);
 		--doc-code-bg: #1e293b;
 		--doc-code-text: #e2e8f0;
 
 		position: relative;
 		min-height: 100vh;
-		color: var(--doc-text);
-		background-color: var(--doc-bg);
+		color: var(--text-primary);
+		background-color: var(--bg-primary);
 		padding: 2rem 1rem 6rem;
 		overflow-x: hidden;
 		border-radius: 1.5rem;
 	}
 
 	:global([data-theme='dark']) .docs-main {
-		--doc-bg: var(--bg-primary, #0f172a);
-		--doc-text: var(--text-primary, #f1f5f9);
-		--doc-text-muted: var(--text-secondary, #94a3b8);
-		--doc-border: rgba(255, 255, 255, 0.1);
 		--doc-card-bg: rgba(30, 41, 59, 0.7);
 		--doc-code-bg: #020617;
 	}
@@ -146,7 +137,7 @@
 		width: 48px;
 		height: 48px;
 		min-width: 48px;
-		background: linear-gradient(135deg, var(--doc-accent), #8b5cf6);
+		background: linear-gradient(135deg, var(--accent), #8b5cf6);
 		color: white;
 		border-radius: var(--radius-md);
 		display: flex;
@@ -161,7 +152,7 @@
 		line-height: 1.2;
 	}
 	.subtitle {
-		color: var(--doc-text-muted);
+		color: var(--text-secondary);
 		font-size: 0.95rem;
 		margin: 0;
 	}
@@ -184,13 +175,13 @@
 	.sidebar-content {
 		background: var(--doc-card-bg);
 		backdrop-filter: blur(12px);
-		border: 1px solid var(--doc-border);
+		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		padding: 1.5rem;
 		max-height: calc(100vh - 4rem);
 		overflow-y: auto;
 		scrollbar-width: thin;
-		scrollbar-color: var(--doc-border) transparent;
+		scrollbar-color: var(--border) transparent;
 	}
 
 	.sidebar-header {
@@ -198,13 +189,13 @@
 		align-items: center;
 		gap: 0.5rem;
 		font-weight: 700;
-		color: var(--doc-text-muted);
+		color: var(--text-secondary);
 		text-transform: uppercase;
 		font-size: 0.8rem;
 		letter-spacing: 0.05em;
 		margin-bottom: 1rem;
 		padding-bottom: 0.75rem;
-		border-bottom: 1px solid var(--doc-border);
+		border-bottom: 1px solid var(--border);
 	}
 
 	.toc-link {
@@ -216,7 +207,7 @@
 		padding: 0.6rem 0.75rem;
 		border: none;
 		background: transparent;
-		color: var(--doc-text);
+		color: var(--text-primary);
 		border-radius: var(--radius-xs);
 		cursor: pointer;
 		transition: all 0.2s;
@@ -231,17 +222,17 @@
 
 	.toc-link:hover {
 		background: rgba(59, 130, 246, 0.1);
-		color: var(--doc-accent);
+		color: var(--accent);
 	}
 
 	.doc-icon {
-		color: var(--doc-text-muted);
+		color: var(--text-secondary);
 		opacity: 0.7;
 		min-width: 16px; /* Espace fixe pour l'icône */
 		margin-top: 2px; /* Calage optique avec la première ligne de texte */
 	}
 	.toc-link:hover .doc-icon {
-		color: var(--doc-accent);
+		color: var(--accent);
 		opacity: 1;
 	}
 
@@ -256,7 +247,7 @@
 	.doc-card {
 		background: var(--doc-card-bg);
 		backdrop-filter: blur(16px);
-		border: 1px solid var(--doc-border);
+		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		padding: 2.5rem;
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
@@ -266,7 +257,7 @@
 	.doc-header {
 		margin-bottom: 2rem;
 		padding-bottom: 1.5rem;
-		border-bottom: 1px solid var(--doc-border);
+		border-bottom: 1px solid var(--border);
 	}
 
 	.title-row {
@@ -281,7 +272,7 @@
 		font-size: 1.75rem;
 		font-weight: 800;
 		margin: 0;
-		color: var(--doc-text);
+		color: var(--text-primary);
 		word-break: break-word;
 		line-height: 1.3;
 	}
@@ -289,11 +280,11 @@
 	.filename-badge {
 		font-family: monospace;
 		font-size: 0.8rem;
-		background: color-mix(in srgb, var(--doc-text) 5%, transparent);
-		color: var(--doc-text-muted);
+		background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+		color: var(--text-secondary);
 		padding: 0.25rem 0.5rem;
 		border-radius: 6px;
-		border: 1px solid var(--doc-border);
+		border: 1px solid var(--border);
 		word-break: break-all; /* Force la coupure des noms de fichiers très longs */
 		max-width: 100%; /* Empêche de déborder */
 	}
@@ -301,7 +292,7 @@
 	/* --- MARKDOWN STYLES --- */
 
 	:global(.doc-body) {
-		color: var(--doc-text);
+		color: var(--text-primary);
 		line-height: 1.7;
 		font-size: 1rem;
 		overflow-wrap: break-word;
@@ -310,7 +301,7 @@
 	:global(.doc-body h1),
 	:global(.doc-body h2),
 	:global(.doc-body h3) {
-		color: var(--doc-text);
+		color: var(--text-primary);
 		font-weight: 700;
 		margin-top: 2rem;
 		margin-bottom: 1rem;
@@ -319,7 +310,7 @@
 
 	:global(.doc-body h1) {
 		font-size: 1.5rem;
-		border-bottom: 1px solid var(--doc-border);
+		border-bottom: 1px solid var(--border);
 		padding-bottom: 0.5rem;
 	}
 	:global(.doc-body h2) {
@@ -357,8 +348,8 @@
 	}
 
 	:global(.doc-body code) {
-		background: color-mix(in srgb, var(--doc-accent) 10%, transparent);
-		color: var(--doc-accent);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
+		color: var(--accent);
 		padding: 0.2rem 0.4rem;
 		border-radius: 4px;
 		font-family: monospace;
@@ -374,10 +365,10 @@
 	}
 
 	:global(.doc-body a) {
-		color: var(--doc-accent);
+		color: var(--accent);
 		text-decoration: none;
 		font-weight: 500;
-		border-bottom: 1px dashed var(--doc-accent);
+		border-bottom: 1px dashed var(--accent);
 		word-break: break-all;
 	}
 	:global(.doc-body a:hover) {
@@ -395,14 +386,14 @@
 	:global(.doc-body th) {
 		text-align: left;
 		padding: 0.75rem;
-		background: color-mix(in srgb, var(--doc-text) 5%, transparent);
-		border-bottom: 2px solid var(--doc-border);
+		background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+		border-bottom: 2px solid var(--border);
 		font-weight: 600;
 		white-space: nowrap;
 	}
 	:global(.doc-body td) {
 		padding: 0.75rem;
-		border-bottom: 1px solid var(--doc-border);
+		border-bottom: 1px solid var(--border);
 		min-width: 120px;
 	}
 
