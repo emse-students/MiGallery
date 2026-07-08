@@ -205,11 +205,11 @@
 </svelte:head>
 
 <div role="main" class="admin-main">
-	<!-- Fond animé -->
+	<!-- Animated background -->
 	<BackgroundBlobs />
 
 	<div class="admin-container">
-		<!-- En-tête -->
+		<!-- Header -->
 		<header class="page-header">
 			<div class="header-icon">
 				<Database size={32} />
@@ -231,7 +231,7 @@
 		{/if}
 
 		<div class="dashboard-grid">
-			<!-- Colonne Gauche : Stats & Actions -->
+			<!-- Left column: Stats & Actions -->
 			<div class="left-col">
 				<!-- Statistiques -->
 				<section class="glass-card">
@@ -256,11 +256,11 @@
 					</div>
 				</section>
 
-				<!-- Actions Rapides -->
+				<!-- Quick Actions -->
 				<section class="glass-card">
 					<h2 class="section-title"><Zap size={20} /> Actions rapides</h2>
 					<div class="actions-list">
-						<button class="action-btn primary" onclick={createBackup} disabled={backing}>
+						<button type="button" class="action-btn primary" onclick={createBackup} disabled={backing}>
 							<div class="btn-icon-wrapper"><Save size={24} /></div>
 							<div class="btn-content">
 								<span class="btn-title">Sauvegarde</span>
@@ -268,7 +268,7 @@
 							</div>
 						</button>
 
-						<button class="action-btn secondary" onclick={exportDatabase} disabled={exporting}>
+						<button type="button" class="action-btn secondary" onclick={exportDatabase} disabled={exporting}>
 							<div class="btn-icon-wrapper"><Download size={24} /></div>
 							<div class="btn-content">
 								<span class="btn-title">Export SQL</span>
@@ -276,7 +276,7 @@
 							</div>
 						</button>
 
-						<button class="action-btn info" onclick={inspectDatabase} disabled={inspecting}>
+						<button type="button" class="action-btn info" onclick={inspectDatabase} disabled={inspecting}>
 							<div class="btn-icon-wrapper"><Activity size={24} /></div>
 							<div class="btn-content">
 								<span class="btn-title">Inspection</span>
@@ -286,6 +286,7 @@
 
 						{#if databaseStatus && databaseStatus.status !== 'healthy'}
 							<button
+								type="button"
 								class="action-btn warning"
 								onclick={() => (showRepairModal = true)}
 								disabled={repairing}
@@ -322,6 +323,7 @@
 					</div>
 
 					<button
+						type="button"
 						class="btn-full-danger mt-4"
 						onclick={importDatabase}
 						disabled={importing || !uploadFile}
@@ -331,9 +333,9 @@
 				</section>
 			</div>
 
-			<!-- Colonne Droite : Status & Backups -->
+			<!-- Right column: Status & Backups -->
 			<div class="right-col">
-				<!-- État détaillé (affiché après inspection) -->
+				<!-- Detailed status (displayed after inspection) -->
 				{#if databaseStatus}
 					<section class="glass-card slide-in">
 						<div class="flex items-center justify-between mb-4">
@@ -370,7 +372,7 @@
 					</section>
 				{/if}
 
-				<!-- Sauvegardes -->
+				<!-- Backups -->
 				<section class="glass-card">
 					<div class="flex items-center justify-between mb-4">
 						<h2 class="section-title m-0"><Archive size={20} /> Sauvegardes</h2>
@@ -395,6 +397,7 @@
 										</div>
 									</div>
 									<button
+										type="button"
 										class="btn-restore"
 										onclick={() => restoreBackup(backup.filename)}
 										title="Restaurer"
@@ -410,7 +413,7 @@
 		</div>
 	</div>
 
-	<!-- Modal Réparation -->
+	<!-- Repair Modal -->
 	{#if showRepairModal}
 		<div class="modal-backdrop" onclick={() => (showRepairModal = false)} role="presentation">
 			<div
@@ -434,8 +437,8 @@
 					il est recommandé de faire une sauvegarde avant.
 				</p>
 				<div class="modal-actions">
-					<button class="btn-glass" onclick={() => (showRepairModal = false)}>Annuler</button>
-					<button class="btn-glass primary" onclick={repairDatabase} disabled={repairing}>
+					<button type="button" class="btn-glass" onclick={() => (showRepairModal = false)}>Annuler</button>
+					<button type="button" class="btn-glass primary" onclick={repairDatabase} disabled={repairing}>
 						{repairing ? 'Réparation...' : 'Confirmer la réparation'}
 					</button>
 				</div>
@@ -473,13 +476,13 @@
 	.header-icon {
 		width: 56px;
 		height: 56px;
-		background: linear-gradient(135deg, var(--accent), #8b5cf6);
+		background: var(--gradient-brand);
 		color: white;
 		border-radius: var(--radius);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: 0 8px 20px -4px rgba(59, 130, 246, 0.5);
+		box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent) 50%, transparent);
 	}
 	.page-header h1 {
 		font-size: 2rem;
@@ -500,7 +503,7 @@
 	.dashboard-grid {
 		display: grid;
 		grid-template-columns: 2fr 1.2fr;
-		gap: 2.5rem; /* Gap augmenté significativement */
+		gap: 2.5rem; /* Gap significantly increased */
 		align-items: start;
 	}
 	@media (max-width: 900px) {
@@ -513,7 +516,7 @@
 	.right-col {
 		display: flex;
 		flex-direction: column;
-		gap: 2rem; /* Espacement vertical entre les cartes */
+		gap: 2rem; /* Vertical spacing between cards */
 	}
 
 	/* --- CARDS --- */
@@ -527,7 +530,7 @@
 		padding: 2rem; /* Padding interne explicite */
 	}
 
-	/* Cas spécifique pour la carte de backup qui a un header custom */
+	/* Special case for backup card with custom header */
 	.backup-card {
 		padding: 0;
 		overflow: hidden;
@@ -605,7 +608,7 @@
 		color: var(--text-primary);
 	}
 	.stat-value.highlight {
-		background: linear-gradient(135deg, var(--accent), #8b5cf6);
+		background: var(--gradient-brand);
 		background-clip: text;
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
@@ -656,13 +659,13 @@
 	}
 
 	.action-btn.primary .btn-icon-wrapper {
-		background: linear-gradient(135deg, #3b82f6, #2563eb);
+		background: var(--gradient-blue);
 	}
 	.action-btn.secondary .btn-icon-wrapper {
-		background: linear-gradient(135deg, #10b981, #059669);
+		background: var(--gradient-green);
 	}
 	.action-btn.info .btn-icon-wrapper {
-		background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+		background: var(--gradient-edit);
 	}
 	.action-btn.warning .btn-icon-wrapper {
 		background: linear-gradient(135deg, #f59e0b, #d97706);
@@ -685,8 +688,8 @@
 
 	/* --- DANGER ZONE / IMPORT --- */
 	.danger-zone {
-		border-color: rgba(239, 68, 68, 0.2);
-		background: rgba(239, 68, 68, 0.05) !important;
+		border-color: color-mix(in srgb, var(--error) 20%, transparent);
+		background: color-mix(in srgb, var(--error) 5%, transparent) !important;
 	}
 	:global([data-theme='dark']) .danger-zone {
 		background: rgba(239, 68, 68, 0.1) !important;
@@ -723,7 +726,7 @@
 		width: 100%;
 		padding: 1rem;
 		margin-top: 1rem;
-		background: linear-gradient(135deg, #ef4444, #dc2626);
+		background: linear-gradient(135deg, var(--error), var(--error-hover));
 		color: white;
 		border: none;
 		border-radius: var(--radius-sm);
@@ -732,7 +735,7 @@
 		transition:
 			transform 0.2s,
 			opacity 0.2s;
-		box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--error) 30%, transparent);
 	}
 	.btn-full-danger:hover:not(:disabled) {
 		transform: translateY(-2px);
@@ -751,9 +754,9 @@
 		font-weight: 700;
 	}
 	.status-badge.healthy {
-		background: rgba(34, 197, 94, 0.2);
-		color: #22c55e;
-		border: 1px solid rgba(34, 197, 94, 0.3);
+		background: color-mix(in srgb, var(--success) 20%, transparent);
+		color: var(--success);
+		border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
 	}
 	.status-badge.incomplete {
 		background: rgba(234, 179, 8, 0.2);
@@ -777,12 +780,12 @@
 		font-size: 0.85rem;
 	}
 	.table-check-item.valid {
-		color: #10b981;
-		border-color: rgba(16, 185, 129, 0.2);
+		color: var(--success);
+		border-color: color-mix(in srgb, var(--success) 20%, transparent);
 	}
 	.table-check-item.invalid {
-		color: #ef4444;
-		border-color: rgba(239, 68, 68, 0.2);
+		color: var(--error);
+		border-color: color-mix(in srgb, var(--error) 20%, transparent);
 	}
 	.t-name {
 		flex: 1;
@@ -814,7 +817,7 @@
 	.backup-icon {
 		width: 40px;
 		height: 40px;
-		background: rgba(59, 130, 246, 0.1);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		color: var(--accent);
 		border-radius: var(--radius-sm);
 		display: flex;
@@ -849,7 +852,7 @@
 		transition: all 0.2s;
 	}
 	.btn-restore:hover {
-		background: rgba(59, 130, 246, 0.15);
+		background: color-mix(in srgb, var(--accent) 15%, transparent);
 		color: var(--accent);
 	}
 
@@ -888,7 +891,7 @@
 		overflow: hidden;
 		backdrop-filter: blur(8px) saturate(120%);
 	}
-	/* Petit effet de lueur dans la modal */
+	/* Small glow effect in modal */
 	.modal-glass::before {
 		content: '';
 		position: absolute;

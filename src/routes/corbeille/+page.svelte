@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { XCircle, Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
@@ -32,7 +32,7 @@
 		onConfirm: () => void;
 	} | null>(null);
 
-	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
+	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canAccess = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	async function fetchTrashedAssets() {
@@ -282,6 +282,7 @@
 
 			<div class="toolbar-actions">
 				<button
+					type="button"
 					onclick={() => (selecting = !selecting)}
 					class="px-3 py-2 rounded-lg {selecting
 						? 'bg-gray-600 hover:bg-gray-700'
@@ -304,15 +305,16 @@
 					{selectedAssets.length} sélectionné{selectedAssets.length > 1 ? 's' : ''}
 				</div>
 				<div class="selection-actions">
-					<button onclick={selectAll} class="px-2 py-2">
+					<button type="button" onclick={selectAll} class="px-2 py-2">
 					<SquareCheck size={16} />
 						Tout sélectionner
 					</button>
-					<button onclick={deselectAll} class="px-2 py-2 bg-gray-400">
+					<button type="button" onclick={deselectAll} class="px-2 py-2 bg-gray-400">
 						<Square size={16} />
 						Tout désélectionner
 					</button>
 					<button
+						type="button"
 						onclick={() => restoreAssets(selectedAssets)}
 						class="px-2 py-2 bg-emerald-600 hover:bg-emerald-700"
 					>
@@ -320,6 +322,7 @@
 						Restaurer ({selectedAssets.length})
 					</button>
 					<button
+						type="button"
 						onclick={() => deleteAssetsPermanently(selectedAssets)}
 						class="btn-delete-selection px-2 py-2 text-white"
 					>
@@ -361,6 +364,7 @@
 
 						{#if !selecting}
 							<button
+								type="button"
 								class="restore-btn"
 								title="Restaurer"
 								onclick={(e) => {
@@ -371,6 +375,7 @@
 								<ArrowLeft size={16} />
 							</button>
 							<button
+								type="button"
 								class="delete-permanent-btn"
 								title="Supprimer définitivement"
 								onclick={(e) => {
@@ -568,8 +573,8 @@
 	.photo-card.selected {
 		border-color: var(--accent);
 		box-shadow:
-			0 0 0 3px rgba(59, 130, 246, 0.3),
-			0 8px 25px rgba(59, 130, 246, 0.2);
+			0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent),
+			0 8px 25px color-mix(in srgb, var(--accent) 20%, transparent);
 	}
 
 	@keyframes photoFadeIn {
@@ -630,7 +635,7 @@
 		padding: 0.5rem;
 		width: 36px;
 		height: 36px;
-		background: rgba(34, 197, 94, 0.9);
+		background: color-mix(in srgb, var(--success) 90%, transparent);
 		backdrop-filter: blur(8px);
 		border: none;
 		border-radius: var(--radius-sm, 6px);
@@ -648,7 +653,7 @@
 	}
 
 	.restore-btn:hover {
-		background: rgba(34, 197, 94, 1);
+		background: var(--success);
 		transform: scale(1.1);
 	}
 
@@ -660,7 +665,7 @@
 		padding: 0.5rem;
 		width: 36px;
 		height: 36px;
-		background: rgba(220, 38, 38, 0.9);
+		background: color-mix(in srgb, var(--error-hover) 90%, transparent);
 		backdrop-filter: blur(8px);
 		border: none;
 		border-radius: var(--radius-sm, 6px);
@@ -678,7 +683,7 @@
 	}
 
 	.delete-permanent-btn:hover {
-		background: rgba(220, 38, 38, 1);
+		background: var(--error-hover);
 		transform: scale(1.1);
 	}
 
@@ -713,11 +718,11 @@
 	}
 
 	.btn-delete-selection {
-		background: #dc2626 !important;
+		background: var(--error-hover) !important;
 	}
 
 	.btn-delete-selection:hover:not(:disabled) {
-		background: #b91c1c !important;
+		background: var(--error-hover) !important;
 	}
 
 	.empty-state {

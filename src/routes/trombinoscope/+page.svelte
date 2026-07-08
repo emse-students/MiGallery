@@ -28,7 +28,6 @@
 	import { toast } from '$lib/toast';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import jsPDF from 'jspdf';
-	import autoTable from 'jspdf-autotable';
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
@@ -400,7 +399,7 @@
 							}
 						}
 					} catch (pollError) {
-						console.warn('Erreur polling:', pollError);
+						console.warn('Polling error:', pollError);
 					}
 				}
 
@@ -479,7 +478,7 @@
 	<BackgroundBlobs />
 
 	<div class="trombi-container">
-		<!-- En-tête -->
+		<!-- Header -->
 		<header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
 			<div class="header-content">
 				<h1>Trombinoscope</h1>
@@ -501,6 +500,7 @@
 			<div class="group-tabs">
 				<button
 					class="group-tab {groupBy === 'promo' ? 'active' : ''}"
+					type="button"
 					onclick={() => (groupBy = 'promo')}
 				>
 					<GraduationCap size={15} />
@@ -508,6 +508,7 @@
 				</button>
 				<button
 					class="group-tab {groupBy === 'formation' ? 'active' : ''}"
+					type="button"
 					onclick={() => (groupBy = 'formation')}
 				>
 					<BookOpen size={15} />
@@ -516,12 +517,12 @@
 			</div>
 
 			<div class="header-actions">
-				<button class="action-pill" onclick={openPdfModal} title="Exporter en PDF">
+				<button class="action-pill" type="button" onclick={openPdfModal} title="Exporter en PDF">
 					<Download size={18} />
 					<span>PDF</span>
 				</button>
 				{#if canAccess}
-					<button class="action-pill primary" onclick={openAddUserModal}>
+					<button class="action-pill primary" type="button" onclick={openAddUserModal}>
 						<UserPlus size={18} />
 						<span>Ajouter</span>
 					</button>
@@ -585,6 +586,7 @@
 											<div class="admin-controls">
 												<button
 													class="control-btn edit"
+													type="button"
 													onclick={(e) => openEditUserModal(user, e)}
 													title="Éditer"
 												>
@@ -592,6 +594,7 @@
 												</button>
 												<button
 													class="control-btn delete"
+													type="button"
 													onclick={(e) => deleteUserConfirm(user, e)}
 													title="Supprimer"
 												>
@@ -664,8 +667,8 @@
 								<GraduationCap size={15} />
 								<span>Promotions</span>
 								<div class="quick-btns">
-									<button onclick={() => (pdfSelectedPromos = [...availablePromos])}>Tout</button>
-									<button onclick={() => (pdfSelectedPromos = [])}>Rien</button>
+									<button type="button" onclick={() => (pdfSelectedPromos = [...availablePromos])}>Tout</button>
+									<button type="button" onclick={() => (pdfSelectedPromos = [])}>Rien</button>
 								</div>
 							</div>
 							<div class="checkbox-list">
@@ -687,10 +690,10 @@
 								<BookOpen size={15} />
 								<span>Formations</span>
 								<div class="quick-btns">
-									<button onclick={() => (pdfSelectedFormations = [...availableFormations])}
+									<button type="button" onclick={() => (pdfSelectedFormations = [...availableFormations])}
 										>Tout</button
 									>
-									<button onclick={() => (pdfSelectedFormations = [])}>Rien</button>
+									<button type="button" onclick={() => (pdfSelectedFormations = [])}>Rien</button>
 								</div>
 							</div>
 							<div class="checkbox-list">
@@ -714,9 +717,10 @@
 				</div>
 
 				<div class="modal-actions">
-					<button class="btn-text" onclick={() => (showPdfModal = false)}>Annuler</button>
+					<button class="btn-text" type="button" onclick={() => (showPdfModal = false)}>Annuler</button>
 					<button
 						class="action-pill primary"
+						type="button"
 						onclick={startPdfExport}
 						disabled={pdfSelectedCount === 0}
 					>
@@ -857,10 +861,11 @@
 				<div class="modal-actions">
 					<button
 						class="btn-text"
+						type="button"
 						onclick={() => (showEditUserModal = false)}
 						disabled={uploadingPhoto}>Annuler</button
 					>
-					<button class="action-pill primary" onclick={saveUser} disabled={uploadingPhoto}>
+					<button class="action-pill primary" type="button" onclick={saveUser} disabled={uploadingPhoto}>
 						{#if uploadingPhoto}
 							<Spinner size={16} />
 						{:else}
@@ -907,7 +912,7 @@
 	}
 	.search-input:focus {
 		outline: none;
-		box-shadow: 0 6px 18px rgba(59, 130, 246, 0.08);
+		box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 8%, transparent);
 		border-color: var(--accent);
 	}
 
@@ -980,7 +985,7 @@
 	}
 	.action-pill.primary:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+		box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--accent) 40%, transparent);
 	}
 	.action-pill:disabled {
 		opacity: 0.7;
@@ -1215,8 +1220,8 @@
 		color: var(--accent);
 	}
 	.role-tag.mitviste {
-		background: rgba(236, 72, 153, 0.15);
-		color: #ec4899;
+		background: color-mix(in srgb, var(--pink) 15%, transparent);
+		color: var(--pink);
 	}
 
 	/* --- MODAL --- */
@@ -1342,7 +1347,7 @@
 		transition: background 0.15s;
 	}
 	.checkbox-item:hover {
-		background: rgba(59, 130, 246, 0.07);
+		background: color-mix(in srgb, var(--accent) 7%, transparent);
 	}
 	.checkbox-item input[type='checkbox'] {
 		accent-color: var(--accent);
@@ -1391,7 +1396,7 @@
 		outline: none;
 		border-color: var(--accent);
 		background: rgba(255, 255, 255, 0.05);
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 	}
 	.input-glass:disabled {
 		opacity: 0.5;
@@ -1443,14 +1448,14 @@
 	}
 
 	.photo-status.success {
-		color: #10b981;
+		color: var(--success);
 		font-size: 0.9rem;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 	}
 	.code-pill {
-		background: rgba(16, 185, 129, 0.1);
+		background: color-mix(in srgb, var(--success) 10%, transparent);
 		padding: 0.2rem 0.4rem;
 		border-radius: 4px;
 		font-family: monospace;

@@ -137,13 +137,13 @@
 		width: 48px;
 		height: 48px;
 		min-width: 48px;
-		background: linear-gradient(135deg, var(--accent), #8b5cf6);
+		background: var(--gradient-brand);
 		color: white;
 		border-radius: var(--radius-md);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
 	}
 	.page-header h1 {
 		font-size: 1.8rem;
@@ -200,7 +200,7 @@
 
 	.toc-link {
 		display: flex;
-		align-items: flex-start; /* Alignement en haut pour gérer le multiline */
+		align-items: flex-start; /* Top alignment for multiline text */
 		gap: 0.75rem;
 		width: 100%;
 		text-align: left;
@@ -213,15 +213,15 @@
 		transition: all 0.2s;
 		font-size: 0.9rem;
 
-		/* GESTION DU RETOUR À LA LIGNE */
-		white-space: normal; /* Permet le retour à la ligne */
-		overflow-wrap: break-word; /* Coupe les mots trop longs si nécessaire */
+		/* Handling line wrapping */
+		white-space: normal; /* Allows line wrapping */
+		overflow-wrap: break-word; /* Break long words if needed */
 		word-break: break-word;
 		line-height: 1.4;
 	}
 
 	.toc-link:hover {
-		background: rgba(59, 130, 246, 0.1);
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
 		color: var(--accent);
 	}
 
@@ -229,7 +229,7 @@
 		color: var(--text-secondary);
 		opacity: 0.7;
 		min-width: 16px; /* Espace fixe pour l'icône */
-		margin-top: 2px; /* Calage optique avec la première ligne de texte */
+		margin-top: 2px; /* Optical alignment with first line of text */
 	}
 	.toc-link:hover .doc-icon {
 		color: var(--accent);
@@ -285,8 +285,8 @@
 		padding: 0.25rem 0.5rem;
 		border-radius: 6px;
 		border: 1px solid var(--border);
-		word-break: break-all; /* Force la coupure des noms de fichiers très longs */
-		max-width: 100%; /* Empêche de déborder */
+		word-break: break-all; /* Force breaking of long filenames */
+		max-width: 100%; /* Prevent overflow */
 	}
 
 	/* --- MARKDOWN STYLES --- */

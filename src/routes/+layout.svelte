@@ -150,10 +150,10 @@
 				</div>
 			</a>
 			<span class="user-name">{u.name}</span>
-			<button class="btn-logout" onclick={() => handleSignOut()}>{m.nav_logout()}</button>
+			<button type="button" class="btn-logout" onclick={() => handleSignOut()}>{m.nav_logout()}</button>
 		{:else}
 			<LocaleSwitcher />
-			<button class="btn-login" onclick={() => handleSignIn()}>{m.nav_login()}</button>
+			<button type="button" class="btn-login" onclick={() => handleSignIn()}>{m.nav_login()}</button>
 		{/if}
 	</div>
 </nav>

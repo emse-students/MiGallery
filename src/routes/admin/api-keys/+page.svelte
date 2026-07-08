@@ -91,7 +91,7 @@
 </svelte:head>
 
 <div role="main" class="admin-main">
-	<!-- Fond animé -->
+	<!-- Animated background -->
 	<BackgroundBlobs />
 
 	<div class="admin-container">
@@ -110,7 +110,7 @@
 			</div>
 		</header>
 
-		<!-- Section Création -->
+		<!-- Create section -->
 		<section class="glass-card create-section">
 			<div class="card-header">
 				<h3><CirclePlus size={20} /> Nouvelle clé</h3>
@@ -136,7 +136,7 @@
 						/>
 					</div>
 					<div class="input-group button-group">
-						<button class="btn-primary" onclick={createKey} disabled={creating || !newLabel}>
+						<button type="button" class="btn-primary" onclick={createKey} disabled={creating || !newLabel}>
 							{#if creating}
 								<Spinner size={18} /> Création...
 							{:else}
@@ -163,6 +163,7 @@
 			<div class="card-header">
 				<h3>Clés existantes ({keys.length})</h3>
 				<button
+					type="button"
 					class="btn-refresh"
 					onclick={loadKeys}
 					disabled={loading}
@@ -205,7 +206,7 @@
 									</td>
 									<td class="text-sm text-muted">{new Date(k.created_at).toLocaleString()}</td>
 									<td class="text-right">
-										<button class="btn-icon danger" onclick={() => deleteKey(k.id)} title="Révoquer">
+										<button type="button" class="btn-icon danger" onclick={() => deleteKey(k.id)} title="Révoquer">
 											<Trash2 size={18} />
 										</button>
 									</td>
@@ -253,13 +254,13 @@
 	.header-icon {
 		width: 56px;
 		height: 56px;
-		background: linear-gradient(135deg, var(--accent), #8b5cf6);
+		background: var(--gradient-brand);
 		color: white;
 		border-radius: var(--radius);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: 0 8px 20px -4px rgba(59, 130, 246, 0.5);
+		box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent) 50%, transparent);
 	}
 	.page-header h1 {
 		font-size: 2rem;
@@ -345,7 +346,7 @@
 		outline: none;
 		border-color: var(--accent);
 		background: var(--bg-tertiary);
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 	}
 
 	.button-group {
@@ -364,10 +365,10 @@
 		align-items: center;
 		gap: 0.5rem;
 		transition: all 0.2s;
-		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
 	}
 	.btn-primary:hover:not(:disabled) {
-		background: #2563eb;
+		background: var(--accent-hover);
 		transform: translateY(-2px);
 	}
 	.btn-primary:disabled {
@@ -458,14 +459,14 @@
 		font-family: monospace;
 	}
 	.badge.scope {
-		background: rgba(59, 130, 246, 0.15);
+		background: color-mix(in srgb, var(--accent) 15%, transparent);
 		color: var(--accent);
-		border: 1px solid rgba(59, 130, 246, 0.2);
+		border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
 	}
 	.badge.all {
-		background: rgba(34, 197, 94, 0.15);
-		color: #22c55e;
-		border: 1px solid rgba(34, 197, 94, 0.2);
+		background: color-mix(in srgb, var(--success) 15%, transparent);
+		color: var(--success);
+		border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
 	}
 
 	.btn-refresh {
@@ -491,8 +492,8 @@
 	}
 
 	.btn-icon.danger {
-		background: rgba(239, 68, 68, 0.1);
-		color: #ef4444;
+		background: color-mix(in srgb, var(--error) 10%, transparent);
+		color: var(--error);
 		width: 36px;
 		height: 36px;
 		border-radius: var(--radius-sm);
@@ -504,7 +505,7 @@
 		transition: all 0.2s;
 	}
 	.btn-icon.danger:hover {
-		background: #ef4444;
+		background: var(--error);
 		color: white;
 		transform: translateY(-2px);
 	}
