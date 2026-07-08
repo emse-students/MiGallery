@@ -11,8 +11,6 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import http from 'node:http';
 import https from 'node:https';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
 import NodeFormData from 'form-data';
 
 const baseUrlFromEnv = env.IMMICH_BASE_URL;
@@ -260,27 +258,22 @@ async function handleChunkedUpload(
 			});
 		}
 
-		// Stream request body to disk instead of buffering
-		if (!request.body) {
-			throw new Error('No body in request');
+		// Read the chunk (<= 5MB) and append it to the part file. We buffer with
+		// arrayBuffer() rather than streaming request.body: for this raw-blob request
+		// shape adapter-node exposes a null body stream getter, while arrayBuffer()
+		// reliably returns the bytes. Reading it also drains the client's upload so
+		// the connection is not reset mid-transfer.
+		const chunkBuf = Buffer.from(await request.arrayBuffer());
+		if (chunkBuf.length === 0) {
+			throw new Error('Empty chunk body');
 		}
 
 		const chunkSha = request.headers.get('x-chunk-sha256');
-		const hasher = chunkSha ? crypto.createHash('sha256') : null;
+		const computedSha = chunkSha ? crypto.createHash('sha256').update(chunkBuf).digest('hex') : null;
 
-		const writeStream = fs.createWriteStream(tempFilePath, {
-			flags: chunkIndex === 0 ? 'w' : 'a'
+		await fs.promises.writeFile(tempFilePath, chunkBuf, {
+			flag: chunkIndex === 0 ? 'w' : 'a'
 		});
-
-		// Pipeline: RequestBody -> Node Readable -> File Write Stream
-		// Readable.fromWeb keeps the request body streaming without building a manual async iterator.
-		const requestStream = Readable.fromWeb(request.body as any);
-		if (hasher) {
-			requestStream.on('data', (chunk: Buffer) => {
-				hasher.update(chunk);
-			});
-		}
-		await pipeline(requestStream, writeStream);
 		logUploadDiagnostic('chunk written to disk', {
 			fileId,
 			chunkIndex,
@@ -289,21 +282,18 @@ async function handleChunkedUpload(
 		});
 
 		// verify per-chunk sha256
-		if (chunkSha && hasher) {
-			const computed = hasher.digest('hex');
-			if (computed !== chunkSha) {
-				try {
-					if (fs.existsSync(lockPath)) {
-						fs.unlinkSync(lockPath);
-					}
-				} catch {
-					/* ignore */
+		if (chunkSha && computedSha !== chunkSha) {
+			try {
+				if (fs.existsSync(lockPath)) {
+					fs.unlinkSync(lockPath);
 				}
-				return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
-					status: 400,
-					headers: { 'content-type': 'application/json' }
-				});
+			} catch {
+				/* ignore */
 			}
+			return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
+				status: 400,
+				headers: { 'content-type': 'application/json' }
+			});
 		}
 
 		try {
@@ -746,14 +736,12 @@ const handle: RequestHandler = async function (event) {
 		return handleChunkedUpload(event, chunkHeaders, base);
 	}
 
-	// Small "simple" uploads (< 10MB, single multipart request). Stream the body
-	// through disk instead of forwarding request.body to fetch(): under Bun that
-	// streaming-fetch forward retains a native ArrayBuffer per upload that is
-	// never released, so batches of small uploads ratchet RSS up until OOM.
+	// Small "simple" uploads (< 10MB, single multipart request) are handled by
+	// buffering the body and replaying it to Immich (handleSimpleUpload), rather
+	// than forwarding the request stream to fetch().
 	if (
 		request.method === 'POST' &&
 		pathParam === 'assets' &&
-		request.body &&
 		(request.headers.get('content-type') || '').includes('multipart/form-data')
 	) {
 		return handleSimpleUpload(event, base);
