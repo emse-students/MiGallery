@@ -157,15 +157,23 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
  * Binds the request locale (resolved from the paraglide cookie / Accept-Language
  * header, falling back to the base locale fr) to the server-side async context so
  * that `m.*()` renders in the right language during SSR, and injects it into the
- * <html lang> tag. Runs first so every downstream handler and page sees the locale.
+ * <html lang> tag.
+ *
+ * Skipped for /api/* routes: they return JSON, never localized HTML, and the
+ * middleware rebuilds event.request — which drops the body of raw-blob requests
+ * (chunked uploads) under adapter-node. API routes must keep the original request.
  */
-const paraglideHandler: Handle = ({ event, resolve }) =>
-	paraglideMiddleware(event.request, ({ request, locale }) => {
+const paraglideHandler: Handle = ({ event, resolve }) => {
+	if (event.url.pathname.startsWith('/api/')) {
+		return resolve(event);
+	}
+	return paraglideMiddleware(event.request, ({ request, locale }) => {
 		event.request = request;
 		return resolve(event, {
 			transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale)
 		});
 	});
+};
 
 // Count every request by (id-collapsed) path so the memory heartbeat can show
 // which routes are busiest when RSS grows.
