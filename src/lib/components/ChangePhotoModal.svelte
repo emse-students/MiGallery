@@ -199,7 +199,7 @@
 		padding: 1rem;
 		background: rgba(59, 130, 246, 0.1);
 		border: 1px solid rgba(59, 130, 246, 0.3);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		color: rgba(255, 255, 255, 0.9);
 	}
 
@@ -215,7 +215,7 @@
 		padding: 1rem;
 		background: rgba(239, 68, 68, 0.1);
 		border: 1px solid rgba(239, 68, 68, 0.3);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		color: rgba(255, 100, 100, 0.9);
 		margin-bottom: 1rem;
 	}
@@ -235,7 +235,7 @@
 	.photo-item {
 		position: relative;
 		aspect-ratio: 1;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		overflow: hidden;
 		cursor: pointer;
 		border: 2px solid transparent;
@@ -269,18 +269,18 @@
 	.selected-overlay {
 		position: absolute;
 		inset: 0;
-		background: rgba(59, 130, 246, 0.3);
+		background: color-mix(in srgb, var(--accent) 30%, transparent);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: white;
+		color: #fff;
 		backdrop-filter: blur(2px);
 	}
 
 	.empty-state {
 		text-align: center;
 		padding: 3rem 1rem;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-muted);
 	}
 
 	.empty-state p {
@@ -291,12 +291,12 @@
 	.loading-state {
 		text-align: center;
 		padding: 2rem;
-		color: white;
+		color: var(--text-primary);
 	}
 
 	.loading-state p {
 		margin-top: 1rem;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--text-secondary);
 	}
 
 	@media (max-width: 768px) {

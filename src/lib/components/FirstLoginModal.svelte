@@ -133,7 +133,7 @@
 		text-align: center;
 		background: var(--bg-tertiary);
 		border: 1px solid var(--border-color);
-		border-radius: 0.5rem;
+		border-radius: var(--radius-xs);
 		color: var(--text-primary);
 	}
 
@@ -172,6 +172,6 @@
 		margin: 0;
 		background: var(--bg-tertiary);
 		padding: 0.75rem;
-		border-radius: 0.5rem;
+		border-radius: var(--radius-xs);
 	}
 </style>

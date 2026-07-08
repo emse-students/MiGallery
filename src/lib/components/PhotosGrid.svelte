@@ -7,7 +7,7 @@
 	import type { PhotosState } from '$lib/photos.svelte';
 	import { groupByDay } from '$lib/photos.svelte';
 	import type { User } from '$lib/types/api';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toast } from '$lib/toast';
 	import { activeOperations } from '$lib/operations';
 	import { m } from '$lib/paraglide/messages';
@@ -27,7 +27,7 @@
 		showFavorites = false
 	}: Props = $props();
 
-	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
+	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	let showModal = $state(false);
@@ -92,7 +92,7 @@
 
 			if (!res.ok) {
 				const errText = await res.text().catch(() => res.statusText);
-				throw new Error(errText || "Erreur lors du retrait de l'album");
+				throw new Error(errText || 'Failed to remove from album');
 			}
 
 			// Local update: remove assets from view
@@ -237,30 +237,28 @@
 	);
 </script>
 
-<!-- Affichage principal -->
+<!-- Main view -->
 {#if photosState.assets.length > 0}
-	<!-- Toolbar de sélection -->
+	<!-- Selection toolbar -->
 	{#if photosState.selecting}
 		<div class="selection-toolbar">
 			<div class="selection-count">
 				<SquareCheck size={18} />
-				{photosState.selectedAssets.length} sélectionné{photosState.selectedAssets.length > 1
-					? 's'
-					: ''}
+				{m.pg_selected_count({ count: photosState.selectedAssets.length })}
 			</div>
 			<div class="selection-actions">
-				<button onclick={() => photosState.selectAll()} class="btn-secondary">
+				<button onclick={() => photosState.selectAll()} class="btn-glass">
 					<SquareCheck size={16} />
-					Tout sélectionner
+					{m.pg_select_all()}
 				</button>
-				<button onclick={() => photosState.deselectAll()} class="btn-secondary">
+				<button onclick={() => photosState.deselectAll()} class="btn-glass">
 					<Square size={16} />
-					Tout désélectionner
+					{m.pg_deselect_all()}
 				</button>
 				<button
 					onclick={handleDownloadSelectedClick}
 					disabled={photosState.selectedAssets.length === 0}
-					class="btn-primary"
+					class="btn-glass primary"
 				>
 					{#if photosState.isDownloading}
 						{#if photosState.downloadProgress >= 0}
@@ -268,32 +266,32 @@
 							{Math.round(photosState.downloadProgress * 100)}%
 						{:else}
 							<Spinner size={16} />
-							Téléchargement...
+							{m.pg_downloading()}
 						{/if}
 					{:else}
 						<Download size={16} />
-						Télécharger ({photosState.selectedAssets.length})
+						{m.pg_download_count({ count: photosState.selectedAssets.length })}
 					{/if}
 				</button>
 				{#if canManagePhotos && albumId}
 					<button
 						onclick={() => handleRemoveFromAlbum()}
 						disabled={photosState.selectedAssets.length === 0}
-						class="btn-secondary"
+						class="btn-glass"
 						title={m.pg_remove_from_album_title()}
 					>
-								<CircleMinus size={16} />
-						Retirer ({photosState.selectedAssets.length})
+						<CircleMinus size={16} />
+						{m.pg_remove_count({ count: photosState.selectedAssets.length })}
 					</button>
 				{/if}
 				{#if canManagePhotos}
 					<button
 						onclick={() => handleDeleteSelected()}
 						disabled={photosState.selectedAssets.length === 0}
-						class="btn-delete-selection px-3 py-2 rounded-lg text-white border-0 cursor-pointer flex items-center gap-2"
+						class="btn-glass danger"
 					>
 						<Trash2 size={16} />
-						Supprimer ({photosState.selectedAssets.length})
+						{m.pg_delete_count({ count: photosState.selectedAssets.length })}
 					</button>
 				{/if}
 			</div>
@@ -327,7 +325,7 @@
 		</div>
 	{/if}
 
-	<!-- Grille de photos groupées par jour -->
+	<!-- Photo grid grouped by day -->
 	{#each Object.entries(groupByDay(nonFavoriteAssets)) as [dayLabel, items]}
 		<h3 class="day-label">{dayLabel}</h3>
 		<div class="photos-grid">
@@ -437,7 +435,7 @@
 	{/snippet}
 </Modal>
 
-<!-- Modal téléchargement multiple -->
+<!-- Bulk download modal -->
 <Modal
 	bind:show={showDownloadSelectedModal}
 	title={m.pg_download_selected_title()}
@@ -480,24 +478,6 @@
 		flex-wrap: wrap;
 	}
 
-	.selection-actions button {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.625rem 1rem;
-		border: none;
-		border-radius: var(--radius-sm);
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		white-space: nowrap;
-	}
-
-	.selection-actions button:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
 	.photos-count {
 		margin-bottom: 2rem;
 		color: var(--text-secondary);
@@ -532,38 +512,10 @@
 		margin-bottom: 2rem;
 	}
 
-	/* Élément fantôme pour empêcher l'étirement de la dernière ligne */
+	/* Phantom element to prevent the last row from stretching */
 	.photos-grid::after {
 		content: '';
 		flex-grow: 999999;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: var(--accent-hover);
-	}
-
-	.btn-secondary {
-		background: var(--bg-elevated);
-		color: var(--text-primary);
-	}
-
-	.btn-secondary:hover {
-		background: var(--bg-tertiary);
-	}
-
-	:global(.btn-delete-selection) {
-		background: #dc2626 !important;
-		color: white !important;
-		border: 0;
-	}
-
-	:global(.btn-delete-selection:hover:not(:disabled)) {
-		background: #b91c1c !important;
 	}
 
 	.empty-state {
@@ -577,7 +529,7 @@
 		font-size: 1.125rem;
 	}
 
-	/* Responsive - grille carrée sur mobile */
+	/* Responsive - square grid on mobile */
 	@media (max-width: 768px) {
 		.photos-grid {
 			gap: 3px;
@@ -594,7 +546,7 @@
 			justify-content: center;
 		}
 
-		.selection-actions button {
+		.selection-actions .btn-glass {
 			padding: 0.5rem 0.75rem;
 			font-size: 0.75rem;
 		}

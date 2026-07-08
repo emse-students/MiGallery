@@ -173,7 +173,7 @@
 	ontouchmove={handleTouchMove}
 	ontouchcancel={handleTouchEnd}
 >
-	<!-- Overlay pour fermer les actions mobiles -->
+	<!-- Overlay to close mobile actions -->
 	{#if showMobileActions}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -244,7 +244,7 @@
 			{isVideo}
 		/>
 	{:else}
-		<!-- Skeleton pendant le chargement des détails -->
+		<!-- Skeleton while details load -->
 		<Skeleton aspectRatio={aspectRatioString}>
 			<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 				<path
@@ -314,7 +314,7 @@
 
 	.photo-card :global(.lazy-image) {
 		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		/* cover permet de remplir la carte en respectant le ratio; avoid letterbox */
+		/* cover fills the card while respecting ratio; avoid letterbox */
 		object-fit: cover;
 	}
 
@@ -331,7 +331,7 @@
 		transition: opacity 0.2s ease;
 	}
 
-	/* Visible au hover OU en mode sélection */
+	/* Visible on hover OR in selection mode */
 	.photo-card:hover .selection-checkbox {
 		opacity: 1;
 	}
@@ -371,7 +371,7 @@
 	.favorite-btn.active {
 		opacity: 1;
 		color: white;
-		background: #ef4444;
+		background: var(--error);
 	}
 
 	.photo-card:hover .favorite-btn {
@@ -379,8 +379,8 @@
 	}
 
 	.favorite-btn:hover {
-		background: rgba(239, 68, 68, 0.3);
-		color: #ef4444;
+		background: color-mix(in srgb, var(--error) 30%, transparent);
+		color: var(--error);
 		transform: scale(1.1);
 	}
 
@@ -448,13 +448,13 @@
 		.photo-card {
 			height: auto;
 			aspect-ratio: 1;
-			/* 4 photos par ligne sur mobile: 100% / 4 = 25%, moins les gaps */
+			/* 4 photos per row on mobile: 100% / 4 = 25%, minus gaps */
 			flex-basis: calc(25% - 3px) !important;
 			flex-grow: 0 !important;
 			max-width: calc(25% - 3px);
 		}
 
-		/* Cacher les boutons par défaut sur mobile (pas de hover) */
+		/* Hide buttons by default on mobile (no hover) */
 		.download-btn,
 		.delete-btn,
 		.favorite-btn:not(.active) {
@@ -462,7 +462,7 @@
 			pointer-events: none;
 		}
 
-		/* Afficher les boutons après appui long */
+		/* Show buttons after long-press */
 		.photo-card.mobile-actions-visible .download-btn,
 		.photo-card.mobile-actions-visible .delete-btn,
 		.photo-card.mobile-actions-visible .favorite-btn {
@@ -470,7 +470,7 @@
 			pointer-events: auto;
 		}
 
-		/* Favoris actifs toujours visibles sur mobile */
+		/* Active favorites always visible on mobile */
 		.favorite-btn.active {
 			opacity: 1;
 			pointer-events: auto;

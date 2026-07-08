@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, type Snippet, type Component } from 'svelte';
+	import { m } from '$lib/paraglide/messages';
 	import {
 		Info,
 		CheckCircle,
@@ -32,8 +33,8 @@
 		title = '',
 		icon = '',
 		type = 'info',
-		confirmText = 'OK',
-		cancelText = 'Annuler',
+		confirmText = m.common_ok(),
+		cancelText = m.common_cancel(),
 		onConfirm,
 		onCancel,
 		children,
@@ -46,7 +47,7 @@
 	let dialogElement: HTMLDialogElement;
 	let isProcessing = $state(false);
 
-	// Mapping des noms (string) vers composants Lucide
+	// Map string names to Lucide components
 	const icons: Record<string, any> = {
 		info: Info,
 		'check-circle': CheckCircle,
@@ -97,7 +98,7 @@
 			}
 			show = false;
 		} catch (error: unknown) {
-			console.error('Erreur dans onConfirm:', error);
+			console.error('Error in onConfirm:', error);
 		} finally {
 			isProcessing = false;
 		}
@@ -156,7 +157,7 @@
 					{title}
 				</h2>
 				{#if showCloseButton}
-					<button class="close-btn" onclick={handleCancel} aria-label="Fermer">
+					<button class="close-btn" onclick={handleCancel} aria-label={m.common_close()}>
 						<X size={20} />
 					</button>
 				{/if}
@@ -172,25 +173,25 @@
 		{#if showActions}
 		<div class="modal-actions">
 			{#if type === 'confirm'}
-				<button type="button" onclick={handleCancel} disabled={isProcessing} class="btn-secondary">
+				<button type="button" onclick={handleCancel} disabled={isProcessing} class="btn-glass">
 					{cancelText}
 				</button>
 				<button
 					type="button"
 					onclick={handleConfirm}
 					disabled={isProcessing || confirmDisabled}
-					class="btn-primary"
+					class="btn-glass primary"
 				>
-					{isProcessing ? 'En cours...' : confirmText}
+					{isProcessing ? m.common_processing() : confirmText}
 				</button>
 			{:else}
 				<button
 					type="button"
 					onclick={handleConfirm}
 					disabled={isProcessing || confirmDisabled}
-					class="btn-primary"
+					class="btn-glass primary"
 				>
-					{isProcessing ? 'En cours...' : confirmText}
+					{isProcessing ? m.common_processing() : confirmText}
 				</button>
 			{/if}
 		</div>
@@ -302,40 +303,6 @@
 		justify-content: flex-end;
 		gap: 0.75rem;
 		flex-shrink: 0;
-	}
-
-	.btn-primary,
-	.btn-secondary {
-		padding: 0.5rem 1rem;
-		border-radius: 0.5rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-		border: none;
-	}
-
-	.btn-primary {
-		background: var(--accent);
-		color: white;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: var(--accent-hover);
-	}
-
-	.btn-secondary {
-		background: var(--bg-tertiary);
-		color: var(--text-primary);
-	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: var(--bg-quaternary);
-	}
-
-	.btn-primary:disabled,
-	.btn-secondary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	@media (max-width: 640px) {

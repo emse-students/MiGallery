@@ -43,7 +43,7 @@
         width: 100%;
         height: 100%;
         background: var(--bg-secondary, rgba(255, 255, 255, 0.05));
-        border-radius: var(--skeleton-radius); /* Utilisation de la variable */
+        border-radius: var(--skeleton-radius);
         overflow: hidden;
         position: relative;
     }

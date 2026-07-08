@@ -29,7 +29,7 @@
 	select {
 		background: transparent;
 		border: 1px solid rgba(128, 128, 128, 0.3);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		color: inherit;
 		padding: 4px 8px;
 		font-size: 13px;

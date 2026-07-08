@@ -44,7 +44,7 @@
 	}: Props = $props();
 	const dispatch = createEventDispatcher();
 
-	// -- État réactif --
+	// -- Reactive state --
 	let currentIndex = $state(0);
 	let asset = $state<Asset | null>(null);
 	let mediaUrl = $state<string | null>(null);
@@ -58,7 +58,7 @@
 	let minScale = $state(0.1);
 	const MAX_SCALE = 5;
 
-	// Variable de suivi pour éviter le reset lors du chargement de la haute résolution
+	// Tracking flag to avoid resetting when the high-resolution image loads
 	let lastProcessedAssetId = $state<string | null>(null);
 
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
@@ -582,7 +582,7 @@
 							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y /
 								scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
 							onload={() => {
-								// CONDITION CRUCIALE : On ne reset que si on change de photo (pas si on change de résolution)
+								// CRUCIAL: only reset when switching photo, not when switching resolution
 								if (asset?.id !== lastProcessedAssetId) {
 									minScale = computeMinScale();
 									scale = 1;
@@ -659,7 +659,7 @@
 		animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		background: rgba(255, 255, 255, 0.04);
 		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		backdrop-filter: blur(10px) saturate(120%);
 		box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
 	}
@@ -715,7 +715,7 @@
 		border: none;
 		color: white;
 		padding: 0.5rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		cursor: pointer;
 		transition: all 0.2s ease;
 		display: flex;
@@ -771,7 +771,7 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		opacity: 0;
 		transition:
 			opacity 0.3s ease,
