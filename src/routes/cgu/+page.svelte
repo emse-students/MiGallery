@@ -187,28 +187,17 @@
 
 <style>
 	.cgu-main {
-		--cgu-bg: var(--bg-primary, #ffffff);
-		--cgu-text: var(--text-primary, #1f2937);
-		--cgu-text-muted: var(--text-secondary, #6b7280);
-		--cgu-card-bg: var(--bg-secondary, #ffffff);
-		--cgu-border: var(--border, #e5e7eb);
-		--cgu-accent: var(--accent, #3b82f6);
+		/* Accent glow (slightly stronger in dark for contrast). */
 		--cgu-accent-glow: color-mix(in srgb, var(--accent) 15%, transparent);
 
 		position: relative;
 		min-height: 100vh;
 		padding: 4rem 0 6rem;
-		color: var(--cgu-text);
+		color: var(--text-primary);
 		overflow-x: hidden;
 	}
 
-	/* Support for Dark Mode via the data-theme attribute */
 	:global([data-theme='dark']) .cgu-main {
-		--cgu-bg: var(--bg-primary, #0f172a);
-		--cgu-text: var(--text-primary, #f3f4f6);
-		--cgu-text-muted: var(--text-secondary, #9ca3af);
-		--cgu-card-bg: var(--bg-secondary, #1e293b);
-		--cgu-border: var(--border, #334155);
 		--cgu-accent-glow: color-mix(in srgb, var(--accent) 25%, transparent);
 	}
 
@@ -230,7 +219,7 @@
 		font-size: 2.5rem;
 		font-weight: 800;
 		margin-bottom: 0.5rem;
-		background: linear-gradient(135deg, var(--cgu-accent), var(--edit));
+		background: linear-gradient(135deg, var(--accent), var(--edit));
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
 		background-clip: text;
@@ -238,12 +227,12 @@
 
 	.subtitle {
 		font-size: 1.125rem;
-		color: var(--cgu-text-muted);
+		color: var(--text-secondary);
 	}
 
 	.last-update {
 		font-size: 0.875rem;
-		color: var(--cgu-text-muted);
+		color: var(--text-secondary);
 		opacity: 0.7;
 		margin-top: 0.5rem;
 	}
@@ -260,18 +249,18 @@
 	.toc a {
 		font-size: 0.9rem;
 		font-weight: 500;
-		color: var(--cgu-text);
+		color: var(--text-primary);
 		text-decoration: none;
 		padding: 0.5rem 1rem;
 		border-radius: 9999px;
-		background: var(--cgu-card-bg);
-		border: 1px solid var(--cgu-border);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border);
 		transition: all 0.2s;
 	}
 
 	.toc a:hover {
-		border-color: var(--cgu-accent);
-		color: var(--cgu-accent);
+		border-color: var(--accent);
+		color: var(--accent);
 		background: var(--cgu-accent-glow);
 	}
 
@@ -279,8 +268,8 @@
 	.section {
 		margin-bottom: 2rem;
 		padding: 2rem;
-		background: var(--cgu-card-bg);
-		border: 1px solid var(--cgu-border);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border);
 		border-radius: var(--radius);
 		scroll-margin-top: 2rem;
 	}
@@ -292,8 +281,8 @@
 		font-size: 1.5rem;
 		font-weight: 700;
 		margin-bottom: 1.5rem;
-		color: var(--cgu-text);
-		border-bottom: 1px solid var(--cgu-border);
+		color: var(--text-primary);
+		border-bottom: 1px solid var(--border);
 		padding-bottom: 1rem;
 	}
 
@@ -301,14 +290,14 @@
 		font-size: 1.1rem;
 		font-weight: 600;
 		margin: 1.5rem 0 0.75rem;
-		color: var(--cgu-text);
+		color: var(--text-primary);
 	}
 
 	.section p,
 	.section li {
 		font-size: 1rem;
 		line-height: 1.6;
-		color: var(--cgu-text-muted);
+		color: var(--text-secondary);
 		margin-bottom: 0.75rem;
 	}
 
@@ -324,14 +313,14 @@
 
 	.section li::before {
 		content: '•';
-		color: var(--cgu-accent);
+		color: var(--accent);
 		position: absolute;
 		left: 0;
 		font-weight: bold;
 	}
 
 	.section a {
-		color: var(--cgu-accent);
+		color: var(--accent);
 		text-decoration: none;
 		font-weight: 500;
 	}
@@ -342,8 +331,8 @@
 
 	/* --- FOOTER SPECIFIC --- */
 	.footer-section {
-		background: var(--cgu-card-bg); /* Ensures it follows the theme */
-		border: 1px solid var(--cgu-border);
+		background: var(--bg-secondary); /* Ensures it follows the theme */
+		border: 1px solid var(--border);
 		margin-top: 4rem;
 	}
 
@@ -361,7 +350,7 @@
 
 	.credits {
 		text-align: center;
-		border-top: 1px solid var(--cgu-border);
+		border-top: 1px solid var(--border);
 		padding-top: 1.5rem;
 		margin-top: 1.5rem;
 		font-size: 0.9rem;
