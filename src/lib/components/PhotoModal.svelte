@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import {
 		Image as ImageIcon,
 		Minus,
@@ -42,7 +42,6 @@
 		showFavorite = false,
 		onFavoriteToggle
 	}: Props = $props();
-	const dispatch = createEventDispatcher();
 
 	// -- Reactive state --
 	let currentIndex = $state(0);
@@ -421,7 +420,6 @@
 						? assets[nextIndexSnapshot].id
 						: null;
 				if (onAssetDeleted) onAssetDeleted(assetId);
-				dispatch('assetDeleted', assetId);
 				if (nextAssetId) assetId = nextAssetId;
 				else onClose();
 			} catch (e) {

@@ -477,7 +477,7 @@
 		}
 	}
 
-	/* Overlay pour fermer les actions mobiles */
+	/* Overlay to close mobile actions */
 	.mobile-actions-overlay {
 		position: fixed;
 		inset: 0;

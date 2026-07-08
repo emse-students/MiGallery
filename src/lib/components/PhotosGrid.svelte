@@ -355,7 +355,7 @@
 	</div>
 {/if}
 
-<!-- Modal de visualisation -->
+<!-- Photo viewer modal -->
 {#if showModal}
 	<PhotoModal
 		bind:assetId={modalAssetId}
@@ -375,15 +375,10 @@
 			photosState.assets = photosState.assets.filter((a) => a.id !== id);
 			hasChanges = true;
 		}}
-		on:assetDeleted={(e) => {
-			const id = e.detail as string;
-			photosState.assets = photosState.assets.filter((a) => a.id !== id);
-			hasChanges = true;
-		}}
 	/>
 {/if}
 
-<!-- Modal de confirmation de suppression -->
+<!-- Delete confirmation modal -->
 <Modal
 	bind:show={showDeleteModal}
 	title={m.photo_delete_title()}

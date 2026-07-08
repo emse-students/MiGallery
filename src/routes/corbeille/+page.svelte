@@ -418,10 +418,6 @@
 			onAssetDeleted={(id) => {
 				assets = assets.filter((a) => a.id !== id);
 			}}
-			on:assetDeleted={(e) => {
-				const id = e.detail as string;
-				assets = assets.filter((a) => a.id !== id);
-			}}
 		/>
 	{/if}
 

@@ -42,10 +42,10 @@
 	let isUploading = $state(false);
 	let fileStatuses = $state<UploadFileStatus[]>([]);
 	let fileInputRef: HTMLInputElement;
-	let globalProgress = $state(0); // Pourcentage global d'upload
+	let globalProgress = $state(0); // Global upload percentage
 	let uploadedCount = $state(0);
-	let duplicateCountPersist = $state(0); // Nombre total de doublons (persistant)
-	let errorCountPersist = $state(0); // Nombre total d'erreurs (persistant)
+	let duplicateCountPersist = $state(0); // Total duplicates (persistent)
+	let errorCountPersist = $state(0); // Total errors (persistent)
 
 	function handleDragOver(e: DragEvent) {
 		try {
@@ -200,10 +200,17 @@
 
 			const uploadResults = Array.isArray(results) ? results : [];
 
+			// Fallback for onUpload implementations that return results without
+			// firing onFileResult per file. Skip files the callback already
+			// finalized, otherwise duplicates get counted twice.
 			for (const result of uploadResults) {
 				if (result.isDuplicate) {
 					const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
-					if (statusIndex >= 0) {
+					if (
+						statusIndex >= 0 &&
+						fileStatuses[statusIndex].status !== 'duplicate' &&
+						fileStatuses[statusIndex].status !== 'success'
+					) {
 						fileStatuses[statusIndex].status = 'duplicate';
 						fileStatuses[statusIndex].error = m.uz_duplicate();
 						duplicateCountPersist = duplicateCountPersist + 1;
