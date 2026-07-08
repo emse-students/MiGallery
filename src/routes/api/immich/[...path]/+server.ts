@@ -1248,33 +1248,14 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 	console.warn(`[probe] simple.enter rss=${rssMB()}`);
 	const contentType = request.headers.get('content-type') || 'application/octet-stream';
 
-	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
-	if (!fs.existsSync(uploadDir)) {
-		fs.mkdirSync(uploadDir, { recursive: true });
-	}
-	const tempFilePath = path.join(
-		uploadDir,
-		`immich_simple_${Date.now()}_${crypto.randomBytes(6).toString('hex')}.part`
-	);
-	const cleanup = () => {
-		try {
-			if (fs.existsSync(tempFilePath)) {
-				fs.unlinkSync(tempFilePath);
-			}
-		} catch {
-			/* ignore */
-		}
-	};
-
 	try {
-		// Stream the multipart envelope to disk (no RAM retention).
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		await pipeline(Readable.fromWeb(request.body as any), fs.createWriteStream(tempFilePath));
-		const stats = fs.statSync(tempFilePath);
-		console.warn(`[probe] simple.disk rss=${rssMB()} size=${stats.size}`);
-		logUploadDiagnostic('simple upload streamed to disk, sending to Immich', {
-			sizeBytes: stats.size
-		});
+		// Read the whole (already size-capped) body via Bun's native arrayBuffer()
+		// instead of the Readable.fromWeb() web->node stream bridge, which inflates
+		// the read ~50-80x under Bun and never returns the memory. Send the buffer
+		// straight to Immich: no stream bridge, no temp file.
+		const buf = Buffer.from(await request.arrayBuffer());
+		console.warn(`[probe] simple.buf rss=${rssMB()} size=${buf.length}`);
+		logUploadDiagnostic('simple upload buffered, sending to Immich', { sizeBytes: buf.length });
 
 		const url = new URL(`${baseUrl}/api/assets`);
 		const isHttps = url.protocol === 'https:';
@@ -1289,7 +1270,7 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 				'x-api-key': apiKey,
 				accept: request.headers.get('accept') || 'application/json',
 				'content-type': contentType,
-				'content-length': String(stats.size)
+				'content-length': String(buf.length)
 			},
 			timeout: 600000 // 10 minutes
 		};
@@ -1319,16 +1300,12 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 			const req = isHttps ? https.request(options, onResponse) : http.request(options, onResponse);
 			req.on('error', reject);
 			req.on('timeout', () => req.destroy(new Error('Immich upload timeout')));
-
-			const rs = fs.createReadStream(tempFilePath);
-			rs.on('error', reject);
-			rs.pipe(req);
+			req.end(buf);
 		});
 
 		console.warn(`[probe] simple.resp rss=${rssMB()} status=${response.status}`);
-		return await finishImmichUpload(event, response, 'simple-upload', cleanup, 'simple');
+		return await finishImmichUpload(event, response, 'simple-upload', () => {}, 'simple');
 	} catch (err: unknown) {
-		cleanup();
 		const _err = ensureError(err);
 		console.error('[Immich-Proxy] Simple upload failed:', {
 			error: _err,
