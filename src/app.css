@@ -102,10 +102,6 @@
 	--glass-bg: rgba(255, 255, 255, 0.7);
 	--glass-border: rgba(0, 0, 0, 0.05);
 	--glass-border-hover: rgba(0, 0, 0, 0.1);
-
-	/* Glass background variables for light theme (ensure readable cards) */
-	--cv-glass-bg: rgba(255, 255, 255, 0.7);
-	--am-glass-bg: rgba(255, 255, 255, 0.7);
 }
 
 /* Reduce gradient blob opacity in light theme */
