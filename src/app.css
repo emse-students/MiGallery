@@ -38,6 +38,30 @@
 	--edit: #8b5cf6;
 	--edit-hover: #7c3aed;
 
+	/* Hover variants for semantic colors (needed by gradients / hover states). */
+	--error-hover: #dc2626;
+	--warning-hover: #d97706;
+
+	/* Decorative accent hues. Only used in gradients (avatars, icon badges,
+	   headers). Tokenized so the palette stays consistent and theme-tunable;
+	   #8b5cf6 / #7c3aed violet already live as --edit / --edit-hover. */
+	--purple: #a855f7;
+	--pink: #ec4899;
+	--indigo: #6366f1;
+	--indigo-hover: #4f46e5;
+
+	/* Brand & decorative gradients - single source so every badge/avatar/header
+	   matches. Compose from the color tokens above. */
+	--gradient-brand: linear-gradient(135deg, var(--accent), var(--edit));
+	--gradient-blue: linear-gradient(135deg, var(--accent), var(--accent-hover));
+	--gradient-green: linear-gradient(135deg, var(--success), var(--success-hover));
+	--gradient-amber: linear-gradient(135deg, var(--warning), var(--warning-hover));
+	--gradient-red: linear-gradient(135deg, var(--error), var(--error-hover));
+	--gradient-edit: linear-gradient(135deg, var(--edit), var(--edit-hover));
+	--gradient-purple: linear-gradient(135deg, var(--purple), var(--edit-hover));
+	--gradient-purple-pink: linear-gradient(135deg, var(--purple), var(--pink));
+	--gradient-indigo: linear-gradient(135deg, var(--indigo), var(--indigo-hover));
+
 	--border: rgba(255, 255, 255, 0.08);
 	--border-color: rgba(255, 255, 255, 0.08);
 	--divider: rgba(255, 255, 255, 0.06);
