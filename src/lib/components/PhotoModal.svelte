@@ -659,7 +659,7 @@
 		animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 		background: rgba(255, 255, 255, 0.04);
 		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		backdrop-filter: blur(10px) saturate(120%);
 		box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
 	}
@@ -715,7 +715,7 @@
 		border: none;
 		color: white;
 		padding: 0.5rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		cursor: pointer;
 		transition: all 0.2s ease;
 		display: flex;
@@ -771,7 +771,7 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		opacity: 0;
 		transition:
 			opacity 0.3s ease,

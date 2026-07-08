@@ -392,7 +392,7 @@
 <style>
 	.upload-zone {
 		border: 1px solid var(--border);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		padding: 2.25rem 1.5rem;
 		text-align: center;
 		cursor: pointer;
@@ -485,7 +485,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.75rem 1rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		font-weight: 500;
 	}
 
@@ -515,7 +515,7 @@
 
 	.file-item {
 		padding: 1rem;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		background: var(--bg-tertiary);
 		border: 1px solid var(--border);
 	}
@@ -597,7 +597,7 @@
 		background: var(--accent);
 		color: white;
 		border: none;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		cursor: pointer;
 		font-weight: 500;
 		display: flex;
@@ -615,7 +615,7 @@
 		background: var(--bg-tertiary);
 		color: var(--text-primary);
 		border: 1px solid var(--border);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		cursor: pointer;
 		font-weight: 500;
 		transition: background 0.2s ease;

@@ -199,7 +199,7 @@
 		padding: 1rem;
 		background: rgba(59, 130, 246, 0.1);
 		border: 1px solid rgba(59, 130, 246, 0.3);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		color: rgba(255, 255, 255, 0.9);
 	}
 
@@ -215,7 +215,7 @@
 		padding: 1rem;
 		background: rgba(239, 68, 68, 0.1);
 		border: 1px solid rgba(239, 68, 68, 0.3);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		color: rgba(255, 100, 100, 0.9);
 		margin-bottom: 1rem;
 	}
@@ -235,7 +235,7 @@
 	.photo-item {
 		position: relative;
 		aspect-ratio: 1;
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		overflow: hidden;
 		cursor: pointer;
 		border: 2px solid transparent;

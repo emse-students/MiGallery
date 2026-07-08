@@ -537,7 +537,7 @@
 		padding: 1rem;
 		background: rgba(239, 68, 68, 0.1);
 		border: 1px solid rgba(239, 68, 68, 0.3);
-		border-radius: 8px;
+		border-radius: var(--radius-xs);
 		color: rgba(255, 100, 100, 0.9);
 		margin-bottom: 1.5rem;
 	}
@@ -579,7 +579,7 @@
 		border: 1px solid var(--border);
 		color: var(--text-primary);
 		padding: 0.75rem;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		transition: all 0.2s ease;
 	}
@@ -590,7 +590,7 @@
 		gap: 0.5rem;
 		padding: 0 0.6rem;
 		border: 1px solid var(--border);
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		background: var(--bg-tertiary);
 	}
 
@@ -618,7 +618,7 @@
 	.share-panel {
 		border: 1px solid var(--border);
 		background: color-mix(in oklab, var(--bg-tertiary) 90%, transparent);
-		border-radius: 12px;
+		border-radius: var(--radius-md);
 		padding: 0.9rem;
 		display: flex;
 		flex-direction: column;
@@ -662,7 +662,7 @@
 		border: 1px solid var(--border);
 		color: var(--text-primary);
 		padding: 0.55rem 0.65rem;
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		font-size: 0.9rem;
 		cursor: pointer;
 		transition: border-color 0.2s;
@@ -737,7 +737,7 @@
 		max-height: 240px;
 		overflow: auto;
 		border: 1px solid var(--border);
-		border-radius: 10px;
+		border-radius: var(--radius-sm);
 		background: var(--bg-secondary);
 	}
 
