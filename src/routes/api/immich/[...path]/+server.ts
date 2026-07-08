@@ -33,6 +33,11 @@ function sanitizeHeaderValue(value: string | null | undefined): string | undefin
 	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
 }
 
+// TEMP memory probe: single-line rss in MB, easy to grep from prod logs.
+function rssMB(): number {
+	return Math.round(process.memoryUsage().rss / 1048576);
+}
+
 function formatMemoryUsage(): string {
 	const memory = process.memoryUsage();
 	const toMb = (value: number) => `${(value / 1024 / 1024).toFixed(1)}MB`;
@@ -1240,6 +1245,7 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 		});
 	}
 
+	console.warn(`[probe] simple.enter rss=${rssMB()}`);
 	const contentType = request.headers.get('content-type') || 'application/octet-stream';
 
 	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
@@ -1265,6 +1271,7 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		await pipeline(Readable.fromWeb(request.body as any), fs.createWriteStream(tempFilePath));
 		const stats = fs.statSync(tempFilePath);
+		console.warn(`[probe] simple.disk rss=${rssMB()} size=${stats.size}`);
 		logUploadDiagnostic('simple upload streamed to disk, sending to Immich', {
 			sizeBytes: stats.size
 		});
@@ -1318,6 +1325,7 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 			rs.pipe(req);
 		});
 
+		console.warn(`[probe] simple.resp rss=${rssMB()} status=${response.status}`);
 		return await finishImmichUpload(event, response, 'simple-upload', cleanup, 'simple');
 	} catch (err: unknown) {
 		cleanup();

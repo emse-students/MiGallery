@@ -16,6 +16,8 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  */
 export const PUT: RequestHandler = async (event) => {
 	await requireScope(event, 'write');
+	const rssMB = () => Math.round(process.memoryUsage().rss / 1048576);
+	console.warn(`[probe] album.enter rss=${rssMB()}`);
 	try {
 		const { id } = event.params;
 		const body = (await event.request.json()) as unknown;
@@ -41,6 +43,7 @@ export const PUT: RequestHandler = async (event) => {
 				console.warn('[album-assets] trash restore failed (continuing):', restoreErr);
 			}
 		}
+		console.warn(`[probe] album.trash rss=${rssMB()}`);
 
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
 			method: 'PUT',
@@ -59,6 +62,7 @@ export const PUT: RequestHandler = async (event) => {
 		const result = (await res.json()) as unknown;
 
 		immichCache.invalidateAlbum(id);
+		console.warn(`[probe] album.add rss=${rssMB()}`);
 
 		return json(result);
 	} catch (err: unknown) {
