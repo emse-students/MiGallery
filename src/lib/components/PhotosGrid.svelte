@@ -7,7 +7,7 @@
 	import type { PhotosState } from '$lib/photos.svelte';
 	import { groupByDay } from '$lib/photos.svelte';
 	import type { User } from '$lib/types/api';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { toast } from '$lib/toast';
 	import { activeOperations } from '$lib/operations';
 	import { m } from '$lib/paraglide/messages';
@@ -27,7 +27,7 @@
 		showFavorites = false
 	}: Props = $props();
 
-	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
+	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	let showModal = $state(false);
@@ -92,7 +92,7 @@
 
 			if (!res.ok) {
 				const errText = await res.text().catch(() => res.statusText);
-				throw new Error(errText || "Erreur lors du retrait de l'album");
+				throw new Error(errText || 'Failed to remove from album');
 			}
 
 			// Local update: remove assets from view
@@ -237,9 +237,9 @@
 	);
 </script>
 
-<!-- Affichage principal -->
+<!-- Main view -->
 {#if photosState.assets.length > 0}
-	<!-- Toolbar de sélection -->
+	<!-- Selection toolbar -->
 	{#if photosState.selecting}
 		<div class="selection-toolbar">
 			<div class="selection-count">
@@ -325,7 +325,7 @@
 		</div>
 	{/if}
 
-	<!-- Grille de photos groupées par jour -->
+	<!-- Photo grid grouped by day -->
 	{#each Object.entries(groupByDay(nonFavoriteAssets)) as [dayLabel, items]}
 		<h3 class="day-label">{dayLabel}</h3>
 		<div class="photos-grid">
@@ -435,7 +435,7 @@
 	{/snippet}
 </Modal>
 
-<!-- Modal téléchargement multiple -->
+<!-- Bulk download modal -->
 <Modal
 	bind:show={showDownloadSelectedModal}
 	title={m.pg_download_selected_title()}

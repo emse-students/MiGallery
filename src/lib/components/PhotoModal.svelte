@@ -44,7 +44,7 @@
 	}: Props = $props();
 	const dispatch = createEventDispatcher();
 
-	// -- État réactif --
+	// -- Reactive state --
 	let currentIndex = $state(0);
 	let asset = $state<Asset | null>(null);
 	let mediaUrl = $state<string | null>(null);
@@ -58,7 +58,7 @@
 	let minScale = $state(0.1);
 	const MAX_SCALE = 5;
 
-	// Variable de suivi pour éviter le reset lors du chargement de la haute résolution
+	// Tracking flag to avoid resetting when the high-resolution image loads
 	let lastProcessedAssetId = $state<string | null>(null);
 
 	let userRole = $derived(($page.data.session?.user as User)?.role || 'user');
@@ -582,7 +582,7 @@
 							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y /
 								scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
 							onload={() => {
-								// CONDITION CRUCIALE : On ne reset que si on change de photo (pas si on change de résolution)
+								// CRUCIAL: only reset when switching photo, not when switching resolution
 								if (asset?.id !== lastProcessedAssetId) {
 									minScale = computeMinScale();
 									scale = 1;

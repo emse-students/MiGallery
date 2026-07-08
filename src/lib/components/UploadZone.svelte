@@ -349,7 +349,7 @@
 
 				{#if errorCountPersist > 0}
 					<button
-						class="btn-retry"
+						class="btn-glass primary"
 						onclick={(e) => {
 							e.stopPropagation();
 							retryUpload(failedFiles);
@@ -362,7 +362,7 @@
 
 				{#if !isUploading}
 					<button
-						class="btn-clear"
+						class="btn-glass"
 						onclick={(e) => {
 							e.stopPropagation();
 							clearStatuses();
@@ -592,36 +592,4 @@
 		margin: 0;
 	}
 
-	.btn-retry {
-		padding: 0.75rem 1.5rem;
-		background: var(--accent);
-		color: white;
-		border: none;
-		border-radius: var(--radius-xs);
-		cursor: pointer;
-		font-weight: 500;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		transition: background 0.2s ease;
-	}
-
-	.btn-retry:hover {
-		background: var(--accent-hover);
-	}
-
-	.btn-clear {
-		padding: 0.75rem 1.5rem;
-		background: var(--bg-tertiary);
-		color: var(--text-primary);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-xs);
-		cursor: pointer;
-		font-weight: 500;
-		transition: background 0.2s ease;
-	}
-
-	.btn-clear:hover {
-		background: var(--bg-quaternary);
-	}
 </style>

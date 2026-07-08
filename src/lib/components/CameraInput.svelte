@@ -165,13 +165,13 @@
 	{:else}
 		<div class="button-group">
 			{#if isMobile}
-				<!-- Sur mobile : bouton qui ouvre la caméra native via input capture -->
+				<!-- Mobile: button that opens the native camera via input capture -->
 				<button class="btn-camera" onclick={openCameraCapture} {disabled}>
 					<Camera size={18} />
 					Prendre une photo
 				</button>
 
-				<!-- Input caché avec capture="user" pour la caméra native sur mobile -->
+				<!-- Hidden input with capture="user" for the native mobile camera -->
 				<input
 					bind:this={cameraInputRef}
 					type="file"
@@ -181,7 +181,7 @@
 					style="display: none;"
 				/>
 			{:else if canUseWebcam}
-				<!-- Sur PC avec webcam : bouton pour ouvrir le flux vidéo -->
+				<!-- Desktop with webcam: button to open the video stream -->
 				<button class="btn-camera" onclick={startCamera} disabled={loading || disabled}>
 					{#if loading}
 						<Spinner size={18} />
@@ -199,7 +199,7 @@
 			</button>
 		</div>
 
-		<!-- Input caché pour sélection de fichier -->
+		<!-- Hidden input for file selection -->
 		<input
 			bind:this={fileInputRef}
 			type="file"

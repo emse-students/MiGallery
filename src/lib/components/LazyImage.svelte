@@ -159,7 +159,7 @@
 
     {#if !isLoaded && hasStartedLoading}
         <div class="lazy-image-placeholder">
-            <!-- On passe le radius ici pour que le skeleton respecte le style parent -->
+            <!-- Pass the radius here so the skeleton matches the parent style -->
             <Skeleton {aspectRatio} {radius} />
         </div>
     {/if}
@@ -171,7 +171,7 @@
         width: 100%;
         background: var(--bg-tertiary);
         overflow: hidden;
-        /* Animation supprimée pour plus de stabilité */
+        /* Animation removed for stability */
     }
 
     /* Mode auto */
