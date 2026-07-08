@@ -93,6 +93,23 @@ async function main() {
 		const envVars = loadEnv();
 		console.log('📄 Variables .env chargées:', Object.keys(envVars).join(', '));
 
+		// Guard: the integration suite creates real "[TEST] ..." albums in Immich.
+		// Refuse to run against a non-local Immich so a dev .env pointing at prod
+		// does not pollute it. Override with ALLOW_REMOTE_IMMICH_TESTS=true.
+		const immichUrl = (envVars.IMMICH_BASE_URL ?? process.env.IMMICH_BASE_URL ?? '').trim();
+		if (immichUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(immichUrl)) {
+			if (process.env.ALLOW_REMOTE_IMMICH_TESTS !== 'true') {
+				console.error(
+					`\n⛔ IMMICH_BASE_URL points to a non-local Immich (${immichUrl}).\n` +
+						`   The test suite creates real "[TEST] ..." albums and would pollute it.\n` +
+						`   Use an empty IMMICH_BASE_URL or a local mock, or set` +
+						` ALLOW_REMOTE_IMMICH_TESTS=true to override.\n`
+				);
+				process.exit(1);
+			}
+			console.warn(`\n⚠️  Running tests against remote Immich (${immichUrl}) — override in effect.\n`);
+		}
+
 		// Définir NODE_ENV=test pour activer les routes de dev pendant les tests
 		process.env.NODE_ENV = 'test';
 		console.log('✅ NODE_ENV défini à "test"');
