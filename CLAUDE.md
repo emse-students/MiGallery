@@ -1,142 +1,142 @@
-# MiGallery — Guide pour Claude Code
+# MiGallery - Guide for Claude Code
 
-## Ce qu'est ce projet
+## What this project is
 
-Application web de galerie photo pour MiTV (EMSE). Elle encapsule **Immich** (backend photo self-hosted) en ajoutant : contrôle d'accès par rôle, gestion d'albums, SSO via Authentik (MiConnect), et une UI Svelte.
+Photo gallery web app for MiTV (EMSE). It wraps **Immich** (self-hosted photo backend) and adds: role-based access control, album management, SSO via Authentik (MiConnect), and a Svelte UI.
 
-Le serveur SvelteKit agit principalement comme **proxy authentifié** vers l'API Immich.
-
----
-
-## Stack technique
-
-| Couche          | Technologie                                              |
-| --------------- | -------------------------------------------------------- |
-| Frontend        | Svelte 5, SvelteKit 2, TypeScript, Tailwind CSS 4        |
-| Backend         | SvelteKit SSR (Node.js), adapter-node                    |
-| Base de données | SQLite via `better-sqlite3` (synchrone)                  |
-| Auth            | Auth.js + Authentik OIDC (SSO MiConnect)                 |
-| Photo backend   | Immich (API REST, proxiée via `/api/immich/*`)           |
-| Build           | Vite (build via npm)                                     |
-| Qualité         | ESLint, Prettier, Husky (pre-commit : lint + type-check) |
+The SvelteKit server acts mostly as an **authenticated proxy** to the Immich API.
 
 ---
 
-## Commandes essentielles
+## Tech stack
+
+| Layer    | Technology                                              |
+| -------- | ------------------------------------------------------- |
+| Frontend | Svelte 5, SvelteKit 2, TypeScript, Tailwind CSS 4       |
+| Backend  | SvelteKit SSR (Node.js), adapter-node                   |
+| Database | SQLite via `better-sqlite3` (synchronous)               |
+| Auth     | Auth.js + Authentik OIDC (SSO MiConnect)                |
+| Photo    | Immich (REST API, proxied via `/api/immich/*`)          |
+| Build    | Vite (build via npm)                                    |
+| Quality  | ESLint, Prettier, Husky (pre-commit: lint + type-check) |
+
+---
+
+## Essential commands
 
 ```bash
-npm run dev          # Serveur de dev avec HMR
-npm run build        # Build de production → build/
+npm run dev          # Dev server with HMR
+npm run build        # Production build -> build/
 npm run check        # Type-check (svelte-check + tsc)
 npm run lint         # ESLint
 npm run format       # Prettier
-npm run db:init      # Initialiser le schéma SQLite
-npm run db:backup    # Backup manuel de la DB
-npm run test         # Suite d'intégration complète
-npm run test:unit    # Vitest unitaire uniquement
+npm run db:init      # Initialize the SQLite schema
+npm run db:backup    # Manual DB backup
+npm run test         # Full integration suite
+npm run test:unit    # Vitest unit tests only
 ```
 
-> Le hook pre-commit Husky exécute ESLint + Prettier + svelte-check. Un commit échoue si l'un d'eux échoue. Corriger le problème plutôt que de contourner le hook.
+> The Husky pre-commit hook runs ESLint + Prettier + svelte-check. A commit fails if any of them fails. Fix the problem rather than bypassing the hook.
 
 ---
 
-## Architecture des répertoires
+## Directory layout
 
 ```
 src/
   lib/
-    components/       # Composants Svelte réutilisables (UploadZone, PhotosGrid, Modal…)
-    db/               # Accès SQLite : schéma, requêtes (users, albums, permissions)
-    auth/             # Configuration Auth.js
-    immich/           # Client Immich : albums, assets, téléchargements
-    server/           # Utilitaires serveur-only (permissions, logs, cache, download-tokens)
-    types/            # Types TypeScript centralisés (api.ts, streamsaver.d.ts)
-    photos-cv/        # Logique spécifique aux photos CV (trombinoscope)
+    components/       # Reusable Svelte components (UploadZone, PhotosGrid, Modal...)
+    db/               # SQLite access: schema, queries (users, albums, permissions)
+    auth/             # Auth.js configuration
+    immich/           # Immich client: albums, assets, downloads
+    server/           # Server-only utilities (permissions, logs, cache, download-tokens)
+    types/            # Centralized TypeScript types (api.ts, streamsaver.d.ts)
+    photos-cv/        # Photos-CV specific logic (trombinoscope)
   routes/
     api/
-      immich/[...path]/ # Proxy principal vers Immich — handler universel
-      albums/           # CRUD albums (lecture depuis la DB locale + Immich)
-      download/         # Téléchargement d'archives : token prep + streaming
-      people/           # Gestion des personnes (photos CV)
-      users/            # Gestion des utilisateurs
-      auth/             # Login/logout/callback OIDC
-      admin/            # Routes admin (DB export, logs, clés API)
-    albums/             # Pages liste et détail d'albums
-    photos-cv/          # Page album photos CV
-    trombinoscope/      # Annuaire/trombinoscope
-    admin/              # Interface d'administration
-  hooks.server.ts       # Auth middleware, validation session, CSRF
-  hooks.client.ts       # Navigation guard (opérations en cours), SW registration
+      immich/[...path]/ # Main proxy to Immich - universal handler
+      albums/           # Album CRUD (reads from the local DB + Immich)
+      download/         # Archive download: token prep + streaming
+      people/           # People management (photos CV)
+      users/            # User management
+      auth/             # OIDC login/logout/callback
+      admin/            # Admin routes (DB export, logs, API keys)
+    albums/             # Album list and detail pages
+    photos-cv/          # Photos-CV album page
+    trombinoscope/      # Directory/trombinoscope
+    admin/              # Admin interface
+  hooks.server.ts       # Auth middleware, session validation, CSRF
+  hooks.client.ts       # Navigation guard (in-flight operations), SW registration
 
-data/                   # Runtime (gitignore) : DB, backups, chunks d'upload en cours
+data/                   # Runtime (gitignored): DB, backups, in-flight upload chunks
 static/
-  streamsaver-sw.js     # Service worker minimal (install/activate, sans interception fetch)
-  mitm.html             # StreamSaver MITM (présent mais non utilisé activement)
-scripts/                # Scripts Node.js : init-db, backup, cleanup-chunks, tests…
+  streamsaver-sw.js     # Minimal service worker (install/activate, no fetch interception)
+  mitm.html             # StreamSaver MITM (present but not actively used)
+scripts/                # Node.js scripts: init-db, backup, cleanup-chunks, tests...
 ```
 
 ---
 
-## Flux de données clés
+## Key data flows
 
-### Authentification
+### Authentication
 
-1. Login → redirect Authentik (OIDC)
-2. Callback → `Auth.js` crée session JWT (cookie httpOnly `__Secure-authjs.session-token`)
-3. `hooks.server.ts` valide la session à chaque requête
-4. `requireScope(event, 'read'|'write')` protège les endpoints API
+1. Login -> redirect to Authentik (OIDC)
+2. Callback -> `Auth.js` creates a JWT session (httpOnly cookie `__Secure-authjs.session-token`)
+3. `hooks.server.ts` validates the session on every request
+4. `requireScope(event, 'read'|'write')` protects the API endpoints
 
-Rôles : `admin` · `mitviste` · `user` (défaut)
+Roles: `admin` - `mitviste` - `user` (default)
 
-- `admin` : seul rôle avec accès à `/admin` et à l'API admin (`ensureAdmin`).
-- `mitviste` : rôle galerie élevé (gestion des photos : photos-cv, corbeille…) mais **aucun accès admin**.
-- `user` : accès de base.
+- `admin`: the only role with access to `/admin` and the admin API (`ensureAdmin`).
+- `mitviste`: elevated gallery role (photo management: photos-cv, trash...) but **no admin access**.
+- `user`: basic access.
 
-### Proxy Immich
+### Immich proxy
 
-Toutes les routes `/api/immich/*` sont traitées par `src/routes/api/immich/[...path]/+server.ts`. Ce handler :
+All `/api/immich/*` routes are handled by `src/routes/api/immich/[...path]/+server.ts`. This handler:
 
-- Vérifie le scope (read/write)
-- Gère les uploads en chunks (streaming disque, zéro RAM)
-- Gère les albums publics (unlisted)
-- Formate et retransmet les réponses binaires (images, vidéos, archives)
+- Checks the scope (read/write)
+- Handles chunked uploads (disk streaming, zero RAM)
+- Handles public (unlisted) albums
+- Formats and forwards binary responses (images, videos, archives)
 
-### Téléchargement d'archives (albums)
+### Archive download (albums)
 
-**Ne pas utiliser StreamSaver ni le service worker pour les téléchargements.**
-Flux : `POST /api/download` (crée un token UUID) → `GET /api/download/{token}` (serveur streame depuis Immich, browser télécharge nativement). Voir `src/lib/immich/download.ts` et `src/lib/server/download-tokens.ts`.
+**Do not use StreamSaver or the service worker for downloads.**
+Flow: `POST /api/download` (creates a UUID token) -> `GET /api/download/{token}` (server streams from Immich, the browser downloads natively). See `src/lib/immich/download.ts` and `src/lib/server/download-tokens.ts`.
 
-### Upload de fichiers
+### File upload
 
-- < 10 MB : `POST /api/immich/assets` avec `FormData` simple
-- ≥ 10 MB : chunks de 5 MB avec reprise, hash SHA256 par chunk, stockage disque dans `data/chunk-uploads/`
-- Le serveur stream les chunks vers le disque sans buffer RAM (`fs.createWriteStream`)
-- À complétion : stream vers Immich via `fs.createReadStream` dans un FormData
-
----
-
-## Base de données locale (SQLite)
-
-La DB locale stocke **uniquement** ce qu'Immich ne gère pas :
-
-- `users` — rôles (admin/mitviste/user), emails
-- `albums` — visibilité (private/authenticated/unlisted), date, lieu
-- `album_formation_permissions` — accès par formation
-- `album_promo_permissions` — accès par année de promo
-- `album_user_permissions` — accès par utilisateur individuel
-- `album_tag_permissions` — tags libres
-- `logs` — journal des événements (upload, delete, etc.)
-
-Les IDs dans la DB locale correspondent aux IDs Immich (UUID).
+- < 10 MB: `POST /api/immich/assets` with a plain `FormData`
+- > = 10 MB: 5 MB chunks with resume, SHA256 hash per chunk, disk storage in `data/chunk-uploads/`
+- The server streams chunks to disk with no RAM buffer (`fs.createWriteStream`)
+- On completion: stream to Immich via `fs.createReadStream` inside a FormData
 
 ---
 
-## Variables d'environnement requises
+## Local database (SQLite)
+
+The local DB stores **only** what Immich does not manage:
+
+- `users` - roles (admin/mitviste/user), emails
+- `albums` - visibility (private/authenticated/unlisted), date, location
+- `album_formation_permissions` - access by formation
+- `album_promo_permissions` - access by promo year
+- `album_user_permissions` - access by individual user
+- `album_tag_permissions` - free-form tags
+- `logs` - event log (upload, delete, etc.)
+
+IDs in the local DB match the Immich IDs (UUID).
+
+---
+
+## Required environment variables
 
 ```bash
 # Immich
 IMMICH_BASE_URL=http://10.0.0.4:2283
-IMMICH_API_KEY=<clé_api_immich>
+IMMICH_API_KEY=<immich_api_key>
 
 # Authentik OIDC (MiConnect)
 MICONNECT_ISSUER=https://auth.canari-emse.fr/application/o/migallery
@@ -147,36 +147,45 @@ MICONNECT_CLIENT_SECRET=<client_secret>
 AUTH_SECRET=<64_chars_hex>      # node ./scripts/generate-auth-secret.cjs
 AUTH_TRUSTED_HOST=true
 
-# Serveur
+# Server
 PORT=3000
 ORIGIN=https://gallery.mitv.fr
 DATABASE_PATH=./data/migallery.db
 COOKIE_SECRET=<64_chars_hex>    # node ./scripts/generate_cookie_secret.cjs
 
-# Upload (taille max body)
+# Upload (max body size)
 BODY_SIZE_LIMIT=20G
 
-# Dev uniquement — jamais en prod
+# Dev only - never in production
 ENABLE_DEV_ROUTES=false
 ```
 
 ---
 
-## Points d'attention
+## Things to watch out for
 
-- **Svelte 5 runes** : ce projet utilise `$state`, `$derived`, `$effect`. Ne pas utiliser l'ancienne syntaxe `reactive` / `$:`.
-- **SSR** : tout import de librairie browser-only (ex. StreamSaver) doit être lazy (`await import(...)`) ou conditionné par `typeof window !== 'undefined'`.
-- **Pas de buffering mémoire** pour les gros fichiers : uploads streamés vers disque, téléchargements via token natif. Ne pas introduire de `Buffer.alloc` ou accumulation de chunks pour des fichiers > quelques MB.
-- **DB synchrone** : `better-sqlite3` est synchrone par design. Les requêtes sont dans des handlers serveur, c'est intentionnel.
-- **Concurrence uploads** : verrou par fichier via `fs.openSync(lockPath, 'wx')`. Ne pas supprimer cette logique.
-- **Iconographie** : uniquement `lucide-svelte`. Ne pas utiliser d'alias (`ScanFace`, `CheckSquare`) — vérifier que le nom existe dans la version installée.
+- **Svelte 5 runes**: this project uses `$state`, `$derived`, `$effect`. Do not use the old `reactive` / `$:` syntax.
+- **SSR**: any browser-only library import (e.g. StreamSaver) must be lazy (`await import(...)`) or guarded by `typeof window !== 'undefined'`.
+- **No memory buffering** for large files: uploads stream to disk, downloads use a native token. Do not introduce `Buffer.alloc` or chunk accumulation for files larger than a few MB.
+- **Synchronous DB**: `better-sqlite3` is synchronous by design. Queries live in server handlers; this is intentional.
+- **Upload concurrency**: per-file lock via `fs.openSync(lockPath, 'wx')`. Do not remove this logic.
+- **Iconography**: `lucide-svelte` only. Do not use aliases (`ScanFace`, `CheckSquare`) - verify the name exists in the installed version.
 
 ---
 
-## Conventions de langue et de caractères
+## UI / design system
 
-Reprises de `C:\Users\jolan\Documents\Programmation\canari\CLAUDE.md` (sections "Language" et "Text characters"). Adaptées à MiGallery.
+- **Single source for styling primitives.** Shared tokens live in `src/app.css` (`:root` / `[data-theme='light']`): colors, `--radius-*` scale, `--glass-*`, shadows, `--ease`. Reuse them; do not hardcode hex or px radii in page CSS.
+- **Buttons**: use the canonical `.btn-glass` from `app.css` with its modifiers (`primary`, `success`, `danger`, `info`, `edit`, `active`, `icon`). Do not redefine `.btn-glass` per page.
+- **Visual identity to preserve**: dark-first theme, glassmorphism, decorative background blobs (`BackgroundBlobs`). Keep it - refine and unify rather than replace.
+- **Theme**: every surface must work in both dark and light via the theme tokens; avoid literal `white`/`black` and raw rgba where a token exists.
 
-- **Langue du code** : commentaires (`//`, `/* */`, `/** */`) et strings destinées au dev (`console.*`, erreurs jetées en interne) en **anglais**. Tout texte visible par l'utilisateur passe par Paraglide (`messages/fr.json` + `messages/en.json`), jamais en littéral inline.
-- **Normalisation de la PONCTUATION en ASCII** (code, strings, commentaires, docs, JSON de trad) : apostrophe droite `'` (jamais `’`), guillemet droit `"` (jamais `“ ” « »`), trait d'union `-` (jamais `—` / `–`). Exception : l'ellipse `…` est conservée. Dans le code, échapper `\'` / `\"` plutôt que réintroduire un caractère typographique.
-- **Les accents des lettres françaises sont TOUJOURS conservés** (`é è ê à ù ç î ô` ...). Cette règle ne vise QUE la ponctuation typographique : "ASCII" ne veut PAS dire "français sans accents". Écrire "evenements" ou "privee" au lieu de "évènements" / "privée" est une ERREUR. Vaut pour les valeurs i18n FR, le français dans les commentaires, et ce fichier.
+---
+
+## Language and character conventions
+
+Adopted from `C:\Users\jolan\Documents\Programmation\canari\CLAUDE.md` (sections "Language" and "Text characters"), adapted to MiGallery.
+
+- **Code language**: comments (`//`, `/* */`, `/** */`) and developer-facing strings (`console.*`, internally thrown errors) are in **English**. Every user-visible string goes through Paraglide (`messages/fr.json` + `messages/en.json`), never an inline literal.
+- **Normalize PUNCTUATION to ASCII** (code, strings, comments, docs, translation JSON): straight apostrophe `'` (never `’`), straight quote `"` (never `“ ” « »`), hyphen `-` (never `—` / `–`). Exception: the ellipsis `…` is kept. In code, escape `\'` / `\"` rather than reintroducing a typographic character.
+- **Accented French letters are ALWAYS preserved** (`é è ê à ù ç î ô` ...). This rule targets typographic punctuation ONLY: "ASCII" does NOT mean "French without accents". Writing "evenements" or "privee" instead of "évènements" / "privée" is a bug. Applies to FR i18n values and to French inside comments.
