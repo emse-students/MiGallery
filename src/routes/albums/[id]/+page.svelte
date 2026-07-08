@@ -359,45 +359,13 @@
 </main>
 
 <style>
-	/* --- VARIABLES --- */
+	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.page-main {
-		--am-bg: var(--bg-primary, #ffffff);
-		--am-text: var(--text-primary, #1f2937);
-		--am-text-muted: var(--text-secondary, #6b7280);
-		--am-accent: var(--accent, #3b82f6);
-		--am-border: var(--border, #e5e7eb);
-		/* Do not override glass variables here — rely on global theme variables to avoid flashes */
-
 		position: relative;
 		min-height: 100vh;
-		color: var(--am-text);
+		color: var(--text-primary);
 		overflow-x: hidden;
 		padding-bottom: 100px; /* Room for the mobile action bar */
-		font-family:
-			system-ui,
-			-apple-system,
-			sans-serif;
-	}
-
-	:global([data-theme='dark']) .page-main {
-		--am-bg: var(--bg-primary, #020617);
-		--am-text: var(--text-primary, #f3f4f6);
-		--am-text-muted: var(--text-secondary, #94a3b8);
-		--am-border: rgba(255, 255, 255, 0.08);
-		--am-glass-bg: rgba(15, 23, 42, 0.6);
-		--am-glass-border: rgba(255, 255, 255, 0.08);
-		--am-item-bg: rgba(255, 255, 255, 0.03);
-	}
-
-	/* Ensure explicit light theme variables when the app attribute forces light mode */
-	:global([data-theme='light']) .page-main {
-		--am-bg: var(--bg-primary, #ffffff);
-		--am-text: var(--text-primary, #111827);
-		--am-text-muted: var(--text-secondary, #6b7280);
-		--am-border: var(--border, #e5e7eb);
-		--am-glass-bg: rgba(255, 255, 255, 0.7);
-		--am-glass-border: rgba(255, 255, 255, 0.08);
-		--am-item-bg: rgba(255, 255, 255, 0.5);
 	}
 
 	.page-container {
@@ -418,7 +386,7 @@
 		gap: 0.5rem;
 		background: none;
 		border: none;
-		color: var(--am-text-muted);
+		color: var(--text-secondary);
 		font-weight: 600;
 		cursor: pointer;
 		transition: color 0.2s;
@@ -426,7 +394,7 @@
 		font-size: 0.95rem;
 	}
 	.back-btn:hover {
-		color: var(--am-accent);
+		color: var(--accent);
 	}
 
 	/* --- HEADER --- */
@@ -448,7 +416,7 @@
 	}
 	.title-wrapper .meta {
 		margin: 0.25rem 0 0;
-		color: var(--am-text-muted);
+		color: var(--text-secondary);
 		font-size: 1rem;
 		display: flex;
 		align-items: center;
@@ -456,7 +424,7 @@
 	}
 	.title-wrapper .count {
 		font-size: 0.85rem;
-		color: var(--am-text-muted);
+		color: var(--text-secondary);
 		opacity: 0.7;
 		margin: 0.2rem 0 0;
 	}
@@ -466,16 +434,16 @@
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
-		background: var(--am-glass-bg);
+		background: var(--glass-bg);
 		padding: 0.5rem;
 		border-radius: var(--radius);
-		border: 1px solid var(--am-glass-border);
+		border: 1px solid var(--glass-border);
 		backdrop-filter: blur(12px);
 	}
 	.divider {
 		width: 1px;
 		height: 24px;
-		background: var(--am-border);
+		background: var(--border);
 		margin: 0 0.25rem;
 	}
 
@@ -485,9 +453,9 @@
 
 	/* --- CARDS & CONTENT --- */
 	.glass-card {
-		background: var(--am-glass-bg);
+		background: var(--glass-bg);
 		backdrop-filter: blur(20px);
-		border: 1px solid var(--am-glass-border);
+		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-lg);
 		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 	}
@@ -506,13 +474,13 @@
 	}
 	.upload-header p {
 		margin: 0;
-		color: var(--am-text-muted);
+		color: var(--text-secondary);
 		font-size: 0.9rem;
 	}
 
 	/* Make upload header use theme glass background for consistency */
 	.upload-header {
-		background: var(--am-glass-bg);
+		background: var(--glass-bg);
 		padding: 1rem;
 		border-radius: var(--radius-md);
 	}
@@ -530,7 +498,7 @@
 	.empty-state {
 		padding: 4rem;
 		text-align: center;
-		color: var(--am-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -540,7 +508,7 @@
 	.loading-state {
 		text-align: center;
 		padding: 4rem;
-		color: var(--am-text-muted);
+		color: var(--text-secondary);
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -585,11 +553,11 @@
 			flex: 1;
 			background: transparent;
 			border: none;
-			color: var(--am-text-muted);
+			color: var(--text-secondary);
 			box-shadow: none;
 		}
 		.actions-group.mobile .btn-glass.active {
-			color: var(--am-accent);
+			color: var(--accent);
 			background: var(--accent-light);
 		}
 
