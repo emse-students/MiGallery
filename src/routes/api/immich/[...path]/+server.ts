@@ -1253,8 +1253,23 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 		// instead of the Readable.fromWeb() web->node stream bridge, which inflates
 		// the read ~50-80x under Bun and never returns the memory. Send the buffer
 		// straight to Immich: no stream bridge, no temp file.
-		const buf = Buffer.from(await request.arrayBuffer());
-		console.warn(`[probe] simple.buf rss=${rssMB()} size=${buf.length}`);
+		// Read the ORIGINAL un-cloned Bun request (event.platform.request) rather
+		// than SvelteKit's event.request: the adapter builds the latter via
+		// `new Request(url, request)`, and cloning a streaming body makes Bun
+		// buffer it ~80x. Fall back to event.request if the original is unavailable
+		// or its body was already locked by the clone.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const originalReq = (event.platform as any)?.request as Request | undefined;
+		let buf: Buffer;
+		try {
+			buf = Buffer.from(await (originalReq ?? request).arrayBuffer());
+			console.warn(
+				`[probe] simple.buf rss=${rssMB()} size=${buf.length} src=${originalReq ? 'platform' : 'event'}`
+			);
+		} catch {
+			buf = Buffer.from(await request.arrayBuffer());
+			console.warn(`[probe] simple.buf rss=${rssMB()} size=${buf.length} src=fallback`);
+		}
 		logUploadDiagnostic('simple upload buffered, sending to Immich', { sizeBytes: buf.length });
 
 		const url = new URL(`${baseUrl}/api/assets`);
