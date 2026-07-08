@@ -62,62 +62,56 @@
     width: 100%;
     height: 100%;
     z-index: -1;
-    /* Fond clair : blanc cassé pour moins d'agression */
+    /* Light theme: off-white, softer than pure white */
     background-color: var(--bg-primary, #f8fafc);
     overflow: hidden;
     pointer-events: none;
   }
 
-  /* --- AJUSTEMENT MODE SOMBRE --- */
+  /* --- DARK THEME --- */
   :global([data-theme='dark']) .page-background {
-    /* Noir quasi absolu pour la profondeur */
+    /* Near-absolute black for depth */
     background-color: var(--bg-primary, #020408);
   }
 
   .blobs-container {
     position: absolute;
     inset: 0;
-    /* Le filtre blur a été retiré ici pour sauver les performances du GPU */
-  }
-
-  .gradient-blob {
-    position: absolute;
-    border-radius: 50%;
-    /* Optimisation : création du halo de couleur sans utiliser de flou */
-    background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
-    /* Opacité standard pour le mode clair */
-    opacity: 0.5;
-    mix-blend-mode: multiply;
-  }
-
-  /* --- AJUSTEMENT BLOBS SOMBRES --- */
-  :global([data-theme='dark']) .gradient-blob {
-    /* Opacité très réduite : juste une lueur */
-    opacity: 0.15;
-    /* "Hard-light" ou "Screen" donne un effet néon subtil dans le noir */
-    mix-blend-mode: screen;
+    /* No blur filter here - it was removed to save GPU memory */
   }
 
   /*
-   * Sur mobile (et iOS en particulier), mix-blend-mode sur plusieurs éléments
-   * crée autant de couches composites GPU et provoque des crashs mémoire Safari
-   * ("un problème récurrent est survenu sur cette page").
-   * On désactive le blend mode et le grain SVG sur les petits écrans / écrans tactiles.
+   * Static color halos. No mix-blend-mode and no filter: blur - both create
+   * GPU composite layers that are heavy and crash mobile Safari at this size.
+   * The radial-gradient already fades to transparent, so plain opacity gives
+   * the same soft look for near-zero cost, and works identically on mobile.
    */
+  .gradient-blob {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
+    opacity: 0.22;
+  }
+
+  :global([data-theme='dark']) .gradient-blob {
+    /* Faint glow against the near-black background */
+    opacity: 0.16;
+  }
+
+  /* Trim opacity a touch on small / touch screens for battery; blobs stay on. */
   @media (max-width: 768px), (hover: none) {
     .gradient-blob {
-      mix-blend-mode: normal;
-      opacity: 0.12;
+      opacity: 0.16;
     }
     :global([data-theme='dark']) .gradient-blob {
-      opacity: 0.08;
-    }
-    .noise-overlay {
-      display: none;
+      opacity: 0.12;
     }
   }
 
-  /* Le grain reste pour la texture "premium" sur desktop */
+  /*
+   * Static grain texture. A single small SVG raster tiled via background-size
+   * keeps memory tiny; no blend mode, so it stays cheap on every device.
+   */
   .noise-overlay {
     position: absolute;
     inset: 0;
@@ -125,9 +119,10 @@
     pointer-events: none;
     z-index: 1;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
   }
 
   :global([data-theme='dark']) .noise-overlay {
-    opacity: 0.04; /* Grain encore plus discret la nuit */
+    opacity: 0.04; /* Even more discreet at night */
   }
 </style>

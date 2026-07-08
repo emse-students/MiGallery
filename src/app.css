@@ -47,10 +47,6 @@
 	--mobile-nav-height: 72px;
 	--max-width: 1600px;
 	--container-padding: clamp(1rem, 3vw, 2rem);
-	/* Blur radius for the decorative background blobs. Big blurs (90-120px) over
-	   700px elements are very expensive on the GPU; the radial-gradient already
-	   softens the halo, so a small blur is enough. Lowered again on small screens. */
-	--blob-blur: 48px;
 	/* Coherent radius scale: xs < sm < md < base < lg. */
 	--radius-lg: 20px;
 	--radius: 16px;
@@ -446,7 +442,6 @@
 	.gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(var(--blob-blur));
 		opacity: 0.12;
 		pointer-events: none;
 	}
@@ -1028,9 +1023,7 @@
 	.home-main .gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(var(--blob-blur));
 		opacity: 0.15;
-		animation: float 25s ease-in-out infinite;
 	}
 
 	.home-main .blob-1 {
@@ -1039,7 +1032,6 @@
 		background: radial-gradient(circle, rgba(251, 191, 36, 0.6) 0%, transparent 70%);
 		top: -100px;
 		right: 5%;
-		animation-delay: 0s;
 	}
 
 	.home-main .blob-2 {
@@ -1048,7 +1040,6 @@
 		background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
 		bottom: -50px;
 		left: 10%;
-		animation-delay: -8s;
 	}
 
 	.home-main .blob-3 {
@@ -1057,20 +1048,6 @@
 		background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, transparent 70%);
 		top: 40%;
 		left: 50%;
-		animation-delay: -16s;
-	}
-
-	@keyframes float {
-		0%,
-		100% {
-			transform: translate(0, 0) scale(1);
-		}
-		33% {
-			transform: translate(30px, -30px) scale(1.1);
-		}
-		66% {
-			transform: translate(-20px, 20px) scale(0.9);
-		}
 	}
 
 	.home-main .header {
@@ -1414,9 +1391,7 @@
 	.settings-main .gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(var(--blob-blur));
 		opacity: 0.14;
-		animation: float 24s ease-in-out infinite;
 	}
 
 	.settings-main .blob-1 {
@@ -1425,7 +1400,6 @@
 		background: radial-gradient(circle, rgba(168, 85, 247, 0.6) 0%, transparent 70%);
 		top: -100px;
 		left: 10%;
-		animation-delay: 0s;
 	}
 
 	.settings-main .blob-2 {
@@ -1434,7 +1408,6 @@
 		background: radial-gradient(circle, rgba(14, 165, 233, 0.5) 0%, transparent 70%);
 		bottom: -150px;
 		right: 5%;
-		animation-delay: -10s;
 	}
 
 	.settings-main .blob-3 {
@@ -1443,7 +1416,6 @@
 		background: radial-gradient(circle, rgba(217, 70, 239, 0.4) 0%, transparent 70%);
 		top: 40%;
 		right: 30%;
-		animation-delay: -18s;
 	}
 
 	.settings-main h3 {
@@ -1561,7 +1533,6 @@
 	.albums-main .gradient-blob {
 		position: absolute;
 		border-radius: 50%;
-		filter: blur(var(--blob-blur));
 		opacity: 0.13;
 	}
 
@@ -1771,16 +1742,13 @@
 		width: 600px;
 		height: 600px;
 		border-radius: 50%;
-		filter: blur(var(--blob-blur));
 		opacity: 0.15;
-		animation: float 22s ease-in-out infinite;
 	}
 
 	.mesphotos-main .page-background::before {
 		background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%);
 		top: -300px;
 		right: -200px;
-		animation-delay: -7s;
 	}
 
 	.mesphotos-main .page-background::after {
@@ -1932,9 +1900,9 @@
 
 /* =============================================
    MOTION / PERFORMANCE GUARDS
-   Always-on animations (floating blurred blobs, view transitions) are costly on
-   low-end GPUs and drain battery. Honour reduced-motion, and stop the infinite
-   blob float on small / touch devices.
+   The decorative blobs and grain are now static (no animation, no blur, no
+   blend mode), so the only always-on motion left is the view transition on
+   navigation. Honour reduced-motion by disabling it.
    ============================================= */
 @media (prefers-reduced-motion: reduce) {
 	*,
@@ -1948,18 +1916,6 @@
 
 	::view-transition-old(root),
 	::view-transition-new(root) {
-		animation: none !important;
-	}
-}
-
-@media (max-width: 768px) {
-	:root {
-		--blob-blur: 24px;
-	}
-
-	.gradient-blob,
-	.mesphotos-main .page-background::before,
-	.mesphotos-main .page-background::after {
 		animation: none !important;
 	}
 }

@@ -128,15 +128,18 @@ Les variables CSS sont définies dans `src/app.css` et constituent la base du sy
 
 ## 🌈 Effets visuels
 
-### Gradient blobs (fond animé)
+### Gradient blobs (fond statique)
+
+Les blobs sont **figés** : pas d'animation, pas de `filter: blur`, pas de `mix-blend-mode`.
+Le gradient radial suffit à adoucir le halo, et l'opacité seule remplace le blend (crashs
+mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `BackgroundBlobs.svelte`.
 
 ```css
 .gradient-blob {
 	position: absolute;
 	border-radius: 50%;
-	filter: blur(110px);
-	opacity: 0.14;
-	animation: float 22s ease-in-out infinite;
+	background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
+	opacity: 0.22; /* 0.16 en dark */
 }
 
 .blob-1 {
