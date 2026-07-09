@@ -66,6 +66,8 @@
 		authorized_name: string;
 		authorized_first_name: string | null;
 		authorized_last_name: string | null;
+		authorized_promo: number | null;
+		authorized_formation: string | null;
 		created_at: string;
 	}
 	interface SharedWithMe {
@@ -73,6 +75,8 @@
 		owner_name: string;
 		owner_first_name: string | null;
 		owner_last_name: string | null;
+		owner_promo: number | null;
+		owner_formation: string | null;
 		created_at: string;
 	}
 	let photoPermissions = $state<PhotoPermission[]>([]);

@@ -8,6 +8,8 @@ interface SharedWithMe {
 	owner_name: string;
 	owner_first_name: string | null;
 	owner_last_name: string | null;
+	owner_promo: number | null;
+	owner_formation: string | null;
 	created_at: string;
 }
 
@@ -28,6 +30,8 @@ export const GET: RequestHandler = async (event) => {
 					u.name as owner_name,
 					u.first_name as owner_first_name,
 					u.last_name as owner_last_name,
+					u.promo as owner_promo,
+					u.formation as owner_formation,
 					p.created_at
 				FROM photo_access_permissions p
 				JOIN users u ON u.id_user = p.owner_id

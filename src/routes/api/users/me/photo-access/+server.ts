@@ -8,6 +8,8 @@ interface PhotoAccessPermission {
 	authorized_name: string;
 	authorized_first_name: string | null;
 	authorized_last_name: string | null;
+	authorized_promo: number | null;
+	authorized_formation: string | null;
 	created_at: string;
 }
 
@@ -35,6 +37,8 @@ export const GET: RequestHandler = async (event) => {
 					u.name as authorized_name,
 					u.first_name as authorized_first_name,
 					u.last_name as authorized_last_name,
+					u.promo as authorized_promo,
+					u.formation as authorized_formation,
 					p.created_at
 				FROM photo_access_permissions p
 				JOIN users u ON u.id_user = p.authorized_id
