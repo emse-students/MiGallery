@@ -25,6 +25,8 @@
 	import CameraInput from '$lib/components/CameraInput.svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
+	import Avatar from '$lib/components/Avatar.svelte';
+	import { fuzzyMatch } from '$lib/fuzzy';
 	import { PhotosState } from '$lib/photos.svelte';
 	import { theme } from '$lib/theme';
 	import { asApiResponse } from '$lib/ts-utils';
@@ -196,21 +198,6 @@
 		} finally {
 			isLoadingSharedWithMe = false;
 		}
-	}
-
-	// Two-letter initials for a person avatar placeholder, robust to missing names.
-	function getInitials(
-		first: string | null,
-		last: string | null,
-		fallbackName?: string | null
-	): string {
-		const f = (first || '').trim();
-		const l = (last || '').trim();
-		if (f || l) return `${f[0] ?? ''}${l[0] ?? ''}`.toUpperCase() || '?';
-		const parts = (fallbackName || '').trim().split(/\s+/).filter(Boolean);
-		if (parts.length === 0) return '?';
-		if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-		return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 	}
 
 	async function addPhotoPermission() {
@@ -706,7 +693,7 @@
 											detectionTimeout = false;
 											uploadStatus = '';
 										}}
-										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
+										class="retry-link"
 									>
 										{m.common_retry()}
 									</button>
@@ -724,7 +711,7 @@
 											detectionTimeout = false;
 											uploadStatus = '';
 										}}
-										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
+										class="retry-link"
 									>
 										{m.common_retry()}
 									</button>
@@ -743,7 +730,7 @@
 											detectionTimeout = false;
 											uploadStatus = '';
 										}}
-										class="text-xs text-blue-500 hover:text-blue-600 mt-2"
+										class="retry-link"
 									>
 										{m.common_retry()}
 									</button>
@@ -778,6 +765,12 @@
 								placeholder={m.param_search_profile()}
 								class="settings-input selector-input"
 								disabled={isAddingPermission || isLoadingAvailableUsers}
+								oninput={() => {
+									// Typing invalidates any previously picked user so we never
+									// authorize a stale selection that no longer matches the text.
+									newAuthUserId = '';
+									showUserDropdown = true;
+								}}
 								onfocus={() => {
 									showUserDropdown = true;
 									if (availableUsers.length === 0) loadAvailableUsers();
@@ -794,14 +787,16 @@
 										<div class="dropdown-loading"><Spinner size={16} /> {m.common_loading()}</div>
 									{:else}
 										{#each availableUsers.filter((u) => {
-											const query = searchQuery.toLowerCase();
-											return (
-												u.name.toLowerCase().includes(query) ||
-												(u.first_name?.toLowerCase() ?? '').includes(query) ||
-												(u.last_name?.toLowerCase() ?? '').includes(query) ||
-												(u.formation?.toLowerCase() ?? '').includes(query) ||
-												u.id_user.toLowerCase().includes(query)
-											);
+											const haystack = [
+												u.name,
+												u.first_name,
+												u.last_name,
+												u.formation,
+												u.promo != null ? String(u.promo) : ''
+											]
+												.filter(Boolean)
+												.join(' ');
+											return fuzzyMatch(searchQuery, haystack);
 										}) as user (user.id_user)}
 											<button
 												type="button"
@@ -846,19 +841,21 @@
 						{#if isLoadingPermissions}
 							<div class="loading-state"><Spinner size={20} /> {m.common_loading()}</div>
 						{:else if photoPermissions.length > 0}
-							<div class="permissions-grid">
+							<div class="person-list">
 								{#each photoPermissions as perm}
-									<div class="permission-chip">
-										<div class="chip-avatar">
-											{getInitials(
-												perm.authorized_first_name,
-												perm.authorized_last_name,
-												perm.authorized_name
-											)}
-										</div>
-										<div class="chip-info">
-											<span class="chip-name">{perm.authorized_name}</span>
-											<span class="chip-date">
+									<div class="person-row">
+										<Avatar
+											userId={perm.authorized_id}
+											firstName={perm.authorized_first_name}
+											lastName={perm.authorized_last_name}
+											name={perm.authorized_name}
+										/>
+										<div class="person-info">
+											<span class="person-name">{perm.authorized_name}</span>
+											<span class="person-meta">
+												{#if perm.authorized_promo}<span class="person-promo"
+														>{perm.authorized_promo}</span
+													>{/if}
 												{m.param_since_date({
 													date: new Date(perm.created_at).toLocaleDateString(getLocale())
 												})}
@@ -866,11 +863,12 @@
 										</div>
 										<button
 											type="button"
-											class="chip-remove"
+											class="person-action-btn"
 											onclick={() => revokePhotoPermission(perm.authorized_id)}
 											title={m.param_revoke_access()}
+											aria-label={m.param_revoke_access()}
 										>
-											<X size={14} />
+											<X size={16} />
 										</button>
 									</div>
 								{/each}
@@ -898,23 +896,28 @@
 
 			<div class="card-body">
 				{#if isLoadingSharedWithMe}
-					<div class="loading-state"><Spinner size={20} /> Chargement...</div>
+					<div class="loading-state"><Spinner size={20} /> {m.common_loading()}</div>
 				{:else if sharedWithMe.length > 0}
-					<div class="shared-list">
+					<div class="person-list">
 						{#each sharedWithMe as shared}
-							<a href="/mes-photos?userId={shared.owner_id}" class="shared-item">
-								<div class="shared-avatar">
-									{(shared.owner_first_name || 'U')[0]}{(shared.owner_last_name || '')[0] || 'U'}
-								</div>
-								<div class="shared-info">
-									<span class="shared-name">{shared.owner_name}</span>
-									<span class="shared-date"
-										>{m.param_since_date({
+							<a href="/mes-photos?userId={shared.owner_id}" class="person-row person-row-link">
+								<Avatar
+									userId={shared.owner_id}
+									firstName={shared.owner_first_name}
+									lastName={shared.owner_last_name}
+									name={shared.owner_name}
+								/>
+								<div class="person-info">
+									<span class="person-name">{shared.owner_name}</span>
+									<span class="person-meta">
+										{#if shared.owner_promo}<span class="person-promo">{shared.owner_promo}</span
+											>{/if}
+										{m.param_since_date({
 											date: new Date(shared.created_at).toLocaleDateString(getLocale())
-										})}</span
-									>
+										})}
+									</span>
 								</div>
-								<ChevronRight size={16} class="text-gray-400" />
+								<span class="person-chevron"><ChevronRight size={18} /></span>
 							</a>
 						{/each}
 					</div>
@@ -1402,106 +1405,95 @@
 		flex: 1;
 	}
 
-	/* --- PERMISSIONS LIST --- */
-	.permission-chip {
+	/* Inline retry action inside face-detection status boxes. */
+	.retry-link {
+		margin-top: 0.5rem;
+		align-self: flex-start;
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--accent);
+		cursor: pointer;
+	}
+	.retry-link:hover {
+		color: var(--accent-hover);
+		text-decoration: underline;
+	}
+
+	/* --- PERSON LIST (shared by "authorized people" and "shared with me") --- */
+	.person-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.person-row {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem;
-		padding: 0.5rem 0.75rem;
+		gap: 0.85rem;
+		padding: 0.6rem 0.75rem;
 		background: var(--bg-primary);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-md);
+		text-decoration: none;
+		transition: all 0.2s var(--ease);
 	}
-	.chip-avatar {
-		width: 32px;
-		height: 32px;
-		flex-shrink: 0;
-		background: var(--gradient-purple-pink);
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #fff;
-		font-size: 0.75rem;
-		font-weight: 700;
+	.person-row-link:hover {
+		border-color: var(--accent);
+		transform: translateX(2px);
 	}
-	.chip-info {
+	.person-info {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		line-height: 1.15;
+		line-height: 1.25;
 	}
-	.chip-name {
-		font-size: 0.9rem;
+	.person-name {
+		font-size: 0.95rem;
 		font-weight: 600;
 		color: var(--text-primary);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
-	.chip-date {
-		font-size: 0.75rem;
+	.person-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.78rem;
 		color: var(--text-secondary);
 	}
-	.chip-remove {
+	.person-promo {
+		padding: 0.05rem 0.4rem;
+		border-radius: 99px;
+		background: var(--accent-light);
+		color: var(--accent);
+		font-weight: 600;
+	}
+	.person-action-btn {
+		flex-shrink: 0;
 		background: none;
 		border: none;
 		cursor: pointer;
 		color: var(--text-secondary);
-		padding: 4px;
+		padding: 6px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: all 0.15s var(--ease);
 	}
-	.chip-remove:hover {
+	.person-action-btn:hover {
 		background: color-mix(in srgb, var(--error) 15%, transparent);
 		color: var(--error);
 	}
-
-	/* --- SHARED LIST --- */
-	.shared-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.shared-item {
-		display: flex;
+	.person-chevron {
+		flex-shrink: 0;
+		display: inline-flex;
 		align-items: center;
-		gap: 1rem;
-		padding: 0.75rem;
-		background: var(--bg-primary);
-		border-radius: var(--radius-md);
-		text-decoration: none;
-		border: 1px solid transparent;
-		transition: all 0.2s;
-	}
-	.shared-item:hover {
-		border-color: var(--accent);
-		transform: translateX(2px);
-	}
-	.shared-avatar {
-		width: 40px;
-		height: 40px;
-		background: var(--gradient-purple-pink);
-		border-radius: 50%;
-		color: white;
-		font-weight: bold;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.9rem;
-	}
-	.shared-info {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-	}
-	.shared-name {
-		font-weight: 600;
-		color: var(--text-primary);
-	}
-	.shared-date {
-		font-size: 0.8rem;
-		color: var(--text-secondary);
+		color: var(--text-muted);
 	}
 
 	.empty-state {
