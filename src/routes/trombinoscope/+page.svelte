@@ -13,7 +13,7 @@
 		Trash2,
 		Camera,
 		CheckCircle,
-		UploadCloud,
+		CloudUpload,
 		Check,
 		ChevronDown,
 		UserCheck,
@@ -841,7 +841,7 @@
 								{#if uploadingPhoto}
 									<Spinner size={16} /> Analyse...
 								{:else}
-									<UploadCloud size={16} />
+									<CloudUpload size={16} />
 									{uploadPhotoFile
 										? uploadPhotoFile.name
 										: editUserData.photos_id

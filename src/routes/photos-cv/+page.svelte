@@ -7,7 +7,7 @@
 		User as UserIcon,
 		Users,
 		XCircle,
-		UploadCloud,
+		CloudUpload,
 		ChevronLeft,
 		ChevronRight
 	} from 'lucide-svelte';
@@ -176,7 +176,7 @@
 					<div class="glass-card upload-section mb-8">
 						<div class="upload-header">
 							<div class="icon-box">
-								<UploadCloud size={24} />
+								<CloudUpload size={24} />
 							</div>
 							<div>
 								<h3>Ajouter des portraits</h3>

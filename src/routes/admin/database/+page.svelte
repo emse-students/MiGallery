@@ -1,14 +1,14 @@
 <script lang="ts">
 	import {
 		Database,
-		BarChart2,
+		ChartColumn,
 		Zap,
 		Save,
 		Download,
 		Activity,
 		Wrench,
 		AlertTriangle,
-		UploadCloud,
+		CloudUpload,
 		CheckCircle,
 		XCircle,
 		Archive,
@@ -236,7 +236,7 @@
 			<div class="left-col">
 				<!-- Statistiques -->
 				<section class="glass-card">
-					<h2 class="section-title"><BarChart2 size={20} /> Statistiques</h2>
+					<h2 class="section-title"><ChartColumn size={20} /> Statistiques</h2>
 					<div class="stats-grid">
 						<div class="stat-item">
 							<span class="stat-label">Utilisateurs</span>
@@ -318,7 +318,7 @@
 							disabled={importing}
 						/>
 						<label for="db_upload">
-							<UploadCloud size={32} class="mb-2 text-muted" />
+							<CloudUpload size={32} class="mb-2 text-muted" />
 							<span class="font-medium">{uploadFile ? uploadFile.name : 'Choisir un fichier .db'}</span>
 						</label>
 					</div>
