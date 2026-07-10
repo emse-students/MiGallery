@@ -12,6 +12,9 @@ interface CacheEntry {
 class ImmichCache {
 	private cache = new Map<string, CacheEntry>();
 	private defaultTTL = 60000; // 1 minute
+	private hits = 0;
+	private misses = 0;
+	private evictions = 0;
 
 	/**
 	 * TTL personnalisés par pattern d'URL
@@ -71,6 +74,7 @@ class ImmichCache {
 		const entry = this.cache.get(key);
 
 		if (!entry) {
+			this.misses++;
 			return null;
 		}
 
@@ -79,9 +83,12 @@ class ImmichCache {
 
 		if (age > ttl) {
 			this.cache.delete(key);
+			this.evictions++;
+			this.misses++;
 			return null;
 		}
 
+		this.hits++;
 		return entry.data;
 	}
 
@@ -163,6 +170,7 @@ class ImmichCache {
 
 			if (now - entry.timestamp > ttl) {
 				this.cache.delete(key);
+				this.evictions++;
 			}
 		}
 
@@ -170,7 +178,10 @@ class ImmichCache {
 			const entries = Array.from(this.cache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
 
 			const toDelete = entries.slice(0, this.cache.size - 400);
-			toDelete.forEach(([key]) => this.cache.delete(key));
+			toDelete.forEach(([key]) => {
+				this.cache.delete(key);
+				this.evictions++;
+			});
 		}
 	}
 
@@ -182,13 +193,16 @@ class ImmichCache {
 	}
 
 	/**
-	 * Statistiques du cache
+	 * Cache statistics (hit/miss counters are cumulative since process start).
 	 */
-	getStats(): { size: number; hits: number; misses: number } {
+	getStats() {
+		const total = this.hits + this.misses;
 		return {
 			size: this.cache.size,
-			hits: 0, // TODO: ajouter compteurs
-			misses: 0
+			hits: this.hits,
+			misses: this.misses,
+			evictions: this.evictions,
+			hitRate: total > 0 ? this.hits / total : 0
 		};
 	}
 }

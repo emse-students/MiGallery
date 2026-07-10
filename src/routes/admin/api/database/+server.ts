@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { getDatabase, ensureSchema } from '$lib/db/database';
+import { requireScope } from '$lib/server/permissions';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // Canonical table set, kept in sync with src/lib/db/schema.sql.
@@ -16,7 +17,8 @@ const REQUIRED_TABLES = [
 /**
  * GET - Inspect the database structure and report missing canonical tables.
  */
-export const GET: RequestHandler = () => {
+export const GET: RequestHandler = async (event) => {
+	await requireScope(event, 'admin');
 	try {
 		const db = getDatabase();
 
@@ -63,7 +65,8 @@ export const GET: RequestHandler = () => {
  * Delegates to ensureSchema() so this endpoint can never drift from
  * src/lib/db/schema.sql (previously it hand-wrote a stale, divergent schema).
  */
-export const POST: RequestHandler = () => {
+export const POST: RequestHandler = async (event) => {
+	await requireScope(event, 'admin');
 	try {
 		const db = getDatabase();
 
