@@ -1,5 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import AdminPage from '$lib/components/AdminPage.svelte';
+  import { Webhook, Key, List, FileText, Check, Lock, Terminal, Code } from '$lib/icons';
   interface Param {
     name: string;
     in: string;
@@ -14,7 +16,7 @@
     params?: Param[];
     exampleCurl?: string;
     noteAuth?: string;
-    exampleResponse?: string;  // New field
+    exampleResponse?: string;
   }
   interface EndpointGroup {
     group: string;
@@ -33,118 +35,120 @@
 </svelte:head>
 
 {#if !isAdmin}
-  <p>Accès réservé aux administrateurs.</p>
+  <AdminPage title="Documentation API" subtitle="Acces reserve aux administrateurs" icon={Lock}>
+    <p>Vous n'avez pas les droits necessaires pour consulter cette page.</p>
+  </AdminPage>
 {:else}
-  <main>
-    <div class="header">
-      <h1>📡 Documentation API MiGallery</h1>
-      <p class="subtitle">Guide complet d'intégration et référence des endpoints</p>
-
-      <div class="quick-links">
-        <a href="/admin/api-keys" class="btn-link">
-          🔑 Gérer les clés API
-        </a>
-        <a href="/admin/api-docs#endpoints" class="btn-link secondary">
-          📋 Voir tous les endpoints
-        </a>
-      </div>
-    </div>
+  <AdminPage
+    title="Documentation API MiGallery"
+    subtitle="Guide d'integration et reference des endpoints"
+    icon={Webhook}
+    maxWidth="1200px"
+  >
+    {#snippet actions()}
+      <a href="/admin/api-keys" class="btn-glass primary">
+        <Key size={16} /> Gerer les cles API
+      </a>
+      <a href="#endpoints" class="btn-glass">
+        <List size={16} /> Endpoints
+      </a>
+    {/snippet}
 
     <!-- Table of Contents -->
     <nav class="toc">
-      <h3>📑 Sommaire</h3>
+      <h3><List size={18} /> Sommaire</h3>
       <ul>
-        <li><a href="#overview">🌟 Aperçu</a></li>
-        <li><a href="#auth">🔑 Authentification</a></li>
-        <li><a href="#scopes">🔐 Scopes & Permissions</a></li>
-        <li><a href="#endpoints">📡 Endpoints</a></li>
-        <li><a href="#errors">❌ Codes d'erreur</a></li>
-        <li><a href="#examples">💻 Exemples</a></li>
+        <li><a href="#overview">Apercu</a></li>
+        <li><a href="#auth">Authentification</a></li>
+        <li><a href="#scopes">Scopes et permissions</a></li>
+        <li><a href="#endpoints">Endpoints</a></li>
+        <li><a href="#errors">Codes d'erreur</a></li>
+        <li><a href="#examples">Exemples</a></li>
       </ul>
     </nav>
 
     <!-- Overview -->
     <section class="card highlight" id="overview">
-      <h2>🌟 Aperçu</h2>
-      <p>MiGallery expose une API REST complète pour gérer albums, utilisateurs, médias et permissions.</p>
+      <h2>Apercu</h2>
+      <p>MiGallery expose une API REST complete pour gerer albums, utilisateurs, medias et permissions.</p>
 
       <div class="features-grid">
         <div class="feature">
-          <strong>📚 Albums</strong>
-          <p>Créer, modifier et supprimer des albums avec métadonnées</p>
+          <strong>Albums</strong>
+          <p>Creer, modifier et supprimer des albums avec metadonnees</p>
         </div>
         <div class="feature">
-          <strong>👥 Utilisateurs</strong>
-          <p>Gérer les utilisateurs et leurs permissions d'accès</p>
+          <strong>Utilisateurs</strong>
+          <p>Gerer les utilisateurs et leurs permissions d'acces</p>
         </div>
         <div class="feature">
-          <strong>🖼️ Médias</strong>
-          <p>Uploader et organiser des photos/vidéos</p>
+          <strong>Medias</strong>
+          <p>Uploader et organiser des photos/videos</p>
         </div>
         <div class="feature">
-          <strong>🔐 Sécurité</strong>
-          <p>Contrôle d'accès granulaire par scopes</p>
+          <strong>Securite</strong>
+          <p>Controle d'acces granulaire par scopes</p>
         </div>
       </div>
 
       <div class="info-box">
-        <strong>💡 Démarrage rapide :</strong>
+        <strong>Demarrage rapide</strong>
         <ol>
-          <li><a href="/admin/api-keys">Créez une clé API</a> avec les scopes appropriés</li>
-          <li>Testez vos requêtes avec cURL ou Postman</li>
-          <li>Intégrez dans votre application</li>
+          <li><a href="/admin/api-keys">Creez une cle API</a> avec les scopes appropries</li>
+          <li>Testez vos requetes avec cURL ou Postman</li>
+          <li>Integrez dans votre application</li>
         </ol>
       </div>
     </section>
 
     <!-- Authentication -->
     <section class="card" id="auth">
-      <h2>🔑 Authentification</h2>
-      <p>Deux méthodes d'authentification sont supportées :</p>
+      <h2>Authentification</h2>
+      <p>Deux methodes d'authentification sont supportees :</p>
 
       <div class="auth-methods">
         <div class="auth-method">
-          <h3>1️⃣ Clé API (Recommandé)</h3>
-          <p>Ajoutez le header <code>x-api-key</code> à vos requêtes.</p>
+          <h3>Cle API (recommande)</h3>
+          <p>Ajoutez le header <code>x-api-key</code> a vos requetes.</p>
           <pre>curl -H "x-api-key: mg_votre_cle_api" \
   https://gallery.mitv.fr/api/albums</pre>
-          <div class="pros">
-            ✅ Idéal pour scripts et services externes<br>
-            ✅ Pas besoin de cookie ou session<br>
-            ✅ Facile à tester avec Postman
-          </div>
+          <ul class="pros">
+            <li>Ideal pour scripts et services externes</li>
+            <li>Pas besoin de cookie ou session</li>
+            <li>Facile a tester avec Postman</li>
+          </ul>
         </div>
 
         <div class="auth-method">
-          <h3>2️⃣ Cookie de session</h3>
-          <p>Automatique quand vous êtes connecté via l'interface web.</p>
+          <h3>Cookie de session</h3>
+          <p>Automatique quand vous etes connecte via l'interface web.</p>
           <pre>{'fetch(\'/api/albums\', {\n  credentials: \'include\'\n})'}</pre>
           <div class="info-note">
-            ℹ️ Uniquement pour les requêtes depuis le navigateur
+            Uniquement pour les requetes depuis le navigateur
           </div>
         </div>
       </div>
 
       <div class="warning-box">
-        <strong>⚠️ Bonnes pratiques :</strong>
+        <strong>Bonnes pratiques</strong>
         <ul>
-          <li>Ne jamais exposer les clés API dans le code client (frontend)</li>
-          <li>Révoquer immédiatement toute clé compromise</li>
+          <li>Ne jamais exposer les cles API dans le code client (frontend)</li>
+          <li>Revoquer immediatement toute cle compromise</li>
           <li>Utiliser HTTPS en production</li>
-          <li>Rotation régulière des clés pour les services critiques</li>
+          <li>Rotation reguliere des cles pour les services critiques</li>
         </ul>
       </div>
 
       <div class="info-box">
-        <strong>🔒 Endpoints "session only" :</strong>
-        <p>Certains endpoints (comme <code>/api/users/me</code>) ne sont accessibles que via session utilisateur, pas via clé API. Ces endpoints gèrent des données personnelles sensibles et nécessitent une authentification utilisateur directe.</p>
+        <strong>Endpoints "session only"</strong>
+        <p>Certains endpoints (comme <code>/api/users/me</code>) ne sont accessibles que via session utilisateur, pas via cle API. Ces endpoints gerent des donnees personnelles sensibles et necessitent une authentification utilisateur directe.</p>
       </div>
     </section>
 
     <!-- Scopes -->
     <section class="card" id="scopes">
-      <h2>🔐 Scopes et Permissions</h2>
-      <p>Les clés API utilisent des <strong>scopes</strong> pour contrôler l'accès :</p>
+      <h2>Scopes et permissions</h2>
+      <p>Les cles API utilisent des <strong>scopes</strong> pour controler l'acces :</p>
 
       <table class="scopes-table">
         <thead>
@@ -164,7 +168,7 @@
           </tr>
           <tr>
             <td><span class="scope-badge write">write</span></td>
-            <td>Création & modification</td>
+            <td>Creation et modification</td>
             <td><code>POST</code>, <code>PATCH</code>, <code>PUT</code></td>
             <td><code>/api/albums</code>, <code>/api/external/media</code></td>
           </tr>
@@ -176,7 +180,7 @@
           </tr>
           <tr>
             <td><span class="scope-badge admin">admin</span></td>
-            <td>Administration complète</td>
+            <td>Administration complete</td>
             <td>Tous</td>
             <td><code>/api/users</code>, <code>/api/admin/api-keys</code></td>
           </tr>
@@ -190,33 +194,23 @@
       </table>
 
       <div class="info-box">
-        <strong>💡 Principe du moindre privilège :</strong>
-        N'accordez que les scopes nécessaires. Par exemple, une clé pour lire les avatars n'a besoin que de <code>read</code>.
+        <strong>Principe du moindre privilege</strong>
+        N'accordez que les scopes necessaires. Par exemple, une cle pour lire les avatars n'a besoin que de <code>read</code>.
       </div>
 
       <h4>Scopes cumulatifs</h4>
-      <p>Une clé peut avoir plusieurs scopes :</p>
+      <p>Une cle peut avoir plusieurs scopes :</p>
       <pre>{'POST /api/admin/api-keys\n{\n  "label": "Service upload",\n  "scopes": ["read", "write"]\n}'}</pre>
     </section>
 
     <!-- Endpoints -->
     <section class="card" id="endpoints">
-      <h2>📡 Référence des Endpoints</h2>
+      <h2>Reference des endpoints</h2>
 
       {#if endpoints.length > 0}
         {#each endpoints as group}
           <div class="endpoint-group">
-            <h3 class="group-title">
-              {#if group.group === 'Albums'}📚
-              {:else if group.group === 'Users'}👥
-              {:else if group.group === 'Assets'}🖼️
-              {:else if group.group === 'People & Photos-CV'}📸
-              {:else if group.group === 'External uploads'}📤
-              {:else if group.group === 'API Keys (Administration)'}🔑
-              {:else}📌
-              {/if}
-              {group.group}
-            </h3>
+            <h3 class="group-title">{group.group}</h3>
             {#if group.description}
               <p class="group-description">{group.description}</p>
             {/if}
@@ -243,12 +237,12 @@
                   {/if}
 
                   {#if endpoint.notes}
-                    <div class="notes">📝 {endpoint.notes}</div>
+                    <div class="notes">{endpoint.notes}</div>
                   {/if}
 
                   {#if endpoint.params && endpoint.params.length > 0}
                     <div class="params">
-                      <strong>Paramètres :</strong>
+                      <strong>Parametres :</strong>
                       <ul>
                         {#each endpoint.params as param}
                           <li>
@@ -262,21 +256,21 @@
 
                   {#if endpoint.exampleCurl}
                     <details class="example-details">
-                      <summary>📋 Exemple cURL</summary>
+                      <summary><FileText size={14} /> Exemple cURL</summary>
                       <pre>{@html esc(endpoint.exampleCurl)}</pre>
                     </details>
                   {/if}
 
                   {#if endpoint.exampleResponse}
                     <details class="example-details response">
-                      <summary>✅ Exemple de réponse</summary>
+                      <summary><Check size={14} /> Exemple de reponse</summary>
                       <pre>{@html esc(endpoint.exampleResponse)}</pre>
                     </details>
                   {/if}
 
                   {#if endpoint.noteAuth}
                     <div class="auth-note">
-                      🔒 {endpoint.noteAuth}
+                      <Lock size={14} /> {endpoint.noteAuth}
                     </div>
                   {/if}
                 </article>
@@ -289,7 +283,7 @@
 
     <!-- Error Codes -->
     <section class="card" id="errors">
-      <h2>❌ Codes d'erreur</h2>
+      <h2>Codes d'erreur</h2>
       <table class="error-table">
         <thead>
           <tr>
@@ -303,32 +297,32 @@
           <tr>
             <td><code>400</code></td>
             <td>Bad Request</td>
-            <td>Paramètres manquants ou invalides</td>
-            <td>Vérifiez la structure de votre requête</td>
+            <td>Parametres manquants ou invalides</td>
+            <td>Verifiez la structure de votre requete</td>
           </tr>
           <tr>
             <td><code>401</code></td>
             <td>Unauthorized</td>
-            <td>Clé API invalide ou absente</td>
+            <td>Cle API invalide ou absente</td>
             <td>Ajoutez le header <code>x-api-key</code></td>
           </tr>
           <tr>
             <td><code>403</code></td>
             <td>Forbidden</td>
             <td>Scope insuffisant</td>
-            <td>Utilisez une clé avec les scopes requis</td>
+            <td>Utilisez une cle avec les scopes requis</td>
           </tr>
           <tr>
             <td><code>404</code></td>
             <td>Not Found</td>
             <td>Ressource inexistante</td>
-            <td>Vérifiez l'ID ou le chemin</td>
+            <td>Verifiez l'ID ou le chemin</td>
           </tr>
           <tr>
             <td><code>413</code></td>
             <td>Payload Too Large</td>
             <td>Fichier trop volumineux</td>
-            <td>Réduisez la taille (max 500 MB)</td>
+            <td>Reduisez la taille (max 500 MB)</td>
           </tr>
           <tr>
             <td><code>500</code></td>
@@ -340,7 +334,7 @@
             <td><code>502</code></td>
             <td>Bad Gateway</td>
             <td>Immich API inaccessible</td>
-            <td>Vérifiez la connexion à Immich</td>
+            <td>Verifiez la connexion a Immich</td>
           </tr>
         </tbody>
       </table>
@@ -348,10 +342,10 @@
 
     <!-- Examples -->
     <section class="card" id="examples">
-      <h2>💻 Exemples d'intégration</h2>
+      <h2>Exemples d'integration</h2>
 
       <div class="example-group">
-        <h3>🟨 JavaScript / Node.js</h3>
+        <h3><Code size={18} /> JavaScript / Node.js</h3>
         <pre><code>const API_KEY = 'votre_cle'
 const BASE_URL = 'https://gallery.mitv.fr'
 
@@ -361,7 +355,7 @@ fetch(BASE_URL + '/api/albums', {'{'}
       </div>
 
       <div class="example-group">
-        <h3>🐍 Python</h3>
+        <h3><Code size={18} /> Python</h3>
         <pre><code>import requests
 headers = {'{'}x-api-key: 'votre_cle'{'}'}
 requests.get(
@@ -371,7 +365,7 @@ requests.get(
       </div>
 
       <div class="example-group">
-        <h3>💻 cURL</h3>
+        <h3><Terminal size={18} /> cURL</h3>
         <pre><code>curl -H "x-api-key: votre_cle" \
   https://gallery.mitv.fr/api/albums</code></pre>
       </div>
@@ -379,21 +373,21 @@ requests.get(
 
     <!-- Help -->
     <section class="card info">
-      <h2>💡 Besoin d'aide ?</h2>
+      <h2>Besoin d'aide ?</h2>
 
       <div class="help-grid">
         <div class="help-item">
-          <h4>📚 Documentation complète</h4>
+          <h4>Documentation complete</h4>
           <ul>
-            <li><code>docs/API_SECURITY.md</code> - Sécurité API</li>
+            <li><code>docs/API_SECURITY.md</code> - Securite API</li>
             <li><code>docs/API_ENDPOINTS_BY_SCOPE.md</code> - Liste des endpoints par scope</li>
             <li><code>docs/SECURITY_DEV_ROUTES.md</code> - Analyse routes /dev/</li>
-            <li><code>tests/README.md</code> - Tests automatisés</li>
+            <li><code>tests/README.md</code> - Tests automatises</li>
           </ul>
         </div>
 
         <div class="help-item">
-          <h4>🔧 Outils recommandés</h4>
+          <h4>Outils recommandes</h4>
           <ul>
             <li><a href="https://curl.se/" target="_blank">cURL</a> - Ligne de commande</li>
             <li><a href="https://httpie.io/" target="_blank">HTTPie</a> - Client HTTP moderne</li>
@@ -402,75 +396,19 @@ requests.get(
         </div>
 
         <div class="help-item">
-          <h4>🚀 Démarrage rapide</h4>
+          <h4>Demarrage rapide</h4>
           <ol>
-            <li><a href="/admin/api-keys">Créez une clé API</a></li>
+            <li><a href="/admin/api-keys">Creez une cle API</a></li>
             <li>Testez avec cURL ou Postman</li>
-            <li>Intégrez dans votre app</li>
+            <li>Integrez dans votre app</li>
           </ol>
         </div>
       </div>
     </section>
-  </main>
+  </AdminPage>
 {/if}
 
 <style>
-  main {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-
-  .header {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-
-  h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin: 0 0 0.5rem 0;
-    background: linear-gradient(90deg, var(--accent), var(--edit));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .subtitle {
-    color: var(--text-muted);
-    font-size: 1.125rem;
-    margin: 0 0 1.5rem 0;
-  }
-
-  .quick-links {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .btn-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(90deg, var(--accent), var(--edit));
-    color: white;
-    text-decoration: none;
-    border-radius: var(--radius-xs);
-    font-weight: 600;
-    transition: transform 0.2s;
-  }
-
-  .btn-link.secondary {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--border);
-  }
-
-  .btn-link:hover {
-    transform: translateY(-2px);
-  }
-
   .toc {
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
@@ -480,6 +418,9 @@ requests.get(
   }
 
   .toc h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin: 0 0 1rem 0;
     font-size: 1.125rem;
   }
@@ -531,6 +472,9 @@ requests.get(
   }
 
   .card h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 1.25rem;
     font-weight: 600;
     margin: 1.5rem 0 1rem 0;
@@ -613,12 +557,16 @@ requests.get(
 
   .pros {
     margin-top: 1rem;
-    padding: 0.75rem;
+    padding: 0.75rem 0.75rem 0.75rem 2rem;
     background: color-mix(in srgb, var(--success) 10%, transparent);
     border-radius: 4px;
     color: var(--text-secondary);
     font-size: 0.875rem;
     line-height: 1.6;
+  }
+
+  .pros li {
+    margin-bottom: 0.25rem;
   }
 
   .info-note {
@@ -825,6 +773,9 @@ requests.get(
   }
 
   .example-details summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     padding: 0.75rem;
     background: var(--bg-primary);
     cursor: pointer;
@@ -856,6 +807,9 @@ requests.get(
   }
 
   .auth-note {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     margin-top: 0.75rem;
     padding: 0.5rem 0.75rem;
     background: color-mix(in srgb, var(--purple) 10%, transparent);
@@ -935,14 +889,6 @@ requests.get(
   }
 
   @media (max-width: 768px) {
-    main {
-      padding: 1rem;
-    }
-
-    h1 {
-      font-size: 2rem;
-    }
-
     .features-grid {
       grid-template-columns: 1fr;
     }

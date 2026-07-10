@@ -1,197 +1,94 @@
-# MiGallery - Guide for Claude Code
+# **MiGallery \- Rules & Session State**
 
-## What this project is
+## **AGENT DIRECTIVES (CRITICAL)**
 
-Photo gallery web app for MiTV (EMSE). It wraps **Immich** (self-hosted photo backend) and adds: role-based access control, album management, SSO via Authentik (MiConnect), and a Svelte UI.
+- NO BLIND GREP: Never run generic grep or find across the project. Check the SESSION STATE below first, or ask the user for exact paths.
+- ASK EARLY: State assumptions explicitly. If uncertain about architecture, multiple interpretations, or a bug, ASK during the planning phase. No guessing.
+- SURGICAL EDITS: Touch ONLY requested code. Map changes 1:1 to the prompt.
+- MODEL DELEGATION: Opus \= reasoning/architecture. Haiku/Sonnet \= crawling, massive edits.
+- WIKI & CLEANLINESS: Documentation goes EXCLUSIVELY in docs/wiki/. Delete unused/legacy code immediately.
+- PROD ACCESS: You can connect to production via SSH using ssh mitv (or ssh canari for Canari-related systems).
+- SAVE TOKENS: After completing a task, output exactly: "Task done. Please git add to clear diff context, then run /compact."
+- UPDATE STATE: You MUST update the SESSION STATE at the bottom of this file before finishing a Work Package.
 
-The SvelteKit server acts mostly as an **authenticated proxy** to the Immich API.
+## **ARCHITECTURE & DATA FLOWS**
 
----
+- Svelte 5 ONLY: Use runes ($state, $derived, $effect). NEVER use old reactive $ syntax.
+- SSR Guards: Browser imports (e.g., StreamSaver) MUST be lazy (await import) or guarded by typeof window \!== 'undefined'.
+- FILE UPLOADS (No RAM): \<10MB direct, \>10MB chunked. Stream to disk (fs.createWriteStream) then to Immich. NEVER use Buffer.alloc.
+- ARCHIVE DOWNLOADS: Flow is POST /api/download (creates UUID token) \-\> GET /api/download/{token} (native browser streaming). Do NOT use StreamSaver or the Service Worker for this.
+- Synchronous SQLite: better-sqlite3 queries live in server handlers. Stores ONLY what Immich lacks (users, roles, permissions, logs). Upload concurrency uses per-file locks fs.openSync(lockPath, 'wx'). Do not remove.
+- Auth.js \+ Authentik: Roles are admin (full access), mitviste (gallery mgmt, no admin), user (basic).
 
-## Model / agent delegation (cost)
+## **CODING STANDARDS**
 
-To avoid burning expensive tokens, **reserve Opus for reasoning tasks** (architecture, design decisions, filtering/judging findings, tricky fixes). **Delegate everything else to cheaper models** via subagents: **Haiku** for crawling/auditing/searching the codebase, mechanical edits, running commands, commits/pushes; **Sonnet** only if a task is too hard for Haiku but does not need Opus-level reasoning. Concretely: spawn Haiku subagents to read/crawl large files and report findings, then have Opus decide and either fix the delicate parts itself or hand mechanical fixes back to Haiku. Never use Opus to read thousands of lines just to locate issues.
+- English Only: Code, comments, docs, and dev-facing strings (console.log, errors) MUST be English.
+- I18N: User-visible strings use Paraglide (messages/fr.json, en.json). No inline string literals.
+- ASCII Punctuation: Normalize to ASCII (', ", \-) everywhere. Preserve French accents (é, à) ONLY in localized strings/French comments.
+- UI: Single source of truth is src/app.css (tokens, \--radius-\*). Use .btn-glass with modifiers. Dark-first glassmorphism. Avoid raw hex/px. lucide-svelte only (no aliases).
+- Husky: Pre-commit runs ESLint \+ Prettier \+ svelte-check. Fix errors; do not bypass.
 
----
+## **KEY PATHS & COMMANDS**
 
-## Tech stack
+- API Proxy Handler: src/routes/api/immich/\[...path\]/+server.ts
+- DB Queries: src/lib/db/
+- Commands: npm run dev, npm run check (Type-check), npm run test (Integration), npm run db:init
 
-| Layer    | Technology                                              |
-| -------- | ------------------------------------------------------- |
-| Frontend | Svelte 5, SvelteKit 2, TypeScript, Tailwind CSS 4       |
-| Backend  | SvelteKit SSR (Node.js), adapter-node                   |
-| Database | SQLite via `better-sqlite3` (synchronous)               |
-| Auth     | Auth.js + Authentik OIDC (SSO MiConnect)                |
-| Photo    | Immich (REST API, proxied via `/api/immich/*`)          |
-| Build    | Vite (build via npm)                                    |
-| Quality  | ESLint, Prettier, Husky (pre-commit: lint + type-check) |
+## **SESSION STATE (Active Memory)**
 
----
+**Current WIP:**
 
-## Essential commands
+- Admin harmonization: remove ALL emojis, unify every tab on the AdminPage shell, full-width layout (no horizontal scroll), mobile pass, integrate trombinoscope + corbeille INTO the admin layout.
+- Next step: await user's chosen starting sub-step (see the ordered plan discussed 2026-07-10).
+- Target files: src/routes/admin/+layout.svelte, src/routes/admin/api-docs/+page.svelte, src/routes/admin/shared-admin.css, src/lib/components/AdminPage.svelte, src/routes/trombinoscope/+page.svelte, src/routes/corbeille/+page.svelte
 
-```bash
-npm run dev          # Dev server with HMR
-npm run build        # Production build -> build/
-npm run check        # Type-check (svelte-check + tsc)
-npm run lint         # ESLint
-npm run format       # Prettier
-npm run db:init      # Initialize the SQLite schema
-npm run db:backup    # Manual DB backup
-npm run test         # Full integration suite
-npm run test:unit    # Vitest unit tests only
-```
+**Roadmap (detailed WP):**
 
-> The Husky pre-commit hook runs ESLint + Prettier + svelte-check. A commit fails if any of them fails. Fix the problem rather than bypassing the hook.
+Theme 0 - Foundations (DONE, in prod)
 
----
+- \[x\] WP-0.1 metrics/memory tab (process mem, uptime, Immich cache stats)
+- \[x\] WP-0.2 permissions fusion phase 1: merge album\_\*\_permissions -> album_permissions(album_id,kind,value)
+- \[x\] WP-0.3 legacy aliases kept for back-compat
+- \[x\] WP-0.4 EmptyState component; fuzzy search on trombino/albums
+- \[x\] WP-0.5 Authentik->gallery sync verified (no bug): name/promo/formation come from Authentik at login; gallery owns only role + photos_id/face
 
-## Directory layout
+Theme 1 - Admin shell unification (DONE)
 
-```
-src/
-  lib/
-    components/       # Reusable Svelte components (UploadZone, PhotosGrid, Modal...)
-    db/               # SQLite access: schema, queries (users, albums, permissions)
-    auth/             # Auth.js configuration
-    immich/           # Immich client: albums, assets, downloads
-    server/           # Server-only utilities (permissions, logs, cache, download-tokens)
-    types/            # Centralized TypeScript types (api.ts, streamsaver.d.ts)
-    photos-cv/        # Photos-CV specific logic (trombinoscope)
-  routes/
-    api/
-      immich/[...path]/ # Main proxy to Immich - universal handler
-      albums/           # Album CRUD (reads from the local DB + Immich)
-      download/         # Archive download: token prep + streaming
-      people/           # People management (photos CV)
-      users/            # User management
-      auth/             # OIDC login/logout/callback
-      admin/            # Admin routes (DB export, logs, API keys)
-    albums/             # Album list and detail pages
-    photos-cv/          # Photos-CV album page
-    trombinoscope/      # Directory/trombinoscope
-    admin/              # Admin interface
-  hooks.server.ts       # Auth middleware, session validation, CSRF
-  hooks.client.ts       # Navigation guard (in-flight operations), SW registration
+- \[x\] WP-1.1 AdminPage shell (icon badge + h1 + subtitle + actions slot)
+- \[x\] WP-1.2 adopt shell on metrics/logs/api-keys/Documentation/database (+users already matching)
+- \[x\] WP-1.3 users select-chevron theme-aware mask fix
 
-data/                   # Runtime (gitignored): DB, backups, in-flight upload chunks
-static/
-  streamsaver-sw.js     # Minimal service worker (install/activate, no fetch interception)
-  mitm.html             # StreamSaver MITM (present but not actively used)
-scripts/                # Node.js scripts: init-db, backup, cleanup-chunks, tests...
-```
+Theme 1b - FULL admin harmonization (ACTIVE)
 
----
+- \[x\] WP-1b.1 central icon barrel src/lib/icons.ts; sidebar emojis -> lucide; husky hook -> npm
+- \[x\] WP-1b.2 api-docs: AdminPage shell + strip ALL emojis + quick-links -> header actions
+- \[ \] WP-1b.3 full-width panels, no horizontal scroll, mobile pass (AdminPage max-widths, .content, wide tables/grids)
+- \[ \] WP-1b.4 fix "invisible" icons = de-globalize shared-admin.css bare-element selectors (scope them)
+- \[ \] WP-1b.5 integrate /trombinoscope + /corbeille INTO admin layout (keep sidebar visible)
+- \[ \] WP-1b.6 wiki: repoint Documentation tab to render docs/wiki/\*; retire api-docs page; write concise EN LLM-friendly API section
 
-## Key data flows
+Theme 2 - Profile / trombinoscope
 
-### Authentication
+- \[ \] WP-2a trombinoscope edit reduced to PROFILE PHOTO only (remove name/promo/formation/role; keep face+photo link; PUT=full replace so resend Authentik fields unchanged; restrict edit to mitviste/admin)
+- \[ \] WP-2b selfie incitation: stop hiding "Mes photos"/"Photos CV" tabs without profile; show "complete profile" section (reuse /parametres pattern)
 
-1. Login -> redirect to Authentik (OIDC)
-2. Callback -> `Auth.js` creates a JWT session (httpOnly cookie `__Secure-authjs.session-token`)
-3. `hooks.server.ts` validates the session on every request
-4. `requireScope(event, 'read'|'write')` protects the API endpoints
+Theme 3 - DB (BLOCKED on SSH prod backup greenlight)
 
-Roles: `admin` - `mitviste` - `user` (default)
+- \[ \] WP-3a permissions fusion phase 2: DROP the 4 legacy album\_\*\_permissions tables
 
-- `admin`: the only role with access to `/admin` and the admin API (`ensureAdmin`).
-- `mitviste`: elevated gallery role (photo management: photos-cv, trash...) but **no admin access**.
-- `user`: basic access.
+Theme 4 - Backlog (last)
 
-### Immich proxy
+- \[ \] WP-4.x UX: WP-3.3 pill buttons trombino/photos-cv, WP-3.4 error/loading states + upload feedback, WP-3.5 a11y+responsive
+- \[ \] FR#3 upload resilience (stable fileId, auto-retry, enqueue on connection loss)
+- \[ \] WP-5.x Immich: 5.1b combined personIds+albumIds queries, 5.2 face-first profile photo picker, 5.3 new capabilities, 5.4 clean [TEST] albums + prod guard
+- \[ \] WP-4.1 remove StreamSaver/SW/mitm.html; WP-4.3 configurable structured logger; WP-4.4 memory non-regression tests
+- \[ \] WP-2.x i18n: users.locale column+endpoint; externalize all FR strings to Paraglide + EN catalogue (DEFERRED last)
 
-All `/api/immich/*` routes are handled by `src/routes/api/immich/[...path]/+server.ts`. This handler:
+**Memory Gotchas (Do not repeat):**
 
-- Checks the scope (read/write)
-- Handles chunked uploads (disk streaming, zero RAM)
-- Handles public (unlisted) albums
-- Formats and forwards binary responses (images, videos, archives)
-
-### Archive download (albums)
-
-**Do not use StreamSaver or the service worker for downloads.**
-Flow: `POST /api/download` (creates a UUID token) -> `GET /api/download/{token}` (server streams from Immich, the browser downloads natively). See `src/lib/immich/download.ts` and `src/lib/server/download-tokens.ts`.
-
-### File upload
-
-- < 10 MB: `POST /api/immich/assets` with a plain `FormData`
-- 10 MB and above: 5 MB chunks with resume, SHA256 hash per chunk, disk storage in `data/chunk-uploads/`
-- The server streams chunks to disk with no RAM buffer (`fs.createWriteStream`)
-- On completion: stream to Immich via `fs.createReadStream` inside a FormData
-
----
-
-## Local database (SQLite)
-
-The local DB stores **only** what Immich does not manage:
-
-- `users` - roles (admin/mitviste/user), emails
-- `albums` - visibility (private/authenticated/unlisted), date, location
-- `album_formation_permissions` - access by formation
-- `album_promo_permissions` - access by promo year
-- `album_user_permissions` - access by individual user
-- `album_tag_permissions` - free-form tags
-- `logs` - event log (upload, delete, etc.)
-
-IDs in the local DB match the Immich IDs (UUID).
-
----
-
-## Required environment variables
-
-```bash
-# Immich
-IMMICH_BASE_URL=http://10.0.0.4:2283
-IMMICH_API_KEY=<immich_api_key>
-
-# Authentik OIDC (MiConnect)
-MICONNECT_ISSUER=https://auth.canari-emse.fr/application/o/migallery
-MICONNECT_CLIENT_ID=<client_id>
-MICONNECT_CLIENT_SECRET=<client_secret>
-
-# Auth.js
-AUTH_SECRET=<64_chars_hex>      # node ./scripts/generate-auth-secret.cjs
-AUTH_TRUSTED_HOST=true
-
-# Server
-PORT=3000
-ORIGIN=https://gallery.mitv.fr
-DATABASE_PATH=./data/migallery.db
-COOKIE_SECRET=<64_chars_hex>    # node ./scripts/generate_cookie_secret.cjs
-
-# Upload (max body size)
-BODY_SIZE_LIMIT=20G
-
-# Dev only - never in production
-ENABLE_DEV_ROUTES=false
-```
-
----
-
-## Things to watch out for
-
-- **Svelte 5 runes**: this project uses `$state`, `$derived`, `$effect`. Do not use the old `reactive` / `$:` syntax.
-- **SSR**: any browser-only library import (e.g. StreamSaver) must be lazy (`await import(...)`) or guarded by `typeof window !== 'undefined'`.
-- **No memory buffering** for large files: uploads stream to disk, downloads use a native token. Do not introduce `Buffer.alloc` or chunk accumulation for files larger than a few MB.
-- **Synchronous DB**: `better-sqlite3` is synchronous by design. Queries live in server handlers; this is intentional.
-- **Upload concurrency**: per-file lock via `fs.openSync(lockPath, 'wx')`. Do not remove this logic.
-- **Iconography**: `lucide-svelte` only. Do not use aliases (`ScanFace`, `CheckSquare`) - verify the name exists in the installed version.
-
----
-
-## UI / design system
-
-- **Single source for styling primitives.** Shared tokens live in `src/app.css` (`:root` / `[data-theme='light']`): colors, `--radius-*` scale, `--glass-*`, shadows, `--ease`. Reuse them; do not hardcode hex or px radii in page CSS.
-- **Buttons**: use the canonical `.btn-glass` from `app.css` with its modifiers (`primary`, `success`, `danger`, `info`, `edit`, `active`, `icon`). Do not redefine `.btn-glass` per page.
-- **Visual identity to preserve**: dark-first theme, glassmorphism, decorative background blobs (`BackgroundBlobs`). Keep it - refine and unify rather than replace.
-- **Theme**: every surface must work in both dark and light via the theme tokens; avoid literal `white`/`black` and raw rgba where a token exists.
-
----
-
-## Language and character conventions
-
-Adopted from `C:\Users\jolan\Documents\Programmation\canari\CLAUDE.md` (sections "Language" and "Text characters"), adapted to MiGallery.
-
-- **Code language**: comments (`//`, `/* */`, `/** */`) and developer-facing strings (`console.*`, internally thrown errors) are in **English**. Every user-visible string goes through Paraglide (`messages/fr.json` + `messages/en.json`), never an inline literal.
-- **Normalize PUNCTUATION to ASCII** (code, strings, comments, docs, translation JSON): straight apostrophe `'` (never `’`), straight quote `"` (never `“ ” « »`), hyphen `-` (never `-` / `–`). Exception: the ellipsis `…` is kept. In code, escape `\'` / `\"` rather than reintroducing a typographic character.
-- **Accented French letters are ALWAYS preserved** (`é è ê à ù ç î ô` ...). This rule targets typographic punctuation ONLY: "ASCII" does NOT mean "French without accents". Writing "evenements" or "privee" instead of "évènements" / "privée" is a bug. Applies to FR i18n values and to French inside comments.
+- lucide-svelte 1.0.1: some old names removed (BarChart2->ChartColumn, UploadCloud->CloudUpload). Verify names against node_modules/lucide-svelte/dist/icons/. Trash2/RotateCcw/RefreshCw DO exist -> if they look "missing" it is a CSS/render issue, not a bad name.
+- Icons are imported ad-hoc per file. There is NO central icon barrel (candidate: src/lib/icons.ts).
+- shared-admin.css defines GLOBAL bare-element selectors (h1/table/input/button...). Root cause of cross-tab drift. AdminPage's scoped .admin-page-heading h1 beats it.
+- Icon prop typing for passing lucide components: ComponentType<SvelteComponent> (NOT Component).
+- Pre-commit hook runs via BUN (bunx lint-staged && bun run check), not npm.
+- Immich cache (src/lib/server/immich-cache.ts): near-useless hit rate by design (thumbnails excluded, per-URL keys rarely repeat within TTL). Not harmful.

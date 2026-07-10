@@ -1,18 +1,31 @@
 <script lang="ts">
   import { page } from '$app/state';
   import './shared-admin.css';
+  import {
+    BookOpen,
+    Activity,
+    Webhook,
+    ScrollText,
+    Users,
+    Key,
+    Database,
+    UsersRound,
+    Trash2,
+    ShieldCheck
+  } from '$lib/icons';
+
   const links = [
-    { href: '/admin', label: 'Documentation', icon: '📚' },
-    { href: '/admin/metrics', label: 'Santé', icon: '📊' },
-    { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
-    { href: '/admin/logs', label: 'Logs', icon: '📜' },
-    { href: '/admin/users', label: 'Utilisateurs', icon: '👤' },
-    { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
-    { href: '/admin/database', label: 'Base de données', icon: '🗄️' },
-    { href: '/trombinoscope', label: 'Trombinoscope', icon: '👥' },
-    { href: '/corbeille', label: 'Corbeille', icon: '🗑️' }
+    { href: '/admin', label: 'Documentation', icon: BookOpen },
+    { href: '/admin/metrics', label: 'Santé', icon: Activity },
+    { href: '/admin/api-docs', label: 'API Reference', icon: Webhook },
+    { href: '/admin/logs', label: 'Logs', icon: ScrollText },
+    { href: '/admin/users', label: 'Utilisateurs', icon: Users },
+    { href: '/admin/api-keys', label: 'Gestion des clés', icon: Key },
+    { href: '/admin/database', label: 'Base de données', icon: Database },
+    { href: '/trombinoscope', label: 'Trombinoscope', icon: UsersRound },
+    { href: '/corbeille', label: 'Corbeille', icon: Trash2 }
   ];
-    let { children } = $props();
+  let { children } = $props();
 </script>
 
 <svelte:head>
@@ -21,11 +34,12 @@
 
 <div class="admin-root">
   <aside class="sidebar">
-    <div class="brand">🛠️ Admin</div>
+    <div class="brand"><ShieldCheck size={22} /> Admin</div>
     <nav>
       {#each links as l}
+        {@const Icon = l.icon}
         <a class:active={page.url.pathname === l.href} href={l.href}>
-          <span class="icon">{l.icon}</span>
+          <span class="icon"><Icon size={20} /></span>
           <span>{l.label}</span>
         </a>
       {/each}
@@ -66,6 +80,9 @@
   }
 
   .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-weight: 700;
     font-size: 1.25rem;
     margin-bottom: 2rem;
@@ -101,7 +118,9 @@
   }
 
   .icon {
-    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-width: 1.5rem;
   }
 

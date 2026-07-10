@@ -1,1 +1,1 @@
-bunx lint-staged && bun run check
+npx lint-staged && npm run check
