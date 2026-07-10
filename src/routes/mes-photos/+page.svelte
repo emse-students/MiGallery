@@ -73,7 +73,7 @@
 							name: string;
 							first_name: string | null;
 							last_name: string | null;
-							id_photos: string | null;
+							photos_id: string | null;
 						};
 					};
 
@@ -82,11 +82,11 @@
 						return;
 					}
 
-					if (accessData.user?.id_photos) {
+					if (accessData.user?.photos_id) {
 						targetUserId = userIdParam;
-						photosState.peopleId = accessData.user.id_photos;
+						photosState.peopleId = accessData.user.photos_id;
 						targetUserName = accessData.user.name;
-						photosState.loadPerson(accessData.user.id_photos);
+						photosState.loadPerson(accessData.user.photos_id);
 					} else {
 						goto('/');
 					}
@@ -107,14 +107,14 @@
 						name: string;
 						first_name: string | null;
 						last_name: string | null;
-						id_photos: string | null;
+						photos_id: string | null;
 					};
 				};
 
-				if (accessData.success && accessData.user?.id_photos) {
-					photosState.peopleId = accessData.user.id_photos;
+				if (accessData.success && accessData.user?.photos_id) {
+					photosState.peopleId = accessData.user.photos_id;
 					targetUserName = accessData.user.name;
-					photosState.loadPerson(accessData.user.id_photos);
+					photosState.loadPerson(accessData.user.photos_id);
 				} else {
 					goto('/');
 				}
@@ -126,14 +126,14 @@
 
 		targetUserId = null;
 		isViewingOwnPhotos = true;
-		if (!user?.id_photos) {
+		if (!user?.photos_id) {
 			goto('/');
 			return;
 		}
 		targetUserName = user?.name || null;
 
-		photosState.peopleId = user.id_photos;
-		photosState.loadPerson(user.id_photos);
+		photosState.peopleId = user.photos_id;
+		photosState.loadPerson(user.photos_id);
 	});
 </script>
 

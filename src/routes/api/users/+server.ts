@@ -21,9 +21,7 @@ export const GET: RequestHandler = async (event) => {
 				photos_id,
 				role,
 				promo,
-				formation,
-				photos_id as id_photos,
-				promo as promo_year
+				formation
 			FROM users
 			WHERE id_user != ?
 			ORDER BY promo DESC, name, first_name`
@@ -41,8 +39,6 @@ export const POST: RequestHandler = async (event) => {
 			name?: string;
 			first_name?: string | null;
 			last_name?: string | null;
-			promo_year?: number | null;
-			id_photos?: string | null;
 			role?: string;
 			promo?: number | null;
 			photos_id?: string | null;
@@ -55,8 +51,8 @@ export const POST: RequestHandler = async (event) => {
 		const legacyName = [first_name, last_name].filter(Boolean).join(' ').trim();
 		const name = body.name ?? (legacyName || null);
 		const role = body.role ?? 'user';
-		const promo = body.promo ?? body.promo_year ?? null;
-		const photos_id = body.photos_id ?? body.id_photos ?? null;
+		const promo = body.promo ?? null;
+		const photos_id = body.photos_id ?? null;
 		const formation = body.formation ?? null;
 
 		if (!id_user || !name) {
@@ -92,9 +88,7 @@ export const POST: RequestHandler = async (event) => {
 					photos_id,
 					role,
 					promo,
-					formation,
-					photos_id as id_photos,
-					promo as promo_year
+					formation
 				FROM users WHERE id_user = ?`
 			)
 			.get(id_user) as UserRow | undefined;

@@ -39,7 +39,7 @@
 			const res = await fetch('/api/users/me/promo', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ promo_year: finalYear })
+				body: JSON.stringify({ promo: finalYear })
 			});
 
 			if (!res.ok) {

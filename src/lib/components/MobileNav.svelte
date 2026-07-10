@@ -13,7 +13,7 @@
 
 	let user = $derived(page.data?.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
-	let hasPhoto = $derived(!!user?.id_photos);
+	let hasPhoto = $derived(!!user?.photos_id);
 	let isAdmin = $derived(user?.role === 'admin');
 	let isMitviste = $derived(user?.role === 'mitviste');
 	let canManagePhotos = $derived(isAdmin || isMitviste);

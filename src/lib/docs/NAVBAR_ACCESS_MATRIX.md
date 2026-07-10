@@ -24,7 +24,7 @@
 
 ### Conditions supplémentaires
 
-- `hasPhoto` = utilisateur a un `id_photos` (présent dans Immich)
+- `hasPhoto` = utilisateur a un `photos_id` (présent dans Immich)
 
 ---
 
@@ -43,7 +43,7 @@
 | **Déconnexion**    | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
 | **Connexion**      | ✅       | ❌   | ❌              | ❌       | ❌                  | ❌    | ❌               |
 
-**Note importante** : Admin et MiTViste ont accès à "Photos CV" même **sans** `id_photos`, mais dans ce cas :
+**Note importante** : Admin et MiTViste ont accès à "Photos CV" même **sans** `photos_id`, mais dans ce cas :
 
 - L'onglet "Mes photos CV" est masqué
 - Seul l'onglet "Toutes les photos CV" est affiché (pour gérer les imports)
@@ -57,7 +57,7 @@ let isAuthenticated = $derived(!!u);
 let isAdmin = $derived(u?.role === 'admin');
 let isMitviste = $derived(u?.role === 'mitviste');
 let canManagePhotos = $derived(isAdmin || isMitviste);
-let hasPhoto = $derived(!!u?.id_photos);
+let hasPhoto = $derived(!!u?.photos_id);
 let isHomePage = $derived(page.url.pathname === '/');
 ```
 
@@ -214,7 +214,7 @@ let u = $derived(page.data?.session?.user as any);
 let isAdmin = $derived(u?.role === 'admin');
 let isMitviste = $derived(u?.role === 'mitviste');
 let canManagePhotos = $derived(isAdmin || isMitviste);
-let hasPhoto = $derived(!!u?.id_photos);
+let hasPhoto = $derived(!!u?.photos_id);
 let isAuthenticated = $derived(!!u);
 let isHomePage = $derived(page.url.pathname === '/');
 ```

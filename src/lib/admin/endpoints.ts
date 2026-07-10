@@ -205,9 +205,9 @@ export const API_ENDPOINTS: EndpointGroup[] = [
     "email": "string",
     "prenom": "string",
     "nom": "string",
-    "id_photos": "uuid|null",
+    "photos_id": "uuid|null",
     "role": "user|admin|mitviste",
-    "promo_year": 0
+    "promo": 0
   }, ...]
 }`
 			},
@@ -225,9 +225,9 @@ export const API_ENDPOINTS: EndpointGroup[] = [
     "email": "string",
     "prenom": "string",
     "nom": "string",
-    "id_photos": null,
+    "photos_id": null,
     "role": "string",
-    "promo_year": null
+    "promo": null
   },
   "changes": 0
 }`
@@ -273,9 +273,9 @@ export const API_ENDPOINTS: EndpointGroup[] = [
     "email": "string",
     "prenom": "string",
     "nom": "string",
-    "id_photos": "uuid|null",
+    "photos_id": "uuid|null",
     "role": "user|admin|mitviste",
-    "promo_year": 2024
+    "promo": 2024
   }
 }`
 			},
@@ -294,8 +294,8 @@ export const API_ENDPOINTS: EndpointGroup[] = [
 				scope: 'read',
 				description: "Mettre à jour l'année de promotion de l'utilisateur connecté",
 				exampleCurl:
-					'curl -X PATCH -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"promo_year":2024}\' "http://localhost:5173/api/users/me/promo"',
-				exampleResponse: '{"success":true,"promo_year":2024}'
+					'curl -X PATCH -H "x-api-key: YOUR_API_KEY" -H "Content-Type: application/json" -d \'{"promo":2024}\' "http://localhost:5173/api/users/me/promo"',
+				exampleResponse: '{"success":true,"promo":2024}'
 			},
 			{
 				method: 'PATCH',

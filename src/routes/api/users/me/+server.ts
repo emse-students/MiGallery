@@ -26,9 +26,7 @@ export const GET: RequestHandler = async (event) => {
 					last_name,
 					photos_id,
 					role,
-					promo,
-					photos_id as id_photos,
-					promo as promo_year
+					promo
 				FROM users WHERE id_user = ?`
 			)
 			.get(user.id_user);

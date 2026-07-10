@@ -24,7 +24,7 @@
 
 	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
-	let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.id_photos);
+	let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.photos_id);
 	let currentView = $state<'my' | 'all'>('my');
 	let personId = $state<string>('');
 	let photosGridContainer = $state<HTMLDivElement | null>(null);
@@ -77,7 +77,7 @@
 			return;
 		}
 
-		const hasIdPhotos = !!user.id_photos;
+		const hasIdPhotos = !!user.photos_id;
 		const isManager = user.role === 'admin' || user.role === 'mitviste';
 
 		if (!hasIdPhotos && !isManager) {
@@ -86,9 +86,9 @@
 		}
 
 		if (hasIdPhotos) {
-			personId = String(user.id_photos ?? '');
-			myPhotosState.peopleId = String(user.id_photos ?? '');
-			myPhotosState.loadMyPhotosCV(String(user.id_photos ?? ''));
+			personId = String(user.photos_id ?? '');
+			myPhotosState.peopleId = String(user.photos_id ?? '');
+			myPhotosState.loadMyPhotosCV(String(user.photos_id ?? ''));
 		} else if (isManager) {
 			currentView = 'all';
 			allPhotosState.loadAllPhotosCV();

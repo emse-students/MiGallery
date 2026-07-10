@@ -41,7 +41,7 @@
 	let pdfSelectedFormations = $state<string[]>([]);
 
 	function promoKey(u: User): string {
-		return u.promo_year ? u.promo_year.toString() : 'Staff / Autre';
+		return u.promo ? u.promo.toString() : 'Staff / Autre';
 	}
 	function formationKey(u: User): string {
 		return u.formation || 'Sans formation';
@@ -126,8 +126,8 @@
 		last_name: '',
 		formation: null as string | null,
 		role: 'user',
-		promo_year: null as number | null,
-		id_photos: null as string | null
+		promo: null as number | null,
+		photos_id: null as string | null
 	});
 	let selectedUser = $state<User | null>(null);
 
@@ -331,8 +331,8 @@
 			last_name: '',
 			formation: null,
 			role: 'user',
-			promo_year: null,
-			id_photos: null
+			promo: null,
+			photos_id: null
 		};
 		uploadPhotoFile = null;
 		showEditUserModal = true;
@@ -348,8 +348,8 @@
 			last_name: user.last_name || '',
 			formation: user.formation || null,
 			role: user.role || 'user',
-			promo_year: user.promo_year || null,
-			id_photos: user.id_photos || null
+			promo: user.promo || null,
+			photos_id: user.photos_id || null
 		};
 		uploadPhotoFile = null;
 		selectedUser = user;
@@ -363,7 +363,7 @@
 		}
 
 		try {
-			let finalIdPhotos = editUserData.id_photos;
+			let finalIdPhotos = editUserData.photos_id;
 
 			if (uploadPhotoFile) {
 				uploadingPhoto = true;
@@ -428,7 +428,7 @@
 			const res = await fetch(url, {
 				method,
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ...editUserData, id_photos: finalIdPhotos })
+				body: JSON.stringify({ ...editUserData, photos_id: finalIdPhotos })
 			});
 
 			if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
@@ -604,9 +604,9 @@
 										{/if}
 
 										<div class="avatar-container">
-											{#if user.id_photos}
+											{#if user.photos_id}
 												<img
-													src={`/api/immich/people/${user.id_photos}/thumbnail`}
+													src={`/api/immich/people/${user.photos_id}/thumbnail`}
 													alt={user.name}
 													loading="lazy"
 													onerror={(e) => {
@@ -820,12 +820,12 @@
 							<Camera size={18} /> Liaison Photo (Immich)
 						</div>
 						<div class="photo-content">
-							{#if editUserData.id_photos}
+							{#if editUserData.photos_id}
 								<div class="photo-status success">
 									<CheckCircle size={16} />
 									<span
 										>Lié : <code class="code-pill"
-											>{editUserData.id_photos.substring(0, 8)}...</code
+											>{editUserData.photos_id.substring(0, 8)}...</code
 										></span
 									>
 								</div>
@@ -846,7 +846,7 @@
 									<UploadCloud size={16} />
 									{uploadPhotoFile
 										? uploadPhotoFile.name
-										: editUserData.id_photos
+										: editUserData.photos_id
 											? 'Remplacer photo'
 											: 'Uploader photo'}
 								{/if}

@@ -104,8 +104,8 @@ users (
   prenom TEXT,
   nom TEXT,
   role TEXT DEFAULT 'user',
-  id_photos TEXT,
-  promo_year INTEGER
+  photos_id TEXT,
+  promo INTEGER
 )
 
 -- Albums

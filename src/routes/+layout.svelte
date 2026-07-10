@@ -19,7 +19,7 @@
 	let isAdmin = $derived(u?.role === 'admin');
 	let isMitviste = $derived(u?.role === 'mitviste');
 	let canManagePhotos = $derived(isAdmin || isMitviste);
-	let hasPhoto = $derived(!!u?.id_photos);
+	let hasPhoto = $derived(!!u?.photos_id);
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
 	let isFirstLogin = $derived(u?.first_login === 1);
@@ -138,9 +138,9 @@
 		{#if u}
 			<a href="/mes-photos" class="avatar-link">
 				<div class="avatar" title={u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()}>
-					{#if u.id_photos}
+					{#if u.photos_id}
 						<img
-							src={`/api/immich/people/${u.id_photos}/thumbnail`}
+							src={`/api/immich/people/${u.photos_id}/thumbnail`}
 							alt="avatar"
 							onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
 						/>

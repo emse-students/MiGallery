@@ -17,8 +17,6 @@ declare global {
 					photos_id: string | null;
 					role?: 'admin' | 'mitviste' | 'user';
 					promo?: number | null;
-					id_photos?: string | null;
-					promo_year?: number | null;
 					first_login?: number;
 				} | null;
 			} | null;

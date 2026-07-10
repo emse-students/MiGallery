@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 	}
 
 	const canManagePhotos = user.role === 'admin' || user.role === 'mitviste';
-	if (!user.id_photos && !canManagePhotos) {
+	if (!user.photos_id && !canManagePhotos) {
 		throw redirect(303, '/');
 	}
 

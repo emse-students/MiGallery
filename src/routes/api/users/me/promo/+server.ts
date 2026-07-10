@@ -44,23 +44,20 @@ export const PATCH: RequestHandler = async (event) => {
 			return json({ error: 'Unauthorized' }, { status: 401 });
 		}
 
-		const body = (await request.json()) as { promo?: number | null; promo_year?: number | null };
-		const promoYear = body.promo ?? body.promo_year ?? null;
+		const body = (await request.json()) as { promo?: number | null };
+		const promoYear = body.promo ?? null;
 		const currentYear = new Date().getFullYear();
 
 		// On accepte null (personnel) ou un nombre (étudiant)
 		if (promoYear !== null && typeof promoYear !== 'number') {
-			return json({ error: 'promo_year must be a number or null' }, { status: 400 });
+			return json({ error: 'promo must be a number or null' }, { status: 400 });
 		}
 		if (
 			typeof promoYear === 'number' &&
 			promoYear !== 0 &&
 			(promoYear < 1816 || promoYear > currentYear)
 		) {
-			return json(
-				{ error: `promo_year must be 0 or between 1816 and ${currentYear}` },
-				{ status: 400 }
-			);
+			return json({ error: `promo must be 0 or between 1816 and ${currentYear}` }, { status: 400 });
 		}
 
 		const stmt = db.prepare('UPDATE users SET promo = ?, first_login = 0 WHERE id_user = ?');
@@ -70,7 +67,7 @@ export const PATCH: RequestHandler = async (event) => {
 			return json({ error: 'User not found' }, { status: 404 });
 		}
 
-		return json({ success: true, promo: promoYear, promo_year: promoYear });
+		return json({ success: true, promo: promoYear });
 	} catch (e) {
 		const err = e as Error;
 		console.error('PATCH /api/users/me/promo error', err);

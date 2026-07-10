@@ -119,12 +119,12 @@
 
 	async function handlePhotoSelected(assetId: string) {
 		const u = page.data.session?.user as User | undefined;
-		if (!u?.id_photos) {
+		if (!u?.photos_id) {
 			toast.error(m.param_no_immich_link());
 			return;
 		}
 
-		const updateRes = await fetch(`/api/immich/people/${u.id_photos}`, {
+		const updateRes = await fetch(`/api/immich/people/${u.photos_id}`, {
 			method: 'PUT',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ featureFaceAssetId: assetId })
@@ -144,11 +144,11 @@
 			const response = await fetch('/api/users/me');
 			const data = (await response.json()) as {
 				success?: boolean;
-				user?: { id_photos?: string | null };
+				user?: { photos_id?: string | null };
 			};
 			if (data.success && data.user) {
-				currentUserHasFace = !!data.user.id_photos;
-				personId = data.user.id_photos ?? null;
+				currentUserHasFace = !!data.user.photos_id;
+				personId = data.user.photos_id ?? null;
 			}
 		} catch {
 			/* Ignore */

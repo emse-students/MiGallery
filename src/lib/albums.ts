@@ -37,7 +37,7 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 
 	// Check (Formation AND Promo) permissions combined
 	const normalizedFormation = (user.formation || '').trim().toLowerCase();
-	const promoYear = user.promo_year ?? user.promo;
+	const promoYear = user.promo;
 
 	if (normalizedFormation && typeof promoYear === 'number') {
 		const combinedPerm = db

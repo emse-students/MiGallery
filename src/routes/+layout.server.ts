@@ -22,8 +22,6 @@ function toSessionUser(user: UserRow): SessionPageUser {
 		role: normalizeRole(user.role),
 		promo: user.promo,
 		formation: user.formation,
-		id_photos: user.photos_id,
-		promo_year: user.promo,
 		first_login: (user.first_login ?? 1) as number
 	};
 }

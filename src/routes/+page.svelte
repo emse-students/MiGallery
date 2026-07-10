@@ -8,7 +8,7 @@
 
 	let user = $derived(page.data.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
-	let hasIdPhotos = $derived(!!user?.id_photos);
+	let hasIdPhotos = $derived(!!user?.photos_id);
 
 	const hour = new Date().getHours();
 	const greeting = hour < 18 ? m.greeting_day() : m.greeting_evening();
