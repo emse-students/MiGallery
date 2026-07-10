@@ -27,6 +27,7 @@
 	import type { User } from '$lib/types/api';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
+	import { fuzzyMatch } from '$lib/fuzzy';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import jsPDF from 'jspdf';
 
@@ -61,12 +62,10 @@
 	}
 
 	let filteredUsers = $derived.by(() => {
-		const q = (searchQuery || '').trim().toLowerCase();
-		if (!q) return users;
+		if (!searchQuery.trim()) return users;
 		return users.filter((u) => {
-			const hay =
-				`${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.formation || ''} ${u.id_user || ''}`.toLowerCase();
-			return hay.includes(q);
+			const hay = `${u.name || ''} ${u.first_name || ''} ${u.last_name || ''} ${u.formation || ''} ${u.promo ?? ''}`;
+			return fuzzyMatch(searchQuery, hay);
 		});
 	});
 

@@ -24,6 +24,7 @@
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
 	import { toast } from '$lib/toast';
+	import { fuzzyMatch } from '$lib/fuzzy';
 	import { clientCache } from '$lib/client-cache';
 	import type { User, Album, ImmichAsset } from '$lib/types/api';
 	import { downloadInBatches } from '$lib/immich/download';
@@ -40,16 +41,14 @@
 	let displayedAlbums = $derived(filteredAlbums.slice(0, pageLimit));
 
 	$effect(() => {
-		const q = (searchQuery || '').trim().toLowerCase();
 		pageLimit = 20; // Reset pagination on search change or albums update
-		if (!q) {
+		if (!searchQuery.trim()) {
 			filteredAlbums = albums.slice();
 			return;
 		}
-		filteredAlbums = albums.filter((a) => {
-			const hay = `${a.name || ''} ${a.location || ''}`.toLowerCase();
-			return hay.includes(q);
-		});
+		filteredAlbums = albums.filter((a) =>
+			fuzzyMatch(searchQuery, `${a.name || ''} ${a.location || ''}`)
+		);
 	});
 
 	let showConfirmModal = $state(false);
