@@ -93,5 +93,5 @@ export function startBackupScheduler(): void {
 	}, msUntilMidnight);
 
 	const hUntil = Math.round(msUntilMidnight / 3_600_000);
-	console.warn(`[BACKUP] Planificateur démarré — prochaine sauvegarde dans ~${hUntil}h (minuit)`);
+	console.warn(`[BACKUP] Planificateur démarré - prochaine sauvegarde dans ~${hUntil}h (minuit)`);
 }

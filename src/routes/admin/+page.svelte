@@ -32,7 +32,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin — Documentation</title>
+	<title>Admin - Documentation</title>
 </svelte:head>
 
 <div role="main" class="docs-main">

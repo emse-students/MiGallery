@@ -16,7 +16,7 @@
 </script>
 
 <svelte:head>
-  <title>Admin — MiGallery</title>
+  <title>Admin - MiGallery</title>
 </svelte:head>
 
 <div class="admin-root">

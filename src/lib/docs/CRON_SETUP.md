@@ -1,6 +1,6 @@
 # Configuration des tâches automatiques
 
-> **✨ Bonne nouvelle — cron optionnel depuis Avril 2026**
+> **✨ Bonne nouvelle - cron optionnel depuis Avril 2026**
 >
 > La sauvegarde automatique quotidienne est désormais **intégrée au serveur** : au démarrage de l’application,
 > `startBackupScheduler()` programme une sauvegarde à minuit (puis toutes les 24 h). **Aucun cron extérieur

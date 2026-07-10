@@ -269,7 +269,7 @@ function handleUserInDatabase(
 					: null;
 
 		console.warn(
-			`[AUTH] Login: ${userId} — OIDC: promo=${JSON.stringify(rawPromo)} (parsed:${promo ?? 'null'}), formation=${JSON.stringify(profile.formation ?? customClaims.formation ?? null)}`
+			`[AUTH] Login: ${userId} - OIDC: promo=${JSON.stringify(rawPromo)} (parsed:${promo ?? 'null'}), formation=${JSON.stringify(profile.formation ?? customClaims.formation ?? null)}`
 		);
 		if (existingUser) {
 			console.warn(

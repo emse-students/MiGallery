@@ -17,7 +17,7 @@
 	<div class="cgu-container">
 		<header class="cgu-header">
 			<h1>Conditions Générales d'Utilisation</h1>
-			<p class="subtitle">MiGallery — Galerie photos de l'Association MiTV</p>
+			<p class="subtitle">MiGallery - Galerie photos de l'Association MiTV</p>
 			<p class="last-update">Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</p>
 		</header>
 

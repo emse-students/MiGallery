@@ -187,7 +187,7 @@ nano .env  # Créer et remplir avec les variables
 npm run db:init
 
 # 4. La sauvegarde automatique est gérée par le serveur (startBackupScheduler).
-#    Elle se déclenche à minuit dès le démarrage — rien à configurer.
+#    Elle se déclenche à minuit dès le démarrage - rien à configurer.
 
 # 5. Lancer l'application
 npm run dev  # Développement

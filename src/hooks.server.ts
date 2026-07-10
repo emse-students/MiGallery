@@ -157,7 +157,7 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
  * <html lang> tag.
  *
  * Skipped for /api/* routes: they return JSON, never localized HTML, and the
- * middleware rebuilds event.request — which drops the body of raw-blob requests
+ * middleware rebuilds event.request - which drops the body of raw-blob requests
  * (chunked uploads) under adapter-node. API routes must keep the original request.
  */
 const paraglideHandler: Handle = ({ event, resolve }) => {

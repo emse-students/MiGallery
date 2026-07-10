@@ -202,7 +202,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin — Base de données</title>
+	<title>Admin - Base de données</title>
 </svelte:head>
 
 <div role="main" class="admin-main">

@@ -1,5 +1,5 @@
 /**
- * Minimal service worker — install/activate only, no fetch interception.
+ * Minimal service worker - install/activate only, no fetch interception.
  * StreamSaver has been replaced by a server-side token approach that lets
  * the browser download archives natively, so no SW relay is needed anymore.
  */

@@ -193,5 +193,5 @@ ENABLE_DEV_ROUTES=false
 Adopted from `C:\Users\jolan\Documents\Programmation\canari\CLAUDE.md` (sections "Language" and "Text characters"), adapted to MiGallery.
 
 - **Code language**: comments (`//`, `/* */`, `/** */`) and developer-facing strings (`console.*`, internally thrown errors) are in **English**. Every user-visible string goes through Paraglide (`messages/fr.json` + `messages/en.json`), never an inline literal.
-- **Normalize PUNCTUATION to ASCII** (code, strings, comments, docs, translation JSON): straight apostrophe `'` (never `’`), straight quote `"` (never `“ ” « »`), hyphen `-` (never `—` / `–`). Exception: the ellipsis `…` is kept. In code, escape `\'` / `\"` rather than reintroducing a typographic character.
+- **Normalize PUNCTUATION to ASCII** (code, strings, comments, docs, translation JSON): straight apostrophe `'` (never `’`), straight quote `"` (never `“ ” « »`), hyphen `-` (never `-` / `–`). Exception: the ellipsis `…` is kept. In code, escape `\'` / `\"` rather than reintroducing a typographic character.
 - **Accented French letters are ALWAYS preserved** (`é è ê à ù ç î ô` ...). This rule targets typographic punctuation ONLY: "ASCII" does NOT mean "French without accents". Writing "evenements" or "privee" instead of "évènements" / "privée" is a bug. Applies to FR i18n values and to French inside comments.

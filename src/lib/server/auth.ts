@@ -87,7 +87,7 @@ function getUserFromLocals(locals: App.Locals): UserRow | null {
 
 /**
  * Ensure the caller is an admin. Uses cookie fast-path first, then provider fallback via locals.auth()
- * IMPORTANT: this helper DOES NOT create users automatically from provider identity — it only maps
+ * IMPORTANT: this helper DOES NOT create users automatically from provider identity - it only maps
  * provider identities to existing DB users. This avoids accidental privilege escalations.
  *
  * Returns the DB user row when admin or null otherwise.

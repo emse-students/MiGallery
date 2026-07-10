@@ -88,7 +88,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin — API Keys</title>
+	<title>Admin - API Keys</title>
 </svelte:head>
 
 <div role="main" class="admin-main">

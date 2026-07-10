@@ -311,7 +311,7 @@ async function loginAsSystemUser(): Promise<string> {
 					return sessionCookie;
 				}
 			}
-			// Pas de set-cookie — journaliser pour diagnostiquer
+			// Pas de set-cookie - journaliser pour diagnostiquer
 			console.error(
 				`❌ Échec de la connexion (status: ${response.status}), pas de cookie retourné, body=${await response.text()}`
 			);

@@ -8,7 +8,7 @@ const BATCH_SIZE = 200;
  *
  * The browser makes a GET request directly to /api/download/{token}, which
  * streams the archive from Immich without any JS buffering or service-worker
- * relay — no RAM limit, no SW lifetime issues, no 750 MB cutoff.
+ * relay - no RAM limit, no SW lifetime issues, no 750 MB cutoff.
  */
 async function fetchAndSave(
 	assetIds: string[],

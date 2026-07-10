@@ -107,7 +107,7 @@ async function main() {
 				);
 				process.exit(1);
 			}
-			console.warn(`\n⚠️  Running tests against remote Immich (${immichUrl}) — override in effect.\n`);
+			console.warn(`\n⚠️  Running tests against remote Immich (${immichUrl}) - override in effect.\n`);
 		}
 
 		// Définir NODE_ENV=test pour activer les routes de dev pendant les tests
@@ -133,7 +133,7 @@ async function main() {
 		try {
 			const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
 			await waitForReadiness(healthUrl);
-			console.log('✅ Endpoint /api/health répond — démarrage OK');
+			console.log('✅ Endpoint /api/health répond - démarrage OK');
 		} catch (err) {
 			console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
 			console.log("⚠️  Poursuite des tests malgré l'échec de la probe (timeout)");

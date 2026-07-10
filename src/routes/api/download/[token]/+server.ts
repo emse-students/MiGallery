@@ -45,7 +45,7 @@ export const GET: RequestHandler = async (event) => {
 			headers.set('Content-Length', contentLength);
 		}
 
-		// Stream directly from Immich to the browser — no JS buffering, no service worker
+		// Stream directly from Immich to the browser - no JS buffering, no service worker
 		return new Response(res.body, { headers });
 	} catch (e: unknown) {
 		const err = ensureError(e);

@@ -29,7 +29,7 @@
 </script>
 
 <svelte:head>
-  <title>Admin — Documentation API</title>
+  <title>Admin - Documentation API</title>
 </svelte:head>
 
 {#if !isAdmin}
@@ -183,7 +183,7 @@
           <tr>
             <td><span class="scope-badge session">session</span></td>
             <td>Session utilisateur uniquement</td>
-            <td>—</td>
+            <td>-</td>
             <td><code>/api/users/me</code></td>
           </tr>
         </tbody>
@@ -253,7 +253,7 @@
                         {#each endpoint.params as param}
                           <li>
                             <code>{param.name}</code>
-                            <span class="param-type">({param.in})</span> — {param.desc}
+                            <span class="param-type">({param.in})</span> - {param.desc}
                           </li>
                         {/each}
                       </ul>
@@ -385,19 +385,19 @@ requests.get(
         <div class="help-item">
           <h4>📚 Documentation complète</h4>
           <ul>
-            <li><code>docs/API_SECURITY.md</code> — Sécurité API</li>
-            <li><code>docs/API_ENDPOINTS_BY_SCOPE.md</code> — Liste des endpoints par scope</li>
-            <li><code>docs/SECURITY_DEV_ROUTES.md</code> — Analyse routes /dev/</li>
-            <li><code>tests/README.md</code> — Tests automatisés</li>
+            <li><code>docs/API_SECURITY.md</code> - Sécurité API</li>
+            <li><code>docs/API_ENDPOINTS_BY_SCOPE.md</code> - Liste des endpoints par scope</li>
+            <li><code>docs/SECURITY_DEV_ROUTES.md</code> - Analyse routes /dev/</li>
+            <li><code>tests/README.md</code> - Tests automatisés</li>
           </ul>
         </div>
 
         <div class="help-item">
           <h4>🔧 Outils recommandés</h4>
           <ul>
-            <li><a href="https://curl.se/" target="_blank">cURL</a> — Ligne de commande</li>
-            <li><a href="https://httpie.io/" target="_blank">HTTPie</a> — Client HTTP moderne</li>
-            <li><a href="https://insomnia.rest/" target="_blank">Insomnia</a> — Tester l'API (GUI)</li>
+            <li><a href="https://curl.se/" target="_blank">cURL</a> - Ligne de commande</li>
+            <li><a href="https://httpie.io/" target="_blank">HTTPie</a> - Client HTTP moderne</li>
+            <li><a href="https://insomnia.rest/" target="_blank">Insomnia</a> - Tester l'API (GUI)</li>
           </ul>
         </div>
 

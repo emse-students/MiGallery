@@ -81,7 +81,7 @@
 </script>
 
 <svelte:head>
-	<title>Admin — Santé</title>
+	<title>Admin - Santé</title>
 </svelte:head>
 
 <div class="metrics-page">
