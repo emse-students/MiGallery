@@ -246,6 +246,8 @@
 	}
 
 	async function handleSubmit() {
+		// Guard against double-fire: Modal onConfirm + form onsubmit (Enter) can both call this.
+		if (loading) return;
 		if (!albumName.trim()) {
 			error = "Le nom de l'album est requis";
 			return;
@@ -535,10 +537,10 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1rem;
-		background: rgba(239, 68, 68, 0.1);
-		border: 1px solid rgba(239, 68, 68, 0.3);
+		background: color-mix(in srgb, var(--error) 10%, transparent);
+		border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
 		border-radius: var(--radius-xs);
-		color: rgba(255, 100, 100, 0.9);
+		color: var(--error);
 		margin-bottom: 1.5rem;
 	}
 

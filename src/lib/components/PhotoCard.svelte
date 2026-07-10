@@ -201,6 +201,7 @@
 		<!-- Favorite Button (bottom left) -->
 		{#if showFavorite && !isSelecting}
 			<button
+				type="button"
 				class="favorite-btn {isFavorite ? 'active' : ''}"
 				title={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
 				onclick={handleFavoriteClick}
@@ -213,6 +214,7 @@
 		<!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
 		{#if !isSelecting}
 			<button
+				type="button"
 				class="download-btn"
 				title={m.common_download()}
 				onclick={handleDownloadClick}
@@ -224,6 +226,7 @@
 			<!-- Delete Button (only if user can delete) -->
 			{#if canDelete}
 				<button
+					type="button"
 					class="delete-btn"
 					title={m.trash_to_bin()}
 					onclick={handleDeleteClick}
@@ -293,7 +296,7 @@
 	.photo-card.selected {
 		/* Make selection persistent and clearly visible */
 		outline: none;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.95); /* fallback accent color */
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 95%, transparent);
 		/* Keep the selected card above siblings so the frame is visible */
 		z-index: 20;
 		transform: translateY(-2px);
@@ -422,7 +425,7 @@
 		padding: 0.5rem;
 		width: 36px;
 		height: 36px;
-		background: rgba(220, 38, 38, 0.8);
+		background: color-mix(in srgb, var(--error-hover) 80%, transparent);
 		backdrop-filter: blur(8px);
 		border: none;
 		border-radius: var(--radius-sm);
@@ -440,7 +443,7 @@
 	}
 
 	.delete-btn:hover {
-		background: rgba(220, 38, 38, 1);
+		background: var(--error-hover);
 		transform: scale(1.1);
 	}
 
@@ -487,7 +490,7 @@
 
 	@media (max-width: 480px) {
 		.photo-card {
-			/* 4 photos par ligne: plus compact */
+			/* 4 photos per row: more compact */
 			flex-basis: calc(25% - 2px) !important;
 			max-width: calc(25% - 2px);
 		}

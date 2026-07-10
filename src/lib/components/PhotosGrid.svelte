@@ -247,15 +247,16 @@
 				{m.pg_selected_count({ count: photosState.selectedAssets.length })}
 			</div>
 			<div class="selection-actions">
-				<button onclick={() => photosState.selectAll()} class="btn-glass">
+				<button type="button" onclick={() => photosState.selectAll()} class="btn-glass">
 					<SquareCheck size={16} />
 					{m.pg_select_all()}
 				</button>
-				<button onclick={() => photosState.deselectAll()} class="btn-glass">
+				<button type="button" onclick={() => photosState.deselectAll()} class="btn-glass">
 					<Square size={16} />
 					{m.pg_deselect_all()}
 				</button>
 				<button
+					type="button"
 					onclick={handleDownloadSelectedClick}
 					disabled={photosState.selectedAssets.length === 0}
 					class="btn-glass primary"
@@ -275,6 +276,7 @@
 				</button>
 				{#if canManagePhotos && albumId}
 					<button
+						type="button"
 						onclick={() => handleRemoveFromAlbum()}
 						disabled={photosState.selectedAssets.length === 0}
 						class="btn-glass"
@@ -286,6 +288,7 @@
 				{/if}
 				{#if canManagePhotos}
 					<button
+						type="button"
 						onclick={() => handleDeleteSelected()}
 						disabled={photosState.selectedAssets.length === 0}
 						class="btn-glass danger"
@@ -302,7 +305,7 @@
 		</div>
 	{/if}
 
-	<!-- Section Favoris -->
+	<!-- Favorites section -->
 	{#if showFavorites && favoriteAssets.length > 0}
 		<h3 class="day-label favorites-label">⭐ Favoris</h3>
 		<div class="photos-grid">
@@ -348,7 +351,7 @@
 		</div>
 	{/each}
 {:else if !photosState.loading && !photosState.error}
-	<!-- État vide -->
+	<!-- Empty state -->
 	<div class="empty-state">
 		<ImageIcon size={48} />
 		<p>{m.pg_empty()}</p>
@@ -392,7 +395,7 @@
 	{/snippet}
 </Modal>
 
-<!-- Modal suppression multiple -->
+<!-- Bulk-delete modal -->
 <Modal
 	bind:show={showDeleteSelectedModal}
 	title={m.pg_delete_selected_title()}
@@ -411,7 +414,7 @@
 	{/snippet}
 </Modal>
 
-<!-- Modal retrait de l'album -->
+<!-- Remove-from-album modal -->
 <Modal
 	bind:show={showRemoveFromAlbumModal}
 	title={m.pg_remove_from_album()}
@@ -456,7 +459,7 @@
 		margin-bottom: 2rem;
 		background: var(--bg-elevated);
 		border-radius: var(--radius-md);
-		border: 1px solid var(--border-color);
+		border: 1px solid var(--border);
 	}
 
 	.selection-count {

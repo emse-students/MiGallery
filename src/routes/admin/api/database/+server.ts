@@ -1,17 +1,23 @@
 import { json } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
+import { getDatabase, ensureSchema } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
 
+// Canonical table set, kept in sync with src/lib/db/schema.sql.
 const REQUIRED_TABLES = [
 	'users',
 	'albums',
 	'album_user_permissions',
 	'album_tag_permissions',
-	'user_favorites'
+	'album_formation_permissions',
+	'album_promo_permissions',
+	'user_favorites',
+	'photo_access_permissions',
+	'logs',
+	'api_keys'
 ];
 
 /**
- * GET - Inspecter la structure de la base de données
+ * GET - Inspect the database structure and report missing canonical tables.
  */
 export const GET: RequestHandler = () => {
 	try {
@@ -42,8 +48,7 @@ export const GET: RequestHandler = () => {
 			totalTables: existingTables.length,
 			requiredTables: REQUIRED_TABLES.length,
 			tables: tableStatus,
-			missingTables,
-			allTables: existingTableNames.has('user_favorites') // Pour debug
+			missingTables
 		});
 	} catch (e) {
 		return json(
@@ -57,97 +62,39 @@ export const GET: RequestHandler = () => {
 };
 
 /**
- * POST - Créer/réparer les tables manquantes
+ * POST - Create/repair missing tables by re-applying the canonical schema.
+ * Delegates to ensureSchema() so this endpoint can never drift from
+ * src/lib/db/schema.sql (previously it hand-wrote a stale, divergent schema).
  */
 export const POST: RequestHandler = () => {
 	try {
 		const db = getDatabase();
 
-		const migrations = [
-			{
-				name: 'users',
-				sql: `CREATE TABLE IF NOT EXISTS users (
-          id_user TEXT PRIMARY KEY,
-          email TEXT NOT NULL,
-          prenom TEXT NOT NULL,
-          nom TEXT NOT NULL,
-          id_photos TEXT,
-          first_login INTEGER DEFAULT 1,
-          role TEXT DEFAULT 'user',
-          promo_year INTEGER
-        )`
-			},
-			{
-				name: 'albums',
-				sql: `CREATE TABLE IF NOT EXISTS albums (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          date TEXT,
-          location TEXT,
-          visibility TEXT NOT NULL DEFAULT 'authenticated',
-          visible INTEGER NOT NULL DEFAULT 1
-        )`
-			},
-			{
-				name: 'album_user_permissions',
-				sql: `CREATE TABLE IF NOT EXISTS album_user_permissions (
-          album_id TEXT NOT NULL,
-          id_user TEXT NOT NULL,
-          PRIMARY KEY (album_id, id_user),
-          FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
-        )`
-			},
-			{
-				name: 'album_tag_permissions',
-				sql: `CREATE TABLE IF NOT EXISTS album_tag_permissions (
-          album_id TEXT NOT NULL,
-          tag TEXT NOT NULL,
-          PRIMARY KEY (album_id, tag),
-          FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
-        )`
-			},
-			{
-				name: 'user_favorites',
-				sql: `CREATE TABLE IF NOT EXISTS user_favorites (
-          user_id TEXT NOT NULL,
-          asset_id TEXT NOT NULL,
-          created_at TEXT DEFAULT (datetime('now')),
-          PRIMARY KEY (user_id, asset_id),
-          FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
-        )`
-			}
-		];
+		ensureSchema(db);
 
-		const results: Array<{ table: string; success: boolean; message: string }> = [];
-
-		for (const migration of migrations) {
-			try {
-				db.exec(migration.sql);
-				results.push({
-					table: migration.name,
-					success: true,
-					message: 'Créée ou vérifiée'
-				});
-			} catch (err) {
-				results.push({
-					table: migration.name,
-					success: false,
-					message: (err as Error).message
-				});
-			}
-		}
+		const existingTables = db
+			.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+			.all() as { name: string }[];
+		const existingTableNames = new Set(existingTables.map((t) => t.name));
 
 		const tableStatus = REQUIRED_TABLES.map((table) => ({
 			name: table,
-			exists: true, // Si on arrive ici, toutes les tables doivent exister
-			rowCount: (db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count: number }).count
+			exists: existingTableNames.has(table),
+			rowCount: existingTableNames.has(table)
+				? (db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count: number }).count
+				: 0
 		}));
 
+		const missingTables = tableStatus.filter((t) => !t.exists).map((t) => t.name);
+
 		return json({
-			success: true,
-			message: 'Migration terminée',
-			results,
-			newStatus: tableStatus
+			success: missingTables.length === 0,
+			message:
+				missingTables.length === 0
+					? 'Schema applied; all canonical tables present.'
+					: `Schema applied but tables still missing: ${missingTables.join(', ')}`,
+			newStatus: tableStatus,
+			missingTables
 		});
 	} catch (e) {
 		return json(

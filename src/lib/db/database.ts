@@ -19,6 +19,146 @@ type DatabaseInstance = {
 
 let db: DatabaseInstance | null = null;
 
+/**
+ * Apply the canonical schema (src/lib/db/schema.sql) and run idempotent
+ * column/table migrations. Safe to call repeatedly: every statement uses
+ * CREATE TABLE IF NOT EXISTS / additive ALTERs guarded by PRAGMA checks.
+ * Shared by getDatabase() (first-init) and the admin repair endpoint so the
+ * two never drift apart.
+ */
+export function ensureSchema(dbInstance: DatabaseInstance): void {
+	const schemaPath = join(process.cwd(), 'src/lib/db/schema.sql');
+	const schema = readFileSync(schemaPath, 'utf-8');
+	dbInstance.exec(schema);
+
+	try {
+		const cols = dbInstance
+			.prepare('PRAGMA table_info(users)')
+			.all()
+			.map((c) => (c as { name: string }).name);
+		const hasPrenom = cols.includes('prenom');
+		const hasNom = cols.includes('nom');
+		const hasEmail = cols.includes('email');
+		const hasIdPhotos = cols.includes('id_photos');
+		const hasPromoYear = cols.includes('promo_year');
+		if (!cols.includes('name')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN name TEXT').run();
+			if (hasPrenom || hasNom) {
+				dbInstance
+					.prepare(
+						"UPDATE users SET name = trim(COALESCE(prenom, '') || ' ' || COALESCE(nom, '')) WHERE name IS NULL OR name = ''"
+					)
+					.run();
+			}
+			if (hasEmail) {
+				dbInstance
+					.prepare(
+						"UPDATE users SET name = COALESCE(name, email, id_user) WHERE name IS NULL OR name = ''"
+					)
+					.run();
+			} else {
+				dbInstance
+					.prepare("UPDATE users SET name = COALESCE(name, id_user) WHERE name IS NULL OR name = ''")
+					.run();
+			}
+		}
+		if (!cols.includes('first_name')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN first_name TEXT').run();
+			if (hasPrenom) {
+				dbInstance
+					.prepare(
+						'UPDATE users SET first_name = prenom WHERE first_name IS NULL AND prenom IS NOT NULL'
+					)
+					.run();
+			}
+		}
+		if (!cols.includes('last_name')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN last_name TEXT').run();
+			if (hasNom) {
+				dbInstance
+					.prepare('UPDATE users SET last_name = nom WHERE last_name IS NULL AND nom IS NOT NULL')
+					.run();
+			}
+		}
+		if (!cols.includes('photos_id')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_id TEXT').run();
+			if (hasIdPhotos) {
+				dbInstance
+					.prepare(
+						'UPDATE users SET photos_id = id_photos WHERE photos_id IS NULL AND id_photos IS NOT NULL'
+					)
+					.run();
+			}
+		}
+		if (!cols.includes('role')) {
+			dbInstance.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'").run();
+		}
+		if (!cols.includes('promo')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN promo INTEGER').run();
+			if (hasPromoYear) {
+				dbInstance
+					.prepare('UPDATE users SET promo = promo_year WHERE promo IS NULL AND promo_year IS NOT NULL')
+					.run();
+			}
+		}
+		if (!cols.includes('formation')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN formation TEXT').run();
+		}
+		if (!cols.includes('first_login')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN first_login INTEGER DEFAULT 1').run();
+			// Existing users who already have a promo set don't need the modal
+			dbInstance.prepare('UPDATE users SET first_login = 0 WHERE promo IS NOT NULL').run();
+		}
+		try {
+			const acols = dbInstance
+				.prepare('PRAGMA table_info(albums)')
+				.all()
+				.map((c) => (c as { name: string }).name);
+			if (acols.length > 0 && !acols.includes('visible')) {
+				dbInstance.prepare('ALTER TABLE albums ADD COLUMN visible INTEGER NOT NULL DEFAULT 1').run();
+			}
+		} catch (_e) {
+			try {
+				console.warn('DB migration (albums.visible) notice:', (_e as Error).message);
+			} catch {
+				void _e;
+			}
+		}
+		try {
+			const apiKeysExist = dbInstance
+				.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'")
+				.get();
+			if (!apiKeysExist) {
+				dbInstance
+					.prepare(
+						`CREATE TABLE api_keys (
+									id INTEGER PRIMARY KEY,
+          key_hash TEXT NOT NULL UNIQUE,
+          label TEXT,
+          scopes TEXT,
+          revoked INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        )`
+					)
+					.run();
+			}
+		} catch (_e) {
+			try {
+				console.warn('DB migration (api_keys) notice:', (_e as Error).message);
+			} catch {
+				void _e;
+			}
+		}
+	} catch (_e) {
+		void _e;
+		try {
+			console.warn('DB migration notice:', (_e as Error).message);
+		} catch {
+			void 0;
+		}
+	}
+}
+
 export function getDatabase(): DatabaseInstance {
 	if (!db) {
 		const dir = dirname(DB_PATH);
@@ -37,136 +177,7 @@ export function getDatabase(): DatabaseInstance {
 			void 0;
 		}
 
-		const schemaPath = join(process.cwd(), 'src/lib/db/schema.sql');
-		const schema = readFileSync(schemaPath, 'utf-8');
-		dbInstance.exec(schema);
-
-		try {
-			const cols = dbInstance
-				.prepare('PRAGMA table_info(users)')
-				.all()
-				.map((c) => (c as { name: string }).name);
-			const hasPrenom = cols.includes('prenom');
-			const hasNom = cols.includes('nom');
-			const hasEmail = cols.includes('email');
-			const hasIdPhotos = cols.includes('id_photos');
-			const hasPromoYear = cols.includes('promo_year');
-			if (!cols.includes('name')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN name TEXT').run();
-				if (hasPrenom || hasNom) {
-					dbInstance
-						.prepare(
-							"UPDATE users SET name = trim(COALESCE(prenom, '') || ' ' || COALESCE(nom, '')) WHERE name IS NULL OR name = ''"
-						)
-						.run();
-				}
-				if (hasEmail) {
-					dbInstance
-						.prepare(
-							"UPDATE users SET name = COALESCE(name, email, id_user) WHERE name IS NULL OR name = ''"
-						)
-						.run();
-				} else {
-					dbInstance
-						.prepare("UPDATE users SET name = COALESCE(name, id_user) WHERE name IS NULL OR name = ''")
-						.run();
-				}
-			}
-			if (!cols.includes('first_name')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN first_name TEXT').run();
-				if (hasPrenom) {
-					dbInstance
-						.prepare(
-							'UPDATE users SET first_name = prenom WHERE first_name IS NULL AND prenom IS NOT NULL'
-						)
-						.run();
-				}
-			}
-			if (!cols.includes('last_name')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN last_name TEXT').run();
-				if (hasNom) {
-					dbInstance
-						.prepare('UPDATE users SET last_name = nom WHERE last_name IS NULL AND nom IS NOT NULL')
-						.run();
-				}
-			}
-			if (!cols.includes('photos_id')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_id TEXT').run();
-				if (hasIdPhotos) {
-					dbInstance
-						.prepare(
-							'UPDATE users SET photos_id = id_photos WHERE photos_id IS NULL AND id_photos IS NOT NULL'
-						)
-						.run();
-				}
-			}
-			if (!cols.includes('role')) {
-				dbInstance.prepare("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'").run();
-			}
-			if (!cols.includes('promo')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN promo INTEGER').run();
-				if (hasPromoYear) {
-					dbInstance
-						.prepare('UPDATE users SET promo = promo_year WHERE promo IS NULL AND promo_year IS NOT NULL')
-						.run();
-				}
-			}
-			if (!cols.includes('formation')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN formation TEXT').run();
-			}
-			if (!cols.includes('first_login')) {
-				dbInstance.prepare('ALTER TABLE users ADD COLUMN first_login INTEGER DEFAULT 1').run();
-				// Existing users who already have a promo set don't need the modal
-				dbInstance.prepare('UPDATE users SET first_login = 0 WHERE promo IS NOT NULL').run();
-			}
-			try {
-				const acols = dbInstance
-					.prepare('PRAGMA table_info(albums)')
-					.all()
-					.map((c) => (c as { name: string }).name);
-				if (acols.length > 0 && !acols.includes('visible')) {
-					dbInstance.prepare('ALTER TABLE albums ADD COLUMN visible INTEGER NOT NULL DEFAULT 1').run();
-				}
-			} catch (_e) {
-				try {
-					console.warn('DB migration (albums.visible) notice:', (_e as Error).message);
-				} catch {
-					void _e;
-				}
-			}
-			try {
-				const apiKeysExist = dbInstance
-					.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='api_keys'")
-					.get();
-				if (!apiKeysExist) {
-					dbInstance
-						.prepare(
-							`CREATE TABLE api_keys (
-									id INTEGER PRIMARY KEY,
-              key_hash TEXT NOT NULL UNIQUE,
-              label TEXT,
-              scopes TEXT,
-              revoked INTEGER NOT NULL DEFAULT 0,
-              created_at INTEGER NOT NULL
-            )`
-						)
-						.run();
-				}
-			} catch (_e) {
-				try {
-					console.warn('DB migration (api_keys) notice:', (_e as Error).message);
-				} catch {
-					void _e;
-				}
-			}
-		} catch (_e) {
-			void _e;
-			try {
-				console.warn('DB migration notice:', (_e as Error).message);
-			} catch {
-				void 0;
-			}
-		}
+		ensureSchema(dbInstance);
 
 		db = dbInstance;
 	}

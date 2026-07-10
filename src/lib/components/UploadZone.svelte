@@ -244,6 +244,7 @@
 	}
 
 	function retryUpload(failedFiles: File[]) {
+		if (isUploading) return;
 		fileStatuses = fileStatuses.map((s) =>
 			failedFiles.includes(s.file) ? { ...s, status: 'pending' as const, error: undefined } : s
 		);
@@ -261,10 +262,6 @@
 	}
 
 	const successCount = $derived(uploadedCount);
-	const visibleErrorCount = $derived(fileStatuses.filter((s) => s.status === 'error').length);
-	const visibleDuplicateCount = $derived(
-		fileStatuses.filter((s) => s.status === 'duplicate').length
-	);
 	const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
 </script>
 
@@ -356,7 +353,9 @@
 
 				{#if errorCountPersist > 0}
 					<button
+						type="button"
 						class="btn-glass primary"
+						disabled={isUploading}
 						onclick={(e) => {
 							e.stopPropagation();
 							retryUpload(failedFiles);
@@ -369,6 +368,7 @@
 
 				{#if !isUploading}
 					<button
+						type="button"
 						class="btn-glass"
 						onclick={(e) => {
 							e.stopPropagation();

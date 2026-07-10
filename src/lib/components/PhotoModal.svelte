@@ -52,7 +52,7 @@
 	let imageLoaded = $state(false);
 	let highResLoaded = $state(false);
 
-	// -- État du Zoom --
+	// -- Zoom state --
 	let scale = $state(1);
 	let minScale = $state(0.1);
 	const MAX_SCALE = 5;
@@ -366,8 +366,12 @@
 		if (currentIndex < assets.length - 1) assetId = assets[currentIndex + 1].id;
 	}
 
+	let isDownloading = $state(false);
+	let isSettingCover = $state(false);
+
 	async function downloadAsset() {
-		if (!assetId || !asset) return;
+		if (!assetId || !asset || isDownloading) return;
+		isDownloading = true;
 		try {
 			let downloadUrl = `/api/immich/assets/${assetId}/original`;
 			if (albumVisibility === 'unlisted' && albumId) {
@@ -382,20 +386,27 @@
 				a.download = asset.originalFileName || `photo-${assetId}.jpg`;
 				a.click();
 				URL.revokeObjectURL(url);
+			} else {
+				toast.error(m.common_error_detail({ error: res.statusText || String(res.status) }));
 			}
 		} catch (e) {
-			console.error('Download error:', e);
+			toast.error(m.common_error_detail({ error: (e as Error).message }));
+		} finally {
+			isDownloading = false;
 		}
 	}
 
 	async function handleSetCover() {
-		if (!albumId || !assetId) return;
+		if (!albumId || !assetId || isSettingCover) return;
+		isSettingCover = true;
 		try {
 			await setAlbumCover(albumId, assetId);
 			toast.success(m.pm_cover_updated());
 			clientCache.delete('album-covers', albumId);
 		} catch (e) {
 			toast.error(m.common_error_detail({ error: (e as Error).message }));
+		} finally {
+			isSettingCover = false;
 		}
 	}
 
@@ -445,7 +456,8 @@
 		else if (e.key === '+' || e.key === '=') scale = Math.min(scale + 0.5, MAX_SCALE);
 		else if (e.key === '-' || e.key === '_') scale = Math.max(scale - 0.5, minScale);
 		else if (e.key === '0') resetZoom();
-		else if (e.key === 'Delete' && canManagePhotos) deleteCurrentAsset(e.shiftKey);
+		// Delete always goes through the confirm modal (no accidental Shift+Delete bypass).
+		else if (e.key === 'Delete' && canManagePhotos) deleteCurrentAsset();
 	}
 
 	onMount(() => {
@@ -489,12 +501,19 @@
 			</div>
 			<div class="modal-actions">
 				{#if canManagePhotos && albumId}
-					<button class="btn-icon" onclick={handleSetCover} title={m.pm_set_cover()}>
+					<button
+						type="button"
+						class="btn-icon"
+						onclick={handleSetCover}
+						title={m.pm_set_cover()}
+						disabled={isSettingCover}
+					>
 						<ImageIcon size={20} />
 					</button>
 				{/if}
 				{#if !isVideo && mediaUrl}
 					<button
+						type="button"
 						class="btn-icon"
 						onclick={() => (scale = Math.max(scale - 0.5, minScale))}
 						title="Zoom -"
@@ -504,6 +523,7 @@
 					</button>
 					<span class="zoom-level">{Math.round(scale * 100)}%</span>
 					<button
+						type="button"
 						class="btn-icon"
 						onclick={() => (scale = Math.min(scale + 0.5, MAX_SCALE))}
 						title="Zoom +"
@@ -511,12 +531,13 @@
 					>
 						<Plus size={20} />
 					</button>
-					<button class="btn-icon" onclick={resetZoom} title="Reset (100%)" disabled={scale === 1}>
+					<button type="button" class="btn-icon" onclick={resetZoom} title="Reset (100%)" disabled={scale === 1}>
 						<RefreshCw size={20} />
 					</button>
 				{/if}
 				{#if showFavorite && asset && onFavoriteToggle}
 					<button
+						type="button"
 						class="btn-icon btn-favorite"
 						class:active={asset.isFavorite}
 						onclick={async () => {
@@ -531,11 +552,18 @@
 						<Heart size={20} fill={asset.isFavorite ? 'currentColor' : 'none'} />
 					</button>
 				{/if}
-				<button class="btn-icon" onclick={downloadAsset} title={m.common_download()} disabled={!asset}>
+				<button
+					type="button"
+					class="btn-icon"
+					onclick={downloadAsset}
+					title={m.common_download()}
+					disabled={!asset || isDownloading}
+				>
 					<Download size={20} />
 				</button>
 				{#if canManagePhotos}
 					<button
+						type="button"
 						class="btn-icon btn-delete"
 						onclick={() => deleteCurrentAsset(false)}
 						title={m.pm_delete_key()}
@@ -544,7 +572,7 @@
 						<Trash2 size={20} />
 					</button>
 				{/if}
-				<button class="btn-icon" onclick={onClose} title="Fermer">
+				<button type="button" class="btn-icon" onclick={onClose} title="Fermer">
 					<X size={20} />
 				</button>
 			</div>
@@ -552,7 +580,7 @@
 
 		<div class="modal-body">
 			{#if currentIndex > 0}
-				<button class="nav-button nav-left" onclick={goToPrevious} title="Photo précédente">
+				<button type="button" class="nav-button nav-left" onclick={goToPrevious} title="Photo précédente">
 					<ChevronLeft size={32} />
 				</button>
 			{/if}
@@ -601,7 +629,7 @@
 			</div>
 
 			{#if currentIndex < assets.length - 1}
-				<button class="nav-button nav-right" onclick={goToNext} title="Photo suivante">
+				<button type="button" class="nav-button nav-right" onclick={goToNext} title="Photo suivante">
 					<ChevronRight size={32} />
 				</button>
 			{/if}
@@ -729,19 +757,19 @@
 		cursor: not-allowed;
 	}
 	.btn-delete {
-		background: rgba(220, 38, 38, 0.8);
+		background: color-mix(in srgb, var(--error-hover) 80%, transparent);
 	}
 	.btn-delete:hover:not(:disabled) {
-		background: rgba(220, 38, 38, 1);
+		background: var(--error-hover);
 	}
 	.btn-favorite {
-		color: #f87171;
+		color: var(--error);
 	}
 	.btn-favorite:hover:not(:disabled) {
-		background: rgba(239, 68, 68, 0.2);
+		background: color-mix(in srgb, var(--error) 20%, transparent);
 	}
 	.btn-favorite.active {
-		background: rgba(239, 68, 68, 0.9);
+		background: color-mix(in srgb, var(--error) 90%, transparent);
 		color: white;
 	}
 
@@ -819,7 +847,7 @@
 		color: rgba(255, 255, 255, 0.85);
 		background: linear-gradient(to top, rgba(255, 255, 255, 0.02), transparent);
 		border-top: 1px solid rgba(255, 255, 255, 0.03);
-		border-radius: 0 0 12px 12px;
+		border-radius: 0 0 var(--radius-md) var(--radius-md);
 		backdrop-filter: blur(6px);
 		z-index: 10;
 		position: relative;
