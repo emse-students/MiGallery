@@ -1,9 +1,43 @@
 <script lang="ts">
-	import { Activity } from 'lucide-svelte';
+	import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
 	import type { PageData } from './$types';
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let { data } = $props<{ data: PageData }>();
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let logs = $derived(data.logs as any[]);
+
+	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function navigate(next: { q?: string; event?: string; page?: number }) {
+		const sp = new URLSearchParams();
+		const q = next.q ?? data.filters.q;
+		const ev = next.event ?? data.filters.eventType;
+		const page = next.page ?? 1;
+		if (q) sp.set('q', q);
+		if (ev) sp.set('event', ev);
+		if (page > 1) sp.set('page', String(page));
+		const qs = sp.toString();
+		goto(qs ? `?${qs}` : '?', { keepFocus: true, noScroll: true });
+	}
+
+	function onSearchInput(e: Event & { currentTarget: HTMLInputElement }) {
+		const value = e.currentTarget.value;
+		if (searchTimer) clearTimeout(searchTimer);
+		searchTimer = setTimeout(() => navigate({ q: value, page: 1 }), 300);
+	}
+
+	function onEventChange(e: Event & { currentTarget: HTMLSelectElement }) {
+		navigate({ event: e.currentTarget.value, page: 1 });
+	}
+
+	function resetFilters() {
+		if (searchTimer) clearTimeout(searchTimer);
+		goto('?', { keepFocus: true, noScroll: true });
+	}
+
+	const hasFilters = $derived(!!(data.filters.q || data.filters.eventType));
 </script>
 
 <svelte:head>
@@ -13,8 +47,31 @@
 <div class="logs-container">
 	<header class="page-header">
 		<h1><Activity size={28} /> Logs Système</h1>
-		<p>Historique des 200 dernières actions</p>
+		<p>{data.total} evenement{data.total > 1 ? 's' : ''} enregistre{data.total > 1 ? 's' : ''}</p>
 	</header>
+
+	<div class="filter-bar">
+		<div class="search-field">
+			<Search size={16} />
+			<input
+				type="search"
+				placeholder="Rechercher (acteur, cible, détails)…"
+				value={data.filters.q}
+				oninput={onSearchInput}
+			/>
+		</div>
+		<select class="event-select" value={data.filters.eventType} onchange={onEventChange}>
+			<option value="">Tous les types</option>
+			{#each data.eventTypes as et}
+				<option value={et}>{et}</option>
+			{/each}
+		</select>
+		{#if hasFilters}
+			<button type="button" class="btn-glass" onclick={resetFilters}>
+				<RotateCcw size={15} /> Réinitialiser
+			</button>
+		{/if}
+	</div>
 
 	<div class="grid-table glass-card">
 		<div class="table-header">
@@ -43,7 +100,8 @@
 						{#if log.target_type}
 							<div class="target-wrapper">
 								<span class="target">{log.target_type}</span>
-								{#if log.target_id}<span class="target-id">#{log.target_id.substring(0, 8)}...</span>{/if}
+								{#if log.target_id}<span class="target-id">#{log.target_id.substring(0, 8)}...</span
+									>{/if}
 							</div>
 						{:else}
 							<span class="muted">-</span>
@@ -53,14 +111,38 @@
 						{log.details || '-'}
 					</div>
 				</div>
+			{:else}
+				<div class="empty-row">Aucun evenement ne correspond aux filtres.</div>
 			{/each}
 		</div>
 	</div>
+
+	<footer class="pager">
+		<span class="pager-info">Page {data.page} / {data.pageCount}</span>
+		<div class="pager-actions">
+			<button
+				type="button"
+				class="btn-glass icon"
+				disabled={data.page <= 1}
+				onclick={() => navigate({ page: data.page - 1 })}
+				title="Page précédente"
+			>
+				<ChevronLeft size={18} />
+			</button>
+			<button
+				type="button"
+				class="btn-glass icon"
+				disabled={data.page >= data.pageCount}
+				onclick={() => navigate({ page: data.page + 1 })}
+				title="Page suivante"
+			>
+				<ChevronRight size={18} />
+			</button>
+		</div>
+	</footer>
 </div>
 
 <style>
-	/* Grid configuration: alignment is guaranteed here */
-	/* Define widths: fixed | fixed | fixed | percentage | remaining */
 	:global(.grid-table) {
 		--col-layout: 180px 140px 100px 25% 1fr;
 	}
@@ -73,7 +155,7 @@
 	}
 
 	.page-header {
-		margin-bottom: 2rem;
+		margin-bottom: 1.5rem;
 	}
 	.page-header h1 {
 		display: flex;
@@ -82,30 +164,69 @@
 		font-size: 2rem;
 		margin-bottom: 0.5rem;
 	}
+	.page-header p {
+		color: var(--text-secondary);
+	}
 
-	/* Conteneur principal */
+	/* --- FILTER BAR --- */
+	.filter-bar {
+		display: flex;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+	.search-field {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex: 1;
+		min-width: 220px;
+		background: var(--bg-secondary);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		padding: 0 0.75rem;
+		color: var(--text-muted);
+	}
+	.search-field input {
+		flex: 1;
+		border: none;
+		background: transparent;
+		color: var(--text-primary);
+		padding: 0.6rem 0;
+		font-size: 0.9rem;
+		outline: none;
+	}
+	.event-select {
+		background: var(--bg-secondary);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		color: var(--text-primary);
+		padding: 0.6rem 0.75rem;
+		font-size: 0.9rem;
+		cursor: pointer;
+	}
+
 	.glass-card {
 		background: var(--bg-secondary);
 		border: 1px solid var(--border);
-		border-radius: 1rem;
+		border-radius: var(--radius);
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
-		height: 75vh; /* Hauteur fixe pour permettre le scroll interne */
+		height: 70vh;
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 	}
 
-	/* Lignes (Header et Row) partagent la MEME définition de grille */
 	.table-header,
 	.table-row {
 		display: grid;
 		grid-template-columns: var(--col-layout);
-		align-items: center; /* Centrage vertical du texte */
+		align-items: center;
 	}
 
-	/* Style de l'en-tête */
 	.table-header {
-		background: rgba(0, 0, 0, 0.2); /* Slightly darker background */
+		background: color-mix(in srgb, var(--text-primary) 6%, transparent);
 		font-weight: 600;
 		color: var(--text-muted);
 		text-transform: uppercase;
@@ -113,11 +234,9 @@
 		letter-spacing: 0.05em;
 		border-bottom: 1px solid var(--border);
 		z-index: 10;
-		/* Header stays at top of parent container */
 		flex-shrink: 0;
 	}
 
-	/* Scrollable content area */
 	.table-body {
 		overflow-y: auto;
 		flex-grow: 1;
@@ -133,27 +252,29 @@
 		border-bottom: none;
 	}
 	.table-row:hover {
-		background: rgba(255, 255, 255, 0.03);
+		background: color-mix(in srgb, var(--text-primary) 3%, transparent);
 	}
 
-	/* Cellules */
+	.empty-row {
+		padding: 3rem 1rem;
+		text-align: center;
+		color: var(--text-muted);
+	}
+
 	.cell {
 		padding: 1rem;
 		border-right: 1px solid var(--border);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		height: 100%; /* Important pour que la bordure fasse toute la hauteur */
+		height: 100%;
 		display: flex;
-		align-items: center; /* Centrage vertical du contenu */
+		align-items: center;
 	}
-
-	/* Pas de bordure à droite pour la dernière colonne */
 	.cell:last-child {
 		border-right: none;
 	}
 
-	/* Content styles (same as before) */
 	.col-date {
 		color: var(--text-secondary);
 		font-size: 0.9rem;
@@ -162,7 +283,7 @@
 
 	.badge {
 		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
+		border-radius: var(--radius-xs);
 		font-size: 0.8rem;
 		font-weight: 600;
 	}
@@ -211,5 +332,22 @@
 		color: var(--text-secondary);
 		font-family: monospace;
 		font-size: 0.8rem;
+	}
+
+	/* --- PAGER --- */
+	.pager {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 1rem;
+		gap: 1rem;
+	}
+	.pager-info {
+		color: var(--text-secondary);
+		font-size: 0.9rem;
+	}
+	.pager-actions {
+		display: flex;
+		gap: 0.5rem;
 	}
 </style>
