@@ -23,6 +23,7 @@
 	} from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { User } from '$lib/types/api';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
@@ -544,17 +545,15 @@
 		{/if}
 
 		{#if !loading && !error && users.length === 0}
-			<div class="empty-state" in:fade>
-				<div class="empty-icon"><Users size={48} /></div>
-				<p>Aucun utilisateur trouvé</p>
+			<div in:fade>
+				<EmptyState icon={Users} title="Aucun utilisateur trouvé" />
 			</div>
 		{/if}
 
 		{#if users.length > 0}
 			{#if filteredUsers.length === 0}
-				<div class="empty-state" in:fade>
-					<div class="empty-icon"><Search size={48} /></div>
-					<p>Aucun membre ne correspond à votre recherche</p>
+				<div in:fade>
+					<EmptyState icon={Search} title="Aucun membre ne correspond à votre recherche" />
 				</div>
 			{:else}
 				<div class="content-area">
@@ -1011,17 +1010,6 @@
 		border-color: color-mix(in srgb, var(--error) 20%, transparent);
 		background: color-mix(in srgb, var(--error) 5%, transparent);
 	}
-	.empty-state {
-		padding: 4rem;
-		text-align: center;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		opacity: 0.8;
-	}
-
 	/* --- CONTENT GRID --- */
 	.promo-section {
 		margin-bottom: 4rem;

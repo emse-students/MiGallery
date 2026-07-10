@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Key, Book, CirclePlus, Check, Info, AlertCircle, RefreshCw, Trash2 } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
@@ -216,10 +217,7 @@
 					</table>
 				</div>
 			{:else if !loading}
-				<div class="empty-state">
-					<Key size={48} />
-					<p>Aucune clé API active.</p>
-				</div>
+				<EmptyState icon={Key} title="Aucune clé API active." />
 			{/if}
 		</section>
 	</div>

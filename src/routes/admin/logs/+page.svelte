@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { PageData } from './$types';
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,7 +113,11 @@
 					</div>
 				</div>
 			{:else}
-				<div class="empty-row">Aucun evenement ne correspond aux filtres.</div>
+				<EmptyState
+					title="Aucun evenement"
+					description="Aucun evenement ne correspond aux filtres."
+					size="sm"
+				/>
 			{/each}
 		</div>
 	</div>
@@ -253,12 +258,6 @@
 	}
 	.table-row:hover {
 		background: color-mix(in srgb, var(--text-primary) 3%, transparent);
-	}
-
-	.empty-row {
-		padding: 3rem 1rem;
-		text-align: center;
-		color: var(--text-muted);
 	}
 
 	.cell {

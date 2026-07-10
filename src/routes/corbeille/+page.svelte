@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { XCircle, Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
@@ -268,10 +269,7 @@
 	{/if}
 
 	{#if !loading && !error && assets.length === 0}
-		<div class="empty-state">
-			<Trash2 size={48} />
-			<p>La corbeille est vide</p>
-		</div>
+		<EmptyState icon={Trash2} title="La corbeille est vide" size="md" />
 	{/if}
 
 	{#if assets.length > 0}
@@ -719,21 +717,6 @@
 
 	.btn-delete-selection:hover:not(:disabled) {
 		background: var(--error-hover) !important;
-	}
-
-	.empty-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 1rem;
-		padding: 4rem 1rem;
-		color: var(--text-secondary);
-	}
-
-	.empty-state p {
-		font-size: 1.125rem;
-		margin: 0;
 	}
 
 	@media (max-width: 768px) {

@@ -18,6 +18,7 @@
 		Box
 	} from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import { asApiResponse } from '$lib/ts-utils';
@@ -380,10 +381,7 @@
 
 					<div class="backup-list-container">
 						{#if backups.length === 0}
-							<div class="empty-placeholder">
-								<Inbox size={48} />
-								<p>Aucune sauvegarde</p>
-							</div>
+							<EmptyState icon={Inbox} title="Aucune sauvegarde" />
 						{:else}
 							{#each backups as backup}
 								<div class="backup-row">
@@ -834,17 +832,6 @@
 	.btn-restore:hover {
 		background: color-mix(in srgb, var(--accent) 15%, transparent);
 		color: var(--accent);
-	}
-
-	.empty-placeholder {
-		padding: 3rem;
-		text-align: center;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		opacity: 0.7;
 	}
 
 	/* --- MODAL --- */

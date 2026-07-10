@@ -2,6 +2,7 @@
 	import { Users, Search, Trash2 } from 'lucide-svelte';
 	import { invalidateAll } from '$app/navigation';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { fuzzyMatch } from '$lib/fuzzy';
 	import { toast } from '$lib/toast';
@@ -162,7 +163,12 @@
 				</button>
 			</div>
 		{:else}
-			<p class="empty">Aucun utilisateur ne correspond à la recherche.</p>
+			<EmptyState
+				icon={Search}
+				title="Aucun résultat"
+				description="Aucun utilisateur ne correspond à la recherche."
+				size="sm"
+			/>
 		{/each}
 	</div>
 </div>
@@ -315,9 +321,4 @@
 		color: var(--edit);
 	}
 
-	.empty {
-		text-align: center;
-		color: var(--text-muted);
-		padding: 2rem;
-	}
 </style>

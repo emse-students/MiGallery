@@ -26,6 +26,7 @@
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { fuzzyMatch } from '$lib/fuzzy';
 	import { PhotosState } from '$lib/photos.svelte';
 	import { theme } from '$lib/theme';
@@ -874,9 +875,7 @@
 								{/each}
 							</div>
 						{:else}
-							<div class="empty-state">
-								<p>{m.param_no_auth()}</p>
-							</div>
+							<EmptyState title={m.param_no_auth()} size="sm" />
 						{/if}
 					</div>
 				</div>
@@ -922,9 +921,7 @@
 						{/each}
 					</div>
 				{:else}
-					<div class="empty-state">
-						<p>{m.param_no_shared()}</p>
-					</div>
+					<EmptyState title={m.param_no_shared()} size="sm" />
 				{/if}
 			</div>
 		</section>
@@ -1494,13 +1491,6 @@
 		display: inline-flex;
 		align-items: center;
 		color: var(--text-muted);
-	}
-
-	.empty-state {
-		text-align: center;
-		color: var(--text-secondary);
-		font-style: italic;
-		padding: 1rem;
 	}
 
 	/* --- DANGER ZONE --- */

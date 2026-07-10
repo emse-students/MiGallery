@@ -14,6 +14,7 @@
 	} from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
 	import AlbumModal from '$lib/components/AlbumModal.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -314,17 +315,15 @@
 		{/if}
 
 		{#if !loading && !error && albums.length === 0}
-			<div class="empty-state" in:fade>
-				<div class="empty-icon"><ImageIcon size={48} /></div>
-				<p>{m.albums_empty()}</p>
+			<div in:fade>
+				<EmptyState icon={ImageIcon} title={m.albums_empty()} />
 			</div>
 		{/if}
 
 		{#if !loading && albums.length > 0}
 			{#if filteredAlbums.length === 0}
-				<div class="empty-state" in:fade>
-					<div class="empty-icon"><Search size={48} /></div>
-					<p>{m.albums_no_match()}</p>
+				<div in:fade>
+					<EmptyState icon={Search} title={m.albums_no_match()} />
 				</div>
 			{:else}
 				<div class="albums-timeline">
@@ -736,17 +735,6 @@
 	.state-message.error {
 		color: var(--error, #ef4444);
 		border-color: color-mix(in srgb, var(--error, #ef4444) 20%, transparent);
-	}
-
-	.empty-state {
-		text-align: center;
-		padding: 4rem;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		opacity: 0.7;
 	}
 
 	.load-more-sentinel {
