@@ -6,6 +6,7 @@
     { href: '/admin/metrics', label: 'Santé', icon: '📊' },
     { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
     { href: '/admin/logs', label: 'Logs', icon: '📜' },
+    { href: '/admin/users', label: 'Utilisateurs', icon: '👤' },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
     { href: '/admin/database', label: 'Base de données', icon: '🗄️' },
     { href: '/trombinoscope', label: 'Trombinoscope', icon: '👥' },
