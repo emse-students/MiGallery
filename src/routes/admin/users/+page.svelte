@@ -251,10 +251,11 @@
 	}
 
 	.user-row {
-		display: flex;
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) 160px auto;
 		align-items: center;
 		gap: 1rem;
-		padding: 0.75rem 1rem;
+		padding: 0.6rem 1rem;
 		background: var(--bg-secondary);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
@@ -270,11 +271,12 @@
 	.user-name {
 		font-weight: 600;
 		color: var(--text-primary);
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 	.you-tag {
+		margin-left: 0.5rem;
 		font-size: 0.7rem;
 		font-weight: 600;
 		text-transform: uppercase;
@@ -301,6 +303,7 @@
 	}
 
 	.role-select {
+		width: 100%;
 		background: var(--bg-tertiary);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xs);
