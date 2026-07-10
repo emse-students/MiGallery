@@ -63,7 +63,7 @@ Theme 1b - FULL admin harmonization (ACTIVE)
 - \[x\] WP-1b.1 central icon barrel src/lib/icons.ts; sidebar emojis -> lucide; husky hook -> npm
 - \[x\] WP-1b.2 api-docs: AdminPage shell + strip ALL emojis + quick-links -> header actions
 - \[ \] WP-1b.3 full-width panels, no horizontal scroll, mobile pass (AdminPage max-widths, .content, wide tables/grids)
-- \[ \] WP-1b.4 fix "invisible" icons = de-globalize shared-admin.css bare-element selectors (scope them)
+- \[x\] WP-1b.4 de-globalize shared-admin.css: ALL selectors scoped under .admin-shell (main gets that class). Behavior-neutral inside admin (specificity unchanged vs app.css button:not); stops leak before 1b.5. Icons were never actually broken (valid names + explicit colors + app.css :global(.lucide) min-size guard).
 - \[ \] WP-1b.5 integrate /trombinoscope + /corbeille INTO admin layout (keep sidebar visible)
 - \[ \] WP-1b.6 wiki: repoint Documentation tab to render docs/wiki/\*; retire api-docs page; write concise EN LLM-friendly API section
 
@@ -87,8 +87,8 @@ Theme 4 - Backlog (last)
 **Memory Gotchas (Do not repeat):**
 
 - lucide-svelte 1.0.1: some old names removed (BarChart2->ChartColumn, UploadCloud->CloudUpload). Verify names against node_modules/lucide-svelte/dist/icons/. Trash2/RotateCcw/RefreshCw DO exist -> if they look "missing" it is a CSS/render issue, not a bad name.
-- Icons are imported ad-hoc per file. There is NO central icon barrel (candidate: src/lib/icons.ts).
-- shared-admin.css defines GLOBAL bare-element selectors (h1/table/input/button...). Root cause of cross-tab drift. AdminPage's scoped .admin-page-heading h1 beats it.
+- Central icon barrel EXISTS: src/lib/icons.ts. Import icons from there, not directly from lucide-svelte; add new icons to the barrel (names verified against dist/icons).
+- shared-admin.css is now SCOPED under .admin-shell (the admin layout <main>). Bare-element rules (h1/table/input/button...) no longer leak. It is only injected on /admin routes anyway (layout code-split). AdminPage's scoped .admin-page-heading h1 still beats it.
 - Icon prop typing for passing lucide components: ComponentType<SvelteComponent> (NOT Component).
-- Pre-commit hook runs via BUN (bunx lint-staged && bun run check), not npm.
+- Pre-commit hook runs via npm (npx lint-staged && npm run check).
 - Immich cache (src/lib/server/immich-cache.ts): near-useless hit rate by design (thumbnails excluded, per-URL keys rarely repeat within TTL). Not harmful.

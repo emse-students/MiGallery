@@ -50,7 +50,7 @@
     </div>
   </aside>
 
-  <main class="content">
+  <main class="content admin-shell">
     {@render children()}
   </main>
 </div>
