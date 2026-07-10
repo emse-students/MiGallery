@@ -149,6 +149,53 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 				void _e;
 			}
 		}
+		// Unified album permissions (replaces the 4 album_*_permissions tables).
+		// One-time backfill from the legacy tables, gated by PRAGMA user_version so
+		// permissions deleted after the migration are not resurrected on restart.
+		try {
+			dbInstance.exec(
+				`CREATE TABLE IF NOT EXISTS album_permissions (
+					album_id TEXT NOT NULL,
+					kind TEXT NOT NULL,
+					value TEXT NOT NULL,
+					PRIMARY KEY (album_id, kind, value),
+					FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
+				)`
+			);
+			const uv = (dbInstance.prepare('PRAGMA user_version').get() as { user_version: number })
+				.user_version;
+			if (uv < 1) {
+				const legacyExists = (name: string) =>
+					!!dbInstance.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?").get(name);
+				if (legacyExists('album_user_permissions')) {
+					dbInstance.exec(
+						"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) SELECT album_id, 'user', id_user FROM album_user_permissions"
+					);
+				}
+				if (legacyExists('album_tag_permissions')) {
+					dbInstance.exec(
+						"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) SELECT album_id, 'tag', tag FROM album_tag_permissions"
+					);
+				}
+				if (legacyExists('album_formation_permissions')) {
+					dbInstance.exec(
+						"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) SELECT album_id, 'formation', formation FROM album_formation_permissions"
+					);
+				}
+				if (legacyExists('album_promo_permissions')) {
+					dbInstance.exec(
+						"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) SELECT album_id, 'promo', CAST(promo_year AS TEXT) FROM album_promo_permissions"
+					);
+				}
+				dbInstance.exec('PRAGMA user_version = 1');
+			}
+		} catch (_e) {
+			try {
+				console.warn('DB migration (album_permissions) notice:', (_e as Error).message);
+			} catch {
+				void _e;
+			}
+		}
 	} catch (_e) {
 		void _e;
 		try {

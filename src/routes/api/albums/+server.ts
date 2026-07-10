@@ -161,7 +161,7 @@ export const POST: RequestHandler = async (event) => {
 
 			if (Array.isArray(tags) && tags.length > 0) {
 				const tagStmt = db.prepare(
-					'INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)'
+					"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) VALUES (?, 'tag', ?)"
 				);
 				for (const tag of tags) {
 					const trimmedTag = String(tag).trim();
@@ -173,7 +173,7 @@ export const POST: RequestHandler = async (event) => {
 
 			if (normalizedFormations.length > 0) {
 				const formationStmt = db.prepare(
-					'INSERT OR IGNORE INTO album_formation_permissions (album_id, formation) VALUES (?, ?)'
+					"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) VALUES (?, 'formation', ?)"
 				);
 				for (const formation of normalizedFormations) {
 					formationStmt.run(albumId, formation);
@@ -182,16 +182,16 @@ export const POST: RequestHandler = async (event) => {
 
 			if (normalizedPromos.length > 0) {
 				const promoStmt = db.prepare(
-					'INSERT OR IGNORE INTO album_promo_permissions (album_id, promo_year) VALUES (?, ?)'
+					"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) VALUES (?, 'promo', ?)"
 				);
 				for (const promo of normalizedPromos) {
-					promoStmt.run(albumId, promo);
+					promoStmt.run(albumId, String(promo));
 				}
 			}
 
 			if (Array.isArray(allowedUsers) && allowedUsers.length > 0) {
 				const userStmt = db.prepare(
-					'INSERT OR IGNORE INTO album_user_permissions (album_id, id_user) VALUES (?, ?)'
+					"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) VALUES (?, 'user', ?)"
 				);
 				for (const userId of allowedUsers) {
 					const trimmedUserId = String(userId).trim();

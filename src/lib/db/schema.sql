@@ -64,6 +64,18 @@ CREATE TABLE IF NOT EXISTS album_promo_permissions (
     FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
 
+-- Unified album permissions: replaces the four album_*_permissions tables above.
+-- kind: 'user' | 'tag' | 'formation' | 'promo'. value holds the id/tag/formation/
+-- promo (promo stored as TEXT). Data is backfilled once from the legacy tables in
+-- database.ts (guarded by PRAGMA user_version); the legacy tables are dropped later.
+CREATE TABLE IF NOT EXISTS album_permissions (
+    album_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (album_id, kind, value),
+    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
+);
+
 -- User favorites: stores favorite photos per user (not shared with Immich)
 CREATE TABLE IF NOT EXISTS user_favorites (
     user_id TEXT NOT NULL,

@@ -6,7 +6,7 @@ import type { User, AlbumRow } from '$lib/types/api';
  * Rules (implemented):
  * - not logged-in => no access
  * - role 'mitviste' or 'admin' => full access
- * - explicit user permission in album_user_permissions => access
+ * - explicit user permission in album_permissions (kind='user') => access
  * - (formation permission AND promo permission matching user criteria) => access
  * - visibility 'authenticated' => any logged-in user has access
  * - visibility 'unlisted' => only users with explicit permission/criteria or mitviste/admin
@@ -29,7 +29,9 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 
 	// Check explicit user permission
 	const userPerm = db
-		.prepare('SELECT 1 FROM album_user_permissions WHERE album_id = ? AND id_user = ? LIMIT 1')
+		.prepare(
+			"SELECT 1 FROM album_permissions WHERE album_id = ? AND kind = 'user' AND value = ? LIMIT 1"
+		)
 		.get(album.id, user.id_user) as { 1: number } | undefined;
 	if (userPerm) {
 		return true;
@@ -42,13 +44,13 @@ export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow)
 	if (normalizedFormation && typeof promoYear === 'number') {
 		const combinedPerm = db
 			.prepare(
-				`SELECT 1 FROM album_formation_permissions af
-				 INNER JOIN album_promo_permissions ap
-				 ON af.album_id = ap.album_id
-				 WHERE af.album_id = ? AND lower(af.formation) = ? AND ap.promo_year = ?
+				`SELECT 1 FROM album_permissions af
+				 INNER JOIN album_permissions ap ON af.album_id = ap.album_id
+				 WHERE af.album_id = ? AND af.kind = 'formation' AND lower(af.value) = ?
+				 AND ap.kind = 'promo' AND ap.value = ?
 				 LIMIT 1`
 			)
-			.get(album.id, normalizedFormation, promoYear) as { 1: number } | undefined;
+			.get(album.id, normalizedFormation, String(promoYear)) as { 1: number } | undefined;
 		if (combinedPerm) {
 			return true;
 		}

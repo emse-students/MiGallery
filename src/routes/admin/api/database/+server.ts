@@ -6,10 +6,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 const REQUIRED_TABLES = [
 	'users',
 	'albums',
-	'album_user_permissions',
-	'album_tag_permissions',
-	'album_formation_permissions',
-	'album_promo_permissions',
+	'album_permissions',
 	'user_favorites',
 	'photo_access_permissions',
 	'logs',

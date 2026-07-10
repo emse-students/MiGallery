@@ -39,7 +39,7 @@ export const POST: RequestHandler = async (event) => {
 
 		if (Array.isArray(body.add) && body.add.length > 0) {
 			const stmt = db.prepare(
-				'INSERT OR IGNORE INTO album_tag_permissions (album_id, tag) VALUES (?, ?)'
+				"INSERT OR IGNORE INTO album_permissions (album_id, kind, value) VALUES (?, 'tag', ?)"
 			);
 			for (const tag of body.add) {
 				const trimmedTag = String(tag).trim();
@@ -51,7 +51,9 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		if (Array.isArray(body.remove) && body.remove.length > 0) {
-			const stmt = db.prepare('DELETE FROM album_tag_permissions WHERE album_id = ? AND tag = ?');
+			const stmt = db.prepare(
+				"DELETE FROM album_permissions WHERE album_id = ? AND kind = 'tag' AND value = ?"
+			);
 			for (const tag of body.remove) {
 				const trimmedTag = String(tag).trim();
 				if (trimmedTag) {

@@ -32,24 +32,24 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const tagsRows = db
-			.prepare('SELECT tag FROM album_tag_permissions WHERE album_id = ?')
-			.all(id) as { tag: string }[];
+			.prepare("SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'tag'")
+			.all(id) as { value: string }[];
 
 		const usersRows = db
-			.prepare('SELECT id_user FROM album_user_permissions WHERE album_id = ?')
-			.all(id) as { id_user: string }[];
+			.prepare("SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'user'")
+			.all(id) as { value: string }[];
 
 		const formationsRows = db
 			.prepare(
-				'SELECT formation FROM album_formation_permissions WHERE album_id = ? ORDER BY formation ASC'
+				"SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'formation' ORDER BY value ASC"
 			)
-			.all(id) as { formation: string }[];
+			.all(id) as { value: string }[];
 
 		const promosRows = db
 			.prepare(
-				'SELECT promo_year FROM album_promo_permissions WHERE album_id = ? ORDER BY promo_year ASC'
+				"SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'promo' ORDER BY CAST(value AS INTEGER) ASC"
 			)
-			.all(id) as { promo_year: number }[];
+			.all(id) as { value: string }[];
 
 		return json({
 			success: true,
@@ -61,10 +61,10 @@ export const GET: RequestHandler = async (event) => {
 				visibility: albumRow.visibility || 'private',
 				visible: albumRow.visible
 			},
-			tags: tagsRows.map((r) => r.tag),
-			users: usersRows.map((r) => r.id_user),
-			formations: formationsRows.map((r) => r.formation),
-			promos: promosRows.map((r) => r.promo_year)
+			tags: tagsRows.map((r) => r.value),
+			users: usersRows.map((r) => r.value),
+			formations: formationsRows.map((r) => r.value),
+			promos: promosRows.map((r) => Number(r.value))
 		});
 	} catch (err: unknown) {
 		const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';

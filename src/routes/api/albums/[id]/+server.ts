@@ -95,10 +95,7 @@ export const DELETE: RequestHandler = async (event) => {
 		try {
 			const db = getDatabase();
 			db.prepare('DELETE FROM albums WHERE id = ?').run(id);
-			db.prepare('DELETE FROM album_tag_permissions WHERE album_id = ?').run(id);
-			db.prepare('DELETE FROM album_formation_permissions WHERE album_id = ?').run(id);
-			db.prepare('DELETE FROM album_promo_permissions WHERE album_id = ?').run(id);
-			db.prepare('DELETE FROM album_user_permissions WHERE album_id = ?').run(id);
+			db.prepare('DELETE FROM album_permissions WHERE album_id = ?').run(id);
 			console.warn(`Album ${id} supprimé de la BDD locale`);
 		} catch (dbErr: unknown) {
 			const err = ensureError(dbErr);
@@ -242,38 +239,42 @@ export const PATCH: RequestHandler = async (event) => {
 
 		if (tags && Array.isArray(tags)) {
 			const existingTags = db
-				.prepare('SELECT tag FROM album_tag_permissions WHERE album_id = ?')
-				.all(id) as { tag: string }[];
-			const existingTagNames = existingTags.map((t) => t.tag);
+				.prepare("SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'tag'")
+				.all(id) as { value: string }[];
+			const existingTagNames = existingTags.map((t) => t.value);
 
 			const tagsToAdd = tags.filter((t) => !existingTagNames.includes(t));
 			for (const tag of tagsToAdd) {
-				db.prepare('INSERT INTO album_tag_permissions (album_id, tag) VALUES (?, ?)').run(id, tag);
+				db
+					.prepare("INSERT INTO album_permissions (album_id, kind, value) VALUES (?, 'tag', ?)")
+					.run(id, tag);
 			}
 
 			const tagsToRemove = existingTagNames.filter((t) => !tags.includes(t));
 			for (const tag of tagsToRemove) {
-				db.prepare('DELETE FROM album_tag_permissions WHERE album_id = ? AND tag = ?').run(id, tag);
+				db
+					.prepare("DELETE FROM album_permissions WHERE album_id = ? AND kind = 'tag' AND value = ?")
+					.run(id, tag);
 			}
 		}
 
 		if (allowedUsers && Array.isArray(allowedUsers)) {
 			const existingUsers = db
-				.prepare('SELECT id_user FROM album_user_permissions WHERE album_id = ?')
-				.all(id) as { id_user: string }[];
-			const existingUserIds = existingUsers.map((u) => u.id_user);
+				.prepare("SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'user'")
+				.all(id) as { value: string }[];
+			const existingUserIds = existingUsers.map((u) => u.value);
 
 			const usersToAdd = allowedUsers.filter((u) => !existingUserIds.includes(u));
 			for (const userId of usersToAdd) {
 				db
-					.prepare('INSERT INTO album_user_permissions (album_id, id_user) VALUES (?, ?)')
+					.prepare("INSERT INTO album_permissions (album_id, kind, value) VALUES (?, 'user', ?)")
 					.run(id, userId);
 			}
 
 			const usersToRemove = existingUserIds.filter((u) => !allowedUsers.includes(u));
 			for (const userId of usersToRemove) {
 				db
-					.prepare('DELETE FROM album_user_permissions WHERE album_id = ? AND id_user = ?')
+					.prepare("DELETE FROM album_permissions WHERE album_id = ? AND kind = 'user' AND value = ?")
 					.run(id, userId);
 			}
 		}
@@ -283,16 +284,16 @@ export const PATCH: RequestHandler = async (event) => {
 				...new Set(formations.map((f) => String(f).trim()).filter(Boolean))
 			];
 			const existingFormations = db
-				.prepare('SELECT formation FROM album_formation_permissions WHERE album_id = ?')
-				.all(id) as { formation: string }[];
-			const existingFormationNames = existingFormations.map((f) => f.formation);
+				.prepare("SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'formation'")
+				.all(id) as { value: string }[];
+			const existingFormationNames = existingFormations.map((f) => f.value);
 
 			const formationsToAdd = normalizedFormations.filter(
 				(formation) => !existingFormationNames.includes(formation)
 			);
 			for (const formation of formationsToAdd) {
 				db
-					.prepare('INSERT INTO album_formation_permissions (album_id, formation) VALUES (?, ?)')
+					.prepare("INSERT INTO album_permissions (album_id, kind, value) VALUES (?, 'formation', ?)")
 					.run(id, formation);
 			}
 
@@ -301,7 +302,9 @@ export const PATCH: RequestHandler = async (event) => {
 			);
 			for (const formation of formationsToRemove) {
 				db
-					.prepare('DELETE FROM album_formation_permissions WHERE album_id = ? AND formation = ?')
+					.prepare(
+						"DELETE FROM album_permissions WHERE album_id = ? AND kind = 'formation' AND value = ?"
+					)
 					.run(id, formation);
 			}
 		}
@@ -312,22 +315,22 @@ export const PATCH: RequestHandler = async (event) => {
 				...extractPromoYearsFromLegacyTags(Array.isArray(tags) ? tags : [])
 			]);
 			const existingPromos = db
-				.prepare('SELECT promo_year FROM album_promo_permissions WHERE album_id = ?')
-				.all(id) as { promo_year: number }[];
-			const existingPromoYears = existingPromos.map((p) => p.promo_year);
+				.prepare("SELECT value FROM album_permissions WHERE album_id = ? AND kind = 'promo'")
+				.all(id) as { value: string }[];
+			const existingPromoYears = existingPromos.map((p) => Number(p.value));
 
 			const promosToAdd = normalizedPromos.filter((promo) => !existingPromoYears.includes(promo));
 			for (const promo of promosToAdd) {
 				db
-					.prepare('INSERT INTO album_promo_permissions (album_id, promo_year) VALUES (?, ?)')
-					.run(id, promo);
+					.prepare("INSERT INTO album_permissions (album_id, kind, value) VALUES (?, 'promo', ?)")
+					.run(id, String(promo));
 			}
 
 			const promosToRemove = existingPromoYears.filter((promo) => !normalizedPromos.includes(promo));
 			for (const promo of promosToRemove) {
 				db
-					.prepare('DELETE FROM album_promo_permissions WHERE album_id = ? AND promo_year = ?')
-					.run(id, promo);
+					.prepare("DELETE FROM album_permissions WHERE album_id = ? AND kind = 'promo' AND value = ?")
+					.run(id, String(promo));
 			}
 		}
 
