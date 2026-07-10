@@ -3,6 +3,7 @@
   import './shared-admin.css';
   const links = [
     { href: '/admin', label: 'Documentation', icon: '📚' },
+    { href: '/admin/metrics', label: 'Santé', icon: '📊' },
     { href: '/admin/api-docs', label: 'API Reference', icon: '📡' },
     { href: '/admin/logs', label: 'Logs', icon: '📜' },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: '🔑' },
