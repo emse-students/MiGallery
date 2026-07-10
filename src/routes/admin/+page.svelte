@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { BookOpen, List, FileText } from 'lucide-svelte';
-	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 
 	interface Doc {
 		filename: string;
@@ -35,20 +35,12 @@
 	<title>Admin - Documentation</title>
 </svelte:head>
 
-<div role="main" class="docs-main">
-	<BackgroundBlobs />
-
-	<div class="docs-container">
-		<header class="page-header">
-			<div class="header-icon">
-				<BookOpen size={32} />
-			</div>
-			<div>
-				<h1>Documentation interne</h1>
-				<p class="subtitle">Référence technique et guides développeur</p>
-			</div>
-		</header>
-
+<AdminPage
+	title="Documentation interne"
+	subtitle="Référence technique et guides développeur"
+	icon={BookOpen}
+	maxWidth="1400px"
+>
 		<div class="docs-layout">
 			<!-- SIDEBAR (TOC) -->
 			<aside class="docs-sidebar">
@@ -90,79 +82,24 @@
 				{/each}
 			</div>
 		</div>
-	</div>
-</div>
+</AdminPage>
 
 <style>
 	/* --- LOCAL SURFACE TOKENS (non-mirror: card + code block) --- */
-	.docs-main {
+	.docs-layout {
 		--doc-card-bg: rgba(255, 255, 255, 0.8);
 		--doc-code-bg: #1e293b;
 		--doc-code-text: #e2e8f0;
 
-		position: relative;
-		min-height: 100vh;
-		color: var(--text-primary);
-		background-color: var(--bg-primary);
-		padding: 2rem 1rem 6rem;
-		overflow-x: hidden;
-		border-radius: 1.5rem;
-	}
-
-	:global([data-theme='dark']) .docs-main {
-		--doc-card-bg: rgba(30, 41, 59, 0.7);
-		--doc-code-bg: #020617;
-	}
-
-	/* --- BACKGROUND --- */
-	/* Removed */
-
-	.docs-container {
-		position: relative;
-		z-index: 1;
-		max-width: 1400px;
-		margin: 0 auto;
-		width: 100%;
-	}
-
-	/* --- HEADER --- */
-	.page-header {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin-bottom: 3rem;
-		flex-wrap: wrap;
-	}
-	.header-icon {
-		width: 48px;
-		height: 48px;
-		min-width: 48px;
-		background: var(--gradient-brand);
-		color: white;
-		border-radius: var(--radius-md);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
-	}
-	.page-header h1 {
-		font-size: 1.8rem;
-		font-weight: 700;
-		margin: 0;
-		line-height: 1.2;
-	}
-	.subtitle {
-		color: var(--text-secondary);
-		font-size: 0.95rem;
-		margin: 0;
-	}
-
-	/* --- LAYOUT GRID --- */
-	.docs-layout {
 		display: grid;
 		grid-template-columns: 280px 1fr;
 		gap: 2rem;
 		align-items: start;
+	}
+
+	:global([data-theme='dark']) .docs-layout {
+		--doc-card-bg: rgba(30, 41, 59, 0.7);
+		--doc-code-bg: #020617;
 	}
 
 	/* --- SIDEBAR --- */
@@ -417,10 +354,6 @@
 
 		.doc-card {
 			padding: 1.5rem;
-		}
-
-		.page-header h1 {
-			font-size: 1.5rem;
 		}
 	}
 </style>

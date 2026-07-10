@@ -17,7 +17,7 @@
 		RotateCcw,
 		Box
 	} from 'lucide-svelte';
-	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
@@ -205,22 +205,12 @@
 	<title>Admin - Base de données</title>
 </svelte:head>
 
-<div role="main" class="admin-main">
-	<!-- Animated background -->
-	<BackgroundBlobs />
-
-	<div class="admin-container">
-		<!-- Header -->
-		<header class="page-header">
-			<div class="header-icon">
-				<Database size={32} />
-			</div>
-			<div>
-				<h1>Maintenance BDD</h1>
-				<p class="subtitle">Sauvegardes, restaurations et intégrité du système</p>
-			</div>
-		</header>
-
+<AdminPage
+	title="Maintenance BDD"
+	subtitle="Sauvegardes, restaurations et intégrité du système"
+	icon={Database}
+	maxWidth="1200px"
+>
 		{#if persistentMessage}
 			<div
 				class="glass-card mb-6 border-l-4"
@@ -409,7 +399,6 @@
 				</section>
 			</div>
 		</div>
-	</div>
 
 	<!-- Repair Modal -->
 	{#if showRepairModal}
@@ -443,59 +432,10 @@
 			</div>
 		</div>
 	{/if}
-</div>
+</AdminPage>
 
 <style>
 	/* Uses the global theme tokens directly (no per-page mirror variables). */
-	.admin-main {
-		position: relative;
-		min-height: 100vh;
-		color: var(--text-primary);
-		background-color: var(--bg-primary);
-		overflow-x: hidden;
-		padding: 2rem 1rem 6rem;
-		border-radius: 1.5rem;
-	}
-
-	.admin-container {
-		position: relative;
-		z-index: 1;
-		max-width: 1200px;
-		margin: 0 auto;
-	}
-
-	/* --- HEADER --- */
-	.page-header {
-		display: flex;
-		align-items: center;
-		gap: 1.5rem;
-		margin-bottom: 3rem;
-	}
-	.header-icon {
-		width: 56px;
-		height: 56px;
-		background: var(--gradient-brand);
-		color: white;
-		border-radius: var(--radius);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent) 50%, transparent);
-	}
-	.page-header h1 {
-		font-size: 2rem;
-		font-weight: 800;
-		margin: 0;
-		line-height: 1.1;
-		letter-spacing: -0.02em;
-	}
-	.subtitle {
-		color: var(--text-secondary);
-		font-size: 1rem;
-		margin: 0.25rem 0 0;
-	}
-
-	/* Buttons use the canonical .btn-glass from app.css. */
 
 	/* --- GRID LAYOUT --- */
 	.dashboard-grid {
