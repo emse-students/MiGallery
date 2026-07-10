@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { RefreshCw, Activity, Database, Cpu } from 'lucide-svelte';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 
 	interface Metrics {
 		timestamp: number;
@@ -84,23 +85,21 @@
 	<title>Admin - Santé</title>
 </svelte:head>
 
-<div class="metrics-page">
-	<header class="page-header">
-		<div class="header-icon"><Activity size={28} /></div>
-		<div class="header-text">
-			<h1>Santé du serveur</h1>
-			<p class="subtitle">Mémoire du process, uptime et cache Immich (temps réel)</p>
-		</div>
-		<div class="header-actions">
-			<label class="auto-toggle">
-				<input type="checkbox" bind:checked={autoRefresh} />
-				<span>Auto (5s)</span>
-			</label>
-			<button type="button" class="btn-glass icon" onclick={load} disabled={loading} title="Rafraichir">
-				<RefreshCw size={18} class={loading ? 'spin' : ''} />
-			</button>
-		</div>
-	</header>
+<AdminPage
+	title="Santé du serveur"
+	subtitle="Mémoire du process, uptime et cache Immich (temps réel)"
+	icon={Activity}
+	maxWidth="1100px"
+>
+	{#snippet actions()}
+		<label class="auto-toggle">
+			<input type="checkbox" bind:checked={autoRefresh} />
+			<span>Auto (5s)</span>
+		</label>
+		<button type="button" class="btn-glass icon" onclick={load} disabled={loading} title="Rafraichir">
+			<RefreshCw size={18} class={loading ? 'spin' : ''} />
+		</button>
+	{/snippet}
 
 	{#if error}
 		<div class="error-box">Erreur de chargement : {error}</div>
@@ -163,53 +162,9 @@
 	{:else if !error}
 		<p class="loading-hint">Chargement des métriques…</p>
 	{/if}
-</div>
+</AdminPage>
 
 <style>
-	.metrics-page {
-		padding: 2rem;
-		max-width: 1100px;
-		margin: 0 auto;
-	}
-
-	.page-header {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		margin-bottom: 2rem;
-		flex-wrap: wrap;
-	}
-	.header-icon {
-		width: 48px;
-		height: 48px;
-		min-width: 48px;
-		background: var(--gradient-brand);
-		color: #fff;
-		border-radius: var(--radius-md);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
-	}
-	.header-text {
-		flex: 1;
-		min-width: 200px;
-	}
-	.page-header h1 {
-		font-size: 1.6rem;
-		font-weight: 700;
-		margin: 0;
-	}
-	.subtitle {
-		color: var(--text-secondary);
-		font-size: 0.9rem;
-		margin: 0.25rem 0 0;
-	}
-	.header-actions {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-	}
 	.auto-toggle {
 		display: flex;
 		align-items: center;
@@ -300,18 +255,12 @@
 		color: var(--text-muted);
 	}
 
-	:global(.metrics-page .spin) {
+	:global(.admin-page .spin) {
 		animation: spin 0.8s linear infinite;
 	}
 	@keyframes spin {
 		to {
 			transform: rotate(360deg);
-		}
-	}
-
-	@media (max-width: 640px) {
-		.metrics-page {
-			padding: 1.25rem;
 		}
 	}
 </style>

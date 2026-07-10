@@ -1,19 +1,19 @@
 <script lang="ts">
-	import type { Component, Snippet } from 'svelte';
+	import type { ComponentType, SvelteComponent, Snippet } from 'svelte';
 
 	interface Props {
 		title: string;
 		subtitle?: string | null;
 		/** Lucide icon component shown in the header badge. */
-		icon?: Component;
+		icon?: ComponentType<SvelteComponent>;
 		/** Right-aligned header actions (buttons, links). */
 		actions?: Snippet;
 		children: Snippet;
-		/** Max content width. */
+		/** Max content width (CSS length). */
 		maxWidth?: string;
 	}
 
-	let { title, subtitle = null, icon, actions, children, maxWidth = '1100px' }: Props = $props();
+	let { title, subtitle = null, icon, actions, children, maxWidth = '900px' }: Props = $props();
 	const Icon = $derived(icon);
 </script>
 
@@ -31,63 +31,69 @@
 		{/if}
 	</header>
 
-	<div class="admin-page-body">
-		{@render children()}
-	</div>
+	{@render children()}
 </div>
 
 <style>
 	.admin-page {
+		width: 100%;
 		max-width: var(--admin-max);
 		margin: 0 auto;
-		padding: 2rem;
+		padding: 1.5rem 1rem;
 	}
+
+	@media (min-width: 640px) {
+		.admin-page {
+			padding: 2.5rem 1.5rem;
+		}
+	}
+
 	.admin-page-header {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
-		margin-bottom: 1.75rem;
+		gap: 1.25rem;
+		margin-bottom: 2rem;
 		flex-wrap: wrap;
 	}
+
 	.admin-page-icon {
-		width: 48px;
-		height: 48px;
-		min-width: 48px;
+		width: 52px;
+		height: 52px;
+		flex-shrink: 0;
 		background: var(--gradient-brand);
 		color: #fff;
 		border-radius: var(--radius-md);
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+		box-shadow: 0 8px 16px color-mix(in srgb, var(--accent) 25%, transparent);
 	}
+
 	.admin-page-heading {
 		flex: 1;
-		min-width: 200px;
+		min-width: 0;
 	}
-	/* Scoped: wins over the global h1 in shared-admin.css. */
+
+	/* Scoped: wins over the global bare h1 in shared-admin.css. */
 	.admin-page-heading h1 {
-		font-size: 1.6rem;
+		font-size: clamp(1.4rem, 4vw, 1.8rem);
 		font-weight: 700;
 		margin: 0;
 		color: var(--text-primary);
+		letter-spacing: -0.02em;
 		line-height: 1.2;
 	}
+
 	.admin-page-subtitle {
 		color: var(--text-secondary);
-		font-size: 0.9rem;
+		font-size: 0.95rem;
 		margin: 0.25rem 0 0;
 	}
+
 	.admin-page-actions {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		margin-left: auto;
-	}
-
-	@media (max-width: 640px) {
-		.admin-page {
-			padding: 1.25rem;
-		}
 	}
 </style>

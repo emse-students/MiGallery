@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Key, Book, CirclePlus, Check, Info, AlertCircle, RefreshCw, Trash2 } from 'lucide-svelte';
-	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { showConfirm } from '$lib/confirm';
@@ -91,25 +91,17 @@
 	<title>Admin - API Keys</title>
 </svelte:head>
 
-<div role="main" class="admin-main">
-	<!-- Animated background -->
-	<BackgroundBlobs />
-
-	<div class="admin-container">
-		<header class="page-header">
-			<div class="header-icon">
-				<Key size={32} />
-			</div>
-			<div class="header-content">
-				<h1>Gestion des clés API</h1>
-				<p class="subtitle">Gérez les accès externes à l'API MiGallery</p>
-			</div>
-			<div style="margin-left: auto;">
-				<a href="/admin/api-docs" class="btn-glass">
-					<Book size={16} /> Documentation
-				</a>
-			</div>
-		</header>
+<AdminPage
+	title="Gestion des clés API"
+	subtitle="Gérez les accès externes à l'API MiGallery"
+	icon={Key}
+	maxWidth="1000px"
+>
+	{#snippet actions()}
+		<a href="/admin/api-docs" class="btn-glass">
+			<Book size={16} /> Documentation
+		</a>
+	{/snippet}
 
 		<!-- Create section -->
 		<section class="glass-card create-section">
@@ -220,60 +212,10 @@
 				<EmptyState icon={Key} title="Aucune clé API active." />
 			{/if}
 		</section>
-	</div>
-</div>
+</AdminPage>
 
 <style>
 	/* Uses the global theme tokens directly (no per-page mirror variables). */
-	.admin-main {
-		position: relative;
-		min-height: 100vh;
-		color: var(--text-primary);
-		background-color: var(--bg-primary);
-		overflow-x: hidden;
-		padding: 2rem 1rem 6rem;
-		border-radius: 1.5rem;
-	}
-
-	.admin-container {
-		position: relative;
-		z-index: 1;
-		max-width: 1000px;
-		margin: 0 auto;
-	}
-
-	/* --- HEADER --- */
-	.page-header {
-		display: flex;
-		align-items: center;
-		gap: 1.5rem;
-		margin-bottom: 3rem;
-	}
-	.header-icon {
-		width: 56px;
-		height: 56px;
-		background: var(--gradient-brand);
-		color: white;
-		border-radius: var(--radius);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 8px 20px -4px color-mix(in srgb, var(--accent) 50%, transparent);
-	}
-	.page-header h1 {
-		font-size: 2rem;
-		font-weight: 800;
-		margin: 0;
-		line-height: 1.1;
-		letter-spacing: -0.02em;
-	}
-	.subtitle {
-		color: var(--text-secondary);
-		font-size: 1rem;
-		margin: 0.25rem 0 0;
-	}
-
-	/* Buttons use the canonical .btn-glass from app.css. */
 
 	/* --- CARDS --- */
 	.glass-card {
@@ -497,17 +439,6 @@
 	}
 
 	@media (max-width: 640px) {
-		.page-header {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 1rem;
-		}
-		.header-icon {
-			display: none;
-		}
-		.page-header h1 {
-			font-size: 1.5rem;
-		}
 		.form-row {
 			flex-direction: column;
 			align-items: stretch;

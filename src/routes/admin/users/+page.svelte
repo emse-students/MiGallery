@@ -413,11 +413,13 @@
         transform: translateY(-50%);
         width: 14px;
         height: 14px;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-        background-size: contain;
-        background-repeat: no-repeat;
+        /* currentColor does NOT resolve inside a data-URI background image, so the
+           chevron rendered black (invisible in dark). Drive the colour via
+           background-color + an alpha mask so it follows the theme token. */
+        background-color: var(--text-muted);
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") center / contain no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") center / contain no-repeat;
         pointer-events: none;
-        color: var(--text-muted);
         opacity: 0.7;
     }
 

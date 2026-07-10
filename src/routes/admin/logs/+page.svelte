@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { PageData } from './$types';
 
@@ -45,12 +46,12 @@
 	<title>Logs Admin - MiGallery</title>
 </svelte:head>
 
-<div class="logs-container">
-	<header class="page-header">
-		<h1><Activity size={28} /> Logs Système</h1>
-		<p>{data.total} evenement{data.total > 1 ? 's' : ''} enregistre{data.total > 1 ? 's' : ''}</p>
-	</header>
-
+<AdminPage
+	title="Logs Système"
+	subtitle="{data.total} evenement{data.total > 1 ? 's' : ''} enregistre{data.total > 1 ? 's' : ''}"
+	icon={Activity}
+	maxWidth="1400px"
+>
 	<div class="filter-bar">
 		<div class="search-field">
 			<Search size={16} />
@@ -145,32 +146,11 @@
 			</button>
 		</div>
 	</footer>
-</div>
+</AdminPage>
 
 <style>
 	:global(.grid-table) {
 		--col-layout: 180px 140px 100px 25% 1fr;
-	}
-
-	.logs-container {
-		max-width: 1400px;
-		margin: 0 auto;
-		padding: 2rem;
-		color: var(--text-primary);
-	}
-
-	.page-header {
-		margin-bottom: 1.5rem;
-	}
-	.page-header h1 {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		font-size: 2rem;
-		margin-bottom: 0.5rem;
-	}
-	.page-header p {
-		color: var(--text-secondary);
 	}
 
 	/* --- FILTER BAR --- */
