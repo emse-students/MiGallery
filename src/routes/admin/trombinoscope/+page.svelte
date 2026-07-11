@@ -30,6 +30,19 @@
 	import { fuzzyMatch } from '$lib/fuzzy';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import jsPDF from 'jspdf';
+	import { m } from '$lib/paraglide/messages';
+
+	// Opaque internal keys for the "no promo" / "no program" buckets. Kept separate
+	// from their localized labels so grouping/sorting stay language-independent.
+	const STAFF_KEY = '__staff_other__';
+	const NO_FORMATION_KEY = '__no_formation__';
+
+	function promoLabel(key: string): string {
+		return key === STAFF_KEY ? m.trombi_staff_other() : m.trombi_promo({ promo: key });
+	}
+	function formationLabel(key: string): string {
+		return key === NO_FORMATION_KEY ? m.trombi_no_formation() : key;
+	}
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
@@ -43,10 +56,10 @@
 	let pdfSelectedFormations = $state<string[]>([]);
 
 	function promoKey(u: User): string {
-		return u.promo ? u.promo.toString() : 'Staff / Autre';
+		return u.promo ? u.promo.toString() : STAFF_KEY;
 	}
 	function formationKey(u: User): string {
-		return u.formation || 'Sans formation';
+		return u.formation || NO_FORMATION_KEY;
 	}
 
 	function sortByLastName(arr: User[]): User[] {
@@ -71,16 +84,16 @@
 
 	let availablePromos = $derived(
 		[...new Set(users.map(promoKey))].sort((a, b) => {
-			if (a === 'Staff / Autre') return 1;
-			if (b === 'Staff / Autre') return -1;
+			if (a === STAFF_KEY) return 1;
+			if (b === STAFF_KEY) return -1;
 			return Number(b) - Number(a);
 		})
 	);
 
 	let availableFormations = $derived(
 		[...new Set(users.map(formationKey))].sort((a, b) => {
-			if (a === 'Sans formation') return 1;
-			if (b === 'Sans formation') return -1;
+			if (a === NO_FORMATION_KEY) return 1;
+			if (b === NO_FORMATION_KEY) return -1;
 			return a.localeCompare(b, 'fr');
 		})
 	);
@@ -99,12 +112,12 @@
 	let sortedGroupEntries = $derived.by(() =>
 		Object.entries(groupedAndSortedUsers).sort(([a], [b]) => {
 			if (groupBy === 'promo') {
-				if (a === 'Staff / Autre') return 1;
-				if (b === 'Staff / Autre') return -1;
+				if (a === STAFF_KEY) return 1;
+				if (b === STAFF_KEY) return -1;
 				return Number(b) - Number(a);
 			} else {
-				if (a === 'Sans formation') return 1;
-				if (b === 'Sans formation') return -1;
+				if (a === NO_FORMATION_KEY) return 1;
+				if (b === NO_FORMATION_KEY) return -1;
 				return a.localeCompare(b, 'fr');
 			}
 		})
@@ -172,16 +185,16 @@
 	async function exportToPDF(usersToExport: User[]) {
 		showPdfModal = false;
 		if (usersToExport.length === 0) {
-			toast.info('Aucun utilisateur à exporter');
+			toast.info(m.trombi_no_users_export());
 			return;
 		}
 
-		const toastId = toast.loading('Génération du PDF...');
+		const toastId = toast.loading(m.trombi_pdf_generating());
 		try {
 			const doc = new jsPDF();
 
 			doc.setFontSize(18);
-			doc.text('Trombinoscope MiGallery', 14, 22);
+			doc.text(m.trombi_pdf_title(), 14, 22);
 			doc.setFontSize(11);
 			doc.setTextColor(100);
 
@@ -216,8 +229,8 @@
 			});
 
 			const promos = Object.keys(usersByPromo).sort((a, b) => {
-				if (a === 'Staff / Autre') return 1;
-				if (b === 'Staff / Autre') return -1;
+				if (a === STAFF_KEY) return 1;
+				if (b === STAFF_KEY) return -1;
 				return Number(b) - Number(a);
 			});
 
@@ -239,7 +252,7 @@
 				doc.setFontSize(16);
 				doc.setTextColor(0);
 				doc.setFont('helvetica', 'bold');
-				doc.text(promo === 'Staff / Autre' ? promo : `Promo ${promo}`, margin, y);
+				doc.text(promoLabel(promo), margin, y);
 				y += 10;
 
 				const promoUsers = usersByPromo[promo];
@@ -284,11 +297,11 @@
 
 			doc.save('trombinoscope.pdf');
 			toast.dismiss(toastId);
-			toast.success('PDF téléchargé !');
+			toast.success(m.trombi_pdf_downloaded());
 		} catch (e) {
 			console.error(e);
 			toast.dismiss(toastId);
-			toast.error('Erreur lors de la génération du PDF');
+			toast.error(m.trombi_pdf_error());
 		}
 	}
 
@@ -301,7 +314,7 @@
 			const res = await fetch('/api/users');
 			if (!res.ok) {
 				const errText = await res.text().catch(() => res.statusText);
-				throw new Error(errText || 'Erreur lors du chargement');
+				throw new Error(errText || m.trombi_load_error());
 			}
 			const data = (await res.json()) as { users: User[] };
 			users = data.users || [];
@@ -358,7 +371,7 @@
 
 	async function saveUser() {
 		if (!editUserData.id_user || !editUserData.first_name || !editUserData.last_name) {
-			toast.error('Les champs ID, prénom et nom sont requis.');
+			toast.error(m.trombi_fields_required());
 			return;
 		}
 
@@ -371,11 +384,11 @@
 
 				uploadRes = await uploadFileChunked(uploadPhotoFile);
 
-				if (!uploadRes.ok) throw new Error("Erreur lors de l'upload de la photo");
+				if (!uploadRes.ok) throw new Error(m.trombi_photo_upload_error());
 
 				const uploadData = (await uploadRes.json()) as { id: string };
 				const assetId = uploadData.id;
-				if (!assetId) throw new Error('Asset ID non récupéré après upload');
+				if (!assetId) throw new Error(m.trombi_photo_upload_error());
 
 				const maxAttempts = 15;
 				let attempt = 0;
@@ -405,14 +418,12 @@
 
 				if (people.length === 0) {
 					uploadingPhoto = false;
-					toast.error('Aucune personne détectée. Choisissez une photo avec un visage visible.');
+					toast.error(m.trombi_no_face());
 					return;
 				}
 				if (people.length > 1) {
 					uploadingPhoto = false;
-					toast.error(
-						`Plusieurs personnes détectées (${people.length}). Choisissez une photo avec une seule personne.`
-					);
+					toast.error(m.trombi_multiple_faces({ count: people.length }));
 					return;
 				}
 				finalIdPhotos = people[0].id;
@@ -437,20 +448,23 @@
 			showEditUserModal = false;
 			selectedUser = null;
 			uploadPhotoFile = null;
-			toast.success(editMode === 'add' ? 'Utilisateur ajouté' : 'Utilisateur modifié');
+			toast.success(editMode === 'add' ? m.trombi_user_added() : m.trombi_user_updated());
 		} catch (e: unknown) {
 			uploadingPhoto = false;
-			toast.error('Erreur: ' + (e as Error).message);
+			toast.error(m.common_error_detail({ error: (e as Error).message }));
 		}
 	}
 
 	async function deleteUserConfirm(user: User, event: MouseEvent) {
 		event.stopPropagation();
 		if (user.id_user === currentUserId) {
-			toast.error('Vous ne pouvez pas supprimer votre propre compte.');
+			toast.error(m.trombi_cannot_delete_self());
 			return;
 		}
-		const ok = await showConfirm(`Supprimer ${user.name} ?`, "Supprimer l'utilisateur");
+		const ok = await showConfirm(
+			m.trombi_delete_confirm({ name: user.name ?? user.id_user }),
+			m.trombi_delete_title()
+		);
 		if (!ok) return;
 
 		try {
@@ -459,9 +473,9 @@
 			});
 			if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
 			await fetchUsers();
-			toast.success('Utilisateur supprimé');
+			toast.success(m.trombi_user_deleted());
 		} catch (e: unknown) {
-			toast.error('Erreur: ' + (e as Error).message);
+			toast.error(m.common_error_detail({ error: (e as Error).message }));
 		}
 	}
 
@@ -471,24 +485,24 @@
 </script>
 
 <svelte:head>
-	<title>Trombinoscope - MiGallery</title>
+	<title>{m.trombi_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Trombinoscope"
-	subtitle="L'annuaire des membres de la galerie"
+	title={m.nav_trombinoscope()}
+	subtitle={m.trombi_subtitle()}
 	icon={Users}
 	maxWidth="1200px"
 >
 	{#snippet actions()}
-		<button class="action-pill" type="button" onclick={openPdfModal} title="Exporter en PDF">
+		<button class="action-pill" type="button" onclick={openPdfModal} title={m.trombi_export_pdf()}>
 			<Download size={18} />
 			<span>PDF</span>
 		</button>
 		{#if canAccess}
 			<button class="action-pill primary" type="button" onclick={openAddUserModal}>
 				<UserPlus size={18} />
-				<span>Ajouter</span>
+				<span>{m.trombi_add()}</span>
 			</button>
 		{/if}
 	{/snippet}
@@ -497,12 +511,12 @@
 		<div class="header-search">
 			<input
 				class="search-input"
-				placeholder="Rechercher (prénom, nom, formation...)"
+				placeholder={m.trombi_search_placeholder()}
 				bind:value={searchQuery}
 				oninput={(e) => {
 					searchQuery = (e.target as HTMLInputElement).value;
 				}}
-				aria-label="Rechercher des membres"
+				aria-label={m.trombi_search_aria()}
 			/>
 		</div>
 
@@ -513,7 +527,7 @@
 				onclick={() => (groupBy = 'promo')}
 			>
 				<GraduationCap size={15} />
-				Par promotion
+				{m.trombi_by_promo()}
 			</button>
 			<button
 				class="group-tab {groupBy === 'formation' ? 'active' : ''}"
@@ -521,7 +535,7 @@
 				onclick={() => (groupBy = 'formation')}
 			>
 				<BookOpen size={15} />
-				Par formation
+				{m.trombi_by_formation()}
 			</button>
 		</div>
 	</div>
@@ -535,20 +549,20 @@
 
 		{#if loading}
 			<div class="state-message loading" in:fade>
-				<Spinner size={32} /> Chargement de l'annuaire...
+				<Spinner size={32} /> {m.trombi_loading()}
 			</div>
 		{/if}
 
 		{#if !loading && !error && users.length === 0}
 			<div in:fade>
-				<EmptyState icon={Users} title="Aucun utilisateur trouvé" />
+				<EmptyState icon={Users} title={m.trombi_empty()} />
 			</div>
 		{/if}
 
 		{#if users.length > 0}
 			{#if filteredUsers.length === 0}
 				<div in:fade>
-					<EmptyState icon={Search} title="Aucun membre ne correspond à votre recherche" />
+					<EmptyState icon={Search} title={m.trombi_no_match()} />
 				</div>
 			{:else}
 				<div class="content-area">
@@ -556,9 +570,7 @@
 						<section class="promo-section" in:fade={{ delay: i * 100, duration: 400 }}>
 							<div class="section-header">
 								<h2>
-									{groupBy === 'promo' && groupKey !== 'Staff / Autre'
-										? `Promo ${groupKey}`
-										: groupKey}
+									{groupBy === 'promo' ? promoLabel(groupKey) : formationLabel(groupKey)}
 								</h2>
 								<span class="count-badge">{groupUsers.length}</span>
 							</div>
@@ -582,7 +594,7 @@
 													class="control-btn edit"
 													type="button"
 													onclick={(e) => openEditUserModal(user, e)}
-													title="Éditer"
+													title={m.common_edit()}
 												>
 													<Pencil size={20} />
 												</button>
@@ -590,7 +602,7 @@
 													class="control-btn delete"
 													type="button"
 													onclick={(e) => deleteUserConfirm(user, e)}
-													title="Supprimer"
+													title={m.common_delete()}
 												>
 													<Trash2 size={20} />
 												</button>
@@ -650,7 +662,7 @@
 				transition:fly={{ y: 20, duration: 300 }}
 			>
 				<div class="modal-header">
-					<h3><Funnel size={20} /> Exporter en PDF</h3>
+					<h3><Funnel size={20} /> {m.trombi_export_pdf()}</h3>
 				</div>
 
 				<div class="modal-body">
@@ -658,10 +670,13 @@
 						<div class="pdf-filter-col">
 							<div class="pdf-filter-heading">
 								<GraduationCap size={15} />
-								<span>Promotions</span>
+								<span>{m.trombi_promotions()}</span>
 								<div class="quick-btns">
-									<button type="button" onclick={() => (pdfSelectedPromos = [...availablePromos])}>Tout</button>
-									<button type="button" onclick={() => (pdfSelectedPromos = [])}>Rien</button>
+									<button type="button" onclick={() => (pdfSelectedPromos = [...availablePromos])}
+										>{m.trombi_all()}</button
+									>
+									<button type="button" onclick={() => (pdfSelectedPromos = [])}>{m.trombi_none()}</button
+									>
 								</div>
 							</div>
 							<div class="checkbox-list">
@@ -672,7 +687,7 @@
 											checked={pdfSelectedPromos.includes(promo)}
 											onchange={() => togglePromo(promo)}
 										/>
-										<span>{promo}</span>
+										<span>{promoLabel(promo)}</span>
 									</label>
 								{/each}
 							</div>
@@ -681,12 +696,16 @@
 						<div class="pdf-filter-col">
 							<div class="pdf-filter-heading">
 								<BookOpen size={15} />
-								<span>Formations</span>
+								<span>{m.trombi_formations()}</span>
 								<div class="quick-btns">
-									<button type="button" onclick={() => (pdfSelectedFormations = [...availableFormations])}
-										>Tout</button
+									<button
+										type="button"
+										onclick={() => (pdfSelectedFormations = [...availableFormations])}
+										>{m.trombi_all()}</button
 									>
-									<button type="button" onclick={() => (pdfSelectedFormations = [])}>Rien</button>
+									<button type="button" onclick={() => (pdfSelectedFormations = [])}
+										>{m.trombi_none()}</button
+									>
 								</div>
 							</div>
 							<div class="checkbox-list">
@@ -697,7 +716,7 @@
 											checked={pdfSelectedFormations.includes(formation)}
 											onchange={() => toggleFormation(formation)}
 										/>
-										<span>{formation}</span>
+										<span>{formationLabel(formation)}</span>
 									</label>
 								{/each}
 							</div>
@@ -705,12 +724,14 @@
 					</div>
 
 					<p class="export-count">
-						{pdfSelectedCount} utilisateur{pdfSelectedCount !== 1 ? 's' : ''} sélectionné{pdfSelectedCount !== 1 ? 's' : ''}
+						{m.trombi_export_count({ count: pdfSelectedCount })}
 					</p>
 				</div>
 
 				<div class="modal-actions">
-					<button class="btn-text" type="button" onclick={() => (showPdfModal = false)}>Annuler</button>
+					<button class="btn-text" type="button" onclick={() => (showPdfModal = false)}
+						>{m.common_cancel()}</button
+					>
 					<button
 						class="action-pill primary"
 						type="button"
@@ -718,7 +739,7 @@
 						disabled={pdfSelectedCount === 0}
 					>
 						<Download size={16} />
-						Exporter
+						{m.trombi_export()}
 					</button>
 				</div>
 			</div>
@@ -750,48 +771,48 @@
 						{:else}
 							<UserCheck size={24} />
 						{/if}
-						{editMode === 'add' ? 'Nouvel utilisateur' : 'Édition'}
+						{editMode === 'add' ? m.trombi_new_user() : m.trombi_edit_user()}
 					</h3>
 				</div>
 
 				<div class="modal-body">
 					<div class="form-grid">
 						<div class="input-group">
-							<label for="id_user">Identifiant *</label>
+							<label for="id_user">{m.trombi_field_id()}</label>
 							<input
 								id="id_user"
 								class="input-glass"
 								bind:value={editUserData.id_user}
 								disabled={editMode === 'edit'}
-								placeholder="ex: p.nom"
+								placeholder={m.trombi_field_id_placeholder()}
 							/>
 						</div>
 						<div class="input-group">
-							<label for="name">Nom complet</label>
+							<label for="name">{m.trombi_field_fullname()}</label>
 							<input
 								id="name"
 								class="input-glass"
 								bind:value={editUserData.name}
-								placeholder="Prénom NOM"
+								placeholder={m.trombi_field_fullname_placeholder()}
 							/>
 						</div>
 						<div class="input-group">
-							<label for="first_name">Prénom *</label>
+							<label for="first_name">{m.trombi_field_firstname()}</label>
 							<input id="first_name" class="input-glass" bind:value={editUserData.first_name} />
 						</div>
 						<div class="input-group">
-							<label for="last_name">Nom *</label>
+							<label for="last_name">{m.trombi_field_lastname()}</label>
 							<input id="last_name" class="input-glass" bind:value={editUserData.last_name} />
 						</div>
 						<div class="input-group">
-							<label for="formation">Formation</label>
+							<label for="formation">{m.trombi_field_formation()}</label>
 							<input
 								id="formation"
 								class="input-glass"
 								bind:value={editUserData.formation}
-								placeholder="ex: ICM, DevOps..."
+								placeholder={m.trombi_field_formation_placeholder()}
 							/>
-							<label for="role">Rôle</label>
+							<label for="role">{m.trombi_field_role()}</label>
 							<div class="select-wrapper">
 								<select
 									id="role"
@@ -799,9 +820,9 @@
 									bind:value={editUserData.role}
 									disabled={editMode === 'edit' && editUserData.id_user === currentUserId}
 								>
-									<option value="user">Utilisateur</option>
-									<option value="mitviste">Mitviste</option>
-									<option value="admin">Admin</option>
+									<option value="user">{m.trombi_role_user()}</option>
+									<option value="mitviste">{m.trombi_role_mitviste()}</option>
+									<option value="admin">{m.trombi_role_admin()}</option>
 								</select>
 								<div class="select-icon"><ChevronDown size={14} /></div>
 							</div>
@@ -810,16 +831,15 @@
 
 					<div class="photo-section">
 						<div class="photo-header">
-							<Camera size={18} /> Liaison Photo (Immich)
+							<Camera size={18} /> {m.trombi_photo_link()}
 						</div>
 						<div class="photo-content">
 							{#if editUserData.photos_id}
 								<div class="photo-status success">
 									<CheckCircle size={16} />
 									<span
-										>Lié : <code class="code-pill"
-											>{editUserData.photos_id.substring(0, 8)}...</code
-										></span
+										>{m.trombi_photo_linked_label()}
+										<code class="code-pill">{editUserData.photos_id.substring(0, 8)}...</code></span
 									>
 								</div>
 							{/if}
@@ -834,19 +854,19 @@
 									disabled={uploadingPhoto}
 								/>
 								{#if uploadingPhoto}
-									<Spinner size={16} /> Analyse...
+									<Spinner size={16} /> {m.trombi_analyzing()}
 								{:else}
 									<CloudUpload size={16} />
 									{uploadPhotoFile
 										? uploadPhotoFile.name
 										: editUserData.photos_id
-											? 'Remplacer photo'
-											: 'Uploader photo'}
+											? m.trombi_replace_photo()
+											: m.trombi_upload_photo()}
 								{/if}
 							</label>
 						</div>
 						<p class="photo-hint">
-							L'upload déclenche une reconnaissance faciale pour associer le profil.
+							{m.trombi_photo_hint()}
 						</p>
 					</div>
 				</div>
@@ -856,7 +876,7 @@
 						class="btn-text"
 						type="button"
 						onclick={() => (showEditUserModal = false)}
-						disabled={uploadingPhoto}>Annuler</button
+						disabled={uploadingPhoto}>{m.common_cancel()}</button
 					>
 					<button class="action-pill primary" type="button" onclick={saveUser} disabled={uploadingPhoto}>
 						{#if uploadingPhoto}
@@ -864,7 +884,7 @@
 						{:else}
 							<Check size={16} />
 						{/if}
-						{editMode === 'add' ? 'Créer' : 'Sauvegarder'}
+						{editMode === 'add' ? m.trombi_create() : m.common_save()}
 					</button>
 				</div>
 			</div>
