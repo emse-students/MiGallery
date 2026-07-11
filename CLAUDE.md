@@ -47,8 +47,8 @@
 
 **Current WIP:**
 
-- Theme 5 (i18n). WP-1b.6 + N-9 DONE this session. Whole admin surface is now i18n'd.
-- Next step: N-10 (residual components with real strings): ConfirmHost, EmptyState, AdminPage subtitle. Then N-11 (dev-string sweep FR -> EN).
+- Theme 5 (i18n). WP-1b.6 + N-9 + N-10 DONE this session. Whole admin surface + shared confirm dialog now i18n'd.
+- Next step: N-11 (dev-string sweep FR -> EN).
 - i18n idiom recap: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile.
 
 **Roadmap (Active WP):**
@@ -81,7 +81,7 @@ Theme 5 \- i18n \+ Normalization (ACTIVE)
 - \[x\] N-7 mes-photos \+ photos-cv (DONE)
 - \[x\] N-8 cgu \+ corbeille (DONE)
 - \[x\] N-9 admin pages (DONE; prefixes adm\_/doc\_/metr\_/logs\_/usr\_/apik\_/db\_; added common_refresh + common_fail_detail. Nav labels stored as m fn refs in links[], called l.label() in template. Left technical labels: RSS/Node/PID/Heap total/External/ArrayBuffers + byte/uptime format units)
-- \[ \] N-10 residual components with real strings: ConfirmHost, EmptyState, AdminPage subtitle
+- \[x\] N-10 residual components (DONE; only real residual was confirm.ts FR defaults -> common_confirm/common_confirmation keys + explicit :string param types so plain-string callers still typecheck. ConfirmHost/EmptyState/AdminPage carry no literals, all via props/Modal already i18n'd)
 - \[ \] N-11 dev-string sweep FR \-\> EN
 
 **Memory Gotchas (Do not repeat):**

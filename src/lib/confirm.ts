@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { m } from '$lib/paraglide/messages';
 
 type ConfirmState = {
 	show: boolean;
@@ -17,9 +18,9 @@ export const confirmStore = { subscribe };
 
 export function showConfirm(
 	message: string,
-	title = 'Confirmation',
-	confirmText = 'Confirmer',
-	cancelText = 'Annuler'
+	title: string = m.common_confirmation(),
+	confirmText: string = m.common_confirm(),
+	cancelText: string = m.common_cancel()
 ): Promise<boolean> {
 	return new Promise((resolve) => {
 		set({ show: true, title, message, confirmText, cancelText, resolve });

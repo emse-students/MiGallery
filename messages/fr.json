@@ -42,6 +42,8 @@
 	"common_error": "Erreur",
 	"common_delete": "Supprimer",
 	"common_cancel": "Annuler",
+	"common_confirm": "Confirmer",
+	"common_confirmation": "Confirmation",
 	"common_save": "Enregistrer",
 	"common_close": "Fermer",
 	"common_edit": "Modifier",
