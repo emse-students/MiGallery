@@ -148,14 +148,84 @@
 
   .content {
     flex: 1;
+    /* min-width:0 lets this flex item shrink below its intrinsic content width.
+       Without it, a wide child (e.g. the api-keys min-width:700px table) forces
+       the whole page to scroll horizontally instead of scrolling inside its own
+       overflow-x:auto wrapper. */
+    min-width: 0;
     padding: 0;
     max-width: 100%;
     overflow-y: auto;
   }
 
   @media (max-width: 768px) {
+    /* Stack: sidebar becomes a horizontal, scrollable top bar so the content
+       area gets the full viewport width (no more 200px column eating the screen). */
+    .admin-root {
+      flex-direction: column;
+      border-radius: 0;
+    }
+
     .sidebar {
-      width: 200px;
+      width: 100%;
+      height: auto;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 0.75rem;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+    }
+
+    .brand {
+      margin-bottom: 0;
+      flex-shrink: 0;
+      font-size: 1.1rem;
+    }
+
+    nav {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      gap: 0.4rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    nav a {
+      margin-bottom: 0;
+      padding: 0.5rem 0.75rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Footer meta collapses into the bar: keep the "back to site" link at the
+       end, drop the version line and the top border/spacing. */
+    .meta {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+      flex-shrink: 0;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .meta small {
+      display: none;
+    }
+
+    .back-home {
+      white-space: nowrap;
+      font-size: 0.85rem;
     }
   }
 
