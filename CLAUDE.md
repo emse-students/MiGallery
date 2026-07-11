@@ -99,8 +99,8 @@ Migrated (DONE, on main):
 
 Remaining (ordered; verify per file - some strings may already be partially done):
 
-- \[ \] N-7 mes-photos + photos-cv + trombinoscope (0 m.\* today = full page strings)
-- \[ \] N-8 corbeille + cgu
+- \[~\] N-7 mes-photos + photos-cv + trombinoscope. trombinoscope DONE (commit dfec788): trombi\_\* keys; split 'Staff / Autre'/'Sans formation' bucket sentinels into opaque STAFF_KEY/NO_FORMATION_KEY + promoLabel/formationLabel helpers (grouping/sorting stay lang-independent). Remaining: mes-photos + photos-cv (in src/routes/, NOT moved to admin).
+- \[~\] N-8 corbeille + cgu. corbeille DONE (commit 4481841): trash\_\* keys + common_photo; mirrors album-detail handler pattern (throw i18n msg, catch -> common_error_detail); dropped the warning emoji from permanent-delete confirm. Remaining: cgu.
 - \[ \] N-9 admin pages (+layout, dashboard, api-keys, api-docs, database, logs, metrics, users). COORDINATE with Theme 1b (admin harmonization ACTIVE) - run after/with it, not in parallel.
 - \[ \] N-10 residual components with real strings: ConfirmHost, EmptyState, AdminPage subtitle (Avatar/BackgroundBlobs/LazyImage/Skeleton/Spinner are stringless - skip)
 - \[ \] N-11 dev-string sweep FR -> EN: console.\*/thrown Error/comments across src (parametres has ~30 FR logs near lines 278-535); verify README.md + docs/MIGRATION.md bodies (CLAUDE.md already EN)
