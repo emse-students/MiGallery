@@ -24,6 +24,7 @@
 	import { asApiResponse } from '$lib/ts-utils';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
+	import { m } from '$lib/paraglide/messages';
 
 	let isAdmin = $derived(page.data.session?.user?.role === 'admin');
 	const data = page.data as PageData;
@@ -53,7 +54,7 @@
 		exporting = true;
 		try {
 			const response = await fetch('/api/admin/db-export');
-			if (!response.ok) throw new Error("Échec de l'export");
+			if (!response.ok) throw new Error(m.db_export_fail());
 
 			const blob = await response.blob();
 			const url = window.URL.createObjectURL(blob);
@@ -65,9 +66,9 @@
 			document.body.removeChild(a);
 			window.URL.revokeObjectURL(url);
 
-			toast.success('Base de données exportée avec succès');
+			toast.success(m.db_export_success());
 		} catch (error: unknown) {
-			toast.error(`Erreur lors de l'export: ${error}`);
+			toast.error(m.db_export_error({ error: String(error) }));
 		} finally {
 			exporting = false;
 		}
@@ -75,14 +76,11 @@
 
 	async function importDatabase() {
 		if (!uploadFile) {
-			toast.error('Veuillez sélectionner un fichier');
+			toast.error(m.db_select_file());
 			return;
 		}
 
-		const ok = await showConfirm(
-			'⚠️ ATTENTION : Cette action va remplacer la base de données actuelle. Voulez-vous continuer ?',
-			'Importer la DB'
-		);
+		const ok = await showConfirm(m.db_import_confirm(), m.db_import_title());
 		if (!ok) return;
 
 		importing = true;
@@ -98,12 +96,12 @@
 			const jsonData = await response.json();
 			const result = asApiResponse(jsonData);
 
-			if (!response.ok) throw new Error(result.error || "Échec de l'import");
+			if (!response.ok) throw new Error(result.error || m.db_import_fail());
 
-			toast.success('Base de données importée. Rechargement...');
+			toast.success(m.db_import_success());
 			setTimeout(() => window.location.reload(), 2000);
 		} catch (error: unknown) {
-			toast.error(`Erreur lors de l'import: ${error}`);
+			toast.error(m.db_import_error({ error: String(error) }));
 		} finally {
 			importing = false;
 		}
@@ -116,12 +114,12 @@
 			const jsonData = await response.json();
 			const result = asApiResponse(jsonData);
 
-			if (!response.ok) throw new Error(result.error || 'Échec de la sauvegarde');
+			if (!response.ok) throw new Error(result.error || m.db_backup_fail());
 
-			toast.success(result.message || 'Sauvegarde créée');
+			toast.success(result.message || m.db_backup_success());
 			setTimeout(() => window.location.reload(), 1500);
 		} catch (error: unknown) {
-			toast.error(`Erreur lors de la sauvegarde: ${error}`);
+			toast.error(m.db_backup_error({ error: String(error) }));
 		} finally {
 			backing = false;
 		}
@@ -137,17 +135,15 @@
 			if (result.success) {
 				databaseStatus = result;
 				if (result.status === 'healthy') {
-					toast.success('Base de données saine');
+					toast.success(m.db_healthy_toast());
 				} else {
-					toast.error(
-						`Base de données incomplète (${result.missingTables?.length || 0} tables manquantes)`
-					);
+					toast.error(m.db_incomplete_toast({ count: result.missingTables?.length || 0 }));
 				}
 			} else {
-				toast.error(`Erreur d'inspection: ${result.error}`);
+				toast.error(m.db_inspect_error({ error: String(result.error) }));
 			}
 		} catch (error: unknown) {
-			toast.error(`Erreur d'inspection: ${error}`);
+			toast.error(m.db_inspect_error({ error: String(error) }));
 		} finally {
 			inspecting = false;
 		}
@@ -161,24 +157,21 @@
 			const result = await response.json();
 
 			if (result.success) {
-				toast.success('Base de données réparée avec succès !');
+				toast.success(m.db_repair_success());
 				databaseStatus = result.newStatus;
 				setTimeout(() => inspectDatabase(), 1000);
 			} else {
-				toast.error(`Erreur réparation: ${result.error}`);
+				toast.error(m.db_repair_error({ error: String(result.error) }));
 			}
 		} catch (error: unknown) {
-			toast.error(`Erreur: ${error}`);
+			toast.error(m.common_error_detail({ error: String(error) }));
 		} finally {
 			repairing = false;
 		}
 	}
 
 	async function restoreBackup(filename: string) {
-		const ok = await showConfirm(
-			`⚠️ Restaurer "${filename}" ? Cela remplacera la base actuelle.`,
-			'Restaurer'
-		);
+		const ok = await showConfirm(m.db_restore_confirm({ filename }), m.db_restore_title());
 		if (!ok) return;
 
 		try {
@@ -191,23 +184,23 @@
 			const jsonData = await response.json();
 			const result = asApiResponse(jsonData);
 
-			if (!response.ok) throw new Error(result.error || 'Échec de la restauration');
+			if (!response.ok) throw new Error(result.error || m.db_restore_fail());
 
-			toast.success('Sauvegarde restaurée. Rechargement...');
+			toast.success(m.db_restore_success());
 			setTimeout(() => window.location.reload(), 2000);
 		} catch (error: unknown) {
-			toast.error(`Erreur restauration: ${error}`);
+			toast.error(m.db_restore_error({ error: String(error) }));
 		}
 	}
 </script>
 
 <svelte:head>
-	<title>Admin - Base de données</title>
+	<title>{m.db_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Maintenance BDD"
-	subtitle="Sauvegardes, restaurations et intégrité du système"
+	title={m.db_title()}
+	subtitle={m.db_subtitle()}
 	icon={Database}
 	maxWidth="1200px"
 >
@@ -226,22 +219,22 @@
 			<div class="left-col">
 				<!-- Statistiques -->
 				<section class="glass-card">
-					<h2 class="section-title"><ChartColumn size={20} /> Statistiques</h2>
+					<h2 class="section-title"><ChartColumn size={20} /> {m.db_stats()}</h2>
 					<div class="stats-grid">
 						<div class="stat-item">
-							<span class="stat-label">Utilisateurs</span>
+							<span class="stat-label">{m.db_stat_users()}</span>
 							<span class="stat-value">{stats.users}</span>
 						</div>
 						<div class="stat-item">
-							<span class="stat-label">Albums</span>
+							<span class="stat-label">{m.db_stat_albums()}</span>
 							<span class="stat-value">{stats.albums}</span>
 						</div>
 						<div class="stat-item">
-							<span class="stat-label">Admins</span>
+							<span class="stat-label">{m.db_stat_admins()}</span>
 							<span class="stat-value">{stats.admins}</span>
 						</div>
 						<div class="stat-item">
-							<span class="stat-label">Taille</span>
+							<span class="stat-label">{m.db_stat_size()}</span>
 							<span class="stat-value highlight">{stats.size}</span>
 						</div>
 					</div>
@@ -249,29 +242,29 @@
 
 				<!-- Quick Actions -->
 				<section class="glass-card">
-					<h2 class="section-title"><Zap size={20} /> Actions rapides</h2>
+					<h2 class="section-title"><Zap size={20} /> {m.db_quick_actions()}</h2>
 					<div class="actions-list">
 						<button type="button" class="action-btn primary" onclick={createBackup} disabled={backing}>
 							<div class="btn-icon-wrapper"><Save size={24} /></div>
 							<div class="btn-content">
-								<span class="btn-title">Sauvegarde</span>
-								<span class="btn-desc">{backing ? 'En cours...' : 'Créer un snapshot'}</span>
+								<span class="btn-title">{m.db_backup_btn()}</span>
+								<span class="btn-desc">{backing ? m.db_in_progress() : m.db_backup_desc()}</span>
 							</div>
 						</button>
 
 						<button type="button" class="action-btn secondary" onclick={exportDatabase} disabled={exporting}>
 							<div class="btn-icon-wrapper"><Download size={24} /></div>
 							<div class="btn-content">
-								<span class="btn-title">Export SQL</span>
-								<span class="btn-desc">{exporting ? 'En cours...' : 'Télécharger .db'}</span>
+								<span class="btn-title">{m.db_export_btn()}</span>
+								<span class="btn-desc">{exporting ? m.db_in_progress() : m.db_export_desc()}</span>
 							</div>
 						</button>
 
 						<button type="button" class="action-btn info" onclick={inspectDatabase} disabled={inspecting}>
 							<div class="btn-icon-wrapper"><Activity size={24} /></div>
 							<div class="btn-content">
-								<span class="btn-title">Inspection</span>
-								<span class="btn-desc">{inspecting ? 'Analyse...' : 'Vérifier intégrité'}</span>
+								<span class="btn-title">{m.db_inspect_btn()}</span>
+								<span class="btn-desc">{inspecting ? m.db_analyzing() : m.db_inspect_desc()}</span>
 							</div>
 						</button>
 
@@ -284,8 +277,8 @@
 							>
 								<div class="btn-icon-wrapper"><Wrench size={24} /></div>
 								<div class="btn-content">
-									<span class="btn-title">Réparer</span>
-									<span class="btn-desc">Tables manquantes</span>
+									<span class="btn-title">{m.db_repair_btn()}</span>
+									<span class="btn-desc">{m.db_missing_tables()}</span>
 								</div>
 							</button>
 						{/if}
@@ -294,9 +287,9 @@
 
 				<!-- Import (Danger Zone) -->
 				<section class="glass-card danger-zone">
-					<h2 class="section-title text-red-500"><AlertTriangle size={20} /> Zone de danger</h2>
+					<h2 class="section-title text-red-500"><AlertTriangle size={20} /> {m.db_danger_zone()}</h2>
 					<p class="text-sm text-muted mb-4">
-						Importer une base remplacera toutes les données actuelles. Soyez prudent.
+						{m.db_danger_note()}
 					</p>
 
 					<div class="file-drop-area">
@@ -309,7 +302,7 @@
 						/>
 						<label for="db_upload">
 							<CloudUpload size={32} class="mb-2 text-muted" />
-							<span class="font-medium">{uploadFile ? uploadFile.name : 'Choisir un fichier .db'}</span>
+							<span class="font-medium">{uploadFile ? uploadFile.name : m.db_choose_file()}</span>
 						</label>
 					</div>
 
@@ -319,7 +312,7 @@
 						onclick={importDatabase}
 						disabled={importing || !uploadFile}
 					>
-						{importing ? 'Importation...' : 'Importer et écraser'}
+						{importing ? m.db_importing() : m.db_import_btn()}
 					</button>
 				</section>
 			</div>
@@ -330,9 +323,9 @@
 				{#if databaseStatus}
 					<section class="glass-card slide-in">
 						<div class="flex items-center justify-between mb-4">
-							<h2 class="section-title m-0">État du système</h2>
+							<h2 class="section-title m-0">{m.db_system_state()}</h2>
 							<span class="status-badge {databaseStatus.status}">
-								{databaseStatus.status === 'healthy' ? 'Sain' : 'Problème'}
+								{databaseStatus.status === 'healthy' ? m.db_status_healthy() : m.db_status_problem()}
 							</span>
 						</div>
 
@@ -352,7 +345,7 @@
 
 						{#if databaseStatus.missingTables?.length > 0}
 							<div class="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-								<strong class="text-red-500 text-sm block mb-1">Manquant :</strong>
+								<strong class="text-red-500 text-sm block mb-1">{m.db_missing_label()}</strong>
 								<div class="flex flex-wrap gap-2">
 									{#each databaseStatus.missingTables as t}
 										<span class="text-xs bg-red-500/20 text-red-600 px-2 py-1 rounded">{t}</span>
@@ -366,12 +359,12 @@
 				<!-- Backups -->
 				<section class="glass-card">
 					<div class="flex items-center justify-between mb-4">
-						<h2 class="section-title m-0"><Archive size={20} /> Sauvegardes</h2>
+						<h2 class="section-title m-0"><Archive size={20} /> {m.db_backups()}</h2>
 					</div>
 
 					<div class="backup-list-container">
 						{#if backups.length === 0}
-							<EmptyState icon={Inbox} title="Aucune sauvegarde" />
+							<EmptyState icon={Inbox} title={m.db_no_backups()} />
 						{:else}
 							{#each backups as backup}
 								<div class="backup-row">
@@ -388,7 +381,7 @@
 										type="button"
 										class="btn-restore"
 										onclick={() => restoreBackup(backup.filename)}
-										title="Restaurer"
+										title={m.db_restore_title()}
 									>
 										<RotateCcw size={18} />
 									</button>
@@ -418,15 +411,14 @@
 				<div class="modal-icon warning">
 					<Wrench size={32} />
 				</div>
-				<h3 id="repairDialogTitle">Réparer la structure ?</h3>
+				<h3 id="repairDialogTitle">{m.db_repair_modal_title()}</h3>
 				<p>
-					Cette opération va recréer les tables manquantes. Aucune donnée existante ne sera perdue, mais
-					il est recommandé de faire une sauvegarde avant.
+					{m.db_repair_modal_body()}
 				</p>
 				<div class="modal-actions">
-					<button type="button" class="btn-glass" onclick={() => (showRepairModal = false)}>Annuler</button>
+					<button type="button" class="btn-glass" onclick={() => (showRepairModal = false)}>{m.common_cancel()}</button>
 					<button type="button" class="btn-glass primary" onclick={repairDatabase} disabled={repairing}>
-						{repairing ? 'Réparation...' : 'Confirmer la réparation'}
+						{repairing ? m.db_repairing() : m.db_repair_confirm_btn()}
 					</button>
 				</div>
 			</div>

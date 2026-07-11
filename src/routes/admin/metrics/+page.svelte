@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { RefreshCw, Activity, Cpu } from 'lucide-svelte';
+	import { m } from '$lib/paraglide/messages';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 
 	interface Metrics {
@@ -73,27 +74,27 @@
 </script>
 
 <svelte:head>
-	<title>Admin - Santé</title>
+	<title>{m.metr_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Santé du serveur"
-	subtitle="Mémoire du process et uptime (temps réel)"
+	title={m.metr_title()}
+	subtitle={m.metr_subtitle()}
 	icon={Activity}
 	maxWidth="1100px"
 >
 	{#snippet actions()}
 		<label class="auto-toggle">
 			<input type="checkbox" bind:checked={autoRefresh} />
-			<span>Auto (5s)</span>
+			<span>{m.metr_auto()}</span>
 		</label>
-		<button type="button" class="btn-glass icon" onclick={load} disabled={loading} title="Rafraichir">
+		<button type="button" class="btn-glass icon" onclick={load} disabled={loading} title={m.common_refresh()}>
 			<RefreshCw size={18} class={loading ? 'spin' : ''} />
 		</button>
 	{/snippet}
 
 	{#if error}
-		<div class="error-box">Erreur de chargement : {error}</div>
+		<div class="error-box">{m.metr_load_error({ error })}</div>
 	{/if}
 
 	{#if metrics}
@@ -101,7 +102,7 @@
 			<section class="card">
 				<div class="card-head">
 					<Cpu size={18} />
-					<h2>Process</h2>
+					<h2>{m.metr_process()}</h2>
 				</div>
 				<dl class="kv">
 					<div><dt>Uptime</dt><dd>{formatUptime(metrics.process.uptimeSeconds)}</dd></div>
@@ -113,11 +114,11 @@
 			<section class="card">
 				<div class="card-head">
 					<Activity size={18} />
-					<h2>Mémoire</h2>
+					<h2>{m.metr_memory()}</h2>
 				</div>
 				<dl class="kv">
 					<div><dt>RSS</dt><dd class="strong">{formatBytes(metrics.process.memory.rss)}</dd></div>
-					<div><dt>Heap utilisé</dt><dd>{formatBytes(metrics.process.memory.heapUsed)}</dd></div>
+					<div><dt>{m.metr_heap_used()}</dt><dd>{formatBytes(metrics.process.memory.heapUsed)}</dd></div>
 					<div><dt>Heap total</dt><dd>{formatBytes(metrics.process.memory.heapTotal)}</dd></div>
 					<div><dt>External</dt><dd>{formatBytes(metrics.process.memory.external)}</dd></div>
 					<div>
@@ -129,10 +130,11 @@
 		</div>
 
 		<p class="updated">
-			Dernière mise à jour : {new Date(metrics.timestamp).toLocaleTimeString('fr-FR')}
+			{m.metr_updated()}
+			{new Date(metrics.timestamp).toLocaleTimeString()}
 		</p>
 	{:else if !error}
-		<p class="loading-hint">Chargement des métriques…</p>
+		<p class="loading-hint">{m.metr_loading()}</p>
 	{/if}
 </AdminPage>
 

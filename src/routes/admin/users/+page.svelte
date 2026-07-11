@@ -6,6 +6,7 @@
     import Modal from '$lib/components/Modal.svelte';
     import { fuzzyMatch } from '$lib/fuzzy';
     import { toast } from '$lib/toast';
+    import { m } from '$lib/paraglide/messages';
     import type { PageData } from './$types';
     import type { UserRow } from '$lib/types/api';
 
@@ -15,9 +16,9 @@
     const currentUserId = $derived(data.currentUserId as string);
 
     const ROLE_LABELS: Record<string, string> = {
-        user: 'Utilisateur',
-        mitviste: 'MiTViste',
-        admin: 'Admin'
+        user: m.usr_role_user(),
+        mitviste: m.usr_role_mitviste(),
+        admin: m.usr_role_admin()
     };
     const ROLES = ['user', 'mitviste', 'admin'];
 
@@ -64,10 +65,10 @@
                 const err = (await res.json().catch(() => ({}))) as { error?: string };
                 throw new Error(err.error || `HTTP ${res.status}`);
             }
-            toast.success(`Rôle de ${user.name} mis à jour`);
+            toast.success(m.usr_role_updated({ name: user.name }));
             await invalidateAll();
         } catch (e) {
-            toast.error(`Échec: ${(e as Error).message}`);
+            toast.error(m.common_fail_detail({ error: (e as Error).message }));
         } finally {
             savingId = null;
         }
@@ -88,10 +89,10 @@
                 const err = (await res.json().catch(() => ({}))) as { error?: string };
                 throw new Error(err.error || `HTTP ${res.status}`);
             }
-            toast.success(`${user.name} supprimé`);
+            toast.success(m.usr_deleted({ name: user.name }));
             await invalidateAll();
         } catch (e) {
-            toast.error(`Échec: ${(e as Error).message}`);
+            toast.error(m.common_fail_detail({ error: (e as Error).message }));
         } finally {
             savingId = null;
             deleteTarget = null;
@@ -100,15 +101,15 @@
 </script>
 
 <svelte:head>
-    <title>Admin - Utilisateurs</title>
+    <title>{m.usr_page_title()}</title>
 </svelte:head>
 
 <div class="admin-wrapper">
     <header class="view-header">
         <div class="icon-box"><Users size={26} /></div>
         <div class="title-box">
-            <h1>Utilisateurs & rôles</h1>
-            <p class="count-subtitle">{users.length} utilisateur{users.length > 1 ? 's' : ''}</p>
+            <h1>{m.usr_title()}</h1>
+            <p class="count-subtitle">{m.usr_count({ count: users.length })}</p>
         </div>
     </header>
 
@@ -116,7 +117,7 @@
         <Search size={16} />
         <input
             type="search"
-            placeholder="Rechercher (nom, promo, formation, rôle)…"
+            placeholder={m.usr_search_ph()}
             bind:value={searchQuery}
         />
     </div>
@@ -137,7 +138,7 @@
                         <div class="identity-text">
                             <div class="identity-name-line">
                                 <span class="txt-name">{user.name}</span>
-                                {#if isSelf}<span class="badge self-tag">vous</span>{/if}
+                                {#if isSelf}<span class="badge self-tag">{m.usr_you()}</span>{/if}
                             </div>
                             <div class="identity-meta-line">
                                 {#if user.promo}<span class="badge promo-tag">{user.promo}</span>{/if}
@@ -152,7 +153,7 @@
                                 class="action-select role-{user.role || 'user'}"
                                 value={user.role || 'user'}
                                 disabled={savingId === user.id_user || isSelf}
-                                title={isSelf ? 'Vous ne pouvez pas modifier votre propre rôle' : 'Changer le rôle'}
+                                title={isSelf ? m.usr_no_self_role() : m.usr_change_role()}
                                 onchange={(e) => changeRole(user, e.currentTarget.value)}
                             >
                                 {#each ROLES as r}
@@ -165,7 +166,7 @@
                             type="button"
                             class="action-btn-delete"
                             disabled={savingId === user.id_user || isSelf}
-                            title={isSelf ? 'Vous ne pouvez pas vous supprimer' : 'Supprimer'}
+                            title={isSelf ? m.usr_no_self_delete() : m.common_delete()}
                             onclick={() => askDelete(user)}
                         >
                             <Trash2 size={16} />
@@ -176,8 +177,8 @@
                 <div class="empty-wrap">
                     <EmptyState
                         icon={Search}
-                        title="Aucun résultat"
-                        description="Aucun utilisateur ne correspond à la recherche."
+                        title={m.usr_no_results()}
+                        description={m.usr_no_results_desc()}
                         size="sm"
                     />
                 </div>
@@ -189,14 +190,13 @@
 <Modal
     bind:show={showDelete}
     type="confirm"
-    title="Supprimer l'utilisateur"
-    confirmText="Supprimer"
+    title={m.usr_delete_title()}
+    confirmText={m.common_delete()}
     onConfirm={confirmDelete}
     onCancel={() => (deleteTarget = null)}
 >
     <p>
-        Supprimer <strong>{deleteTarget?.name}</strong> de la base MiGallery ? Cette action est
-        irréversible (les permissions et favoris liés sont aussi supprimés).
+        {m.usr_delete_body_before()}<strong>{deleteTarget?.name}</strong>{m.usr_delete_body_after()}
     </p>
 </Modal>
 

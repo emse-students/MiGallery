@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-svelte';
 	import { goto } from '$app/navigation';
+	import { m } from '$lib/paraglide/messages';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { PageData } from './$types';
@@ -43,12 +44,12 @@
 </script>
 
 <svelte:head>
-	<title>Logs Admin - MiGallery</title>
+	<title>{m.logs_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Logs Système"
-	subtitle="{data.total} evenement{data.total > 1 ? 's' : ''} enregistre{data.total > 1 ? 's' : ''}"
+	title={m.logs_title()}
+	subtitle={m.logs_subtitle({ count: data.total })}
 	icon={Activity}
 	maxWidth="1400px"
 >
@@ -57,31 +58,31 @@
 			<Search size={16} />
 			<input
 				type="search"
-				placeholder="Rechercher (acteur, cible, détails)…"
+				placeholder={m.logs_search_ph()}
 				value={data.filters.q}
 				oninput={onSearchInput}
 			/>
 		</div>
 		<select class="event-select" value={data.filters.eventType} onchange={onEventChange}>
-			<option value="">Tous les types</option>
+			<option value="">{m.logs_all_types()}</option>
 			{#each data.eventTypes as et}
 				<option value={et}>{et}</option>
 			{/each}
 		</select>
 		{#if hasFilters}
 			<button type="button" class="btn-glass" onclick={resetFilters}>
-				<RotateCcw size={15} /> Réinitialiser
+				<RotateCcw size={15} /> {m.logs_reset()}
 			</button>
 		{/if}
 	</div>
 
 	<div class="grid-table glass-card">
 		<div class="table-header">
-			<div class="cell col-date">Date</div>
-			<div class="cell col-actor">Acteur</div>
-			<div class="cell col-action">Action</div>
-			<div class="cell col-target">Cible</div>
-			<div class="cell col-details">Détails</div>
+			<div class="cell col-date">{m.logs_col_date()}</div>
+			<div class="cell col-actor">{m.logs_col_actor()}</div>
+			<div class="cell col-action">{m.logs_col_action()}</div>
+			<div class="cell col-target">{m.logs_col_target()}</div>
+			<div class="cell col-details">{m.logs_col_details()}</div>
 		</div>
 
 		<div class="table-body">
@@ -92,7 +93,7 @@
 						{#if log.actor}
 							<span class="badge user">{log.actor}</span>
 						{:else}
-							<span class="badge system">Système</span>
+							<span class="badge system">{m.logs_system()}</span>
 						{/if}
 					</div>
 					<div class="cell col-action">
@@ -115,8 +116,8 @@
 				</div>
 			{:else}
 				<EmptyState
-					title="Aucun evenement"
-					description="Aucun evenement ne correspond aux filtres."
+					title={m.logs_empty_title()}
+					description={m.logs_empty_desc()}
 					size="sm"
 				/>
 			{/each}
@@ -124,14 +125,14 @@
 	</div>
 
 	<footer class="pager">
-		<span class="pager-info">Page {data.page} / {data.pageCount}</span>
+		<span class="pager-info">{m.logs_pager({ page: data.page, total: data.pageCount })}</span>
 		<div class="pager-actions">
 			<button
 				type="button"
 				class="btn-glass icon"
 				disabled={data.page <= 1}
 				onclick={() => navigate({ page: data.page - 1 })}
-				title="Page précédente"
+				title={m.logs_prev_page()}
 			>
 				<ChevronLeft size={18} />
 			</button>
@@ -140,7 +141,7 @@
 				class="btn-glass icon"
 				disabled={data.page >= data.pageCount}
 				onclick={() => navigate({ page: data.page + 1 })}
-				title="Page suivante"
+				title={m.logs_next_page()}
 			>
 				<ChevronRight size={18} />
 			</button>

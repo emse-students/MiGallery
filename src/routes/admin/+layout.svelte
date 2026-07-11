@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { m } from '$lib/paraglide/messages';
   import './shared-admin.css';
   import {
     BookOpen,
@@ -14,37 +15,37 @@
   } from '$lib/icons';
 
   const links = [
-    { href: '/admin', label: 'Documentation', icon: BookOpen },
-    { href: '/admin/metrics', label: 'Santé', icon: Activity },
-    { href: '/admin/logs', label: 'Logs', icon: ScrollText },
-    { href: '/admin/users', label: 'Utilisateurs', icon: Users },
-    { href: '/admin/api-keys', label: 'Gestion des clés', icon: Key },
-    { href: '/admin/database', label: 'Base de données', icon: Database },
-    { href: '/admin/trombinoscope', label: 'Trombinoscope', icon: UsersRound },
-    { href: '/admin/corbeille', label: 'Corbeille', icon: Trash2 }
+    { href: '/admin', label: m.adm_nav_docs, icon: BookOpen },
+    { href: '/admin/metrics', label: m.adm_nav_health, icon: Activity },
+    { href: '/admin/logs', label: m.adm_nav_logs, icon: ScrollText },
+    { href: '/admin/users', label: m.adm_nav_users, icon: Users },
+    { href: '/admin/api-keys', label: m.adm_nav_keys, icon: Key },
+    { href: '/admin/database', label: m.adm_nav_database, icon: Database },
+    { href: '/admin/trombinoscope', label: m.adm_nav_trombinoscope, icon: UsersRound },
+    { href: '/admin/corbeille', label: m.adm_nav_trash, icon: Trash2 }
   ];
   let { children } = $props();
 </script>
 
 <svelte:head>
-  <title>Admin - MiGallery</title>
+  <title>{m.adm_page_title()}</title>
 </svelte:head>
 
 <div class="admin-root">
   <aside class="sidebar">
-    <div class="brand"><ShieldCheck size={22} /> Admin</div>
+    <div class="brand"><ShieldCheck size={22} /> {m.adm_brand()}</div>
     <nav>
       {#each links as l}
         {@const Icon = l.icon}
         <a class:active={page.url.pathname === l.href} href={l.href}>
           <span class="icon"><Icon size={20} /></span>
-          <span>{l.label}</span>
+          <span>{l.label()}</span>
         </a>
       {/each}
     </nav>
     <div class="meta">
-      <a href="/" class="back-home">← Retour au site</a>
-      <small>v1.0 • Admin Panel</small>
+      <a href="/" class="back-home">← {m.adm_back_site()}</a>
+      <small>{m.adm_version()}</small>
     </div>
   </aside>
 

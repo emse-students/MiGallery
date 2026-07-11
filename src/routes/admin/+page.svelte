@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { BookOpen, List, FileText } from 'lucide-svelte';
+	import { m } from '$lib/paraglide/messages';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 
 	interface Doc {
@@ -26,12 +27,12 @@
 </script>
 
 <svelte:head>
-	<title>Admin - Documentation</title>
+	<title>{m.doc_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Documentation interne"
-	subtitle="Référence technique et guides développeur"
+	title={m.doc_title()}
+	subtitle={m.doc_subtitle()}
 	icon={BookOpen}
 	maxWidth="1400px"
 >
@@ -41,7 +42,7 @@
 				<div class="sidebar-content">
 					<div class="sidebar-header">
 						<List size={18} />
-						<span>Sommaire</span>
+						<span>{m.doc_toc()}</span>
 					</div>
 					<nav>
 						<ul>

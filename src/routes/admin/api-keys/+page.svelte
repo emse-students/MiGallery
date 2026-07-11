@@ -6,6 +6,7 @@
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
+	import { m } from '$lib/paraglide/messages';
 
 	type KeyRow = { id: number; label?: string; scopes?: string | null; created_at: number };
 
@@ -34,7 +35,7 @@
 
 	async function createKey() {
 		if (!newLabel) {
-			toast.error('Un label est requis');
+			toast.error(m.apik_label_required());
 			return;
 		}
 		creating = true;
@@ -52,33 +53,30 @@
 			const data = (await res.json()) as { id: number; rawKey: string };
 
 			await showConfirm(
-				`Clé créée avec succès !\n\nID: ${data.id}\nClé: ${data.rawKey}\n\n⚠️ Copiez-la maintenant, elle ne sera plus jamais affichée.`,
-				'Clé API générée'
+				m.apik_created_body({ id: data.id, key: data.rawKey }),
+				m.apik_created_title()
 			);
 
 			newLabel = '';
 			newScopes = '';
 			await loadKeys();
 		} catch (e: unknown) {
-			toast.error('Erreur lors de la création: ' + (e as Error).message);
+			toast.error(m.apik_create_error({ error: (e as Error).message }));
 		} finally {
 			creating = false;
 		}
 	}
 
 	async function deleteKey(id: number) {
-		const ok = await showConfirm(
-			"Supprimer définitivement cette clé ?\nCette action révoquera immédiatement l'accès.",
-			'Supprimer la clé'
-		);
+		const ok = await showConfirm(m.apik_delete_confirm(), m.apik_delete_title());
 		if (!ok) return;
 		try {
 			const res = await fetch(`/api/admin/api-keys/${id}`, { method: 'DELETE' });
 			if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-			toast.success('Clé supprimée');
+			toast.success(m.apik_deleted());
 			await loadKeys();
 		} catch (e: unknown) {
-			toast.error('Erreur: ' + (e as Error).message);
+			toast.error(m.common_error_detail({ error: (e as Error).message }));
 		}
 	}
 
@@ -88,58 +86,58 @@
 </script>
 
 <svelte:head>
-	<title>Admin - API Keys</title>
+	<title>{m.apik_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Gestion des clés API"
-	subtitle="Gérez les accès externes à l'API MiGallery"
+	title={m.apik_title()}
+	subtitle={m.apik_subtitle()}
 	icon={Key}
 	maxWidth="1000px"
 >
 	{#snippet actions()}
 		<a href="/admin" class="btn-glass">
-			<Book size={16} /> Documentation
+			<Book size={16} /> {m.adm_nav_docs()}
 		</a>
 	{/snippet}
 
 		<!-- Create section -->
 		<section class="glass-card create-section">
 			<div class="card-header">
-				<h3><CirclePlus size={20} /> Nouvelle clé</h3>
+				<h3><CirclePlus size={20} /> {m.apik_new_key()}</h3>
 			</div>
 			<div class="card-body">
 				<div class="form-row">
 					<div class="input-group">
-						<label for="key-label">Label</label>
+						<label for="key-label">{m.apik_label()}</label>
 						<input
 							id="key-label"
 							class="input-glass"
-							placeholder="Ex: portail-etu"
+							placeholder={m.apik_label_ph()}
 							bind:value={newLabel}
 						/>
 					</div>
 					<div class="input-group flex-1">
-						<label for="key-scopes">Scopes (optionnel)</label>
+						<label for="key-scopes">{m.apik_scopes()}</label>
 						<input
 							id="key-scopes"
 							class="input-glass"
-							placeholder="Ex: read,write (séparés par virgule)"
+							placeholder={m.apik_scopes_ph()}
 							bind:value={newScopes}
 						/>
 					</div>
 					<div class="input-group button-group">
 						<button type="button" class="btn-glass primary" onclick={createKey} disabled={creating || !newLabel}>
 							{#if creating}
-								<Spinner size={18} /> Création...
+								<Spinner size={18} /> {m.apik_creating()}
 							{:else}
-								<Check size={18} /> Créer
+								<Check size={18} /> {m.apik_create()}
 							{/if}
 						</button>
 					</div>
 				</div>
 				<p class="hint-text">
-					<Info size={14} /> La clé brute ne sera affichée qu'une seule fois après la création.
+					<Info size={14} /> {m.apik_hint()}
 				</p>
 			</div>
 		</section>
@@ -154,13 +152,13 @@
 		<!-- Liste des clés -->
 		<section class="glass-card list-section">
 			<div class="card-header">
-				<h3>Clés existantes ({keys.length})</h3>
+				<h3>{m.apik_existing({ count: keys.length })}</h3>
 				<button
 					type="button"
 					class="btn-refresh"
 					onclick={loadKeys}
 					disabled={loading}
-					title="Rafraîchir"
+					title={m.common_refresh()}
 					class:animate-spin={loading}
 				>
 					<RefreshCw size={18} />
@@ -168,17 +166,17 @@
 			</div>
 
 			{#if loading && keys.length === 0}
-				<div class="empty-state"><Spinner size={32} /> Chargement...</div>
+				<div class="empty-state"><Spinner size={32} /> {m.common_loading()}</div>
 			{:else if keys.length > 0}
 				<div class="table-container">
 					<table>
 						<thead>
 							<tr>
 								<th>ID</th>
-								<th>Label</th>
+								<th>{m.apik_label()}</th>
 								<th>Scopes</th>
-								<th>Créée le</th>
-								<th class="text-right">Actions</th>
+								<th>{m.apik_th_created()}</th>
+								<th class="text-right">{m.apik_th_actions()}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -194,12 +192,12 @@
 												{/each}
 											</div>
 										{:else}
-											<span class="badge all">Tous</span>
+											<span class="badge all">{m.apik_all_scopes()}</span>
 										{/if}
 									</td>
 									<td class="text-sm text-muted">{new Date(k.created_at).toLocaleString()}</td>
 									<td class="text-right">
-										<button type="button" class="btn-icon danger" onclick={() => deleteKey(k.id)} title="Révoquer">
+										<button type="button" class="btn-icon danger" onclick={() => deleteKey(k.id)} title={m.apik_revoke()}>
 											<Trash2 size={18} />
 										</button>
 									</td>
@@ -209,7 +207,7 @@
 					</table>
 				</div>
 			{:else if !loading}
-				<EmptyState icon={Key} title="Aucune clé API active." />
+				<EmptyState icon={Key} title={m.apik_empty()} />
 			{/if}
 		</section>
 </AdminPage>
