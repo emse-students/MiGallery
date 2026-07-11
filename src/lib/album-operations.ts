@@ -109,10 +109,10 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 }
 
 /**
- * Upload générique de fichiers dans un album
- * Fonctionne pour les deux cas:
- * - Album Photos CV: utilise /api/people
- * - Album normal: utilise /api/albums/{id}/assets
+ * Generic file upload into an album
+ * Works for both cases:
+ * - Photos CV album: uses /api/people
+ * - Normal album: uses /api/albums/{id}/assets
  */
 export async function handleAlbumUpload(
 	files: File[],

@@ -9,7 +9,7 @@ import { getDatabase } from '$lib/db/database';
 
 const CACHE_DIR = path.resolve('data/cache/covers');
 
-// Initialisation du cache
+// Cache initialization
 try {
 	if (!fs.existsSync(CACHE_DIR)) {
 		fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -18,8 +18,8 @@ try {
 	console.error('Failed to create cache directory', e);
 }
 
-// Sémaphore pour limiter les traitements Sharp simultanés et éviter les crashs mémoire
-// quand de nombreux albums sont chargés en même temps.
+// Semaphore to limit concurrent Sharp processing and prevent memory crashes
+// when many albums are loaded at the same time.
 const MAX_CONCURRENT_SHARP = 4;
 const MAX_QUEUE_SIZE = 12;
 let runningSharp = 0;
@@ -49,7 +49,7 @@ function acquireSharp(): Promise<(() => void) | null> {
 }
 
 /**
- * GET: Récupère l'image de couverture (avec redimensionnement et cache)
+ * GET: Fetches the cover image (with resizing and caching)
  */
 export const GET: RequestHandler = async (event) => {
 	const { params, fetch } = event;
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async (event) => {
 		throw error(400, 'Missing albumId or assetId');
 	}
 
-	// Vérification visibilité
+	// Visibility check
 	let isUnlisted = false;
 	try {
 		const db = getDatabase();
@@ -75,11 +75,11 @@ export const GET: RequestHandler = async (event) => {
 		await requireScope(event, 'read');
 	}
 
-	// Vérification Cache
+	// Cache check
 	const cacheFile = path.join(CACHE_DIR, `${assetId}.webp`);
 	if (fs.existsSync(cacheFile)) {
 		const buffer = fs.readFileSync(cacheFile);
-		// Cache-Control: 180 jours ~ 6 mois
+		// Cache-Control: 180 days ~ 6 months
 		return new Response(new Uint8Array(buffer), {
 			headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=15552000' }
 		});
@@ -91,14 +91,14 @@ export const GET: RequestHandler = async (event) => {
 		throw error(500, 'Immich config missing');
 	}
 
-	// On acquiert le verrou AVANT tout téléchargement : sinon N requêtes
-	// simultanées matérialisent N buffers en RAM native, hors de tout contrôle
-	// (le sémaphore ne bornerait que le traitement Sharp). En bornant aussi le
-	// fetch, au plus MAX_CONCURRENT_SHARP images sont résidentes à la fois.
+	// Acquire the lock BEFORE any download: otherwise N concurrent requests
+	// materialize N buffers in native RAM, beyond control
+	// (the semaphore would only bound Sharp processing). By also bounding
+	// fetch, at most MAX_CONCURRENT_SHARP images are resident at a time.
 	const release = await acquireSharp();
 	if (!release) {
-		// File d'attente pleine : on redirige vers la miniature Immich proxifiée
-		// plutôt que de charger une image en RAM et risquer un OOM sous rafale.
+		// Queue full: redirect to the proxied Immich thumbnail
+		// rather than load an image in RAM and risk OOM under burst.
 		console.warn('[Cover] Sharp queue full, redirecting to proxied thumbnail');
 		return new Response(null, {
 			status: 307,
@@ -110,9 +110,9 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	try {
-		// Source = miniature "preview" (≈ quelques centaines de Ko) et non
-		// l'original pleine résolution (JPEG 5-30 Mo, RAW 50 Mo+) : on ne
-		// matérialise jamais un gros buffer natif pour produire une vignette 400×400.
+		// Source = "preview" thumbnail (≈ a few hundred KB) not
+		// full resolution original (JPEG 5-30 MB, RAW 50 MB+): never
+		// materialize a large native buffer to produce a 400×400 thumbnail.
 		const thumbUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
 		const thumbRes = await fetch(thumbUrl, { headers: { 'x-api-key': apiKey } });
 		if (!thumbRes.ok) {
@@ -122,7 +122,7 @@ export const GET: RequestHandler = async (event) => {
 		const buf = Buffer.from(await thumbRes.arrayBuffer());
 		return await processAndCacheImage(buf, cacheFile);
 	} catch (e) {
-		// Préserve les erreurs HTTP typées (404, etc.) au lieu de les masquer en 500.
+		// Preserves typed HTTP errors (404, etc.) instead of masking them as 500.
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
@@ -134,7 +134,7 @@ export const GET: RequestHandler = async (event) => {
 };
 
 /**
- * PUT: Définit cet asset comme couverture de l'album
+ * PUT: Sets this asset as the album cover
  */
 export const PUT: RequestHandler = async (event) => {
 	const { params } = event;
@@ -164,9 +164,9 @@ export const PUT: RequestHandler = async (event) => {
 };
 
 /**
- * Utilitaire de traitement d'image avec Sharp.
- * Le sémaphore Sharp est acquis/relâché par l'appelant (voir GET), qui l'obtient
- * AVANT le téléchargement afin de borner aussi la mémoire des fetch en cours.
+ * Image processing utility with Sharp.
+ * The Sharp semaphore is acquired/released by the caller (see GET), which obtains it
+ * BEFORE download to also bound the memory of ongoing fetches.
  */
 async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<Response> {
 	try {
@@ -184,13 +184,13 @@ async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<
 		return new Response(new Uint8Array(processed), {
 			headers: {
 				'Content-Type': 'image/webp',
-				// Cache-Control: 180 jours ~ 6 mois
+				// Cache-Control: 180 days ~ 6 months
 				'Cache-Control': 'public, max-age=15552000'
 			}
 		});
 	} catch (e) {
 		console.error('Sharp processing failed', e);
-		// Retourne l'image brute en cas d'échec de Sharp
+		// Returns the raw image if Sharp processing fails
 		return new Response(new Uint8Array(buffer), { headers: { 'Content-Type': 'image/jpeg' } });
 	}
 }

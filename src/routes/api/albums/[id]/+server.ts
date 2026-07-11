@@ -40,9 +40,9 @@ function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
 
 /**
  * GET /api/albums/[id]
- * Récupère les détails d'un album avec ses assets
+ * Fetches the details of an album with its assets
  *
- * Cache: Les albums sont cachés via le proxy /api/immich
+ * Cache: Albums are cached via the /api/immich proxy
  */
 export const GET: RequestHandler = async (event) => {
 	const { id } = event.params;
@@ -80,9 +80,9 @@ export const GET: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/albums/[id]
- * Supprime un album de manière robuste:
- * 1. Supprime TOUJOURS de la BDD locale (source de vérité pour nous)
- * 2. Essaie de supprimer d'Immich (non-critique)
+ * Deletes an album robustly:
+ * 1. ALWAYS deletes from the local database (source of truth for us)
+ * 2. Attempts to delete from Immich (non-critical)
  */
 export const DELETE: RequestHandler = async (event) => {
 	await requireScope(event, 'write');
@@ -157,10 +157,10 @@ export const DELETE: RequestHandler = async (event) => {
 
 /**
  * PATCH /api/albums/[id]
- * Met à jour les métadonnées locales d'un album dans la BDD
- * (date, location, visibility, visible, tags, users autorisés)
+ * Updates the local metadata of an album in the database
+ * (date, location, visibility, visible, tags, authorized users)
  *
- * Les albums Immich et notre BDD sont indépendants (liés uniquement par ID)
+ * Immich albums and our database are independent (linked only by ID)
  *
  * Body: {
  *   name?: string,
@@ -231,7 +231,7 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 
 			if (updates.length > 0) {
-				values.push(id); // Pour la clause WHERE
+				values.push(id); // For the WHERE clause
 				const stmt = db.prepare(`UPDATE albums SET ${updates.join(', ')} WHERE id = ?`);
 				stmt.run(...values);
 			}

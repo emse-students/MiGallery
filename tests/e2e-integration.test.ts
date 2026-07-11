@@ -1,6 +1,6 @@
 /**
- * Tests d'intégration end-to-end pour MiGallery
- * Ce fichier orchestre tous les tests et vérifie l'intégration complète
+ * End-to-end integration tests for MiGallery
+ * This file orchestrates all tests and verifies the complete integration
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -16,11 +16,11 @@ let testApiKeyId: string | null = null;
 let testReadApiKeyId: string | null = null;
 
 // ========================================
-// Setup et authentification
+// Setup and authentication
 // ========================================
 
 beforeAll(async () => {
-	console.debug('🚀 Starting end-to-end integration tests'); // Tentative de connexion en tant qu'utilisateur système
+	console.debug('🚀 Starting end-to-end integration tests'); // Attempting to log in as the system user
 	try {
 		const response = await fetch(
 			`${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
@@ -40,7 +40,7 @@ beforeAll(async () => {
 			}
 		}
 
-		// Créer une clé API admin pour les tests
+		// Create an admin API key for the tests
 		if (sessionCookie) {
 			const keyResponse = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 				method: 'POST',
@@ -61,7 +61,7 @@ beforeAll(async () => {
 				console.debug('✅ Admin API key created');
 			}
 
-			// Créer une clé API read pour les tests
+			// Create a read API key for the tests
 			const readKeyResponse = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 				method: 'POST',
 				headers: {
@@ -87,7 +87,7 @@ beforeAll(async () => {
 }, 30000);
 
 afterAll(async () => {
-	console.debug('\n🧹 Cleaning up test resources'); // Supprimer l'utilisateur de test
+	console.debug('\n🧹 Cleaning up test resources'); // Delete the test user
 	if (testUserId && adminApiKey) {
 		await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
 			method: 'DELETE',
@@ -95,7 +95,7 @@ afterAll(async () => {
 		});
 	}
 
-	// Supprimer l'album de test
+	// Delete the test album
 	if (testAlbumId && adminApiKey) {
 		await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
 			method: 'DELETE',
@@ -103,7 +103,7 @@ afterAll(async () => {
 		});
 	}
 
-	// Supprimer les clés API de test
+	// Delete the test API keys
 	if (testApiKeyId && sessionCookie) {
 		await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
 			method: 'DELETE',
@@ -111,7 +111,7 @@ afterAll(async () => {
 		});
 	}
 
-	// Supprimer la clé API read de test
+	// Delete the test read API key
 	if (testReadApiKeyId && sessionCookie) {
 		await fetch(`${API_BASE_URL}/api/admin/api-keys/${testReadApiKeyId}`, {
 			method: 'DELETE',
@@ -123,12 +123,12 @@ afterAll(async () => {
 });
 
 // ========================================
-// Tests end-to-end complets
+// Complete end-to-end tests
 // ========================================
 
-describe('E2E - Workflow complet utilisateur', () => {
-	it('devrait créer un utilisateur, le modifier et le supprimer', async () => {
-		// 1. Créer un utilisateur
+describe('E2E - Complete user workflow', () => {
+	it('should create, modify and delete a user', async () => {
+		// 1. Create a user
 		const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -152,14 +152,14 @@ describe('E2E - Workflow complet utilisateur', () => {
 			const createData = (await createResponse.json()) as UserCreateResponse;
 			testUserId = createData.created!.id_user;
 
-			// 2. Récupérer l'utilisateur créé
+			// 2. Fetch the created user
 			const getResponse = await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
 				headers: { 'x-api-key': adminApiKey }
 			});
 
 			expect(getResponse.status).toBe(200);
 
-			// 3. Modifier l'utilisateur
+			// 3. Modify the user
 			const updateResponse = await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
 				method: 'PUT',
 				headers: {
@@ -178,7 +178,7 @@ describe('E2E - Workflow complet utilisateur', () => {
 
 			expect(updateResponse.status).toBe(200);
 
-			// 4. Supprimer l'utilisateur
+			// 4. Delete the user
 			const deleteResponse = await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
 				method: 'DELETE',
 				headers: { 'x-api-key': adminApiKey }
@@ -190,9 +190,9 @@ describe('E2E - Workflow complet utilisateur', () => {
 	}, 30000);
 });
 
-describe('E2E - Workflow complet album', () => {
-	it('devrait créer un album, ajouter des assets et le supprimer', async () => {
-		// 1. Créer un album
+describe('E2E - Complete album workflow', () => {
+	it('should create album, add assets and delete it', async () => {
+		// 1. Create an album
 		const createResponse = await fetch(`${API_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: {
@@ -201,7 +201,7 @@ describe('E2E - Workflow complet album', () => {
 			},
 			body: JSON.stringify({
 				albumName: `[TEST] E2E Album ${Date.now()}`,
-				description: 'Album créé par les tests E2E'
+				description: 'Album created by E2E tests'
 			})
 		});
 
@@ -209,14 +209,14 @@ describe('E2E - Workflow complet album', () => {
 			const album = (await createResponse.json()) as ImmichAlbum;
 			testAlbumId = album.id;
 
-			// 2. Récupérer l'album
+			// 2. Fetch the album
 			const getResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
 				headers: { 'x-api-key': adminApiKey }
 			});
 
 			expect([200, 404, 500]).toContain(getResponse.status);
 
-			// 3. Modifier l'album
+			// 3. Modify the album
 			const updateResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
 				method: 'PATCH',
 				headers: {
@@ -224,14 +224,14 @@ describe('E2E - Workflow complet album', () => {
 					'x-api-key': adminApiKey
 				},
 				body: JSON.stringify({
-					albumName: '[TEST] E2E Album Modifié',
-					description: 'Description mise à jour'
+					albumName: '[TEST] E2E Album Modified',
+					description: 'Updated description'
 				})
 			});
 
 			expect([200, 404, 500]).toContain(updateResponse.status);
 
-			// 4. Supprimer l'album
+			// 4. Delete the album
 			const deleteResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
 				method: 'DELETE',
 				headers: { 'x-api-key': adminApiKey }
@@ -243,16 +243,16 @@ describe('E2E - Workflow complet album', () => {
 	}, 30000);
 });
 
-describe('E2E - Workflow permissions et scopes', () => {
-	it('devrait respecter les scopes read vs admin', async () => {
-		// 1. Lire avec scope read (devrait marcher)
+describe('E2E - Permissions and scopes workflow', () => {
+	it('should respect read vs admin scopes', async () => {
+		// 1. Read with read scope (should work)
 		const readResponse = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: { 'x-api-key': readApiKey }
 		});
 
 		expect([200, 401, 500]).toContain(readResponse.status);
 
-		// 2. Créer avec scope read (devrait échouer)
+		// 2. Create with read scope (should fail)
 		const createWithReadResponse = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -271,7 +271,7 @@ describe('E2E - Workflow permissions et scopes', () => {
 
 		expect([401, 403]).toContain(createWithReadResponse.status);
 
-		// 3. Créer avec scope admin (devrait marcher)
+		// 3. Create with admin scope (should work)
 		const createWithAdminResponse = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -292,7 +292,7 @@ describe('E2E - Workflow permissions et scopes', () => {
 			const data = (await createWithAdminResponse.json()) as UserCreateResponse;
 			const userId = data.created!.id_user;
 
-			// Nettoyer
+			// Clean up
 			await fetch(`${API_BASE_URL}/api/users/${userId}`, {
 				method: 'DELETE',
 				headers: { 'x-api-key': adminApiKey }
@@ -301,11 +301,11 @@ describe('E2E - Workflow permissions et scopes', () => {
 	}, 30000);
 });
 
-describe('E2E - Workflow favoris', () => {
-	it('devrait gérer le cycle complet des favoris', async () => {
+describe('E2E - Favorites workflow', () => {
+	it('should handle complete favorites cycle', async () => {
 		const assetId = 'e2e-test-asset-123';
 
-		// 1. Ajouter aux favoris
+		// 1. Add to favorites
 		const addResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'POST',
 			headers: {
@@ -317,14 +317,14 @@ describe('E2E - Workflow favoris', () => {
 
 		expect([200, 201, 400, 401, 409]).toContain(addResponse.status);
 
-		// 2. Lister les favoris
+		// 2. List favorites
 		const listResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
 			headers: { 'x-api-key': adminApiKey }
 		});
 
 		expect([200, 401]).toContain(listResponse.status);
 
-		// 3. Retirer des favoris
+		// 3. Remove from favorites
 		const removeResponse = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'DELETE',
 			headers: {
@@ -338,9 +338,9 @@ describe('E2E - Workflow favoris', () => {
 	}, 30000);
 });
 
-describe('E2E - Workflow médias externes', () => {
-	it('devrait gérer le cycle complet des médias externes', async () => {
-		// 1. Créer un média externe
+describe('E2E - External media workflow', () => {
+	it('should handle complete external media cycle', async () => {
+		// 1. Create an external media item
 		const createResponse = await fetch(`${API_BASE_URL}/api/external/media`, {
 			method: 'POST',
 			headers: {
@@ -351,7 +351,7 @@ describe('E2E - Workflow médias externes', () => {
 				type: 'url',
 				url: 'https://example.com/e2e-test-video.mp4',
 				title: 'E2E Test Media',
-				description: 'Média créé par les tests E2E'
+				description: 'Media created by E2E tests'
 			})
 		});
 
@@ -359,14 +359,14 @@ describe('E2E - Workflow médias externes', () => {
 			const media = (await createResponse.json()) as { media: { id: string } };
 			const mediaId = media.media.id;
 
-			// 2. Récupérer le média
+			// 2. Fetch the media
 			const getResponse = await fetch(`${API_BASE_URL}/api/external/media/${mediaId}`, {
 				headers: { 'x-api-key': adminApiKey }
 			});
 
 			expect([200, 404]).toContain(getResponse.status);
 
-			// 3. Supprimer le média
+			// 3. Delete the media
 			const deleteResponse = await fetch(`${API_BASE_URL}/api/external/media/${mediaId}`, {
 				method: 'DELETE',
 				headers: { 'x-api-key': adminApiKey }
@@ -378,7 +378,7 @@ describe('E2E - Workflow médias externes', () => {
 });
 
 describe('E2E - Health et monitoring', () => {
-	it('devrait vérifier que tous les endpoints critiques sont accessibles', async () => {
+	it('should verify all critical endpoints are accessible', async () => {
 		const endpoints = [
 			{ url: '/api/health', method: 'GET', auth: false },
 			{ url: '/api/albums', method: 'GET', auth: true },
@@ -396,14 +396,14 @@ describe('E2E - Health et monitoring', () => {
 				signal: AbortSignal.timeout(10000)
 			});
 
-			// Les endpoints doivent être accessibles (même si Immich est down)
+			// Endpoints must be accessible (even if Immich is down)
 			expect([200, 401, 404, 500, 502]).toContain(response.status);
 		}
 	}, 60000);
 });
 
-describe('E2E - Performance et stress', () => {
-	it('devrait gérer plusieurs requêtes simultanées', async () => {
+describe('E2E - Performance and stress', () => {
+	it('should handle multiple simultaneous requests', async () => {
 		const requests = Array.from({ length: 20 }, () => fetch(`${API_BASE_URL}/api/health`));
 
 		const responses = await Promise.all(requests);
@@ -412,7 +412,7 @@ describe('E2E - Performance et stress', () => {
 		expect(successCount).toBeGreaterThan(0);
 	}, 30000);
 
-	it('devrait gérer les requêtes lourdes sans timeout', async () => {
+	it('should handle heavy requests without timeout', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: { 'x-api-key': adminApiKey },
 			signal: AbortSignal.timeout(15000)
@@ -422,8 +422,8 @@ describe('E2E - Performance et stress', () => {
 	}, 20000);
 });
 
-describe('E2E - Validation des données', () => {
-	it('devrait rejeter les données invalides de manière cohérente', async () => {
+describe('E2E - Data validation', () => {
+	it('should reject invalid data consistently', async () => {
 		const invalidRequests = [
 			{
 				url: '/api/users',

@@ -2,8 +2,8 @@ import { activeOperations } from '$lib/operations';
 import { navigationModalStore } from '$lib/navigation-store';
 
 /**
- * Intercepter les clics sur les liens pour blocker la navigation
- * si des opérations sont en cours
+ * Intercept clicks on links to block navigation
+ * if operations are in progress
  */
 if (typeof window !== 'undefined') {
 	let hasActiveOps = false;
@@ -46,10 +46,10 @@ if (typeof window !== 'undefined') {
 			}
 		},
 		true
-	); // Capture phase = avant SvelteKit
+	); // Capture phase = before SvelteKit
 }
 
-// Enregistrer un service worker léger pour StreamSaver (si disponible)
+// Register a lightweight service worker for StreamSaver (if available)
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 	navigator.serviceWorker
 		.register('/streamsaver-sw.js')

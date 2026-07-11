@@ -10,8 +10,8 @@ import { requireScope } from '$lib/server/permissions';
 
 /**
  * GET /api/albums/[id]/assets-simple
- * Retourne les assets d'un album en JSON simple (pas de streaming)
- * Évite les problèmes de Proxy avec Svelte 5
+ * Returns the assets of an album in simple JSON (no streaming)
+ * Avoids Proxy issues with Svelte 5
  */
 export const GET: RequestHandler = async (event) => {
 	try {

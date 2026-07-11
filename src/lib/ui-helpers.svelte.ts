@@ -1,46 +1,46 @@
 /**
- * Helpers pour gérer les modals et toasts de manière simple
+ * Helpers to manage modals and toasts in a simple way
  */
 
 import { toast as toastStore } from './toast';
 
 /**
- * Afficher un message de succès
+ * Show a success message
  */
 export function showSuccess(message: string, duration: number = 3000) {
 	toastStore.success(message, duration);
 }
 
 /**
- * Afficher un message d'erreur
+ * Show an error message
  */
 export function showError(message: string, duration = 5000) {
 	toastStore.error(message, duration);
 }
 
 /**
- * Afficher un message d'information
+ * Show an info message
  */
 export function showInfo(message: string, duration = 3000) {
 	toastStore.info(message, duration);
 }
 
 /**
- * Afficher un avertissement
+ * Show a warning
  */
 export function showWarning(message: string, duration = 4000) {
 	toastStore.warning(message, duration);
 }
 
 /**
- * Wrapper pour remplacer les alert() par des toasts
+ * Wrapper to replace alert() calls with toasts
  */
 export function showMessage(message: string) {
 	toastStore.info(message);
 }
 
 /**
- * État pour gérer les modals de confirmation
+ * State to manage confirmation modals
  */
 export function createConfirmModal() {
 	let showModal = $state(false);

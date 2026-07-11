@@ -1,7 +1,7 @@
 import { ensureError } from '$lib/ts-utils';
 /**
- * Helper pour consommer un stream NDJSON (Newline Delimited JSON)
- * et appeler un callback pour chaque ligne parsée
+ * Helper to consume an NDJSON (Newline Delimited JSON) stream
+ * and call a callback for each parsed line
  */
 export async function consumeNDJSONStream<T>(
 	response: Response,

@@ -22,7 +22,7 @@ interface UserBasic {
 
 /**
  * GET /api/users/me/photo-access
- * Récupère la liste des personnes autorisées à voir mes photos
+ * Fetches the list of people authorized to view my photos
  */
 export const GET: RequestHandler = async (event) => {
 	const user = await requireSession(event);
@@ -57,13 +57,13 @@ export const GET: RequestHandler = async (event) => {
 
 /**
  * POST /api/users/me/photo-access
- * Ajoute une autorisation pour qu'un utilisateur puisse voir mes photos
+ * Grants permission for a user to view my photos
  *
  * Body:
- * - user_id: string (l'identifiant utilisateur MiGallery complet, fourni par le système OIDC)
+ * - user_id: string (complete MiGallery user identifier, provided by the OIDC system)
  *
- * NOTE: Les identifiants utilisateurs MiGallery sont des ID complets (UUID-like) fournis par le service d'authentification OIDC.
- * Ils ne sont pas au format "prenom.nom" - utilisez l'ID complet affiché dans le profil de l'utilisateur.
+ * NOTE: MiGallery user identifiers are complete IDs (UUID-like) provided by the OIDC authentication service.
+ * They are not in the "firstname.lastname" format - use the complete ID displayed in the user's profile.
  */
 export const POST: RequestHandler = async (event) => {
 	const user = await requireSession(event);
@@ -116,10 +116,10 @@ export const POST: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/users/me/photo-access
- * Révoque l'autorisation d'un utilisateur à voir mes photos
+ * Revokes permission for a user to view my photos
  *
  * Body:
- * - user_id: string (l'identifiant de l'utilisateur à révoquer)
+ * - user_id: string (the identifier of the user to revoke)
  */
 export const DELETE: RequestHandler = async (event) => {
 	const user = await requireSession(event);

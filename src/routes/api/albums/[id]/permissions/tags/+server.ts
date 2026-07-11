@@ -6,7 +6,7 @@ import { ensureError } from '$lib/ts-utils';
 
 /**
  * POST /api/albums/[id]/permissions/tags
- * Gère les tags autorisés pour un album
+ * Manages authorized tags for an album
  *
  * Body: {
  *   add?: string[],

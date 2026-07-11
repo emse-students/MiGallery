@@ -160,7 +160,7 @@
 	.doc-icon {
 		color: var(--text-secondary);
 		opacity: 0.7;
-		min-width: 16px; /* Espace fixe pour l'icône */
+		min-width: 16px; /* Fixed space for the icon */
 		margin-top: 2px; /* Optical alignment with first line of text */
 	}
 	.toc-link:hover .doc-icon {

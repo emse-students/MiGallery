@@ -1,7 +1,7 @@
 import { ensureError } from '$lib/ts-utils';
 /**
- * Cache client-side pour les données API
- * Utilise IndexedDB pour la persistance entre sessions
+ * Client-side cache for API data
+ * Uses IndexedDB for persistence across sessions
  */
 
 interface CacheEntry<T = unknown> {
@@ -15,7 +15,7 @@ interface CacheConfig {
 	version: number;
 	stores: {
 		name: string;
-		ttl: number; // Time to live en millisecondes
+		ttl: number; // Time to live in milliseconds
 	}[];
 }
 
@@ -41,7 +41,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Initialise la base de données IndexedDB
+	 * Initialize the IndexedDB database
 	 */
 	private async initDB(): Promise<IDBDatabase> {
 		if (this.db) {
@@ -80,7 +80,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Récupère une entrée du cache
+	 * Get an entry from the cache
 	 */
 	async get<T>(storeName: string, key: string): Promise<T | null> {
 		try {
@@ -122,7 +122,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Stocke une entrée dans le cache
+	 * Store an entry in the cache
 	 */
 	async set<T>(storeName: string, key: string, data: T, etag?: string): Promise<void> {
 		try {
@@ -150,7 +150,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Supprime une entrée du cache
+	 * Delete an entry from the cache
 	 */
 	async delete(storeName: string, key: string): Promise<void> {
 		try {
@@ -171,7 +171,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Vide tout un store
+	 * Clear an entire store
 	 */
 	async clearStore(storeName: string): Promise<void> {
 		try {
@@ -192,7 +192,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Vide tout le cache
+	 * Clear the entire cache
 	 */
 	async clearAll(): Promise<void> {
 		for (const store of this.config.stores) {
@@ -201,7 +201,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Récupère les statistiques du cache
+	 * Get cache statistics
 	 */
 	async getStats(): Promise<{ storeName: string; count: number }[]> {
 		try {
@@ -230,7 +230,7 @@ class ClientCache {
 	}
 
 	/**
-	 * Nettoie les entrées expirées
+	 * Clean up expired entries
 	 */
 	async cleanup(): Promise<void> {
 		try {
@@ -266,7 +266,7 @@ class ClientCache {
 export const clientCache = new ClientCache();
 
 /**
- * Helper pour fetch avec cache automatique
+ * Helper for fetch with automatic caching
  */
 export async function cachedFetch<T>(
 	url: string,

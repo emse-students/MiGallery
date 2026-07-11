@@ -5,7 +5,7 @@ import { requireScope } from '$lib/server/permissions';
 
 /**
  * GET /api/favorites
- * Récupère tous les favoris de l'utilisateur connecté
+ * Gets all favorites of the logged-in user
  */
 export const GET: RequestHandler = async (event) => {
 	const user = await requireScope(event, 'read');
@@ -63,7 +63,7 @@ export const POST: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/favorites
- * Retire un asset des favoris
+ * Removes an asset from favorites
  * Body: { assetId: string }
  */
 export const DELETE: RequestHandler = async (event) => {

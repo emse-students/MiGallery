@@ -15,7 +15,7 @@ interface SharedWithMe {
 
 /**
  * GET /api/users/me/photo-access/shared-with-me
- * Récupère la liste des personnes qui m'ont autorisé à voir leurs photos
+ * Fetches the list of people who authorized me to view their photos
  */
 export const GET: RequestHandler = async (event) => {
 	const user = await requireSession(event);

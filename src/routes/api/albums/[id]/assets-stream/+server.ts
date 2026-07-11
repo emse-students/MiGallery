@@ -11,9 +11,9 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/albums/[id]/assets-stream
- * Streame les métadonnées des assets d'un album en NDJSON
- * Envoie d'abord les métadonnées minimales (id, type, dimensions) pour installer les skeletons,
- * puis enrichit progressivement avec les détails complets
+ * Streams the metadata of an album's assets in NDJSON
+ * First sends minimal metadata (id, type, dimensions) to install skeletons,
+ * then progressively enriches with full details
  */
 export const GET: RequestHandler = async (event) => {
 	try {
@@ -107,7 +107,7 @@ export const GET: RequestHandler = async (event) => {
 				};
 
 				try {
-					// 1. Envoi des données minimales pour tous les assets
+					// 1. Send minimal data for all assets
 					for (const asset of assets) {
 						if (streamClosed) {
 							break;
@@ -140,7 +140,7 @@ export const GET: RequestHandler = async (event) => {
 						}
 					}
 
-					// 2. Envoi des détails complets par lots
+					// 2. Send full details in batches
 					const batchSize = 10;
 					for (let i = 0; i < assets.length; i += batchSize) {
 						if (streamClosed) {

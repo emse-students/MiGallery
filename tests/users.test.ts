@@ -1,5 +1,5 @@
 /**
- * Tests exhaustifs pour l'API Utilisateurs
+ * Comprehensive tests for the Users API
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -8,7 +8,7 @@ import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpe
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let createdUserId: string | null = null;
-// Suivi de tous les utilisateurs créés pour le nettoyage
+// Track all created users for cleanup
 const createdUserIds: string[] = [];
 
 beforeAll(async () => {
@@ -16,7 +16,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	// Nettoyage : supprimer tous les utilisateurs de test créés
+	// Cleanup: delete all created test users
 	if (globalTestContext.adminApiKey) {
 		for (const userId of createdUserIds) {
 			try {
@@ -25,7 +25,7 @@ afterAll(async () => {
 					headers: { 'x-api-key': globalTestContext.adminApiKey }
 				});
 			} catch {
-				// Ignorer les erreurs
+				// Ignore errors
 			}
 		}
 	}
@@ -46,7 +46,7 @@ const getAuthHeaders = () => {
 };
 
 describe('Users API - GET /api/users', () => {
-	it('devrait lister tous les utilisateurs (admin)', async () => {
+	it('should list all users (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			headers: getAuthHeaders()
 		});
@@ -58,7 +58,7 @@ describe('Users API - GET /api/users', () => {
 			expect(data.success).toBe(true);
 			expect(Array.isArray(data.users)).toBe(true);
 
-			// Vérifier la structure des utilisateurs
+			// Verify the user structure
 			if (data.users.length > 0) {
 				const user = data.users[0];
 				expect(user).toHaveProperty('id_user');
@@ -68,20 +68,20 @@ describe('Users API - GET /api/users', () => {
 		}
 	});
 
-	it("devrait rejeter l'accès sans authentification", async () => {
+	it('should reject access without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`);
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it("devrait rejeter l'accès pour un utilisateur non-admin", async () => {
-		// TODO: Tester avec un token utilisateur non-admin
+	it('should reject access for a non-admin user', async () => {
+		// TODO: Test with a non-admin user token
 		await Promise.resolve();
 		expect(true).toBe(true);
 	});
 });
 
 describe('Users API - POST /api/users', () => {
-	it('devrait créer un nouvel utilisateur', async () => {
+	it('should create a new user', async () => {
 		const newUser = {
 			id_user: `test.user.${Date.now()}`,
 			email: `test.${Date.now()}@etu.emse.fr`,
@@ -110,10 +110,10 @@ describe('Users API - POST /api/users', () => {
 		}
 	});
 
-	it('devrait rejeter la création avec des données manquantes', async () => {
+	it('should reject creation with missing data', async () => {
 		const invalidUser = {
 			email: 'incomplete@etu.emse.fr'
-			// Manque id_user, name, first_name, last_name, role
+			// Missing id_user, name, first_name, last_name, role
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -125,7 +125,7 @@ describe('Users API - POST /api/users', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter la création sans nom exploitable', async () => {
+	it('should reject creation without name exploitable', async () => {
 		const invalidUser = {
 			id_user: 'test.invalid',
 			email: 'invalid-email',
@@ -141,14 +141,14 @@ describe('Users API - POST /api/users', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter la création avec un rôle invalide', async () => {
+	it('should reject creation with an invalid role', async () => {
 		const invalidUser = {
 			id_user: 'test.invalid.role',
 			email: 'test@etu.emse.fr',
 			name: 'Test Invalid',
 			first_name: 'Test',
 			last_name: 'Invalid',
-			role: 'super-admin-999' // Rôle invalide
+			role: 'super-admin-999' // Invalid role
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
@@ -160,7 +160,7 @@ describe('Users API - POST /api/users', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it("devrait rejeter la création d'un utilisateur en doublon", async () => {
+	it('should reject creation of a duplicate user', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -185,7 +185,7 @@ describe('Users API - POST /api/users', () => {
 });
 
 describe('Users API - GET /api/users/[id]', () => {
-	it('devrait récupérer un utilisateur spécifique', async () => {
+	it('should fetch a specific user', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -203,15 +203,15 @@ describe('Users API - GET /api/users/[id]', () => {
 		}
 	});
 
-	it('devrait retourner 404 pour un utilisateur inexistant', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/utilisateur.inexistant.12345`, {
+	it('should return 404 for non-existent user', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/users/inexistant.user.12345`, {
 			headers: getAuthHeaders()
 		});
 
 		expect([404]).toContain(response.status);
 	});
 
-	it("devrait récupérer l'utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782", async () => {
+	it('should fetch system user dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782', async () => {
 		const response = await fetch(
 			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
 			{
@@ -232,7 +232,7 @@ describe('Users API - GET /api/users/[id]', () => {
 });
 
 describe('Users API - PUT /api/users/[id]', () => {
-	it('devrait modifier un utilisateur', async () => {
+	it('should update a user', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -260,7 +260,7 @@ describe('Users API - PUT /api/users/[id]', () => {
 		}
 	});
 
-	it('devrait rejeter la modification avec des données invalides', async () => {
+	it('should reject modification with invalid data', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -279,7 +279,7 @@ describe('Users API - PUT /api/users/[id]', () => {
 		expect([400, 401, 403, 404]).toContain(response.status);
 	});
 
-	it("devrait rejeter la modification d'un utilisateur inexistant", async () => {
+	it('should reject modification of a nonexistent user', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/inexistant.user.12345`, {
 			method: 'PUT',
 			headers: getAuthHeaders(),
@@ -297,7 +297,7 @@ describe('Users API - PUT /api/users/[id]', () => {
 });
 
 describe('Users API - PATCH /api/users/me/promo', () => {
-	it("devrait mettre à jour la promo de l'utilisateur connecté", async () => {
+	it("should update the logged-in user's promo", async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
@@ -308,7 +308,7 @@ describe('Users API - PATCH /api/users/me/promo', () => {
 
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});
-	it('devrait rejeter une année de promo invalide', async () => {
+	it('should reject an invalid promo year', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
@@ -320,7 +320,7 @@ describe('Users API - PATCH /api/users/me/promo', () => {
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it('devrait rejeter une année de promo dans le passé', async () => {
+	it('should reject a promo year in the past', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
@@ -334,7 +334,7 @@ describe('Users API - PATCH /api/users/me/promo', () => {
 });
 
 describe('Users API - GET /api/users/[username]/avatar', () => {
-	it("devrait récupérer l'avatar d'un utilisateur", async () => {
+	it('should fetch user avatar', async () => {
 		const response = await fetch(
 			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782/avatar`,
 			{
@@ -350,15 +350,15 @@ describe('Users API - GET /api/users/[username]/avatar', () => {
 		}
 	});
 
-	it('devrait gérer les avatars manquants', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/utilisateur.sans.avatar/avatar`, {
+	it('should handle missing avatars', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/users/user.without.avatar/avatar`, {
 			headers: getAuthHeaders()
 		});
 
 		expect([200, 302, 401, 404, 500]).toContain(response.status);
 	});
 
-	it('devrait supporter le paramètre size', async () => {
+	it('should support size parameter', async () => {
 		const sizes = ['small', 'medium', 'large'];
 
 		for (const size of sizes) {
@@ -375,7 +375,7 @@ describe('Users API - GET /api/users/[username]/avatar', () => {
 });
 
 describe('Users API - DELETE /api/users/[id]', () => {
-	it('devrait supprimer un utilisateur', async () => {
+	it('should delete a user', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -388,16 +388,16 @@ describe('Users API - DELETE /api/users/[id]', () => {
 		expect([200, 204, 401, 403, 404]).toContain(response.status);
 
 		if (response.status === 200 || response.status === 204) {
-			// Vérifier que l'utilisateur a bien été supprimé
+			// Verify that the user was deleted
 			const checkResponse = await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
 				headers: getAuthHeaders()
 			});
 			expect([404]).toContain(checkResponse.status);
-			createdUserId = null; // Éviter le double nettoyage
+			createdUserId = null; // Avoid double cleanup
 		}
 	});
 
-	it("devrait rejeter la suppression d'un utilisateur inexistant", async () => {
+	it('should reject deletion of a nonexistent user', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/inexistant.user.12345`, {
 			method: 'DELETE',
 			headers: getAuthHeaders()
@@ -406,7 +406,7 @@ describe('Users API - DELETE /api/users/[id]', () => {
 		expect([401, 404, 500]).toContain(response.status);
 	});
 
-	it("devrait protéger la suppression de l'utilisateur système", async () => {
+	it('should protect deletion of the system user', async () => {
 		const response = await fetch(
 			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
 			{
@@ -419,8 +419,8 @@ describe('Users API - DELETE /api/users/[id]', () => {
 	});
 });
 
-describe('Users API - Validation des permissions', () => {
-	it('devrait vérifier les permissions admin pour la liste', async () => {
+describe('Users API - Permission validation', () => {
+	it('should verify admin permissions for listing', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			headers: getAuthHeaders()
 		});
@@ -428,7 +428,7 @@ describe('Users API - Validation des permissions', () => {
 		expect([200, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait vérifier les permissions admin pour la création', async () => {
+	it('should verify admin permissions for creation', async () => {
 		const testPermUserId = `test.perm.${Date.now()}`;
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
@@ -443,7 +443,7 @@ describe('Users API - Validation des permissions', () => {
 			})
 		});
 
-		// Tracker pour nettoyage
+		// Track for cleanup
 		if (response.status === 200 || response.status === 201) {
 			createdUserIds.push(testPermUserId);
 		}
@@ -451,7 +451,7 @@ describe('Users API - Validation des permissions', () => {
 		expect([200, 201, 401, 403, 400, 409]).toContain(response.status);
 	});
 
-	it('devrait vérifier les permissions admin pour la modification', async () => {
+	it('should verify admin permissions for modification', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/test.user`, {
 			method: 'PUT',
 			headers: getAuthHeaders(),
@@ -467,7 +467,7 @@ describe('Users API - Validation des permissions', () => {
 		expect([200, 401, 403, 404]).toContain(response.status);
 	});
 
-	it('devrait vérifier les permissions admin pour la suppression', async () => {
+	it('should verify admin permissions for deletion', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/test.user`, {
 			method: 'DELETE',
 			headers: getAuthHeaders()
@@ -478,10 +478,10 @@ describe('Users API - Validation des permissions', () => {
 });
 
 describe('Users API - PATCH /api/users/me/face', () => {
-	// Utilisateur de test pour les endpoints /me avec API key admin
+	// Test user for the /me endpoints with admin API key
 	const testUserId = 'test-face-user';
 
-	it('devrait rejeter les requêtes sans authentification', async () => {
+	it('should reject requests without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
 			headers: { 'Content-Type': 'application/json' },
@@ -491,7 +491,7 @@ describe('Users API - PATCH /api/users/me/face', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter si person_id est manquant', async () => {
+	it('should reject if person_id is missing', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
@@ -506,7 +506,7 @@ describe('Users API - PATCH /api/users/me/face', () => {
 		}
 	});
 
-	it('devrait mettre à jour le person_id avec une valeur valide', async () => {
+	it('should update person_id with valid value', async () => {
 		const testPersonId = 'test-person-uuid-12345';
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
@@ -523,7 +523,7 @@ describe('Users API - PATCH /api/users/me/face', () => {
 		}
 	});
 
-	it('devrait accepter null comme person_id', async () => {
+	it('should accept null as person_id', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users/me/face`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),

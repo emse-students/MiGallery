@@ -18,14 +18,14 @@ const apiKey = env.IMMICH_API_KEY ?? '';
 import type { RequestEvent } from '@sveltejs/kit';
 
 /**
- * Nettoie une valeur d'en-tête pour s'assurer qu'elle ne contient que des caractères Latin-1.
- * Les caractères hors plage (comme les apostrophes spéciales) font planter fetch.
+ * Cleans a header value to ensure it contains only Latin-1 characters.
+ * Characters outside the range (like special apostrophes) crash fetch.
  */
 function sanitizeHeaderValue(value: string | null | undefined): string | undefined {
 	if (!value) {
 		return undefined;
 	}
-	// Remplace les caractères non-Latin1 par leur équivalent encodé ou les supprime
+	// Replaces non-Latin1 characters with their encoded equivalent or removes them
 	// eslint-disable-next-line no-control-regex
 	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
 }
@@ -84,8 +84,8 @@ const publicMetaCache = {
 };
 
 /**
- * Vérifie si un asset appartient à un album "unlisted" (public via lien).
- * Si oui, l'accès est autorisé même sans authentification.
+ * Checks if an asset belongs to an "unlisted" album (public via link).
+ * If so, access is allowed even without authentication.
  */
 async function checkPublicAssetAccess(
 	assetId: string,
@@ -200,7 +200,7 @@ async function checkPublicAssetAccess(
 }
 
 /**
- * Vérifie si une liste d'assets est accessible publiquement (tous doivent être dans des albums unlisted).
+ * Checks if a list of assets is publicly accessible (all must be in unlisted albums).
  */
 async function checkPublicAssetsAccess(
 	assetIds: string[],
@@ -222,8 +222,8 @@ async function checkPublicAssetsAccess(
 }
 
 /**
- * Gère l'upload par morceaux (chunked) pour contourner les limites de Cloudflare.
- * Stocke les morceaux sur le disque et transfère le fichier complet à Immich à la fin.
+ * Handles chunked upload to bypass Cloudflare limits.
+ * Stores chunks on disk and transfers the complete file to Immich at the end.
  */
 async function handleChunkedUpload(
 	event: RequestEvent,
@@ -317,7 +317,7 @@ async function handleChunkedUpload(
 
 		let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
 		try {
-			// Le client encode le nom en URI pour supporter les caractères non-ASCII (ex: apostrophes spéciales)
+			// The client encodes the name in URI to support non-ASCII characters (e.g., special apostrophes)
 			originalName = decodeURIComponent(originalName);
 		} catch {
 			/* ignore decoding errors, use raw */
@@ -819,10 +819,10 @@ const handle: RequestHandler = async function (event) {
 			return new Response(res.body, { status: res.status, headers });
 		}
 
-		// Réponses de recherche (search/*) : potentiellement volumineuses (métadonnées
-		// v3), jamais mises en cache, et dont on n'inspecte pas le corps ici. On les
-		// streame directement au lieu de matérialiser tout le JSON via res.text(), ce
-		// qui évite un pic natif `external` proportionnel à la taille de la réponse.
+		// Search responses (search/*): potentially large (v3 metadata),
+		// never cached, and whose body we don't inspect here. We stream them
+		// directly instead of materializing all JSON via res.text(), which
+		// avoids a native `external` spike proportional to the response size.
 		if (res.ok && pathParam.startsWith('search/') && resContentType.includes('application/json')) {
 			const headers = new Headers();
 			headers.set('content-type', resContentType);

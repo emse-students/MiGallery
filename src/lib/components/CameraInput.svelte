@@ -192,7 +192,7 @@
 				</button>
 			{/if}
 
-			<!-- Bouton import fichier (toujours disponible) -->
+			<!-- File import button (always available) -->
 			<button class="btn-file" onclick={openFileSelector} {disabled}>
 				<Upload size={18} />
 				{isMobile ? 'Choisir depuis la galerie' : 'Importer une photo'}

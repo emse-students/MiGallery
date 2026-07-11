@@ -6,8 +6,8 @@ import { requireScope } from '$lib/server/permissions';
 
 /**
  * PUT /api/albums/[id]/metadata
- * Met à jour les métadonnées locales d'un album (name, date, location, visibility, visible)
- * Tags et utilisateurs autorisés sont gérés via les endpoints /api/albums/[id]/permissions/*
+ * Updates the local metadata of an album (name, date, location, visibility, visible)
+ * Tags and authorized users are managed via the /api/albums/[id]/permissions/* endpoints
  *
  * Body: {
  *   name?: string,

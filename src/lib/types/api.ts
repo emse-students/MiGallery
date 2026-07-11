@@ -1,14 +1,14 @@
 // ============================================================================
-// TYPES CENTRALISÉS - Source unique de vérité pour toute l'application
+// CENTRALIZED TYPES - Single source of truth for the entire application
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Users - Utilisateurs de l'application
+// Users - Application users
 // ----------------------------------------------------------------------------
 
 /**
- * Représentation d'un utilisateur dans l'application
- * Utilisé pour les sessions, les permissions et l'affichage
+ * Representation of a user in the application
+ * Used for sessions, permissions and display
  */
 export interface User {
 	id_user: string;
@@ -23,8 +23,8 @@ export interface User {
 }
 
 /**
- * Représentation d'un utilisateur tel que retourné par la base de données
- * Tous les champs sont explicitement nullable pour correspondre à SQLite
+ * Representation of a user as returned by the database
+ * All fields are explicitly nullable to match SQLite
  */
 export interface UserRow {
 	id_user: string;
@@ -39,8 +39,8 @@ export interface UserRow {
 }
 
 /**
- * Données requises pour éditer/créer un utilisateur
- * Tous les champs obligatoires pour garantir la cohérence
+ * Data required to edit/create a user
+ * All fields required to ensure consistency
  */
 export interface EditUserData {
 	id_user: string;
@@ -53,11 +53,11 @@ export interface EditUserData {
 }
 
 // ----------------------------------------------------------------------------
-// Albums - Gestion des albums photos
+// Albums - Photo album management
 // ----------------------------------------------------------------------------
 
 /**
- * Métadonnées d'un album (pour création/modification)
+ * Album metadata (for creation/modification)
  */
 export interface AlbumMetadata {
 	name: string;
@@ -68,8 +68,8 @@ export interface AlbumMetadata {
 }
 
 /**
- * Représentation complète d'un album
- * Utilisé pour l'affichage et les manipulations
+ * Complete representation of an album
+ * Used for display and manipulations
  */
 export interface Album {
 	id: string;
@@ -81,8 +81,8 @@ export interface Album {
 }
 
 /**
- * Album tel que stocké dans la base de données
- * Correspond exactement à la structure de la table SQLite
+ * Album as stored in the database
+ * Matches exactly the SQLite table structure
  */
 export interface AlbumRow {
 	id: string; // immich UUID
@@ -94,12 +94,12 @@ export interface AlbumRow {
 }
 
 // ----------------------------------------------------------------------------
-// API Responses - Réponses standardisées
+// API Responses - Standardized responses
 // ----------------------------------------------------------------------------
 
 /**
- * Réponse API générique pour tous les endpoints
- * @template T Type de données retournées
+ * Generic API response for all endpoints
+ * @template T Type of returned data
  */
 export interface ApiResponse<T = unknown> {
 	success?: boolean;
@@ -109,11 +109,11 @@ export interface ApiResponse<T = unknown> {
 }
 
 // ----------------------------------------------------------------------------
-// Database Operations - Opérations de base de données
+// Database Operations - Database operations
 // ----------------------------------------------------------------------------
 
 /**
- * Résultat d'une inspection de la base de données
+ * Result of a database inspection
  */
 export interface DbInspectionResult {
 	hasErrors: boolean;
@@ -122,12 +122,12 @@ export interface DbInspectionResult {
 }
 
 // ----------------------------------------------------------------------------
-// Immich Integration - Types pour l'API Immich
+// Immich Integration - Types for the Immich API
 // ----------------------------------------------------------------------------
 
 /**
- * Asset (photo/vidéo) tel que retourné par l'API Immich
- * Documentation complète des champs disponibles
+ * Asset (photo/video) as returned by the Immich API
+ * Complete documentation of available fields
  */
 export interface ImmichAsset {
 	id: string;
@@ -180,7 +180,7 @@ export interface ImmichAsset {
 }
 
 /**
- * Album tel que retourné par l'API Immich
+ * Album as returned by the Immich API
  */
 export interface ImmichAlbum {
 	id: string;
@@ -202,8 +202,8 @@ export interface ImmichAlbum {
 }
 
 /**
- * Réponse paginée de l'API Immich
- * @template T Type des items retournés
+ * Paginated response from the Immich API
+ * @template T Type of returned items
  */
 export interface ImmichPaginatedResponse<T> {
 	items: T[];
@@ -211,11 +211,11 @@ export interface ImmichPaginatedResponse<T> {
 }
 
 // ----------------------------------------------------------------------------
-// Authentication - Types pour l'authentification
+// Authentication - Types for authentication
 // ----------------------------------------------------------------------------
 
 /**
- * Utilisateur dans une session
+ * User within a session
  */
 export interface SessionUser {
 	id?: string;
@@ -227,15 +227,15 @@ export interface SessionUser {
 }
 
 /**
- * Session d'authentification complète
+ * Complete authentication session
  */
 export interface AuthSession {
 	user?: SessionUser | null;
 }
 
 /**
- * Interface pour les cookies SvelteKit
- * Simplifie le typage des opérations sur les cookies
+ * Interface for SvelteKit cookies
+ * Simplifies typing of cookie operations
  */
 export interface CookiesAPI {
 	get: (name: string) => string | undefined;
@@ -243,11 +243,11 @@ export interface CookiesAPI {
 }
 
 // ----------------------------------------------------------------------------
-// Test Types - Types spécifiques aux tests (réexportés pour cohérence)
+// Test Types - Test-specific types (re-exported for consistency)
 // ----------------------------------------------------------------------------
 
 /**
- * Réponse de création d'une clé API
+ * Response for API key creation
  */
 export interface ApiKeyResponse {
 	success?: boolean;
@@ -256,7 +256,7 @@ export interface ApiKeyResponse {
 }
 
 /**
- * Liste des utilisateurs (endpoint /api/users)
+ * List of users (endpoint /api/users)
  */
 export interface UsersListResponse {
 	success: boolean;
@@ -264,7 +264,7 @@ export interface UsersListResponse {
 }
 
 /**
- * Détails d'un utilisateur (endpoint /api/users/:id)
+ * Details of a user (endpoint /api/users/:id)
  */
 export interface UserResponse {
 	success: boolean;
@@ -272,7 +272,7 @@ export interface UserResponse {
 }
 
 /**
- * Réponse de création d'utilisateur
+ * Response for user creation
  */
 export interface UserCreateResponse {
 	success: boolean;
@@ -280,7 +280,7 @@ export interface UserCreateResponse {
 }
 
 /**
- * Clé API dans la liste
+ * API key in the list
  */
 export interface ApiKeyItem {
 	id: string;
@@ -291,7 +291,7 @@ export interface ApiKeyItem {
 }
 
 /**
- * Liste des clés API (endpoint /api/admin/api-keys)
+ * List of API keys (endpoint /api/admin/api-keys)
  */
 export interface ApiKeysListResponse {
 	success: boolean;
@@ -299,7 +299,7 @@ export interface ApiKeysListResponse {
 }
 
 /**
- * Statut de santé de l'API (endpoint /api/health)
+ * API health status (endpoint /api/health)
  */
 export interface HealthResponse {
 	status: string;

@@ -49,10 +49,10 @@ function getProfilePromo(
 }
 
 /**
- * Base des endpoints OIDC Authentik, comme Canari : origine de l issuer +
- * `/application/o`. Les endpoints authorize/token/userinfo sont a ce chemin
- * global ; le chemin slugge `/application/o/<slug>/authorize/` renvoie 404 sous
- * Authentik (le slug ne sert qu a identifier l issuer des tokens).
+ * Base of the Authentik OIDC endpoints, like Canari: issuer origin +
+ * `/application/o`. The authorize/token/userinfo endpoints are at this
+ * global path; the slugged path `/application/o/<slug>/authorize/` returns 404 under
+ * Authentik (the slug only serves to identify the token issuer).
  */
 function getAuthEndpointBase(): string {
 	const raw = (env.MICONNECT_ISSUER || '').trim();
@@ -298,9 +298,9 @@ function handleUserInDatabase(
 				`[AUTH] New user: ${userData.name} (promo:${userData.promo ?? '?'}, formation:${userData.formation ?? '?'})`
 			);
 		} else {
-			// Toujours écraser avec les données SSO à chaque connexion.
-			// On ne passe que les champs non-null pour ne pas effacer les valeurs
-			// manuelles quand le SSO ne fournit pas le champ (ex: promo pour le personnel).
+			// Always overwrite with SSO data on each login.
+			// We only pass non-null fields so we don't erase manual values
+			// when SSO does not provide the field (e.g. promo for staff).
 			const updatePayload: Partial<DBUser> & { id_user: string } = {
 				id_user: userId,
 				name: userData.name
@@ -326,7 +326,7 @@ function handleUserInDatabase(
 			);
 		}
 
-		// Re-fetcher depuis la DB pour avoir l'état réel (role mitviste, photos_id, etc.)
+		// Re-fetch from the DB to get the real state (mitviste role, photos_id, etc.)
 		const freshUser = getUserByCasId(userId);
 		if (!freshUser) {
 			console.error('[AUTH] Could not re-fetch user after create/update');

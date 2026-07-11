@@ -1,5 +1,5 @@
 /**
- * Tests exhaustifs pour l'API Favoris, Corbeille et External Media
+ * Comprehensive tests for the Favorites, Trash and External Media API
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -29,7 +29,7 @@ const getAuthHeaders = () => {
 };
 
 describe('Favorites API - GET /api/favorites', () => {
-	it("devrait lister les favoris de l'utilisateur", async () => {
+	it('should list user favorites', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			headers: getAuthHeaders()
 		});
@@ -42,12 +42,12 @@ describe('Favorites API - GET /api/favorites', () => {
 		}
 	});
 
-	it("devrait rejeter l'accès sans authentification", async () => {
+	it('should reject access without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`);
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait retourner une liste vide si aucun favori', async () => {
+	it('should return empty list if no favorites', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			headers: getAuthHeaders()
 		});
@@ -60,7 +60,7 @@ describe('Favorites API - GET /api/favorites', () => {
 });
 
 describe('Favorites API - POST /api/favorites', () => {
-	it('devrait ajouter un asset aux favoris', async () => {
+	it('should add asset to favorites', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -77,7 +77,7 @@ describe('Favorites API - POST /api/favorites', () => {
 		}
 	});
 
-	it("devrait rejeter l'ajout sans assetId", async () => {
+	it('should reject addition without assetId', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -87,8 +87,8 @@ describe('Favorites API - POST /api/favorites', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it("devrait gérer l'ajout en doublon gracieusement", async () => {
-		// Ajouter une première fois
+	it('should handle duplicate addition gracefully', async () => {
+		// Add first time
 		await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -97,7 +97,7 @@ describe('Favorites API - POST /api/favorites', () => {
 			})
 		});
 
-		// Ajouter une deuxième fois (doublon)
+		// Add second time (duplicate)
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -111,7 +111,7 @@ describe('Favorites API - POST /api/favorites', () => {
 });
 
 describe('Favorites API - DELETE /api/favorites', () => {
-	it('devrait retirer un asset des favoris', async () => {
+	it('should remove asset from favorites', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -123,7 +123,7 @@ describe('Favorites API - DELETE /api/favorites', () => {
 		expect([200, 204, 400, 401, 403, 404]).toContain(response.status);
 	});
 
-	it('devrait rejeter la suppression sans assetId', async () => {
+	it('should reject deletion without assetId', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -133,7 +133,7 @@ describe('Favorites API - DELETE /api/favorites', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it("devrait gérer la suppression d'un favori inexistant", async () => {
+	it('should handle deletion of non-existent favorite', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -147,7 +147,7 @@ describe('Favorites API - DELETE /api/favorites', () => {
 });
 
 describe('External Media API - GET /api/external/media', () => {
-	it('devrait lister tous les médias externes', async () => {
+	it('should list all external media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			headers: getAuthHeaders()
 		});
@@ -163,19 +163,19 @@ describe('External Media API - GET /api/external/media', () => {
 		}
 	});
 
-	it("devrait rejeter l'accès sans authentification", async () => {
+	it('should reject access without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`);
 		expect([401, 403]).toContain(response.status);
 	});
 });
 
 describe('External Media API - POST /api/external/media', () => {
-	it('devrait créer un nouveau média externe avec URL', async () => {
+	it('should create new external media with URL', async () => {
 		const mediaData = {
 			type: 'url',
 			url: 'https://example.com/video.mp4',
 			title: 'Test Video',
-			description: 'Video de test'
+			description: 'Test video'
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
@@ -193,12 +193,12 @@ describe('External Media API - POST /api/external/media', () => {
 		}
 	});
 
-	it('devrait créer un média externe avec code embed', async () => {
+	it('should create external media with embed code', async () => {
 		const mediaData = {
 			type: 'embed',
 			embedCode: '<iframe src="https://youtube.com/embed/test"></iframe>',
 			title: 'Test Embed',
-			description: 'Embed de test'
+			description: 'Test embed'
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
@@ -210,7 +210,7 @@ describe('External Media API - POST /api/external/media', () => {
 		expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it('devrait rejeter la création sans données requises', async () => {
+	it('should reject creation without required data', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -222,7 +222,7 @@ describe('External Media API - POST /api/external/media', () => {
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it("devrait valider le format de l'URL", async () => {
+	it('should validate URL format', async () => {
 		const mediaData = {
 			type: 'url',
 			url: 'not-a-valid-url',
@@ -238,7 +238,7 @@ describe('External Media API - POST /api/external/media', () => {
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it('devrait supporter différents types de médias', async () => {
+	it('should support different media types', async () => {
 		const mediaTypes = [
 			{ type: 'youtube', url: 'https://youtube.com/watch?v=test', title: 'YouTube' },
 			{ type: 'vimeo', url: 'https://vimeo.com/123456', title: 'Vimeo' },
@@ -258,7 +258,7 @@ describe('External Media API - POST /api/external/media', () => {
 });
 
 describe('External Media API - GET /api/external/media/[id]', () => {
-	it('devrait récupérer un média externe spécifique', async () => {
+	it('should fetch specific external media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media/test-id-12345`, {
 			headers: getAuthHeaders()
 		});
@@ -271,7 +271,7 @@ describe('External Media API - GET /api/external/media/[id]', () => {
 		}
 	});
 
-	it('devrait retourner 404 pour un média inexistant', async () => {
+	it('should return 404 for non-existent media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
 			headers: getAuthHeaders()
 		});
@@ -280,7 +280,7 @@ describe('External Media API - GET /api/external/media/[id]', () => {
 	});
 });
 describe('External Media API - DELETE /api/external/media/[id]', () => {
-	it('devrait supprimer plusieurs médias externes', async () => {
+	it('should delete multiple external media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -292,7 +292,7 @@ describe('External Media API - DELETE /api/external/media/[id]', () => {
 		expect([200, 204, 400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it('devrait rejeter la suppression sans IDs', async () => {
+	it('should reject deletion without IDs', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -304,7 +304,7 @@ describe('External Media API - DELETE /api/external/media/[id]', () => {
 });
 
 describe('External Media API - DELETE /api/external/media/[id]', () => {
-	it('devrait supprimer un média externe spécifique', async () => {
+	it('should delete specific external media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media/test-id-12345`, {
 			method: 'DELETE',
 			headers: getAuthHeaders()
@@ -313,7 +313,7 @@ describe('External Media API - DELETE /api/external/media/[id]', () => {
 		expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
 	});
 
-	it('devrait retourner 404 pour un média inexistant', async () => {
+	it('should return 404 for non-existent media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
 			method: 'DELETE',
 			headers: getAuthHeaders()
@@ -324,7 +324,7 @@ describe('External Media API - DELETE /api/external/media/[id]', () => {
 });
 
 describe('Database API - POST /api/db', () => {
-	it("devrait permettre l'exécution de requêtes SQL (admin)", async () => {
+	it('should allow SQL query execution (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/db`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -336,7 +336,7 @@ describe('Database API - POST /api/db', () => {
 		expect([200, 400, 401, 403, 404]).toContain(response.status);
 	});
 
-	it('devrait rejeter les requêtes SQL dangereuses', async () => {
+	it('should reject dangerous SQL queries', async () => {
 		const dangerousQueries = [
 			'DROP TABLE users',
 			'DELETE FROM users',
@@ -354,7 +354,7 @@ describe('Database API - POST /api/db', () => {
 		}
 	});
 
-	it("devrait rejeter l'accès pour les non-admins", async () => {
+	it('should reject access for non-admins', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/db`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -368,7 +368,7 @@ describe('Database API - POST /api/db', () => {
 });
 
 describe('Change User API - POST /api/change-user', () => {
-	it("devrait permettre de changer d'utilisateur (dev mode)", async () => {
+	it('should allow changing user (dev mode)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/change-user`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -380,7 +380,7 @@ describe('Change User API - POST /api/change-user', () => {
 		expect([200, 302, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter le changement sans userId', async () => {
+	it('should reject the change without userId', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/change-user`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -390,12 +390,12 @@ describe('Change User API - POST /api/change-user', () => {
 		expect([200, 400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter le changement vers un utilisateur inexistant', async () => {
+	it('should reject change to non-existent user', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/change-user`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
 			body: JSON.stringify({
-				userId: 'utilisateur.inexistant.12345'
+				userId: 'inexistant.user.12345'
 			})
 		});
 

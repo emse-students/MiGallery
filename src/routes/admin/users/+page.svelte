@@ -215,7 +215,7 @@
         }
     }
 
-    /* En-tête */
+    /* Header */
     .view-header {
         display: flex;
         align-items: center;
@@ -249,7 +249,7 @@
         margin: 0.25rem 0 0;
     }
 
-    /* Barre de recherche */
+    /* Search bar */
     .search-bar {
         display: flex;
         align-items: center;
@@ -279,12 +279,12 @@
         outline: none;
     }
 
-    /* Conteneur de la table (Look unifié) */
+    /* Table container (unified look) */
     .data-table-container {
         background: var(--bg-secondary);
         border: 1px solid var(--border);
         border-radius: var(--radius-lg);
-        overflow: hidden; /* Coupe les bordures des lignes aux extrémités */
+        overflow: hidden; /* Clips the row borders at the edges */
         box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     }
 
@@ -293,7 +293,7 @@
         flex-direction: column;
     }
 
-    /* Ligne individuelle */
+    /* Individual row */
     .data-row {
         display: flex;
         flex-wrap: wrap;
@@ -314,16 +314,16 @@
         background: var(--bg-tertiary);
     }
 
-    /* Section Gauche (Infos) */
+    /* Left section (Info) */
     .row-identity {
         display: flex;
         align-items: center;
         gap: 1.25rem;
         flex: 1;
-        min-width: 0; /* Vital pour la troncature du texte */
+        min-width: 0; /* Vital for text truncation */
     }
 
-    /* FORCER l'alignement à gauche pour casser l'ancien comportement global */
+    /* FORCE left alignment to break the old global behavior */
     .identity-text {
         display: flex;
         flex-direction: column;
@@ -392,19 +392,19 @@
         letter-spacing: 0.05em;
     }
 
-    /* Section Droite (Actions) */
+    /* Right section (Actions) */
     .row-actions {
         display: flex;
         align-items: center;
         gap: 0.75rem;
     }
 
-    /* Select Personnalisé */
+    /* Custom select */
     .select-wrapper {
         position: relative;
     }
 
-    /* Flèche personnalisée intégrée au select */
+    /* Custom arrow integrated into the select */
     .select-wrapper::after {
         content: '';
         position: absolute;
@@ -453,7 +453,7 @@
         cursor: not-allowed;
     }
 
-    /* Couleurs de rôles dans le select ! */
+    /* Role colors in the select! */
     .action-select.role-admin {
         color: var(--error, #ef4444);
         background-color: color-mix(in srgb, var(--error, #ef4444) 6%, var(--bg-primary));
@@ -466,7 +466,7 @@
         border-color: color-mix(in srgb, var(--edit, #f59e0b) 20%, var(--border));
     }
 
-    /* Bouton Supprimer */
+    /* Delete button */
     .action-btn-delete {
         display: flex;
         align-items: center;

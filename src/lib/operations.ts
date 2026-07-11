@@ -1,8 +1,8 @@
 import { writable } from 'svelte/store';
 
 /**
- * Store pour gérer les opérations en cours (uploads, etc.)
- * Permet d'avertir l'utilisateur avant de quitter la page
+ * Store to manage in-progress operations (uploads, etc.)
+ * Allows warning the user before leaving the page
  */
 function createOperationsStore() {
 	const { subscribe, update } = writable<Set<string>>(new Set());
@@ -37,7 +37,7 @@ function createOperationsStore() {
 export const activeOperations = createOperationsStore();
 
 /**
- * Ajouter un listener beforeunload pour avertir avant fermeture/rafraîchissement
+ * Add a beforeunload listener to warn before closing/refreshing
  */
 if (typeof window !== 'undefined') {
 	let currentOperations = new Set<string>();

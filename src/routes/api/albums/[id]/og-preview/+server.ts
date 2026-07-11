@@ -5,14 +5,14 @@ import { getDatabase } from '$lib/db/database';
 /**
  * GET /api/albums/[id]/og-preview
  *
- * Endpoint public (sans authentification) qui retourne les métadonnées d'un
- * album au format JSON, utilisées pour générer des link previews enrichies
- * dans des applications externes (ex. Canari).
+ * Public endpoint (no authentication) that returns the metadata of an
+ * album in JSON format, used to generate enriched link previews
+ * in external applications (e.g., Canari).
  *
- * Les albums privés retournent 403. Pour les albums non-privés, retourne :
+ * Private albums return 403. For non-private albums, returns:
  * { name, date, location, visibility, coverUrl }
  *
- * `coverUrl` pointe vers /api/albums/[id]/og-cover, qui sert l'image publiquement.
+ * `coverUrl` points to /api/albums/[id]/og-cover, which serves the image publicly.
  */
 export const GET: RequestHandler = ({ params, url }) => {
 	const { id } = params;

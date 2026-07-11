@@ -8,7 +8,7 @@ const SESSION_COOKIE_NAME = '__session_user';
 
 /**
  * PATCH /api/users/me/promo
- * Met à jour l'année de promotion et le statut first_login de l'utilisateur connecté
+ * Updates the promotion year and first_login status of the logged-in user
  */
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;
@@ -48,7 +48,7 @@ export const PATCH: RequestHandler = async (event) => {
 		const promoYear = body.promo ?? null;
 		const currentYear = new Date().getFullYear();
 
-		// On accepte null (personnel) ou un nombre (étudiant)
+		// We accept null (staff) or a number (student)
 		if (promoYear !== null && typeof promoYear !== 'number') {
 			return json({ error: 'promo must be a number or null' }, { status: 400 });
 		}

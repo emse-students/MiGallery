@@ -40,7 +40,7 @@ export function createUser(user: DBUser) {
 
 export function updateUser(user: Partial<DBUser> & { id_user: string }) {
 	const db = getDatabase();
-	// Helper simple pour mettre à jour des champs
+	// Simple helper to update fields
 	const keys = Object.keys(user).filter((k) => k !== 'id_user');
 	const sets = keys.map((k) => `${k} = @${k}`).join(', ');
 	const stmt = db.prepare(`UPDATE users SET ${sets} WHERE id_user = @id_user`);

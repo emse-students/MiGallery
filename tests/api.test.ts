@@ -1,6 +1,6 @@
 /**
- * Tests API pour MiGallery
- * Ces tests sont exécutés dans la CI et peuvent être lancés localement avec: npm run test
+ * API Tests for MiGallery
+ * These tests run in CI and can also be run locally with: npm run test
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -25,7 +25,7 @@ let testApiKeyReadId: string | null = null;
 let createdUserId: string | null = null;
 
 // ========================================
-// Fonctions d'authentification et setup
+// Authentication and setup functions
 // ========================================
 
 async function ensureSystemUserExists(): Promise<boolean> {
@@ -101,16 +101,16 @@ async function loginAsSystemUser(): Promise<boolean> {
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
 					sessionCookie = `current_user_id=${match[1]}`;
-					// console.debug('✅ Connexion réussie avec cookie de session');
+					// console.debug('✅ Successful login with session cookie');
 					return true;
 				}
 			}
 		}
 
-		// console.debug(`❌ Échec de la connexion (status: ${response.status})`);
+		// console.debug(`❌ Login failed (status: ${response.status})`);
 		return false;
 	} catch {
-		// console.debug(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
+		// console.debug(`❌ Error during login: ${(error as Error).message}`);
 		return false;
 	}
 }
@@ -186,7 +186,7 @@ function getAuthHeadersWithReadScope() {
 }
 
 // ========================================
-// Setup et Teardown
+// Setup and Teardown
 // ========================================
 
 beforeAll(async () => {
@@ -196,20 +196,20 @@ beforeAll(async () => {
 	const userExists = await ensureSystemUserExists();
 	console.debug(`User exists: ${userExists}`);
 
-	// Tentative de connexion même si l'utilisateur n'est pas trouvé localement
-	// car l'endpoint /dev/login-as le créera si NODE_ENV=test
+	// Attempting to log in even if the user isn't found locally
+	// because the endpoint /dev/login-as will create it if NODE_ENV=test
 	const loginSuccess = await loginAsSystemUser();
 	console.debug(`Login success: ${loginSuccess}`);
 
 	if (loginSuccess) {
-		// Créer une clé API avec scope 'admin' pour les tests admin
+		// Create an API key with 'admin' scope for admin tests
 		const adminKeyResult = await createTestApiKey(['admin']);
 		if (adminKeyResult) {
 			testApiKeyId = adminKeyResult.id;
 			API_KEY = adminKeyResult.rawKey;
 		}
 
-		// Créer une clé API avec scope 'read' pour les tests de lecture
+		// Create an API key with 'read' scope for read tests
 		const readKeyResult = await createTestApiKey(['read']);
 		if (readKeyResult) {
 			testApiKeyReadId = readKeyResult.id;
@@ -221,7 +221,7 @@ beforeAll(async () => {
 afterAll(async () => {
 	console.debug('\n🧹 Cleanup after tests');
 
-	// Supprimer l'utilisateur de test s'il existe
+	// Delete the test user if it exists
 	if (createdUserId) {
 		try {
 			await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
@@ -235,7 +235,7 @@ afterAll(async () => {
 		}
 	}
 
-	// Supprimer les clés API de test
+	// Delete the test API keys
 	if (testApiKeyId) {
 		await deleteApiKey(testApiKeyId);
 	}
@@ -254,15 +254,15 @@ afterAll(async () => {
 // ========================================
 
 describe('Albums API', () => {
-	it('devrait lister les albums', async () => {
+	it('should list albums', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/albums`, {
 				headers: getAuthHeaders(),
 				signal: AbortSignal.timeout(10000) // 10s timeout
 			});
 
-			// Endpoint protégé (scope read): 401 possible si auth non disponible
-			// Accepter 200 (succès), 401 (auth requise) ou 500 (erreur serveur)
+			// Protected endpoint (scope read): 401 possible if auth is unavailable
+			// Accept 200 (success), 401 (auth required) or 500 (server error)
 			expect([200, 401, 500]).toContain(response.status);
 
 			if (response.status === 200) {
@@ -270,16 +270,16 @@ describe('Albums API', () => {
 				expect(Array.isArray(data)).toBe(true);
 			}
 		} catch (error: unknown) {
-			// Si fetch échoue (Immich down), c'est acceptable
+			// If fetch fails (Immich down), that's acceptable
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
 				console.warn('⚠️  Immich not reachable (timeout)');
-				expect(true).toBe(true); // Test passe quand même
+				expect(true).toBe(true); // Test passes anyway
 			} else {
 				throw error;
 			}
 		}
-	}, 15000); // 15s timeout pour ce test
+	}, 15000); // 15s timeout for this test
 });
 
 // ========================================
@@ -287,7 +287,7 @@ describe('Albums API', () => {
 // ========================================
 
 describe('Users API', () => {
-	it('devrait lister les utilisateurs (admin)', async () => {
+	it('should list users (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			headers: getAuthHeaders()
 		});
@@ -301,7 +301,7 @@ describe('Users API', () => {
 		}
 	});
 
-	it("devrait récupérer l'utilisateur système", async () => {
+	it('should fetch system user', async () => {
 		const response = await fetch(
 			`${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
 			{
@@ -326,7 +326,7 @@ describe('Users API', () => {
 // ========================================
 
 describe('Users CRUD (Admin)', () => {
-	it('devrait créer un utilisateur', async () => {
+	it('should create a user', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -352,9 +352,9 @@ describe('Users CRUD (Admin)', () => {
 		}
 	});
 
-	it("devrait récupérer l'utilisateur créé", async () => {
+	it('should fetch the created user', async () => {
 		if (!createdUserId) {
-			createdUserId = 'test.user.vitest'; // Fallback si création a échoué mais user existe
+			createdUserId = 'test.user.vitest'; // Fallback if creation failed but the user exists
 		}
 
 		const response = await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
@@ -369,7 +369,7 @@ describe('Users CRUD (Admin)', () => {
 		}
 	});
 
-	it("devrait modifier l'utilisateur", async () => {
+	it('should modify the user', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -395,7 +395,7 @@ describe('Users CRUD (Admin)', () => {
 		}
 	});
 
-	it("devrait supprimer l'utilisateur", async () => {
+	it('should delete the user', async () => {
 		if (!createdUserId) {
 			return;
 		}
@@ -408,7 +408,7 @@ describe('Users CRUD (Admin)', () => {
 		expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
 
 		if (response.status === 200 || response.status === 204) {
-			// User supprimé, on le retire de la variable pour éviter le double nettoyage
+			// User deleted, remove it from the variable to avoid double cleanup
 			createdUserId = null;
 		}
 	});
@@ -419,17 +419,17 @@ describe('Users CRUD (Admin)', () => {
 // ========================================
 
 describe('Photos-CV API', () => {
-	it('devrait lister les personnes', async () => {
+	it('should list people', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/people/people`, {
 				headers: getAuthHeaders(),
 				signal: AbortSignal.timeout(10000) // 10s timeout
 			});
 
-			// Endpoint protégé (scope read): 401 possible si auth non disponible
+			// Protected endpoint (scope read): 401 possible if auth is unavailable
 			expect([200, 401, 404, 500]).toContain(response.status);
 		} catch (error: unknown) {
-			// Si fetch échoue (Immich down), c'est acceptable
+			// If fetch fails (Immich down), that's acceptable
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
 				console.warn('⚠️  Immich not reachable (timeout)');
@@ -446,7 +446,7 @@ describe('Photos-CV API', () => {
 // ========================================
 
 describe('API Keys (Admin)', () => {
-	it('devrait lister les clés API', async () => {
+	it('should list API keys', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			headers: getAuthHeaders()
 		});
@@ -466,17 +466,17 @@ describe('API Keys (Admin)', () => {
 // ========================================
 
 describe('Assets API (Immich proxy)', () => {
-	it('devrait lister les assets via proxy Immich', async () => {
+	it('should list assets via Immich proxy', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 				headers: getAuthHeadersWithReadScope(),
 				signal: AbortSignal.timeout(10000) // 10s timeout
 			});
 
-			// Immich peut être down ou non configuré
+			// Immich may be down or unconfigured
 			expect([200, 401, 404, 500, 502]).toContain(response.status);
 		} catch (error: unknown) {
-			// Si fetch échoue (Immich down), c'est acceptable
+			// If fetch fails (Immich down), that's acceptable
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
 				console.warn('⚠️  Immich not reachable (timeout)');
@@ -493,7 +493,7 @@ describe('Assets API (Immich proxy)', () => {
 // ========================================
 
 describe('External Media API', () => {
-	it('devrait lister les médias externes', async () => {
+	it('should list external media', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
 			headers: getAuthHeaders()
 		});
@@ -512,7 +512,7 @@ describe('External Media API', () => {
 // ========================================
 
 describe('Health API', () => {
-	it("devrait vérifier la santé de l'API", async () => {
+	it('should verify API health', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/health`, {
 			headers: getAuthHeaders()
 		});
@@ -527,11 +527,11 @@ describe('Health API', () => {
 });
 
 // ========================================
-// Tests de Permissions - Endpoints Admin avec x-api-key
+// Tests for Permissions - Admin endpoints with x-api-key
 // ========================================
 
-describe('Permissions - Admin endpoints avec x-api-key', () => {
-	it('GET /api/admin/api-keys devrait accepter x-api-key admin', async () => {
+describe('Permissions - Admin endpoints with x-api-key', () => {
+	it('GET /api/admin/api-keys should accept admin x-api-key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			headers: {
 				'x-api-key': API_KEY,
@@ -546,7 +546,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		}
 	});
 
-	it('POST /api/admin/api-keys devrait accepter x-api-key admin', async () => {
+	it('POST /api/admin/api-keys should accept admin x-api-key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			method: 'POST',
 			headers: {
@@ -561,7 +561,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 
 		expect([200, 201, 401, 403]).toContain(response.status);
 
-		// Cleanup si créé
+		// Cleanup if created
 		if (response.status === 200 || response.status === 201) {
 			const data = (await response.json()) as ApiKeyResponse;
 			if (data.id) {
@@ -576,8 +576,8 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		}
 	});
 
-	it('DELETE /api/admin/api-keys/{id} devrait maintenant accepter x-api-key admin', async () => {
-		// Créer une clé temporaire via session
+	it('DELETE /api/admin/api-keys/{id} should now accept admin x-api-key', async () => {
+		// Create a temporary API key via session
 		const createResponse = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			method: 'POST',
 			headers: {
@@ -593,7 +593,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		if (createResponse.status === 200 || createResponse.status === 201) {
 			const createData = (await createResponse.json()) as ApiKeyResponse;
 
-			// Tenter de supprimer avec x-api-key
+			// Attempt to delete with x-api-key
 			const deleteResponse = await fetch(`${API_BASE_URL}/api/admin/api-keys/${createData.id}`, {
 				method: 'DELETE',
 				headers: {
@@ -606,7 +606,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		}
 	});
 
-	it('GET /api/users devrait accepter x-api-key admin', async () => {
+	it('GET /api/users should accept admin x-api-key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			headers: {
 				'x-api-key': API_KEY,
@@ -621,7 +621,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		}
 	});
 
-	it('POST /api/users devrait maintenant accepter x-api-key admin', async () => {
+	it('POST /api/users should now accept admin x-api-key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -641,7 +641,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 
 		expect([200, 201, 401, 403, 500]).toContain(response.status);
 
-		// Cleanup si créé
+		// Cleanup if created
 		if (response.status === 200 || response.status === 201) {
 			await fetch(`${API_BASE_URL}/api/users/test.apikey.user`, {
 				method: 'DELETE',
@@ -653,8 +653,8 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		}
 	});
 
-	it('PUT /api/users/{id} devrait maintenant accepter x-api-key admin', async () => {
-		// Créer un utilisateur temporaire
+	it('PUT /api/users/{id} should now accept admin x-api-key', async () => {
+		// Create a temporary user
 		const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -673,7 +673,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		});
 
 		if (createResponse.status === 200 || createResponse.status === 201) {
-			// Tenter de modifier avec x-api-key
+			// Attempt to modify with x-api-key
 			const updateResponse = await fetch(`${API_BASE_URL}/api/users/test.put.apikey`, {
 				method: 'PUT',
 				headers: {
@@ -702,8 +702,8 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		}
 	});
 
-	it('DELETE /api/users/{id} devrait maintenant accepter x-api-key admin', async () => {
-		// Créer un utilisateur temporaire
+	it('DELETE /api/users/{id} should now accept admin x-api-key', async () => {
+		// Create a temporary user
 		const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -722,7 +722,7 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 		});
 
 		if (createResponse.status === 200 || createResponse.status === 201) {
-			// Tenter de supprimer avec x-api-key
+			// Attempt to delete with x-api-key
 			const deleteResponse = await fetch(`${API_BASE_URL}/api/users/test.delete.apikey`, {
 				method: 'DELETE',
 				headers: {
@@ -737,11 +737,11 @@ describe('Permissions - Admin endpoints avec x-api-key', () => {
 });
 
 // ========================================
-// Tests de Permissions - Scopes READ vs WRITE
+// Tests for Permissions - Scopes READ vs WRITE
 // ========================================
 
 describe('Permissions - Scopes READ vs WRITE', () => {
-	it('GET /api/albums devrait accepter scope READ', async () => {
+	it('GET /api/albums should accept READ scope', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/albums`, {
 				headers: {
@@ -763,7 +763,7 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 		}
 	}, 15000);
 
-	it('POST /api/albums devrait REFUSER scope READ (write requis)', async () => {
+	it('POST /api/albums should REJECT READ scope (write required)', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/albums`, {
 				method: 'POST',
@@ -778,7 +778,7 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 				signal: AbortSignal.timeout(10000)
 			});
 
-			// Devrait être 401/403 car scope READ insuffisant
+			// Should be 401/403 because READ scope is insufficient
 			expect([401, 403]).toContain(response.status);
 		} catch (error: unknown) {
 			const err = error as { name?: string; code?: string };
@@ -791,23 +791,23 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 		}
 	}, 15000);
 
-	it('PATCH /api/albums/{id} devrait accepter scope WRITE', () => {
-		// Ce test nécessite un album existant, on le skip si Immich down
+	it('PATCH /api/albums/{id} should accept WRITE scope', () => {
+		// This test requires an existing album; skip it if Immich is down
 		expect(true).toBe(true);
 	});
 
-	it('DELETE /api/albums/{id} devrait accepter scope WRITE (pas delete)', () => {
-		// Test de régression pour vérifier que scope 'delete' n'est plus requis
+	it('DELETE /api/albums/{id} should accept WRITE scope (not delete)', () => {
+		// Regression test to verify that the 'delete' scope is no longer required
 		expect(true).toBe(true);
 	});
 });
 
 // ========================================
-// Tests de Sécurité - Endpoint /api/db
+// Security Tests - Endpoint /api/db
 // ========================================
 
-describe('Sécurité - Endpoint /api/db désactivé', () => {
-	it('POST /api/db devrait retourner 404 (désactivé)', async () => {
+describe('Security - /api/db endpoint disabled', () => {
+	it('POST /api/db should return 404 (disabled)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/db`, {
 			method: 'POST',
 			headers: {
@@ -819,11 +819,11 @@ describe('Sécurité - Endpoint /api/db désactivé', () => {
 			})
 		});
 
-		// L'endpoint devrait être complètement désactivé
+		// The endpoint should be completely disabled
 		expect(response.status).toBe(404);
 	});
 
-	it('POST /api/db avec admin API key devrait aussi retourner 404', async () => {
+	it('POST /api/db with admin API key should also return 404', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/db`, {
 			method: 'POST',
 			headers: {

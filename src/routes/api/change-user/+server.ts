@@ -10,16 +10,16 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const { userId } = (await request.json()) as { userId: string | null | undefined };
 
-		// Si userId est null, on supprime le cookie (déconnexion)
+		// If userId is null, delete the cookie (logout)
 		if (userId === null || userId === undefined) {
 			cookies.delete('current_user_id', { path: '/' });
 			return json({ success: true });
 		}
 
-		// Pour définir un autre userId (impersonation), il faut être admin
+		// To set another userId (impersonation), you must be admin
 		await requireScope(event, 'admin');
 
-		// Signer l'ID utilisateur et stocker dans un cookie
+		// Sign the user ID and store it in a cookie
 		const signed = signId(String(userId));
 		cookies.set('current_user_id', signed, {
 			path: '/',

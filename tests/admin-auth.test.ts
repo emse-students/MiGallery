@@ -1,5 +1,5 @@
 /**
- * Tests exhaustifs pour l'API Admin et Authentication
+ * Comprehensive tests for Admin API and Authentication
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -9,7 +9,7 @@ import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpe
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testApiKeyId: string | null = null;
 
-// Liste des labels de clés créées pendant les tests pour nettoyage
+// List of key labels created during tests for cleanup
 const TEST_KEY_LABELS = [
 	'[TEST] Admin Key',
 	'[TEST] Read Only Key',
@@ -22,7 +22,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	// Nettoyage : supprimer la clé de test principale
+	// Cleanup: delete the main test key
 	if (testApiKeyId && globalTestContext.sessionCookie) {
 		await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
 			method: 'DELETE',
@@ -30,7 +30,7 @@ afterAll(async () => {
 		});
 	}
 
-	// Nettoyage : supprimer toutes les clés de test créées
+	// Cleanup: delete all test keys created
 	if (globalTestContext.adminApiKey) {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
@@ -39,7 +39,7 @@ afterAll(async () => {
 			if (response.ok) {
 				const data = (await response.json()) as ApiKeysListResponse;
 				for (const key of data.keys || []) {
-					// Supprimer les clés avec les labels de test ou qui commencent par "Test API Key"
+					// Delete keys with test labels or that start with "Test API Key"
 					if (
 						TEST_KEY_LABELS.includes(key.label || '') ||
 						(key.label && key.label.startsWith('Test API Key'))
@@ -73,7 +73,7 @@ const getAuthHeaders = () => {
 };
 
 describe('Admin API Keys - GET /api/admin/api-keys', () => {
-	it('devrait lister toutes les clés API (admin)', async () => {
+	it('should list all API keys (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			headers: getAuthHeaders()
 		});
@@ -95,20 +95,20 @@ describe('Admin API Keys - GET /api/admin/api-keys', () => {
 		}
 	});
 
-	it("devrait rejeter l'accès sans authentification", async () => {
+	it('should reject access without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`);
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it("devrait rejeter l'accès pour les non-admins", async () => {
-		// TODO: Tester avec un token utilisateur non-admin
+	it('should reject access for non-admins', async () => {
+		// TODO: Test with a non-admin user token
 		await Promise.resolve();
 		expect(true).toBe(true);
 	});
 });
 
 describe('Admin API Keys - POST /api/admin/api-keys', () => {
-	it('devrait créer une nouvelle clé API', async () => {
+	it('should create a new API key', async () => {
 		const newKey = {
 			label: `[TEST] API Key ${Date.now()}`,
 			scopes: ['read', 'write']
@@ -134,7 +134,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 		}
 	});
 
-	it('devrait créer une clé API avec scope admin', async () => {
+	it('should create an API key with admin scope', async () => {
 		const adminKey = {
 			label: '[TEST] Admin Key',
 			scopes: ['admin']
@@ -149,7 +149,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 		expect([200, 201, 400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait créer une clé API avec scope read uniquement', async () => {
+	it('should create an API key with read scope only', async () => {
 		const readKey = {
 			label: '[TEST] Read Only Key',
 			scopes: ['read']
@@ -164,7 +164,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 		expect([200, 201, 400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter la création sans label', async () => {
+	it('should reject creation without label', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -176,7 +176,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 		expect([200, 400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter la création avec des scopes invalides', async () => {
+	it('should reject creation with invalid scopes', async () => {
 		const invalidKey = {
 			label: '[TEST] Invalid Scope Key',
 			scopes: ['invalid-scope', 'super-admin']
@@ -191,7 +191,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 		expect([200, 400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait accepter plusieurs scopes valides', async () => {
+	it('should accept multiple valid scopes', async () => {
 		const multiScopeKey = {
 			label: '[TEST] Multi Scope Key',
 			scopes: ['read', 'write', 'delete']
@@ -208,7 +208,7 @@ describe('Admin API Keys - POST /api/admin/api-keys', () => {
 });
 
 describe('Admin API Keys - DELETE /api/admin/api-keys/[id]', () => {
-	it('devrait supprimer une clé API', async () => {
+	it('should delete an API key', async () => {
 		if (!testApiKeyId) {
 			return;
 		}
@@ -221,7 +221,7 @@ describe('Admin API Keys - DELETE /api/admin/api-keys/[id]', () => {
 		expect([200, 204, 401, 403, 404]).toContain(response.status);
 
 		if (response.status === 200 || response.status === 204) {
-			// Vérifier que la clé a bien été supprimée
+			// Verify that the key was deleted
 			const checkResponse = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
 				headers: getAuthHeaders()
 			});
@@ -238,7 +238,7 @@ describe('Admin API Keys - DELETE /api/admin/api-keys/[id]', () => {
 		}
 	});
 
-	it('devrait retourner 404 pour une clé inexistante', async () => {
+	it('should return 404 for non-existent key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys/inexistant-key-id`, {
 			method: 'DELETE',
 			headers: getAuthHeaders()
@@ -249,7 +249,7 @@ describe('Admin API Keys - DELETE /api/admin/api-keys/[id]', () => {
 });
 
 describe('Admin Database - GET /api/admin/db-inspect', () => {
-	it('devrait inspecter la base de données (admin)', async () => {
+	it('should inspect the database (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-inspect`, {
 			headers: getAuthHeaders()
 		});
@@ -263,7 +263,7 @@ describe('Admin Database - GET /api/admin/db-inspect', () => {
 		}
 	});
 
-	it("devrait rejeter l'accès pour les non-admins", async () => {
+	it('should reject access for non-admins', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-inspect`, {
 			headers: getAuthHeaders()
 		});
@@ -273,7 +273,7 @@ describe('Admin Database - GET /api/admin/db-inspect', () => {
 });
 
 describe('Admin Database - GET /api/admin/db-export', () => {
-	it('devrait exporter la base de données (admin)', async () => {
+	it('should export the database (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-export`, {
 			headers: getAuthHeaders()
 		});
@@ -290,7 +290,7 @@ describe('Admin Database - GET /api/admin/db-export', () => {
 		}
 	});
 
-	it("devrait rejeter l'export pour les non-admins", async () => {
+	it('should reject export for non-admins', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-export`, {
 			headers: getAuthHeaders()
 		});
@@ -300,7 +300,7 @@ describe('Admin Database - GET /api/admin/db-export', () => {
 });
 
 describe('Admin Database - POST /api/admin/db-import', () => {
-	it("devrait rejeter l'import sans fichier", async () => {
+	it('should reject import without file', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-import`, {
 			method: 'POST',
 			headers: getAuthHeaders()
@@ -309,7 +309,7 @@ describe('Admin Database - POST /api/admin/db-import', () => {
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it("devrait rejeter l'import d'un fichier non-SQLite", async () => {
+	it('should reject import of non-SQLite file', async () => {
 		const formData = new FormData();
 		const fakeFile = new Blob(['not a database'], { type: 'text/plain' });
 		formData.append('file', fakeFile, 'fake.txt');
@@ -327,7 +327,7 @@ describe('Admin Database - POST /api/admin/db-import', () => {
 });
 
 describe('Admin Database - POST /api/admin/db-backup', () => {
-	it('devrait créer une sauvegarde de la base de données (admin)', async () => {
+	it('should create a database backup (admin)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-backup`, {
 			method: 'POST',
 			headers: getAuthHeaders()
@@ -342,7 +342,7 @@ describe('Admin Database - POST /api/admin/db-backup', () => {
 		}
 	});
 
-	it('devrait rejeter la sauvegarde pour les non-admins', async () => {
+	it('should reject backup for non-admins', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-backup`, {
 			method: 'POST',
 			headers: getAuthHeaders()
@@ -353,7 +353,7 @@ describe('Admin Database - POST /api/admin/db-backup', () => {
 });
 
 describe('Admin Database - POST /api/admin/db-restore', () => {
-	it('devrait rejeter la restauration sans fichier', async () => {
+	it('should reject restore without file', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/admin/db-restore`, {
 			method: 'POST',
 			headers: getAuthHeaders()
@@ -362,7 +362,7 @@ describe('Admin Database - POST /api/admin/db-restore', () => {
 		expect([400, 401, 403, 500]).toContain(response.status);
 	});
 
-	it("devrait rejeter la restauration d'un fichier invalide", async () => {
+	it('should reject restore of invalid file', async () => {
 		const formData = new FormData();
 		const fakeFile = new Blob(['invalid'], { type: 'text/plain' });
 		formData.append('file', fakeFile, 'invalid.db');
@@ -380,7 +380,7 @@ describe('Admin Database - POST /api/admin/db-restore', () => {
 });
 
 describe('Health API - GET /api/health', () => {
-	it("devrait retourner le statut de santé de l'API", async () => {
+	it('should return API health status', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/health`);
 
 		expect([200]).toContain(response.status);
@@ -392,12 +392,12 @@ describe('Health API - GET /api/health', () => {
 		}
 	});
 
-	it("ne devrait pas nécessiter d'authentification", async () => {
+	it('should not require authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/health`);
 		expect(response.status).toBe(200);
 	});
 
-	it('devrait retourner un timestamp valide', async () => {
+	it('should return a valid timestamp', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/health`);
 
 		if (response.status === 200) {
@@ -409,7 +409,7 @@ describe('Health API - GET /api/health', () => {
 });
 
 describe('API Authentication - API Key Validation', () => {
-	it('devrait accepter une clé API valide', async () => {
+	it('should accept a valid API key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: {
 				'x-api-key': globalTestContext.adminApiKey || ''
@@ -419,7 +419,7 @@ describe('API Authentication - API Key Validation', () => {
 		expect([200, 401, 500]).toContain(response.status);
 	});
 
-	it('devrait rejeter une clé API invalide', async () => {
+	it('should reject an invalid API key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: {
 				'x-api-key': 'invalid-api-key-12345'
@@ -429,7 +429,7 @@ describe('API Authentication - API Key Validation', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait rejeter une clé API vide', async () => {
+	it('should reject an empty API key', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: {
 				'x-api-key': ''
@@ -439,20 +439,20 @@ describe('API Authentication - API Key Validation', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait respecter les scopes de la clé API', () => {
-		// TODO: Créer une clé avec scope 'read' uniquement et tester les opérations write
+	it('should respect API key scopes', () => {
+		// TODO: Create an API key with 'read' scope only and test write operations
 		expect(true).toBe(true);
 	});
 });
 
 describe('API Rate Limiting', () => {
-	it('devrait gérer de multiples requêtes simultanées', async () => {
+	it('should handle multiple simultaneous requests', async () => {
 		const requests = Array.from({ length: 10 }, () => fetch(`${API_BASE_URL}/api/health`));
 
 		const responses = await Promise.all(requests);
 		const statuses = responses.map((r) => r.status);
 
-		// Toutes les requêtes devraient réussir ou être limitées
+		// All requests should succeed or be rate-limited
 		statuses.forEach((status) => {
 			expect([200, 429]).toContain(status);
 		});
@@ -460,7 +460,7 @@ describe('API Rate Limiting', () => {
 });
 
 describe('API Error Handling', () => {
-	it('devrait retourner des erreurs au format JSON', async () => {
+	it('should return errors in JSON format', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums/inexistant-id`);
 
 		expect([404, 401, 500]).toContain(response.status);
@@ -471,7 +471,7 @@ describe('API Error Handling', () => {
 		}
 	});
 
-	it('devrait gérer les erreurs de validation', async () => {
+	it('should handle validation errors', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -483,8 +483,8 @@ describe('API Error Handling', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it('devrait gérer les timeouts gracieusement', () => {
-		// TODO: Tester avec un endpoint qui timeout
+	it('should handle timeouts gracefully', () => {
+		// TODO: Test with an endpoint that times out
 		expect(true).toBe(true);
 	});
 });

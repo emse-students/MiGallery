@@ -1,5 +1,5 @@
 /**
- * Configuration partagée pour tous les tests
+ * Shared configuration for all tests
  */
 
 export const TEST_CONFIG = {
@@ -9,7 +9,7 @@ export const TEST_CONFIG = {
 	IMMICH_TIMEOUT: 15000,
 	SYSTEM_USER_ID: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
 
-	// Configuration des scopes
+	// Scope configuration
 	SCOPES: {
 		READ: 'read',
 		WRITE: 'write',
@@ -17,14 +17,14 @@ export const TEST_CONFIG = {
 		ADMIN: 'admin'
 	},
 
-	// Configuration des rôles
+	// Role configuration
 	ROLES: {
 		USER: 'user',
 		ADMIN: 'admin',
 		MODERATOR: 'moderator'
 	},
 
-	// Utilisateurs de test
+	// Test users
 	TEST_USERS: {
 		SYSTEM: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
 		PREFIX: 'test.user.'
@@ -32,7 +32,7 @@ export const TEST_CONFIG = {
 };
 
 /**
- * Helper pour créer des headers d'authentification
+ * Helper to create authentication headers
  */
 export function getAuthHeaders(apiKey?: string): Record<string, string> {
 	const headers: Record<string, string> = {
@@ -45,7 +45,7 @@ export function getAuthHeaders(apiKey?: string): Record<string, string> {
 }
 
 /**
- * Helper pour créer un utilisateur de test unique
+ * Helper to create a unique test user
  */
 export function generateTestUser(prefix = 'test') {
 	const timestamp = Date.now();
@@ -60,7 +60,7 @@ export function generateTestUser(prefix = 'test') {
 }
 
 /**
- * Helper pour gérer les timeouts Immich
+ * Helper to handle Immich timeouts
  */
 export function handleImmichError(error: unknown): boolean {
 	const err = error as { name?: string; code?: string };
@@ -68,7 +68,7 @@ export function handleImmichError(error: unknown): boolean {
 }
 
 /**
- * Helper pour attendre qu'un service soit prêt
+ * Helper to wait for a service to be ready
  */
 export async function waitForService(
 	url: string,
@@ -82,7 +82,7 @@ export async function waitForService(
 				return true;
 			}
 		} catch {
-			// Service pas encore prêt
+			// Service not ready yet
 		}
 		await new Promise((resolve) => setTimeout(resolve, retryDelay));
 	}
@@ -90,7 +90,7 @@ export async function waitForService(
 }
 
 /**
- * Helper pour nettoyer les ressources après les tests
+ * Helper to clean up resources after tests
  */
 export async function cleanupResource(
 	url: string,
@@ -107,12 +107,12 @@ export async function cleanupResource(
 			headers: { 'x-api-key': apiKey }
 		});
 	} catch {
-		// Ignorer les erreurs de nettoyage
+		// Ignore cleanup errors
 	}
 }
 
 /**
- * Types utiles pour les tests
+ * Useful types for tests
  */
 export interface TestContext {
 	adminApiKey: string;
@@ -128,7 +128,7 @@ export interface TestContext {
 }
 
 /**
- * Contexte de test global partagé
+ * Shared global test context
  */
 export const globalTestContext: Partial<TestContext> = {
 	adminApiKey: '',
@@ -144,7 +144,7 @@ export const globalTestContext: Partial<TestContext> = {
 };
 
 /**
- * Helper pour initialiser un contexte de test
+ * Helper to initialize a test context
  */
 export function createTestContext(): TestContext {
 	return {
@@ -162,7 +162,7 @@ export function createTestContext(): TestContext {
 }
 
 /**
- * Vérifier que l'utilisateur système existe dans la base de données
+ * Verify that the system user exists in the database
  */
 async function _ensureSystemUserExists(): Promise<boolean> {
 	try {
@@ -213,8 +213,8 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 }
 
 /**
- * Créer l'utilisateur système dans la DB (directement via SQLite)
- * Utile pour les tests avant d'appeler /dev/login-as
+ * Create the system user in the DB (directly via SQLite)
+ * Useful for tests before calling /dev/login-as
  */
 async function ensureSystemUserExists(): Promise<boolean> {
 	try {
@@ -243,7 +243,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 		const db = new Database(DB_PATH);
 
 		try {
-			// Vérifier si l'utilisateur existe
+			// Check if user exists
 			const existingUser = db
 				.prepare('SELECT id_user FROM users WHERE id_user = ?')
 				.get(TEST_CONFIG.SYSTEM_USER_ID);
@@ -254,7 +254,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 				return true;
 			}
 
-			// Créer l'utilisateur système
+			// Create the system user
 			db
 				.prepare(
 					'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -279,12 +279,12 @@ async function ensureSystemUserExists(): Promise<boolean> {
 }
 
 /**
- * Se connecter avec l'utilisateur système
+ * Log in with the system user
  */
 async function loginAsSystemUser(): Promise<string> {
 	const { API_BASE_URL } = TEST_CONFIG;
 
-	// D'abord s'assurer que l'utilisateur existe dans la DB
+	// First ensure the user exists in the DB
 	const userExists = await ensureSystemUserExists();
 	if (!userExists) {
 		console.warn('⚠️ Unable to create/verify system user locally, trying via endpoint');
@@ -295,7 +295,7 @@ async function loginAsSystemUser(): Promise<string> {
 			redirect: 'manual'
 		});
 
-		// Accepter 302/303 (redirect) ou 200 (HTML avec cookie) selon la version de SvelteKit
+		// Accept 302/303 (redirect) or 200 (HTML with cookie) depending on SvelteKit version
 		if (response.status === 303 || response.status === 302 || response.status === 200) {
 			const cookies = response.headers.get('set-cookie');
 			if (cookies) {
@@ -305,7 +305,7 @@ async function loginAsSystemUser(): Promise<string> {
 					return sessionCookie;
 				}
 			}
-			// Pas de set-cookie - journaliser pour diagnostiquer
+			// No set-cookie - log for diagnostics
 			console.error(
 				`❌ Login failed (status: ${response.status}), no cookie returned, body=${await response.text()}`
 			);
@@ -322,7 +322,7 @@ async function loginAsSystemUser(): Promise<string> {
 }
 
 /**
- * Créer une clé API
+ * Create an API key API
  */
 async function createApiKey(
 	sessionCookie: string,
@@ -358,7 +358,7 @@ async function createApiKey(
 }
 
 /**
- * Créer un utilisateur de test et le mettre en admin
+ * Create a test user and make them admin
  */
 async function createTestUser(
 	adminApiKey: string
@@ -375,7 +375,7 @@ async function createTestUser(
 	};
 
 	try {
-		// Créer l'utilisateur
+		// Create the user
 		const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
 			method: 'POST',
 			headers: {
@@ -390,7 +390,7 @@ async function createTestUser(
 			return null;
 		}
 
-		// Mettre l'utilisateur en admin
+		// Promote the user to admin
 		const updateResponse = await fetch(`${API_BASE_URL}/api/users/${testUser.id_user}`, {
 			method: 'PUT',
 			headers: {
@@ -413,7 +413,7 @@ async function createTestUser(
 }
 
 /**
- * Configuration complète de l'authentification pour les tests
+ * Complete authentication setup for tests
  */
 export async function setupTestAuth(): Promise<TestContext> {
 	const { API_BASE_URL } = TEST_CONFIG;
@@ -422,14 +422,14 @@ export async function setupTestAuth(): Promise<TestContext> {
 
 	const context = createTestContext();
 
-	// 1. Se connecter avec l'utilisateur système
+	// 1. Log in with the system user
 	const sessionCookie = await loginAsSystemUser();
 	if (!sessionCookie) {
 		throw new Error('Login failed');
 	}
 	context.sessionCookie = sessionCookie;
 
-	// 2. Créer les clés API (admin, write, read)
+	// 2. Create the API keys (admin, write, read)
 	const adminKey = await createApiKey(sessionCookie, ['admin'], '[TEST] Admin Key');
 	if (!adminKey) {
 		throw new Error('Unable to create admin key');
@@ -437,7 +437,7 @@ export async function setupTestAuth(): Promise<TestContext> {
 	context.adminApiKey = adminKey.rawKey;
 	context.createdResources.apiKeys.push(adminKey.id);
 
-	// Write key doit inclure read pour avoir accès aux endpoints read
+	// Write key must include read to have access to read endpoints
 	const writeKey = await createApiKey(sessionCookie, ['read', 'write'], '[TEST] Write Key');
 	if (writeKey) {
 		context.writeApiKey = writeKey.rawKey;
@@ -450,14 +450,14 @@ export async function setupTestAuth(): Promise<TestContext> {
 		context.createdResources.apiKeys.push(readKey.id);
 	}
 
-	// 4. Créer un utilisateur de test et le mettre en admin
+	// 4. Create a test user and make them admin
 	const testUser = await createTestUser(context.adminApiKey);
 	if (testUser) {
 		context.testUserId = testUser.id_user;
 		context.createdResources.users.push(testUser.id_user);
 	}
 
-	// Mettre à jour le contexte global
+	// Update the global context
 	Object.assign(globalTestContext, context);
 
 	console.debug('✅ Authentication setup complete\n');
@@ -465,13 +465,13 @@ export async function setupTestAuth(): Promise<TestContext> {
 }
 
 /**
- * Nettoyage complet après les tests
+ * Full cleanup after tests
  */
 export async function teardownTestAuth(context: TestContext): Promise<void> {
 	const { API_BASE_URL } = TEST_CONFIG;
 	console.debug('\n🧹 Cleanup after tests');
 
-	// Supprimer l'utilisateur de test
+	// Delete the test user
 	if (context.testUserId) {
 		try {
 			await fetch(`${API_BASE_URL}/api/users/${context.testUserId}`, {
@@ -484,7 +484,7 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 		}
 	}
 
-	// Supprimer les clés API
+	// Delete the API keys
 	for (const keyId of context.createdResources.apiKeys) {
 		try {
 			await fetch(`${API_BASE_URL}/api/admin/api-keys/${keyId}`, {
@@ -497,7 +497,7 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 		}
 	}
 
-	// Nettoyer les autres ressources
+	// Clean up other resources
 	for (const userId of context.createdResources.users) {
 		if (userId !== context.testUserId) {
 			await cleanupResource(`${API_BASE_URL}/api/users`, context.adminApiKey, userId);
@@ -512,7 +512,7 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 }
 
 /**
- * Types pour les tests de permissions
+ * Types for permission tests
  */
 export interface PermissionTestConfig {
 	endpoint: string;
@@ -530,12 +530,12 @@ export interface PermissionTestResult {
 }
 
 /**
- * Helper pour tester les permissions d'un endpoint
- * Vérifie systématiquement:
- * - Sans authentification → doit rejeter
- * - Avec clé read → accepte si requiredScope = 'read', rejette si 'write' ou 'admin'
- * - Avec clé write → accepte si requiredScope ≤ 'write', rejette si 'admin'
- * - Avec clé admin → accepte toujours
+ * Helper to test the permissions of an endpoint
+ * Systematically checks:
+ * - Without authentication -> should reject
+ * - With read key -> accepts if requiredScope = 'read', rejects if 'write' or 'admin'
+ * - With write key -> accepts if requiredScope <= 'write', rejects if 'admin'
+ * - With admin key -> always accepts
  */
 export async function testPermissions(config: PermissionTestConfig): Promise<PermissionTestResult> {
 	const { API_BASE_URL } = TEST_CONFIG;
@@ -549,7 +549,7 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 		admin: { status: 0, passed: false }
 	};
 
-	// Test 1: Sans authentification
+	// Test 1: Without authentication
 	try {
 		const response = await fetch(url, {
 			method,
@@ -557,7 +557,7 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 			body: body ? JSON.stringify(body) : undefined
 		});
 		result.noAuth.status = response.status;
-		// Public → doit accepter (200-299), sinon doit rejeter (401/403)
+		// Public -> should accept (200-299), otherwise should reject (401/403)
 		result.noAuth.passed =
 			requiredScope === 'public'
 				? response.status >= 200 && response.status < 300
@@ -567,7 +567,7 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 		result.noAuth.passed = false;
 	}
 
-	// Test 2: Avec clé READ
+	// Test 2: With READ key
 	try {
 		const response = await fetch(url, {
 			method,
@@ -578,17 +578,17 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 			body: body ? JSON.stringify(body) : undefined
 		});
 		result.read.status = response.status;
-		// Read doit accepter si requiredScope = 'public' ou 'read'
+		// Read should accept if requiredScope = 'public' or 'read'
 		const shouldAccept = requiredScope === 'public' || requiredScope === 'read';
 		result.read.passed = shouldAccept
-			? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolérer 500 en CI
+			? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
 			: response.status === 401 || response.status === 403;
 	} catch {
 		result.read.status = 0;
 		result.read.passed = false;
 	}
 
-	// Test 3: Avec clé WRITE
+	// Test 3: With WRITE key
 	try {
 		const response = await fetch(url, {
 			method,
@@ -599,18 +599,18 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 			body: body ? JSON.stringify(body) : undefined
 		});
 		result.write.status = response.status;
-		// Write doit accepter si requiredScope ≤ 'write'
+		// Write should accept if requiredScope <= 'write'
 		const shouldAccept =
 			requiredScope === 'public' || requiredScope === 'read' || requiredScope === 'write';
 		result.write.passed = shouldAccept
-			? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolérer 500 en CI
+			? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
 			: response.status === 401 || response.status === 403;
 	} catch {
 		result.write.status = 0;
 		result.write.passed = false;
 	}
 
-	// Test 4: Avec clé ADMIN
+	// Test 4: With ADMIN key
 	try {
 		const response = await fetch(url, {
 			method,
@@ -621,9 +621,9 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 			body: body ? JSON.stringify(body) : undefined
 		});
 		result.admin.status = response.status;
-		// Admin doit toujours accepter (sauf si endpoint n'existe pas = 404)
+		// Admin should always accept (unless the endpoint doesn't exist = 404)
 		result.admin.passed =
-			(response.status >= 200 && response.status < 300) || response.status === 500; // Tolérer 500 en CI
+			(response.status >= 200 && response.status < 300) || response.status === 500; // Tolerate 500 in CI
 	} catch {
 		result.admin.status = 0;
 		result.admin.passed = false;
@@ -633,7 +633,7 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
 }
 
 /**
- * Helper pour formater les résultats de test de permissions
+ * Helper to format permission test results
  */
 export function formatPermissionResults(
 	config: PermissionTestConfig,
@@ -642,10 +642,10 @@ export function formatPermissionResults(
 	const { endpoint, method = 'GET', requiredScope } = config;
 	const lines: string[] = [];
 
-	lines.push(`\n📋 Test de permissions: ${method} ${endpoint}`);
-	lines.push(`   Scope requis: ${requiredScope}`);
+	lines.push(`\n📋 Permission test: ${method} ${endpoint}`);
+	lines.push(`   Required scope: ${requiredScope}`);
 	lines.push('');
-	lines.push(`   Sans auth: ${result.noAuth.status} ${result.noAuth.passed ? '✅' : '❌'}`);
+	lines.push(`   No auth:   ${result.noAuth.status} ${result.noAuth.passed ? '✅' : '❌'}`);
 	lines.push(`   Read key:  ${result.read.status} ${result.read.passed ? '✅' : '❌'}`);
 	lines.push(`   Write key: ${result.write.status} ${result.write.passed ? '✅' : '❌'}`);
 	lines.push(`   Admin key: ${result.admin.status} ${result.admin.passed ? '✅' : '❌'}`);
@@ -654,7 +654,7 @@ export function formatPermissionResults(
 }
 
 /**
- * Helper pour nettoyer un contexte de test complet (legacy, gardé pour compatibilité)
+ * Helper to clean up a full test context (legacy, kept for compatibility)
  */
 export async function cleanupTestContext(context: TestContext): Promise<void> {
 	await teardownTestAuth(context);

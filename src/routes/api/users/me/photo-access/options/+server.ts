@@ -14,8 +14,8 @@ interface UserOption {
 
 /**
  * GET /api/users/me/photo-access/options
- * Récupère la liste des utilisateurs disponibles pour le partage de photos
- * (tous les utilisateurs sauf l'utilisateur courant)
+ * Fetches the list of users available for photo sharing
+ * (all users except the current user)
  */
 export const GET: RequestHandler = async (event) => {
 	const user = await requireSession(event);

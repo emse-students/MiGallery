@@ -1,13 +1,13 @@
 /**
- * Système centralisé de gestion des permissions pour l'API
+ * Centralized permission management system for the API
  *
- * Hiérarchie des scopes:
- * - public: Aucune authentification requise
- * - read: Lecture seule (session OU x-api-key avec scope 'read')
- * - write: Lecture + écriture (session OU x-api-key avec scope 'write')
- * - admin: Accès administrateur (session admin OU x-api-key avec scope 'admin')
+ * Scope hierarchy:
+ * - public: No authentication required
+ * - read: Read-only (session OR x-api-key with 'read' scope)
+ * - write: Read + write (session OR x-api-key with 'write' scope)
+ * - admin: Administrator access (admin session OR x-api-key with 'admin' scope)
  *
- * Note: Le scope 'admin' sur une API key donne accès à TOUS les endpoints admin.
+ * Note: The 'admin' scope on an API key grants access to ALL admin endpoints.
  */
 
 import { error } from '@sveltejs/kit';
@@ -20,23 +20,23 @@ import { logEvent } from '$lib/server/logs';
 export type Scope = 'public' | 'read' | 'write' | 'admin';
 
 export interface AuthResult {
-	/** L'utilisateur authentifié (null si authentifié via API key) */
+	/** The authenticated user (null if authenticated via API key) */
 	user: UserRow | null;
-	/** Le scope effectif accordé */
+	/** The effective granted scope */
 	grantedScope: Scope;
-	/** True si authentifié via API key */
+	/** True if authenticated via API key */
 	viaApiKey: boolean;
 }
 
 /**
- * Vérifie que la requête a au moins le scope demandé.
+ * Verifies that the request has at least the requested scope.
  *
- * @param event - L'événement de requête SvelteKit
- * @param requiredScope - Le scope minimum requis
- * @param allowSelf - Si true, autorise l'utilisateur à accéder à ses propres ressources (pour GET/PUT sur /users/{id})
- * @param targetUserId - L'ID utilisateur cible (pour vérifier allowSelf)
- * @returns AuthResult contenant l'utilisateur et le scope accordé
- * @throws Error 401/403 si non autorisé
+ * @param event - The SvelteKit request event
+ * @param requiredScope - The minimum required scope
+ * @param allowSelf - If true, allows the user to access their own resources (for GET/PUT on /users/{id})
+ * @param targetUserId - The target user ID (to check allowSelf)
+ * @returns AuthResult containing the user and the granted scope
+ * @throws Error 401/403 if not authorized
  */
 export async function requireScope(
 	event: RequestEvent,
@@ -148,8 +148,8 @@ export async function requireScope(
 }
 
 /**
- * Version simplifiée pour les endpoints qui requièrent uniquement une session
- * (pas d'API key supportée)
+ * Simplified version for endpoints that require only a session
+ * (no API key supported)
  */
 export async function requireSession(event: RequestEvent): Promise<UserRow> {
 	const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
@@ -160,7 +160,7 @@ export async function requireSession(event: RequestEvent): Promise<UserRow> {
 }
 
 /**
- * Version simplifiée pour les endpoints admin (session admin uniquement)
+ * Simplified version for admin endpoints (admin session only)
  */
 export async function requireAdminSession(event: RequestEvent): Promise<UserRow> {
 	const adminUser = await ensureAdmin({ locals: event.locals, cookies: event.cookies });

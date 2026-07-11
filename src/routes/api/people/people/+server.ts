@@ -10,7 +10,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/people/people
- * Liste toutes les personnes reconnues par Immich
+ * Lists all people recognized by Immich
  */
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'read');

@@ -39,8 +39,8 @@ function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
 
 /**
  * GET /api/albums
- * Récupère la liste des albums de la BDD locale (pas Immich directement)
- * Seuls les albums répertoriés dans MiGallery sont retournés
+ * Fetches the list of albums from the local database (not directly from Immich)
+ * Only albums registered in MiGallery are returned
  */
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'read');
@@ -57,7 +57,7 @@ export const GET: RequestHandler = async (event) => {
 			description: album.location || '',
 			createdAt: album.date || '',
 			updatedAt: album.date || '',
-			assetCount: 0, // Non disponible depuis la BDD locale
+			assetCount: 0, // Not available from the local database
 			date: album.date,
 			location: album.location,
 			visibility: album.visibility,
@@ -74,7 +74,7 @@ export const GET: RequestHandler = async (event) => {
 
 /**
  * POST /api/albums
- * Crée un nouvel album dans Immich et dans la base de données locale
+ * Creates a new album in Immich and in the local database
  *
  * Body: {
  *   albumName: string,

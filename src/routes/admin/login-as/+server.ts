@@ -10,7 +10,7 @@ import { redirect } from '@sveltejs/kit';
  * Requires: Current user must be admin
  */
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
-	// Vérifier que l'utilisateur actuel est admin
+	// Verify the current user is admin
 	const admin = await ensureAdmin({ locals, cookies });
 	if (!admin) {
 		return new Response('Forbidden: Admin access required', { status: 403 });

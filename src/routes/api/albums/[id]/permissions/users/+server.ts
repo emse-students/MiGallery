@@ -6,7 +6,7 @@ import { ensureError } from '$lib/ts-utils';
 
 /**
  * POST /api/albums/[id]/permissions/users
- * Gère les utilisateurs autorisés pour un album
+ * Manages authorized users for an album
  *
  * Body: {
  *   add?: string[],

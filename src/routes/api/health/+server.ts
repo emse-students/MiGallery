@@ -7,7 +7,7 @@ import { requireScope } from '$lib/server/permissions';
 
 /**
  * GET /api/health
- * Health check endpoint - vérifie que l'API et la DB sont opérationnelles
+ * Health check endpoint - verifies the API and DB are operational
  */
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'public');

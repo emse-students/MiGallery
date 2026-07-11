@@ -10,9 +10,9 @@ import { getAssetIdsInSystemAlbum } from '$lib/immich/system-albums';
 
 /**
  * GET /api/people/people/[personId]/photos-stream
- * Streame les photos d'une personne en NDJSON
- * Phase 1: Métadonnées minimales (id, type, dimensions)
- * Phase 2: Enrichissement avec détails complets
+ * Streams a person's photos in NDJSON
+ * Phase 1: Minimal metadata (id, type, dimensions)
+ * Phase 2: Enrichment with full details
  */
 export const GET: RequestHandler = async (event) => {
 	const personId = event.params.personId;

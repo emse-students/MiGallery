@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 
 /**
- * Store pour gérer le modal de confirmation de navigation
+ * Store to manage the navigation confirmation modal
  */
 export const navigationModalStore = writable<{
 	show: boolean;

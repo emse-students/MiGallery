@@ -1,5 +1,5 @@
 /**
- * Tests exhaustifs pour l'API Albums
+ * Comprehensive tests for the Albums API
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -12,15 +12,15 @@ import {
 } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-let testAlbumId = ''; // UUID Immich = ID local dans la BDD
-// Suivi de tous les albums créés pour le nettoyage
+let testAlbumId = ''; // Immich UUID = local ID in the DB
+// Track all created albums for cleanup
 const createdAlbumIds: string[] = [];
 
 beforeAll(async () => {
 	await setupTestAuth();
 
-	// Créer un album de test dédié pour les tests de permissions
-	// POST /api/albums crée l'album sur Immich ET dans la BDD locale
+	// Create a test album dedicated to permission tests
+	// POST /api/albums creates album on Immich AND in local DB
 	if (globalTestContext.adminApiKey) {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/albums`, {
@@ -31,7 +31,7 @@ beforeAll(async () => {
 				},
 				body: JSON.stringify({
 					albumName: `[TEST] Permissions ${Date.now()}`,
-					description: 'Album pour tests de permissions'
+					description: 'Album for permission tests'
 				})
 			});
 
@@ -47,7 +47,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	// Supprimer tous les albums créés pendant les tests
+	// Delete all albums created during the tests
 	if (globalTestContext.adminApiKey) {
 		for (const albumId of createdAlbumIds) {
 			try {
@@ -56,7 +56,7 @@ afterAll(async () => {
 					headers: { 'x-api-key': globalTestContext.adminApiKey }
 				});
 			} catch {
-				// Ignorer les erreurs (album peut déjà être supprimé)
+				// Ignore errors (album may already be deleted)
 			}
 		}
 	}
@@ -66,7 +66,7 @@ afterAll(async () => {
 	}
 });
 
-// Helper pour les headers d'authentification
+// Helper for authentication headers
 const getAuthHeaders = () => {
 	const headers: Record<string, string> = {
 		'Content-Type': 'application/json'
@@ -78,22 +78,22 @@ const getAuthHeaders = () => {
 };
 
 describe('Albums API - GET /api/albums', () => {
-	it('devrait respecter les permissions READ', async () => {
+	it('should respect READ permissions', async () => {
 		const result = await testPermissions({
 			endpoint: '/api/albums',
 			method: 'GET',
 			requiredScope: 'read',
-			description: 'Liste des albums'
+			description: 'List of albums'
 		});
 
-		// Vérifications strictes
-		expect(result.noAuth.passed).toBe(true); // Doit rejeter sans auth
-		expect(result.read.passed).toBe(true); // Doit accepter avec read
-		expect(result.write.passed).toBe(true); // Doit accepter avec write
-		expect(result.admin.passed).toBe(true); // Doit accepter avec admin
+		// Strict checks
+		expect(result.noAuth.passed).toBe(true); // Should reject without auth
+		expect(result.read.passed).toBe(true); // Should accept with read
+		expect(result.write.passed).toBe(true); // Should accept with write
+		expect(result.admin.passed).toBe(true); // Should accept with admin
 	});
 
-	it('devrait lister tous les albums', async () => {
+	it('should list all albums', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: getAuthHeaders()
 		});
@@ -104,22 +104,22 @@ describe('Albums API - GET /api/albums', () => {
 			const albums = (await response.json()) as ImmichAlbum[];
 			expect(Array.isArray(albums)).toBe(true);
 
-			// Vérifier la structure des albums si présents
+			// Verify the album structure if present
 			if (albums.length > 0) {
 				const album = albums[0];
 				expect(album).toHaveProperty('id');
 				expect(album).toHaveProperty('albumName');
-				testAlbumId = album.id; // Sauvegarder pour les tests suivants
+				testAlbumId = album.id; // Save for subsequent tests
 			}
 		}
 	});
 
-	it('devrait rejeter les requêtes sans authentification', async () => {
+	it('should reject requests without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`);
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it("devrait filtrer l'album PhotoCV (masqué)", async () => {
+	it('should filter PhotoCV album (hidden)', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			headers: getAuthHeaders()
 		});
@@ -133,7 +133,7 @@ describe('Albums API - GET /api/albums', () => {
 });
 
 describe('Albums API - POST /api/albums', () => {
-	it('devrait respecter les permissions WRITE', async () => {
+	it('should respect WRITE permissions', async () => {
 		const albumData = {
 			albumName: `[TEST] Permission Album ${Date.now()}`,
 			description: 'Test'
@@ -144,19 +144,19 @@ describe('Albums API - POST /api/albums', () => {
 			method: 'POST',
 			body: albumData,
 			requiredScope: 'write',
-			description: "Création d'album"
+			description: 'Album creation'
 		});
 
-		expect(result.noAuth.passed).toBe(true); // Doit rejeter sans auth
-		expect(result.read.passed).toBe(true); // Doit rejeter avec read seul
-		expect(result.write.passed).toBe(true); // Doit accepter avec write
-		expect(result.admin.passed).toBe(true); // Doit accepter avec admin
+		expect(result.noAuth.passed).toBe(true); // Should reject without auth
+		expect(result.read.passed).toBe(true); // Should reject with read only
+		expect(result.write.passed).toBe(true); // Should accept with write
+		expect(result.admin.passed).toBe(true); // Should accept with admin
 	});
 
-	it('devrait créer un nouvel album', async () => {
+	it('should create a new album', async () => {
 		const newAlbum = {
 			albumName: `[TEST] Album ${Date.now()}`,
-			description: 'Album créé par les tests automatisés'
+			description: 'Album created by automated tests'
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
@@ -176,11 +176,11 @@ describe('Albums API - POST /api/albums', () => {
 		}
 	});
 
-	it("devrait rejeter la création sans nom d'album", async () => {
+	it('should reject creation without album name', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
-			body: JSON.stringify({ description: 'Sans nom' })
+			body: JSON.stringify({ description: 'No name' })
 		});
 
 		expect([400, 401, 500]).toContain(response.status);
@@ -188,9 +188,9 @@ describe('Albums API - POST /api/albums', () => {
 });
 
 describe('Albums API - GET /api/albums/[id]', () => {
-	it('devrait récupérer un album spécifique', async () => {
+	it('should fetch a specific album', async () => {
 		if (!testAlbumId) {
-			return; // Skip si pas d'album disponible
+			return; // Skip if no album available
 		}
 
 		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
@@ -205,7 +205,7 @@ describe('Albums API - GET /api/albums/[id]', () => {
 		}
 	});
 
-	it('devrait retourner 404 pour un album inexistant', async () => {
+	it('should return 404 for non-existent album', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums/inexistant-id-12345`, {
 			headers: getAuthHeaders()
 		});
@@ -215,8 +215,8 @@ describe('Albums API - GET /api/albums/[id]', () => {
 });
 
 describe('Albums API - PATCH /api/albums/[id]', () => {
-	it('devrait respecter les permissions WRITE', async () => {
-		// Créer d'abord un album de test
+	it('should respect WRITE permissions', async () => {
+		// First create a test album
 		const createRes = await fetch(`${API_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -226,7 +226,7 @@ describe('Albums API - PATCH /api/albums/[id]', () => {
 		if (createRes.status === 200 || createRes.status === 201) {
 			const album = (await createRes.json()) as ImmichAlbum;
 			const albumId = album.id;
-			// Tracker pour nettoyage
+			// Track for cleanup
 			createdAlbumIds.push(albumId);
 
 			const updateData = {
@@ -239,24 +239,24 @@ describe('Albums API - PATCH /api/albums/[id]', () => {
 				method: 'PATCH',
 				body: updateData,
 				requiredScope: 'write',
-				description: "Modification d'album"
+				description: 'Album modification'
 			});
 
-			expect(result.noAuth.passed).toBe(true); // Doit rejeter
-			expect(result.read.passed).toBe(true); // Doit rejeter
-			expect(result.write.passed).toBe(true); // Doit accepter
-			expect(result.admin.passed).toBe(true); // Doit accepter
+			expect(result.noAuth.passed).toBe(true); // Should reject
+			expect(result.read.passed).toBe(true); // Should reject
+			expect(result.write.passed).toBe(true); // Should accept
+			expect(result.admin.passed).toBe(true); // Should accept
 		}
 	});
 
-	it('devrait modifier un album', async () => {
+	it('should update an album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
 
 		const updates = {
-			albumName: `[TEST] Album Modifié ${Date.now()}`,
-			description: 'Description mise à jour'
+			albumName: `[TEST] Album Modified ${Date.now()}`,
+			description: 'Updated description'
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
@@ -270,7 +270,7 @@ describe('Albums API - PATCH /api/albums/[id]', () => {
 });
 
 describe('Albums API - GET /api/albums/[id]/assets-simple', () => {
-	it("devrait récupérer les assets d'un album (format simple)", async () => {
+	it('should fetch album assets (simple format)', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -283,7 +283,7 @@ describe('Albums API - GET /api/albums/[id]/assets-simple', () => {
 
 		if (response.status === 200) {
 			const result = (await response.json()) as { success?: boolean; data?: unknown[] } | unknown[];
-			// Gérer les deux formats de réponse possibles
+			// Handle both possible response formats
 			if (Array.isArray(result)) {
 				expect(Array.isArray(result)).toBe(true);
 			} else if (result.data) {
@@ -297,7 +297,7 @@ describe('Albums API - GET /api/albums/[id]/assets-simple', () => {
 });
 
 describe('Albums API - GET /api/albums/[id]/assets-stream', () => {
-	it("devrait streamer les assets d'un album", async () => {
+	it('should stream the assets of an album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -310,12 +310,12 @@ describe('Albums API - GET /api/albums/[id]/assets-stream', () => {
 
 		if (response.status === 200) {
 			const contentType = response.headers.get('content-type') || '';
-			// Le streaming peut retourner application/json ou application/x-ndjson
+			// Streaming can return application/json or application/x-ndjson
 			expect(contentType).toMatch(/application\/(json|x-ndjson)/);
 		}
 	});
 
-	it('devrait supporter la pagination avec cursor', async () => {
+	it('should support pagination with cursor', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -332,7 +332,7 @@ describe('Albums API - GET /api/albums/[id]/assets-stream', () => {
 });
 
 describe('Albums API - PUT /api/albums/[id]/assets', () => {
-	it('devrait ajouter des assets à un album', async () => {
+	it('should add assets to album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -350,7 +350,7 @@ describe('Albums API - PUT /api/albums/[id]/assets', () => {
 });
 
 describe('Albums API - DELETE /api/albums/[id]/assets', () => {
-	it('devrait respecter les permissions WRITE', async () => {
+	it('should respect WRITE permissions', async () => {
 		if (!testAlbumId) {
 			return; // Skip if test album creation failed
 		}
@@ -359,23 +359,23 @@ describe('Albums API - DELETE /api/albums/[id]/assets', () => {
 			endpoint: `/api/albums/${testAlbumId}/assets`,
 			method: 'DELETE',
 			requiredScope: 'write',
-			description: "Retrait d'assets d'un album",
+			description: 'Remove assets from an album',
 			body: { ids: ['00000000-0000-0000-0000-000000000000'] }
 		});
 
-		// Sans auth -> rejeté
+		// Without auth -> rejected
 		expect(result.noAuth.passed, `noAuth failed with status ${result.noAuth.status}`).toBe(true);
-		// Avec READ -> rejeté (car c'est un endpoint WRITE)
+		// With READ -> rejected (since this is a WRITE endpoint)
 		expect(result.read.passed, `read failed with status ${result.read.status}`).toBe(true);
 
-		// Pour WRITE et ADMIN, on teste l'accès.
-		// Si l'auth passe, on peut avoir 200 (succès), 400 (bad request), 404 (not found).
-		// L'important est que ce ne soit PAS 401 ou 403.
+		// For WRITE and ADMIN, we test access.
+		// If auth passes, we can get 200 (success), 400 (bad request), 404 (not found).
+		// The important thing is that it is NOT 401 or 403.
 		expect([401, 403]).not.toContain(result.write.status);
 		expect([401, 403]).not.toContain(result.admin.status);
 	});
 
-	it("devrait supprimer des assets d'un album", async () => {
+	it('should remove assets from album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -393,7 +393,7 @@ describe('Albums API - DELETE /api/albums/[id]/assets', () => {
 });
 
 describe('Albums API - GET /api/albums/[id]/info', () => {
-	it("devrait récupérer les informations d'un album", async () => {
+	it('should fetch album information', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -406,7 +406,7 @@ describe('Albums API - GET /api/albums/[id]/info', () => {
 
 		if (response.status === 200) {
 			const info = (await response.json()) as Record<string, unknown>;
-			// La réponse peut être {id, ...} ou {success, album: {id, ...}}
+			// Response can be {id, ...} or {success, album: {id, ...}}
 			if (info.success && info.album) {
 				expect(info.album).toHaveProperty('id');
 			} else {
@@ -417,14 +417,14 @@ describe('Albums API - GET /api/albums/[id]/info', () => {
 });
 
 describe('Albums API - PUT /api/albums/[id]/metadata', () => {
-	it("devrait mettre à jour les métadonnées d'un album", async () => {
+	it('should update album metadata', async () => {
 		if (!testAlbumId) {
 			return;
 		}
 
 		const metadata = {
-			title: 'Nouveau titre',
-			description: 'Nouvelle description'
+			title: 'New title',
+			description: 'New description'
 		};
 
 		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/metadata`, {
@@ -438,7 +438,7 @@ describe('Albums API - PUT /api/albums/[id]/metadata', () => {
 });
 
 describe('Albums API - Asset Thumbnail', () => {
-	it('devrait récupérer la miniature avec chemin complet', async () => {
+	it('should fetch thumbnail with full path', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -453,7 +453,7 @@ describe('Albums API - Asset Thumbnail', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	});
 
-	it('devrait récupérer la miniature sans spécifier le chemin', async () => {
+	it('should fetch thumbnail without specifying path', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -470,7 +470,7 @@ describe('Albums API - Asset Thumbnail', () => {
 });
 
 describe('Albums API - Asset Original', () => {
-	it("devrait récupérer l'asset original", async () => {
+	it('should fetch original asset', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -485,7 +485,7 @@ describe('Albums API - Asset Original', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	});
 
-	it("devrait supporter toutes les méthodes HTTP pour l'asset original", async () => {
+	it('should support all HTTP methods for original asset', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -507,7 +507,7 @@ describe('Albums API - Asset Original', () => {
 });
 
 describe('Albums API - Covers', () => {
-	it("devrait générer les couvertures d'albums", async () => {
+	it('should generate album covers', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums/covers`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -521,7 +521,7 @@ describe('Albums API - Covers', () => {
 });
 
 describe('Albums API - DELETE /api/albums/[id]', () => {
-	it('devrait supprimer un album', async () => {
+	it('should delete an album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -535,12 +535,12 @@ describe('Albums API - DELETE /api/albums/[id]', () => {
 	});
 });
 
-// Tests pour /api/albums/list et /api/albums/import supprimés - endpoints dépréciés
-// GET /api/albums retourne maintenant la liste des albums de la BDD locale
+// Tests for /api/albums/list and /api/albums/import deleted - deprecated endpoints
+// GET /api/albums now returns the list of albums from the local DB
 
 describe('Albums API - POST /api/albums/[id]/permissions/tags', () => {
-	it('devrait rejeter les requêtes sans authentification', async () => {
-		// Utiliser le premier album disponible ou skip
+	it('should reject requests without authentication', async () => {
+		// Use the first available album or skip
 		if (!testAlbumId) {
 			return;
 		}
@@ -554,12 +554,12 @@ describe('Albums API - POST /api/albums/[id]/permissions/tags', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait gérer les permissions de tags', async () => {
+	it('should manage tag permissions', async () => {
 		if (!testAlbumId) {
 			return;
 		}
 
-		// Test ajout
+		// Test addition
 		const addResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/tags`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -577,7 +577,7 @@ describe('Albums API - POST /api/albums/[id]/permissions/tags', () => {
 			expect(addData.success).toBe(true);
 			expect(addData).toHaveProperty('added');
 
-			// Test suppression
+			// Test deletion
 			const removeResponse = await fetch(
 				`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/tags`,
 				{
@@ -598,7 +598,7 @@ describe('Albums API - POST /api/albums/[id]/permissions/tags', () => {
 });
 
 describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
-	it('devrait rejeter les requêtes sans authentification', async () => {
+	it('should reject requests without authentication', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -612,12 +612,12 @@ describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait gérer les permissions utilisateurs', async () => {
+	it('should manage user permissions', async () => {
 		if (!testAlbumId) {
 			return;
 		}
 
-		// Test ajout (peut échouer si l'utilisateur n'existe pas, c'est OK)
+		// Test addition (may fail if user doesn't exist, that's OK)
 		const addResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/users`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -637,7 +637,7 @@ describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
 			};
 			expect(addData.success).toBe(true);
 
-			// Test suppression
+			// Test deletion
 			const removeResponse = await fetch(
 				`${API_BASE_URL}/api/albums/${testAlbumId}/permissions/users`,
 				{

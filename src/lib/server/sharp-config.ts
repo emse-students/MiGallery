@@ -1,24 +1,24 @@
 /**
- * Configuration globale de Sharp / libvips (serveur uniquement).
+ * Global Sharp / libvips configuration (server only).
  *
- * Sharp s'appuie sur libvips (mémoire native, comptabilisée dans `external`).
- * Par défaut libvips garde un cache d'opérations et lance autant de threads que
- * de cœurs CPU - la mémoire native libérée n'est de plus pas rendue à l'OS sous
- * glibc (fragmentation d'arènes). Sur un proxy qui génère beaucoup de vignettes,
- * cela fait grimper puis stagner la RSS.
+ * Sharp relies on libvips (native memory, counted under `external`).
+ * By default libvips keeps an operations cache and spawns as many threads as
+ * CPU cores - freed native memory is moreover not returned to the OS under
+ * glibc (arena fragmentation). On a proxy that generates many thumbnails,
+ * this makes RSS climb and then plateau.
  *
- * Ce module est importé une seule fois (idempotent) partout où l'on utilise
- * Sharp, pour appliquer des réglages sobres :
- *  - `cache(false)`   : pas de rétention native entre requêtes ;
- *  - `concurrency(2)` : borne les threads/pools par opération.
+ * This module is imported once (idempotent) everywhere Sharp is used,
+ * to apply conservative settings:
+ *  - `cache(false)`   : no native retention between requests;
+ *  - `concurrency(2)` : bounds threads/pools per operation.
  *
- * À compléter côté déploiement par `MALLOC_ARENA_MAX=2` pour limiter la
- * fragmentation glibc des allocations libvips.
+ * To be complemented on the deployment side with `MALLOC_ARENA_MAX=2` to limit
+ * glibc fragmentation of libvips allocations.
  */
 import sharp from 'sharp';
 
-// Un module ES n'est évalué qu'une fois : ces réglages s'appliquent une seule
-// fois au premier import, quel que soit le nombre de fichiers qui l'importent.
+// An ES module is evaluated only once: these settings apply a single
+// time on first import, regardless of how many files import it.
 sharp.cache(false);
 sharp.concurrency(2);
 

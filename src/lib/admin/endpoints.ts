@@ -1,5 +1,5 @@
 /**
- * Liste complète des endpoints de l'API MiGallery
+ * Complete list of MiGallery API endpoints
  * Format: method, path, scope, description, exampleCurl, exampleResponse
  */
 

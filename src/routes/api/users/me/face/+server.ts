@@ -8,11 +8,11 @@ const SESSION_COOKIE_NAME = '__session_user';
 
 /**
  * PATCH /api/users/me/face
- * Met à jour l'ID de la personne (photos_id) et le statut first_login de l'utilisateur connecté
+ * Updates the person ID (photos_id) and first_login status of the logged-in user
  *
  * Body:
- * - person_id: string | null (requis) - L'ID de la personne à associer
- * - user_id: string (optionnel, admin seulement) - Permet de modifier un autre utilisateur
+ * - person_id: string | null (required) - The person ID to associate
+ * - user_id: string (optional, admin only) - Allows editing another user
  */
 export const PATCH: RequestHandler = async (event) => {
 	const { request, locals, cookies } = event;

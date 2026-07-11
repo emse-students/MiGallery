@@ -7,10 +7,10 @@ const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d
 
 /**
  * GET /api/users/me
- * Récupère les informations de l'utilisateur connecté
+ * Fetches the information of the logged-in user
  *
- * Note: Cet endpoint requiert une session active (pas de clé API)
- * car il identifie l'utilisateur via sa session de connexion.
+ * Note: This endpoint requires an active session (not API key)
+ * because it identifies the user via their login session.
  */
 export const GET: RequestHandler = async (event) => {
 	try {
@@ -48,10 +48,10 @@ export const GET: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/users/me
- * Supprime le compte de l'utilisateur connecté
+ * Deletes the account of the logged-in user
  *
- * Cette action est irréversible et supprime toutes les données associées à l'utilisateur.
- * Note: Cet endpoint requiert une session active (pas de clé API) pour des raisons de sécurité.
+ * This action is irreversible and deletes all data associated with the user.
+ * Note: This endpoint requires an active session (not API key) for security reasons.
  */
 export const DELETE: RequestHandler = async (event) => {
 	const { cookies } = event;

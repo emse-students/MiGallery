@@ -1,6 +1,6 @@
 /**
- * Helper pour les appels fetch à Immich avec gestion correcte des headers
- * TypeScript vérifie que la clé API est correctement typée
+ * Helper for fetch calls to Immich with correct header handling
+ * TypeScript verifies that the API key is correctly typed
  */
 
 export function createImmichHeaders(

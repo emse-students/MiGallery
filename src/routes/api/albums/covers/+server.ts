@@ -10,10 +10,10 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * POST /api/albums/covers
- * Streaming progressif des covers d'albums via Server-Sent Events
+ * Progressive streaming of album covers via Server-Sent Events
  *
  * Body: { albumIds: string[] }
- * Returns: Stream de { albumId: string, cover: { assetId: string, type: string } | null }
+ * Returns: Stream of { albumId: string, cover: { assetId: string, type: string } | null }
  */
 export const POST: RequestHandler = async (event) => {
 	try {

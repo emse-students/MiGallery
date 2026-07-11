@@ -149,7 +149,7 @@
 			</div>
 		{/if}
 
-		<!-- Liste des clés -->
+		<!-- Keys list -->
 		<section class="glass-card list-section">
 			<div class="card-header">
 				<h3>{m.apik_existing({ count: keys.length })}</h3>

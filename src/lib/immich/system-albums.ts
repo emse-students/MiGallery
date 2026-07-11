@@ -47,7 +47,7 @@ export async function getOrCreateSystemAlbum(
 			'x-api-key': IMMICH_API_KEY,
 			'Content-Type': 'application/json'
 		},
-		body: JSON.stringify({ albumName, description: `Album système ${albumName}` })
+		body: JSON.stringify({ albumName, description: `System album ${albumName}` })
 	});
 
 	if (!createRes.ok) {
@@ -94,7 +94,7 @@ export async function getAllAssetIdsInSystemAlbums(fetchFn: typeof fetch): Promi
 }
 
 /**
- * Récupère les IDs de tous les assets dans un album système spécifique (ex: 'PhotoCV')
+ * Gets the IDs of all assets in a specific system album (e.g. 'PhotoCV')
  */
 export async function getAssetIdsInSystemAlbum(
 	fetchFn: typeof fetch,

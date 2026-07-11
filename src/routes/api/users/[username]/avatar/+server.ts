@@ -10,8 +10,8 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/users/[username]/avatar
- * Récupère la photo de profil d'un utilisateur par son id_user
- * Requires: authentification (session cookie, auth provider, ou clé API avec scope 'read')
+ * Gets a user's profile photo by their id_user
+ * Requires: authentication (session cookie, auth provider, or API key with 'read' scope)
  */
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'read');

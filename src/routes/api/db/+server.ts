@@ -2,22 +2,22 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 
 /**
- * ❌ ENDPOINT DÉSACTIVÉ POUR RAISONS DE SÉCURITÉ
+ * ❌ ENDPOINT DISABLED FOR SECURITY REASONS
  *
- * Cet endpoint permettait l'exécution de SQL arbitraire et présentait de multiples
- * vulnérabilités critiques:
+ * This endpoint allowed arbitrary SQL execution and had multiple critical
+ * vulnerabilities:
  *
- * 1. Bypass de validation via commentaires SQL, alias, sous-requêtes, UNION
- * 2. Aucune protection sur les tables api_keys, albums, favorites, etc.
- * 3. Permet DDL statements (DROP TABLE, ALTER TABLE, etc.)
- * 4. Information disclosure via messages d'erreur SQL
- * 5. Validation WHERE fragile et contournable
+ * 1. Validation bypass via SQL comments, aliases, subqueries, UNION
+ * 2. No protection on api_keys, albums, favorites tables, etc.
+ * 3. Allows DDL statements (DROP TABLE, ALTER TABLE, etc.)
+ * 4. Information disclosure via SQL error messages
+ * 5. Fragile and bypassable WHERE validation
  *
- * Si vous avez besoin d'exécuter des requêtes SQL spécifiques, créez des endpoints
- * dédiés avec validation stricte des paramètres.
+ * If you need to run specific SQL queries, create dedicated endpoints
+ * with strict parameter validation.
  *
- * Pour debug/dev uniquement: Utiliser les endpoints /api/admin/db-* avec des
- * opérations prédéfinies et sécurisées.
+ * For debug/dev only: Use the /api/admin/db-* endpoints with
+ * predefined and secure operations.
  */
 export const POST: RequestHandler = () => {
 	throw error(404, 'Not Found');

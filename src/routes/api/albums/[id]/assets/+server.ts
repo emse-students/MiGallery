@@ -9,7 +9,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * PUT /api/albums/[id]/assets
- * Ajoute des assets à un album
+ * Adds assets to an album
  *
  * Body: { ids: string[] }
  */
@@ -70,7 +70,7 @@ export const PUT: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/albums/[id]/assets
- * Retire des assets d'un album
+ * Removes assets from an album
  *
  * Body: { ids: string[] }
  */

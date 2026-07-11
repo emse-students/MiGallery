@@ -26,9 +26,9 @@ async function fetchAllPersonAssets(
 				'x-api-key': IMMICH_API_KEY,
 				'Content-Type': 'application/json'
 			},
-			// Pages plus petites (500 au lieu de 1000) : réduit le pic mémoire natif
-			// par réponse. Le plafond de pages est relevé en conséquence ci-dessous
-			// pour ne pas tronquer les personnes très photographiées.
+			// Smaller pages (500 instead of 1000): reduces the native memory peak
+			// per response. The page cap is raised accordingly below
+			// so we don't truncate heavily-photographed people.
 			body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 500 })
 		});
 

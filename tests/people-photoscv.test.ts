@@ -1,5 +1,5 @@
 /**
- * Tests exhaustifs pour l'API People / Photos-CV
+ * Comprehensive tests for the People / Photos-CV API
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -30,7 +30,7 @@ const getAuthHeaders = () => {
 };
 
 describe('People API - GET /api/people/people', () => {
-	it('devrait lister toutes les personnes', async () => {
+	it('should list all people', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/people`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -42,8 +42,8 @@ describe('People API - GET /api/people/people', () => {
 			const data = (await response.json()) as
 				| Array<{ id: string; name: string }>
 				| { people?: Array<{ id: string; name: string }>; data?: Array<{ id: string; name: string }> };
-			// La réponse peut être un tableau [...], un objet {people: [...]}, ou une autre structure
-			// Tolérons toutes les structures de réponse possibles
+			// Response can be an array [...], an object {people: [...]}, or another structure
+			// Tolerate all possible response structures
 			if (Array.isArray(data)) {
 				expect(Array.isArray(data)).toBe(true);
 				if (data.length > 0) {
@@ -53,7 +53,7 @@ describe('People API - GET /api/people/people', () => {
 					testPersonId = person.id;
 				}
 			} else if (data && typeof data === 'object') {
-				// Accepter n'importe quelle structure d'objet
+				// Accept any object structure
 				expect(data).toBeDefined();
 				const people = data.people || data.data || [];
 				if (Array.isArray(people) && people.length > 0) {
@@ -66,12 +66,12 @@ describe('People API - GET /api/people/people', () => {
 		}
 	}, 15000);
 
-	it("devrait rejeter l'accès sans authentification", async () => {
+	it('should reject access without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/people`);
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('devrait gérer le cas où Immich est indisponible', async () => {
+	it('should handle case where Immich is unavailable', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/people/people`, {
 				headers: getAuthHeaders(),
@@ -89,7 +89,7 @@ describe('People API - GET /api/people/people', () => {
 });
 
 describe('People API - GET /api/people/people/[personId]/photos', () => {
-	it("devrait récupérer les photos d'une personne", async () => {
+	it("should fetch a person's photos", async () => {
 		if (!testPersonId) {
 			return;
 		}
@@ -107,7 +107,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
 		}
 	}, 15000);
 
-	it('devrait supporter la pagination', async () => {
+	it('should support pagination', async () => {
 		if (!testPersonId) {
 			return;
 		}
@@ -123,7 +123,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	}, 15000);
 
-	it('devrait retourner 404 pour une personne inexistante', async () => {
+	it('should return 404 for a nonexistent person', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/people/inexistant-person-id/photos`, {
 			headers: getAuthHeaders()
 		});
@@ -133,7 +133,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
 });
 
 describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
-	it("devrait streamer les photos d'une personne", async () => {
+	it("should stream a person's photos", async () => {
 		if (!testPersonId) {
 			return;
 		}
@@ -151,7 +151,7 @@ describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
 		}
 	}, 15000);
 
-	it('devrait supporter le streaming avec cursor', async () => {
+	it('should support streaming with cursor', async () => {
 		if (!testPersonId) {
 			return;
 		}
@@ -169,7 +169,7 @@ describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
 });
 
 describe('People API - GET /api/people/person/[id]/my-photos', () => {
-	it("devrait récupérer les photos de l'utilisateur correspondant", async () => {
+	it("should fetch the corresponding user's photos", async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/person/test-person-id/my-photos`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -180,7 +180,7 @@ describe('People API - GET /api/people/person/[id]/my-photos', () => {
 });
 
 describe('People API - GET /api/people/person/[id]/album-photos', () => {
-	it("devrait récupérer les photos d'album de la personne", async () => {
+	it("should fetch the person's album photos", async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/person/test-person-id/album-photos`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -191,7 +191,7 @@ describe('People API - GET /api/people/person/[id]/album-photos', () => {
 });
 
 describe('People API - GET /api/people', () => {
-	it('devrait lister les personnes avec filtres', async () => {
+	it('should list people with filters', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people?promo=2025`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -205,7 +205,7 @@ describe('People API - GET /api/people', () => {
 		}
 	}, 15000);
 
-	it('devrait supporter le filtre par département', async () => {
+	it('should support department filter', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people?department=ICM`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -214,7 +214,7 @@ describe('People API - GET /api/people', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	}, 15000);
 
-	it('devrait supporter le filtre par option', async () => {
+	it('should support option filter', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people?option=ISMIN`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -223,7 +223,7 @@ describe('People API - GET /api/people', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	}, 15000);
 
-	it('devrait supporter la recherche par nom', async () => {
+	it('should support name search', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people?search=test`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -232,7 +232,7 @@ describe('People API - GET /api/people', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	}, 15000);
 
-	it('devrait supporter plusieurs filtres combinés', async () => {
+	it('should support multiple combined filters', async () => {
 		const response = await fetch(
 			`${API_BASE_URL}/api/people?promo=2025&department=ICM&option=ISMIN`,
 			{
@@ -246,7 +246,7 @@ describe('People API - GET /api/people', () => {
 });
 
 describe('People API - POST /api/people', () => {
-	it('devrait créer une nouvelle personne', async () => {
+	it('should create a new person', async () => {
 		const newPerson = {
 			name: `Test Person ${Date.now()}`,
 			promo: 2025,
@@ -264,7 +264,7 @@ describe('People API - POST /api/people', () => {
 		expect([200, 201, 400, 401, 403, 500]).toContain(response.status);
 	}, 15000);
 
-	it('devrait rejeter la création sans nom', async () => {
+	it('should reject creation without name', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -276,7 +276,7 @@ describe('People API - POST /api/people', () => {
 		expect([400, 401, 403]).toContain(response.status);
 	});
 
-	it("devrait valider l'année de promo", async () => {
+	it('should validate promo year', async () => {
 		const invalidPerson = {
 			name: 'Invalid Promo',
 			promo: 'invalid'
@@ -293,7 +293,7 @@ describe('People API - POST /api/people', () => {
 });
 
 describe('People Album API - GET /api/people/album', () => {
-	it("devrait récupérer l'album PhotoCV", async () => {
+	it('should fetch PhotoCV album', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/album`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -307,7 +307,7 @@ describe('People Album API - GET /api/people/album', () => {
 				albumName?: string;
 				assets?: unknown[];
 			};
-			// La réponse peut être {id, albumName} ou {assets: [...]}
+			// Response can be {id, albumName} or {assets: [...]}
 			if (data && typeof data === 'object') {
 				if ('id' in data) {
 					expect(data).toHaveProperty('id');
@@ -323,7 +323,7 @@ describe('People Album API - GET /api/people/album', () => {
 });
 
 describe('People Album API - GET /api/people/album/info', () => {
-	it("devrait récupérer les informations de l'album PhotoCV", async () => {
+	it('should fetch PhotoCV album information', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/album/info`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -339,7 +339,7 @@ describe('People Album API - GET /api/people/album/info', () => {
 });
 
 describe('People Album API - GET /api/people/album/[albumId]/assets', () => {
-	it("devrait récupérer les assets de l'album PhotoCV", async () => {
+	it('should fetch PhotoCV album assets', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -359,7 +359,7 @@ describe('People Album API - GET /api/people/album/[albumId]/assets', () => {
 });
 
 describe('People Album API - PUT /api/people/album/[albumId]/assets', () => {
-	it("devrait ajouter des assets à l'album PhotoCV", async () => {
+	it('should add assets to PhotoCV album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -376,7 +376,7 @@ describe('People Album API - PUT /api/people/album/[albumId]/assets', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 	}, 15000);
 
-	it("devrait rejeter l'ajout sans IDs", async () => {
+	it('should reject addition without IDs', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -392,7 +392,7 @@ describe('People Album API - PUT /api/people/album/[albumId]/assets', () => {
 });
 
 describe('People Album API - DELETE /api/people/album/[albumId]/assets', () => {
-	it("devrait supprimer des assets de l'album PhotoCV", async () => {
+	it('should delete assets from PhotoCV album', async () => {
 		if (!testAlbumId) {
 			return;
 		}
@@ -411,7 +411,7 @@ describe('People Album API - DELETE /api/people/album/[albumId]/assets', () => {
 });
 
 describe('People Album API - PUT /api/people/album/assets (bulk)', () => {
-	it("devrait gérer l'ajout en masse d'assets", async () => {
+	it('should handle bulk asset addition', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/album/assets`, {
 			method: 'PUT',
 			headers: getAuthHeaders(),
@@ -427,7 +427,7 @@ describe('People Album API - PUT /api/people/album/assets (bulk)', () => {
 });
 
 describe('People Album API - DELETE /api/people/album/assets (bulk)', () => {
-	it("devrait gérer la suppression en masse d'assets", async () => {
+	it('should handle bulk asset deletion', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/album/assets`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -443,7 +443,7 @@ describe('People Album API - DELETE /api/people/album/assets (bulk)', () => {
 });
 
 describe('People API - Error Handling', () => {
-	it('devrait gérer les timeouts Immich gracieusement', async () => {
+	it('should handle Immich timeouts gracefully', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/people/people`, {
 				headers: getAuthHeaders(),
@@ -459,7 +459,7 @@ describe('People API - Error Handling', () => {
 		}
 	}, 10000);
 
-	it('devrait retourner des erreurs structurées', async () => {
+	it('should return structured errors', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/people/invalid-id/photos`);
 
 		expect([401, 404, 500]).toContain(response.status);

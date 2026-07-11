@@ -8,12 +8,12 @@ import { startBackupScheduler } from '$lib/server/backup';
 import { verifySigned } from '$lib/auth/cookies';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 
-// Démarre la sauvegarde automatique quotidienne dès le démarrage du serveur
+// Start the daily automatic backup as soon as the server starts
 startBackupScheduler();
 
 /**
- * Liste des domaines autorisés pour CORS.
- * '*' autorise toutes les origines (pour les API publiques avec x-api-key).
+ * List of allowed domains for CORS.
+ * '*' allows all origins (for public APIs with x-api-key).
  */
 const ALLOWED_ORIGINS = [
 	'https://portail-etu.emse.fr',
@@ -25,21 +25,21 @@ const ALLOWED_ORIGINS = [
 ];
 
 /**
- * Routes API exemptées de la vérification CSRF de SvelteKit.
- * Ces routes utilisent une authentification par x-api-key, pas par cookies,
- * donc le risque CSRF est nul.
+ * API routes exempt from SvelteKit's CSRF check.
+ * These routes use x-api-key authentication, not cookies,
+ * so the CSRF risk is nil.
  */
 const CSRF_EXEMPT_PATHS = ['/api/external/', '/api/auth/'];
 
 /**
- * Vérifie si une route est exemptée de CSRF.
+ * Checks whether a route is exempt from CSRF.
  */
 function isCsrfExemptPath(pathname: string): boolean {
 	return CSRF_EXEMPT_PATHS.some((path) => pathname.startsWith(path));
 }
 
 /**
- * Vérifie si l'origine est autorisée.
+ * Checks whether the origin is allowed.
  */
 function isAllowedOrigin(origin: string | null): boolean {
 	if (!origin) {
@@ -49,14 +49,14 @@ function isAllowedOrigin(origin: string | null): boolean {
 }
 
 /**
- * Hook principal pour gérer CORS et la sécurité CSRF.
+ * Main hook to handle CORS and CSRF security.
  *
- * STRATÉGIE :
- * - La vérification CSRF native de SvelteKit est DÉSACTIVÉE (svelte.config.js).
- * - Ce hook implémente une vérification CSRF personnalisée :
- *   1. Routes /api/external/* : Exemptées (authentifiées par x-api-key, pas cookies).
- *   2. Autres routes avec mutation (POST, PUT, DELETE, PATCH) : Vérifier que l'Origin correspond.
- * - Gère aussi les réponses CORS pour toutes les routes API.
+ * STRATEGY:
+ * - SvelteKit's native CSRF check is DISABLED (svelte.config.js).
+ * - This hook implements a custom CSRF check:
+ *   1. /api/external/* routes: Exempt (authenticated by x-api-key, not cookies).
+ *   2. Other mutating routes (POST, PUT, DELETE, PATCH): Verify the Origin matches.
+ * - Also handles CORS responses for all API routes.
  */
 const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 	const { request, url } = event;
@@ -120,25 +120,25 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Hook pour résoudre la session utilisateur avant que la réponse ne soit générée.
- * Nettoie aussi les vieux cookies au format legacy (prenom.nom) en les supprimant.
+ * Hook to resolve the user session before the response is generated.
+ * Also cleans up old legacy-format cookies (firstname.lastname) by deleting them.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
 	const user = getSessionUser(event.cookies);
 	event.locals.user = user ?? null;
 
-	// Nettoyer les vieux cookies au format legacy (contenant des points = "prenom.nom")
-	// ou cookies non-valides (format trop court ou mal formé)
+	// Clean up old legacy-format cookies (containing dots = "firstname.lastname")
+	// or invalid cookies (too short or malformed)
 	const cookieSigned = event.cookies.get('current_user_id');
 	if (cookieSigned) {
-		// Vérifier que le cookie peut être décodé et a un format valide
+		// Verify the cookie can be decoded and has a valid format
 		const decoded = verifySigned(cookieSigned);
 		if (decoded) {
-			// Les IDs OIDC sont des UUID longs (64 caractères hexadécimaux ou 36 UUID standard)
-			// Les vieux formats "prenom.nom" sont court (10-20 caractères) et contiennent des points
+			// OIDC IDs are long UUIDs (64 hexadecimal characters or 36 standard UUID)
+			// Old "firstname.lastname" formats are short (10-20 characters) and contain dots
 			const isLegacyFormat =
-				decoded.length < 32 || // UUID hex = 64 chars, trop court c'est legacy
-				(decoded.includes('.') && !decoded.includes('-')); // Format "prenom.nom"
+				decoded.length < 32 || // UUID hex = 64 chars, too short means legacy
+				(decoded.includes('.') && !decoded.includes('-')); // "firstname.lastname" format
 
 			if (isLegacyFormat) {
 				console.warn('🗑️  [Auth] Deleting legacy current_user_id cookie:', decoded);

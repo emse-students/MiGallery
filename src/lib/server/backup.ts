@@ -5,7 +5,7 @@ const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), 'data', 'm
 const BACKUP_DIR = process.env.BACKUP_DIR ?? path.join(process.cwd(), 'data', 'backups');
 
 const MAX_BACKUPS = 10;
-const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 heures
+const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface BackupResult {
 	success: boolean;
@@ -14,8 +14,8 @@ export interface BackupResult {
 }
 
 /**
- * Effectue une sauvegarde de la base de données SQLite.
- * Copie le fichier DB vers data/backups/ et conserve les MAX_BACKUPS dernières sauvegardes.
+ * Performs a backup of the SQLite database.
+ * Copies the DB file to data/backups/ and keeps the last MAX_BACKUPS backups.
  */
 export function performBackup(): BackupResult {
 	if (!fs.existsSync(DB_PATH)) {
@@ -33,7 +33,7 @@ export function performBackup(): BackupResult {
 
 		fs.copyFileSync(DB_PATH, backupPath);
 
-		// Rotation : supprimer les sauvegardes excédentaires
+		// Rotation: delete the excess backups
 		const backups = fs
 			.readdirSync(BACKUP_DIR)
 			.filter((f) => f.startsWith('migallery_backup_') && f.endsWith('.db'))
@@ -48,7 +48,7 @@ export function performBackup(): BackupResult {
 			try {
 				fs.unlinkSync(b.filePath);
 			} catch {
-				// Ignorer les erreurs de suppression d'anciennes sauvegardes
+				// Ignore errors when deleting old backups
 			}
 		});
 
@@ -62,9 +62,9 @@ export function performBackup(): BackupResult {
 let schedulerStarted = false;
 
 /**
- * Démarre le planificateur de sauvegarde automatique.
- * La première sauvegarde se déclenche à minuit, puis toutes les 24 h.
- * Idempotent : n'enregistre qu'une seule instance de planificateur.
+ * Starts the automatic backup scheduler.
+ * The first backup triggers at midnight, then every 24 h.
+ * Idempotent: registers only a single scheduler instance.
  */
 export function startBackupScheduler(): void {
 	if (schedulerStarted) {

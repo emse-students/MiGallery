@@ -21,13 +21,13 @@ try {
 /**
  * GET /api/albums/[id]/og-cover
  *
- * Sert la couverture d'un album redimensionnée au format Open Graph (1200×630 WebP).
- * Utilisé pour les previews de liens dans Canari.
+ * Serves the album cover resized to Open Graph format (1200×630 WebP).
+ * Used for link previews in Canari.
  *
- * - Albums unlisted / authenticated : accès libre (pas d'auth requise).
- * - Albums privés : requiert une clé API avec scope 'read' (ex. Canari via x-api-key).
+ * - Unlisted / authenticated albums: free access (no auth required).
+ * - Private albums: requires an API key with 'read' scope (e.g., Canari via x-api-key).
  *
- * L'image est mise en cache sur disque pour les requêtes suivantes.
+ * The image is cached to disk for subsequent requests.
  */
 export const GET: RequestHandler = async (event) => {
 	const { params, fetch } = event;
@@ -45,7 +45,7 @@ export const GET: RequestHandler = async (event) => {
 		throw error(404, 'Album not found');
 	}
 
-	// Les albums privés nécessitent une clé API ; les autres sont publics.
+	// Private albums require an API key; others are public.
 	if (row.visibility === 'private') {
 		await requireScope(event, 'read');
 	}
@@ -67,7 +67,7 @@ export const GET: RequestHandler = async (event) => {
 		throw error(500, 'Immich config missing');
 	}
 
-	// Récupère le thumbnail asset ID depuis Immich
+	// Fetches the thumbnail asset ID from Immich
 	const albumRes = await fetch(`${baseUrl}/api/albums/${id}`, {
 		headers: { 'x-api-key': apiKey }
 	});

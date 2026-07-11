@@ -10,12 +10,12 @@ const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d
  * Dev-only helper: set the signed `current_user_id` cookie so you can act as a local user.
  * Usage (dev only): GET /dev/login-as?u=<user_id>
  *
- * SÉCURITÉ :
- * - En développement (npm run dev) : Toujours activé
- * - En production : Désactivé par défaut, retourne 404
- * - Pour activer en prod : Ajouter ENABLE_DEV_ROUTES=true dans .env (⚠️ DANGEREUX)
+ * SECURITY:
+ * - In development (npm run dev): Always enabled
+ * - In production: Disabled by default, returns 404
+ * - To enable in prod: Add ENABLE_DEV_ROUTES=true in .env (⚠️ DANGEROUS)
  *
- * RECOMMANDATION : Ne JAMAIS activer en production sauf pour débogage temporaire supervisé.
+ * RECOMMENDATION: NEVER enable in production except for supervised temporary debugging.
  */
 export const GET: RequestHandler = ({ url, cookies }) => {
 	const allowDevRoutes =

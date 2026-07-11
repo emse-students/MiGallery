@@ -161,8 +161,8 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge TOUTES les photos d'une personne SAUF celles dans l'album PhotoCV
-	 * Utilisé par: page "Mes photos"
+	 * Loads ALL of a person's photos EXCEPT those in the PhotoCV album
+	 * Used by: "Mes photos" page
 	 */
 	async loadPerson(id: string) {
 		if (!id) {
@@ -253,8 +253,8 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge les photos d'une personne DANS l'album PhotoCV
-	 * Utilisé par: page Photos CV (onglet "Mes photos CV")
+	 * Loads a person's photos IN the PhotoCV album
+	 * Used by: Photos CV page ("Mes photos CV" tab)
 	 */
 	async loadMyPhotosCV(id: string): Promise<void> {
 		if (!id) {
@@ -323,8 +323,8 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge la première page des photos DANS l'album PhotoCV (pagination, 100 par défaut)
-	 * Utilisé par: page Photos CV (onglet "Toutes les photos CV" - mitvistes/admins uniquement)
+	 * Loads the first page of photos IN the PhotoCV album (pagination, 100 by default)
+	 * Used by: Photos CV page ("Toutes les photos CV" tab - mitvistes/admins only)
 	 */
 	async loadAllPhotosCV(limit: number = 100): Promise<void> {
 		console.warn('📸 PhotosState.loadAllPhotosCV called, page 1, limit:', limit);
@@ -367,7 +367,7 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge la page suivante des photos PhotoCV
+	 * Loads the next page of PhotoCV photos
 	 */
 	async loadNextPagePhotosCV(limit: number = 100): Promise<void> {
 		const nextPage = this.photoCVCurrentPage + 1;
@@ -410,7 +410,7 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge la page précédente des photos PhotoCV
+	 * Loads the previous page of PhotoCV photos
 	 */
 	async loadPrevPagePhotosCV(limit: number = 100): Promise<void> {
 		const prevPage = Math.max(1, this.photoCVCurrentPage - 1);
@@ -553,8 +553,8 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge les assets d'un album avec streaming et cache client
-	 * Utilisé par: /albums/[id]
+	 * Loads an album's assets with streaming and client cache
+	 * Used by: /albums/[id]
 	 */
 	async loadAlbumWithStreaming(
 		albumId: string,
@@ -623,9 +623,9 @@ export class PhotosState {
 	}
 
 	/**
-	 * Toggle le statut favori d'un asset (stocké localement par utilisateur)
-	 * @param assetId - ID de l'asset
-	 * @returns Le nouveau statut favori
+	 * Toggles the favorite status of an asset (stored locally per user)
+	 * @param assetId - Asset ID
+	 * @returns The new favorite status
 	 */
 	async toggleFavorite(assetId: string): Promise<boolean> {
 		const asset = this.assets.find((a) => a.id === assetId);
@@ -659,8 +659,8 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge les favoris de l'utilisateur et retourne un Set
-	 * Utile pour charger en parallèle du streaming
+	 * Loads the user's favorites and returns a Set
+	 * Useful for loading in parallel with streaming
 	 */
 	async loadFavoritesSet(): Promise<Set<string>> {
 		try {
@@ -678,7 +678,7 @@ export class PhotosState {
 	}
 
 	/**
-	 * Charge les favoris de l'utilisateur et met à jour les assets
+	 * Loads the user's favorites and updates the assets
 	 */
 	async loadFavorites(): Promise<void> {
 		try {
@@ -700,14 +700,14 @@ export class PhotosState {
 	}
 
 	/**
-	 * Retourne les assets favoris
+	 * Returns the favorite assets
 	 */
 	get favorites(): Asset[] {
 		return this.assets.filter((a) => a.isFavorite);
 	}
 
 	/**
-	 * Retourne les assets non-favoris
+	 * Returns the non-favorite assets
 	 */
 	get nonFavorites(): Asset[] {
 		return this.assets.filter((a) => !a.isFavorite);

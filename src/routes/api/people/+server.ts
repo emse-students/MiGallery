@@ -16,10 +16,10 @@ import { requireScope } from '$lib/server/permissions';
  * GET /api/people?action=...&personId=...
  *
  * Actions:
- * - my-photos: Photos de la personne HORS album PhotoCV
- * - album-photos: Photos de la personne DANS l'album PhotoCV (filtrées par personId)
- * - all-album-photos: TOUTES les photos DANS l'album PhotoCV (toutes personnes)
- * - album-info: Informations sur l'album PhotoCV
+ * - my-photos: Person's photos OUTSIDE PhotoCV album
+ * - album-photos: Person's photos IN PhotoCV album (filtered by personId)
+ * - all-album-photos: ALL photos IN PhotoCV album (all people)
+ * - album-info: Information about PhotoCV album
  */
 export const GET: RequestHandler = async (event) => {
 	const { url, fetch } = event;
@@ -76,8 +76,8 @@ export const GET: RequestHandler = async (event) => {
  * POST /api/people
  *
  * Actions:
- * - add-to-album: Ajouter des assets à l'album PhotoCV
- * - remove-from-album: Retirer des assets de l'album PhotoCV
+ * - add-to-album: Add assets to PhotoCV album
+ * - remove-from-album: Remove assets from PhotoCV album
  *
  * Body: { action: string, assetIds: string[] }
  */

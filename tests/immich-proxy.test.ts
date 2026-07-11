@@ -1,5 +1,5 @@
 /**
- * Tests exhaustifs pour le Proxy Immich
+ * Comprehensive tests for the Immich Proxy
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -28,7 +28,7 @@ const getAuthHeaders = () => {
 };
 
 describe('Immich Proxy - GET requests', () => {
-	it('devrait proxifier les requêtes GET vers Immich', async () => {
+	it('should proxy GET requests to Immich', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -37,7 +37,7 @@ describe('Immich Proxy - GET requests', () => {
 		expect([200, 401, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it("devrait proxifier la requête d'albums", async () => {
+	it('should proxy the albums request', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -46,7 +46,7 @@ describe('Immich Proxy - GET requests', () => {
 		expect([200, 401, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait proxifier la requête de personnes', async () => {
+	it('should proxy the people request', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/people`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -55,7 +55,7 @@ describe('Immich Proxy - GET requests', () => {
 		expect([200, 401, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait proxifier les requêtes avec paramètres de query', async () => {
+	it('should proxy requests with query parameters', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets?take=50&skip=10`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -64,14 +64,14 @@ describe('Immich Proxy - GET requests', () => {
 		expect([200, 401, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait rejeter les requêtes sans authentification', async () => {
+	it('should reject requests without authentication', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`);
 		expect([401, 403]).toContain(response.status);
 	});
 });
 
 describe('Immich Proxy - POST requests', () => {
-	it('devrait proxifier les requêtes POST vers Immich', async () => {
+	it('should proxy POST requests to Immich', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -84,7 +84,7 @@ describe('Immich Proxy - POST requests', () => {
 		expect([200, 201, 400, 401, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait transmettre le corps de la requête correctement', async () => {
+	it('should forward request body correctly', async () => {
 		const requestBody = {
 			title: 'Test',
 			description: 'Test description'
@@ -102,7 +102,7 @@ describe('Immich Proxy - POST requests', () => {
 });
 
 describe('Immich Proxy - PUT requests', () => {
-	it('devrait proxifier les requêtes PUT vers Immich', async () => {
+	it('should proxy PUT requests to Immich', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums/test-id`, {
 			method: 'PUT',
 			headers: getAuthHeaders(),
@@ -115,7 +115,7 @@ describe('Immich Proxy - PUT requests', () => {
 		expect([200, 400, 401, 403, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait gérer les requêtes PUT avec FormData', async () => {
+	it('should handle PUT requests with FormData', async () => {
 		const formData = new FormData();
 		formData.append('file', new Blob(['test']), 'test.jpg');
 
@@ -133,7 +133,7 @@ describe('Immich Proxy - PUT requests', () => {
 });
 
 describe('Immich Proxy - DELETE requests', () => {
-	it('devrait proxifier les requêtes DELETE vers Immich', async () => {
+	it('should proxy DELETE requests to Immich', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums/test-id`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),
@@ -145,7 +145,7 @@ describe('Immich Proxy - DELETE requests', () => {
 });
 
 describe('Immich Proxy - PATCH requests', () => {
-	it('devrait proxifier les requêtes PATCH vers Immich', async () => {
+	it('should proxy PATCH requests to Immich', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets/test-id`, {
 			method: 'PATCH',
 			headers: getAuthHeaders(),
@@ -160,7 +160,7 @@ describe('Immich Proxy - PATCH requests', () => {
 });
 
 describe('Immich Proxy - Headers forwarding', () => {
-	it("devrait transmettre les headers d'authentification", async () => {
+	it('should forward authentication headers', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: {
 				'x-api-key': globalTestContext.adminApiKey || '',
@@ -172,7 +172,7 @@ describe('Immich Proxy - Headers forwarding', () => {
 		expect([200, 401, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait transmettre les headers personnalisés', async () => {
+	it('should forward custom headers', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: {
 				'x-api-key': globalTestContext.adminApiKey || '',
@@ -186,7 +186,7 @@ describe('Immich Proxy - Headers forwarding', () => {
 });
 
 describe('Immich Proxy - Error handling', () => {
-	it('devrait gérer les erreurs Immich gracieusement', async () => {
+	it('should handle Immich errors gracefully', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/immich/invalid-endpoint`, {
 				headers: getAuthHeaders(),
@@ -202,17 +202,17 @@ describe('Immich Proxy - Error handling', () => {
 		}
 	}, 15000);
 
-	it('devrait retourner 502 si Immich est down', async () => {
+	it('should return 502 if Immich is down', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 				headers: getAuthHeaders(),
 				signal: AbortSignal.timeout(5000)
 			});
 
-			// Si Immich est down, on devrait avoir 502 ou 500
+			// If Immich is down, we should get 502 or 500
 			expect([200, 500, 502, 504]).toContain(response.status);
 		} catch (error: unknown) {
-			// Timeout acceptable si Immich est down
+			// Timeout acceptable if Immich is down
 			const err = error as { name?: string };
 			if (err.name === 'TimeoutError') {
 				expect(true).toBe(true);
@@ -220,7 +220,7 @@ describe('Immich Proxy - Error handling', () => {
 		}
 	}, 10000);
 
-	it('devrait gérer les timeouts gracieusement', async () => {
+	it('should handle timeouts gracefully', async () => {
 		try {
 			const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 				headers: getAuthHeaders(),
@@ -238,7 +238,7 @@ describe('Immich Proxy - Error handling', () => {
 });
 
 describe('Immich Proxy - Cache behavior', () => {
-	it('devrait respecter les headers de cache', async () => {
+	it('should respect cache headers', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -246,12 +246,12 @@ describe('Immich Proxy - Cache behavior', () => {
 
 		if (response.status === 200) {
 			const cacheControl = response.headers.get('cache-control');
-			// Vérifier que les headers de cache sont présents ou absents selon la configuration
+			// Verify that cache headers are present or absent depending on configuration
 			expect(cacheControl !== null || cacheControl === null).toBe(true);
 		}
 	}, 15000);
 
-	it('devrait gérer les requêtes conditionnelles', async () => {
+	it('should handle conditional requests', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: {
 				...getAuthHeaders(),
@@ -265,7 +265,7 @@ describe('Immich Proxy - Cache behavior', () => {
 });
 
 describe('Immich Proxy - Content types', () => {
-	it("devrait gérer les requêtes d'images", async () => {
+	it('should handle image requests', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets/test-id/thumbnail`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -279,7 +279,7 @@ describe('Immich Proxy - Content types', () => {
 		}
 	}, 15000);
 
-	it('devrait gérer les requêtes de vidéos', async () => {
+	it('should handle video requests', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets/test-id/video`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -293,7 +293,7 @@ describe('Immich Proxy - Content types', () => {
 		}
 	}, 15000);
 
-	it('devrait gérer les réponses JSON', async () => {
+	it('should handle JSON responses', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -307,7 +307,7 @@ describe('Immich Proxy - Content types', () => {
 });
 
 describe('Immich Proxy - Path forwarding', () => {
-	it('devrait gérer les chemins imbriqués', async () => {
+	it('should handle nested paths', async () => {
 		const paths = [
 			'/api/immich/assets/test-id',
 			'/api/immich/albums/test-id/assets',
@@ -324,7 +324,7 @@ describe('Immich Proxy - Path forwarding', () => {
 			expect([200, 400, 401, 404, 500, 502]).toContain(response.status);
 		}
 	}, 60000);
-	it('devrait préserver les paramètres de query complexes', async () => {
+	it('should preserve complex query parameters', async () => {
 		const queryParams = new URLSearchParams({
 			take: '50',
 			skip: '10',
@@ -342,7 +342,7 @@ describe('Immich Proxy - Path forwarding', () => {
 });
 
 describe('Immich Proxy - Scope validation', () => {
-	it('devrait vérifier les scopes pour les opérations de lecture', async () => {
+	it('should verify scopes for read operations', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/assets`, {
 			headers: getAuthHeaders(),
 			signal: AbortSignal.timeout(10000)
@@ -351,7 +351,7 @@ describe('Immich Proxy - Scope validation', () => {
 		expect([200, 401, 403, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it("devrait vérifier les scopes pour les opérations d'écriture", async () => {
+	it('should verify scopes for write operations', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(),
@@ -362,7 +362,7 @@ describe('Immich Proxy - Scope validation', () => {
 		expect([200, 201, 401, 403, 404, 500, 502]).toContain(response.status);
 	}, 15000);
 
-	it('devrait vérifier les scopes pour les opérations de suppression', async () => {
+	it('should verify scopes for delete operations', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/immich/albums/test-id`, {
 			method: 'DELETE',
 			headers: getAuthHeaders(),

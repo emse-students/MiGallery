@@ -1,11 +1,11 @@
 /**
- * Tests exhaustifs de PERMISSIONS pour tous les endpoints critiques
+ * Comprehensive PERMISSIONS tests for all critical endpoints
  *
- * Ce fichier teste systématiquement les 4 niveaux d'autorisation :
- * - NoAuth: Sans API key (doit rejeter 401/403)
- * - Read: API key avec scope 'read' uniquement
- * - Write: API key avec scopes 'read' et 'write'
- * - Admin: API key avec scope 'admin'
+ * This file systematically tests the 4 authorization levels:
+ * - NoAuth: Without API key (should reject 401/403)
+ * - Read: API key with 'read' scope only
+ * - Write: API key with 'read' and 'write' scopes
+ * - Admin: API key with 'admin' scope
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -19,13 +19,13 @@ import {
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testAlbumId = '';
-// Suivi de tous les albums créés pour le nettoyage
+// Track all created albums for cleanup
 const createdAlbumIds: string[] = [];
 
 beforeAll(async () => {
 	await setupTestAuth();
 
-	// Créer un album de test pour les tests de permissions
+	// Create a test album for permission tests
 	const createRes = await fetch(`${API_BASE_URL}/api/albums`, {
 		method: 'POST',
 		headers: {
@@ -43,7 +43,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	// Supprimer tous les albums créés pendant les tests
+	// Delete all albums created during the tests
 	if (globalTestContext.adminApiKey) {
 		for (const albumId of createdAlbumIds) {
 			try {
@@ -52,7 +52,7 @@ afterAll(async () => {
 					headers: { 'x-api-key': globalTestContext.adminApiKey }
 				});
 			} catch {
-				// Ignorer les erreurs (album peut déjà être supprimé)
+				// Ignore errors (album may already be deleted)
 			}
 		}
 	}
@@ -62,9 +62,9 @@ afterAll(async () => {
 	}
 });
 
-describe('Permissions Albums - Opérations WRITE', () => {
-	it('DELETE /api/albums/[id] - devrait exiger WRITE', async () => {
-		// Créer un album jetable
+describe('Permissions Albums - WRITE operations', () => {
+	it('DELETE /api/albums/[id] - should require WRITE', async () => {
+		// Create a disposable album
 		const createRes = await fetch(`${API_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: {
@@ -76,14 +76,14 @@ describe('Permissions Albums - Opérations WRITE', () => {
 
 		if (createRes.status === 200 || createRes.status === 201) {
 			const album = (await createRes.json()) as ImmichAlbum;
-			// Tracker pour nettoyage si le test échoue
+			// Track for cleanup if test fails
 			createdAlbumIds.push(album.id);
 
 			const result = await testPermissions({
 				endpoint: `/api/albums/${album.id}`,
 				method: 'DELETE',
 				requiredScope: 'write',
-				description: "Suppression d'album"
+				description: 'Album deletion'
 			});
 
 			expect(result.noAuth.passed).toBe(true); // 401/403
@@ -93,7 +93,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 		}
 	});
 
-	it('PUT /api/albums/[id]/assets - devrait exiger WRITE', async () => {
+	it('PUT /api/albums/[id]/assets - should require WRITE', async () => {
 		if (!testAlbumId) {
 			console.warn('Skipping: No test album available');
 			return;
@@ -102,9 +102,9 @@ describe('Permissions Albums - Opérations WRITE', () => {
 		const result = await testPermissions({
 			endpoint: `/api/albums/${testAlbumId}/assets`,
 			method: 'PUT',
-			body: { ids: [] }, // Empty array pour test de permissions
+			body: { ids: [] }, // Empty array for permission testing
 			requiredScope: 'write',
-			description: "Ajout d'assets à l'album"
+			description: 'Add assets to the album'
 		});
 
 		expect(result.noAuth.passed).toBe(true);
@@ -113,7 +113,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 		expect(result.admin.passed).toBe(true);
 	});
 
-	it('DELETE /api/albums/[id]/assets - devrait exiger WRITE', async () => {
+	it('DELETE /api/albums/[id]/assets - should require WRITE', async () => {
 		if (!testAlbumId) {
 			console.warn('Skipping: No test album available');
 			return;
@@ -124,7 +124,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 			method: 'DELETE',
 			body: { ids: [] },
 			requiredScope: 'write',
-			description: "Retrait d'assets de l'album"
+			description: 'Remove assets from the album'
 		});
 
 		expect(result.noAuth.passed).toBe(true);
@@ -133,7 +133,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 		expect(result.admin.passed).toBe(true);
 	});
 
-	it('PUT /api/albums/[id]/metadata - devrait exiger WRITE', async () => {
+	it('PUT /api/albums/[id]/metadata - should require WRITE', async () => {
 		if (!testAlbumId) {
 			console.warn('Skipping: No test album available');
 			return;
@@ -147,7 +147,7 @@ describe('Permissions Albums - Opérations WRITE', () => {
 				visibility: 'private'
 			},
 			requiredScope: 'write',
-			description: 'Mise à jour métadonnées album'
+			description: 'Update album metadata'
 		});
 
 		expect(result.noAuth.passed).toBe(true);
@@ -157,8 +157,8 @@ describe('Permissions Albums - Opérations WRITE', () => {
 	});
 });
 
-describe('Permissions Albums - Opérations READ', () => {
-	it('POST /api/albums/covers - devrait exiger READ', async () => {
+describe('Permissions Albums - READ operations', () => {
+	it('POST /api/albums/covers - should require READ', async () => {
 		if (!testAlbumId) {
 			console.warn('Skipping: No test album available');
 			return;
@@ -169,7 +169,7 @@ describe('Permissions Albums - Opérations READ', () => {
 			method: 'POST',
 			body: { albumIds: [testAlbumId] },
 			requiredScope: 'read',
-			description: "Récupération des covers d'albums"
+			description: 'Retrieve album covers'
 		});
 
 		expect(result.noAuth.passed).toBe(true); // 401/403
@@ -179,8 +179,8 @@ describe('Permissions Albums - Opérations READ', () => {
 	});
 });
 
-describe('Permissions Résumé', () => {
-	it('devrait afficher un récapitulatif des tests de permissions', () => {
+describe('Permissions Summary', () => {
+	it('should display permissions tests summary', () => {
 		console.debug('\n=== PERMISSIONS TESTS SUMMARY ===');
 		console.debug('✅ All critical endpoints tested');
 		console.debug('✅ Scope hierarchy verified: public < read < write < admin');
