@@ -413,6 +413,7 @@
 		color: var(--error);
 		width: 36px;
 		height: 36px;
+		padding: 0;
 		border-radius: var(--radius-sm);
 		border: none;
 		display: inline-flex;

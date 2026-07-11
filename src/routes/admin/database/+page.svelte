@@ -759,6 +759,7 @@
 	.btn-restore {
 		width: 36px;
 		height: 36px;
+		padding: 0;
 		border: none;
 		background: transparent;
 		color: var(--text-secondary);

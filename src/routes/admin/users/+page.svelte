@@ -473,6 +473,7 @@
         justify-content: center;
         width: 36px;
         height: 36px;
+        padding: 0;
         background: transparent;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
