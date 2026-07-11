@@ -53,7 +53,7 @@ src/
     api/               # REST endpoints (see api-reference.md)
       immich/[...path]/  # the universal Immich proxy
       albums/ people/ users/ download/ admin/ auth/ external/ favorites/
-    albums/ photos-cv/ trombinoscope/ mes-photos/ corbeille/ parametres/ admin/
+    albums/ photos-cv/ mes-photos/ corbeille/ parametres/ admin/
     +page.svelte, cgu/
   hooks.server.ts      # CORS/CSRF + session resolution
   hooks.client.ts      # navigation guard (in-flight ops), service-worker registration
