@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { XCircle, Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
-	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
@@ -251,15 +251,12 @@
 	<title>Corbeille - MiGallery</title>
 </svelte:head>
 
-<div class="corbeille-main">
-	<BackgroundBlobs />
-
-	<header class="page-header centered">
-		<div class="header-content">
-			<h1>Corbeille</h1>
-		</div>
-	</header>
-
+<AdminPage
+	title="Corbeille"
+	subtitle="Elements supprimes - restaurer ou vider definitivement"
+	icon={Trash2}
+	maxWidth="1200px"
+>
 	{#if error}
 		<div class="error"><XCircle size={20} /> Erreur: {error}</div>
 	{/if}
@@ -431,15 +428,9 @@
 			<p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
 		</Modal>
 	{/if}
-</div>
+</AdminPage>
 
 <style>
-	.corbeille-main {
-		position: relative;
-	}
-
-	/* Titles handled by shared styles in app.css */
-
 	.toolbar {
 		display: flex;
 		justify-content: space-between;

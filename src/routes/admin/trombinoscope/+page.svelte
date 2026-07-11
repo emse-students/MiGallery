@@ -22,7 +22,7 @@
 		BookOpen
 	} from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { User } from '$lib/types/api';
 	import { showConfirm } from '$lib/confirm';
@@ -474,61 +474,57 @@
 	<title>Trombinoscope - MiGallery</title>
 </svelte:head>
 
-<div class="trombi-main">
-	<BackgroundBlobs />
+<AdminPage
+	title="Trombinoscope"
+	subtitle="L'annuaire des membres de la galerie"
+	icon={Users}
+	maxWidth="1200px"
+>
+	{#snippet actions()}
+		<button class="action-pill" type="button" onclick={openPdfModal} title="Exporter en PDF">
+			<Download size={18} />
+			<span>PDF</span>
+		</button>
+		{#if canAccess}
+			<button class="action-pill primary" type="button" onclick={openAddUserModal}>
+				<UserPlus size={18} />
+				<span>Ajouter</span>
+			</button>
+		{/if}
+	{/snippet}
 
-	<div class="trombi-container">
-		<!-- Header -->
-		<header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
-			<div class="header-content">
-				<h1>Trombinoscope</h1>
-				<p class="subtitle">L'annuaire des membres de la galerie</p>
-			</div>
+	<div class="trombi-controls">
+		<div class="header-search">
+			<input
+				class="search-input"
+				placeholder="Rechercher (prénom, nom, formation...)"
+				bind:value={searchQuery}
+				oninput={(e) => {
+					searchQuery = (e.target as HTMLInputElement).value;
+				}}
+				aria-label="Rechercher des membres"
+			/>
+		</div>
 
-			<div class="header-search">
-				<input
-					class="search-input"
-					placeholder="Rechercher (prénom, nom, formation...)"
-					bind:value={searchQuery}
-					oninput={(e) => {
-						searchQuery = (e.target as HTMLInputElement).value;
-					}}
-					aria-label="Rechercher des membres"
-				/>
-			</div>
-
-			<div class="group-tabs">
-				<button
-					class="group-tab {groupBy === 'promo' ? 'active' : ''}"
-					type="button"
-					onclick={() => (groupBy = 'promo')}
-				>
-					<GraduationCap size={15} />
-					Par promotion
-				</button>
-				<button
-					class="group-tab {groupBy === 'formation' ? 'active' : ''}"
-					type="button"
-					onclick={() => (groupBy = 'formation')}
-				>
-					<BookOpen size={15} />
-					Par formation
-				</button>
-			</div>
-
-			<div class="header-actions">
-				<button class="action-pill" type="button" onclick={openPdfModal} title="Exporter en PDF">
-					<Download size={18} />
-					<span>PDF</span>
-				</button>
-				{#if canAccess}
-					<button class="action-pill primary" type="button" onclick={openAddUserModal}>
-						<UserPlus size={18} />
-						<span>Ajouter</span>
-					</button>
-				{/if}
-			</div>
-		</header>
+		<div class="group-tabs">
+			<button
+				class="group-tab {groupBy === 'promo' ? 'active' : ''}"
+				type="button"
+				onclick={() => (groupBy = 'promo')}
+			>
+				<GraduationCap size={15} />
+				Par promotion
+			</button>
+			<button
+				class="group-tab {groupBy === 'formation' ? 'active' : ''}"
+				type="button"
+				onclick={() => (groupBy = 'formation')}
+			>
+				<BookOpen size={15} />
+				Par formation
+			</button>
+		</div>
+	</div>
 
 		{#if error}
 			<div class="state-message error" in:fade>
@@ -634,7 +630,6 @@
 				</div>
 			{/if}
 		{/if}
-	</div>
 
 	<!-- PDF Export Modal -->
 	{#if showPdfModal}
@@ -875,28 +870,20 @@
 			</div>
 		</div>
 	{/if}
-</div>
+</AdminPage>
 
 <style>
 	/* Uses the global theme tokens directly (no per-page mirror variables). */
-	.trombi-main {
-		position: relative;
-		padding: 4rem 0 6rem;
-		color: var(--text-primary);
-		overflow-x: hidden;
-	}
-
-	.trombi-container {
-		position: relative;
-		z-index: 1;
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 2rem 1.5rem 6rem;
+	.trombi-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 1rem;
+		margin-bottom: 2rem;
 	}
 
 	.header-search {
-		margin-top: 0.75rem;
-		width: 100%;
+		flex: 1 1 220px;
 		max-width: 520px;
 	}
 	.search-input {
@@ -913,31 +900,10 @@
 		border-color: var(--accent);
 	}
 
-	/* --- HEADER --- */
-	.page-header {
-		text-align: center;
-		margin-bottom: 3rem;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.5rem;
-	}
-	.subtitle {
-		color: var(--text-secondary);
-		font-size: 1.1rem;
-		margin: 0;
-	}
-	.header-actions {
-		margin-top: 1.5rem;
-		display: flex;
-		gap: 0.75rem;
-	}
-
 	/* Group tabs */
 	.group-tabs {
 		display: flex;
 		gap: 0.5rem;
-		margin-top: 0.75rem;
 	}
 	.group-tab {
 		display: inline-flex;
