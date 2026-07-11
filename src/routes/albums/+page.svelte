@@ -408,7 +408,7 @@
 												{#if downloadingAlbumId === a.id}
 													<Spinner size={14} />
 												{:else}
-													<Download />
+													<Download size={20} />
 												{/if}
 											</button>
 
@@ -422,7 +422,7 @@
 													}}
 													title={m.common_delete()}
 												>
-													<Trash2 />
+													<Trash2 size={20} />
 												</button>
 											{/if}
 										</div>
@@ -694,6 +694,7 @@
 	.action-btn {
 		width: 36px;
 		height: 36px;
+		padding: 0;
 		border-radius: var(--radius-sm);
 		border: none;
 		display: flex;
@@ -704,12 +705,6 @@
 		background-color: rgba(0, 0, 0, 0.4);
 		backdrop-filter: blur(8px);
 		transition: all 0.2s;
-	}
-	.action-btn :global(svg) {
-		width: 20px !important;
-		height: 20px !important;
-		min-width: 20px !important;
-		min-height: 20px !important;
 	}
 	.action-btn:hover {
 		background-color: var(--accent);

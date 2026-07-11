@@ -588,7 +588,7 @@
 													onclick={(e) => openEditUserModal(user, e)}
 													title="Éditer"
 												>
-													<Pencil />
+													<Pencil size={20} />
 												</button>
 												<button
 													class="control-btn delete"
@@ -596,7 +596,7 @@
 													onclick={(e) => deleteUserConfirm(user, e)}
 													title="Supprimer"
 												>
-													<Trash2 />
+													<Trash2 size={20} />
 												</button>
 											</div>
 										{/if}
@@ -1093,6 +1093,7 @@
 	.control-btn {
 		width: 32px;
 		height: 32px;
+		padding: 0;
 		border-radius: var(--radius-xs);
 		border: none;
 		display: flex;
@@ -1101,12 +1102,6 @@
 		cursor: pointer;
 		backdrop-filter: blur(4px);
 		transition: all 0.2s;
-	}
-	.control-btn :global(svg) {
-		width: 20px !important;
-		height: 20px !important;
-		min-width: 20px !important;
-		min-height: 20px !important;
 	}
 	.control-btn.edit {
 		background: color-mix(in srgb, var(--accent) 20%, transparent);
