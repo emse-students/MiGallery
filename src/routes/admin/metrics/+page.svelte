@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { RefreshCw, Activity, Database, Cpu } from 'lucide-svelte';
+	import { RefreshCw, Activity, Cpu } from 'lucide-svelte';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 
 	interface Metrics {
@@ -16,13 +16,6 @@
 				external: number;
 				arrayBuffers: number;
 			};
-		};
-		immichCache: {
-			size: number;
-			hits: number;
-			misses: number;
-			evictions: number;
-			hitRate: number;
 		};
 	}
 
@@ -68,8 +61,6 @@
 		return `${sec}s`;
 	}
 
-	const hitRatePct = $derived(metrics ? Math.round(metrics.immichCache.hitRate * 100) : 0);
-
 	// Poll while auto-refresh is on; the effect cleanup clears the interval when
 	// it is toggled off or the component is destroyed.
 	$effect(() => {
@@ -87,7 +78,7 @@
 
 <AdminPage
 	title="Santé du serveur"
-	subtitle="Mémoire du process, uptime et cache Immich (temps réel)"
+	subtitle="Mémoire du process et uptime (temps réel)"
 	icon={Activity}
 	maxWidth="1100px"
 >
@@ -133,25 +124,6 @@
 						<dt>ArrayBuffers</dt>
 						<dd>{formatBytes(metrics.process.memory.arrayBuffers)}</dd>
 					</div>
-				</dl>
-			</section>
-
-			<section class="card">
-				<div class="card-head">
-					<Database size={18} />
-					<h2>Cache Immich</h2>
-				</div>
-				<dl class="kv">
-					<div><dt>Entrées</dt><dd>{metrics.immichCache.size}</dd></div>
-					<div>
-						<dt>Hit rate</dt>
-						<dd class="strong" class:good={hitRatePct >= 60} class:warn={hitRatePct < 30}>
-							{hitRatePct}%
-						</dd>
-					</div>
-					<div><dt>Hits</dt><dd>{metrics.immichCache.hits}</dd></div>
-					<div><dt>Misses</dt><dd>{metrics.immichCache.misses}</dd></div>
-					<div><dt>Évictions</dt><dd>{metrics.immichCache.evictions}</dd></div>
 				</dl>
 			</section>
 		</div>
@@ -229,12 +201,6 @@
 	.kv dd.strong {
 		font-weight: 700;
 		font-size: 1.05rem;
-	}
-	.kv dd.good {
-		color: var(--success);
-	}
-	.kv dd.warn {
-		color: var(--warning);
 	}
 
 	.error-box {

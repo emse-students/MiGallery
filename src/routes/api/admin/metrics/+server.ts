@@ -1,12 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireScope } from '$lib/server/permissions';
-import { immichCache } from '$lib/server/immich-cache';
 
 /**
  * GET /api/admin/metrics
  * Runtime health for the admin dashboard: process memory (the OOM safety net
- * from the Bun->Node migration), uptime, and Immich cache hit/miss stats.
+ * from the Bun->Node migration) and uptime.
  * Admin scope only (session admin or admin API key).
  */
 export const GET: RequestHandler = async (event) => {
@@ -29,7 +28,6 @@ export const GET: RequestHandler = async (event) => {
 				external: mem.external,
 				arrayBuffers: mem.arrayBuffers
 			}
-		},
-		immichCache: immichCache.getStats()
+		}
 	});
 };

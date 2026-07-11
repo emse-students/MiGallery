@@ -45,8 +45,7 @@ src/
     db/                # SQLite: schema.sql, database.ts, users.ts, api-keys.ts
     auth/              # cookies.ts (signSigned/verifySigned)
     immich/            # Immich client: albums, assetDetails, download, fetch-with-auth
-    server/            # server-only: permissions, auth, logs, backup, download-tokens,
-                       #   immich-cache
+    server/            # server-only: permissions, auth, logs, backup, download-tokens
     types/             # centralized TypeScript types (api.ts, …)
     photos-cv/         # CV directory (trombinoscope) logic
     session.ts, auth.ts, promo-utils.ts, toast.ts, theme.ts, …

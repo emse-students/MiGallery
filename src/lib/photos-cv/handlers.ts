@@ -7,7 +7,6 @@ import {
 	getAssetIdsInSystemAlbum
 } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { immichCache } from '$lib/server/immich-cache';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -120,8 +119,6 @@ export async function addAssetsToAlbum(
 		throw error(500, `Failed to add assets to album: ${errorText}`);
 	}
 
-	immichCache.invalidateAlbum(albumId);
-
 	return res.json() as Promise<{ success: boolean }>;
 }
 
@@ -139,8 +136,6 @@ export async function removeAssetsFromAlbum(
 		const errorText = await res.text();
 		throw error(500, `Failed to remove assets from album: ${errorText}`);
 	}
-
-	immichCache.invalidateAlbum(albumId);
 
 	return res.json() as Promise<{ success: boolean }>;
 }

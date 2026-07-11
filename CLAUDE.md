@@ -114,4 +114,4 @@ Conventions (locked): messages/*.json are TAB-indented (inlang message-format); 
 - shared-admin.css is now SCOPED under .admin-shell (the admin layout <main>). Bare-element rules (h1/table/input/button...) no longer leak. It is only injected on /admin routes anyway (layout code-split). AdminPage's scoped .admin-page-heading h1 still beats it.
 - Icon prop typing for passing lucide components: ComponentType<SvelteComponent> (NOT Component).
 - Pre-commit hook runs via npm (npx lint-staged && npm run check).
-- Immich cache (src/lib/server/immich-cache.ts): near-useless hit rate by design (thumbnails excluded, per-URL keys rarely repeat within TTL). Not harmful.
+- The in-process immichCache was REMOVED (2026-07-11): near-useless hit rate, thumbnails were never in it (they are HTTP/CDN-cached via forwarded etag/cache-control). The only surviving memo is a tiny TTL map INSIDE the immich proxy (publicMetaCache), scoped to checkPublicAssetAccess for public shared-album browsing. Do not reintroduce a global metadata cache.

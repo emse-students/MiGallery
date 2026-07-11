@@ -3,7 +3,6 @@ import { json, error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { immichCache } from '$lib/server/immich-cache';
 import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -58,8 +57,6 @@ export const PUT: RequestHandler = async (event) => {
 
 		const result = (await res.json()) as unknown;
 
-		immichCache.invalidateAlbum(id);
-
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
@@ -102,8 +99,6 @@ export const DELETE: RequestHandler = async (event) => {
 		}
 
 		const result = (await res.json()) as unknown;
-
-		immichCache.invalidateAlbum(id);
 
 		return json(result);
 	} catch (err: unknown) {

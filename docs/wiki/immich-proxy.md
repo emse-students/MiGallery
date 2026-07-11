@@ -14,10 +14,12 @@ Immich REST API with the server-side `IMMICH_API_KEY` after checking access.
   headers. Header values are passed through `sanitizeHeaderValue`, which strips
   non-Latin-1 characters (special apostrophes etc. otherwise crash `fetch`).
 - **Stream binary responses** (images, videos, thumbnails, archives) straight
-  back to the client without buffering.
-- **Cache** selected Immich GETs in-process via `immichCache`
-  (`src/lib/server/immich-cache.ts`) to avoid re-hitting Immich for hot metadata
-  (e.g. asset lookups used in public-access checks).
+  back to the client without buffering. Media caching is delegated to HTTP: the
+  proxy forwards `etag`/`cache-control`/`last-modified`, so the browser and the
+  reverse proxy hold thumbnails, not the Node process.
+- **Memoize public-access metadata** with a tiny in-process TTL map, scoped only
+  to `checkPublicAssetAccess`. Browsing a public shared album would otherwise
+  re-fetch the same asset/album metadata from Immich once per image.
 
 ## Public (unlisted) assets
 

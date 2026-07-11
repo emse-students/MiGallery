@@ -2,7 +2,6 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import { logEvent } from '$lib/server/logs';
 import { env } from '$env/dynamic/private';
-import { immichCache } from '$lib/server/immich-cache';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
 
@@ -50,6 +49,41 @@ interface BulkDeleteRequest {
 }
 
 /**
+ * Tiny TTL memo used ONLY by the public (unauthenticated) asset-access checks
+ * below. Browsing a public shared album calls checkPublicAssetAccess once per
+ * image; without this, every image would re-fetch the same asset/album metadata
+ * from Immich. Scope is deliberately narrow: JSON metadata only, no stats, no
+ * cross-request invalidation. Entries are short-lived and self-expire.
+ */
+const PUBLIC_META_TTL = 60_000; // 1 minute
+const PUBLIC_META_MAX = 200;
+const publicMetaStore = new Map<string, { data: unknown; expires: number }>();
+
+const publicMetaCache = {
+	get(key: string): unknown {
+		const entry = publicMetaStore.get(key);
+		if (!entry) {
+			return null;
+		}
+		if (Date.now() > entry.expires) {
+			publicMetaStore.delete(key);
+			return null;
+		}
+		return entry.data;
+	},
+	set(key: string, data: unknown): void {
+		if (publicMetaStore.size >= PUBLIC_META_MAX && !publicMetaStore.has(key)) {
+			// Map preserves insertion order: drop the oldest entry to cap growth.
+			const oldest = publicMetaStore.keys().next().value;
+			if (oldest !== undefined) {
+				publicMetaStore.delete(oldest);
+			}
+		}
+		publicMetaStore.set(key, { data, expires: Date.now() + PUBLIC_META_TTL });
+	}
+};
+
+/**
  * Vérifie si un asset appartient à un album "unlisted" (public via lien).
  * Si oui, l'accès est autorisé même sans authentification.
  */
@@ -65,12 +99,11 @@ async function checkPublicAssetAccess(
 	}
 
 	const assetUrl = `${baseUrl.replace(/\/$/, '')}/api/assets/${assetId}`;
-	const cachePath = `/api/assets/${assetId}`;
 
-	let assetData = immichCache.get('GET', cachePath, assetUrl) as ImmichAssetResponse | null;
+	let assetData = publicMetaCache.get(assetUrl) as ImmichAssetResponse | null;
 
 	if (assetData && (!assetData.albums || !Array.isArray(assetData.albums))) {
-		assetData = null; // Invalidate cache to force refresh
+		assetData = null; // stale/partial entry, force a refresh
 	}
 
 	if (!assetData) {
@@ -89,7 +122,7 @@ async function checkPublicAssetAccess(
 				return false;
 			}
 			assetData = (await res.json()) as ImmichAssetResponse;
-			immichCache.set('GET', cachePath, assetUrl, assetData);
+			publicMetaCache.set(assetUrl, assetData);
 		} catch (e) {
 			console.error('Error fetching asset details for public check:', e);
 			return false;
@@ -107,9 +140,8 @@ async function checkPublicAssetAccess(
 		if (match) {
 			const albumId = match[1];
 			const albumUrl = `${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`;
-			const albumCacheKey = `/api/albums/${albumId}`;
 
-			let albumData = immichCache.get('GET', albumCacheKey, albumUrl) as ImmichAlbumResponse | null;
+			let albumData = publicMetaCache.get(albumUrl) as ImmichAlbumResponse | null;
 			if (!albumData) {
 				try {
 					const res = await fetch(albumUrl, {
@@ -117,7 +149,7 @@ async function checkPublicAssetAccess(
 					});
 					if (res.ok) {
 						albumData = (await res.json()) as ImmichAlbumResponse;
-						immichCache.set('GET', albumCacheKey, albumUrl, albumData);
+						publicMetaCache.set(albumUrl, albumData);
 					}
 				} catch (e) {
 					console.error('Error fetching album details for referer check:', e);
@@ -675,14 +707,6 @@ const handle: RequestHandler = async function (event) {
 		return handleChunkStatus(event);
 	}
 
-	if (request.method === 'GET') {
-		const cached = immichCache.get('GET', `/api/${pathParam}`, resolvedRemoteUrl);
-		if (cached) {
-			const headers = new Headers({ 'content-type': 'application/json', 'x-cache': 'HIT' });
-			return new Response(JSON.stringify(cached), { status: 200, headers });
-		}
-	}
-
 	const outgoingHeaders: Record<string, string> = {
 		accept: request.headers.get('accept') || '*/*'
 	};
@@ -802,7 +826,6 @@ const handle: RequestHandler = async function (event) {
 		if (res.ok && pathParam.startsWith('search/') && resContentType.includes('application/json')) {
 			const headers = new Headers();
 			headers.set('content-type', resContentType);
-			headers.set('x-cache', 'MISS');
 			const safeForward = [
 				'etag',
 				'cache-control',
@@ -851,39 +874,6 @@ const handle: RequestHandler = async function (event) {
 					status: res.status,
 					headers
 				});
-			}
-		}
-
-		const isLargeSearchResponse = pathParam.startsWith('search/metadata');
-		const shouldCacheJson =
-			res.ok &&
-			resContentType.includes('application/json') &&
-			!isLargeSearchResponse &&
-			textBody.length <= 250_000;
-
-		if (request.method === 'GET' && shouldCacheJson) {
-			try {
-				const jsonData: unknown = JSON.parse(textBody);
-				const etag = res.headers.get('etag') || undefined;
-				immichCache.set('GET', `/api/${pathParam}`, resolvedRemoteUrl, jsonData, undefined, etag);
-			} catch {
-				/* Ignore JSON parse errors */
-			}
-		}
-
-		if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method) && res.ok) {
-			const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
-			const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
-			const personIdMatch = pathParam.match(/people\/([^/]+)/);
-
-			if (assetIdMatch) {
-				immichCache.invalidateAsset(assetIdMatch[1]);
-			}
-			if (albumIdMatch) {
-				immichCache.invalidateAlbum(albumIdMatch[1]);
-			}
-			if (personIdMatch) {
-				immichCache.invalidatePerson(personIdMatch[1]);
 			}
 		}
 
@@ -960,7 +950,6 @@ const handle: RequestHandler = async function (event) {
 		}
 
 		headers.set('content-type', resContentType);
-		headers.set('x-cache', 'MISS');
 		const safeForward = [
 			'etag',
 			'cache-control',
