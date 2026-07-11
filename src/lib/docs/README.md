@@ -11,7 +11,7 @@
 | [CRON_SETUP.md](./CRON_SETUP.md)                     | Configuration des tâches CRON          |
 | [NAVBAR_ACCESS_MATRIX.md](./NAVBAR_ACCESS_MATRIX.md) | Matrice d'accès selon les rôles        |
 
-> **Documentation API** : Disponible dans l'interface admin `/admin/api-docs`
+> **Documentation API** : Disponible dans l'interface admin `/admin` (rendu du wiki `docs/wiki/`)
 
 ---
 
@@ -78,7 +78,7 @@ src/
 
 ## API Endpoints
 
-Voir la documentation détaillée dans `src/routes/admin/api-docs/`.
+Voir la documentation détaillée dans `docs/wiki/api-reference.md` (rendue sur `/admin`).
 
 ### Principaux endpoints
 

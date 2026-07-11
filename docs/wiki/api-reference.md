@@ -78,5 +78,5 @@ All under `requireAdminSession` / admin scope.
 | `/api/admin/api-keys`, `/[id]`                                                   | Create/list/revoke API keys |
 | `/api/admin/db-export`, `/db-import`, `/db-backup`, `/db-restore`, `/db-inspect` | Database maintenance        |
 
-Admin pages: `/admin`, `/admin/api-keys`, `/admin/api-docs`, `/admin/database`,
+Admin pages: `/admin`, `/admin/api-keys`, `/admin/database`,
 `/admin/logs`.

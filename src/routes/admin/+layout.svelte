@@ -4,7 +4,6 @@
   import {
     BookOpen,
     Activity,
-    Webhook,
     ScrollText,
     Users,
     Key,
@@ -17,7 +16,6 @@
   const links = [
     { href: '/admin', label: 'Documentation', icon: BookOpen },
     { href: '/admin/metrics', label: 'Santé', icon: Activity },
-    { href: '/admin/api-docs', label: 'API Reference', icon: Webhook },
     { href: '/admin/logs', label: 'Logs', icon: ScrollText },
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: Key },

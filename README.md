@@ -367,7 +367,7 @@ Autres documents dans le dossier `docs/` :
 
 - **API_SECURITY.md** - **[NOUVEAU]** Guide complet de sécurité API (scopes, permissions, exemples)
 - **POSTMAN_AVATAR.md** - **[NOUVEAU]** Guide Postman pour l'endpoint avatar
-- Interface web : `/admin/api-docs` - Documentation interactive des endpoints
+- Interface web : `/admin` - Documentation technique (wiki) rendue depuis `docs/wiki/`
 
 ### 📝 Ressources additionnelles
 

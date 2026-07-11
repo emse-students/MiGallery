@@ -11,15 +11,9 @@
 		html: string;
 	}
 
-	const docsRaw = (page.data as { docs?: Doc[] }).docs || [];
-
-	const docs = docsRaw.slice().sort((a, b) => {
-		const an = a.filename.toLowerCase();
-		const bn = b.filename.toLowerCase();
-		if (an.includes('api_endpoints') || an.includes('api-endpoints')) return -1;
-		if (bn.includes('api_endpoints') || bn.includes('api-endpoints')) return 1;
-		return a.name.localeCompare(b.name);
-	});
+	// Server (+page.server.ts) already returns docs in the intended order
+	// (index, then API reference, then alphabetical).
+	const docs = (page.data as { docs?: Doc[] }).docs || [];
 
 	function scrollToDoc(id: string) {
 		const el = document.getElementById(id);

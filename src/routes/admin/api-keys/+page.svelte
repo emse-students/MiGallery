@@ -98,7 +98,7 @@
 	maxWidth="1000px"
 >
 	{#snippet actions()}
-		<a href="/admin/api-docs" class="btn-glass">
+		<a href="/admin" class="btn-glass">
 			<Book size={16} /> Documentation
 		</a>
 	{/snippet}

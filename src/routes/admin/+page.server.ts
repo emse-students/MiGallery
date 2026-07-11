@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		throw redirect(303, '/');
 	}
 
-	const docsDir = join(process.cwd(), 'docs');
+	const docsDir = join(process.cwd(), 'docs', 'wiki');
 	let files: { name: string; filename: string; html: string }[] = [];
 	try {
 		const entries = readdirSync(docsDir).filter((f) => f.endsWith('.md'));
@@ -31,11 +31,18 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 		files = [];
 	}
 
-	files.sort((a, _b) =>
-		a.filename.toLowerCase() === 'api_endpoints.md' || a.filename.toLowerCase() === 'api-endpoints.md'
-			? -1
-			: 0
-	);
+	// Deterministic order: index first, then the API reference, then alphabetical.
+	const rank = (fn: string) => {
+		const f = fn.toLowerCase();
+		if (f === 'index.md') {
+			return 0;
+		}
+		if (f === 'api-reference.md') {
+			return 1;
+		}
+		return 2;
+	};
+	files.sort((a, b) => rank(a.filename) - rank(b.filename) || a.name.localeCompare(b.name));
 
 	return { docs: files };
 };

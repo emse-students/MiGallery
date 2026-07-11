@@ -47,9 +47,9 @@
 
 **Current WIP:**
 
-- Admin harmonization: remove ALL emojis, unify every tab on the AdminPage shell, full-width layout (no horizontal scroll), mobile pass, integrate trombinoscope \+ corbeille INTO the admin layout.
-- Next step: await user's chosen starting sub-step.
-- Target files: src/routes/admin/+layout.svelte, src/routes/admin/api-docs/+page.svelte, src/routes/admin/shared-admin.css, src/lib/components/AdminPage.svelte, src/routes/trombinoscope/+page.svelte, src/routes/corbeille/+page.svelte
+- Theme 5 (i18n) coordinated with Theme 1b. WP-1b.6 DONE this session.
+- Next step: N-9 (i18n admin pages) on the surviving admin surface: +layout.svelte nav labels, +page.svelte (Documentation), metrics, logs, users, api-keys, database. No admin\_ keys exist yet -> pick short prefixes per house convention (trombi\_/trash\_/param\_ style). api-docs is GONE (do not i18n it).
+- Target files: src/routes/admin/+layout.svelte, src/routes/admin/{+page,metrics,logs,users,api-keys,database}/+page.svelte, messages/{fr,en}.json
 
 **Roadmap (Active WP):**
 
@@ -57,7 +57,7 @@
 
 Theme 1b \- FULL admin harmonization
 
-- \[ \] WP-1b.6 wiki: repoint Documentation tab to render docs/wiki/\*; retire api-docs page; write concise EN LLM-friendly API section
+- \[x\] WP-1b.6 wiki: Documentation tab now renders docs/wiki/\* (index-first, then api-reference); api-docs route retired; nav link + api-keys button repointed to /admin.
 
 Theme 2 \- Profile / trombinoscope
 
