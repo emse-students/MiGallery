@@ -13,6 +13,7 @@
 	import type { User, ImmichAsset } from '$lib/types/api';
 	import type { Asset } from '$lib/photos.svelte';
 	import { toast } from '$lib/toast';
+	import { m } from '$lib/paraglide/messages';
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
@@ -45,8 +46,10 @@
 
 		try {
 			const bucketsRes = await fetch('/api/immich/timeline/buckets?isTrashed=true&size=MONTH');
-			if (!bucketsRes.ok)
-				throw new Error(`Erreur lors du chargement des buckets: ${bucketsRes.statusText}`);
+			if (!bucketsRes.ok) {
+				console.error('Buckets fetch failed:', bucketsRes.statusText);
+				throw new Error(m.trash_load_error());
+			}
 
 			const buckets = (await bucketsRes.json()) as { timeBucket: string; count: number }[];
 			if (!Array.isArray(buckets) || buckets.length === 0) {
@@ -61,7 +64,7 @@
 						`/api/immich/timeline/bucket?timeBucket=${bucket.timeBucket}&isTrashed=true&size=MONTH`
 					);
 					if (!bucketRes.ok) {
-						console.warn(`Erreur bucket ${bucket.timeBucket}:`, bucketRes.statusText);
+						console.warn(`Bucket ${bucket.timeBucket} fetch failed:`, bucketRes.statusText);
 						continue;
 					}
 					const bucketData = (await bucketRes.json()) as { id: string[] };
@@ -69,7 +72,7 @@
 						allAssetIds.push(...bucketData.id);
 					}
 				} catch (e: unknown) {
-					console.warn('Erreur lors de la récupération du bucket', bucket, e);
+					console.warn('Bucket fetch error', bucket, e);
 				}
 			}
 
@@ -111,7 +114,7 @@
 			}));
 		} catch (err: unknown) {
 			console.error('Error:', err);
-			error = err instanceof Error ? err.message : 'Une erreur est survenue';
+			error = err instanceof Error ? err.message : m.common_unknown_error();
 		} finally {
 			loading = false;
 		}
@@ -151,9 +154,9 @@
 
 	async function restoreAssets(assetIds: string[]) {
 		confirmModalConfig = {
-			title: 'Restaurer les éléments',
-			message: `Voulez-vous restaurer ${assetIds.length} élément(s) ?`,
-			confirmText: 'Restaurer',
+			title: m.trash_restore_title(),
+			message: m.trash_restore_confirm({ count: assetIds.length }),
+			confirmText: m.trash_restore(),
 			onConfirm: async () => {
 				showConfirmModal = false;
 				try {
@@ -166,16 +169,16 @@
 					if (!res.ok && res.status !== 204) {
 						const errText = await res.text().catch(() => res.statusText);
 						console.error('Restore error:', { status: res.status, body: errText });
-						throw new Error(errText || 'Erreur lors de la restauration');
+						throw new Error(errText || m.trash_restore_failed());
 					}
 
 					assets = assets.filter((a) => !assetIds.includes(a.id));
 					selectedAssets = [];
 					selecting = false;
 
-					toast.success(`${assetIds.length} élément(s) restauré(s) avec succès !`);
+					toast.success(m.trash_restore_success({ count: assetIds.length }));
 				} catch (e: unknown) {
-					toast.error('Erreur lors de la restauration: ' + (e as Error).message);
+					toast.error(m.common_error_detail({ error: (e as Error).message }));
 				}
 			}
 		};
@@ -184,16 +187,16 @@
 
 	async function deleteAssetsPermanently(assetIds: string[]) {
 		confirmModalConfig = {
-			title: 'Supprimer définitivement',
-			message: `⚠️ ATTENTION : Voulez-vous supprimer DÉFINITIVEMENT ${assetIds.length} élément(s) ?\n\nCette action est IRRÉVERSIBLE !`,
-			confirmText: 'Supprimer définitivement',
+			title: m.trash_delete_perm(),
+			message: m.trash_delete_confirm({ count: assetIds.length }),
+			confirmText: m.trash_delete_perm(),
 			onConfirm: async () => {
 				showConfirmModal = false;
 				try {
 					const uuidRe = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 					for (const id of assetIds) {
 						if (!uuidRe.test(id)) {
-							throw new Error('Invalid asset id in selection');
+							throw new Error(m.trash_delete_failed());
 						}
 					}
 
@@ -209,16 +212,16 @@
 					if (!res.ok && res.status !== 204) {
 						const errText = await res.text().catch(() => res.statusText);
 						console.error('Permanent delete error:', { status: res.status, body: errText });
-						throw new Error(errText || 'Erreur lors de la suppression');
+						throw new Error(errText || m.trash_delete_failed());
 					}
 
 					assets = assets.filter((a) => !assetIds.includes(a.id));
 					selectedAssets = [];
 					selecting = false;
 
-					toast.success(`${assetIds.length} élément(s) supprimé(s) définitivement.`);
+					toast.success(m.trash_delete_success({ count: assetIds.length }));
 				} catch (e: unknown) {
-					toast.error('Erreur lors de la suppression: ' + (e as Error).message);
+					toast.error(m.common_error_detail({ error: (e as Error).message }));
 				}
 			}
 		};
@@ -248,31 +251,32 @@
 </script>
 
 <svelte:head>
-	<title>Corbeille - MiGallery</title>
+	<title>{m.trash_page_title()}</title>
 </svelte:head>
 
 <AdminPage
-	title="Corbeille"
-	subtitle="Elements supprimes - restaurer ou vider definitivement"
+	title={m.nav_trash()}
+	subtitle={m.trash_subtitle()}
 	icon={Trash2}
 	maxWidth="1200px"
 >
 	{#if error}
-		<div class="error"><XCircle size={20} /> Erreur: {error}</div>
+		<div class="error"><XCircle size={20} /> {m.common_error_detail({ error })}</div>
 	{/if}
 
 	{#if loading}
-		<div class="loading"><Spinner size={20} /> Chargement des éléments supprimés...</div>
+		<div class="loading"><Spinner size={20} /> {m.trash_loading()}</div>
 	{/if}
 
 	{#if !loading && !error && assets.length === 0}
-		<EmptyState icon={Trash2} title="La corbeille est vide" size="md" />
+		<EmptyState icon={Trash2} title={m.trash_empty()} size="md" />
 	{/if}
 
 	{#if assets.length > 0}
 		<div class="toolbar">
 			<div class="items-count">
-				<strong>{assets.length}</strong> élément{assets.length > 1 ? 's' : ''} dans la corbeille
+				<strong>{assets.length}</strong>
+				{m.trash_items_in_bin()}
 			</div>
 
 			<div class="toolbar-actions">
@@ -288,7 +292,7 @@
 					{:else}
 						<SquareCheck size={16} />
 					{/if}
-					{selecting ? 'Annuler' : 'Sélectionner'}
+					{selecting ? m.common_cancel() : m.trash_select()}
 				</button>
 			</div>
 		</div>
@@ -297,16 +301,16 @@
 			<div class="selection-toolbar">
 				<div class="selection-count">
 				<SquareCheck size={18} />
-					{selectedAssets.length} sélectionné{selectedAssets.length > 1 ? 's' : ''}
+					{m.pg_selected_count({ count: selectedAssets.length })}
 				</div>
 				<div class="selection-actions">
 					<button type="button" onclick={selectAll} class="px-2 py-2">
 					<SquareCheck size={16} />
-						Tout sélectionner
+						{m.pg_select_all()}
 					</button>
 					<button type="button" onclick={deselectAll} class="px-2 py-2 bg-gray-400">
 						<Square size={16} />
-						Tout désélectionner
+						{m.pg_deselect_all()}
 					</button>
 					<button
 						type="button"
@@ -314,7 +318,7 @@
 						class="px-2 py-2 bg-emerald-600 hover:bg-emerald-700"
 					>
 						<ArrowLeft size={16} />
-						Restaurer ({selectedAssets.length})
+						{m.trash_restore_count({ count: selectedAssets.length })}
 					</button>
 					<button
 						type="button"
@@ -322,7 +326,7 @@
 						class="btn-delete-selection px-2 py-2 text-white"
 					>
 						<Trash2 size={16} />
-						Supprimer définitivement ({selectedAssets.length})
+						{m.trash_delete_perm_count({ count: selectedAssets.length })}
 					</button>
 				</div>
 			</div>
@@ -361,7 +365,7 @@
 							<button
 								type="button"
 								class="restore-btn"
-								title="Restaurer"
+								title={m.trash_restore()}
 								onclick={(e) => {
 									e.stopPropagation();
 									restoreAssets([asset.id]);
@@ -372,7 +376,7 @@
 							<button
 								type="button"
 								class="delete-permanent-btn"
-								title="Supprimer définitivement"
+								title={m.trash_delete_perm()}
 								onclick={(e) => {
 									e.stopPropagation();
 									deleteAssetsPermanently([asset.id]);
@@ -385,7 +389,7 @@
 						<LazyImage
 							src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
 							highRes={`/api/immich/assets/${asset.id}/thumbnail?size=preview`}
-							alt={asset.originalFileName || 'Photo'}
+							alt={asset.originalFileName || m.common_photo()}
 							isVideo={asset.type === 'VIDEO'}
 						/>
 
