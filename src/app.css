@@ -1733,8 +1733,11 @@
 	}
 }
 
-/* Lucide Icon safe-guard */
+/* Lucide icons: honor the size set via the `size` prop (width/height attributes)
+   and never let a flex/grid parent crush them. Without flex-shrink:0 an icon
+   inside a flex button collapses to the min-* floor and renders tiny. */
 :global(.lucide) {
+	flex-shrink: 0;
 	min-width: 0.9em;
 	min-height: 0.9em;
 }
