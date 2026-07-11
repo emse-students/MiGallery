@@ -82,7 +82,30 @@ Theme 4 - Backlog (last)
 - \[ \] FR#3 upload resilience (stable fileId, auto-retry, enqueue on connection loss)
 - \[ \] WP-5.x Immich: 5.1b combined personIds+albumIds queries, 5.2 face-first profile photo picker, 5.3 new capabilities, 5.4 clean [TEST] albums + prod guard
 - \[ \] WP-4.1 remove StreamSaver/SW/mitm.html; WP-4.3 configurable structured logger; WP-4.4 memory non-regression tests
-- \[ \] WP-2.x i18n: users.locale column+endpoint; externalize all FR strings to Paraglide + EN catalogue (DEFERRED last)
+- \[ \] WP-2.x i18n backend: users.locale column + endpoint for a persisted locale preference (string externalization moved to Theme 5)
+
+Theme 5 - i18n + Normalization (ACTIVE - do not collide with Theme 1b admin work)
+
+Externalize all user-visible FR strings to Paraglide (messages/fr.json + en.json) and sweep dev-facing strings/comments to English. Supersedes the old "externalize all FR strings" backlog note. Tolerant search already shipped (WP-0.4, commit debbb95) - NOT remaining.
+
+Migrated (DONE, on main):
+
+- \[x\] N-1 nav + layout + LocaleSwitcher (35c7c50)
+- \[x\] N-2 landing + first-login modal (264cac2)
+- \[x\] N-3 albums list + album modal (7f4fe34)
+- \[x\] N-4 album detail + PhotosGrid/PhotoCard/PhotoModal + UploadZone (44019bc)
+- \[x\] N-5 CameraInput + ChangePhotoModal (6984b90)
+- \[x\] N-6 parametres: profile, apparence, face, sharing, danger zone, 3 modals (c425a05)
+
+Remaining (ordered; verify per file - some strings may already be partially done):
+
+- \[ \] N-7 mes-photos + photos-cv + trombinoscope (0 m.\* today = full page strings)
+- \[ \] N-8 corbeille + cgu
+- \[ \] N-9 admin pages (+layout, dashboard, api-keys, api-docs, database, logs, metrics, users). COORDINATE with Theme 1b (admin harmonization ACTIVE) - run after/with it, not in parallel.
+- \[ \] N-10 residual components with real strings: ConfirmHost, EmptyState, AdminPage subtitle (Avatar/BackgroundBlobs/LazyImage/Skeleton/Spinner are stringless - skip)
+- \[ \] N-11 dev-string sweep FR -> EN: console.\*/thrown Error/comments across src (parametres has ~30 FR logs near lines 278-535); verify README.md + docs/MIGRATION.md bodies (CLAUDE.md already EN)
+
+Conventions (locked): messages/*.json are TAB-indented (inlang message-format); FR keeps accents + straight apostrophes + typographic space before : and ! + ellipsis; use getLocale() for toLocale*String; bun run check MUST be 0 errors / 0 warnings.
 
 **Memory Gotchas (Do not repeat):**
 

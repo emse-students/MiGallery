@@ -100,7 +100,7 @@
 </script>
 
 <svelte:head>
-    <title>Admin — Utilisateurs</title>
+    <title>Admin - Utilisateurs</title>
 </svelte:head>
 
 <div class="admin-wrapper">
