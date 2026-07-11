@@ -17,6 +17,7 @@
 	import UploadZone from '$lib/components/UploadZone.svelte';
 	import { PhotosState } from '$lib/photos.svelte';
 	import { handleAlbumUpload } from '$lib/album-operations';
+	import { m } from '$lib/paraglide/messages';
 	import type { User } from '$lib/types/api';
 
 	const myPhotosState = new PhotosState();
@@ -97,7 +98,7 @@
 </script>
 
 <svelte:head>
-	<title>Photos CV - MiGallery</title>
+	<title>{m.pcv_page_title()}</title>
 </svelte:head>
 
 <main class="page-main">
@@ -106,8 +107,8 @@
 	<div class="page-container">
 		<header class="page-header centered" in:fade={{ duration: 300, delay: 100 }}>
 			<div class="header-content">
-				<h1>Photos CV</h1>
-				<p class="subtitle">Portraits professionnels et institutionnels</p>
+				<h1>{m.nav_photos_cv()}</h1>
+				<p class="subtitle">{m.pcv_subtitle()}</p>
 			</div>
 		</header>
 
@@ -121,7 +122,7 @@
 						onclick={() => switchView('my')}
 					>
 						<UserIcon size={18} />
-						<span>Mes photos</span>
+						<span>{m.nav_my_photos()}</span>
 					</button>
 					<button
 						type="button"
@@ -129,7 +130,7 @@
 						onclick={() => switchView('all')}
 					>
 						<Users size={18} />
-						<span>Tout le monde</span>
+						<span>{m.pcv_tab_all()}</span>
 					</button>
 					<!-- Sliding indicator for visual effect -->
 					<div class="tab-indicator {currentView === 'my' ? 'left' : 'right'}"></div>
@@ -144,7 +145,7 @@
 					{#if myPhotosState.personName}
 						<div class="section-title">
 							<h2>{myPhotosState.personName}</h2>
-							<span class="badge">Personnel</span>
+							<span class="badge">{m.pcv_badge_personal()}</span>
 						</div>
 					{/if}
 
@@ -157,7 +158,7 @@
 
 					{#if myPhotosState.loading}
 						<div class="state-message loading">
-							<Spinner size={32} /> Chargement de vos photos...
+							<Spinner size={32} /> {m.pcv_loading_my()}
 						</div>
 					{/if}
 
@@ -179,8 +180,8 @@
 								<CloudUpload size={24} />
 							</div>
 							<div>
-								<h3>Ajouter des portraits</h3>
-								<p>Les photos seront ajoutées à l'album système "Photos CV"</p>
+								<h3>{m.pcv_upload_title()}</h3>
+								<p>{m.pcv_upload_desc()}</p>
 							</div>
 						</div>
 						<div class="upload-content">
@@ -197,7 +198,7 @@
 
 					{#if allPhotosState.loading}
 						<div class="state-message loading">
-							<Spinner size={32} /> Chargement de la base...
+							<Spinner size={32} /> {m.pcv_loading_all()}
 						</div>
 					{/if}
 
@@ -217,10 +218,10 @@
 								}}
 								disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
 							>
-								<ChevronLeft size={20} /> Précédent
+								<ChevronLeft size={20} /> {m.common_previous()}
 							</button>
 
-							<span class="page-badge">Page {allPhotosState.photoCVCurrentPage}</span>
+							<span class="page-badge">{m.common_page({ page: allPhotosState.photoCVCurrentPage })}</span>
 
 							<button
 								type="button"
@@ -231,7 +232,7 @@
 								}}
 								disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
 							>
-								Suivant <ChevronRight size={20} />
+								{m.common_next()} <ChevronRight size={20} />
 							</button>
 						</div>
 					{/if}

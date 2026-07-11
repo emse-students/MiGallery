@@ -9,6 +9,7 @@
 	import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
 	import { PhotosState } from '$lib/photos.svelte';
 	import { toast } from '$lib/toast';
+	import { m } from '$lib/paraglide/messages';
 	import type { User } from '$lib/types/api';
 
 	const photosState = new PhotosState();
@@ -32,7 +33,7 @@
 
 	async function handlePhotoSelected(assetId: string) {
 		const targetIdPhotos = photosState.peopleId;
-		if (!targetIdPhotos) throw new Error('Utilisateur non configuré');
+		if (!targetIdPhotos) throw new Error(m.mp_user_not_configured());
 
 		const updateRes = await fetch(`/api/immich/people/${targetIdPhotos}`, {
 			method: 'PUT',
@@ -41,10 +42,10 @@
 		});
 		if (!updateRes.ok) {
 			const txt = await updateRes.text().catch(() => updateRes.statusText);
-			throw new Error(txt || 'Erreur lors de la mise à jour de la photo');
+			throw new Error(txt || m.mp_photo_update_error());
 		}
 
-		toast.success('Photo de profil mise à jour !');
+		toast.success(m.mp_photo_updated());
 		window.location.reload();
 	}
 
@@ -138,7 +139,7 @@
 </script>
 
 <svelte:head>
-	<title>Mes photos - MiGallery</title>
+	<title>{m.mp_page_title()}</title>
 </svelte:head>
 
 <main class="mesphotos-main">
@@ -147,15 +148,14 @@
 	{#if accessDenied}
 		<div class="access-denied">
 			<Lock size={48} />
-			<h2>Accès non autorisé</h2>
-			<p>Vous n'avez pas l'autorisation de voir les photos de cet utilisateur.</p>
+			<h2>{m.mp_access_denied_title()}</h2>
+			<p>{m.mp_access_denied_body()}</p>
 			<p class="hint">
-				L'utilisateur doit vous autoriser depuis ses paramètres pour que vous puissiez accéder à ses
-				photos.
+				{m.mp_access_denied_hint()}
 			</p>
 			<button type="button" class="btn-primary" onclick={() => goto('/')}>
 				<ArrowLeft size={18} />
-				Retour à l'accueil
+				{m.common_back_home()}
 			</button>
 		</div>
 	{:else}
@@ -166,16 +166,16 @@
 						type="button"
 						class="profile-photo-btn"
 						onclick={openChangePhotoModal}
-						title="Changer la photo de profil"
+						title={m.mp_change_profile_photo()}
 					>
-						<img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo" />
+						<img src={photosState.imageUrl} alt={m.mp_portrait_alt()} class="profile-photo" />
 						<div class="photo-overlay">
 							<Camera size={32} />
-							<span class="change-photo-text">Changer de photo</span>
+							<span class="change-photo-text">{m.mp_change_photo()}</span>
 						</div>
 					</button>
 				{:else}
-					<img src={photosState.imageUrl} alt="Portrait utilisateur" class="profile-photo static" />
+					<img src={photosState.imageUrl} alt={m.mp_portrait_alt()} class="profile-photo static" />
 				{/if}
 				<div class="header-text centered">
 					<h1 class="page-title">
@@ -184,7 +184,7 @@
 					{#if !isViewingOwnPhotos}
 						<span class="viewing-badge">
 							<Eye size={14} />
-							Consultation autorisée
+							{m.mp_viewing_badge()}
 						</span>
 					{/if}
 				</div>
@@ -200,7 +200,7 @@
 		{/if}
 
 		{#if photosState.loading}
-			<div class="loading"><Spinner size={20} /> Chargement des photos...</div>
+			<div class="loading"><Spinner size={20} /> {m.mp_loading()}</div>
 		{/if}
 
 		<PhotosGrid state={photosState} showFavorites={isViewingOwnPhotos} />
