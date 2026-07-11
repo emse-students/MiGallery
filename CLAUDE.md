@@ -64,7 +64,7 @@ Theme 1b - FULL admin harmonization (ACTIVE)
 - \[x\] WP-1b.2 api-docs: AdminPage shell + strip ALL emojis + quick-links -> header actions
 - \[x\] WP-1b.3 no horizontal page scroll (.content min-width:0 -> wide children scroll in their own overflow wrappers) + mobile pass (<=768px sidebar becomes sticky horizontal top-bar, content full-width). AdminPage per-page max-widths left as-is (deliberate per content type); users page has no AdminPage (own matching shell, capped by .admin-shell 1400px).
 - \[x\] WP-1b.4 de-globalize shared-admin.css: ALL selectors scoped under .admin-shell (main gets that class). Behavior-neutral inside admin (specificity unchanged vs app.css button:not); stops leak before 1b.5. Icons were never actually broken (valid names + explicit colors + app.css :global(.lucide) min-size guard).
-- \[ \] WP-1b.5 integrate /trombinoscope + /corbeille INTO admin layout (keep sidebar visible)
+- \[x\] WP-1b.5 integrate trombinoscope + corbeille INTO admin. Both were already admin-only (role==='admin', same as layout ensureAdmin) so git mv'd under src/routes/admin/ -> inherit sidebar layout. New URLs /admin/trombinoscope, /admin/corbeille (sidebar hrefs updated; no other internal refs). 5a=structural move (inner <main>-><div>, dropped min-height:100vh). 5b=harmonized both onto AdminPage shell (dropped BackgroundBlobs + hero header; trombino PDF/Ajouter -> actions slot, search+group-tabs -> .trombi-controls body bar). Per-page role guards kept (redundant defense-in-depth). NOTE old /trombinoscope + /corbeille URLs now 404 (no back-compat redirect added).
 - \[ \] WP-1b.6 wiki: repoint Documentation tab to render docs/wiki/\*; retire api-docs page; write concise EN LLM-friendly API section
 
 Theme 2 - Profile / trombinoscope
