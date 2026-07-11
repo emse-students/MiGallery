@@ -68,7 +68,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (err: unknown) {
 		const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
-		console.error('Erreur chargement album info:', err);
+		console.error('Error loading album info:', err);
 		return json(
 			{
 				error: errorMessage

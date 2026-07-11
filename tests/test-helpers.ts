@@ -172,7 +172,7 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
 		if (!fs.existsSync(DB_PATH)) {
-			console.warn('⚠️  Base de données introuvable');
+			console.warn('⚠️  Database not found');
 			return false;
 		}
 
@@ -196,12 +196,10 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 			db.close();
 
 			if (user) {
-				console.debug(
-					`✅ Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} existe (rôle: ${user.role})`
-				);
+				console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} exists (role: ${user.role})`);
 				return true;
 			} else {
-				console.warn(`⚠️  Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} introuvable`);
+				console.warn(`⚠️  System user ${TEST_CONFIG.SYSTEM_USER_ID} not found`);
 				return false;
 			}
 		} catch (dbError) {
@@ -209,7 +207,7 @@ async function _ensureSystemUserExists(): Promise<boolean> {
 			throw dbError;
 		}
 	} catch (error) {
-		console.error(`❌ Erreur lors de la vérification: ${(error as Error).message}`);
+		console.error(`❌ Error during verification: ${(error as Error).message}`);
 		return false;
 	}
 }
@@ -226,7 +224,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
 		if (!fs.existsSync(DB_PATH)) {
-			console.warn('⚠️  Base de données introuvable');
+			console.warn('⚠️  Database not found');
 			return false;
 		}
 
@@ -251,7 +249,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 				.get(TEST_CONFIG.SYSTEM_USER_ID);
 
 			if (existingUser) {
-				console.debug(`✅ Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} existe déjà`);
+				console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} already exists`);
 				db.close();
 				return true;
 			}
@@ -263,7 +261,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 				)
 				.run(TEST_CONFIG.SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', 'admin', null, null);
 
-			console.debug(`✅ Utilisateur système ${TEST_CONFIG.SYSTEM_USER_ID} créé dans la DB`);
+			console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} created in the DB`);
 			db.close();
 			return true;
 		} catch (dbError) {
@@ -275,9 +273,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 			throw dbError;
 		}
 	} catch (error) {
-		console.error(
-			`❌ Erreur lors de la création de l'utilisateur système: ${(error as Error).message}`
-		);
+		console.error(`❌ Error creating system user: ${(error as Error).message}`);
 		return false;
 	}
 }
@@ -291,9 +287,7 @@ async function loginAsSystemUser(): Promise<string> {
 	// D'abord s'assurer que l'utilisateur existe dans la DB
 	const userExists = await ensureSystemUserExists();
 	if (!userExists) {
-		console.warn(
-			"⚠️ Impossible de créer/vérifier l'utilisateur système localement, tentative via endpoint"
-		);
+		console.warn('⚠️ Unable to create/verify system user locally, trying via endpoint');
 	}
 
 	try {
@@ -313,16 +307,16 @@ async function loginAsSystemUser(): Promise<string> {
 			}
 			// Pas de set-cookie - journaliser pour diagnostiquer
 			console.error(
-				`❌ Échec de la connexion (status: ${response.status}), pas de cookie retourné, body=${await response.text()}`
+				`❌ Login failed (status: ${response.status}), no cookie returned, body=${await response.text()}`
 			);
 		} else {
 			console.error(
-				`❌ Échec de la connexion (status: ${response.status}), responseBody=${await response.text()}`
+				`❌ Login failed (status: ${response.status}), responseBody=${await response.text()}`
 			);
 		}
 		return '';
 	} catch (error) {
-		console.error(`❌ Erreur lors de la connexion: ${(error as Error).message}`);
+		console.error(`❌ Error during login: ${(error as Error).message}`);
 		return '';
 	}
 }
@@ -350,15 +344,15 @@ async function createApiKey(
 		if (response.status === 200 || response.status === 201) {
 			const data = (await response.json()) as { rawKey?: string; id?: string };
 			if (data.rawKey && data.id) {
-				console.debug(`✅ Clé API créée (${label}): ${data.rawKey.substring(0, 20)}...`);
+				console.debug(`✅ API key created (${label}): ${data.rawKey.substring(0, 20)}...`);
 				return { id: data.id, rawKey: data.rawKey };
 			}
 		}
 
-		console.error(`❌ Échec de la création de clé API (status: ${response.status})`);
+		console.error(`❌ Failed to create API key (status: ${response.status})`);
 		return null;
 	} catch (error) {
-		console.error(`❌ Erreur lors de la création de clé API: ${(error as Error).message}`);
+		console.error(`❌ Error creating API key: ${(error as Error).message}`);
 		return null;
 	}
 }
@@ -392,7 +386,7 @@ async function createTestUser(
 		});
 
 		if (!createResponse.ok) {
-			console.error(`❌ Échec de la création de l'utilisateur (status: ${createResponse.status})`);
+			console.error(`❌ Failed to create user (status: ${createResponse.status})`);
 			return null;
 		}
 
@@ -407,15 +401,13 @@ async function createTestUser(
 		});
 
 		if (!updateResponse.ok) {
-			console.warn(
-				`⚠️  Impossible de mettre l'utilisateur en admin (status: ${updateResponse.status})`
-			);
+			console.warn(`⚠️  Unable to promote user to admin (status: ${updateResponse.status})`);
 		}
 
-		console.debug(`✅ Utilisateur de test créé et mis en admin: ${testUser.id_user}`);
+		console.debug(`✅ Test user created and promoted to admin: ${testUser.id_user}`);
 		return { id_user: testUser.id_user, name: testUser.name };
 	} catch (error) {
-		console.error(`❌ Erreur lors de la création de l'utilisateur: ${(error as Error).message}`);
+		console.error(`❌ Error creating user: ${(error as Error).message}`);
 		return null;
 	}
 }
@@ -425,22 +417,22 @@ async function createTestUser(
  */
 export async function setupTestAuth(): Promise<TestContext> {
 	const { API_BASE_URL } = TEST_CONFIG;
-	console.debug("\n🚀 Setup de l'authentification pour les tests");
-	console.debug(`📍 URL de base: ${API_BASE_URL}\n`);
+	console.debug('\n🚀 Authentication setup for tests');
+	console.debug(`📍 Base URL: ${API_BASE_URL}\n`);
 
 	const context = createTestContext();
 
 	// 1. Se connecter avec l'utilisateur système
 	const sessionCookie = await loginAsSystemUser();
 	if (!sessionCookie) {
-		throw new Error('Échec de la connexion');
+		throw new Error('Login failed');
 	}
 	context.sessionCookie = sessionCookie;
 
 	// 2. Créer les clés API (admin, write, read)
 	const adminKey = await createApiKey(sessionCookie, ['admin'], '[TEST] Admin Key');
 	if (!adminKey) {
-		throw new Error('Impossible de créer la clé admin');
+		throw new Error('Unable to create admin key');
 	}
 	context.adminApiKey = adminKey.rawKey;
 	context.createdResources.apiKeys.push(adminKey.id);
@@ -468,7 +460,7 @@ export async function setupTestAuth(): Promise<TestContext> {
 	// Mettre à jour le contexte global
 	Object.assign(globalTestContext, context);
 
-	console.debug("✅ Setup de l'authentification terminé\n");
+	console.debug('✅ Authentication setup complete\n');
 	return context;
 }
 
@@ -477,7 +469,7 @@ export async function setupTestAuth(): Promise<TestContext> {
  */
 export async function teardownTestAuth(context: TestContext): Promise<void> {
 	const { API_BASE_URL } = TEST_CONFIG;
-	console.debug('\n🧹 Nettoyage après les tests');
+	console.debug('\n🧹 Cleanup after tests');
 
 	// Supprimer l'utilisateur de test
 	if (context.testUserId) {
@@ -486,9 +478,9 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 				method: 'DELETE',
 				headers: { 'x-api-key': context.adminApiKey }
 			});
-			console.debug(`✅ Utilisateur de test supprimé: ${context.testUserId}`);
+			console.debug(`✅ Test user deleted: ${context.testUserId}`);
 		} catch {
-			console.warn("⚠️  Impossible de supprimer l'utilisateur de test");
+			console.warn('⚠️  Unable to delete test user');
 		}
 	}
 
@@ -499,9 +491,9 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 				method: 'DELETE',
 				headers: { Cookie: context.sessionCookie }
 			});
-			console.debug('✅ Clé API supprimée');
+			console.debug('✅ API key deleted');
 		} catch {
-			console.warn('⚠️  Impossible de supprimer une clé API');
+			console.warn('⚠️  Unable to delete an API key');
 		}
 	}
 
@@ -516,7 +508,7 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 		await cleanupResource(`${API_BASE_URL}/api/albums`, context.adminApiKey, albumId);
 	}
 
-	console.debug('✅ Nettoyage terminé\n');
+	console.debug('✅ Cleanup complete\n');
 }
 
 /**

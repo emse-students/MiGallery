@@ -63,7 +63,7 @@ export const GET: RequestHandler = async (event) => {
 			throw err;
 		}
 		const errorMessage = err instanceof Error ? err.message : 'Erreur serveur';
-		console.error('Erreur /api/users/[username]/avatar:', err);
+		console.error('Error /api/users/[username]/avatar:', err);
 		return svelteError(500, errorMessage);
 	}
 };

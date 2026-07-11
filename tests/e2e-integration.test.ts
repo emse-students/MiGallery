@@ -20,7 +20,7 @@ let testReadApiKeyId: string | null = null;
 // ========================================
 
 beforeAll(async () => {
-	console.debug("🚀 Démarrage des tests d'intégration end-to-end"); // Tentative de connexion en tant qu'utilisateur système
+	console.debug('🚀 Starting end-to-end integration tests'); // Tentative de connexion en tant qu'utilisateur système
 	try {
 		const response = await fetch(
 			`${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
@@ -35,7 +35,7 @@ beforeAll(async () => {
 				const match = cookies.match(/current_user_id=([^;]+)/);
 				if (match) {
 					sessionCookie = `current_user_id=${match[1]}`;
-					console.debug('✅ Authentifié avec cookie de session');
+					console.debug('✅ Authenticated with session cookie');
 				}
 			}
 		}
@@ -58,7 +58,7 @@ beforeAll(async () => {
 				const data = (await keyResponse.json()) as ApiKeyResponse;
 				adminApiKey = data.rawKey ?? '';
 				testApiKeyId = data.id ?? null;
-				console.debug('✅ Clé API admin créée');
+				console.debug('✅ Admin API key created');
 			}
 
 			// Créer une clé API read pour les tests
@@ -78,16 +78,16 @@ beforeAll(async () => {
 				const data = (await readKeyResponse.json()) as ApiKeyResponse;
 				readApiKey = data.rawKey ?? '';
 				testReadApiKeyId = data.id ?? null;
-				console.debug('✅ Clé API read créée');
+				console.debug('✅ Read API key created');
 			}
 		}
 	} catch (error) {
-		console.error('❌ Erreur lors du setup:', error);
+		console.error('❌ Error during setup:', error);
 	}
 }, 30000);
 
 afterAll(async () => {
-	console.debug('\n🧹 Nettoyage des ressources de test'); // Supprimer l'utilisateur de test
+	console.debug('\n🧹 Cleaning up test resources'); // Supprimer l'utilisateur de test
 	if (testUserId && adminApiKey) {
 		await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
 			method: 'DELETE',
@@ -119,7 +119,7 @@ afterAll(async () => {
 		});
 	}
 
-	console.debug('✅ Nettoyage terminé\n');
+	console.debug('✅ Cleanup complete\n');
 });
 
 // ========================================

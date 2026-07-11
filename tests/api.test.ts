@@ -38,7 +38,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 		console.debug(`DB Path: ${DB_PATH}`);
 
 		if (!fs.existsSync(DB_PATH)) {
-			console.warn('⚠️  Base de données introuvable');
+			console.warn('⚠️  Database not found');
 			return false;
 		}
 
@@ -63,12 +63,12 @@ async function ensureSystemUserExists(): Promise<boolean> {
 
 			if (user) {
 				console.debug(
-					`✅ Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 existe (rôle: ${user.role})`
+					`✅ System user dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 exists (role: ${user.role})`
 				);
 				return true;
 			} else {
 				console.warn(
-					'⚠️  Utilisateur système dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 introuvable'
+					'⚠️  System user dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 not found'
 				);
 				return false;
 			}
@@ -77,7 +77,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 			throw dbError;
 		}
 	} catch (error) {
-		console.error(`❌ Erreur lors de la vérification: ${(error as Error).message}`);
+		console.error(`❌ Error during verification: ${(error as Error).message}`);
 		return false;
 	}
 }
@@ -133,16 +133,16 @@ async function createTestApiKey(scopes?: string[]): Promise<{ id: string; rawKey
 			const data = (await response.json()) as ApiKeyResponse;
 			if (data.rawKey && data.id) {
 				console.debug(
-					`✅ Clé API créée (scopes: ${scopes?.join(',') || 'admin'}): ${data.rawKey.substring(0, 20)}...`
+					`✅ API key created (scopes: ${scopes?.join(',') || 'admin'}): ${data.rawKey.substring(0, 20)}...`
 				);
 				return { id: data.id, rawKey: data.rawKey };
 			}
 		}
 
-		console.error(`❌ Échec de la création de clé API (status: ${response.status})`);
+		console.error(`❌ Failed to create API key (status: ${response.status})`);
 		return null;
 	} catch (error) {
-		console.error(`❌ Erreur lors de la création de clé API: ${(error as Error).message}`);
+		console.error(`❌ Error creating API key: ${(error as Error).message}`);
 		return null;
 	}
 }
@@ -157,14 +157,14 @@ async function deleteApiKey(keyId: string): Promise<boolean> {
 		});
 
 		if (response.status === 200 || response.status === 204) {
-			console.debug('✅ Clé API supprimée avec succès');
+			console.debug('✅ API key deleted successfully');
 			return true;
 		}
 
-		console.warn(`⚠️  Échec de la suppression de clé API (status: ${response.status})`);
+		console.warn(`⚠️  Failed to delete API key (status: ${response.status})`);
 		return false;
 	} catch (error) {
-		console.error(`❌ Erreur lors de la suppression: ${(error as Error).message}`);
+		console.error(`❌ Error during deletion: ${(error as Error).message}`);
 		return false;
 	}
 }
@@ -190,8 +190,8 @@ function getAuthHeadersWithReadScope() {
 // ========================================
 
 beforeAll(async () => {
-	console.debug('\n🚀 Setup des tests API');
-	console.debug(`📍 URL de base: ${API_BASE_URL}\n`);
+	console.debug('\n🚀 API tests setup');
+	console.debug(`📍 Base URL: ${API_BASE_URL}\n`);
 
 	const userExists = await ensureSystemUserExists();
 	console.debug(`User exists: ${userExists}`);
@@ -219,7 +219,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	console.debug('\n🧹 Nettoyage après les tests');
+	console.debug('\n🧹 Cleanup after tests');
 
 	// Supprimer l'utilisateur de test s'il existe
 	if (createdUserId) {
@@ -228,10 +228,10 @@ afterAll(async () => {
 				method: 'DELETE',
 				headers: getAuthHeaders()
 			});
-			console.debug('✅ Utilisateur de test supprimé');
+			console.debug('✅ Test user deleted');
 		} catch (_e) {
 			void _e;
-			console.warn("⚠️  Impossible de supprimer l'utilisateur de test");
+			console.warn('⚠️  Unable to delete test user');
 		}
 	}
 
@@ -246,7 +246,7 @@ afterAll(async () => {
 	sessionCookie = '';
 	API_KEY = '';
 	API_KEY_READ = '';
-	console.debug('✅ Nettoyage terminé\n');
+	console.debug('✅ Cleanup complete\n');
 });
 
 // ========================================
@@ -273,7 +273,7 @@ describe('Albums API', () => {
 			// Si fetch échoue (Immich down), c'est acceptable
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-				console.warn('⚠️  Immich non accessible (timeout)');
+				console.warn('⚠️  Immich not reachable (timeout)');
 				expect(true).toBe(true); // Test passe quand même
 			} else {
 				throw error;
@@ -432,7 +432,7 @@ describe('Photos-CV API', () => {
 			// Si fetch échoue (Immich down), c'est acceptable
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-				console.warn('⚠️  Immich non accessible (timeout)');
+				console.warn('⚠️  Immich not reachable (timeout)');
 				expect(true).toBe(true);
 			} else {
 				throw error;
@@ -479,7 +479,7 @@ describe('Assets API (Immich proxy)', () => {
 			// Si fetch échoue (Immich down), c'est acceptable
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-				console.warn('⚠️  Immich non accessible (timeout)');
+				console.warn('⚠️  Immich not reachable (timeout)');
 				expect(true).toBe(true);
 			} else {
 				throw error;
@@ -755,7 +755,7 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 		} catch (error: unknown) {
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-				console.warn('⚠️  Immich non accessible (timeout)');
+				console.warn('⚠️  Immich not reachable (timeout)');
 				expect(true).toBe(true);
 			} else {
 				throw error;
@@ -783,7 +783,7 @@ describe('Permissions - Scopes READ vs WRITE', () => {
 		} catch (error: unknown) {
 			const err = error as { name?: string; code?: string };
 			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-				console.warn('⚠️  Immich non accessible (timeout)');
+				console.warn('⚠️  Immich not reachable (timeout)');
 				expect(true).toBe(true);
 			} else {
 				throw error;

@@ -168,7 +168,7 @@
 			const res = await fetch('/api/albums/permissions/options');
 			if (!res.ok) {
 				const err = await res.text().catch(() => res.statusText);
-				throw new Error(err || 'Erreur chargement options de partage');
+				throw new Error(err || 'Error loading sharing options');
 			}
 
 			const data = (await res.json()) as {
@@ -206,7 +206,7 @@
 
 			if (!res.ok) {
 				const errorData = (await res.json().catch(() => ({}))) as { error?: string };
-				throw new Error(errorData.error || "Erreur lors du chargement de l'album");
+				throw new Error(errorData.error || 'Error loading album');
 			}
 
 			const result = (await res.json()) as {

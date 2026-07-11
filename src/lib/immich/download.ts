@@ -24,9 +24,7 @@ async function fetchAndSave(
 
 	if (!res.ok) {
 		const text = await res.text().catch(() => '');
-		throw new Error(
-			`Échec de la préparation du téléchargement : ${res.status} - ${text.slice(0, 200)}`
-		);
+		throw new Error(`Download preparation failed: ${res.status} - ${text.slice(0, 200)}`);
 	}
 
 	const { token } = (await res.json()) as { token: string };

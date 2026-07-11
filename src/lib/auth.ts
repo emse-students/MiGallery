@@ -273,10 +273,10 @@ function handleUserInDatabase(
 		);
 		if (existingUser) {
 			console.warn(
-				`[AUTH] DB actuelle: promo=${existingUser.promo ?? 'null'}, formation=${existingUser.formation ?? 'null'}, role=${existingUser.role}`
+				`[AUTH] Current DB: promo=${existingUser.promo ?? 'null'}, formation=${existingUser.formation ?? 'null'}, role=${existingUser.role}`
 			);
 		} else {
-			console.warn('[AUTH] DB actuelle: aucun utilisateur trouvé → création');
+			console.warn('[AUTH] Current DB: no user found → creating');
 		}
 
 		const userData: DBUser = {
@@ -295,7 +295,7 @@ function handleUserInDatabase(
 		if (!existingUser) {
 			createUser(userData);
 			console.warn(
-				`[AUTH] Nouvel utilisateur: ${userData.name} (promo:${userData.promo ?? '?'}, formation:${userData.formation ?? '?'})`
+				`[AUTH] New user: ${userData.name} (promo:${userData.promo ?? '?'}, formation:${userData.formation ?? '?'})`
 			);
 		} else {
 			// Toujours écraser avec les données SSO à chaque connexion.
@@ -322,7 +322,7 @@ function handleUserInDatabase(
 			console.warn(`[AUTH] updatePayload: ${JSON.stringify(updatePayload)}`);
 			updateUser(updatePayload);
 			console.warn(
-				`[AUTH] Après update: promo=${promo !== null ? promo : '(non écrasé, SSO null)'}, formation=${formation !== null ? formation : '(non écrasé, SSO null)'}`
+				`[AUTH] After update: promo=${promo !== null ? promo : '(not overwritten, SSO null)'}, formation=${formation !== null ? formation : '(not overwritten, SSO null)'}`
 			);
 		}
 

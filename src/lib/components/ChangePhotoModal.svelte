@@ -42,7 +42,7 @@
 			});
 			if (!res.ok) {
 				const txt = await res.text().catch(() => res.statusText);
-				throw new Error(txt || 'Erreur lors du chargement des photos');
+				throw new Error(txt || 'Error loading photos');
 			}
 
 			const data = (await res.json()) as { assets: { items: ImmichAsset[] } };
@@ -52,7 +52,7 @@
 				_raw: it
 			}));
 		} catch (e: unknown) {
-			console.error('Erreur chargement photos:', e);
+			console.error('Error loading photos:', e);
 			error = (e as Error).message;
 		} finally {
 			loadingAssets = false;
@@ -77,7 +77,7 @@
 				window.location.reload();
 			}, 500);
 		} catch (e: unknown) {
-			console.error('Erreur lors de la confirmation:', e);
+			console.error('Error during confirmation:', e);
 			error = (e as Error).message;
 		} finally {
 			loading = false;

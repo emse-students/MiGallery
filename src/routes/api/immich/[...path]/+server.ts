@@ -519,7 +519,7 @@ async function handleChunkedUpload(
 			// Error case - we can read body
 			const errorBody = await response.text();
 			console.error(
-				`[Immich-Proxy] Upload échoué pour ${originalName}: ${response.status} ${response.statusText}`,
+				`[Immich-Proxy] Upload failed for ${originalName}: ${response.status} ${response.statusText}`,
 				errorBody
 			);
 
@@ -852,9 +852,9 @@ const handle: RequestHandler = async function (event) {
 				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
 				if (isFacePairingCleanup) {
 					console.error(
-						'❌ [Face Pairing] Échec de la suppression photo Immich:',
+						'❌ [Face Pairing] Failed to delete Immich photo:',
 						assetMatch ? assetMatch[1] : pathParam,
-						'(état:',
+						'(status:',
 						res.status,
 						')'
 					);
@@ -891,9 +891,9 @@ const handle: RequestHandler = async function (event) {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids && Array.isArray(parsed.ids)) {
 									if (isFacePairingCleanup) {
-										console.warn('🗑️  [Face Pairing] Suppression en masse de photos Immich:', parsed.ids);
+										console.warn('🗑️  [Face Pairing] Bulk deletion of Immich photos:', parsed.ids);
 									} else {
-										console.debug('🗑️  [Immich] Suppression en masse de photos:', parsed.ids);
+										console.debug('🗑️  [Immich] Bulk deletion of photos:', parsed.ids);
 									}
 									await logEvent(event, 'delete', 'asset', 'bulk', {
 										count: parsed.ids.length,
@@ -905,13 +905,13 @@ const handle: RequestHandler = async function (event) {
 							/* ignore */
 						}
 					} else if (assetIdMatch) {
-						console.warn('🗑️  [Face Pairing] Suppression de la photo Immich:', assetIdMatch[1]);
+						console.warn('🗑️  [Face Pairing] Deletion of Immich photo:', assetIdMatch[1]);
 						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
 					} else if (albumIdMatch) {
-						console.debug("🗑️  [Immich] Suppression d'album:", albumIdMatch[1]);
+						console.debug('🗑️  [Immich] Deletion of album:', albumIdMatch[1]);
 						await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
 					} else if (personIdMatch) {
-						console.debug('🗑️  [Immich] Suppression de personne:', personIdMatch[1]);
+						console.debug('🗑️  [Immich] Deletion of person:', personIdMatch[1]);
 						await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
 					}
 				} else if (request.method === 'POST') {
@@ -973,9 +973,9 @@ const handle: RequestHandler = async function (event) {
 				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
 				if (isFacePairingCleanup) {
 					if (assetMatch) {
-						console.debug("✅ [Face Pairing] Photo supprimée d'Immich avec succès:", assetMatch[1]);
+						console.debug('✅ [Face Pairing] Photo deleted from Immich successfully:', assetMatch[1]);
 					} else if (pathParam === 'assets') {
-						console.debug('✅ [Face Pairing] Suppression de photos Immich terminée avec succès');
+						console.debug('✅ [Face Pairing] Immich photo deletion completed successfully');
 					}
 				}
 			}
@@ -1041,7 +1041,7 @@ async function finishImmichUpload(
 	if (!response.ok) {
 		const errorBody = await response.text();
 		console.error(
-			`[Immich-Proxy] Upload échoué pour ${originalName}: ${response.status} ${response.statusText}`,
+			`[Immich-Proxy] Upload failed for ${originalName}: ${response.status} ${response.statusText}`,
 			errorBody
 		);
 		cleanup();

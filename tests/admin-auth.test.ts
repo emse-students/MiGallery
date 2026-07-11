@@ -54,7 +54,7 @@ afterAll(async () => {
 		} catch (e: unknown) {
 			const message = e instanceof Error ? e.message : String(e);
 			if (!message.startsWith('fetch failed')) {
-				console.warn('Erreur lors du nettoyage des clés de test:', message);
+				console.warn('Error cleaning up test keys:', message);
 			}
 		}
 

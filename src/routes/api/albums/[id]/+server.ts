@@ -96,7 +96,7 @@ export const DELETE: RequestHandler = async (event) => {
 			const db = getDatabase();
 			db.prepare('DELETE FROM albums WHERE id = ?').run(id);
 			db.prepare('DELETE FROM album_permissions WHERE album_id = ?').run(id);
-			console.warn(`Album ${id} supprimé de la BDD locale`);
+			console.warn(`Album ${id} deleted from local DB`);
 		} catch (dbErr: unknown) {
 			const err = ensureError(dbErr);
 			console.error('Error deleting album from local DB:', err);
@@ -120,7 +120,7 @@ export const DELETE: RequestHandler = async (event) => {
 					immichDeleteError = errorText;
 					console.warn(`Immich deletion failed for album ${id}: ${errorText}`);
 				} else {
-					console.warn(`Album ${id} supprimé d'Immich`);
+					console.warn(`Album ${id} deleted from Immich`);
 				}
 			} catch (immichErr: unknown) {
 				const err = ensureError(immichErr);

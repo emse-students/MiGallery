@@ -141,7 +141,7 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 				(decoded.includes('.') && !decoded.includes('-')); // Format "prenom.nom"
 
 			if (isLegacyFormat) {
-				console.warn('🗑️  [Auth] Suppression du cookie legacy current_user_id:', decoded);
+				console.warn('🗑️  [Auth] Deleting legacy current_user_id cookie:', decoded);
 				event.cookies.delete('current_user_id', { path: '/' });
 			}
 		}

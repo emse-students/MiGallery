@@ -67,7 +67,7 @@ export const PUT: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const errorMessage = e instanceof Error ? e.message : 'Erreur inconnue';
-		console.error(`Erreur PUT /api/albums/${event.params.id}/metadata:`, e);
+		console.error(`Error PUT /api/albums/${event.params.id}/metadata:`, e);
 		return json({ error: errorMessage }, { status: 500 });
 	}
 };

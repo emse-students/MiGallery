@@ -32,7 +32,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true });
 	} catch (error: unknown) {
 		const _err = ensureError(error);
-		console.error('Erreur changement utilisateur:', error);
+		console.error('Error changing user:', error);
 		return json(
 			{
 				success: false,

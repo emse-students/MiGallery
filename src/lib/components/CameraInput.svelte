@@ -115,7 +115,7 @@
 		} catch (err: unknown) {
 			const errorMsg = err instanceof Error ? err.message : 'Erreur lors de la capture';
 			error = errorMsg;
-			console.error('Erreur capture:', err);
+			console.error('Capture error:', err);
 		}
 	}
 

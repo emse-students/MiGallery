@@ -181,17 +181,15 @@ describe('Permissions Albums - Opérations READ', () => {
 
 describe('Permissions Résumé', () => {
 	it('devrait afficher un récapitulatif des tests de permissions', () => {
-		console.debug('\n=== RÉCAPITULATIF DES TESTS DE PERMISSIONS ===');
-		console.debug('✅ Tous les endpoints critiques testés');
-		console.debug('✅ Hiérarchie des scopes vérifiée: public < read < write < admin');
-		console.debug('✅ Rejets sans auth confirmés (401/403)');
-		console.debug('✅ Acceptations avec scopes appropriés confirmées (200)');
+		console.debug('\n=== PERMISSIONS TESTS SUMMARY ===');
+		console.debug('✅ All critical endpoints tested');
+		console.debug('✅ Scope hierarchy verified: public < read < write < admin');
+		console.debug('✅ Rejections without auth confirmed (401/403)');
+		console.debug('✅ Acceptances with appropriate scopes confirmed (200)');
 		console.debug(
-			'\nℹ️  Note: PUT/DELETE /api/people/album/assets testés dans people-photoscv.test.ts'
+			'\nℹ️  Note: PUT/DELETE /api/people/album/assets tested in people-photoscv.test.ts'
 		);
-		console.debug(
-			"   (nécessitent l'album système PhotoCV qui peut ne pas être disponible au début)"
-		);
+		console.debug('   (require the PhotoCV system album which may not be available at startup)');
 		expect(true).toBe(true);
 	});
 });

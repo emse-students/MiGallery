@@ -327,7 +327,7 @@ export class PhotosState {
 	 * Utilisé par: page Photos CV (onglet "Toutes les photos CV" - mitvistes/admins uniquement)
 	 */
 	async loadAllPhotosCV(limit: number = 100): Promise<void> {
-		console.warn('📸 PhotosState.loadAllPhotosCV appelé, page 1, limit:', limit);
+		console.warn('📸 PhotosState.loadAllPhotosCV called, page 1, limit:', limit);
 		this.loading = true;
 		this.error = null;
 		this.assets = [];
@@ -371,7 +371,7 @@ export class PhotosState {
 	 */
 	async loadNextPagePhotosCV(limit: number = 100): Promise<void> {
 		const nextPage = this.photoCVCurrentPage + 1;
-		console.warn('📸 PhotosState.loadNextPagePhotosCV appelé, page:', nextPage);
+		console.warn('📸 PhotosState.loadNextPagePhotosCV called, page:', nextPage);
 		this.loading = true;
 		this.error = null;
 
@@ -417,7 +417,7 @@ export class PhotosState {
 		if (prevPage === this.photoCVCurrentPage) {
 			return;
 		}
-		console.warn('📸 PhotosState.loadPrevPagePhotosCV appelé, page:', prevPage);
+		console.warn('📸 PhotosState.loadPrevPagePhotosCV called, page:', prevPage);
 		this.loading = true;
 		this.error = null;
 
@@ -494,7 +494,7 @@ export class PhotosState {
 		const asset = this.assets.find((x) => x.id === id);
 		const res = await fetch(`/api/immich/assets/${id}/original`);
 		if (!res.ok) {
-			throw new Error('Erreur téléchargement');
+			throw new Error('Download error');
 		}
 		const blob = await res.blob();
 		const url = URL.createObjectURL(blob);
@@ -561,14 +561,14 @@ export class PhotosState {
 		albumName?: string,
 		visibility?: string
 	): Promise<void> {
-		console.warn('📸 PhotosState.loadAlbumWithStreaming appelé:', albumId, albumName);
+		console.warn('📸 PhotosState.loadAlbumWithStreaming called:', albumId, albumName);
 		this.loading = true;
 		this.error = null;
 		this.assets = [];
 		this.personName = albumName || 'Album';
 
 		try {
-			console.warn('  🔄 Récupération des assets via streaming...');
+			console.warn('  🔄 Fetching assets via streaming...');
 			const qp = visibility ? `?visibility=${encodeURIComponent(visibility)}` : '';
 			const res = await fetch(`/api/albums/${albumId}/assets-stream${qp}`);
 
@@ -613,12 +613,12 @@ export class PhotosState {
 			});
 
 			this.loading = false;
-			console.warn('  ✓ Chargement complété, assets:', this.assets.length);
+			console.warn('  ✓ Loading complete, assets:', this.assets.length);
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			this.error = (e as Error).message;
 			this.loading = false;
-			console.warn('  ✗ Erreur:', this.error);
+			console.warn('  ✗ Error:', this.error);
 		}
 	}
 
@@ -630,7 +630,7 @@ export class PhotosState {
 	async toggleFavorite(assetId: string): Promise<boolean> {
 		const asset = this.assets.find((a) => a.id === assetId);
 		if (!asset) {
-			throw new Error('Asset non trouvé');
+			throw new Error('Asset not found');
 		}
 
 		const newFavoriteStatus = !asset.isFavorite;
@@ -672,7 +672,7 @@ export class PhotosState {
 			const data = (await res.json()) as { favorites: string[] };
 			return new Set(data.favorites);
 		} catch (e: unknown) {
-			console.warn('Erreur chargement favoris:', e);
+			console.warn('Error loading favorites:', e);
 			return new Set();
 		}
 	}
@@ -695,7 +695,7 @@ export class PhotosState {
 				isFavorite: favoriteSet.has(a.id)
 			}));
 		} catch (e: unknown) {
-			console.warn('Erreur chargement favoris:', e);
+			console.warn('Error loading favorites:', e);
 		}
 	}
 

@@ -186,7 +186,7 @@ export async function handleAlbumUpload(
 
 			if (!uploadRes.ok) {
 				const errText = await uploadRes.text().catch(() => uploadRes.statusText);
-				throw new Error(`Erreur upload: ${errText}`);
+				throw new Error(`Upload error: ${errText}`);
 			}
 
 			type AssetLike = { id?: string; assetId?: string; duplicateId?: string };
@@ -252,7 +252,7 @@ export async function handleAlbumUpload(
 						});
 					}
 				} catch (addErr: unknown) {
-					console.warn(`Erreur lors de l'ajout de l'asset ${aid} à l'album:`, addErr);
+					console.warn(`Error adding asset ${aid} to album:`, addErr);
 				}
 			}
 
