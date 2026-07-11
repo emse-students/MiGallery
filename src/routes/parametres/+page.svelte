@@ -645,7 +645,7 @@
 			</div>
 		</section>
 
-		<section class="settings-card glass-card">
+		<section id="face-recognition" class="settings-card glass-card">
 			<div class="card-header">
 				<div class="icon-wrapper purple">
 					<ScanEye size={24} />

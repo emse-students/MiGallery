@@ -82,7 +82,9 @@
 		const isManager = user.role === 'admin' || user.role === 'mitviste';
 
 		if (!hasIdPhotos && !isManager) {
-			goto('/');
+			// No linked face and not a manager: funnel to the profile incitation
+			// on /mes-photos instead of a dead-end redirect to home.
+			goto('/mes-photos');
 			return;
 		}
 

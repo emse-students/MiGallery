@@ -13,10 +13,6 @@
 
 	let user = $derived(page.data?.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
-	let hasPhoto = $derived(!!user?.photos_id);
-	let isAdmin = $derived(user?.role === 'admin');
-	let isMitviste = $derived(user?.role === 'mitviste');
-	let canManagePhotos = $derived(isAdmin || isMitviste);
 
 	let currentPath = $derived(page.url.pathname);
 
@@ -40,29 +36,25 @@
 			<span class="nav-label">{m.nav_albums()}</span>
 		</a>
 
-		{#if hasPhoto}
-			<a
-				href="/mes-photos"
-				class="nav-item"
-				class:active={isActive('/mes-photos')}
-				data-sveltekit-preload-data
-			>
-				<UserIcon size={24} />
-				<span class="nav-label">{m.nav_my_photos()}</span>
-			</a>
-		{/if}
+		<a
+			href="/mes-photos"
+			class="nav-item"
+			class:active={isActive('/mes-photos')}
+			data-sveltekit-preload-data
+		>
+			<UserIcon size={24} />
+			<span class="nav-label">{m.nav_my_photos()}</span>
+		</a>
 
-		{#if hasPhoto || canManagePhotos}
-			<a
-				href="/photos-cv"
-				class="nav-item"
-				class:active={isActive('/photos-cv')}
-				data-sveltekit-preload-data
-			>
-				<Camera size={24} />
-				<span class="nav-label">{m.nav_photos_cv()}</span>
-			</a>
-		{/if}
+		<a
+			href="/photos-cv"
+			class="nav-item"
+			class:active={isActive('/photos-cv')}
+			data-sveltekit-preload-data
+		>
+			<Camera size={24} />
+			<span class="nav-label">{m.nav_photos_cv()}</span>
+		</a>
 
 		<a
 			href="/parametres"

@@ -16,10 +16,6 @@
 	import '../app.css';
 
 	let u = $derived(page.data?.session?.user as User);
-	let isAdmin = $derived(u?.role === 'admin');
-	let isMitviste = $derived(u?.role === 'mitviste');
-	let canManagePhotos = $derived(isAdmin || isMitviste);
-	let hasPhoto = $derived(!!u?.photos_id);
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
 	let isFirstLogin = $derived(u?.first_login === 1);
@@ -109,18 +105,14 @@
 					<Folder size={18} />
 					<span class="link-text">{m.nav_albums()}</span>
 				</a>
-				{#if hasPhoto}
-					<a href="/mes-photos" data-sveltekit-preload-data>
-						<UserIcon size={18} />
-						<span class="link-text">{m.nav_my_photos()}</span>
-					</a>
-				{/if}
-				{#if hasPhoto || canManagePhotos}
-					<a href="/photos-cv" data-sveltekit-preload-data>
-						<Camera size={18} />
-						<span class="link-text">{m.nav_photos_cv()}</span>
-					</a>
-				{/if}
+				<a href="/mes-photos" data-sveltekit-preload-data>
+					<UserIcon size={18} />
+					<span class="link-text">{m.nav_my_photos()}</span>
+				</a>
+				<a href="/photos-cv" data-sveltekit-preload-data>
+					<Camera size={18} />
+					<span class="link-text">{m.nav_photos_cv()}</span>
+				</a>
 			</div>
 
 			<div class="links-right">

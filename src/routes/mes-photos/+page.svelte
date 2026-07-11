@@ -20,6 +20,7 @@
 	let isViewingOwnPhotos = $state(true);
 	let isAdmin = $state(false);
 	let accessDenied = $state(false);
+	let showProfileIncitation = $state(false);
 
 	let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
 
@@ -128,7 +129,9 @@
 		targetUserId = null;
 		isViewingOwnPhotos = true;
 		if (!user?.photos_id) {
-			goto('/');
+			// No linked face yet: prompt the user to complete their profile
+			// instead of bouncing them back to the home page.
+			showProfileIncitation = true;
 			return;
 		}
 		targetUserName = user?.name || null;
@@ -157,6 +160,16 @@
 				<ArrowLeft size={18} />
 				{m.common_back_home()}
 			</button>
+		</div>
+	{:else if showProfileIncitation}
+		<div class="profile-incitation">
+			<div class="incite-icon"><Camera size={40} /></div>
+			<h2>{m.mp_incite_title()}</h2>
+			<p>{m.mp_incite_body()}</p>
+			<a href="/parametres#face-recognition" class="btn-primary">
+				<Camera size={18} />
+				{m.mp_incite_cta()}
+			</a>
 		</div>
 	{:else}
 		{#if photosState.personName && photosState.imageUrl}
@@ -368,11 +381,47 @@
 		border: none;
 		font-weight: 500;
 		cursor: pointer;
+		text-decoration: none;
 		transition: background 0.2s ease;
 	}
 
 	.btn-primary:hover {
 		background: var(--accent-secondary);
+	}
+
+	/* Profile incitation (shown when the user has no linked face yet) */
+	.profile-incitation {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		min-height: 50vh;
+		text-align: center;
+		padding: 2rem;
+		color: var(--text-primary);
+	}
+
+	.incite-icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 88px;
+		height: 88px;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--accent) 12%, transparent);
+		color: var(--accent);
+	}
+
+	.profile-incitation h2 {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin: 1.5rem 0 0.75rem;
+	}
+
+	.profile-incitation p {
+		color: var(--text-secondary);
+		margin: 0 0 1.5rem;
+		max-width: 400px;
 	}
 
 	@media (max-width: 640px) {
