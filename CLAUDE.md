@@ -47,8 +47,8 @@
 
 **Current WIP:**
 
-- WP-2a DONE this session (b7d710d): merged /admin/trombinoscope INTO /admin/users and deleted the trombi page (user decision "fusionner dans users"). /admin/users now = role mgmt + delete + PDF export + photo-only profile-photo (face) linking. Admin-only. Pruned 35 orphaned trombi\_\* i18n keys. See Roadmap WP-2a for the PUT full-column gotcha.
-- Next step: Theme 2 WP-2b (selfie incitation) - stop hiding Mes photos/Photos CV nav tabs when no profile photo; add a "complete your profile" surface. Then Theme 3 is BLOCKED on SSH prod backup greenlight.
+- Theme 2 COMPLETE this session: WP-2a (b7d710d, trombi merged into /admin/users) + WP-2b (267d64d, selfie incitation). See Roadmap for both. Key WP-2b fact: the per-user self-service selfie flow already lives in /parametres (#face-recognition) for everyone; the incitation just links there.
+- Next step: Theme 4 backlog (UX/upload resilience/Immich/logger) is the open work. Theme 3 (WP-3a DROP legacy album\_\*\_permissions tables) stays BLOCKED on SSH prod backup greenlight.
 - Deferred i18n externalization WP (from Theme 5): user-visible FR string literals still inline (error()/json({error}) responses, src/lib/admin/endpoints.ts `description:`, toast.\*, this.error, backup.ts `message:`, some title= attrs). Real Paraglide-externalization WP, not cosmetic.
 - i18n idiom recap: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile. Prune orphaned keys with a node script over messages/{fr,en}.json (compare vs `grep -roE "m\.\w+" src`), paraglide output is gitignored+recompiled.
 
@@ -62,8 +62,8 @@ Theme 1b \- FULL admin harmonization
 
 Theme 2 \- Profile / trombinoscope
 
-- \[x\] WP-2a (b7d710d): DECISION change - trombinoscope page DELETED and merged into /admin/users (user chose "fusionner dans users, supprimer trombi"). PDF export + profile-photo (face) linking now live in /admin/users; photo edit is photo-only and round-trips SSO fields (name/promo/formation/role) so the full-column PUT never wipes them. Role mgmt + delete stay (admin-only). Trombinoscope stays admin-only (the "mitviste edit" note was an error). Pruned 35 orphaned trombi\_\*/nav_trombinoscope i18n keys. Gotcha: /api/users/[id] PUT is a FULL-COLUMN update (role||'user', name??id) - always send the complete row or you demote/rename users.
-- \[ \] WP-2b selfie incitation: stop hiding "Mes photos"/"Photos CV" tabs without profile; show "complete profile" section. Files: src/routes/+layout.svelte (L112-123 hasPhoto gating) + src/lib/components/MobileNav.svelte (L43-65). first_login flow uses FirstLoginModal; profile photo upload+face flow now lives in /admin/users (admin) - a user-facing selfie surface may need porting.
+- \[x\] WP-2a (b7d710d): trombinoscope page DELETED, merged into /admin/users. Gotcha: /api/users/[id] PUT is a FULL-COLUMN update (role||'user', name??id) - always send the complete row or you demote/rename users.
+- \[x\] WP-2b (267d64d): selfie incitation. Un-gated "Mes photos"/"Photos CV" nav tabs (removed hasPhoto/canManagePhotos gates in +layout.svelte + MobileNav.svelte). /mes-photos now shows a "complete profile" incitation (mp*incite*\* keys) linking to /parametres#face-recognition instead of goto('/'). /photos-cv funnels no-photo non-managers to /mes-photos. KEY FACT: the full self-service selfie flow (CameraInput -> upload -> face detect -> /api/users/me/face) ALREADY EXISTS in /parametres for EVERYONE - no porting needed; WP-2b just links to it.
 
 Theme 3 \- DB (BLOCKED on SSH prod backup greenlight)
 
