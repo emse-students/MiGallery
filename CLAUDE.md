@@ -47,8 +47,9 @@
 
 **Current WIP:**
 
-- Theme 5 (i18n). N-11a DONE this session (runtime dev-strings FR -> EN).
-- Next step: N-11b (FR code comments -> EN; the big residual, ~55 files, purely cosmetic).
+- Theme 5 (i18n) COMPLETE. N-11b committed this session (e9b7726, 64 files): all FR dev comments + test it/describe titles -> EN. Verified French-free via accent grep + FR-keyword grep. Used 2 Haiku subagents (routes/tests) but Haiku produced Franglais on string-level edits -> re-ran a Sonnet cleanup pass on tests; lesson: Haiku is fine for whole-comment-line translation, too weak for nuanced title/string translation.
+- IMPORTANT residual (NOT done, deliberately deferred): user-visible FR string literals still inline and NOT yet in Paraglide - error()/json({error}) API responses, src/lib/admin/endpoints.ts `description:` fields, toast.\*, this.error, backup.ts `message:`, component title= attrs. These are a real i18n externalization WP (move to messages/fr.json+en.json), not cosmetic. Left because translating them inline would break FR UX.
+- Next step: Theme 2 (WP-2a/2b profile/trombinoscope) - Theme 3 is BLOCKED on SSH prod backup greenlight.
 - i18n idiom recap: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile.
 
 **Roadmap (Active WP):**
@@ -76,14 +77,9 @@ Theme 4 \- Backlog
 - \[ \] WP-4.1 remove StreamSaver/SW/mitm.html; WP-4.3 structured logger; WP-4.4 memory tests
 - \[ \] WP-2.x i18n backend: users.locale column
 
-Theme 5 \- i18n \+ Normalization (ACTIVE)
+Theme 5 \- i18n \+ Normalization (COMPLETE)
 
-- \[x\] N-7 mes-photos \+ photos-cv (DONE)
-- \[x\] N-8 cgu \+ corbeille (DONE)
-- \[x\] N-9 admin pages (DONE; prefixes adm\_/doc\_/metr\_/logs\_/usr\_/apik\_/db\_; added common_refresh + common_fail_detail. Nav labels stored as m fn refs in links[], called l.label() in template. Left technical labels: RSS/Node/PID/Heap total/External/ArrayBuffers + byte/uptime format units)
-- \[x\] N-10 residual components (DONE; only real residual was confirm.ts FR defaults -> common_confirm/common_confirmation keys + explicit :string param types so plain-string callers still typecheck. ConfirmHost/EmptyState/AdminPage carry no literals, all via props/Modal already i18n'd)
-- \[x\] N-11a runtime dev-strings (DONE; console.\*/throw new Error FR -> EN across src + tests. ~90 strings, ~25 files. Scope chosen was runtime-only: it()/describe() test labels + all FR // comments deliberately left for N-11b. Watch: multi-line console calls (arg on next line) evade line-based greps -> used multiline grep to close gaps; adjacent FR ternary fallbacks like 'Erreur inconnue'/'Erreur serveur' are plain literals, not console/throw, so left for N-11b too)
-- \[ \] N-11b FR code comments (+ test it/describe labels + plain-string FR fallbacks) -> EN. ~55 files. Purely cosmetic. Map via: rg accented chars in src/\*_/_.{ts,svelte} minus messages/paraglide
+- \[x\] N-7..N-11b ALL DONE. User-facing strings -> Paraglide; dev console/throw + all code comments + test titles -> EN. Residual inline FR = user-visible response/UI string literals only, deferred as a proper Paraglide-externalization WP (see Current WIP note), NOT a comment task.
 
 **Memory Gotchas (Do not repeat):**
 
