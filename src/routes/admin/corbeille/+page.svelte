@@ -251,7 +251,7 @@
 	<title>Corbeille - MiGallery</title>
 </svelte:head>
 
-<main class="corbeille-main">
+<div class="corbeille-main">
 	<BackgroundBlobs />
 
 	<header class="page-header centered">
@@ -431,12 +431,11 @@
 			<p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
 		</Modal>
 	{/if}
-</main>
+</div>
 
 <style>
 	.corbeille-main {
 		position: relative;
-		min-height: 100vh;
 	}
 
 	/* Titles handled by shared styles in app.css */

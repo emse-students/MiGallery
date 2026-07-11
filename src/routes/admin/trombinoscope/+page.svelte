@@ -474,7 +474,7 @@
 	<title>Trombinoscope - MiGallery</title>
 </svelte:head>
 
-<main class="trombi-main">
+<div class="trombi-main">
 	<BackgroundBlobs />
 
 	<div class="trombi-container">
@@ -875,13 +875,12 @@
 			</div>
 		</div>
 	{/if}
-</main>
+</div>
 
 <style>
 	/* Uses the global theme tokens directly (no per-page mirror variables). */
 	.trombi-main {
 		position: relative;
-		min-height: 100vh;
 		padding: 4rem 0 6rem;
 		color: var(--text-primary);
 		overflow-x: hidden;

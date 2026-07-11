@@ -22,8 +22,8 @@
     { href: '/admin/users', label: 'Utilisateurs', icon: Users },
     { href: '/admin/api-keys', label: 'Gestion des clés', icon: Key },
     { href: '/admin/database', label: 'Base de données', icon: Database },
-    { href: '/trombinoscope', label: 'Trombinoscope', icon: UsersRound },
-    { href: '/corbeille', label: 'Corbeille', icon: Trash2 }
+    { href: '/admin/trombinoscope', label: 'Trombinoscope', icon: UsersRound },
+    { href: '/admin/corbeille', label: 'Corbeille', icon: Trash2 }
   ];
   let { children } = $props();
 </script>
