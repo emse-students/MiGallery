@@ -62,7 +62,7 @@ Theme 1b - FULL admin harmonization (ACTIVE)
 
 - \[x\] WP-1b.1 central icon barrel src/lib/icons.ts; sidebar emojis -> lucide; husky hook -> npm
 - \[x\] WP-1b.2 api-docs: AdminPage shell + strip ALL emojis + quick-links -> header actions
-- \[ \] WP-1b.3 full-width panels, no horizontal scroll, mobile pass (AdminPage max-widths, .content, wide tables/grids)
+- \[x\] WP-1b.3 no horizontal page scroll (.content min-width:0 -> wide children scroll in their own overflow wrappers) + mobile pass (<=768px sidebar becomes sticky horizontal top-bar, content full-width). AdminPage per-page max-widths left as-is (deliberate per content type); users page has no AdminPage (own matching shell, capped by .admin-shell 1400px).
 - \[x\] WP-1b.4 de-globalize shared-admin.css: ALL selectors scoped under .admin-shell (main gets that class). Behavior-neutral inside admin (specificity unchanged vs app.css button:not); stops leak before 1b.5. Icons were never actually broken (valid names + explicit colors + app.css :global(.lucide) min-size guard).
 - \[ \] WP-1b.5 integrate /trombinoscope + /corbeille INTO admin layout (keep sidebar visible)
 - \[ \] WP-1b.6 wiki: repoint Documentation tab to render docs/wiki/\*; retire api-docs page; write concise EN LLM-friendly API section
