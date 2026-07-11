@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { Book, Server, ScanEye, Database, Copyright, Info } from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+	import { m } from '$lib/paraglide/messages';
+	import { getLocale } from '$lib/paraglide/runtime';
 </script>
 
 <svelte:head>
-	<title>Conditions Générales d'Utilisation - MiGallery</title>
-	<meta
-		name="description"
-		content="CGU et Politique de Confidentialité de MiGallery, la galerie photo de l'Association MiTV."
-	/>
+	<title>{m.cgu_page_title()}</title>
+	<meta name="description" content={m.cgu_meta_desc()} />
 </svelte:head>
 
 <main class="cgu-main">
@@ -16,169 +15,100 @@
 
 	<div class="cgu-container">
 		<header class="cgu-header">
-			<h1>Conditions Générales d'Utilisation</h1>
-			<p class="subtitle">MiGallery - Galerie photos de l'Association MiTV</p>
-			<p class="last-update">Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</p>
+			<h1>{m.cgu_title()}</h1>
+			<p class="subtitle">{m.cgu_subtitle()}</p>
+			<p class="last-update">
+				{m.cgu_last_update({ date: new Date().toLocaleDateString(getLocale()) })}
+			</p>
 		</header>
 
 		<nav class="toc">
-			<a href="#definitions">Définitions</a>
-			<a href="#acces">Accès & Hébergement</a>
-			<a href="#biometrie">Biométrie</a>
-			<a href="#donnees">Données & Archivage</a>
-			<a href="#propriete">Propriété</a>
-			<a href="#responsabilite">Responsabilité</a>
-			<a href="#contact">Contact</a>
+			<a href="#definitions">{m.cgu_toc_definitions()}</a>
+			<a href="#acces">{m.cgu_toc_access()}</a>
+			<a href="#biometrie">{m.cgu_toc_biometrics()}</a>
+			<a href="#donnees">{m.cgu_toc_data()}</a>
+			<a href="#propriete">{m.cgu_toc_property()}</a>
+			<a href="#responsabilite">{m.cgu_toc_liability()}</a>
+			<a href="#contact">{m.cgu_toc_contact()}</a>
 		</nav>
 
 		<div class="content-wrapper">
 			<section id="definitions" class="section">
-				<h2><Book size={24} /> 1. Définitions</h2>
-				<p>Pour la bonne compréhension des présentes conditions :</p>
+				<h2><Book size={24} /> {m.cgu_s1_title()}</h2>
+				<p>{m.cgu_s1_intro()}</p>
 				<ul>
-					<li><strong>Le Service :</strong> Désigne l'application MiGallery et son API.</li>
-					<li><strong>L'Éditeur :</strong> L'association étudiante MiTV.</li>
-					<li>
-						<strong>L'Utilisateur :</strong> Toute personne disposant d'un compte lié à l'École des Mines de
-						Saint-Étienne (EMSE).
-					</li>
-					<li>
-						<strong>Immich :</strong> La solution logicielle open-source utilisée en "backend" pour le stockage
-						et l'analyse des photos.
-					</li>
+					<li>{@html m.cgu_s1_service()}</li>
+					<li>{@html m.cgu_s1_editor()}</li>
+					<li>{@html m.cgu_s1_user()}</li>
+					<li>{@html m.cgu_s1_immich()}</li>
 				</ul>
 			</section>
 
 			<section id="acces" class="section">
-				<h2><Server size={24} /> 2. Accès et Hébergement</h2>
-				<h3>Authentification</h3>
-				<p>
-					L'accès se fait via le portail d'authentification unique (OIDC) de l'École des Mines (CAS).
-					MiGallery ne traite ni ne stocke aucun mot de passe.
-				</p>
-				<h3>Hébergement Physique</h3>
-				<p>
-					Les données sont hébergées sur un serveur privé géré par l'association MiTV, situé physiquement
-					à la <strong
-						>Maison des Élèves, 20 Boulevard Alexandre de Fraissinette, 42100 Saint-Étienne</strong
-					>. Aucune donnée photo n'est stockée sur des clouds publics.
-				</p>
-				<h3>Disponibilité</h3>
-				<p>
-					Le service est fourni "en l'état". Des interruptions pour maintenance ou panne réseau peuvent
-					survenir.
-				</p>
+				<h2><Server size={24} /> {m.cgu_s2_title()}</h2>
+				<h3>{m.cgu_s2_auth_title()}</h3>
+				<p>{m.cgu_s2_auth_body()}</p>
+				<h3>{m.cgu_s2_hosting_title()}</h3>
+				<p>{@html m.cgu_s2_hosting_body()}</p>
+				<h3>{m.cgu_s2_avail_title()}</h3>
+				<p>{m.cgu_s2_avail_body()}</p>
 			</section>
 
 			<section id="biometrie" class="section">
-				<h2><ScanEye size={24} /> 3. Reconnaissance Faciale (Biométrie)</h2>
-				<p>
-					MiGallery utilise une technologie de reconnaissance faciale pour faciliter le tri des photos.
-					Ce traitement de <strong>données biométriques</strong> repose strictement sur votre
-					<strong>consentement explicite</strong>.
-				</p>
+				<h2><ScanEye size={24} /> {m.cgu_s3_title()}</h2>
+				<p>{@html m.cgu_s3_intro()}</p>
 
-				<h3>Fonctionnement technique</h3>
+				<h3>{m.cgu_s3_tech_title()}</h3>
 				<ul>
-					<li>
-						<strong>Initialisation :</strong> L'utilisateur téléverse volontairement une photo de référence
-						(selfie).
-					</li>
-					<li><strong>Vérification :</strong> Le système vérifie l'unicité du visage.</li>
-					<li>
-						<strong>Traitement :</strong> La photo est analysée par le modèle d'IA <em>buffalo_l</em> (via Immich)
-						pour générer un vecteur biométrique.
-					</li>
-					<li>
-						<strong>Suppression de la source :</strong> La photo de référence est
-						<strong>supprimée automatiquement sous 24h</strong>. Seul le vecteur biométrique chiffré est
-						conservé.
-					</li>
+					<li>{@html m.cgu_s3_init()}</li>
+					<li>{@html m.cgu_s3_verify()}</li>
+					<li>{@html m.cgu_s3_process()}</li>
+					<li>{@html m.cgu_s3_delete()}</li>
 				</ul>
 
-				<h3>Fonctionnalité "Mes Photos" et Partage</h3>
-				<p>
-					L'activation donne accès à l'onglet "Mes Photos", visible par défaut uniquement par vous et les
-					administrateurs.
-				</p>
-				<p>
-					<strong>Mode Spectateur :</strong> Vous pouvez autoriser d'autres utilisateurs à voir vos photos
-					identifiées. Cet ajout relève de votre responsabilité et est révocable à tout moment.
-				</p>
+				<h3>{m.cgu_s3_myphotos_title()}</h3>
+				<p>{m.cgu_s3_myphotos_body()}</p>
+				<p>{@html m.cgu_s3_spectator()}</p>
 
-				<h3>Révocation</h3>
-				<p>
-					Vous pouvez retirer votre consentement via <a href="/parametres">Paramètres → Zone de danger</a
-					>. Cela entraîne la <strong>suppression immédiate</strong> de votre vecteur biométrique.
-				</p>
+				<h3>{m.cgu_s3_revoke_title()}</h3>
+				<p>{@html m.cgu_s3_revoke_body()}</p>
 			</section>
 
 			<section id="donnees" class="section">
-				<h2><Database size={24} /> 4. Données Personnelles et Archivage</h2>
-				<h3>Conservation</h3>
-				<p>
-					MiGallery archive la vie étudiante. Les photos sont conservées pour une <strong
-						>durée indéfinie</strong
-					> à des fins historiques et patrimoniales.
-				</p>
-				<h3>Logs</h3>
-				<p>
-					Des logs techniques (IP, horodatage) sont conservés temporairement pour la sécurité, sans
-					stockage de mots de passe.
-				</p>
-				<h3>Vos droits</h3>
+				<h2><Database size={24} /> {m.cgu_s4_title()}</h2>
+				<h3>{m.cgu_s4_retention_title()}</h3>
+				<p>{@html m.cgu_s4_retention_body()}</p>
+				<h3>{m.cgu_s4_logs_title()}</h3>
+				<p>{m.cgu_s4_logs_body()}</p>
+				<h3>{m.cgu_s4_rights_title()}</h3>
 				<ul>
-					<li><strong>Droit d'accès :</strong> Voir toutes les photos associées à votre profil.</li>
-					<li>
-						<strong>Rectification/Suppression :</strong> Demander le floutage ou la suppression d'une
-						photo préjudiciable en contactant <a href="mailto:bureau@mitv.fr">bureau@mitv.fr</a>.
-					</li>
-					<li>
-						<strong>Droit à l'oubli :</strong> La suppression de votre compte efface vos préférences et données
-						biométriques.
-					</li>
+					<li>{@html m.cgu_s4_right_access()}</li>
+					<li>{@html m.cgu_s4_right_rectif()}</li>
+					<li>{@html m.cgu_s4_right_forget()}</li>
 				</ul>
 			</section>
 
 			<section id="propriete" class="section">
-				<h2><Copyright size={24} /> 5. Propriété Intellectuelle</h2>
-				<p>
-					Seuls les membres de MiTV peuvent téléverser des albums. L'association conserve les droits
-					d'exploitation.
-				</p>
-				<p>
-					Il est interdit de scraper le contenu, de l'utiliser à des fins commerciales, ou de tromper le
-					système de reconnaissance faciale.
-				</p>
+				<h2><Copyright size={24} /> {m.cgu_s5_title()}</h2>
+				<p>{m.cgu_s5_body1()}</p>
+				<p>{m.cgu_s5_body2()}</p>
 			</section>
 
 			<section id="contact" class="section footer-section">
-				<h2><Info size={24} /> Contact et Mentions Légales</h2>
+				<h2><Info size={24} /> {m.cgu_contact_title()}</h2>
 				<div class="footer-grid">
 					<div>
-						<h3>Éditeur</h3>
-						<p>
-							Association MiTV (Mines TV)<br />
-							20 Bd Alexandre de Fraissinette<br />
-							42100 Saint-Étienne
-						</p>
+						<h3>{m.cgu_contact_editor_title()}</h3>
+						<p>{@html m.cgu_contact_editor_body()}</p>
 					</div>
 					<div>
-						<h3>Contact RGPD</h3>
-						<p>
-							Pour toute demande :<br />
-							<a href="mailto:bureau@mitv.fr" class="mail-link">bureau@mitv.fr</a>
-						</p>
+						<h3>{m.cgu_contact_gdpr_title()}</h3>
+						<p>{@html m.cgu_contact_gdpr_body()}</p>
 					</div>
 				</div>
 				<div class="credits">
-					<p>
-						Développé par <a href="https://github.com/DeMASKe" target="_blank" rel="noopener"
-							>Jolan BOUDIN</a
-						>
-						et <a href="https://github.com/gd-pnjj" target="_blank" rel="noopener">Gabriel DUPONT</a>.
-					</p>
-					<p class="tech-stack">Propulsé par Immich • Hébergé à la ME</p>
+					<p>{@html m.cgu_credits()}</p>
+					<p class="tech-stack">{m.cgu_tech_stack()}</p>
 				</div>
 			</section>
 		</div>
@@ -319,13 +249,15 @@
 		font-weight: bold;
 	}
 
-	.section a {
+	/* Links come from {@html} message blocks, so they lack Svelte's scope
+	   attribute; :global() lets the scoped section styles still reach them. */
+	.section :global(a) {
 		color: var(--accent);
 		text-decoration: none;
 		font-weight: 500;
 	}
 
-	.section a:hover {
+	.section :global(a:hover) {
 		text-decoration: underline;
 	}
 
@@ -343,7 +275,7 @@
 		margin-bottom: 2rem;
 	}
 
-	.mail-link {
+	.footer-section :global(.mail-link) {
 		font-size: 1.1rem;
 		font-weight: 600;
 	}

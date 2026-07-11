@@ -78,8 +78,8 @@ Theme 4 \- Backlog
 
 Theme 5 \- i18n \+ Normalization (ACTIVE)
 
-- \[\~\] N-7 mes-photos \+ photos-cv
-- \[\~\] N-8 cgu (corbeille DONE)
+- \[x\] N-7 mes-photos \+ photos-cv (DONE)
+- \[x\] N-8 cgu \+ corbeille (DONE; cgu uses \{@html\} m.cgu\_\* blocks, scoped links via :global())
 - \[ \] N-9 admin pages (COORDINATE with Theme 1b)
 - \[ \] N-10 residual components with real strings: ConfirmHost, EmptyState, AdminPage subtitle
 - \[ \] N-11 dev-string sweep FR \-\> EN
