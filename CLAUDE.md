@@ -47,10 +47,10 @@
 
 **Current WIP:**
 
-- Theme 5 (i18n) COMPLETE. N-11b committed this session (e9b7726, 64 files): all FR dev comments + test it/describe titles -> EN. Verified French-free via accent grep + FR-keyword grep. Used 2 Haiku subagents (routes/tests) but Haiku produced Franglais on string-level edits -> re-ran a Sonnet cleanup pass on tests; lesson: Haiku is fine for whole-comment-line translation, too weak for nuanced title/string translation.
-- IMPORTANT residual (NOT done, deliberately deferred): user-visible FR string literals still inline and NOT yet in Paraglide - error()/json({error}) API responses, src/lib/admin/endpoints.ts `description:` fields, toast.\*, this.error, backup.ts `message:`, component title= attrs. These are a real i18n externalization WP (move to messages/fr.json+en.json), not cosmetic. Left because translating them inline would break FR UX.
-- Next step: Theme 2 (WP-2a/2b profile/trombinoscope) - Theme 3 is BLOCKED on SSH prod backup greenlight.
-- i18n idiom recap: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile.
+- WP-2a DONE this session (b7d710d): merged /admin/trombinoscope INTO /admin/users and deleted the trombi page (user decision "fusionner dans users"). /admin/users now = role mgmt + delete + PDF export + photo-only profile-photo (face) linking. Admin-only. Pruned 35 orphaned trombi\_\* i18n keys. See Roadmap WP-2a for the PUT full-column gotcha.
+- Next step: Theme 2 WP-2b (selfie incitation) - stop hiding Mes photos/Photos CV nav tabs when no profile photo; add a "complete your profile" surface. Then Theme 3 is BLOCKED on SSH prod backup greenlight.
+- Deferred i18n externalization WP (from Theme 5): user-visible FR string literals still inline (error()/json({error}) responses, src/lib/admin/endpoints.ts `description:`, toast.\*, this.error, backup.ts `message:`, some title= attrs). Real Paraglide-externalization WP, not cosmetic.
+- i18n idiom recap: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile. Prune orphaned keys with a node script over messages/{fr,en}.json (compare vs `grep -roE "m\.\w+" src`), paraglide output is gitignored+recompiled.
 
 **Roadmap (Active WP):**
 
@@ -62,8 +62,8 @@ Theme 1b \- FULL admin harmonization
 
 Theme 2 \- Profile / trombinoscope
 
-- \[ \] WP-2a trombinoscope edit reduced to PROFILE PHOTO only (remove name/promo/formation/role; keep face+photo link; restrict edit to mitviste/admin)
-- \[ \] WP-2b selfie incitation: stop hiding "Mes photos"/"Photos CV" tabs without profile; show "complete profile" section
+- \[x\] WP-2a (b7d710d): DECISION change - trombinoscope page DELETED and merged into /admin/users (user chose "fusionner dans users, supprimer trombi"). PDF export + profile-photo (face) linking now live in /admin/users; photo edit is photo-only and round-trips SSO fields (name/promo/formation/role) so the full-column PUT never wipes them. Role mgmt + delete stay (admin-only). Trombinoscope stays admin-only (the "mitviste edit" note was an error). Pruned 35 orphaned trombi\_\*/nav_trombinoscope i18n keys. Gotcha: /api/users/[id] PUT is a FULL-COLUMN update (role||'user', name??id) - always send the complete row or you demote/rename users.
+- \[ \] WP-2b selfie incitation: stop hiding "Mes photos"/"Photos CV" tabs without profile; show "complete profile" section. Files: src/routes/+layout.svelte (L112-123 hasPhoto gating) + src/lib/components/MobileNav.svelte (L43-65). first_login flow uses FirstLoginModal; profile photo upload+face flow now lives in /admin/users (admin) - a user-facing selfie surface may need porting.
 
 Theme 3 \- DB (BLOCKED on SSH prod backup greenlight)
 
