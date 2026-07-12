@@ -73,7 +73,7 @@ Theme 4 \- Backlog
 
 - \[ \] WP-4.x UX: pill buttons, error/loading states, upload feedback, a11y+responsive
 - \[ \] FR\#3 upload resilience
-- \[ \] WP-5.x Immich: combined queries, face-first profile picker, clean test albums
+- \[ \] WP-5.x Immich: combined queries (WP-5.1: test personIds+albumIds in one search/metadata) + face-first profile picker. Clean [TEST] albums = DONE/verified 2026-07-12 (prod already clean: 0 real test albums out of 266; only regex false-positive was the real album "Soiree The Greatest Show'Mines"). Immich prod access recipe: pipe a node script into `ssh mitv "docker exec -i migallery-migallery-1 node"` (container has global fetch + IMMICH_BASE_URL/IMMICH_API_KEY, header x-api-key).
 - \[ \] WP-4.1 remove StreamSaver/SW/mitm.html; WP-4.3 structured logger; WP-4.4 memory tests
 - \[ \] WP-2.x i18n backend: users.locale column
 
