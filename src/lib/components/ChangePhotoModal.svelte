@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-svelte';
-	import LazyImage from './LazyImage.svelte';
+	import FaceCropThumb from './FaceCropThumb.svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
 	import type { ImmichAsset } from '$lib/types/api';
@@ -140,12 +140,10 @@
 					ondblclick={confirmSelection}
 					title={asset.originalFileName || 'Photo'}
 				>
-					<LazyImage
-						src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
+					<FaceCropThumb
+						assetId={asset.id}
+						personId={peopleId ?? ''}
 						alt={asset.originalFileName || 'Photo'}
-						class="photo-thumbnail"
-						aspectRatio="1"
-						isVideo={asset.type === 'VIDEO'}
 					/>
 					{#if selectedAssetId === asset.id}
 						<div class="selected-overlay">
@@ -253,17 +251,6 @@
 	.photo-item.selected {
 		border-color: var(--accent);
 		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
-	}
-
-	.photo-item :global(.lazy-image-container) {
-		width: 100%;
-		height: 100%;
-	}
-
-	.photo-item :global(.lazy-image) {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
 	}
 
 	.selected-overlay {

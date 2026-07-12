@@ -173,7 +173,7 @@
 	"ci_no_camera": "No camera detected on this device.",
 	"cpm_title": "Change profile picture",
 	"cpm_current": "Current profile picture",
-	"cpm_pick": "Click a photo below to set it as your profile picture",
+	"cpm_pick": "Pick a face below to set it as your profile picture",
 	"cpm_updating": "Updating…",
 	"cpm_loading": "Loading your photos…",
 	"common_retry": "Retry",
