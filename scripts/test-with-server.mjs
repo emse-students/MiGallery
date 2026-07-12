@@ -4,10 +4,28 @@
  * Usage: npm run test
  */
 
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { setTimeout } from 'timers/promises';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+
+/**
+ * Kill the server process. On Windows child.kill() does not terminate the
+ * detached node process tree, which leaks a zombie holding port 3000 and
+ * breaks the next test run; taskkill /T tears down the whole tree.
+ */
+function killServer(server) {
+	if (!server || server.killed) return;
+	if (process.platform === 'win32') {
+		try {
+			spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
+		} catch {
+			server.kill();
+		}
+	} else {
+		server.kill();
+	}
+}
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const SERVER_STARTUP_DELAY = 7000; // 7 secondes (donne un peu plus de marge au serveur)
@@ -151,7 +169,7 @@ async function main() {
 		// 5. Attendre la fin des tests
 		tests.on('close', async (code) => {
 			console.log('\n🛑 Arrêt du serveur...');
-			server.kill();
+			killServer(server);
 
 			// 6. Nettoyer les artefacts de test
 			console.log('\n🧹 Nettoyage des artefacts de test...');
@@ -173,7 +191,7 @@ async function main() {
 
 		if (server) {
 			console.log('🛑 Arrêt du serveur...');
-			server.kill();
+			killServer(server);
 		}
 
 		process.exit(1);

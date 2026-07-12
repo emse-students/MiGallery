@@ -49,6 +49,7 @@
 		"db:inspect": "node ./scripts/inspect-db.cjs",
 		"immich:cleanup-test-albums": "node ./scripts/cleanup-immich-test-albums.mjs",
 		"test:cleanup": "node ./scripts/cleanup-test-artifacts.cjs",
+		"validate": "node scripts/ci-local.mjs",
 		"test": "node scripts/test-with-server.mjs",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
