@@ -32,42 +32,11 @@ CREATE TABLE IF NOT EXISTS albums (
     visible INTEGER NOT NULL DEFAULT 1
 );
 
--- Specific user permissions for an album (grants access to listed users)
-CREATE TABLE IF NOT EXISTS album_user_permissions (
-    album_id TEXT NOT NULL,
-    id_user TEXT NOT NULL,
-    PRIMARY KEY (album_id, id_user),
-    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
-);
-
--- Tag-based permissions (e.g. 'Promo 2024')
-CREATE TABLE IF NOT EXISTS album_tag_permissions (
-    album_id TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    PRIMARY KEY (album_id, tag),
-    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
-);
-
--- Formation-based permissions (e.g. ICM, ISMIN, FSSS, Master)
-CREATE TABLE IF NOT EXISTS album_formation_permissions (
-    album_id TEXT NOT NULL,
-    formation TEXT NOT NULL,
-    PRIMARY KEY (album_id, formation),
-    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
-);
-
--- Promo-based permissions (e.g. 2022, 2023, ...)
-CREATE TABLE IF NOT EXISTS album_promo_permissions (
-    album_id TEXT NOT NULL,
-    promo_year INTEGER NOT NULL,
-    PRIMARY KEY (album_id, promo_year),
-    FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
-);
-
--- Unified album permissions: replaces the four album_*_permissions tables above.
+-- Unified album permissions: the single source of truth for album access.
 -- kind: 'user' | 'tag' | 'formation' | 'promo'. value holds the id/tag/formation/
--- promo (promo stored as TEXT). Data is backfilled once from the legacy tables in
--- database.ts (guarded by PRAGMA user_version); the legacy tables are dropped later.
+-- promo (promo stored as TEXT). Historically backfilled once from four legacy
+-- album_*_permissions tables (user/tag/formation/promo); those tables were dropped
+-- by the database.ts migration at PRAGMA user_version 2 (WP-3a).
 CREATE TABLE IF NOT EXISTS album_permissions (
     album_id TEXT NOT NULL,
     kind TEXT NOT NULL,

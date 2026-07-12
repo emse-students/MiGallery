@@ -150,8 +150,9 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 			}
 		}
 		// Unified album permissions (replaces the 4 album_*_permissions tables).
-		// One-time backfill from the legacy tables, gated by PRAGMA user_version so
-		// permissions deleted after the migration are not resurrected on restart.
+		// user_version 1: one-time backfill from the legacy tables, gated so
+		// permissions deleted afterwards are not resurrected on restart.
+		// user_version 2 (WP-3a): drop the now-unused legacy tables.
 		try {
 			dbInstance.exec(
 				`CREATE TABLE IF NOT EXISTS album_permissions (
@@ -188,6 +189,18 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 					);
 				}
 				dbInstance.exec('PRAGMA user_version = 1');
+			}
+			// Phase 2 (WP-3a): the backfill above (user_version >= 1) made
+			// album_permissions the sole source of truth; no runtime code reads the
+			// legacy tables anymore. Drop them once.
+			if (uv < 2) {
+				dbInstance.exec(
+					`DROP TABLE IF EXISTS album_user_permissions;
+					DROP TABLE IF EXISTS album_tag_permissions;
+					DROP TABLE IF EXISTS album_formation_permissions;
+					DROP TABLE IF EXISTS album_promo_permissions;`
+				);
+				dbInstance.exec('PRAGMA user_version = 2');
 			}
 		} catch (_e) {
 			try {
