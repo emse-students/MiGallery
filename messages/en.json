@@ -152,6 +152,7 @@
 	"pg_delete_count": "Delete ({count})",
 	"uz_duplicate": "This file has already been uploaded",
 	"uz_uploading": "Uploading…",
+	"uz_connection_lost": "Connection lost, reconnecting…",
 	"uz_uploaded_count": "{count} file(s) uploaded",
 	"uz_retry_failed": "Retry failed uploads",
 	"uz_drop_active": "Drop your files or folders here",

@@ -7,7 +7,8 @@
 		X,
 		AlertTriangle,
 		RefreshCw,
-		Upload
+		Upload,
+		WifiOff
 	} from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -46,6 +47,22 @@
 	let uploadedCount = $state(0);
 	let duplicateCountPersist = $state(0); // Total duplicates (persistent)
 	let errorCountPersist = $state(0); // Total errors (persistent)
+	let isOffline = $state(false);
+
+	$effect(() => {
+		if (typeof window === 'undefined') {
+			return;
+		}
+		isOffline = navigator.onLine === false;
+		const onOnline = () => (isOffline = false);
+		const onOffline = () => (isOffline = true);
+		window.addEventListener('online', onOnline);
+		window.addEventListener('offline', onOffline);
+		return () => {
+			window.removeEventListener('online', onOnline);
+			window.removeEventListener('offline', onOffline);
+		};
+	});
 
 	function handleDragOver(e: DragEvent) {
 		try {
@@ -296,10 +313,17 @@
 		{#if fileStatuses.length > 0}
 			<div class="upload-summary">
 				{#if isUploading}
-					<div class="summary-item uploading">
-						<Spinner size={24} />
-						<span>{m.uz_uploading()}</span>
-					</div>
+					{#if isOffline}
+						<div class="summary-item offline">
+							<WifiOff size={24} />
+							<span>{m.uz_connection_lost()}</span>
+						</div>
+					{:else}
+						<div class="summary-item uploading">
+							<Spinner size={24} />
+							<span>{m.uz_uploading()}</span>
+						</div>
+					{/if}
 					<div class="progress-bar global">
 						<div class="progress-fill" style="width: {globalProgress}%"></div>
 					</div>
@@ -508,6 +532,11 @@
 
 	.summary-item.duplicate {
 		background: color-mix(in srgb, var(--warning) 10%, transparent);
+		color: var(--warning);
+	}
+
+	.summary-item.offline {
+		background: color-mix(in srgb, var(--warning) 12%, transparent);
 		color: var(--warning);
 	}
 

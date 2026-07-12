@@ -6,6 +6,62 @@ import { buildImmichUploadFormData } from '$lib/immich/upload';
 const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 const SIMPLE_UPLOAD_THRESHOLD = 1024 * 1024 * 10; // 10MB
 
+/**
+ * Derive a stable, server-safe upload id from the file's identity so a retry
+ * reuses the same server-side partial (data/chunk-uploads/*.part) and resumes
+ * instead of re-uploading from chunk 0. Must match the proxy's allowed id
+ * charset: [a-zA-Z0-9._-].
+ */
+async function computeStableFileId(file: File): Promise<string> {
+	const key = `${file.name}-${file.size}-${file.lastModified}`;
+	try {
+		const subtle = globalThis.crypto?.subtle;
+		if (subtle) {
+			const ab = new TextEncoder().encode(key);
+			const digest = await subtle.digest('SHA-256', ab);
+			return Array.from(new Uint8Array(digest))
+				.map((b) => b.toString(16).padStart(2, '0'))
+				.join('');
+		}
+	} catch {
+		/* fall through to a sanitized key */
+	}
+	return key.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function isOffline(): boolean {
+	return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+/**
+ * Resolve once the browser reports it is back online, or after timeoutMs.
+ * Returns true if connectivity returned, false on timeout.
+ */
+function waitForOnline(timeoutMs: number): Promise<boolean> {
+	if (!isOffline()) {
+		return Promise.resolve(true);
+	}
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = (value: boolean) => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			clearTimeout(timer);
+			if (typeof window !== 'undefined') {
+				window.removeEventListener('online', onOnline);
+			}
+			resolve(value);
+		};
+		const onOnline = () => finish(true);
+		const timer = setTimeout(() => finish(false), timeoutMs);
+		if (typeof window !== 'undefined') {
+			window.addEventListener('online', onOnline);
+		}
+	});
+}
+
 async function uploadFileSimple(file: File, signal?: AbortSignal): Promise<Response> {
 	const formData = new FormData();
 	const fileCreatedAt = new Date().toISOString();
@@ -30,7 +86,7 @@ export async function uploadFileChunked(file: File, signal?: AbortSignal): Promi
 	}
 
 	const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-	const fileId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+	const fileId = await computeStableFileId(file);
 	const fileCreatedAt = new Date().toISOString();
 	const fileModifiedAt = new Date().toISOString();
 
@@ -144,33 +200,56 @@ export async function handleAlbumUpload(
 
 			let uploadRes: Response | null = null;
 			let lastError: Error | null = null;
-			const maxRetries = 3;
+			const maxServerRetries = 3; // exponential-backoff retries for 5xx / timeouts
+			const OFFLINE_WAIT_MS = 60_000; // how long to wait for reconnection per cycle
+			const maxOfflineWaits = 20; // hard cap so a dropped connection never loops forever
+			let serverAttempt = 0;
+			let offlineWaits = 0;
 
-			for (let attempt = 0; attempt < maxRetries; attempt++) {
+			while (true) {
+				// If the browser is offline, wait for reconnection instead of burning
+				// server retries. The stable fileId lets the next attempt resume from
+				// the last chunk the server already has.
+				if (isOffline()) {
+					if (offlineWaits++ >= maxOfflineWaits) {
+						throw lastError || new Error('Upload aborted: connection lost');
+					}
+					console.warn('Connection lost, waiting for reconnection before resuming upload...');
+					await waitForOnline(OFFLINE_WAIT_MS);
+					continue;
+				}
+
 				try {
 					uploadRes = await uploadFileChunked(file);
 
 					if (uploadRes.ok) {
-						break; // Success, exit retry loop
+						break; // Success
 					}
 
 					if (uploadRes.status >= 500 || uploadRes.status === 408 || uploadRes.status === 429) {
-						if (attempt < maxRetries - 1) {
-							const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+						if (serverAttempt < maxServerRetries - 1) {
+							const delay = Math.pow(2, serverAttempt) * 1000; // 1s, 2s, 4s
+							serverAttempt++;
 							console.warn(
-								`Upload attempt ${attempt + 1} failed with ${uploadRes.status}, retrying in ${delay}ms...`
+								`Upload failed with ${uploadRes.status}, retrying in ${delay}ms (attempt ${serverAttempt}/${maxServerRetries})...`
 							);
 							await new Promise((r) => setTimeout(r, delay));
 							continue;
 						}
 					}
-					break; // Don't retry non-5xx errors
+					break; // Non-retriable status or out of server retries
 				} catch (err: unknown) {
 					lastError = err instanceof Error ? err : new Error(String(err));
-					if (attempt < maxRetries - 1) {
-						const delay = Math.pow(2, attempt) * 1000;
+					// A network-level failure while offline: loop back and wait for
+					// reconnection (does not consume a server retry).
+					if (isOffline()) {
+						continue;
+					}
+					if (serverAttempt < maxServerRetries - 1) {
+						const delay = Math.pow(2, serverAttempt) * 1000;
+						serverAttempt++;
 						console.warn(
-							`Upload attempt ${attempt + 1} failed with error, retrying in ${delay}ms...`,
+							`Upload failed with error, retrying in ${delay}ms (attempt ${serverAttempt}/${maxServerRetries})...`,
 							err
 						);
 						await new Promise((r) => setTimeout(r, delay));
