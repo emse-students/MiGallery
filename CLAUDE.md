@@ -47,8 +47,8 @@
 
 **Current WIP:**
 
-- Theme 2 COMPLETE this session: WP-2a (b7d710d, trombi merged into /admin/users) + WP-2b (267d64d, selfie incitation). See Roadmap for both. Key WP-2b fact: the per-user self-service selfie flow already lives in /parametres (#face-recognition) for everyone; the incitation just links there.
-- Next step: Theme 4 backlog (UX/upload resilience/Immich/logger) is the open work. Theme 3 (WP-3a DROP legacy album\_\*\_permissions tables) stays BLOCKED on SSH prod backup greenlight.
+- Themes 2 and 3 COMPLETE this session: WP-2a (b7d710d) + WP-2b (267d64d, selfie incitation) + WP-3a (cdb4012, dropped 4 legacy album\_\*\_permissions tables). See Roadmap.
+- Next step: Theme 4 backlog (UX / upload resilience / Immich / logger / locale) is the only open work. Pick one item before starting (they are independent WPs). PROD DEPLOY NOTE: WP-3a's DROP runs on prod at next deploy; prod DB already backed up on mitv (migallery_backup_pre-wp3a_20260712_020159.db).
 - Deferred i18n externalization WP (from Theme 5): user-visible FR string literals still inline (error()/json({error}) responses, src/lib/admin/endpoints.ts `description:`, toast.\*, this.error, backup.ts `message:`, some title= attrs). Real Paraglide-externalization WP, not cosmetic.
 - i18n idiom recap: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile. Prune orphaned keys with a node script over messages/{fr,en}.json (compare vs `grep -roE "m\.\w+" src`), paraglide output is gitignored+recompiled.
 
@@ -65,9 +65,9 @@ Theme 2 \- Profile / trombinoscope
 - \[x\] WP-2a (b7d710d): trombinoscope page DELETED, merged into /admin/users. Gotcha: /api/users/[id] PUT is a FULL-COLUMN update (role||'user', name??id) - always send the complete row or you demote/rename users.
 - \[x\] WP-2b (267d64d): selfie incitation. Un-gated "Mes photos"/"Photos CV" nav tabs (removed hasPhoto/canManagePhotos gates in +layout.svelte + MobileNav.svelte). /mes-photos now shows a "complete profile" incitation (mp*incite*\* keys) linking to /parametres#face-recognition instead of goto('/'). /photos-cv funnels no-photo non-managers to /mes-photos. KEY FACT: the full self-service selfie flow (CameraInput -> upload -> face detect -> /api/users/me/face) ALREADY EXISTS in /parametres for EVERYONE - no porting needed; WP-2b just links to it.
 
-Theme 3 \- DB (BLOCKED on SSH prod backup greenlight)
+Theme 3 \- DB (COMPLETE)
 
-- \[ \] WP-3a permissions fusion phase 2: DROP the 4 legacy album\_\*\_permissions tables
+- \[x\] WP-3a (cdb4012): permissions fusion phase 2 DONE. Dropped the 4 legacy album\_\*\_permissions tables via a PRAGMA user_version=2 migration in database.ts (after the uv=1 backfill), and removed their CREATE blocks from schema.sql. album_permissions is now the sole source of truth. Prod verified before shipping: legacy==unified (44/707/260/826, 1837 total), uv already 1, DB backed up (migallery_backup_pre-wp3a_20260712_020159.db on mitv). DROP executes on prod at next deploy; migration is idempotent (DROP TABLE IF EXISTS).
 
 Theme 4 \- Backlog
 
