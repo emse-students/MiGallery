@@ -69,7 +69,7 @@ try {
 	const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
 	tables.forEach((t) => console.log(`   - ${t.name}`));
 
-	const expectedTables = ['users', 'albums', 'album_user_permissions', 'album_tag_permissions'];
+	const expectedTables = ['users', 'albums', 'album_permissions'];
 	const missingTables = expectedTables.filter((t) => !tables.find((row) => row.name === t));
 	if (missingTables.length > 0) {
 		console.error('   ❌ Tables manquantes:', missingTables.join(', '));
