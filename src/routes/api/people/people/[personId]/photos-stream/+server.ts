@@ -6,7 +6,7 @@ import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { getAssetIdsInSystemAlbum } from '$lib/immich/system-albums';
+import { getPersonAssets } from '$lib/photos-cv/handlers';
 
 /**
  * GET /api/people/people/[personId]/photos-stream
@@ -43,43 +43,9 @@ export const GET: RequestHandler = async (event) => {
 				};
 
 				try {
-					const allAssets: ImmichAsset[] = [];
-					let page = 1;
-					let hasNext = true;
-
-					while (hasNext) {
-						const res = await fetch(`${IMMICH_BASE_URL}/api/search/metadata`, {
-							method: 'POST',
-							headers: {
-								'x-api-key': IMMICH_API_KEY,
-								'Content-Type': 'application/json'
-							},
-							body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 1000 })
-						});
-
-						if (!res.ok) {
-							throw new Error(`Search failed: ${res.statusText}`);
-						}
-						const data = (await res.json()) as {
-							assets?: { items?: ImmichAsset[]; nextPage?: number | null };
-						};
-						const items = data.assets?.items || [];
-						if (items.length === 0) {
-							break;
-						}
-						allAssets.push(...items);
-						hasNext = data.assets?.nextPage !== null && data.assets?.nextPage !== undefined;
-						page++;
-						if (page > 10) {
-							break;
-						}
-					}
-
-					const photoCVAssetIds = new Set(await getAssetIdsInSystemAlbum(fetch, 'PhotoCV'));
-					const filtered = allAssets.filter((asset) => {
-						const isInPhotoCVAlbum = photoCVAssetIds.has(asset.id);
-						return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
-					});
+					// Combined personIds+albumIds search (or person-minus-album) is done in
+					// the shared handler; the stream only enriches the resulting assets.
+					const filtered = await getPersonAssets(personId, inAlbum, fetch);
 
 					for (const asset of filtered) {
 						const minimalData = {

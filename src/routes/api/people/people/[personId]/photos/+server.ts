@@ -6,47 +6,13 @@ import { env } from '$env/dynamic/private';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { getAssetIdsInSystemAlbum } from '$lib/immich/system-albums';
+import { getPersonAssets as getPersonAlbumAssets } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
 
 async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: typeof fetch) {
-	const allAssets: ImmichAsset[] = [];
-	let page = 1;
-	let hasNext = true;
-
-	while (hasNext) {
-		const res = await fetchFn(`${IMMICH_BASE_URL}/api/search/metadata`, {
-			method: 'POST',
-			headers: {
-				'x-api-key': IMMICH_API_KEY,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 1000 })
-		});
-
-		if (!res.ok) {
-			throw new Error(`Search failed: ${res.statusText}`);
-		}
-		const data = (await res.json()) as {
-			assets?: { items?: ImmichAsset[]; nextPage?: number | null };
-		};
-		const items = data.assets?.items || [];
-		if (items.length === 0) {
-			break;
-		}
-		allAssets.push(...items);
-		hasNext = data.assets?.nextPage !== null && data.assets?.nextPage !== undefined;
-		page++;
-		if (page > 10) {
-			break;
-		}
-	}
-
-	const systemAssetIds = new Set(await getAssetIdsInSystemAlbum(fetchFn, 'PhotoCV'));
-	const filtered = allAssets.filter((asset) => {
-		const isInPhotoCVAlbum = systemAssetIds.has(asset.id);
-		return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
-	});
+	// Combined personIds+albumIds search is done in the shared handler; here we
+	// only enrich each result with its full asset detail.
+	const filtered = await getPersonAlbumAssets(personId, inAlbum, fetchFn);
 
 	const enrichedAssets = await Promise.all(
 		filtered.map(async (asset) => {

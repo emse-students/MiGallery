@@ -1,19 +1,23 @@
 import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
 import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
-import {
-	SYSTEM_ALBUMS as _SYSTEM_ALBUMS,
-	getOrCreateSystemAlbum,
-	getAssetIdsInSystemAlbum
-} from '$lib/immich/system-albums';
+import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
-async function fetchAllPersonAssets(
-	personId: string,
-	fetchFn: typeof fetch
+/**
+ * Paginate POST /api/search/metadata for an arbitrary filter body and collect
+ * every asset. Immich AND-combines its filter fields, so passing both personIds
+ * and albumIds returns exactly the intersection server-side (verified on prod:
+ * personIds+albumIds == person-assets INTERSECT album-assets). Smaller pages
+ * (500) keep the native memory peak per response low; the page cap is generous
+ * so heavily-photographed people are never truncated.
+ */
+async function searchAllAssets(
+	fetchFn: typeof fetch,
+	filter: Record<string, unknown>
 ): Promise<ImmichAsset[]> {
 	const allAssets: ImmichAsset[] = [];
 	let page = 1;
@@ -26,10 +30,7 @@ async function fetchAllPersonAssets(
 				'x-api-key': IMMICH_API_KEY,
 				'Content-Type': 'application/json'
 			},
-			// Smaller pages (500 instead of 1000): reduces the native memory peak
-			// per response. The page cap is raised accordingly below
-			// so we don't truncate heavily-photographed people.
-			body: JSON.stringify({ personIds: [personId], type: 'IMAGE', page, size: 500 })
+			body: JSON.stringify({ ...filter, type: 'IMAGE', page, size: 500 })
 		});
 
 		if (!res.ok) {
@@ -57,18 +58,33 @@ async function fetchAllPersonAssets(
 	return allAssets;
 }
 
+/**
+ * A person's photos, partitioned by PhotoCV-album membership.
+ *
+ * - inAlbum=true: a single combined personIds+albumIds search (Immich filters
+ *   the intersection server-side) - no full-album fetch, no in-memory filtering.
+ * - inAlbum=false: all of the person's photos MINUS the (small) in-album subset.
+ *   We still need every person asset to know what is NOT in the album, but we
+ *   subtract the combined-query result instead of fetching the entire PhotoCV
+ *   album (thousands of assets) just to filter it out.
+ */
 export async function getPersonAssets(
 	personId: string,
 	inAlbum: boolean,
 	fetchFn: typeof fetch
 ): Promise<ImmichAsset[]> {
-	const allAssets = await fetchAllPersonAssets(personId, fetchFn);
-	const photoCVAssetIds = new Set(await getAssetIdsInSystemAlbum(fetchFn, 'PhotoCV'));
-	const filtered = allAssets.filter((asset) => {
-		const isInPhotoCVAlbum = photoCVAssetIds.has(asset.id);
-		return inAlbum ? isInPhotoCVAlbum : !isInPhotoCVAlbum;
-	});
-	return filtered;
+	const photoCVId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
+
+	if (inAlbum) {
+		return searchAllAssets(fetchFn, { personIds: [personId], albumIds: [photoCVId] });
+	}
+
+	const [allAssets, inAlbumAssets] = await Promise.all([
+		searchAllAssets(fetchFn, { personIds: [personId] }),
+		searchAllAssets(fetchFn, { personIds: [personId], albumIds: [photoCVId] })
+	]);
+	const inAlbumIds = new Set(inAlbumAssets.map((a) => a.id));
+	return allAssets.filter((asset) => !inAlbumIds.has(asset.id));
 }
 
 export async function getAlbumAssets(fetchFn: typeof fetch): Promise<ImmichAsset[]> {

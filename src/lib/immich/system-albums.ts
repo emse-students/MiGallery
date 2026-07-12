@@ -92,26 +92,3 @@ export async function getAllAssetIdsInSystemAlbums(fetchFn: typeof fetch): Promi
 	}
 	return Array.from(allAssetIds);
 }
-
-/**
- * Gets the IDs of all assets in a specific system album (e.g. 'PhotoCV')
- */
-export async function getAssetIdsInSystemAlbum(
-	fetchFn: typeof fetch,
-	albumName: string
-): Promise<string[]> {
-	try {
-		const albumId = await getOrCreateSystemAlbum(fetchFn, albumName);
-		const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
-			headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
-		});
-		if (!res.ok) {
-			return [];
-		}
-		const assets = await fetchAlbumAssets(fetchFn, IMMICH_BASE_URL, IMMICH_API_KEY, albumId);
-		return assets.map((a) => a.id);
-	} catch (_e) {
-		void _e;
-		return [];
-	}
-}
