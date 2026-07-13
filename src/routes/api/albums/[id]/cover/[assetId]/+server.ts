@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from '$lib/server/sharp-config';
 import { requireScope } from '$lib/server/permissions';
+import { acquireSharp } from '$lib/server/sharp-limit';
 import { getDatabase } from '$lib/db/database';
 
 import { createLogger } from '$lib/server/logger';
@@ -19,36 +20,6 @@ try {
 	}
 } catch (e) {
 	log.error('Failed to create cache directory', e);
-}
-
-// Semaphore to limit concurrent Sharp processing and prevent memory crashes
-// when many albums are loaded at the same time.
-const MAX_CONCURRENT_SHARP = 4;
-const MAX_QUEUE_SIZE = 12;
-let runningSharp = 0;
-const sharpQueue: Array<() => void> = [];
-
-function acquireSharp(): Promise<(() => void) | null> {
-	if (sharpQueue.length >= MAX_QUEUE_SIZE) {
-		return Promise.resolve(null);
-	}
-	return new Promise((resolve) => {
-		const tryAcquire = () => {
-			if (runningSharp < MAX_CONCURRENT_SHARP) {
-				runningSharp++;
-				resolve(() => {
-					runningSharp--;
-					const next = sharpQueue.shift();
-					if (next) {
-						next();
-					}
-				});
-			} else {
-				sharpQueue.push(tryAcquire);
-			}
-		};
-		tryAcquire();
-	});
 }
 
 /**
