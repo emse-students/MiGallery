@@ -15,6 +15,7 @@ declare global {
 					last_name?: string | null;
 					formation?: string | null;
 					photos_id: string | null;
+					photos_asset_id?: string | null;
 					role?: 'admin' | 'mitviste' | 'user';
 					promo?: number | null;
 					first_login?: number;

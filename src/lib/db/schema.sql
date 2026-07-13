@@ -6,6 +6,10 @@ CREATE TABLE IF NOT EXISTS users (
     first_name TEXT,
     last_name TEXT,
     photos_id TEXT,
+    -- photos_asset_id: Immich asset id backing the chosen profile face. MiGallery
+    -- generates its own square crop from it (see /api/faces), instead of Immich's
+    -- tightly hard-coded person thumbnail. NULL = fall back to Immich's crop.
+    photos_asset_id TEXT,
     -- role: 'admin' | 'mitviste' | 'user'
     role TEXT DEFAULT 'user',
     -- promo: e.g. 2024

@@ -164,8 +164,13 @@ export class PhotosState {
 	/**
 	 * Loads ALL of a person's photos EXCEPT those in the PhotoCV album
 	 * Used by: "Mes photos" page
+	 *
+	 * When `profile.userId` is provided, the header photo is served by MiGallery's
+	 * own square crop endpoint (/api/users/{id}/avatar) instead of Immich's tightly
+	 * hard-coded person thumbnail. `profile.version` (the backing asset id) busts
+	 * the browser cache so a freshly changed photo shows immediately.
 	 */
-	async loadPerson(id: string) {
+	async loadPerson(id: string, profile?: { userId?: string | null; version?: string | null }) {
 		if (!id) {
 			this.error = 'Aucune photo de profil configurée pour cet utilisateur';
 			return;
@@ -187,16 +192,27 @@ export class PhotosState {
 				this.personName = personData.name || 'Sans nom';
 			}
 
-			const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
-			if (thumb.ok) {
-				const blob = await thumb.blob();
+			if (profile?.userId) {
+				// MiGallery's own square crop (see /api/users/[username]/avatar). It is
+				// a plain URL, not a blob, so release any previous blob URL.
 				if (this._prevImageUrl) {
 					URL.revokeObjectURL(this._prevImageUrl);
 					this._prevImageUrl = null;
 				}
-				const url = URL.createObjectURL(blob);
-				this.imageUrl = url;
-				this._prevImageUrl = url;
+				const v = profile.version ? `?v=${encodeURIComponent(profile.version)}` : '';
+				this.imageUrl = `/api/users/${encodeURIComponent(profile.userId)}/avatar${v}`;
+			} else {
+				const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
+				if (thumb.ok) {
+					const blob = await thumb.blob();
+					if (this._prevImageUrl) {
+						URL.revokeObjectURL(this._prevImageUrl);
+						this._prevImageUrl = null;
+					}
+					const url = URL.createObjectURL(blob);
+					this.imageUrl = url;
+					this._prevImageUrl = url;
+				}
 			}
 
 			const res = await fetch(

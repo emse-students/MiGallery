@@ -21,6 +21,7 @@ function toSessionUser(user: UserRow): SessionPageUser {
 		first_name: user.first_name,
 		last_name: user.last_name,
 		photos_id: user.photos_id,
+		photos_asset_id: user.photos_asset_id,
 		role: normalizeRole(user.role),
 		promo: user.promo,
 		formation: user.formation,

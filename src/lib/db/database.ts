@@ -114,6 +114,9 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 		if (!cols.includes('locale')) {
 			dbInstance.prepare('ALTER TABLE users ADD COLUMN locale TEXT').run();
 		}
+		if (!cols.includes('photos_asset_id')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_asset_id TEXT').run();
+		}
 		try {
 			const acols = dbInstance
 				.prepare('PRAGMA table_info(albums)')

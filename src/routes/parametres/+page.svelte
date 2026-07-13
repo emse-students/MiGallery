@@ -137,6 +137,18 @@
 			throw new Error(txt || m.param_photo_update_error());
 		}
 
+		// Persist the backing asset id so /api/users/{id}/avatar serves our own
+		// square crop instead of Immich's. Best-effort (see mes-photos handler).
+		try {
+			await fetch('/api/users/me/face', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ person_id: u.photos_id, photos_asset_id: assetId })
+			});
+		} catch (e) {
+			console.warn('Failed to persist profile asset id', e);
+		}
+
 		toast.success(m.param_photo_updated());
 		window.location.reload();
 	}

@@ -4,6 +4,7 @@ import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { generateFaceCrop } from '$lib/server/face-crop';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -27,8 +28,10 @@ export const GET: RequestHandler = async (event) => {
 
 		const db = getDatabase();
 
-		const userStmt = db.prepare('SELECT photos_id FROM users WHERE id_user = ?');
-		const user = userStmt.get(username) as { photos_id?: string | null } | undefined;
+		const userStmt = db.prepare('SELECT photos_id, photos_asset_id FROM users WHERE id_user = ?');
+		const user = userStmt.get(username) as
+			| { photos_id?: string | null; photos_asset_id?: string | null }
+			| undefined;
 
 		if (!user) {
 			return svelteError(404, 'User not found');
@@ -37,6 +40,25 @@ export const GET: RequestHandler = async (event) => {
 		const userId = user.photos_id;
 		if (!userId || typeof userId !== 'string') {
 			return svelteError(404, 'User has no photos_id');
+		}
+
+		// Prefer MiGallery's own square crop over Immich's tightly hard-coded person
+		// thumbnail. When the URL carries a ?v cache-buster (keyed on the asset id)
+		// the crop is immutable, so it can be cached for a long time; otherwise the
+		// URL is stable per user, so keep a moderate cache. On any crop failure
+		// (busy/notfound/config) fall through to the Immich proxy below.
+		const assetId = user.photos_asset_id;
+		if (assetId && typeof assetId === 'string') {
+			const crop = await generateFaceCrop(assetId, userId, fetch);
+			if (crop.ok) {
+				const busted = event.url.searchParams.has('v');
+				return new Response(new Uint8Array(crop.buffer), {
+					headers: {
+						'Content-Type': 'image/webp',
+						'Cache-Control': busted ? 'public, max-age=15552000, immutable' : 'public, max-age=3600'
+					}
+				});
+			}
 		}
 
 		if (!IMMICH_BASE_URL) {

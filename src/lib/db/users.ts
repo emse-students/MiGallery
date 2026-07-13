@@ -6,6 +6,7 @@ export interface DBUser {
 	first_name?: string | null;
 	last_name?: string | null;
 	photos_id?: string | null;
+	photos_asset_id?: string | null;
 	role: 'admin' | 'mitviste' | 'user';
 	promo?: number | null;
 	formation?: string | null;

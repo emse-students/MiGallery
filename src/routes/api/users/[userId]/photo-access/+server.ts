@@ -12,6 +12,7 @@ interface UserInfo {
 	first_name: string | null;
 	last_name: string | null;
 	photos_id: string | null;
+	photos_asset_id: string | null;
 }
 
 /**
@@ -36,7 +37,9 @@ export const GET: RequestHandler = async (event) => {
 
 		const getTargetUser = (): UserInfo | null => {
 			return db
-				.prepare('SELECT id_user, name, first_name, last_name, photos_id FROM users WHERE id_user = ?')
+				.prepare(
+					'SELECT id_user, name, first_name, last_name, photos_id, photos_asset_id FROM users WHERE id_user = ?'
+				)
 				.get(targetUserId) as UserInfo | null;
 		};
 

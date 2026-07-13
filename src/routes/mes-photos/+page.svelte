@@ -47,6 +47,24 @@
 			throw new Error(txt || m.mp_photo_update_error());
 		}
 
+		// Persist the backing asset id so /api/users/{id}/avatar serves our own
+		// square crop instead of Immich's. Best-effort: a failure just means the
+		// avatar falls back to the Immich thumbnail we just set above.
+		try {
+			const faceBody: { person_id: string; photos_asset_id: string; user_id?: string } = {
+				person_id: targetIdPhotos,
+				photos_asset_id: assetId
+			};
+			if (targetUserId) faceBody.user_id = targetUserId;
+			await fetch('/api/users/me/face', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(faceBody)
+			});
+		} catch (e) {
+			console.warn('Failed to persist profile asset id', e);
+		}
+
 		toast.success(m.mp_photo_updated());
 		window.location.reload();
 	}
@@ -77,6 +95,7 @@
 							first_name: string | null;
 							last_name: string | null;
 							photos_id: string | null;
+							photos_asset_id?: string | null;
 						};
 					};
 
@@ -89,7 +108,10 @@
 						targetUserId = userIdParam;
 						photosState.peopleId = accessData.user.photos_id;
 						targetUserName = accessData.user.name;
-						photosState.loadPerson(accessData.user.photos_id);
+						photosState.loadPerson(accessData.user.photos_id, {
+							userId: accessData.user.id_user,
+							version: accessData.user.photos_asset_id
+						});
 					} else {
 						goto('/');
 					}
@@ -111,13 +133,17 @@
 						first_name: string | null;
 						last_name: string | null;
 						photos_id: string | null;
+						photos_asset_id?: string | null;
 					};
 				};
 
 				if (accessData.success && accessData.user?.photos_id) {
 					photosState.peopleId = accessData.user.photos_id;
 					targetUserName = accessData.user.name;
-					photosState.loadPerson(accessData.user.photos_id);
+					photosState.loadPerson(accessData.user.photos_id, {
+						userId: accessData.user.id_user,
+						version: accessData.user.photos_asset_id
+					});
 				} else {
 					goto('/');
 				}
@@ -138,7 +164,10 @@
 		targetUserName = user?.name || null;
 
 		photosState.peopleId = user.photos_id;
-		photosState.loadPerson(user.photos_id);
+		photosState.loadPerson(user.photos_id, {
+			userId: user.id_user,
+			version: user.photos_asset_id
+		});
 	});
 </script>
 

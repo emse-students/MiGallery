@@ -23,7 +23,11 @@ export const PATCH: RequestHandler = async (event) => {
 
 	try {
 		const db = getDatabase();
-		const body = (await request.json()) as { person_id?: string | null; user_id?: string };
+		const body = (await request.json()) as {
+			person_id?: string | null;
+			user_id?: string;
+			photos_asset_id?: string | null;
+		};
 
 		let userId: string | null = null;
 
@@ -80,8 +84,20 @@ export const PATCH: RequestHandler = async (event) => {
 			}
 		}
 
-		const stmt = db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
-		const result = stmt.run(personId, userId);
+		// photos_asset_id is optional: when the caller sets a profile photo it also
+		// sends the backing Immich asset id, so /api/users/[username]/avatar can
+		// generate MiGallery's own square crop from it. Only touched when present in
+		// the body (a plain person association leaves it unchanged).
+		const setAsset = Object.prototype.hasOwnProperty.call(body, 'photos_asset_id');
+		const assetId = body.photos_asset_id ?? null;
+		if (setAsset && assetId !== null && typeof assetId !== 'string') {
+			return json({ error: 'photos_asset_id must be a string or null' }, { status: 400 });
+		}
+
+		const stmt = setAsset
+			? db.prepare('UPDATE users SET photos_id = ?, photos_asset_id = ? WHERE id_user = ?')
+			: db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
+		const result = setAsset ? stmt.run(personId, assetId, userId) : stmt.run(personId, userId);
 
 		if (result.changes === 0) {
 			return json({ error: 'User not found' }, { status: 404 });
