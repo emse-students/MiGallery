@@ -132,7 +132,7 @@
 				<div class="avatar" title={u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()}>
 					{#if u.photos_id}
 						<img
-							src={`/api/immich/people/${u.photos_id}/thumbnail`}
+							src={`/api/users/${encodeURIComponent(u.id_user)}/avatar${u.photos_asset_id ? `?v=${encodeURIComponent(u.photos_asset_id)}` : ''}`}
 							alt="avatar"
 							onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
 						/>
