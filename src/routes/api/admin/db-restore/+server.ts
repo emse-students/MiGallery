@@ -18,7 +18,7 @@ export const POST: RequestHandler = async (event) => {
 		const { filename } = (await request.json()) as { filename?: string };
 
 		if (!filename) {
-			throw error(400, 'Nom de fichier manquant');
+			throw error(400, 'Missing filename');
 		}
 
 		const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'data', 'backups');
@@ -54,6 +54,6 @@ export const POST: RequestHandler = async (event) => {
 	} catch (e: unknown) {
 		const err = ensureError(e);
 		log.error('Error restoring backup:', err);
-		throw error(500, err.message || 'Erreur lors de la restauration');
+		throw error(500, err.message || 'Error during restore');
 	}
 };

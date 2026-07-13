@@ -22,7 +22,7 @@ export const GET: RequestHandler = async (event) => {
 		const { username } = event.params;
 		const { fetch } = event;
 		if (!username) {
-			return svelteError(400, "Nom d'utilisateur manquant");
+			return svelteError(400, 'Missing username');
 		}
 
 		const db = getDatabase();
@@ -31,12 +31,12 @@ export const GET: RequestHandler = async (event) => {
 		const user = userStmt.get(username) as { photos_id?: string | null } | undefined;
 
 		if (!user) {
-			return svelteError(404, 'Utilisateur non trouvé');
+			return svelteError(404, 'User not found');
 		}
 
 		const userId = user.photos_id;
 		if (!userId || typeof userId !== 'string') {
-			return svelteError(404, 'Utilisateur sans photos_id');
+			return svelteError(404, 'User has no photos_id');
 		}
 
 		if (!IMMICH_BASE_URL) {
@@ -50,7 +50,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 
 		if (!res.ok) {
-			return svelteError(res.status, 'Photo non trouvée');
+			return svelteError(res.status, 'Photo not found');
 		}
 
 		const blob = await res.blob();

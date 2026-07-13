@@ -25,7 +25,7 @@ export const PUT: RequestHandler = async (event) => {
 	try {
 		const { id } = event.params;
 		if (!id) {
-			return json({ error: 'Album ID manquant' }, { status: 400 });
+			return json({ error: 'Missing album ID' }, { status: 400 });
 		}
 
 		const body = (await event.request.json()) as Record<string, unknown>;
@@ -41,7 +41,7 @@ export const PUT: RequestHandler = async (event) => {
 		const visible = typeof body.visible === 'boolean' ? body.visible : true;
 
 		if (!name || typeof name !== 'string' || !name.trim()) {
-			return json({ error: "Le nom de l'album est requis" }, { status: 400 });
+			return json({ error: 'Album name is required' }, { status: 400 });
 		}
 
 		const db = getDatabase();
@@ -69,7 +69,7 @@ export const PUT: RequestHandler = async (event) => {
 			album: updated
 		});
 	} catch (e: unknown) {
-		const errorMessage = e instanceof Error ? e.message : 'Erreur inconnue';
+		const errorMessage = e instanceof Error ? e.message : 'Unknown error';
 		log.error(`Error PUT /api/albums/${event.params.id}/metadata:`, e);
 		return json({ error: errorMessage }, { status: 500 });
 	}

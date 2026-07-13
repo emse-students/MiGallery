@@ -12,7 +12,7 @@ export const GET: RequestHandler = async (event) => {
 		await requireScope(event, 'read');
 		const { id } = event.params;
 		if (!id) {
-			return json({ error: 'Album ID manquant' }, { status: 400 });
+			return json({ error: 'Missing album ID' }, { status: 400 });
 		}
 
 		const db = getDatabase();
@@ -70,7 +70,7 @@ export const GET: RequestHandler = async (event) => {
 			promos: promosRows.map((r) => Number(r.value))
 		});
 	} catch (err: unknown) {
-		const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 		log.error('Error loading album info:', err);
 		return json(
 			{

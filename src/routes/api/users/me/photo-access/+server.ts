@@ -93,7 +93,7 @@ export const POST: RequestHandler = async (event) => {
 			return json(
 				{
 					error:
-						"Utilisateur non trouvé. Veuillez vérifier l'identifiant utilisateur MiGallery (disponible sur le profil de la personne)."
+						"User not found. Please check the MiGallery user ID (available on the person's profile)."
 				},
 				{ status: 404 }
 			);

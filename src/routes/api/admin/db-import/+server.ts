@@ -19,15 +19,15 @@ export const POST: RequestHandler = async (event) => {
 		const file = formData.get('file') as File | null;
 
 		if (!file) {
-			return error(400, 'Fichier manquant. Veuillez fournir un fichier.');
+			return error(400, 'Missing file. Please provide a file.');
 		}
 
 		if (typeof file === 'string' || !file.name) {
-			return error(400, 'Fichier invalide.');
+			return error(400, 'Invalid file.');
 		}
 
 		if (!file.name.endsWith('.db')) {
-			return error(400, 'Fichier invalide. Veuillez fournir un fichier .db');
+			return error(400, 'Invalid file. Please provide a .db file.');
 		}
 
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
