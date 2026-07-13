@@ -2,8 +2,9 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount, onDestroy } from 'svelte';
-	import { Lock, ArrowLeft, Camera, Eye, XCircle } from 'lucide-svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import { Lock, ArrowLeft, Camera, Eye } from 'lucide-svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
+	import ErrorState from '$lib/components/ErrorState.svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import PhotosGrid from '$lib/components/PhotosGrid.svelte';
 	import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
@@ -209,11 +210,16 @@
 		{/if}
 
 		{#if photosState.error}
-			<div class="error"><XCircle size={20} /> {photosState.error}</div>
+			<ErrorState
+				title={photosState.error}
+				onRetry={() => {
+					if (photosState.peopleId != null) photosState.loadPerson(photosState.peopleId);
+				}}
+			/>
 		{/if}
 
 		{#if photosState.loading}
-			<div class="loading"><Spinner size={20} /> {m.mp_loading()}</div>
+			<LoadingState label={m.mp_loading()} />
 		{/if}
 
 		<PhotosGrid state={photosState} showFavorites={isViewingOwnPhotos} />

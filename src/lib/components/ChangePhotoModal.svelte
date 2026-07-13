@@ -3,6 +3,7 @@
 	import { Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-svelte';
 	import FaceCropThumb from './FaceCropThumb.svelte';
 	import Spinner from './Spinner.svelte';
+	import EmptyState from './EmptyState.svelte';
 	import Modal from './Modal.svelte';
 	import type { ImmichAsset } from '$lib/types/api';
 	import { m } from '$lib/paraglide/messages';
@@ -154,10 +155,7 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="empty-state">
-			<ImageIcon size={48} />
-			<p>{m.pg_empty()}</p>
-		</div>
+		<EmptyState icon={ImageIcon} title={m.pg_empty()} />
 	{/if}
 </Modal>
 
@@ -262,17 +260,6 @@
 		justify-content: center;
 		color: #fff;
 		backdrop-filter: blur(2px);
-	}
-
-	.empty-state {
-		text-align: center;
-		padding: 3rem 1rem;
-		color: var(--text-muted);
-	}
-
-	.empty-state p {
-		margin-top: 1rem;
-		font-size: 1rem;
 	}
 
 	.loading-state {

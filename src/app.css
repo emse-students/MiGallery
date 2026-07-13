@@ -1260,26 +1260,14 @@
 		background: rgba(0, 0, 0, 0.9);
 	}
 
-	/* Status messages */
-	.error,
-	.loading,
+	/* Empty-state surface (consumed by the EmptyState component). Loading and
+	   error states now live in dedicated LoadingState / ErrorState components. */
 	.empty-state {
 		text-align: center;
 		padding: 3rem 2rem;
 		background: var(--bg-secondary);
 		border-radius: var(--radius);
 		margin: 2rem 0;
-	}
-
-	.error {
-		color: var(--error);
-	}
-
-	.loading {
-		color: var(--text-secondary);
-	}
-
-	.empty-state {
 		color: var(--text-muted);
 	}
 

@@ -2,10 +2,11 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { XCircle, Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
+	import { Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
-	import Spinner from '$lib/components/Spinner.svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
+	import ErrorState from '$lib/components/ErrorState.svelte';
 	import LazyImage from '$lib/components/LazyImage.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -261,11 +262,11 @@
 	maxWidth="1200px"
 >
 	{#if error}
-		<div class="error"><XCircle size={20} /> {m.common_error_detail({ error })}</div>
+		<ErrorState title={m.common_error_detail({ error })} onRetry={fetchTrashedAssets} />
 	{/if}
 
 	{#if loading}
-		<div class="loading"><Spinner size={20} /> {m.trash_loading()}</div>
+		<LoadingState label={m.trash_loading()} />
 	{/if}
 
 	{#if !loading && !error && assets.length === 0}

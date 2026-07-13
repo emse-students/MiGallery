@@ -3,6 +3,7 @@
 	import PhotoCard from '$lib/components/PhotoCard.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import type { PhotosState } from '$lib/photos.svelte';
 	import { groupByDay } from '$lib/photos.svelte';
@@ -352,10 +353,7 @@
 	{/each}
 {:else if !photosState.loading && !photosState.error}
 	<!-- Empty state -->
-	<div class="empty-state">
-		<ImageIcon size={48} />
-		<p>{m.pg_empty()}</p>
-	</div>
+	<EmptyState icon={ImageIcon} title={m.pg_empty()} />
 {/if}
 
 <!-- Photo viewer modal -->
@@ -514,17 +512,6 @@
 	.photos-grid::after {
 		content: '';
 		flex-grow: 999999;
-	}
-
-	.empty-state {
-		text-align: center;
-		padding: 4rem 2rem;
-		color: var(--text-muted);
-	}
-
-	.empty-state p {
-		margin-top: 1rem;
-		font-size: 1.125rem;
 	}
 
 	/* Responsive - square grid on mobile */

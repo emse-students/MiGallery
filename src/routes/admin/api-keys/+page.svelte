@@ -3,6 +3,7 @@
 	import { Key, Book, CirclePlus, Check, Info, AlertCircle, RefreshCw, Trash2 } from 'lucide-svelte';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { showConfirm } from '$lib/confirm';
 	import { toast } from '$lib/toast';
@@ -166,7 +167,7 @@
 			</div>
 
 			{#if loading && keys.length === 0}
-				<div class="empty-state"><Spinner size={32} /> {m.common_loading()}</div>
+				<LoadingState label={m.common_loading()} />
 			{:else if keys.length > 0}
 				<div class="table-container">
 					<table>
@@ -424,17 +425,6 @@
 		background: var(--error);
 		color: white;
 		transform: translateY(-2px);
-	}
-
-	.empty-state {
-		padding: 4rem 2rem;
-		text-align: center;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		opacity: 0.7;
 	}
 
 	@media (max-width: 640px) {

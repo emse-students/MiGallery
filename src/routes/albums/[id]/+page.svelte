@@ -18,6 +18,8 @@
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import PhotosGrid from '$lib/components/PhotosGrid.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import UploadZone from '$lib/components/UploadZone.svelte';
 	import AlbumModal from '$lib/components/AlbumModal.svelte';
 	import Modal from '$lib/components/Modal.svelte';
@@ -309,15 +311,9 @@
 
 		<!-- Photos grid -->
 		{#if photosState.loading && photosState.assets.length === 0}
-			<div class="loading-state">
-				<Spinner size={40} />
-				<p>{m.albumd_loading()}</p>
-			</div>
+			<LoadingState label={m.albumd_loading()} layout="block" />
 		{:else if !photosState.loading && photosState.assets.length === 0}
-			<div class="empty-state glass-card">
-				<ImageIcon size={48} />
-				<p>{m.albumd_empty()}</p>
-			</div>
+			<EmptyState icon={ImageIcon} title={m.albumd_empty()} />
 		{:else}
 			<div class="gallery-wrapper" in:fade={{ duration: 300 }}>
 				<!-- PhotosGrid handles rendering, selection and the fullscreen modal -->
@@ -495,26 +491,6 @@
 		align-items: center;
 		gap: 1rem;
 		margin-bottom: 2rem;
-	}
-
-	.empty-state {
-		padding: 4rem;
-		text-align: center;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-	}
-
-	.loading-state {
-		text-align: center;
-		padding: 4rem;
-		color: var(--text-secondary);
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
 	}
 
 	/* --- MOBILE BAR --- */
