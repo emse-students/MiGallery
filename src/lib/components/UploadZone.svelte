@@ -70,7 +70,7 @@
 		try {
 			e.preventDefault();
 			e.stopPropagation();
-			if (!disabled && !isUploading) {
+			if (!disabled) {
 				isDragging = true;
 			}
 		} catch (err: unknown) {
@@ -117,15 +117,13 @@
 			Promise.resolve().then(async () => {
 				isDragging = false;
 
-				if (disabled || isUploading) return;
+				if (disabled) return;
 
 				if (promises.length > 0) {
 					await Promise.all(promises);
 				}
 
-				if (files.length > 0) {
-					await uploadFiles(files);
-				}
+				enqueue(files);
 			});
 		} catch (err: unknown) {
 			console.error('Error in handleDrop:', err);
@@ -173,21 +171,63 @@
 		const input = e.target as HTMLInputElement;
 		const files = Array.from(input.files || []);
 
-		if (files.length > 0) {
-			uploadFiles(files);
-		}
+		enqueue(files);
 
 		input.value = '';
 	}
 
-	async function uploadFiles(files: File[]) {
-		isUploading = true;
-		fileStatuses = files.map((file) => ({
-			file,
-			status: 'pending' as const,
-			progress: 0
-		}));
+	function fileKey(f: File): string {
+		return `${f.name}-${f.size}-${f.lastModified}`;
+	}
 
+	// Files awaiting a batch. Appended to while an upload is already running so a
+	// drop/selection made mid-upload is enqueued instead of dropped. Not reactive:
+	// the UI reads fileStatuses; this is only the drain queue.
+	let pendingFiles: File[] = [];
+
+	function enqueue(incoming: File[]) {
+		if (disabled || incoming.length === 0) return;
+
+		// Skip files already tracked: avoids duplicate #each keys and re-uploads
+		// of items still shown from the current batch.
+		const known = new Set(fileStatuses.map((s) => fileKey(s.file)));
+		const fresh = incoming.filter((f) => !known.has(fileKey(f)));
+		if (fresh.length === 0) return;
+
+		fileStatuses = [
+			...fileStatuses,
+			...fresh.map((file) => ({ file, status: 'pending' as const, progress: 0 }))
+		];
+		pendingFiles.push(...fresh);
+
+		if (!isUploading) {
+			drainQueue();
+		}
+	}
+
+	async function drainQueue() {
+		isUploading = true;
+		try {
+			// Files enqueued during a batch are picked up on the next iteration.
+			while (pendingFiles.length > 0) {
+				const batch = pendingFiles;
+				pendingFiles = [];
+				await runBatch(batch);
+			}
+		} finally {
+			isUploading = false;
+			globalProgress = 0;
+
+			setTimeout(() => {
+				const hasErrors = fileStatuses.some((s) => s.status === 'error');
+				if (!hasErrors) {
+					fileStatuses = [];
+				}
+			}, 3000);
+		}
+	}
+
+	async function runBatch(files: File[]) {
 		try {
 			const onProgressCallback = (current: number, total: number) => {
 				globalProgress = Math.round((current / total) * 100);
@@ -255,32 +295,28 @@
 			}
 		} catch (e: unknown) {
 			console.error('Upload error:', e);
+			// Only fail files from THIS batch; queued-but-unstarted files stay pending.
+			const batch = new Set(files.map(fileKey));
 			for (let i = 0; i < fileStatuses.length; i++) {
-				if (fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending') {
+				if (
+					batch.has(fileKey(fileStatuses[i].file)) &&
+					(fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending')
+				) {
 					fileStatuses[i].status = 'error';
 					fileStatuses[i].error = (e as Error).message;
 					errorCountPersist = errorCountPersist + 1;
 				}
 			}
-		} finally {
-			isUploading = false;
-			globalProgress = 0;
-
-			setTimeout(() => {
-				const hasErrors = fileStatuses.some((s) => s.status === 'error');
-				if (!hasErrors) {
-					fileStatuses = [];
-				}
-			}, 3000);
 		}
 	}
 
 	function retryUpload(failedFiles: File[]) {
-		if (isUploading) return;
+		if (isUploading || failedFiles.length === 0) return;
 		fileStatuses = fileStatuses.map((s) =>
 			failedFiles.includes(s.file) ? { ...s, status: 'pending' as const, error: undefined } : s
 		);
-		uploadFiles(failedFiles);
+		pendingFiles.push(...failedFiles);
+		drainQueue();
 	}
 
 	function clearStatuses() {
@@ -288,7 +324,7 @@
 	}
 
 	function openFileSelector() {
-		if (!disabled && !isUploading) {
+		if (!disabled) {
 			fileInputRef?.click();
 		}
 	}
@@ -474,7 +510,8 @@
 	}
 
 	.upload-zone.uploading {
-		cursor: not-allowed;
+		/* Still interactive: dropping/clicking mid-upload enqueues more files. */
+		cursor: copy;
 		border-color: var(--success);
 		background: color-mix(in srgb, var(--success) 6%, var(--bg-secondary));
 	}
