@@ -22,7 +22,7 @@ export interface BackupResult {
  */
 export function performBackup(): BackupResult {
 	if (!fs.existsSync(DB_PATH)) {
-		return { success: false, message: `Base de données non trouvée : ${DB_PATH}` };
+		return { success: false, message: `Database not found: ${DB_PATH}` };
 	}
 
 	try {
@@ -55,10 +55,10 @@ export function performBackup(): BackupResult {
 			}
 		});
 
-		return { success: true, backupPath, message: `Sauvegarde créée : ${backupFileName}` };
+		return { success: true, backupPath, message: `Backup created: ${backupFileName}` };
 	} catch (e) {
 		const msg = e instanceof Error ? e.message : String(e);
-		return { success: false, message: `Erreur lors de la sauvegarde : ${msg}` };
+		return { success: false, message: `Backup error: ${msg}` };
 	}
 }
 

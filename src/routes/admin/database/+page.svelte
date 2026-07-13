@@ -116,7 +116,7 @@
 
 			if (!response.ok) throw new Error(result.error || m.db_backup_fail());
 
-			toast.success(result.message || m.db_backup_success());
+			toast.success(m.db_backup_success());
 			setTimeout(() => window.location.reload(), 1500);
 		} catch (error: unknown) {
 			toast.error(m.db_backup_error({ error: String(error) }));

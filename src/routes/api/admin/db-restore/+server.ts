@@ -48,7 +48,7 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({
 			success: true,
-			message: 'Sauvegarde restaurée avec succès',
+			message: 'Backup restored successfully',
 			safetyBackup: SAFETY_BACKUP
 		});
 	} catch (e: unknown) {

@@ -48,7 +48,7 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({
 			success: true,
-			message: 'Base de données importée avec succès',
+			message: 'Database imported successfully',
 			backup: BACKUP_PATH
 		});
 	} catch (e: unknown) {
