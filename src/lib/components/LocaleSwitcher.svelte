@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { Languages } from 'lucide-svelte';
-	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { getLocale, type Locale } from '$lib/paraglide/runtime';
+	import { switchLocale } from '$lib/locale';
 	import { m } from '$lib/paraglide/messages';
 
-	// setLocale persists the choice in the paraglide cookie and reloads the page so
-	// the server middleware re-renders every string in the new language.
+	// switchLocale persists the choice to the user's profile, then Paraglide
+	// writes the cookie and reloads so the server re-renders in the new language.
 	function onChange(event: Event) {
 		const value = (event.currentTarget as HTMLSelectElement).value as Locale;
-		setLocale(value);
+		switchLocale(value);
 	}
 </script>
 

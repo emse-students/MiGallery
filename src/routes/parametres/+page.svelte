@@ -36,7 +36,8 @@
 	import { toast } from '$lib/toast';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import { m } from '$lib/paraglide/messages';
-	import { getLocale, setLocale, type Locale } from '$lib/paraglide/runtime';
+	import { getLocale, type Locale } from '$lib/paraglide/runtime';
+	import { switchLocale } from '$lib/locale';
 
 	const photosState = new PhotosState();
 	let showChangePhotoModal = $state(false);
@@ -634,7 +635,7 @@
 						<Languages size={18} />
 						<select
 							value={getLocale()}
-							onchange={(e) => setLocale((e.currentTarget as HTMLSelectElement).value as Locale)}
+							onchange={(e) => switchLocale((e.currentTarget as HTMLSelectElement).value as Locale)}
 							aria-label={m.param_language()}
 						>
 							<option value="fr">{m.lang_french()}</option>

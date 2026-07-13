@@ -111,6 +111,9 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 			// Existing users who already have a promo set don't need the modal
 			dbInstance.prepare('UPDATE users SET first_login = 0 WHERE promo IS NOT NULL').run();
 		}
+		if (!cols.includes('locale')) {
+			dbInstance.prepare('ALTER TABLE users ADD COLUMN locale TEXT').run();
+		}
 		try {
 			const acols = dbInstance
 				.prepare('PRAGMA table_info(albums)')

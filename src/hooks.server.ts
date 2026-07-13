@@ -7,6 +7,7 @@ import { getSessionUser } from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
 import { verifySigned } from '$lib/auth/cookies';
 import { paraglideMiddleware } from '$lib/paraglide/server';
+import { cookieName as LOCALE_COOKIE, isLocale } from '$lib/paraglide/runtime';
 
 // Start the daily automatic backup as soon as the server starts
 startBackupScheduler();
@@ -126,6 +127,18 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 const sessionHandler: Handle = async ({ event, resolve }) => {
 	const user = getSessionUser(event.cookies);
 	event.locals.user = user ?? null;
+
+	// Seed the Paraglide locale cookie from the user's saved preference the first
+	// time they land in a browser that has no cookie yet (e.g. a new device). This
+	// lets the chosen language follow the account. We only seed when the cookie is
+	// absent, so a local switch on this browser is never reverted.
+	if (user?.locale && isLocale(user.locale) && !event.cookies.get(LOCALE_COOKIE)) {
+		event.cookies.set(LOCALE_COOKIE, user.locale, {
+			path: '/',
+			maxAge: 60 * 60 * 24 * 365,
+			sameSite: 'lax'
+		});
+	}
 
 	// Clean up old legacy-format cookies (containing dots = "firstname.lastname")
 	// or invalid cookies (too short or malformed)

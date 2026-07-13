@@ -395,6 +395,7 @@ export interface SessionUser {
 	role: string;
 	promo?: number | null;
 	formation?: string | null;
+	locale?: string | null;
 }
 
 /**
@@ -408,6 +409,7 @@ export function toSessionUser(dbUser: DBUser): SessionUser {
 		last_name: dbUser.last_name,
 		role: dbUser.role,
 		promo: dbUser.promo,
-		formation: dbUser.formation
+		formation: dbUser.formation,
+		locale: dbUser.locale
 	};
 }

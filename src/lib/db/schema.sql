@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
     -- formation: e.g. 'InfoCom', 'DevOps', etc.
     formation TEXT,
     -- first_login: 1 = first time (promo modal shown), 0 = already completed
-    first_login INTEGER DEFAULT 1
+    first_login INTEGER DEFAULT 1,
+    -- locale: preferred UI language ('fr' | 'en'). NULL = no explicit choice
+    -- (falls back to the PARAGLIDE_LOCALE cookie, then the base locale).
+    locale TEXT
 );
 
 -- No example users inserted by default. If you want to seed test users,

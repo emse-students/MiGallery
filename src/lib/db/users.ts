@@ -10,6 +10,7 @@ export interface DBUser {
 	promo?: number | null;
 	formation?: string | null;
 	first_login?: number | null;
+	locale?: string | null;
 }
 
 export function getUserByCasId(casId: string): DBUser | undefined {
