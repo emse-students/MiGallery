@@ -159,6 +159,7 @@
 	"uz_drop_idle": "Glissez-déposez des fichiers ou dossiers ici",
 	"uz_error_count": "{count} erreur(s)",
 	"uz_duplicate_count": "{count} doublon(s)",
+	"uz_pending_count": "{count} en attente",
 	"uz_or_click": "ou cliquez pour sélectionner",
 	"uz_accepted": "Images et vidéos acceptées",
 	"pm_set_cover": "Définir comme couverture",

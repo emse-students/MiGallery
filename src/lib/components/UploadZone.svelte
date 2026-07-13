@@ -8,7 +8,8 @@
 		AlertTriangle,
 		RefreshCw,
 		Upload,
-		WifiOff
+		WifiOff,
+		Clock
 	} from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -23,7 +24,8 @@
 		onUpload: (
 			files: File[],
 			onProgress?: (current: number, total: number) => void,
-			onFileResult?: (result: FileResult) => void
+			onFileResult?: (result: FileResult) => void,
+			onFileStart?: (file: File) => void
 		) => Promise<Array<{ file: File; isDuplicate: boolean; assetId?: string }>>;
 		accept?: string;
 		multiple?: boolean;
@@ -191,6 +193,14 @@
 				globalProgress = Math.round((current / total) * 100);
 			};
 
+			const onFileStartCallback = (file: File) => {
+				const idx = fileStatuses.findIndex((s) => s.file === file);
+				if (idx >= 0) {
+					fileStatuses[idx].status = 'uploading';
+					fileStatuses = [...fileStatuses];
+				}
+			};
+
 			const onFileResultCallback = (result: FileResult) => {
 				const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
 				if (statusIndex >= 0) {
@@ -213,7 +223,12 @@
 				}
 			};
 
-			const results = await onUpload(files, onProgressCallback, onFileResultCallback);
+			const results = await onUpload(
+				files,
+				onProgressCallback,
+				onFileResultCallback,
+				onFileStartCallback
+			);
 
 			const uploadResults = Array.isArray(results) ? results : [];
 
@@ -280,6 +295,7 @@
 
 	const successCount = $derived(uploadedCount);
 	const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
+	const pendingCount = $derived(fileStatuses.filter((s) => s.status === 'pending').length);
 </script>
 
 <div
@@ -328,6 +344,12 @@
 						<div class="progress-fill" style="width: {globalProgress}%"></div>
 					</div>
 					<p class="progress-text">{globalProgress}%</p>
+					{#if pendingCount > 0}
+						<div class="summary-item pending">
+							<Clock size={20} />
+							<span>{m.uz_pending_count({ count: pendingCount })}</span>
+						</div>
+					{/if}
 				{/if}
 				{#if successCount > 0}
 					<div class="summary-item success">
@@ -365,6 +387,8 @@
 										<AlertTriangle size={16} />
 									{:else if item.status === 'uploading'}
 										<Spinner size={16} />
+									{:else if item.status === 'pending'}
+										<Clock size={16} />
 									{/if}
 								</div>
 							</div>
@@ -540,6 +564,11 @@
 		color: var(--warning);
 	}
 
+	.summary-item.pending {
+		background: color-mix(in srgb, var(--accent) 8%, transparent);
+		color: var(--text-secondary);
+	}
+
 	.file-list {
 		width: 100%;
 		max-height: 400px;
@@ -569,6 +598,15 @@
 	.file-item.duplicate {
 		border-color: color-mix(in srgb, var(--warning) 30%, transparent);
 		background: color-mix(in srgb, var(--warning) 5%, transparent);
+	}
+
+	.file-item.uploading {
+		border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+		background: color-mix(in srgb, var(--accent) 6%, transparent);
+	}
+
+	.file-item.pending {
+		opacity: 0.6;
 	}
 
 	.file-header {

@@ -177,6 +177,7 @@ export async function handleAlbumUpload(
 	options: {
 		onProgress?: (current: number, total: number) => void;
 		onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void;
+		onFileStart?: (file: File) => void;
 		isPhotosCV?: boolean;
 		onSuccess?: () => void;
 	} = {}
@@ -197,6 +198,16 @@ export async function handleAlbumUpload(
 	try {
 		for (let i = 0; i < files.length; i++) {
 			const file = files[i];
+
+			// Signal that this file is now the active upload so the UI can flip it
+			// from the pending queue to an in-progress state.
+			if (options.onFileStart) {
+				try {
+					options.onFileStart(file);
+				} catch (e) {
+					void e;
+				}
+			}
 
 			let uploadRes: Response | null = null;
 			let lastError: Error | null = null;

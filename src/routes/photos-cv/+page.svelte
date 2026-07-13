@@ -39,7 +39,8 @@
 	async function handleUpload(
 		files: File[],
 		onProgress?: (current: number, total: number) => void,
-		onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void
+		onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void,
+		onFileStart?: (file: File) => void
 	) {
 		if (files.length === 0) return [];
 		const view = currentView;
@@ -48,6 +49,7 @@
 		const results = await handleAlbumUpload(files, 'photos-cv', allPhotosState, {
 			onProgress,
 			onFileResult,
+			onFileStart,
 			isPhotosCV: true,
 			onSuccess: async () => {
 				if (person) await myPhotosState.loadMyPhotosCV(person);

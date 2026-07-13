@@ -146,7 +146,8 @@
 	async function onUploadFiles(
 		files: File[],
 		onProgress?: (c: number, t: number) => void,
-		onFileResult?: (res: any) => void
+		onFileResult?: (res: any) => void,
+		onFileStart?: (file: File) => void
 	) {
 		const albumId = page.params.id;
 		if (!albumId) throw new Error(m.albumd_id_missing());
@@ -154,6 +155,7 @@
 		return await handleAlbumUpload(files, albumId, photosState, {
 			onProgress,
 			onFileResult,
+			onFileStart,
 			isPhotosCV: false,
 			onSuccess: async () => {
 				photosState.loadAlbumWithStreaming(albumId, title);

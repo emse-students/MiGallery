@@ -159,6 +159,7 @@
 	"uz_drop_idle": "Drag and drop files or folders here",
 	"uz_error_count": "{count} error(s)",
 	"uz_duplicate_count": "{count} duplicate(s)",
+	"uz_pending_count": "{count} pending",
 	"uz_or_click": "or click to select",
 	"uz_accepted": "Images and videos accepted",
 	"pm_set_cover": "Set as cover",
