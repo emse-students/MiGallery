@@ -429,7 +429,7 @@
 			<h1>{m.usr_title()}</h1>
 			<p class="count-subtitle">{m.usr_count({ count: users.length })}</p>
 		</div>
-		<button type="button" class="export-pdf-btn" onclick={openPdfModal} title={m.trombi_export_pdf()}>
+		<button type="button" class="btn-glass export-pdf-btn" onclick={openPdfModal} title={m.trombi_export_pdf()}>
 			<Download size={18} />
 			<span>PDF</span>
 		</button>
@@ -767,25 +767,9 @@
 		margin: 0.25rem 0 0;
 	}
 
+	/* Positioning only; visual style comes from .btn-glass. */
 	.export-pdf-btn {
 		margin-left: auto;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.6rem 1.25rem;
-		border-radius: 99px;
-		border: 1px solid var(--border);
-		background: var(--bg-secondary);
-		color: var(--text-primary);
-		font-weight: 600;
-		font-size: 0.9rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.export-pdf-btn:hover {
-		border-color: var(--accent);
-		color: var(--accent);
 	}
 
 	/* Search bar */

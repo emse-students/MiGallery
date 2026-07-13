@@ -157,7 +157,7 @@
 			<p class="hint">
 				{m.mp_access_denied_hint()}
 			</p>
-			<button type="button" class="btn-primary" onclick={() => goto('/')}>
+			<button type="button" class="btn-glass primary" onclick={() => goto('/')}>
 				<ArrowLeft size={18} />
 				{m.common_back_home()}
 			</button>
@@ -167,7 +167,7 @@
 			<div class="incite-icon"><Camera size={40} /></div>
 			<h2>{m.mp_incite_title()}</h2>
 			<p>{m.mp_incite_body()}</p>
-			<a href="/parametres#face-recognition" class="btn-primary">
+			<a href="/parametres#face-recognition" class="btn-glass primary">
 				<Camera size={18} />
 				{m.mp_incite_cta()}
 			</a>
@@ -374,25 +374,6 @@
 		font-size: 0.875rem;
 		opacity: 0.7;
 		margin-bottom: 1.5rem;
-	}
-
-	.btn-primary {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		background: var(--accent);
-		color: white;
-		padding: 0.75rem 1.5rem;
-		border-radius: 0.5rem;
-		border: none;
-		font-weight: 500;
-		cursor: pointer;
-		text-decoration: none;
-		transition: background 0.2s ease;
-	}
-
-	.btn-primary:hover {
-		background: var(--accent-secondary);
 	}
 
 	/* Profile incitation (shown when the user has no linked face yet) */
