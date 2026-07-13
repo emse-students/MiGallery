@@ -47,7 +47,7 @@
 
 **Current WIP:**
 
-- Open work (pick one, all independent): WP-4.x UX (pill buttons + upload feedback + a11y/responsive still open) | WP-2.x i18n backend (users.locale column) | deferred i18n externalization (user-visible FR string literals still inline in error()/json({error}) responses, src/lib/admin/endpoints.ts `description:`, toast.\*, this.error, backup.ts `message:`, some title= attrs -- a real Paraglide-externalization WP, not cosmetic).
+- Open work (pick one, all independent): WP-4.x UX (upload feedback + a11y/responsive still open; pill buttons DONE 3a3c961) | WP-2.x i18n backend (users.locale column) | deferred i18n externalization (user-visible FR string literals still inline in error()/json({error}) responses, src/lib/admin/endpoints.ts `description:`, toast.\*, this.error, backup.ts `message:`, some title= attrs -- a real Paraglide-externalization WP, not cosmetic).
 - PROD DEPLOY PENDING: WP-3a's DROP of the 4 legacy album\_\*\_permissions tables runs on prod at next deploy (idempotent, DROP IF EXISTS). Prod DB backed up on mitv (migallery_backup_pre-wp3a_20260712_020159.db).
 - i18n idiom: import { m } from '$lib/paraglide/messages'; call m.key() in template; params m.key({ x }); plurals use "(s)" style not ternary; npm run check auto-runs paraglide:compile. Prune orphaned keys with a node script over messages/{fr,en}.json (compare vs `grep -roE "m\.\w+" src`); paraglide output is gitignored+recompiled.
 
@@ -67,10 +67,11 @@ Done (one-liners; details in git):
 - \[x\] WP-5.1 combined queries (283d4f4): Immich search/metadata AND-combines personIds+albumIds server-side; handlers.getPersonAssets is the shared path (photos/+server.ts + photos-stream delegate to it).
 - \[x\] WP-5.x face-first profile picker (7a004fc): ChangePhotoModal renders detected-face crops via FaceCropThumb.svelte (GET /api/immich/faces?id=, CSS-crops thumbnail onto bounding box). NOT done: crops from 250px thumbnail (bump to preview if quality complaints); no browser visual QA yet.
 - \[x\] Clean [TEST] albums (2026-07-12): prod already clean. Immich prod access recipe: pipe a node script into `ssh mitv "docker exec -i migallery-migallery-1 node"` (container has global fetch + IMMICH_BASE_URL/IMMICH_API_KEY, header x-api-key).
+- \[x\] WP-4.x pill buttons (3a3c961): surgical dedup only. mes-photos .btn-primary -> .btn-glass primary; admin/users .export-pdf-btn adopts .btn-glass (scoped rule reduced to margin-left:auto). DELIBERATE: photo-card icon overlays (albums .action-btn, corbeille restore/delete-permanent, PhotoCard favorite/download/delete), circular (AlbumModal .promo-add-btn), camera UI (CameraInput), text-links (users .btn-text), nav arrows (photos-cv .btn-nav), and card-style buttons (admin/database) are INTENTIONALLY custom (different pattern: positioned/opacity-reveal/scale-hover/circular) - do NOT fold into .btn-glass. Only true pill-text duplicates were migrated.
 
 Open:
 
-- \[ \] WP-4.x UX: pill buttons, upload feedback, a11y+responsive.
+- \[ \] WP-4.x UX: upload feedback, a11y+responsive.
 - \[ \] WP-2.x i18n backend: users.locale column.
 - \[ \] Deferred i18n externalization (see Current WIP).
 
