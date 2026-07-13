@@ -27,10 +27,13 @@
 	let inView = $state(false);
 	let box = $state<FaceBox | null>(null);
 	let imgLoaded = $state(false);
-	let boxResolved = $state(false); // true once the face lookup settled (hit or miss)
 
 	const thumbSrc = $derived(`/api/immich/assets/${assetId}/thumbnail?size=thumbnail`);
-	const ready = $derived(imgLoaded && boxResolved);
+	// Visibility depends only on the image being loaded. The face box is a
+	// progressive enhancement (it refines the crop once resolved); it must never
+	// gate whether the photo is shown, otherwise a slow/failed face lookup blanks
+	// the whole thumbnail.
+	const ready = $derived(imgLoaded);
 
 	// Zoom/center the thumbnail on the detected face. When no box is available for
 	// this person, fall back to a plain center-cover crop of the whole thumbnail.
@@ -104,8 +107,6 @@
 			}
 		} catch {
 			/* fall back to center-cover crop */
-		} finally {
-			boxResolved = true;
 		}
 	}
 
@@ -150,10 +151,13 @@
 </div>
 
 <style>
+	/* Fill the nearest positioned ancestor (the consumer wraps this in a
+	   position:relative, aspect-ratio square). Absolute inset:0 is used instead of
+	   width/height:100% because a percentage height does not resolve against a
+	   parent whose height comes from aspect-ratio, which collapsed the crop to 0. */
 	.face-crop {
-		position: relative;
-		width: 100%;
-		height: 100%;
+		position: absolute;
+		inset: 0;
 		overflow: hidden;
 		background: var(--bg-tertiary);
 	}
