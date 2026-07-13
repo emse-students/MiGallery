@@ -56,9 +56,9 @@ src/
     albums/ photos-cv/ mes-photos/ corbeille/ parametres/ admin/
     +page.svelte, cgu/
   hooks.server.ts      # CORS/CSRF + session resolution
-  hooks.client.ts      # navigation guard (in-flight ops), service-worker registration
+  hooks.client.ts      # navigation guard (in-flight ops)
 data/                  # runtime (gitignored): SQLite DB, backups, in-flight upload chunks
-static/                # streamsaver-sw.js (minimal SW, no fetch interception), mitm.html
+static/                # static assets served as-is
 scripts/               # Node scripts: init-db, backup, cleanup-chunks, tests
 ```
 

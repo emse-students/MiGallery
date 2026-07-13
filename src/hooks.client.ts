@@ -49,14 +49,16 @@ if (typeof window !== 'undefined') {
 	); // Capture phase = before SvelteKit
 }
 
-// Register a lightweight service worker for StreamSaver (if available)
+// StreamSaver was removed in favour of server-side download tokens. Proactively
+// unregister any lingering service worker left over from the old download flow -
+// the script no longer exists, so a stale registration would otherwise persist.
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-	navigator.serviceWorker
-		.register('/streamsaver-sw.js')
-		.then((reg) => {
-			console.debug('[hooks.client] streamsaver service worker registered', reg.scope);
-		})
-		.catch((err) => {
-			console.warn('[hooks.client] failed to register streamsaver service worker', err);
-		});
+	navigator.serviceWorker.getRegistrations().then((regs) => {
+		for (const reg of regs) {
+			const url = reg.active?.scriptURL ?? reg.waiting?.scriptURL ?? reg.installing?.scriptURL;
+			if (url?.includes('streamsaver-sw')) {
+				reg.unregister();
+			}
+		}
+	});
 }

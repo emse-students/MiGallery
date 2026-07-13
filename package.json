@@ -104,7 +104,6 @@
 		"jspdf-autotable": "^5.0.7",
 		"lucide-svelte": "^1.0.1",
 		"sharp": "^0.34.5",
-		"streamsaver": "^2.0.6",
 		"typescript-eslint": "^8.61.1",
 		"undici": "^8.0.3",
 		"vitest": "^4.0.10"
