@@ -69,7 +69,7 @@ Surviving gotchas from done WPs:
 
 Open:
 
-- \[ \] i18n leftover (357e191 did: all 4 client toast.\* + all title= (PhotoModal/CameraInput) -> Paraglide; 13 server error()/json({error}) -> English; deleted dead endpoints.ts). STILL FR, intentionally deferred: json({ message }) SUCCESS strings (~5: photo-access/db-restore/db-import) + backup.ts `message:` (surfaced to user via admin UI - decided to leave, would need server-returns-key refactor); any this.error/aria-label/placeholder FR not yet audited (toast+title were the full audited scope).
+- \[ \] i18n leftover: client toast.\*/title= -> Paraglide (357e191) and ALL server error()/json({error})/'Erreur inconnue' fallbacks -> English DONE (357e191 did throw error(); 6d2241f swept the missed json({error}) returns + fallbacks in album/avatar/photo-access/db-import/db-restore). STILL FR by design: only the 2 `message:` SUCCESS strings (db-import:51, db-restore:51 "...avec succes") + backup.ts `message:` - surfaced via admin UI, would need a server-returns-key refactor. Un-audited: this.error/aria-label/placeholder FR (toast+title+server-error were the audited scope).
 - \[ \] WP-4.x responsive: no code defect found (media queries + table overflow-x everywhere); needs real-device browser QA.
 - \[ \] FR\#3 leftover: drag&drop enqueue-during-upload.
 - \[ \] WP-5.x: bump face-crop source from 250px thumbnail to preview if quality complaints.
