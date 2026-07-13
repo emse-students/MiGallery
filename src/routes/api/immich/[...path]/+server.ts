@@ -1,9 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import { logEvent } from '$lib/server/logs';
+import { createLogger } from '$lib/server/logger';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
+
+const log = createLogger('immich-proxy');
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -94,7 +97,7 @@ async function checkPublicAssetAccess(
 	referer?: string | null
 ): Promise<boolean> {
 	if (!baseUrl || !apiKey) {
-		console.warn('[CheckPublic] Missing baseUrl or apiKey');
+		log.warn('public check: missing baseUrl or apiKey');
 		return false;
 	}
 
@@ -112,19 +115,13 @@ async function checkPublicAssetAccess(
 				headers: { 'x-api-key': apiKey, accept: 'application/json' }
 			});
 			if (!res.ok) {
-				console.warn(`[CheckPublic] Fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
-				try {
-					const txt = await res.text();
-					console.warn(`[CheckPublic] Error body: ${txt.slice(0, 200)}`);
-				} catch {
-					void 0;
-				}
+				log.warn(`public check fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
 				return false;
 			}
 			assetData = (await res.json()) as ImmichAssetResponse;
 			publicMetaCache.set(assetUrl, assetData);
 		} catch (e) {
-			console.error('Error fetching asset details for public check:', e);
+			log.error('error fetching asset details for public check', e);
 			return false;
 		}
 	}
@@ -152,7 +149,7 @@ async function checkPublicAssetAccess(
 						publicMetaCache.set(albumUrl, albumData);
 					}
 				} catch (e) {
-					console.error('Error fetching album details for referer check:', e);
+					log.error('error fetching album details for referer check', e);
 				}
 			}
 
@@ -166,9 +163,7 @@ async function checkPublicAssetAccess(
 	}
 
 	if (!Array.isArray(albums) || albums.length === 0) {
-		console.warn(
-			`[CheckPublic] Asset ${assetId} has no albums linked in Immich response. Keys: ${Object.keys(assetData || {}).join(', ')}`
-		);
+		log.debug(`public check: asset ${assetId} has no albums linked in Immich response`);
 		return false;
 	}
 
@@ -187,14 +182,14 @@ async function checkPublicAssetAccess(
 		const result = stmt.get(...albumIds) as { id: string } | undefined;
 
 		if (!result) {
-			console.warn(
-				`[CheckPublic] Asset ${assetId} belongs to albums [${albumIds.join(', ')}] but none are unlisted in local DB`
+			log.debug(
+				`public check: asset ${assetId} belongs to albums [${albumIds.join(', ')}] but none are unlisted in local DB`
 			);
 		}
 
 		return !!result;
 	} catch (e) {
-		console.error('Error checking album visibility in DB:', e);
+		log.error('error checking album visibility in DB', e);
 		return false;
 	}
 }
@@ -346,7 +341,7 @@ async function handleChunkedUpload(
 			fs.renameSync(tempFilePath, completePath);
 			finalFilePath = completePath;
 		} catch (e) {
-			console.warn('Failed to rename temp file to complete:', e);
+			log.warn('failed to rename temp file to complete', e);
 		}
 
 		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
@@ -399,7 +394,7 @@ async function handleChunkedUpload(
 				},
 				(err: Error | null, res: http.IncomingMessage) => {
 					if (err) {
-						console.error('[Immich-Proxy] formData.submit failed', { fileId, err });
+						log.error('formData.submit failed', { fileId, err });
 						reject(err);
 						return;
 					}
@@ -434,7 +429,7 @@ async function handleChunkedUpload(
 
 			if (req) {
 				req.on('error', (err: Error) => {
-					console.error('[Immich-Proxy] Request error to Immich:', { fileId, err });
+					log.error('request error to Immich', { fileId, err });
 					reject(err);
 				});
 			}
@@ -492,7 +487,7 @@ async function handleChunkedUpload(
 								/* ignore */
 							}
 						} catch (e) {
-							console.warn('Failed to log upload:', e);
+							log.warn('failed to log upload', e);
 						}
 					})();
 				}
@@ -511,15 +506,15 @@ async function handleChunkedUpload(
 					headers: forwardedHeaders
 				});
 			} catch (e) {
-				console.warn('Error teeing response', e);
+				log.warn('error teeing response', e);
 				// Fallback
 				return response;
 			}
 		} else {
 			// Error case - we can read body
 			const errorBody = await response.text();
-			console.error(
-				`[Immich-Proxy] Upload failed for ${originalName}: ${response.status} ${response.statusText}`,
+			log.error(
+				`upload failed for ${originalName}: ${response.status} ${response.statusText}`,
 				errorBody
 			);
 
@@ -542,7 +537,7 @@ async function handleChunkedUpload(
 		}
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error('[Immich-Proxy] Error processing chunk:', _err);
+		log.error('error processing chunk', _err);
 		try {
 			if (fs.existsSync(tempFilePath)) {
 				fs.unlinkSync(tempFilePath);
@@ -589,7 +584,7 @@ const handle: RequestHandler = async function (event) {
 					if (isPublic) {
 						void 0;
 					} else {
-						console.warn(`[Proxy] Access denied for asset ${assetId} (not public)`);
+						log.warn(`access denied for asset ${assetId} (not public)`);
 						return new Response(
 							JSON.stringify({
 								error: 'Access denied to private asset',
@@ -638,11 +633,11 @@ const handle: RequestHandler = async function (event) {
 					) {
 						void 0;
 					} else {
-						console.warn('[Proxy] Access denied for download (not all assets public)');
+						log.warn('access denied for download (not all assets public)');
 						throw err;
 					}
 				} catch (e) {
-					console.error('Error checking public download access:', e);
+					log.error('error checking public download access', e);
 					throw err;
 				}
 			} else {
@@ -665,10 +660,6 @@ const handle: RequestHandler = async function (event) {
 	}
 
 	const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
-
-	if (pathParam.includes('download')) {
-		console.debug(`[Proxy] Download request: ${request.method} ${pathParam} -> ${resolvedRemoteUrl}`);
-	}
 
 	if (!baseUrlFromEnv) {
 		return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
@@ -750,7 +741,7 @@ const handle: RequestHandler = async function (event) {
 			bodyToForward = request.body ?? undefined;
 		} catch (e: unknown) {
 			const _err = ensureError(e);
-			console.error('Error processing request body for immich proxy:', _err.message || _err);
+			log.error('error processing request body for immich proxy', _err.message || _err);
 		}
 	}
 
@@ -769,18 +760,14 @@ const handle: RequestHandler = async function (event) {
 			try {
 				const clone = res.clone();
 				const snippet = await clone.text();
-				console.error(`Immich proxy upstream error for ${resolvedRemoteUrl}:`, {
+				log.error(`upstream error for ${resolvedRemoteUrl}`, {
 					status: res.status,
 					statusText: res.statusText,
 					bodySnippet: snippet && snippet.slice ? snippet.slice(0, 200) : snippet
 				});
 			} catch {
-				console.error('Immich proxy upstream error but failed to read body snippet');
+				log.error('upstream error but failed to read body snippet');
 			}
-		} else if (res.status === 304 && env.NODE_ENV === 'development') {
-			// Not Modified responses are expected when cache validation headers are used.
-			// Only log in development mode to avoid verbose production logs.
-			console.debug(`Immich proxy upstream: Not Modified for ${resolvedRemoteUrl}`);
 		}
 
 		const resContentType = res.headers.get('content-type') || 'application/json';
@@ -851,13 +838,10 @@ const handle: RequestHandler = async function (event) {
 				const assetMatch = pathParam.match(/assets\/([^/]+)/);
 				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
 				if (isFacePairingCleanup) {
-					console.error(
-						'❌ [Face Pairing] Failed to delete Immich photo:',
-						assetMatch ? assetMatch[1] : pathParam,
-						'(status:',
-						res.status,
-						')'
-					);
+					log.error('face-pairing: failed to delete Immich photo', {
+						asset: assetMatch ? assetMatch[1] : pathParam,
+						status: res.status
+					});
 				}
 			}
 			if (resContentType.includes('text/html')) {
@@ -884,17 +868,11 @@ const handle: RequestHandler = async function (event) {
 				const personIdMatch = pathParam.match(/people\/([^/]+)/);
 
 				if (request.method === 'DELETE') {
-					const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
 					if (pathParam === 'assets') {
 						try {
 							if (bodyToForward && typeof bodyToForward === 'string') {
 								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
 								if (parsed.ids && Array.isArray(parsed.ids)) {
-									if (isFacePairingCleanup) {
-										console.warn('🗑️  [Face Pairing] Bulk deletion of Immich photos:', parsed.ids);
-									} else {
-										console.debug('🗑️  [Immich] Bulk deletion of photos:', parsed.ids);
-									}
 									await logEvent(event, 'delete', 'asset', 'bulk', {
 										count: parsed.ids.length,
 										ids: parsed.ids
@@ -905,13 +883,10 @@ const handle: RequestHandler = async function (event) {
 							/* ignore */
 						}
 					} else if (assetIdMatch) {
-						console.warn('🗑️  [Face Pairing] Deletion of Immich photo:', assetIdMatch[1]);
 						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
 					} else if (albumIdMatch) {
-						console.debug('🗑️  [Immich] Deletion of album:', albumIdMatch[1]);
 						await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
 					} else if (personIdMatch) {
-						console.debug('🗑️  [Immich] Deletion of person:', personIdMatch[1]);
 						await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
 					}
 				} else if (request.method === 'POST') {
@@ -945,7 +920,7 @@ const handle: RequestHandler = async function (event) {
 					}
 				}
 			} catch (e) {
-				console.warn('Logging failed in proxy:', e);
+				log.warn('audit logging failed in proxy', e);
 			}
 		}
 
@@ -968,17 +943,6 @@ const handle: RequestHandler = async function (event) {
 		}
 
 		if (res.status === 204) {
-			if (request.method === 'DELETE') {
-				const assetMatch = pathParam.match(/assets\/([^/]+)/);
-				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
-				if (isFacePairingCleanup) {
-					if (assetMatch) {
-						console.debug('✅ [Face Pairing] Photo deleted from Immich successfully:', assetMatch[1]);
-					} else if (pathParam === 'assets') {
-						console.debug('✅ [Face Pairing] Immich photo deletion completed successfully');
-					}
-				}
-			}
 			return new Response(null, { status: 204, headers });
 		}
 		return new Response(textBody, { status: res.status, headers });
@@ -1040,8 +1004,8 @@ async function finishImmichUpload(
 ): Promise<Response> {
 	if (!response.ok) {
 		const errorBody = await response.text();
-		console.error(
-			`[Immich-Proxy] Upload failed for ${originalName}: ${response.status} ${response.statusText}`,
+		log.error(
+			`upload failed for ${originalName}: ${response.status} ${response.statusText}`,
 			errorBody
 		);
 		cleanup();
@@ -1073,7 +1037,7 @@ async function finishImmichUpload(
 						await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
 					}
 				} catch (e) {
-					console.warn('Failed to log upload:', e);
+					log.warn('failed to log upload', e);
 				} finally {
 					cleanup();
 				}
@@ -1096,7 +1060,7 @@ async function finishImmichUpload(
 			headers: forwardedHeaders
 		});
 	} catch (e) {
-		console.warn('Error teeing response', e);
+		log.warn('error teeing response', e);
 		cleanup();
 		return response;
 	}
@@ -1175,7 +1139,7 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
 		return await finishImmichUpload(event, response, 'simple-upload', () => {});
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error('[Immich-Proxy] Simple upload failed:', _err);
+		log.error('simple upload failed', _err);
 		return new Response(
 			JSON.stringify({ error: _err.message || 'Internal Server Error during upload' }),
 			{

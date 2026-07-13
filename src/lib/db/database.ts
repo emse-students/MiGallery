@@ -1,8 +1,10 @@
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { createRequire } from 'module';
+import { createLogger } from '$lib/server/logger';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
+const log = createLogger('db');
 
 type Statement = {
 	get: (...params: unknown[]) => unknown;
@@ -119,7 +121,7 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 			}
 		} catch (_e) {
 			try {
-				console.warn('DB migration (albums.visible) notice:', (_e as Error).message);
+				log.warn('migration (albums.visible) notice', (_e as Error).message);
 			} catch {
 				void _e;
 			}
@@ -144,7 +146,7 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 			}
 		} catch (_e) {
 			try {
-				console.warn('DB migration (api_keys) notice:', (_e as Error).message);
+				log.warn('migration (api_keys) notice', (_e as Error).message);
 			} catch {
 				void _e;
 			}
@@ -204,7 +206,7 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 			}
 		} catch (_e) {
 			try {
-				console.warn('DB migration (album_permissions) notice:', (_e as Error).message);
+				log.warn('migration (album_permissions) notice', (_e as Error).message);
 			} catch {
 				void _e;
 			}
@@ -212,7 +214,7 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 	} catch (_e) {
 		void _e;
 		try {
-			console.warn('DB migration notice:', (_e as Error).message);
+			log.warn('migration notice', (_e as Error).message);
 		} catch {
 			void 0;
 		}
@@ -252,7 +254,7 @@ export function resetDatabase() {
 				db.close();
 			}
 		} catch (e) {
-			console.error('Error closing database:', e);
+			log.error('error closing database', e);
 		}
 		db = null;
 	}

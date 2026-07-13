@@ -1,9 +1,11 @@
 import { getDatabase } from '$lib/db/database';
 import type { UserRow } from '$lib/types/api';
 import { verifySigned } from '$lib/auth/cookies';
+import { createLogger } from '$lib/server/logger';
 import type { LayoutServerLoad } from './$types';
 
 const SESSION_COOKIE_NAME = '__session_user';
+const log = createLogger('layout');
 
 type SessionPageUser = NonNullable<NonNullable<App.PageData['session']>['user']>;
 type SessionRole = NonNullable<SessionPageUser['role']>;
@@ -64,7 +66,7 @@ export const load: LayoutServerLoad = (event) => {
 			}
 		};
 	} catch (e) {
-		console.warn('Error while loading session from cookies:', e);
+		log.warn('error while loading session from cookies', e);
 		return { session: null };
 	}
 };

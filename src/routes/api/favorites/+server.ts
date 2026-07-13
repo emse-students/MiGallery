@@ -3,6 +3,9 @@ import { json } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('favorites');
 /**
  * GET /api/favorites
  * Gets all favorites of the logged-in user
@@ -23,7 +26,7 @@ export const GET: RequestHandler = async (event) => {
 
 		return json({ favorites: favorites.map((f) => f.asset_id) });
 	} catch (e: unknown) {
-		console.error('Error fetching favorites:', e);
+		log.error('Error fetching favorites:', e);
 		return json({ error: 'Database error' }, { status: 500 });
 	}
 };
@@ -56,7 +59,7 @@ export const POST: RequestHandler = async (event) => {
 
 		return json({ success: true, isFavorite: true });
 	} catch (e: unknown) {
-		console.error('Error adding favorite:', e);
+		log.error('Error adding favorite:', e);
 		return json({ error: 'Database error' }, { status: 500 });
 	}
 };
@@ -87,7 +90,7 @@ export const DELETE: RequestHandler = async (event) => {
 
 		return json({ success: true, isFavorite: false });
 	} catch (e: unknown) {
-		console.error('Error removing favorite:', e);
+		log.error('Error removing favorite:', e);
 		return json({ error: 'Database error' }, { status: 500 });
 	}
 };

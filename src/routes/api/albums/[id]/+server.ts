@@ -8,6 +8,9 @@ import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -70,7 +73,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ ...album, assets: assetList });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${id} GET:`, err);
+		log.error(`Error in /api/albums/${id} GET:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
@@ -96,15 +99,14 @@ export const DELETE: RequestHandler = async (event) => {
 			const db = getDatabase();
 			db.prepare('DELETE FROM albums WHERE id = ?').run(id);
 			db.prepare('DELETE FROM album_permissions WHERE album_id = ?').run(id);
-			console.warn(`Album ${id} deleted from local DB`);
 		} catch (dbErr: unknown) {
 			const err = ensureError(dbErr);
-			console.error('Error deleting album from local DB:', err);
+			log.error('Error deleting album from local DB:', err);
 			throw error(500, `Failed to delete album from database: ${err.message}`);
 		}
 
 		if (!IMMICH_BASE_URL) {
-			console.warn('IMMICH_BASE_URL not configured, skipping Immich deletion');
+			log.warn('IMMICH_BASE_URL not configured, skipping Immich deletion');
 		} else {
 			try {
 				const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
@@ -118,15 +120,13 @@ export const DELETE: RequestHandler = async (event) => {
 					const errorText = await res.text();
 					immichDeleteSuccess = false;
 					immichDeleteError = errorText;
-					console.warn(`Immich deletion failed for album ${id}: ${errorText}`);
-				} else {
-					console.warn(`Album ${id} deleted from Immich`);
+					log.warn(`Immich deletion failed for album ${id}: ${errorText}`);
 				}
 			} catch (immichErr: unknown) {
 				const err = ensureError(immichErr);
 				immichDeleteSuccess = false;
 				immichDeleteError = err.message;
-				console.warn('Error deleting album from Immich:', err);
+				log.warn('Error deleting album from Immich:', err);
 			}
 		}
 
@@ -136,7 +136,7 @@ export const DELETE: RequestHandler = async (event) => {
 				immichError: immichDeleteError
 			});
 		} catch (logErr) {
-			console.warn('logEvent failed (albums DELETE):', logErr);
+			log.warn('logEvent failed (albums DELETE):', logErr);
 		}
 
 		return json({
@@ -147,7 +147,7 @@ export const DELETE: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${event.params.id} DELETE:`, err);
+		log.error(`Error in /api/albums/${event.params.id} DELETE:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
@@ -341,7 +341,7 @@ export const PATCH: RequestHandler = async (event) => {
 		try {
 			await logEvent(event, 'update', 'album', id, { name, date, location, visibility, visible });
 		} catch (logErr) {
-			console.warn('logEvent failed (albums PATCH):', logErr);
+			log.warn('logEvent failed (albums PATCH):', logErr);
 		}
 
 		return json({
@@ -350,7 +350,7 @@ export const PATCH: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error(`Error in /api/albums/${event.params.id} PATCH:`, err);
+		log.error(`Error in /api/albums/${event.params.id} PATCH:`, err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

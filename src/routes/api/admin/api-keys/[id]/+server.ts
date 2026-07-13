@@ -5,6 +5,9 @@ import type { RequestHandler } from './$types';
 import { deleteApiKey } from '$lib/db/api-keys';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('admin-api-keys-id');
 export const DELETE: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 	try {
@@ -20,7 +23,7 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ success: true, changes });
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error('DELETE /api/admin/api-keys/:id error', e);
+		log.error('DELETE /api/admin/api-keys/:id error', e);
 		return json({ success: false, error: (e as Error).message }, { status: 500 });
 	}
 };

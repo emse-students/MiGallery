@@ -3,6 +3,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-me-photo-access-shared-with-me');
 interface SharedWithMe {
 	owner_id: string;
 	owner_name: string;
@@ -43,7 +46,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ success: true, shared_by: sharedWithMe });
 	} catch (e) {
 		const err = e as Error;
-		console.error('GET /api/users/me/photo-access/shared-with-me error', err);
+		log.error('GET /api/users/me/photo-access/shared-with-me error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };

@@ -46,6 +46,8 @@ the page is a bug.
 
 - Code comments and developer-facing strings (logs, thrown errors) are English.
   User-visible text goes through i18n, never inline (see the i18n rollout).
+- Server logging goes through the structured logger (`createLogger`), not
+  `console.*`; persisted audit events use `logEvent` (see architecture.md).
 - Text is ASCII (straight `'` and `"`, hyphen `-`); the ellipsis `…` is the one
   intentional exception.
 - Svelte 5 runes only (`$state`, `$derived`, `$effect`), never the legacy `$:`.

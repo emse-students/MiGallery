@@ -6,6 +6,9 @@ import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('external-media');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -29,7 +32,7 @@ export const POST: RequestHandler = async (event) => {
 		formData = await request.formData();
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error('Failed to parse form data for external upload', e);
+		log.error('Failed to parse form data for external upload', e);
 		throw error(400, 'Invalid multipart form data');
 	}
 
@@ -55,7 +58,7 @@ export const POST: RequestHandler = async (event) => {
 
 	if (!uploadRes.ok) {
 		const txt = await uploadRes.text().catch(() => uploadRes.statusText);
-		console.error('Immich upload failed:', txt);
+		log.error('Immich upload failed:', txt);
 		throw error(uploadRes.status, `Upload failed: ${txt}`);
 	}
 
@@ -82,12 +85,12 @@ export const POST: RequestHandler = async (event) => {
 			});
 			if (!res.ok) {
 				const txt = await res.text().catch(() => res.statusText);
-				console.warn('Failed to add uploaded assets to PortailEtu:', txt);
+				log.warn('Failed to add uploaded assets to PortailEtu:', txt);
 			}
 		}
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.warn('Failed to add assets to PortailEtu', e);
+		log.warn('Failed to add assets to PortailEtu', e);
 	}
 
 	return json({ success: true, assetIds });
@@ -149,7 +152,7 @@ export const DELETE: RequestHandler = async (event) => {
 
 	if (!deleteRes.ok) {
 		const txt = await deleteRes.text().catch(() => deleteRes.statusText);
-		console.error('Failed to delete assets from Immich:', txt);
+		log.error('Failed to delete assets from Immich:', txt);
 		throw error(deleteRes.status, `Delete failed: ${txt}`);
 	}
 

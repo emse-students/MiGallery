@@ -10,7 +10,6 @@ if (typeof window !== 'undefined') {
 
 	activeOperations.subscribe((ops) => {
 		hasActiveOps = ops.size > 0;
-		console.warn('[hooks.client] Active operations updated:', ops.size);
 	});
 
 	document.addEventListener(
@@ -35,7 +34,6 @@ if (typeof window !== 'undefined') {
 			}
 
 			if (hasActiveOps) {
-				console.warn('[hooks.client] Blocking navigation to:', href);
 				e.preventDefault();
 				e.stopPropagation();
 				navigationModalStore.set({

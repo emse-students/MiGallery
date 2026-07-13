@@ -3,6 +3,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { generateAuthorizationUrl } from '$lib/auth';
 import { randomBytes } from 'crypto';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('auth-login');
 const STATE_COOKIE_NAME = '__oidc_state';
 const NONCE_COOKIE_NAME = '__oidc_nonce';
 
@@ -39,7 +42,7 @@ export const GET: RequestHandler = ({ cookies, url }) => {
 		const callbackUrl = new URL('/api/auth/callback', url.origin);
 		authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
 	} catch (e) {
-		console.error('[LOGIN] Error:', e);
+		log.error('Error:', e);
 		throw error(500, 'Login failed');
 	}
 

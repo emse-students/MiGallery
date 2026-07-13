@@ -6,6 +6,9 @@ import { resetDatabase } from '$lib/db/database';
 import fs from 'fs';
 import path from 'path';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('admin-db-import');
 export const POST: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 
@@ -50,7 +53,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error importing database:', err);
+		log.error('Error importing database:', err);
 		return error(400, "Fichier invalide. La base de données n'a pas pu être importée.");
 	}
 };

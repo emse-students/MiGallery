@@ -36,6 +36,29 @@ themselves via the permission helpers (see
 [authentication.md](authentication.md)). Unauthenticated visitors can reach
 public pages and unlisted albums; everything else is gated at the handler.
 
+## Logging
+
+Server code logs through a small structured logger (`src/lib/server/logger.ts`),
+never `console.*` directly. Create a scoped instance per module and call it by
+level:
+
+```
+import { createLogger } from '$lib/server/logger';
+const log = createLogger('immich-proxy');
+log.warn('access denied for asset', { assetId });
+```
+
+Every line is one record: `<ISO timestamp> <LEVEL> [scope] <message>` plus an
+optional structured field. Levels are gated by a threshold resolved once at
+startup: `LOG_LEVEL` (`debug|info|warn|error`) wins when set, otherwise test
+logs errors only, production logs info and above, dev logs everything.
+
+Persisted audit events (who created/deleted what) are a separate concern: they
+go to the SQLite `logs` table via `logEvent` (see [data-model.md](data-model.md)),
+not the logger. Client code has no server logger - browser-only files keep
+`console.error`/`console.warn` for genuine failures. Debug/trace and
+success-path logging is not kept on either side.
+
 ## Directory layout
 
 ```

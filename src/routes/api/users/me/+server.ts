@@ -3,6 +3,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-me');
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 /**
@@ -41,7 +44,7 @@ export const GET: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = e as Error;
-		console.error('GET /api/users/me error', err);
+		log.error('GET /api/users/me error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };
@@ -78,7 +81,7 @@ export const DELETE: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = e as Error;
-		console.error('DELETE /api/users/me error', err);
+		log.error('DELETE /api/users/me error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };

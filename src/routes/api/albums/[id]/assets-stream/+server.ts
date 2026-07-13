@@ -6,6 +6,9 @@ import { env } from '$env/dynamic/private';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-assets-stream');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -44,7 +47,7 @@ export const GET: RequestHandler = async (event) => {
 			}
 		} catch (metaErr: unknown) {
 			const _metaErr = ensureError(metaErr);
-			console.warn(
+			log.warn(
 				'[assets-stream] failed to read album visibility metadata',
 				_metaErr.message || _metaErr
 			);
@@ -66,7 +69,7 @@ export const GET: RequestHandler = async (event) => {
 			localVisibility = row?.visibility;
 		} catch (dbErr: unknown) {
 			const _dbErr = ensureError(dbErr);
-			console.warn('[assets-stream] failed to read local DB visibility', _dbErr.message || _dbErr);
+			log.warn('failed to read local DB visibility', _dbErr.message || _dbErr);
 		}
 
 		const isUnlisted =
@@ -159,14 +162,14 @@ export const GET: RequestHandler = async (event) => {
 								if (!detailRes.ok) {
 									try {
 										const snippet = await detailRes.clone().text();
-										console.error('[assets-stream] asset detail proxy returned non-ok', {
+										log.error('asset detail proxy returned non-ok', {
 											assetId: asset.id,
 											status: detailRes.status,
 											snippet: snippet.slice(0, 400)
 										});
 									} catch (ie: unknown) {
 										const _ie = ensureError(ie);
-										console.error('[assets-stream] failed to read asset detail body', _ie.message || _ie);
+										log.error('failed to read asset detail body', _ie.message || _ie);
 									}
 								}
 
@@ -180,7 +183,7 @@ export const GET: RequestHandler = async (event) => {
 								return null;
 							} catch (e: unknown) {
 								const _err = ensureError(e);
-								console.warn(`Failed to fetch details for asset ${asset.id}:`, _err.message || _err);
+								log.warn(`Failed to fetch details for asset ${asset.id}:`, _err.message || _err);
 								return null;
 							}
 						});
@@ -209,7 +212,7 @@ export const GET: RequestHandler = async (event) => {
 						streamClosed = true;
 						return;
 					}
-					console.error(
+					log.error(
 						'Error in assets stream (will send error message and close stream):',
 						_err.message || _err
 					);
@@ -224,7 +227,7 @@ export const GET: RequestHandler = async (event) => {
 								(__err as unknown as { code?: string }).code !== 'ERR_INVALID_STATE' &&
 								!__err.message?.includes('Controller is already closed')
 							) {
-								console.error('Failed to close stream after error:', __err.message || __err);
+								log.error('Failed to close stream after error:', __err.message || __err);
 							}
 						}
 					}
@@ -240,7 +243,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error(`Error in /api/albums/${event.params.id}/assets-stream GET:`, _err.message || _err);
+		log.error(`Error in /api/albums/${event.params.id}/assets-stream GET:`, _err.message || _err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

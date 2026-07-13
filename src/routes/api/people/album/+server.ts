@@ -8,6 +8,9 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-album');
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'read');
 	try {
@@ -41,7 +44,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ assets, totalCount, currentPage: page, hasMore });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error in /api/people/album GET:', err);
+		log.error('Error in /api/people/album GET:', err);
 		throw error(500, err.message);
 	}
 };

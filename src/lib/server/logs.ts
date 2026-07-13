@@ -2,6 +2,9 @@
 import { getDatabase } from '$lib/db/database';
 import type { RequestEvent } from '@sveltejs/kit';
 import { getUserFromSignedCookie } from '$lib/server/auth';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('audit-log');
 
 /**
  * Log an event to the local DB `logs` table.
@@ -54,10 +57,6 @@ export function logEvent(
 		);
 		stmt.run(actor, eventType, targetType, targetId, details ? JSON.stringify(details) : null, ip);
 	} catch (e) {
-		try {
-			console.warn('logEvent failed:', (e as Error).message || e);
-		} catch (inner) {
-			void inner;
-		}
+		log.warn('logEvent failed', (e as Error).message || e);
 	}
 }

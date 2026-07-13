@@ -4,6 +4,9 @@ import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-metadata');
 /**
  * PUT /api/albums/[id]/metadata
  * Updates the local metadata of an album (name, date, location, visibility, visible)
@@ -67,7 +70,7 @@ export const PUT: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const errorMessage = e instanceof Error ? e.message : 'Erreur inconnue';
-		console.error(`Error PUT /api/albums/${event.params.id}/metadata:`, e);
+		log.error(`Error PUT /api/albums/${event.params.id}/metadata:`, e);
 		return json({ error: errorMessage }, { status: 500 });
 	}
 };

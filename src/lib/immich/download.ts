@@ -68,10 +68,6 @@ export async function downloadInBatches(
 	const multi = batches.length > 1;
 
 	try {
-		console.debug(
-			`[Download] ${assetIds.length} assets → ${batches.length} batch(es) of ≤${batchSize}`
-		);
-
 		for (let i = 0; i < batches.length; i++) {
 			if (opts?.signal?.aborted) {
 				throw new DOMException('Aborted', 'AbortError');
@@ -93,7 +89,6 @@ export async function downloadInBatches(
 
 		opts?.onProgress?.(1, batches.length - 1, batches.length);
 	} catch (e) {
-		console.error('[Download] Error:', e);
 		throw ensureError(e);
 	}
 }

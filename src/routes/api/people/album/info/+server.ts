@@ -5,6 +5,9 @@ import type { RequestHandler } from './$types';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-album-info');
 export const GET: RequestHandler = async (event) => {
 	try {
 		await requireScope(event, 'read');
@@ -26,7 +29,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error in /api/people/album/info GET:', err);
+		log.error('Error in /api/people/album/info GET:', err);
 		throw error(500, err.message);
 	}
 };

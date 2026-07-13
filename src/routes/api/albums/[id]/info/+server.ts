@@ -4,6 +4,9 @@ import { getDatabase } from '$lib/db/database';
 import type { RequestHandler } from '@sveltejs/kit';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-info');
 export const GET: RequestHandler = async (event) => {
 	try {
 		await requireScope(event, 'read');
@@ -68,7 +71,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (err: unknown) {
 		const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
-		console.error('Error loading album info:', err);
+		log.error('Error loading album info:', err);
 		return json(
 			{
 				error: errorMessage

@@ -12,6 +12,9 @@ import {
 } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people');
 /**
  * GET /api/people?action=...&personId=...
  *
@@ -67,7 +70,7 @@ export const GET: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = ensureError(e);
-		console.error('Error in /api/people GET:', err);
+		log.error('Error in /api/people GET:', err);
 		throw error(500, err.message);
 	}
 };
@@ -121,7 +124,7 @@ export const POST: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = ensureError(e);
-		console.error('Error in /api/people POST:', err);
+		log.error('Error in /api/people POST:', err);
 		throw error(500, err.message);
 	}
 };

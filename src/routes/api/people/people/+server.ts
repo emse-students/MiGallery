@@ -5,6 +5,9 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-people');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -35,7 +38,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ people, total: people.length });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error in /api/people/people GET:', err);
+		log.error('Error in /api/people/people GET:', err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

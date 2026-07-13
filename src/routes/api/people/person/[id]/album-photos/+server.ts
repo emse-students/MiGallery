@@ -5,6 +5,9 @@ import { json, error } from '@sveltejs/kit';
 import { getPersonAssets } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-person-id-album-photos');
 export const GET: RequestHandler = async (event) => {
 	const personId = event.params.id;
 	if (!personId) {
@@ -18,7 +21,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ assets });
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error('GET /api/people/person/[id]/album-photos error', e);
+		log.error('GET /api/people/person/[id]/album-photos error', e);
 		throw error(500, e instanceof Error ? e.message : 'Internal');
 	}
 };

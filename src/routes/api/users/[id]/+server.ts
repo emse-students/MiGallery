@@ -5,6 +5,9 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-id');
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
@@ -121,7 +124,7 @@ export const PUT: RequestHandler = async (event) => {
 				promo
 			});
 		} catch (logErr) {
-			console.warn('logEvent failed (users PUT):', logErr);
+			log.warn('logEvent failed (users PUT):', logErr);
 		}
 		return json({ success: true, updated, changes: info.changes });
 	} catch (e: unknown) {
@@ -129,7 +132,7 @@ export const PUT: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = ensureError(e);
-		console.error('PUT /api/users/[id] error', err);
+		log.error('PUT /api/users/[id] error', err);
 		return json({ success: false, error: err.message }, { status: 500 });
 	}
 };
@@ -155,7 +158,7 @@ export const DELETE: RequestHandler = async (event) => {
 	try {
 		await logEvent(event, 'delete', 'user', targetId, null);
 	} catch (logErr) {
-		console.warn('logEvent failed (users DELETE):', logErr);
+		log.warn('logEvent failed (users DELETE):', logErr);
 	}
 	return json({ success: true, changes: info.changes });
 };

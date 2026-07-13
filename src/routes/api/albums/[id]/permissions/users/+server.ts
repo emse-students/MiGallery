@@ -4,6 +4,9 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { ensureError } from '$lib/ts-utils';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-permissions-users');
 /**
  * POST /api/albums/[id]/permissions/users
  * Manages authorized users for an album
@@ -73,7 +76,7 @@ export const POST: RequestHandler = async (event) => {
 			throw err;
 		}
 		const e = ensureError(err);
-		console.error('POST /api/albums/[id]/permissions/users error:', e);
+		log.error('POST /api/albums/[id]/permissions/users error:', e);
 		throw svelteError(500, e.message);
 	}
 };

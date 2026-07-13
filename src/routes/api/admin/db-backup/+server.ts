@@ -3,13 +3,16 @@ import type { RequestHandler } from './$types';
 import { requireScope } from '$lib/server/permissions';
 import { performBackup } from '$lib/server/backup';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('admin-db-backup');
 export const POST: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 
 	const result = performBackup();
 
 	if (!result.success) {
-		console.error('[BACKUP] Manual backup failed:', result.message);
+		log.error('Manual backup failed:', result.message);
 		throw error(500, result.message);
 	}
 

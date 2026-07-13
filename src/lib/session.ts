@@ -2,8 +2,10 @@ import { dev } from '$app/environment';
 import type { Cookies } from '@sveltejs/kit';
 import { getUserByCasId } from '$lib/db/users';
 import { toSessionUser, type SessionUser } from '$lib/auth';
+import { createLogger } from '$lib/server/logger';
 
 const SESSION_COOKIE_NAME = '__session_user';
+const log = createLogger('session');
 const MAX_AGE = 365 * 24 * 60 * 60; // 1 year
 
 /**
@@ -43,7 +45,7 @@ export function getSessionUser(cookies: Cookies): SessionUser | null {
 		}
 		return toSessionUser(dbUser);
 	} catch (e) {
-		console.error('[SESSION] Error retrieving user:', e);
+		log.error('error retrieving user', e);
 		return null;
 	}
 }

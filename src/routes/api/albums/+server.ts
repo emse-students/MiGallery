@@ -7,6 +7,9 @@ import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 import { ensureError } from '$lib/ts-utils';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -67,7 +70,7 @@ export const GET: RequestHandler = async (event) => {
 		return json(formattedAlbums);
 	} catch (err: unknown) {
 		const e = ensureError(err);
-		console.error('Error in /api/albums GET:', e);
+		log.error('Error in /api/albums GET:', e);
 		throw svelteError(500, e.message);
 	}
 };
@@ -201,19 +204,19 @@ export const POST: RequestHandler = async (event) => {
 				}
 			}
 		} catch (dbErr) {
-			console.error('Error saving album to local DB:', dbErr);
+			log.error('Error saving album to local DB:', dbErr);
 		}
 
 		try {
 			await logEvent(event, 'create', 'album', albumId, { name: albumName, visibility });
 		} catch (logErr) {
-			console.warn('logEvent failed (albums POST):', logErr);
+			log.warn('logEvent failed (albums POST):', logErr);
 		}
 
 		return json({ ...immichAlbum, id: albumId });
 	} catch (err) {
 		const e = err as Error;
-		console.error('Error in POST /api/albums:', e);
+		log.error('Error in POST /api/albums:', e);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

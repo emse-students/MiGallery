@@ -5,6 +5,9 @@ import type { RequestHandler } from './$types';
 import { createApiKey, listApiKeys } from '$lib/db/api-keys';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('admin-api-keys');
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 	try {
@@ -12,7 +15,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ success: true, keys: rows });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('GET /api/admin/api-keys error', err);
+		log.error('GET /api/admin/api-keys error', err);
 		return json({ success: false, error: err.message }, { status: 500 });
 	}
 };
@@ -26,7 +29,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true, id, rawKey });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('POST /api/admin/api-keys error', err);
+		log.error('POST /api/admin/api-keys error', err);
 		return json({ success: false, error: err.message }, { status: 500 });
 	}
 };

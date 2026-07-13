@@ -327,7 +327,6 @@ export class PhotosState {
 	 * Used by: Photos CV page ("Toutes les photos CV" tab - mitvistes/admins only)
 	 */
 	async loadAllPhotosCV(limit: number = 100): Promise<void> {
-		console.warn('📸 PhotosState.loadAllPhotosCV called, page 1, limit:', limit);
 		this.loading = true;
 		this.error = null;
 		this.assets = [];
@@ -371,7 +370,6 @@ export class PhotosState {
 	 */
 	async loadNextPagePhotosCV(limit: number = 100): Promise<void> {
 		const nextPage = this.photoCVCurrentPage + 1;
-		console.warn('📸 PhotosState.loadNextPagePhotosCV called, page:', nextPage);
 		this.loading = true;
 		this.error = null;
 
@@ -417,7 +415,6 @@ export class PhotosState {
 		if (prevPage === this.photoCVCurrentPage) {
 			return;
 		}
-		console.warn('📸 PhotosState.loadPrevPagePhotosCV called, page:', prevPage);
 		this.loading = true;
 		this.error = null;
 
@@ -561,14 +558,12 @@ export class PhotosState {
 		albumName?: string,
 		visibility?: string
 	): Promise<void> {
-		console.warn('📸 PhotosState.loadAlbumWithStreaming called:', albumId, albumName);
 		this.loading = true;
 		this.error = null;
 		this.assets = [];
 		this.personName = albumName || 'Album';
 
 		try {
-			console.warn('  🔄 Fetching assets via streaming...');
 			const qp = visibility ? `?visibility=${encodeURIComponent(visibility)}` : '';
 			const res = await fetch(`/api/albums/${albumId}/assets-stream${qp}`);
 
@@ -613,12 +608,10 @@ export class PhotosState {
 			});
 
 			this.loading = false;
-			console.warn('  ✓ Loading complete, assets:', this.assets.length);
 		} catch (e: unknown) {
 			const _err = ensureError(e);
 			this.error = (e as Error).message;
 			this.loading = false;
-			console.warn('  ✗ Error:', this.error);
 		}
 	}
 

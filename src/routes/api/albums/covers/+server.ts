@@ -5,6 +5,9 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-covers');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -88,7 +91,7 @@ export const POST: RequestHandler = async (event) => {
 														coverAsset = (await assetRes.json()) as ImmichAsset;
 													}
 												} catch (e) {
-													console.warn(
+													log.warn(
 														`Failed to fetch cover asset ${album.albumThumbnailAssetId} for album ${albumId}`,
 														e
 													);
@@ -115,7 +118,7 @@ export const POST: RequestHandler = async (event) => {
 								return { albumId, cover: null };
 							} catch (e: unknown) {
 								const _err = ensureError(e);
-								console.warn(`Failed to fetch cover for album ${albumId}:`, e);
+								log.warn(`Failed to fetch cover for album ${albumId}:`, e);
 								return { albumId, cover: null };
 							}
 						})
@@ -154,7 +157,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error in /api/albums/covers POST:', err);
+		log.error('Error in /api/albums/covers POST:', err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

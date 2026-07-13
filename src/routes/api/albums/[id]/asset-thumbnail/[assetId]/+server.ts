@@ -5,6 +5,9 @@ import { requireScope } from '$lib/server/permissions';
 import { error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-asset-thumbnail-assetId');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -26,7 +29,7 @@ export const GET: RequestHandler = async (event) => {
 				| undefined;
 			localVisibility = row?.visibility;
 		} catch (dbErr: unknown) {
-			console.warn('[asset-thumbnail] failed to read local DB visibility', dbErr);
+			log.warn('failed to read local DB visibility', dbErr);
 		}
 
 		const visibilityHint = (() => {
@@ -65,7 +68,7 @@ export const GET: RequestHandler = async (event) => {
 			} catch {
 				/* ignore */
 			}
-			console.error('[asset-thumbnail] upstream returned non-ok', {
+			log.error('upstream returned non-ok', {
 				assetId,
 				status: proxied.status,
 				snippet: bodySnippet.slice(0, 400)
@@ -86,7 +89,7 @@ export const GET: RequestHandler = async (event) => {
 		return new Response(proxied.body, { status: proxied.status, headers });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('[asset-thumbnail] error', err);
+		log.error('error', err);
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}

@@ -5,6 +5,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { signId } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('change-user');
 export const POST: RequestHandler = async (event) => {
 	const { request, cookies } = event;
 	try {
@@ -32,7 +35,7 @@ export const POST: RequestHandler = async (event) => {
 		return json({ success: true });
 	} catch (error: unknown) {
 		const _err = ensureError(error);
-		console.error('Error changing user:', error);
+		log.error('Error changing user:', error);
 		return json(
 			{
 				success: false,

@@ -1,9 +1,11 @@
 import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
+import { createLogger } from '$lib/server/logger';
 import type { UserRow } from '$lib/types/api';
 import type { Cookies } from '@sveltejs/kit';
 
 const SESSION_COOKIE_NAME = '__session_user';
+const log = createLogger('auth');
 
 /**
  * Try to resolve a local DB user from the signed cookie `current_user_id`.
@@ -17,7 +19,7 @@ export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
 		}
 		const verified = verifySigned(cookieSigned);
 		if (!verified) {
-			console.warn('[auth] current_user_id cookie failed verification');
+			log.warn('current_user_id cookie failed verification');
 			return null;
 		}
 		const db = getDatabase();
@@ -25,12 +27,12 @@ export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
 			| UserRow
 			| undefined;
 		if (!user) {
-			console.warn('[auth] current_user_id cookie references unknown user', { id: verified });
+			log.warn('current_user_id cookie references unknown user', { id: verified });
 			return null;
 		}
 		return user || null;
 	} catch (e) {
-		console.warn('[auth] error while resolving signed cookie', e);
+		log.warn('error while resolving signed cookie', e);
 		return null;
 	}
 }
@@ -52,13 +54,13 @@ export function getUserFromSessionCookie(cookies: Cookies): UserRow | null {
 			| undefined;
 
 		if (!user) {
-			console.warn('[auth] __session_user cookie references unknown user', { id: userId });
+			log.warn('__session_user cookie references unknown user', { id: userId });
 			return null;
 		}
 
 		return user;
 	} catch (e) {
-		console.warn('[auth] error while resolving __session_user cookie', e);
+		log.warn('error while resolving __session_user cookie', e);
 		return null;
 	}
 }

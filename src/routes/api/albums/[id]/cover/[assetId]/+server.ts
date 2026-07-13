@@ -7,6 +7,9 @@ import sharp from '$lib/server/sharp-config';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-cover-assetId');
 const CACHE_DIR = path.resolve('data/cache/covers');
 
 // Cache initialization
@@ -15,7 +18,7 @@ try {
 		fs.mkdirSync(CACHE_DIR, { recursive: true });
 	}
 } catch (e) {
-	console.error('Failed to create cache directory', e);
+	log.error('Failed to create cache directory', e);
 }
 
 // Semaphore to limit concurrent Sharp processing and prevent memory crashes
@@ -68,7 +71,7 @@ export const GET: RequestHandler = async (event) => {
 			| undefined;
 		isUnlisted = row?.visibility === 'unlisted';
 	} catch (e) {
-		console.warn('Visibility check failed', e);
+		log.warn('Visibility check failed', e);
 	}
 
 	if (!isUnlisted) {
@@ -99,7 +102,7 @@ export const GET: RequestHandler = async (event) => {
 	if (!release) {
 		// Queue full: redirect to the proxied Immich thumbnail
 		// rather than load an image in RAM and risk OOM under burst.
-		console.warn('[Cover] Sharp queue full, redirecting to proxied thumbnail');
+		log.warn('Sharp queue full, redirecting to proxied thumbnail');
 		return new Response(null, {
 			status: 307,
 			headers: {
@@ -126,7 +129,7 @@ export const GET: RequestHandler = async (event) => {
 		if (e && typeof e === 'object' && 'status' in e) {
 			throw e;
 		}
-		console.error('Error processing cover:', e);
+		log.error('Error processing cover:', e);
 		throw error(500, 'Internal Server Error');
 	} finally {
 		release();
@@ -158,7 +161,7 @@ export const PUT: RequestHandler = async (event) => {
 
 		return json({ success: true });
 	} catch (e) {
-		console.error('Failed to set album cover:', e);
+		log.error('Failed to set album cover:', e);
 		throw error(500, 'Database error');
 	}
 };
@@ -178,7 +181,7 @@ async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<
 		try {
 			fs.writeFileSync(cachePath, processed);
 		} catch (e) {
-			console.error('Cache write failed', e);
+			log.error('Cache write failed', e);
 		}
 
 		return new Response(new Uint8Array(processed), {
@@ -189,7 +192,7 @@ async function processAndCacheImage(buffer: Buffer, cachePath: string): Promise<
 			}
 		});
 	} catch (e) {
-		console.error('Sharp processing failed', e);
+		log.error('Sharp processing failed', e);
 		// Returns the raw image if Sharp processing fails
 		return new Response(new Uint8Array(buffer), { headers: { 'Content-Type': 'image/jpeg' } });
 	}

@@ -3,6 +3,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-me-photo-access');
 interface PhotoAccessPermission {
 	authorized_id: string;
 	authorized_name: string;
@@ -50,7 +53,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ success: true, permissions });
 	} catch (e) {
 		const err = e as Error;
-		console.error('GET /api/users/me/photo-access error', err);
+		log.error('GET /api/users/me/photo-access error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };
@@ -109,7 +112,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (e) {
 		const err = e as Error;
-		console.error('POST /api/users/me/photo-access error', err);
+		log.error('POST /api/users/me/photo-access error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };
@@ -145,7 +148,7 @@ export const DELETE: RequestHandler = async (event) => {
 		return json({ success: true, message: 'Autorisation révoquée' });
 	} catch (e) {
 		const err = e as Error;
-		console.error('DELETE /api/users/me/photo-access error', err);
+		log.error('DELETE /api/users/me/photo-access error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };

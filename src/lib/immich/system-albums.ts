@@ -1,7 +1,8 @@
 import { env } from '$env/dynamic/private';
 import type { ImmichAlbum } from '$lib/types/api';
-import { ensureError } from '$lib/ts-utils';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { createLogger } from '$lib/server/logger';
+const log = createLogger('system-albums');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -69,9 +70,7 @@ export async function getSystemAlbumIds(fetchFn: typeof fetch): Promise<string[]
 				ids.push(id);
 			}
 		} catch (e: unknown) {
-			const _err = ensureError(e);
-			void _err; // Mark _err as used
-			console.warn('getSystemAlbumIds: failed for', name, e);
+			log.warn(`getSystemAlbumIds failed for ${name}`, e);
 		}
 	}
 	return ids;

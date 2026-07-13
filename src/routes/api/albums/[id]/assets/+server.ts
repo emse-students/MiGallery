@@ -4,6 +4,9 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-assets');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -37,7 +40,7 @@ export const PUT: RequestHandler = async (event) => {
 				});
 			} catch (restoreErr) {
 				// Non-fatal: still try to add even if the restore call fails.
-				console.warn('[album-assets] trash restore failed (continuing):', restoreErr);
+				log.warn('trash restore failed (continuing):', restoreErr);
 			}
 		}
 
@@ -60,7 +63,7 @@ export const PUT: RequestHandler = async (event) => {
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error(`Error in /api/albums/${event.params.id}/assets PUT:`, err);
+		log.error(`Error in /api/albums/${event.params.id}/assets PUT:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
@@ -103,7 +106,7 @@ export const DELETE: RequestHandler = async (event) => {
 		return json(result);
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error(`Error in /api/albums/${event.params.id}/assets DELETE:`, err);
+		log.error(`Error in /api/albums/${event.params.id}/assets DELETE:`, err);
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}

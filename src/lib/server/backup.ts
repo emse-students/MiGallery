@@ -1,5 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('backup');
 
 const DB_PATH = process.env.DATABASE_PATH ?? path.join(process.cwd(), 'data', 'migallery.db');
 const BACKUP_DIR = process.env.BACKUP_DIR ?? path.join(process.cwd(), 'data', 'backups');
@@ -81,9 +84,9 @@ export function startBackupScheduler(): void {
 	const runAndSchedule = () => {
 		const result = performBackup();
 		if (result.success) {
-			console.warn('[BACKUP]', result.message);
+			log.info(result.message);
 		} else {
-			console.error('[BACKUP]', result.message);
+			log.error(result.message);
 		}
 	};
 
@@ -93,5 +96,5 @@ export function startBackupScheduler(): void {
 	}, msUntilMidnight);
 
 	const hUntil = Math.round(msUntilMidnight / 3_600_000);
-	console.warn(`[BACKUP] Scheduler started - next backup in ~${hUntil}h (midnight)`);
+	log.info(`scheduler started - next backup in ~${hUntil}h (midnight)`);
 }

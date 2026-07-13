@@ -8,6 +8,9 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getPersonAssets } from '$lib/photos-cv/handlers';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-people-personId-photos-stream');
 /**
  * GET /api/people/people/[personId]/photos-stream
  * Streams a person's photos in NDJSON
@@ -95,7 +98,7 @@ export const GET: RequestHandler = async (event) => {
 								return null;
 							} catch (e: unknown) {
 								const _err = ensureError(e);
-								console.warn(`Failed to fetch details for asset ${asset.id}:`, e);
+								log.warn(`Failed to fetch details for asset ${asset.id}:`, e);
 								return null;
 							}
 						});
@@ -120,7 +123,7 @@ export const GET: RequestHandler = async (event) => {
 					) {
 						return;
 					}
-					console.error('Error in photos stream:', err);
+					log.error('Error in photos stream:', err);
 					try {
 						controller.error(err);
 					} catch {
@@ -138,7 +141,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error in /api/people/people/[personId]/photos-stream GET:', err);
+		log.error('Error in /api/people/people/[personId]/photos-stream GET:', err);
 		throw error(500, err.message);
 	}
 };

@@ -8,6 +8,9 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-assets-simple');
 /**
  * GET /api/albums/[id]/assets-simple
  * Returns the assets of an album in simple JSON (no streaming)
@@ -45,7 +48,7 @@ export const GET: RequestHandler = async (event) => {
 			}
 		});
 	} catch (e: unknown) {
-		console.error(`Error in /api/albums/${event.params.id}/assets-simple GET:`, e);
+		log.error(`Error in /api/albums/${event.params.id}/assets-simple GET:`, e);
 		const errorMessage = e instanceof Error ? e.message : 'Internal server error';
 		throw svelteError(500, `Internal server error: ${errorMessage}`);
 	}

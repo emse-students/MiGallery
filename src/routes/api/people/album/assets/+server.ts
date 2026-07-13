@@ -5,6 +5,9 @@ import type { RequestHandler } from './$types';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-album-assets');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -40,7 +43,7 @@ export const PUT: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = ensureError(e);
-		console.error('Error in /api/people/album/assets PUT:', err);
+		log.error('Error in /api/people/album/assets PUT:', err);
 		throw error(500, err.message);
 	}
 };
@@ -77,7 +80,7 @@ export const DELETE: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = ensureError(e);
-		console.error('Error in /api/people/album/assets DELETE:', err);
+		log.error('Error in /api/people/album/assets DELETE:', err);
 		throw error(500, err.message);
 	}
 };

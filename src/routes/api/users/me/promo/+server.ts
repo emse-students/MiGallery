@@ -4,6 +4,9 @@ import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-me-promo');
 const SESSION_COOKIE_NAME = '__session_user';
 
 /**
@@ -70,7 +73,7 @@ export const PATCH: RequestHandler = async (event) => {
 		return json({ success: true, promo: promoYear });
 	} catch (e) {
 		const err = e as Error;
-		console.error('PATCH /api/users/me/promo error', err);
+		log.error('PATCH /api/users/me/promo error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };

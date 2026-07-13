@@ -5,6 +5,9 @@ import { getDatabase } from '$lib/db/database';
 import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users');
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
@@ -96,12 +99,12 @@ export const POST: RequestHandler = async (event) => {
 		try {
 			await logEvent(event, 'create', 'user', id_user, { name, first_name, last_name, role });
 		} catch (logErr) {
-			console.warn('logEvent failed (users POST):', logErr);
+			log.warn('logEvent failed (users POST):', logErr);
 		}
 		return json({ success: true, created, changes: info.changes });
 	} catch (e) {
 		const err = e as Error;
-		console.error('POST /api/users error', err);
+		log.error('POST /api/users error', err);
 		if (
 			err.message.includes('UNIQUE constraint failed') ||
 			err.message.includes('SQLITE_CONSTRAINT_UNIQUE')

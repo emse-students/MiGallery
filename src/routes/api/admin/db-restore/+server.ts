@@ -6,6 +6,9 @@ import { resetDatabase } from '$lib/db/database';
 import fs from 'fs';
 import path from 'path';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('admin-db-restore');
 export const POST: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 
@@ -50,7 +53,7 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error restoring backup:', err);
+		log.error('Error restoring backup:', err);
 		throw error(500, err.message || 'Erreur lors de la restauration');
 	}
 };

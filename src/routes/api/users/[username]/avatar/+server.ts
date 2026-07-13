@@ -5,6 +5,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-username-avatar');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -63,7 +66,7 @@ export const GET: RequestHandler = async (event) => {
 			throw err;
 		}
 		const errorMessage = err instanceof Error ? err.message : 'Erreur serveur';
-		console.error('Error /api/users/[username]/avatar:', err);
+		log.error('Error /api/users/[username]/avatar:', err);
 		return svelteError(500, errorMessage);
 	}
 };

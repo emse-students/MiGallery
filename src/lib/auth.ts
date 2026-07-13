@@ -1,8 +1,10 @@
 import { env } from '$env/dynamic/private';
 import { getUserByCasId, createUser, updateUser } from '$lib/db/users';
+import { createLogger } from '$lib/server/logger';
 import type { DBUser } from '$lib/db/users';
 
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
+const log = createLogger('auth-oidc');
 
 interface OIDCToken {
 	access_token: string;
@@ -123,7 +125,7 @@ function decodeJWT(token: string): Record<string, unknown> | null {
 			? (parsed as Record<string, unknown>)
 			: null;
 	} catch (e) {
-		console.error('[AUTH] Failed to decode JWT:', e);
+		log.error('failed to decode JWT', e);
 		return null;
 	}
 }
@@ -150,13 +152,13 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
 
 		if (!response.ok) {
 			const errText = await response.text();
-			console.error('[AUTH] Token exchange failed:', response.status, errText);
+			log.error('token exchange failed', { status: response.status, body: errText });
 			return null;
 		}
 
 		return (await response.json()) as OIDCToken;
 	} catch (e) {
-		console.error('[AUTH] Token exchange error:', e);
+		log.error('token exchange error', e);
 		return null;
 	}
 }
@@ -175,13 +177,13 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
 
 		if (!response.ok) {
 			const errText = await response.text();
-			console.error('[AUTH] Userinfo fetch failed:', response.status, errText);
+			log.error('userinfo fetch failed', { status: response.status, body: errText });
 			return null;
 		}
 
 		return (await response.json()) as OIDCProfile;
 	} catch (e) {
-		console.error('[AUTH] Failed to fetch user profile:', e);
+		log.error('failed to fetch user profile', e);
 		return null;
 	}
 }
@@ -192,7 +194,7 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
 function extractCustomClaims(idToken: string): Record<string, unknown> | null {
 	const decoded = decodeJWT(idToken);
 	if (!decoded) {
-		console.warn('[AUTH] Could not decode ID token');
+		log.warn('could not decode ID token');
 		return null;
 	}
 
@@ -237,7 +239,7 @@ function handleUserInDatabase(
 	try {
 		const userId = getProfileSub(profile);
 		if (!userId) {
-			console.error('[AUTH] No sub in profile');
+			log.error('no sub in profile');
 			return null;
 		}
 
@@ -268,17 +270,6 @@ function handleUserInDatabase(
 					? (customClaims.formation as string).trim()
 					: null;
 
-		console.warn(
-			`[AUTH] Login: ${userId} - OIDC: promo=${JSON.stringify(rawPromo)} (parsed:${promo ?? 'null'}), formation=${JSON.stringify(profile.formation ?? customClaims.formation ?? null)}`
-		);
-		if (existingUser) {
-			console.warn(
-				`[AUTH] Current DB: promo=${existingUser.promo ?? 'null'}, formation=${existingUser.formation ?? 'null'}, role=${existingUser.role}`
-			);
-		} else {
-			console.warn('[AUTH] Current DB: no user found → creating');
-		}
-
 		const userData: DBUser = {
 			id_user: userId,
 			name: computeName(profile, userId),
@@ -294,9 +285,10 @@ function handleUserInDatabase(
 
 		if (!existingUser) {
 			createUser(userData);
-			console.warn(
-				`[AUTH] New user: ${userData.name} (promo:${userData.promo ?? '?'}, formation:${userData.formation ?? '?'})`
-			);
+			log.info(`new user ${userData.name}`, {
+				promo: userData.promo ?? null,
+				formation: userData.formation ?? null
+			});
 		} else {
 			// Always overwrite with SSO data on each login.
 			// We only pass non-null fields so we don't erase manual values
@@ -319,22 +311,18 @@ function handleUserInDatabase(
 				updatePayload.formation = formation;
 			}
 
-			console.warn(`[AUTH] updatePayload: ${JSON.stringify(updatePayload)}`);
 			updateUser(updatePayload);
-			console.warn(
-				`[AUTH] After update: promo=${promo !== null ? promo : '(not overwritten, SSO null)'}, formation=${formation !== null ? formation : '(not overwritten, SSO null)'}`
-			);
 		}
 
 		// Re-fetch from the DB to get the real state (mitviste role, photos_id, etc.)
 		const freshUser = getUserByCasId(userId);
 		if (!freshUser) {
-			console.error('[AUTH] Could not re-fetch user after create/update');
+			log.error('could not re-fetch user after create/update');
 			return userData;
 		}
 		return freshUser;
 	} catch (e) {
-		console.error('[AUTH] Error handling user in database:', e);
+		log.error('error handling user in database', e);
 		return null;
 	}
 }
@@ -349,7 +337,7 @@ export async function completeOIDCFlow(
 	// Step 1: Exchange code for tokens
 	const tokens = await exchangeCodeForTokens(code, redirectUri);
 	if (!tokens) {
-		console.error('[AUTH] OIDC flow failed at token exchange');
+		log.error('OIDC flow failed at token exchange');
 		return null;
 	}
 
@@ -359,14 +347,14 @@ export async function completeOIDCFlow(
 	// Step 3: Fetch user profile from userinfo endpoint
 	const profile = await fetchUserProfile(tokens.access_token);
 	if (!profile) {
-		console.error('[AUTH] OIDC flow failed at userinfo fetch');
+		log.error('OIDC flow failed at userinfo fetch');
 		return null;
 	}
 
 	// Step 4: Handle user in database
 	const dbUser = handleUserInDatabase(profile, customClaims);
 	if (!dbUser) {
-		console.error('[AUTH] OIDC flow failed at database operation');
+		log.error('OIDC flow failed at database operation');
 		return null;
 	}
 

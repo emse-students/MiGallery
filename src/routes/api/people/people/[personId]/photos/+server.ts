@@ -9,6 +9,9 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getPersonAssets as getPersonAlbumAssets } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('people-people-personId-photos');
 async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: typeof fetch) {
 	// Combined personIds+albumIds search is done in the shared handler; here we
 	// only enrich each result with its full asset detail.
@@ -52,7 +55,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({ assets });
 	} catch (e: unknown) {
 		const err = ensureError(e);
-		console.error('Error in /api/people/people/[personId]/photos GET:', err);
+		log.error('Error in /api/people/people/[personId]/photos GET:', err);
 		throw error(500, err.message);
 	}
 };

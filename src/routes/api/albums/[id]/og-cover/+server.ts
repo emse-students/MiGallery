@@ -8,6 +8,9 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import type { ImmichAlbum } from '$lib/types/api';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('albums-id-og-cover');
 const CACHE_DIR = path.resolve('data/cache/og-covers');
 
 try {
@@ -15,7 +18,7 @@ try {
 		fs.mkdirSync(CACHE_DIR, { recursive: true });
 	}
 } catch (e) {
-	console.error('[og-cover] Failed to create cache dir', e);
+	log.error('Failed to create cache dir', e);
 }
 
 /**
@@ -99,7 +102,7 @@ export const GET: RequestHandler = async (event) => {
 		try {
 			fs.writeFileSync(cacheFile, processed);
 		} catch (e) {
-			console.error('[og-cover] Cache write failed', e);
+			log.error('Cache write failed', e);
 		}
 
 		return new Response(new Uint8Array(processed), {
@@ -109,7 +112,7 @@ export const GET: RequestHandler = async (event) => {
 			}
 		});
 	} catch (e) {
-		console.error('[og-cover] Sharp processing failed, returning raw', e);
+		log.error('Sharp processing failed, returning raw', e);
 		return new Response(new Uint8Array(buf), {
 			headers: { 'Content-Type': 'image/jpeg' }
 		});

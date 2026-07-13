@@ -3,6 +3,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('users-userId-photo-access');
 interface UserInfo {
 	id_user: string;
 	name: string;
@@ -81,7 +84,7 @@ export const GET: RequestHandler = async (event) => {
 			throw e;
 		}
 		const err = e as Error;
-		console.error('GET /api/users/[userId]/photo-access error', err);
+		log.error('GET /api/users/[userId]/photo-access error', err);
 		return json({ error: err.message }, { status: 500 });
 	}
 };

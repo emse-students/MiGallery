@@ -3,8 +3,11 @@ import { error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { PageServerLoad } from './$types';
 import { getDatabase } from '$lib/db/database';
+import { createLogger } from '$lib/server/logger';
 import fs from 'fs';
 import path from 'path';
+
+const log = createLogger('admin-database');
 
 export const load: PageServerLoad = async ({ parent }) => {
 	const { session } = await parent();
@@ -33,7 +36,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 		}
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error('Error getting DB size:', e);
+		log.error('error getting DB size', e);
 	}
 
 	const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'data', 'backups');
@@ -62,7 +65,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 		}
 	} catch (e: unknown) {
 		const _err = ensureError(e);
-		console.error('Error listing backups:', e);
+		log.error('error listing backups', e);
 	}
 
 	return {

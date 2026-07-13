@@ -7,6 +7,9 @@ import { getDatabase } from '$lib/db/database';
 import fs from 'fs';
 import path from 'path';
 
+import { createLogger } from '$lib/server/logger';
+
+const log = createLogger('admin-db-export');
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 
@@ -34,7 +37,7 @@ export const GET: RequestHandler = async (event) => {
 		});
 	} catch (err: unknown) {
 		const _err = ensureError(err);
-		console.error('Error exporting database:', err);
+		log.error('Error exporting database:', err);
 		throw error(500, "Erreur lors de l'export de la base de données");
 	}
 };
