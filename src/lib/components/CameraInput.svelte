@@ -113,7 +113,7 @@
 				0.95
 			);
 		} catch (err: unknown) {
-			const errorMsg = err instanceof Error ? err.message : 'Erreur lors de la capture';
+			const errorMsg = err instanceof Error ? err.message : m.camera_capture_error();
 			error = errorMsg;
 			console.error('Capture error:', err);
 		}

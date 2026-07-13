@@ -145,7 +145,7 @@ export const DELETE: RequestHandler = async (event) => {
 			return json({ error: 'Grant not found' }, { status: 404 });
 		}
 
-		return json({ success: true, message: 'Autorisation révoquée' });
+		return json({ success: true, message: 'Permission revoked' });
 	} catch (e) {
 		const err = e as Error;
 		log.error('DELETE /api/users/me/photo-access error', err);

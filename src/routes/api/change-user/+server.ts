@@ -39,7 +39,7 @@ export const POST: RequestHandler = async (event) => {
 		return json(
 			{
 				success: false,
-				error: error instanceof Error ? error.message : 'Erreur'
+				error: error instanceof Error ? error.message : 'Error'
 			},
 			{ status: 500 }
 		);

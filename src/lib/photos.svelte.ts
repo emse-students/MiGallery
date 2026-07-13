@@ -172,7 +172,7 @@ export class PhotosState {
 	 */
 	async loadPerson(id: string, profile?: { userId?: string | null; version?: string | null }) {
 		if (!id) {
-			this.error = 'Aucune photo de profil configurée pour cet utilisateur';
+			this.error = m.photos_no_profile();
 			return;
 		}
 
@@ -275,7 +275,7 @@ export class PhotosState {
 	 */
 	async loadMyPhotosCV(id: string): Promise<void> {
 		if (!id) {
-			this.error = 'Aucune photo de profil configurée pour cet utilisateur';
+			this.error = m.photos_no_profile();
 			return;
 		}
 

@@ -27,7 +27,7 @@
 
 	async function loadUserPhotos() {
 		if (!peopleId) {
-			error = 'Aucun identifiant utilisateur fourni';
+			error = m.changephoto_no_user();
 			loadingAssets = false;
 			return;
 		}

@@ -3,6 +3,7 @@
  */
 
 import { toast as toastStore } from './toast';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * Show a success message
@@ -65,9 +66,9 @@ export function createConfirmModal() {
 
 		confirm(
 			message: string,
-			title = 'Confirmation',
-			confirmText = 'Confirmer',
-			cancelText = 'Annuler'
+			title = m.common_confirmation(),
+			confirmText = m.common_confirm(),
+			cancelText = m.common_cancel()
 		): Promise<boolean> {
 			return new Promise((resolve) => {
 				config = {

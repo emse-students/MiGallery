@@ -87,7 +87,7 @@ export const GET: RequestHandler = async (event) => {
 		if (isHttpError(err)) {
 			throw err;
 		}
-		const errorMessage = err instanceof Error ? err.message : 'Erreur serveur';
+		const errorMessage = err instanceof Error ? err.message : 'Server error';
 		log.error('Error /api/users/[username]/avatar:', err);
 		return svelteError(500, errorMessage);
 	}

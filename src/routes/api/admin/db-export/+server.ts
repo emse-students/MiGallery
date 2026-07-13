@@ -38,6 +38,6 @@ export const GET: RequestHandler = async (event) => {
 	} catch (err: unknown) {
 		const _err = ensureError(err);
 		log.error('Error exporting database:', err);
-		throw error(500, "Erreur lors de l'export de la base de données");
+		throw error(500, 'Failed to export the database');
 	}
 };
