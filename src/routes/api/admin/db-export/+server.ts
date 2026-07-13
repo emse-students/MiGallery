@@ -16,7 +16,7 @@ export const GET: RequestHandler = async (event) => {
 	const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
 	if (!fs.existsSync(DB_PATH)) {
-		throw error(404, 'Base de données non trouvée');
+		throw error(404, 'Database not found');
 	}
 
 	try {

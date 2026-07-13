@@ -54,6 +54,6 @@ export const POST: RequestHandler = async (event) => {
 	} catch (e: unknown) {
 		const err = ensureError(e);
 		log.error('Error importing database:', err);
-		return error(400, "Fichier invalide. La base de données n'a pas pu être importée.");
+		return error(400, 'Invalid file. The database could not be imported.');
 	}
 };

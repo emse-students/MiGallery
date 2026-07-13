@@ -154,10 +154,10 @@
 			<canvas bind:this={canvasElement} style="display: none;"></canvas>
 
 			<div class="camera-controls">
-				<button class="btn-capture" onclick={capturePhoto} title="Capturer une photo">
+				<button class="btn-capture" onclick={capturePhoto} title={m.camera_capture()}>
 					<Camera size={24} />
 				</button>
-				<button class="btn-close" onclick={stopCamera} title="Fermer la caméra">
+				<button class="btn-close" onclick={stopCamera} title={m.camera_close()}>
 					<X size={24} />
 				</button>
 			</div>

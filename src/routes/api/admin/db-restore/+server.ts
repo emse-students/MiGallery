@@ -25,14 +25,14 @@ export const POST: RequestHandler = async (event) => {
 		const backupPath = path.join(BACKUP_DIR, filename);
 
 		if (!fs.existsSync(backupPath)) {
-			throw error(404, 'Fichier de sauvegarde non trouvé');
+			throw error(404, 'Backup file not found');
 		}
 
 		const realBackupPath = fs.realpathSync(backupPath);
 		const realBackupDir = fs.realpathSync(BACKUP_DIR);
 
 		if (!realBackupPath.startsWith(realBackupDir)) {
-			throw error(403, 'Accès refusé au fichier');
+			throw error(403, 'File access denied');
 		}
 
 		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');

@@ -4,6 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import { consumeNDJSONStream } from '$lib/streaming';
 import { showConfirm } from '$lib/confirm';
 import { toast } from '$lib/toast';
+import { m } from '$lib/paraglide/messages';
 
 export type Asset = {
 	id: string;
@@ -506,7 +507,7 @@ export class PhotosState {
 
 	async downloadSelected(skipConfirm?: boolean) {
 		if (this.selectedAssets.length === 0) {
-			toast.error('Aucune image sélectionnée');
+			toast.error(m.photos_none_selected());
 			return;
 		}
 		if (!skipConfirm) {
@@ -540,7 +541,7 @@ export class PhotosState {
 			const _err = ensureError(e);
 			const err = e as { name?: string; message?: string };
 			if (err.name !== 'AbortError') {
-				toast.error(`Erreur: ${err.message || 'Erreur inconnue'}`);
+				toast.error(m.photos_error({ message: err.message || m.common_unknown_error() }));
 			}
 		} finally {
 			this.isDownloading = false;

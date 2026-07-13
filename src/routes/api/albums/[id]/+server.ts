@@ -196,7 +196,7 @@ export const PATCH: RequestHandler = async (event) => {
 
 		const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id);
 		if (!existing) {
-			throw error(404, 'Album non trouvé dans la base locale');
+			throw error(404, 'Album not found in the local database');
 		}
 
 		if (

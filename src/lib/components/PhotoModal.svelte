@@ -572,7 +572,7 @@
 						<Trash2 size={20} />
 					</button>
 				{/if}
-				<button type="button" class="btn-icon" onclick={onClose} title="Fermer">
+				<button type="button" class="btn-icon" onclick={onClose} title={m.common_close()}>
 					<X size={20} />
 				</button>
 			</div>
@@ -580,7 +580,7 @@
 
 		<div class="modal-body">
 			{#if currentIndex > 0}
-				<button type="button" class="nav-button nav-left" onclick={goToPrevious} title="Photo précédente">
+				<button type="button" class="nav-button nav-left" onclick={goToPrevious} title={m.photo_previous()}>
 					<ChevronLeft size={32} />
 				</button>
 			{/if}
@@ -629,7 +629,7 @@
 			</div>
 
 			{#if currentIndex < assets.length - 1}
-				<button type="button" class="nav-button nav-right" onclick={goToNext} title="Photo suivante">
+				<button type="button" class="nav-button nav-right" onclick={goToNext} title={m.photo_next()}>
 					<ChevronRight size={32} />
 				</button>
 			{/if}

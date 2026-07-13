@@ -31,7 +31,7 @@ export const GET: RequestHandler = async (event) => {
 			| undefined;
 
 		if (!albumRow) {
-			return json({ error: 'Album non trouvé dans la base locale' }, { status: 404 });
+			return json({ error: 'Album not found in the local database' }, { status: 404 });
 		}
 
 		const tagsRows = db

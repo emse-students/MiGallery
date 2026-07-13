@@ -82,7 +82,7 @@ export const POST: RequestHandler = async (event) => {
 		const authorizedId = body.user_id.trim();
 
 		if (authorizedId === user.id_user) {
-			return json({ error: 'Vous ne pouvez pas vous autoriser vous-même' }, { status: 400 });
+			return json({ error: 'You cannot grant access to yourself' }, { status: 400 });
 		}
 
 		const targetUser = db
@@ -142,7 +142,7 @@ export const DELETE: RequestHandler = async (event) => {
 			.run(user.id_user, authorizedId);
 
 		if (result.changes === 0) {
-			return json({ error: 'Autorisation non trouvée' }, { status: 404 });
+			return json({ error: 'Grant not found' }, { status: 404 });
 		}
 
 		return json({ success: true, message: 'Autorisation révoquée' });

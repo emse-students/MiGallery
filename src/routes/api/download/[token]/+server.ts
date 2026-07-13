@@ -12,7 +12,7 @@ export const GET: RequestHandler = async (event) => {
 	const data = consumeDownloadToken(token);
 
 	if (!data) {
-		throw error(404, 'Token de téléchargement invalide ou expiré');
+		throw error(404, 'Invalid or expired download token');
 	}
 
 	if (!IMMICH_BASE_URL) {

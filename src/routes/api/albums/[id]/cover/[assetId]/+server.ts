@@ -156,7 +156,7 @@ export const PUT: RequestHandler = async (event) => {
 			.run(assetId, albumId);
 
 		if (result.changes === 0) {
-			throw error(404, 'Album non trouvé');
+			throw error(404, 'Album not found');
 		}
 
 		return json({ success: true });

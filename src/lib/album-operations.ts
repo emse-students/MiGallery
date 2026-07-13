@@ -1,5 +1,6 @@
 import { activeOperations } from '$lib/operations';
 import { toast } from '$lib/toast';
+import { m } from '$lib/paraglide/messages';
 import type { PhotosState } from '$lib/photos.svelte';
 import { buildImmichUploadFormData } from '$lib/immich/upload';
 
@@ -353,7 +354,7 @@ export async function handleAlbumUpload(
 			await new Promise((r) => setTimeout(r, 500));
 		}
 
-		toast.success(`${files.length} fichier(s) uploadé(s) et ajouté(s) à l'album !`);
+		toast.success(m.upload_album_success({ count: files.length }));
 
 		if (options.onSuccess) {
 			await options.onSuccess();
@@ -362,7 +363,7 @@ export async function handleAlbumUpload(
 		return results;
 	} catch (e: unknown) {
 		console.error('Upload error:', e);
-		toast.error(`Erreur lors de l'upload: ${(e as Error).message}`);
+		toast.error(m.upload_error_long({ message: (e as Error).message }));
 		throw e;
 	} finally {
 		activeOperations.end(operationId);

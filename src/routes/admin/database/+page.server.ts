@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 	const { session } = await parent();
 	const user = session?.user;
 	if (!user?.role || user.role !== 'admin') {
-		throw error(403, 'Accès refusé');
+		throw error(403, 'Access denied');
 	}
 
 	const db = getDatabase();

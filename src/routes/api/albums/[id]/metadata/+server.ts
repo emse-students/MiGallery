@@ -48,7 +48,7 @@ export const PUT: RequestHandler = async (event) => {
 
 		const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id);
 		if (!existing) {
-			return json({ error: 'Album non trouvé' }, { status: 404 });
+			return json({ error: 'Album not found' }, { status: 404 });
 		}
 
 		const stmt = db.prepare(
@@ -57,7 +57,7 @@ export const PUT: RequestHandler = async (event) => {
 		const info = stmt.run(name.trim(), date, location, visibility, visible ? 1 : 0, id);
 
 		if (info.changes === 0) {
-			return json({ error: "Impossible de mettre à jour l'album" }, { status: 500 });
+			return json({ error: 'Failed to update the album' }, { status: 500 });
 		}
 
 		const updated = db
