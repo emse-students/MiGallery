@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import fs from 'node:fs';
 import path from 'node:path';
 import sharp from '$lib/server/sharp-config';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import type { ImmichAlbum } from '$lib/types/api';
+import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -14,9 +14,7 @@ const log = createLogger('albums-id-og-cover');
 const CACHE_DIR = path.resolve('data/cache/og-covers');
 
 try {
-	if (!fs.existsSync(CACHE_DIR)) {
-		fs.mkdirSync(CACHE_DIR, { recursive: true });
-	}
+	ensureCacheDir(CACHE_DIR);
 } catch (e) {
 	log.error('Failed to create cache dir', e);
 }
@@ -54,9 +52,9 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	const cacheFile = path.join(CACHE_DIR, `${id}.webp`);
-	if (fs.existsSync(cacheFile)) {
-		const buffer = fs.readFileSync(cacheFile);
-		return new Response(new Uint8Array(buffer), {
+	const cached = readCacheFile(cacheFile);
+	if (cached) {
+		return new Response(new Uint8Array(cached), {
 			headers: {
 				'Content-Type': 'image/webp',
 				'Cache-Control': 'public, max-age=86400'
@@ -100,7 +98,7 @@ export const GET: RequestHandler = async (event) => {
 			.toBuffer();
 
 		try {
-			fs.writeFileSync(cacheFile, processed);
+			writeCacheFileAtomic(cacheFile, processed);
 		} catch (e) {
 			log.error('Cache write failed', e);
 		}

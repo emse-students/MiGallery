@@ -1,9 +1,9 @@
 import { env } from '$env/dynamic/private';
-import fs from 'node:fs';
 import path from 'node:path';
 import sharp from '$lib/server/sharp-config';
 import { acquireSharp } from '$lib/server/sharp-limit';
 import { createLogger } from '$lib/server/logger';
+import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
 
 const log = createLogger('face-crop');
 const CACHE_DIR = path.resolve('data/cache/faces');
@@ -19,9 +19,7 @@ const WEBP_QUALITY = 68;
 
 // Cache initialization
 try {
-	if (!fs.existsSync(CACHE_DIR)) {
-		fs.mkdirSync(CACHE_DIR, { recursive: true });
-	}
+	ensureCacheDir(CACHE_DIR);
 } catch (e) {
 	log.error('Failed to create face cache directory', e);
 }
@@ -74,12 +72,13 @@ export async function generateFaceCrop(
 	// One square per (asset, person): a single photo yields a different crop per
 	// detected face.
 	const cacheFile = path.join(CACHE_DIR, `${assetId}_${personId}.webp`);
-	if (fs.existsSync(cacheFile)) {
-		try {
-			return { ok: true, buffer: fs.readFileSync(cacheFile) };
-		} catch (e) {
-			log.warn('Face cache read failed, regenerating', e);
+	try {
+		const cached = readCacheFile(cacheFile);
+		if (cached) {
+			return { ok: true, buffer: cached };
 		}
+	} catch (e) {
+		log.warn('Face cache read failed, regenerating', e);
 	}
 
 	// Look up the face box BEFORE taking a Sharp slot: it is a cheap JSON call.
@@ -133,7 +132,7 @@ export async function generateFaceCrop(
 			.toBuffer();
 
 		try {
-			fs.writeFileSync(cacheFile, processed);
+			writeCacheFileAtomic(cacheFile, processed);
 		} catch (e) {
 			log.error('Face cache write failed', e);
 		}

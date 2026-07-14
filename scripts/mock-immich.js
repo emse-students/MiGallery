@@ -1,17 +1,25 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 
 const PORT = 3001;
 const UPLOAD_DIR = path.join(process.cwd(), 'data', 'mock-uploads');
+
+/**
+ * Strip CR/LF and other control chars from untrusted request values before
+ * logging so a crafted method/URL cannot forge extra log lines (log injection).
+ */
+function safeLog(value) {
+	// eslint-disable-next-line no-control-regex
+	return String(value).replace(/[\x00-\x1f\x7f]/g, '?');
+}
 
 if (!fs.existsSync(UPLOAD_DIR)) {
 	fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 const server = http.createServer((req, res) => {
-	console.log(`[MockImmich] ${req.method} ${req.url}`);
+	console.log(`[MockImmich] ${safeLog(req.method)} ${safeLog(req.url)}`);
 	console.log('[MockImmich] Headers:', req.headers);
 
 	if (req.method === 'POST' && req.url === '/api/assets') {
