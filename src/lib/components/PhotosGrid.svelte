@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { SquareCheck, Square, Download, Trash2, Image as ImageIcon, CircleMinus } from 'lucide-svelte';
+	import {
+		SquareCheck,
+		Square,
+		Download,
+		Trash2,
+		Image as ImageIcon,
+		CircleMinus,
+		Heart
+	} from 'lucide-svelte';
 	import PhotoCard from '$lib/components/PhotoCard.svelte';
 	import PhotoModal from '$lib/components/PhotoModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
@@ -227,14 +235,26 @@
 		}
 	}
 
-	let favoriteAssets = $derived(showFavorites ? photosState.assets.filter((a) => a.isFavorite) : []);
+	// Favorites are shown in-place (chronological) with a badge; an optional filter
+	// narrows the view to favorites only. The modal navigates the DISPLAYED list in
+	// its natural chronological order, so toggling a favorite never reshuffles the
+	// browsing position (no more "catapult to the top").
+	let favoritesFilter = $state(false);
 
-	let nonFavoriteAssets = $derived(
-		showFavorites ? photosState.assets.filter((a) => !a.isFavorite) : photosState.assets
+	let favoriteCount = $derived(
+		showFavorites ? photosState.assets.filter((a) => a.isFavorite).length : 0
 	);
 
-	let assetsForModal = $derived(
-		showFavorites ? [...favoriteAssets, ...nonFavoriteAssets] : photosState.assets
+	// Reset the filter if the last favorite is removed, so we never get stuck on an
+	// empty filtered view with no way back.
+	$effect(() => {
+		if (favoriteCount === 0 && favoritesFilter) favoritesFilter = false;
+	});
+
+	let displayedAssets = $derived(
+		showFavorites && favoritesFilter
+			? photosState.assets.filter((a) => a.isFavorite)
+			: photosState.assets
 	);
 </script>
 
@@ -301,36 +321,37 @@
 			</div>
 		</div>
 	{:else}
-		<div class="photos-count">
-			<strong>{photosState.assets.length}</strong> photo{photosState.assets.length > 1 ? 's' : ''}
-		</div>
-	{/if}
-
-	<!-- Favorites section -->
-	{#if showFavorites && favoriteAssets.length > 0}
-		<h3 class="day-label favorites-label">⭐ Favoris</h3>
-		<div class="photos-grid">
-			{#each favoriteAssets as a}
-				<PhotoCard
-					asset={a}
-					isSelected={photosState.selectedAssets.includes(a.id)}
-					isSelecting={photosState.selecting}
-					canDelete={canManagePhotos}
-					albumVisibility={visibility}
-					{albumId}
-					showFavorite={true}
-					onFavoriteToggle={() => handleFavoriteToggle(a.id)}
-					onCardClick={() => handlePhotoCardClick(a.id)}
-					onDownload={() => handleDownloadSingle(a.id)}
-					onDelete={() => handleDeleteAsset(a.id)}
-					onSelectionToggle={(id, selected) => photosState.toggleSelect(id, selected)}
-				/>
-			{/each}
+		<div class="photos-header">
+			<div class="photos-count">
+				<strong>{displayedAssets.length}</strong> photo{displayedAssets.length > 1 ? 's' : ''}
+			</div>
+			{#if showFavorites && favoriteCount > 0}
+				<div class="favorites-filter" role="group" aria-label={m.pg_filter_favorites()}>
+					<button
+						type="button"
+						class="filter-chip {favoritesFilter ? '' : 'active'}"
+						aria-pressed={!favoritesFilter}
+						onclick={() => (favoritesFilter = false)}
+					>
+						{m.pg_filter_all()}
+					</button>
+					<button
+						type="button"
+						class="filter-chip {favoritesFilter ? 'active' : ''}"
+						aria-pressed={favoritesFilter}
+						onclick={() => (favoritesFilter = true)}
+					>
+						<Heart size={14} fill={favoritesFilter ? 'currentColor' : 'none'} />
+						{m.pg_filter_favorites()}
+						<span class="chip-count">{favoriteCount}</span>
+					</button>
+				</div>
+			{/if}
 		</div>
 	{/if}
 
 	<!-- Photo grid grouped by day -->
-	{#each Object.entries(groupByDay(nonFavoriteAssets)) as [dayLabel, items]}
+	{#each Object.entries(groupByDay(displayedAssets)) as [dayLabel, items]}
 		<h3 class="day-label">{dayLabel}</h3>
 		<div class="photos-grid">
 			{#each items as a}
@@ -360,7 +381,7 @@
 {#if showModal}
 	<PhotoModal
 		bind:assetId={modalAssetId}
-		assets={assetsForModal}
+		assets={displayedAssets}
 		albumVisibility={visibility}
 		{albumId}
 		showFavorite={showFavorites}
@@ -474,10 +495,59 @@
 		flex-wrap: wrap;
 	}
 
-	.photos-count {
+	.photos-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
 		margin-bottom: 2rem;
+		flex-wrap: wrap;
+	}
+
+	.photos-count {
 		color: var(--text-secondary);
 		font-size: 0.9375rem;
+	}
+
+	.favorites-filter {
+		display: inline-flex;
+		gap: 0.25rem;
+		padding: 0.25rem;
+		background: var(--bg-elevated);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+	}
+
+	.filter-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.375rem 0.75rem;
+		border: none;
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: 0.8125rem;
+		font-weight: 600;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.filter-chip:hover {
+		color: var(--text-primary);
+	}
+
+	.filter-chip.active {
+		background: var(--accent);
+		color: white;
+	}
+
+	.chip-count {
+		font-size: 0.6875rem;
+		font-weight: 700;
+		padding: 0 0.3125rem;
+		border-radius: 9999px;
+		background: color-mix(in srgb, currentColor 22%, transparent);
 	}
 
 	.day-label {
@@ -493,11 +563,6 @@
 
 	.day-label:first-of-type {
 		margin-top: 0;
-	}
-
-	.favorites-label {
-		color: var(--accent);
-		opacity: 1;
 	}
 
 	.photos-grid {
@@ -542,9 +607,12 @@
 			margin-bottom: 1rem;
 		}
 
+		.photos-header {
+			margin-bottom: 1rem;
+		}
+
 		.photos-count {
 			font-size: 0.8125rem;
-			margin-bottom: 1rem;
 		}
 	}
 

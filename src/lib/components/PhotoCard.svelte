@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Heart, Download, Trash2 } from 'lucide-svelte';
+	import { Heart, Download, Trash2, SquareCheck } from 'lucide-svelte';
 	import LazyImage from './LazyImage.svelte';
 	import Skeleton from './Skeleton.svelte';
 	import type { Asset } from '$lib/photos.svelte';
@@ -69,6 +69,7 @@
 	);
 
 	let showMobileActions = $state(false);
+	let sheetOpenedAt = 0;
 	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 	const LONG_PRESS_DURATION = 500; // ms
 
@@ -77,6 +78,7 @@
 
 		longPressTimer = setTimeout(() => {
 			showMobileActions = true;
+			sheetOpenedAt = Date.now();
 			if (navigator.vibrate) {
 				navigator.vibrate(50);
 			}
@@ -136,6 +138,39 @@
 		}
 	}
 
+	// --- Mobile bottom-sheet actions ---
+	function sheetSelect(e: Event) {
+		e.stopPropagation();
+		closeMobileActions();
+		if (onSelectionToggle) onSelectionToggle(asset.id, true);
+	}
+
+	function sheetFavorite(e: Event) {
+		e.stopPropagation();
+		closeMobileActions();
+		if (onFavoriteToggle) onFavoriteToggle(asset.id, e);
+	}
+
+	function sheetDownload(e: Event) {
+		e.stopPropagation();
+		closeMobileActions();
+		if (onDownload) onDownload(asset.id, e);
+	}
+
+	function sheetDelete(e: Event) {
+		e.stopPropagation();
+		closeMobileActions();
+		if (onDelete) onDelete(asset.id, e);
+	}
+
+	function handleOverlayClick(e: Event) {
+		e.stopPropagation();
+		// Ignore the synthetic click that fires right after a long-press release,
+		// which would otherwise close the sheet the instant it opens.
+		if (Date.now() - sheetOpenedAt < 400) return;
+		closeMobileActions();
+	}
+
 	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
 	let isFavorite = $derived(asset.isFavorite ?? false);
 	let thumbnailUrl = $derived(
@@ -155,9 +190,7 @@
 <!-- Photo Card Container -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="photo-card {isSelected ? 'selected' : ''} {showMobileActions
-		? 'mobile-actions-visible'
-		: ''}"
+	class="photo-card {isSelected ? 'selected' : ''}"
 	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
 	role="button"
 	tabindex="0"
@@ -173,17 +206,35 @@
 	ontouchmove={handleTouchMove}
 	ontouchcancel={handleTouchEnd}
 >
-	<!-- Overlay to close mobile actions -->
+	<!-- Mobile long-press action sheet -->
 	{#if showMobileActions}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div
-			class="mobile-actions-overlay"
-			onclick={(e) => {
-				e.stopPropagation();
-				closeMobileActions();
-			}}
-		></div>
+		<div class="mobile-actions-overlay" onclick={handleOverlayClick}></div>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div class="action-sheet" onclick={(e) => e.stopPropagation()}>
+			<button type="button" class="sheet-item" onclick={sheetSelect}>
+				<SquareCheck size={20} />
+				{m.pg_action_select()}
+			</button>
+			{#if showFavorite}
+				<button type="button" class="sheet-item" onclick={sheetFavorite}>
+					<Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+					{isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
+				</button>
+			{/if}
+			<button type="button" class="sheet-item" onclick={sheetDownload}>
+				<Download size={20} />
+				{m.common_download()}
+			</button>
+			{#if canDelete}
+				<button type="button" class="sheet-item danger" onclick={sheetDelete}>
+					<Trash2 size={20} />
+					{m.trash_to_bin()}
+				</button>
+			{/if}
+		</div>
 	{/if}
 
 	<!-- Selection Checkbox -->
@@ -198,6 +249,13 @@
 	</div>
 
 	{#if isFullyLoaded}
+		<!-- Passive favorite badge: discreet indicator, always visible on mobile -->
+		{#if showFavorite && isFavorite && !isSelecting}
+			<div class="favorite-badge" aria-hidden="true">
+				<Heart size={13} fill="currentColor" />
+			</div>
+		{/if}
+
 		<!-- Favorite Button (bottom left) -->
 		{#if showFavorite && !isSelecting}
 			<button
@@ -372,9 +430,28 @@
 	}
 
 	.favorite-btn.active {
-		opacity: 1;
 		color: white;
 		background: var(--error);
+	}
+
+	/* Passive favorite indicator: a small heart with no chrome, cheap on space */
+	.favorite-badge {
+		position: absolute;
+		bottom: 0.5rem;
+		left: 0.5rem;
+		z-index: 5;
+		display: flex;
+		color: var(--error);
+		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+		pointer-events: none;
+		transition: opacity 0.2s ease;
+	}
+
+	/* On hover-capable devices, yield to the interactive favorite button */
+	@media (hover: hover) {
+		.photo-card:hover .favorite-badge {
+			opacity: 0;
+		}
 	}
 
 	.photo-card:hover .favorite-btn {
@@ -457,35 +534,83 @@
 			max-width: calc(25% - 3px);
 		}
 
-		/* Hide buttons by default on mobile (no hover) */
+		/* Corner buttons are unused on mobile: actions live in the long-press sheet */
 		.download-btn,
 		.delete-btn,
-		.favorite-btn:not(.active) {
+		.favorite-btn {
 			opacity: 0;
 			pointer-events: none;
 		}
-
-		/* Show buttons after long-press */
-		.photo-card.mobile-actions-visible .download-btn,
-		.photo-card.mobile-actions-visible .delete-btn,
-		.photo-card.mobile-actions-visible .favorite-btn {
-			opacity: 1;
-			pointer-events: auto;
-		}
-
-		/* Active favorites always visible on mobile */
-		.favorite-btn.active {
-			opacity: 1;
-			pointer-events: auto;
-		}
 	}
 
-	/* Overlay to close mobile actions */
+	/* Dimmed overlay behind the long-press action sheet */
 	.mobile-actions-overlay {
 		position: fixed;
 		inset: 0;
-		z-index: 4;
+		z-index: 1000;
+		background: rgba(0, 0, 0, 0.5);
+		animation: overlayFadeIn 0.2s ease-out;
+	}
+
+	@keyframes overlayFadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
+	/* Long-press bottom sheet: finger-friendly action list */
+	.action-sheet {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 1001;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		padding: 0.5rem;
+		padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+		background: var(--bg-elevated);
+		border-top: 1px solid var(--border);
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+		animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	@keyframes sheetUp {
+		from {
+			transform: translateY(100%);
+		}
+		to {
+			transform: translateY(0);
+		}
+	}
+
+	.sheet-item {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0.875rem 1rem;
+		border: none;
 		background: transparent;
+		color: var(--text-primary);
+		font-size: 0.9375rem;
+		font-weight: 500;
+		text-align: left;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+	}
+
+	.sheet-item:active {
+		background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+	}
+
+	.sheet-item.danger {
+		color: var(--error);
 	}
 
 	@media (max-width: 480px) {
