@@ -7,9 +7,18 @@
 		lastName?: string | null;
 		name?: string | null;
 		size?: number;
+		/** Backing asset id (photos_asset_id): busts the cache when the photo changes. */
+		version?: string | null;
 	}
 
-	let { userId = null, firstName = null, lastName = null, name = null, size = 40 }: Props = $props();
+	let {
+		userId = null,
+		firstName = null,
+		lastName = null,
+		name = null,
+		size = 40,
+		version = null
+	}: Props = $props();
 
 	let failed = $state(false);
 
@@ -24,7 +33,11 @@
 	}
 
 	const label = $derived(initials(firstName, lastName, name));
-	const src = $derived(userId ? `/api/users/${encodeURIComponent(userId)}/avatar` : null);
+	const src = $derived(
+		userId
+			? `/api/users/${encodeURIComponent(userId)}/avatar${version ? `?v=${encodeURIComponent(version)}` : ''}`
+			: null
+	);
 </script>
 
 <div class="avatar" style="--sz: {size}px" title={name ?? ''}>

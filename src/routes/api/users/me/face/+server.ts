@@ -31,7 +31,12 @@ export const PATCH: RequestHandler = async (event) => {
 
 		let userId: string | null = null;
 
-		if (auth.grantedScope === 'admin' && body.user_id) {
+		// A session-authenticated admin gets grantedScope 'read' here (requireScope
+		// only returns 'admin' for the 'admin' required-scope or an admin API key),
+		// so gate cross-user edits on the actual role, not the granted scope.
+		const isAdmin = auth.grantedScope === 'admin' || auth.user?.role === 'admin';
+
+		if (isAdmin && body.user_id) {
 			userId = body.user_id;
 		} else {
 			const cookieSigned = cookies.get('current_user_id') ?? null;

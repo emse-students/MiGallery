@@ -72,11 +72,10 @@
 		}
 		loading = true;
 		try {
+			// The caller's onPhotoSelected already reloads the page after persisting;
+			// a second reload here would race with (and abort) that navigation.
 			await onPhotoSelected(selectedAssetId);
 			onClose();
-			setTimeout(() => {
-				window.location.reload();
-			}, 500);
 		} catch (e: unknown) {
 			console.error('Error during confirmation:', e);
 			error = (e as Error).message;

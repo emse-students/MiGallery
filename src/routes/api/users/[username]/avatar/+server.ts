@@ -49,13 +49,25 @@ export const GET: RequestHandler = async (event) => {
 		// (busy/notfound/config) fall through to the Immich proxy below.
 		const assetId = user.photos_asset_id;
 		if (assetId && typeof assetId === 'string') {
+			const busted = event.url.searchParams.has('v');
+			// The crop is fully determined by (assetId, userId), so the asset id is a
+			// natural ETag. Busted URLs (?v=assetId) are immutable; unbusted URLs (e.g.
+			// the shared Avatar component) are stable, so they must revalidate to avoid
+			// serving a stale crop after a photo change.
+			const etag = `"${assetId}"`;
+			if (!busted && event.request.headers.get('if-none-match') === etag) {
+				return new Response(null, {
+					status: 304,
+					headers: { ETag: etag, 'Cache-Control': 'no-cache' }
+				});
+			}
 			const crop = await generateFaceCrop(assetId, userId, fetch);
 			if (crop.ok) {
-				const busted = event.url.searchParams.has('v');
 				return new Response(new Uint8Array(crop.buffer), {
 					headers: {
 						'Content-Type': 'image/webp',
-						'Cache-Control': busted ? 'public, max-age=15552000, immutable' : 'public, max-age=3600'
+						ETag: etag,
+						'Cache-Control': busted ? 'public, max-age=15552000, immutable' : 'no-cache'
 					}
 				});
 			}
