@@ -12,7 +12,7 @@
 # alpine/musl.
 
 # -- Build ----------------------------------------------------------------------
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
 # Skip husky (git hooks) during install; there is no .git in the build context.
 ENV HUSKY=0
@@ -27,7 +27,7 @@ COPY . .
 RUN npm run build
 
 # -- Runtime --------------------------------------------------------------------
-FROM node:22-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

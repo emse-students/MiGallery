@@ -1,6 +1,6 @@
 name: Release
 
-# Sur push d un tag v*.*.* : tests multi-Node puis creation de la release GitHub.
+# On push of a v*.*.* tag: run tests then create the GitHub release.
 on:
  push:
   tags:
@@ -13,7 +13,7 @@ jobs:
   runs-on: ubuntu-latest
   strategy:
    matrix:
-    node-version: [20, 22]
+    node-version: [24]
   steps:
    - name: Checkout
      uses: actions/checkout@v7
@@ -72,7 +72,7 @@ jobs:
    - name: Setup Node
      uses: actions/setup-node@v7
      with:
-      node-version: 22
+      node-version: 24
       cache: npm
 
    - name: Install dependencies
@@ -113,7 +113,7 @@ jobs:
       cd package
       npm ci --omit=dev
       cp .env.example .env
-      # Éditer .env avec vos paramètres
+      # Edit .env with your settings
       npm run db:init
       node build/index.js
       \`\`\`

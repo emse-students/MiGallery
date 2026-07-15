@@ -1,11 +1,11 @@
 name: CI
 
-# Validation (lint / type-check / build / tests) sur les PR et, via workflow_call,
-# comme barriere de la CD (cd.yml l appelle avant de construire/deployer l image).
-# Pas de declencheur `push` : sur main, la CD execute cette CI une seule fois.
+# Validation (lint / type-check / build / tests) on PRs and, via workflow_call,
+# as the CD gate (cd.yml calls it before building/deploying the image).
+# No `push` trigger: on main, the CD runs this CI exactly once.
 #
-# Runtime Node (npm). Bun est abandonne : il inflate ~80x la lecture des corps de
-# requete et retient la memoire (bug amont non corrige), ce qui faisait OOM la prod.
+# Node runtime (npm). Bun was dropped: it inflated request-body reads ~80x and
+# retained memory (unfixed upstream bug), which OOM-killed prod.
 on:
  pull_request:
   branches: [main]
@@ -22,7 +22,7 @@ jobs:
    - name: Setup Node
      uses: actions/setup-node@v7
      with:
-      node-version: 22
+      node-version: 24
       cache: npm
 
    - name: Install dependencies
