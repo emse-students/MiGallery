@@ -32,7 +32,7 @@ export const GET: RequestHandler = async (event) => {
 
 		if (!res.ok) {
 			const text = await res.text().catch(() => '');
-			throw error(res.status, `Échec de la récupération de l'archive : ${text.slice(0, 200)}`);
+			throw error(res.status, `Failed to fetch archive: ${text.slice(0, 200)}`);
 		}
 
 		const filename = encodeURIComponent(`${data.filename}.zip`);

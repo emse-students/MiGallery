@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { m } from '$lib/paraglide/messages';
 
 /**
  * Store to manage in-progress operations (uploads, etc.)
@@ -49,8 +50,8 @@ if (typeof window !== 'undefined') {
 	window.addEventListener('beforeunload', (e) => {
 		if (currentOperations.size > 0) {
 			e.preventDefault();
-			e.returnValue = 'Des opérations sont en cours. Êtes-vous sûr de vouloir quitter ?';
-			return 'Des opérations sont en cours. Êtes-vous sûr de vouloir quitter ?';
+			e.returnValue = m.op_beforeunload();
+			return m.op_beforeunload();
 		}
 	});
 }

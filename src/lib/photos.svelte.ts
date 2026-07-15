@@ -538,8 +538,8 @@ export class PhotosState {
 		}
 		if (!skipConfirm) {
 			const ok = await showConfirm(
-				`Télécharger ${this.selectedAssets.length} image(s) sous forme d'archive ?`,
-				'Télécharger'
+				m.pg_download_archive_confirm({ count: this.selectedAssets.length }),
+				m.common_download()
 			);
 			if (!ok) {
 				return;

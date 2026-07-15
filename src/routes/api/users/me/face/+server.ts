@@ -4,6 +4,7 @@ import { getDatabase } from '$lib/db/database';
 import { verifySigned } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
+import { m } from '$lib/paraglide/messages';
 
 const SESSION_COOKIE_NAME = '__session_user';
 const log = createLogger('user-face');
@@ -81,8 +82,7 @@ export const PATCH: RequestHandler = async (event) => {
 				return json(
 					{
 						error: 'face_already_assigned',
-						message:
-							"Ce visage a déjà été assigné à un autre compte. Si ce n'est pas le vôtre, merci de contacter bureau@mitv.fr"
+						message: m.face_already_assigned_msg()
 					},
 					{ status: 409 }
 				);

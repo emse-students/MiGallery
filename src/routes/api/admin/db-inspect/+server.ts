@@ -17,8 +17,8 @@ export const GET: RequestHandler = async (event) => {
 		const scriptPath = path.join(process.cwd(), 'scripts', 'inspect-db.cjs');
 		const { stdout: output } = await execFileAsync('node', [scriptPath], { encoding: 'utf-8' });
 
-		const hasErrors = output.includes('❌') || output.includes('Erreurs détectées');
-		const errors = hasErrors ? ['Voir les logs pour plus de détails'] : [];
+		const hasErrors = output.includes('❌');
+		const errors = hasErrors ? ['See the logs for more details'] : [];
 
 		const db = getDatabase();
 		const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
@@ -39,7 +39,7 @@ export const GET: RequestHandler = async (event) => {
 		return json({
 			success: false,
 			hasErrors: true,
-			errors: ['Erreurs détectées dans la base de données'],
+			errors: ['Errors detected in the database'],
 			output: errOutput
 		});
 	}
