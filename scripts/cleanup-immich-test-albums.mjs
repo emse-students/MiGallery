@@ -35,10 +35,7 @@ function loadDotEnv() {
 		const key = m[1];
 		if (process.env[key] !== undefined) continue;
 		let val = m[2].trim();
-		if (
-			(val.startsWith('"') && val.endsWith('"')) ||
-			(val.startsWith("'") && val.endsWith("'"))
-		) {
+		if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
 			val = val.slice(1, -1);
 		}
 		process.env[key] = val;
@@ -80,7 +77,9 @@ async function main() {
 		process.exit(1);
 	}
 
-	const matched = albums.filter((a) => typeof a?.albumName === 'string' && a.albumName.startsWith(args.prefix));
+	const matched = albums.filter(
+		(a) => typeof a?.albumName === 'string' && a.albumName.startsWith(args.prefix)
+	);
 	const targets = args.includeNonEmpty ? matched : matched.filter((a) => (a.assetCount ?? 0) === 0);
 
 	console.log(`Total albums: ${albums.length}`);
