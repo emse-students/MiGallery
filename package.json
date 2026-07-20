@@ -105,7 +105,7 @@
 		"lucide-svelte": "^1.0.1",
 		"sharp": "^0.35.3",
 		"typescript-eslint": "^8.61.1",
-		"undici": "^8.0.3",
+		"undici": "^8.7.0",
 		"vitest": "^4.1.10"
 	},
 	"overrides": {
