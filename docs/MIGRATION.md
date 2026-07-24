@@ -1,94 +1,94 @@
-# Migration / clonage de MiGallery sur un nouveau serveur
+# MiGallery migration / cloning to a new server
 
-MiGallery tourne en conteneur Docker (image publiee sur GHCR par la CD). La quasi
-totalite du deploiement est automatisee ; ce document couvre le bootstrap manuel
-d un nouveau serveur et la restauration des donnees.
+MiGallery runs as a Docker container (image published on GHCR by the CD). Almost all
+deployment is automated; this document covers manual bootstrap of
+a new server and data restoration.
 
-> Les medias ne sont **pas** sauvegardes/migres (ils vivent dans Immich, sur le
-> RAID). On migre la base MiGallery et, si voulu, la base Immich.
+> Media is **not** backed up/migrated (it lives in Immich, on the
+> RAID). We migrate the MiGallery database and, if desired, the Immich database.
 
-## Architecture de deploiement
+## Deployment architecture
 
-| Element | Detail                                                                          |
-| ------- | ------------------------------------------------------------------------------- |
-| Runtime | conteneur Docker `migallery` (SvelteKit + Node), port 3000                      |
-| Donnees | `data/` monte en volume (`/home/mitv/MiGallery/data`) : SQLite + caches         |
-| Image   | `ghcr.io/emse-students/migallery:latest` (buildee par la CD)                    |
-| CD      | `.github/workflows/ci-cd.yml` : validate -> build-image -> deploy (self-hosted) |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync vers canari (cron root 05h)        |
+| Element | Detail                                                                         |
+| ------- | ------------------------------------------------------------------------------ |
+| Runtime | `migallery` Docker container (SvelteKit + Node), port 3000                     |
+| Data    | `data/` mounted as volume (`/home/mitv/MiGallery/data`): SQLite + caches       |
+| Image   | `ghcr.io/emse-students/migallery:latest` (built by CD)                         |
+| CD      | `.github/workflows/ci-cd.yml`: validate -> build-image -> deploy (self-hosted) |
+| Backups | `scripts/backup-offsite.sh` -> offsite rsync to canari (root cron 05h)         |
 
-## 0. Pre-requis
+## 0. Prerequisites
 
-- Docker Engine + plugin `docker compose`.
-- Un runner GitHub Actions self-hosted (label `self-hosted`) dont l utilisateur
-  est membre du groupe `docker`.
-- Immich deja installe et joignable (MiGallery en est une surcouche).
+- Docker Engine + `docker compose` plugin.
+- A self-hosted GitHub Actions runner (label `self-hosted`) whose user
+  is a member of the `docker` group.
+- Immich already installed and reachable (MiGallery is an overlay on top of it).
 
-## 1. Runner self-hosted
+## 1. Self-hosted runner
 
-GitHub -> repo -> Settings -> Actions -> Runners -> New self-hosted runner, puis
-installer en service. L utilisateur du runner doit pouvoir lancer `docker`
-(`sudo usermod -aG docker <user>` puis redemarrer le service runner).
+GitHub -> repo -> Settings -> Actions -> Runners -> New self-hosted runner, then
+install as a service. The runner user must be able to run `docker`
+(`sudo usermod -aG docker <user>` then restart the runner service).
 
-## 2. Secrets GitHub
+## 2. GitHub Secrets
 
-La CD genere `.env` a partir des secrets du repo (Settings -> Secrets -> Actions) :
+The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 
-| Secret                                            | Role                                                              |
-| ------------------------------------------------- | ----------------------------------------------------------------- |
-| `IMMICH_API_KEY`                                  | acces a l API Immich                                              |
-| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                    |
-| `AUTH_SECRET`                                     | signatures Auth.js (`node ./scripts/generate-auth-secret.cjs`)    |
-| `COOKIE_SECRET`                                   | chiffrement cookies (`node ./scripts/generate_cookie_secret.cjs`) |
+| Secret                                            | Role                                                            |
+| ------------------------------------------------- | --------------------------------------------------------------- |
+| `IMMICH_API_KEY`                                  | access to the Immich API                                        |
+| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                  |
+| `AUTH_SECRET`                                     | Auth.js signatures (`node ./scripts/generate-auth-secret.cjs`)  |
+| `COOKIE_SECRET`                                   | cookie encryption (`node ./scripts/generate_cookie_secret.cjs`) |
 
-Les valeurs non-secretes (ORIGIN, IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
-ont des defauts dans `docker-compose.prod.yml`, surchargeables si besoin.
+Non-secret values (ORIGIN, IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
+have defaults in `docker-compose.prod.yml`, overridable if needed.
 
-## 3. Acces SSH pour la sauvegarde offsite
+## 3. SSH access for offsite backup
 
-Le backup pousse vers canari. Sur le nouveau serveur (en root, qui lance le cron) :
+The backup pushes to canari. On the new server (as root, which runs the cron):
 
 ```bash
 ssh-keyscan -H 10.0.0.3 >> /root/.ssh/known_hosts
 ```
 
-Sur canari, autoriser la cle publique de root@<serveur> dans
-`~/.ssh/authorized_keys` du user `canari` et creer `~/migallery-offsite/`.
+On canari, authorize the public key of root@<server> in
+`~/.ssh/authorized_keys` of the `canari` user and create `~/migallery-offsite/`.
 
-## 4. Premier deploiement
+## 4. First deployment
 
-Declencher la CD (push sur `main` ou Actions -> Run workflow). Elle build l image,
-la pousse sur GHCR, genere `.env`, puis `docker compose up -d` sur le serveur.
+Trigger the CD (push on `main` or Actions -> Run workflow). It builds the image,
+pushes it to GHCR, generates `.env`, then `docker compose up -d` on the server.
 
-## 5. Restauration des donnees
+## 5. Data restoration
 
-### MiGallery (notre base)
+### MiGallery (our database)
 
 ```bash
-./scripts/restore-offsite.sh --yes     # derniere sauvegarde depuis canari
+./scripts/restore-offsite.sh --yes     # latest backup from canari
 ```
 
-### Immich (optionnel)
+### Immich (optional)
 
-Immich produit ses propres dumps (`library/backups/immich-db-backup-*.sql.gz`),
-copies offsite dans `~/migallery-offsite/immich/` sur canari. La restauration suit
-la **procedure officielle Immich** (recreation de la base avec ses extensions
-vector) :
+Immich produces its own dumps (`library/backups/immich-db-backup-*.sql.gz`),
+copied offsite to `~/migallery-offsite/immich/` on canari. Restoration follows
+the **official Immich procedure** (recreating the database with its vector
+extensions):
 
 ```bash
-# Recuperer le dump depuis canari, puis (cf docs Immich) :
+# Retrieve the dump from canari, then (see Immich docs):
 #   docker compose down
-#   (recreer le volume db)
+#   (recreate the db volume)
 #   docker compose up -d database
 #   gunzip < immich-db-backup-*.sql.gz | docker exec -i immich_postgres psql -U postgres
 #   docker compose up -d
 ```
 
-Voir https://immich.app/docs/administration/backup-and-restore pour la version exacte.
+See https://immich.app/docs/administration/backup-and-restore for the exact version.
 
-## 6. Sauvegardes recurrentes
+## 6. Recurring backups
 
-Cron root sur le serveur (apres le dump Immich de 02h) :
+Root cron on the server (after the Immich dump at 02h):
 
 ```cron
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -97,11 +97,11 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 ## Checklist
 
-- [ ] Docker + compose, runner self-hosted (groupe docker)
-- [ ] Secrets GitHub crees
-- [ ] SSH serveur -> canari pour l offsite
-- [ ] CD passee au vert (image + deploiement)
-- [ ] Base MiGallery restauree
-- [ ] (option) Base Immich restauree
-- [ ] Cron de sauvegarde installe
-- [ ] Reverse proxy / DNS / TLS vers le port 3000
+- [ ] Docker + compose, self-hosted runner (docker group)
+- [ ] GitHub Secrets created
+- [ ] SSH server -> canari for offsite
+- [ ] CD green (image + deployment)
+- [ ] MiGallery database restored
+- [ ] (opt) Immich database restored
+- [ ] Backup cron installed
+- [ ] Reverse proxy / DNS / TLS to port 3000

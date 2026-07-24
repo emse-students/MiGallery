@@ -1,206 +1,206 @@
-# Tests API MiGallery
+# MiGallery API Tests
 
-Ce projet inclut une suite complète et exhaustive de tests API utilisant Vitest.
+This project includes a complete and comprehensive API test suite using Vitest.
 
-## 📂 Structure des tests
+## 📂 Test Structure
 
-### Tests organisés par domaine fonctionnel
+### Tests organized by functional domain
 
-- **`api.test.ts`** - Tests API de base (legacy, conservé pour compatibilité)
-- **`albums.test.ts`** - Tests exhaustifs pour l'API Albums
-  - Liste, création, modification, suppression d'albums
-  - Gestion des assets (ajout, suppression, streaming)
-  - Métadonnées et thumbnails
-  - Couvertures d'albums
-- **`users.test.ts`** - Tests exhaustifs pour l'API Utilisateurs
-  - CRUD complet des utilisateurs
-  - Gestion des permissions (admin/user)
-  - Avatars et profils
-  - Mise à jour de promo
-- **`favorites-external.test.ts`** - Tests pour favoris et médias externes
-  - Ajout/suppression de favoris
-  - Gestion des médias externes (URL, embed)
-  - Opérations de base de données
-  - Changement d'utilisateur
-- **`admin-auth.test.ts`** - Tests pour l'administration et l'authentification
-  - Gestion des clés API (création, liste, suppression)
-  - Scopes et permissions (read, write, admin)
-  - Backup/restore de base de données
-  - Import/export de données
+- **`api.test.ts`** - Basic API tests (legacy, kept for compatibility)
+- **`albums.test.ts`** - Comprehensive tests for the Albums API
+  - Album listing, creation, modification, deletion
+  - Asset management (add, delete, streaming)
+  - Metadata and thumbnails
+  - Album covers
+- **`users.test.ts`** - Comprehensive tests for the Users API
+  - Full user CRUD
+  - Permission management (admin/user)
+  - Avatars and profiles
+  - Class year update
+- **`favorites-external.test.ts`** - Tests for favorites and external media
+  - Add/remove favorites
+  - External media management (URL, embed)
+  - Database operations
+  - User switching
+- **`admin-auth.test.ts`** - Tests for administration and authentication
+  - API key management (create, list, delete)
+  - Scopes and permissions (read, write, admin)
+  - Database backup/restore
+  - Data import/export
   - Health checks
-  - Validation d'API keys
-- **`people-photoscv.test.ts`** - Tests pour l'API People/Photos-CV
-  - Liste des personnes
-  - Photos par personne
-  - Gestion de l'album PhotoCV
-  - Filtres (promo, département, option)
-  - Recherche par nom
-- **`immich-proxy.test.ts`** - Tests pour le proxy Immich
-  - Proxyfication de toutes les méthodes HTTP (GET, POST, PUT, DELETE, PATCH)
-  - Transmission des headers
-  - Gestion du cache
-  - Gestion des erreurs et timeouts
-  - Validation des scopes
-- **`e2e-integration.test.ts`** - Tests d'intégration end-to-end
-  - Workflows complets utilisateur
-  - Workflows complets album
-  - Validation des permissions
-  - Tests de performance
-  - Validation des données
+  - API key validation
+- **`people-photoscv.test.ts`** - Tests for the People/Photos-CV API
+  - People listing
+  - Photos per person
+  - PhotoCV album management
+  - Filters (class year, department, option)
+  - Search by name
+- **`immich-proxy.test.ts`** - Tests for the Immich proxy
+  - Proxy for all HTTP methods (GET, POST, PUT, DELETE, PATCH)
+  - Header forwarding
+  - Cache management
+  - Error and timeout handling
+  - Scope validation
+- **`e2e-integration.test.ts`** - End-to-end integration tests
+  - Complete user workflows
+  - Complete album workflows
+  - Permission validation
+  - Performance tests
+  - Data validation
 
-## 🧪 Commandes de test disponibles
+## 🧪 Available Test Commands
 
-### 1. Tests Vitest (recommandé)
+### 1. Vitest Tests (recommended)
 
-Tests modernes avec Vitest, exécutés dans la CI/CD.
+Modern tests with Vitest, executed in CI/CD.
 
 ```bash
-# Lancer tous les tests (nécessite un serveur qui tourne)
+# Run all tests (requires a running server)
 npm run test
 
-# Lancer un fichier de test spécifique
+# Run a specific test file
 npx vitest run tests/albums.test.ts
 npx vitest run tests/users.test.ts
 npx vitest run tests/admin-auth.test.ts
 npx vitest run tests/e2e-integration.test.ts
 
-# Mode watch (développement)
+# Watch mode (development)
 npm run test:watch
 
-# Tests avec coverage
+# Tests with coverage
 npm run test:coverage
 
-# Tests avec démarrage automatique du serveur
+# Tests with automatic server startup
 npm run test
 ```
 
-### 2. Tests par domaine
+### 2. Tests by Domain
 
 ```bash
-# Tests Albums uniquement
+# Albums tests only
 npx vitest run tests/albums.test.ts
 
-# Tests Utilisateurs uniquement
+# Users tests only
 npx vitest run tests/users.test.ts
 
-# Tests Favoris et External Media
+# Favorites and External Media tests
 npx vitest run tests/favorites-external.test.ts
 
-# Tests Admin et Auth
+# Admin and Auth tests
 npx vitest run tests/admin-auth.test.ts
 
-# Tests People/Photos-CV
+# People/Photos-CV tests
 npx vitest run tests/people-photoscv.test.ts
 
-# Tests Proxy Immich
+# Immich Proxy tests
 npx vitest run tests/immich-proxy.test.ts
 
-# Tests E2E complets
+# Complete E2E tests
 npx vitest run tests/e2e-integration.test.ts
 ```
 
-### 3. Tests legacy (script Node.js)
+### 3. Legacy Tests (Node.js script)
 
-Script de test Node.js classique avec output coloré.
+Classic Node.js test script with colored output.
 
 ```bash
-# Lancer le script de test original
+# Run the original test script
 npm run test:api
-# ou
+# or
 node ./scripts/test-api.cjs
 ```
 
-## 📊 Statistiques de couverture
+## 📊 Coverage Statistics
 
-| Domaine                | Fichier                      | Tests    | Endpoints | Couverture |
-| ---------------------- | ---------------------------- | -------- | --------- | ---------- |
-| **Albums**             | `albums.test.ts`             | 35+      | 15+       | ✅ 95%     |
-| **Users**              | `users.test.ts`              | 40+      | 10+       | ✅ 100%    |
-| **Favoris & External** | `favorites-external.test.ts` | 35+      | 10+       | ✅ 90%     |
-| **Admin & Auth**       | `admin-auth.test.ts`         | 45+      | 12+       | ✅ 95%     |
-| **People/Photos-CV**   | `people-photoscv.test.ts`    | 40+      | 15+       | ✅ 90%     |
-| **Immich Proxy**       | `immich-proxy.test.ts`       | 50+      | 20+       | ✅ 85%     |
-| **E2E Integration**    | `e2e-integration.test.ts`    | 30+      | -         | ✅ 100%    |
-| **TOTAL**              | **8 fichiers**               | **275+** | **80+**   | **✅ 93%** |
+| Domain                   | File                         | Tests    | Endpoints | Coverage   |
+| ------------------------ | ---------------------------- | -------- | --------- | ---------- |
+| **Albums**               | `albums.test.ts`             | 35+      | 15+       | ✅ 95%     |
+| **Users**                | `users.test.ts`              | 40+      | 10+       | ✅ 100%    |
+| **Favorites & External** | `favorites-external.test.ts` | 35+      | 10+       | ✅ 90%     |
+| **Admin & Auth**         | `admin-auth.test.ts`         | 45+      | 12+       | ✅ 95%     |
+| **People/Photos-CV**     | `people-photoscv.test.ts`    | 40+      | 15+       | ✅ 90%     |
+| **Immich Proxy**         | `immich-proxy.test.ts`       | 50+      | 20+       | ✅ 85%     |
+| **E2E Integration**      | `e2e-integration.test.ts`    | 30+      | -         | ✅ 100%    |
+| **TOTAL**                | **8 files**                  | **275+** | **80+**   | **✅ 93%** |
 
-## 📋 Couverture détaillée des tests
+## 📋 Detailed Test Coverage
 
 ### ✅ Albums API (15+ endpoints)
 
-- ✅ `GET /api/albums` - Liste des albums
-- ✅ `POST /api/albums` - Création d'album
-- ✅ `GET /api/albums/:id` - Détails d'un album
-- ✅ `PATCH /api/albums/:id` - Modification d'album
-- ✅ `DELETE /api/albums/:id` - Suppression d'album
-- ✅ `GET /api/albums/:id/assets-simple` - Assets (format simple)
+- ✅ `GET /api/albums` - Album list
+- ✅ `POST /api/albums` - Album creation
+- ✅ `GET /api/albums/:id` - Album details
+- ✅ `PATCH /api/albums/:id` - Album modification
+- ✅ `DELETE /api/albums/:id` - Album deletion
+- ✅ `GET /api/albums/:id/assets-simple` - Assets (simple format)
 - ✅ `GET /api/albums/:id/assets-stream` - Assets (streaming)
-- ✅ `PUT /api/albums/:id/assets` - Ajout d'assets
-- ✅ `DELETE /api/albums/:id/assets` - Suppression d'assets
-- ✅ `GET /api/albums/:id/info` - Informations détaillées
-- ✅ `PUT /api/albums/:id/metadata` - Mise à jour métadonnées
-- ✅ `GET /api/albums/:id/asset-thumbnail/:assetId` - Miniatures
-- ✅ `GET /api/albums/:id/asset-original/:assetId` - Assets originaux
-- ✅ `POST /api/albums/covers` - Génération de couvertures
+- ✅ `PUT /api/albums/:id/assets` - Add assets
+- ✅ `DELETE /api/albums/:id/assets` - Delete assets
+- ✅ `GET /api/albums/:id/info` - Detailed information
+- ✅ `PUT /api/albums/:id/metadata` - Metadata update
+- ✅ `GET /api/albums/:id/asset-thumbnail/:assetId` - Thumbnails
+- ✅ `GET /api/albums/:id/asset-original/:assetId` - Original assets
+- ✅ `POST /api/albums/covers` - Cover generation
 - ✅ Pagination, cursors, validations
 
 ### ✅ Users API (10+ endpoints)
 
-- ✅ `GET /api/users` - Liste des utilisateurs (admin)
-- ✅ `POST /api/users` - Création d'utilisateur (admin)
-- ✅ `GET /api/users/:id` - Détails d'un utilisateur
-- ✅ `PUT /api/users/:id` - Modification d'utilisateur (admin)
-- ✅ `DELETE /api/users/:id` - Suppression d'utilisateur (admin)
-- ✅ `PATCH /api/users/me/promo` - Mise à jour promo
-- ✅ `GET /api/users/:username/avatar` - Avatar (multi-tailles)
-- ✅ Validation des données (email, rôle, promo)
-- ✅ Gestion des doublons
-- ✅ Protection utilisateur système
+- ✅ `GET /api/users` - User list (admin)
+- ✅ `POST /api/users` - User creation (admin)
+- ✅ `GET /api/users/:id` - User details
+- ✅ `PUT /api/users/:id` - User modification (admin)
+- ✅ `DELETE /api/users/:id` - User deletion (admin)
+- ✅ `PATCH /api/users/me/promo` - Class year update
+- ✅ `GET /api/users/:username/avatar` - Avatar (multi-size)
+- ✅ Data validation (email, role, class year)
+- ✅ Duplicate handling
+- ✅ System user protection
 
-### ✅ Favoris & External Media (10+ endpoints)
+### ✅ Favorites & External Media (10+ endpoints)
 
-- ✅ `GET /api/favorites` - Liste des favoris
-- ✅ `POST /api/favorites` - Ajout aux favoris
-- ✅ `DELETE /api/favorites` - Retrait des favoris
-- ✅ `GET /api/external/media` - Liste des médias externes
-- ✅ `POST /api/external/media` - Création de média externe
-- ✅ `GET /api/external/media/:id` - Détails d'un média
-- ✅ `DELETE /api/external/media/:id` - Suppression de média
-- ✅ `DELETE /api/external/media` - Suppression en masse
-- ✅ `POST /api/db` - Opérations SQL (admin)
-- ✅ `POST /api/change-user` - Changement d'utilisateur
+- ✅ `GET /api/favorites` - Favorites list
+- ✅ `POST /api/favorites` - Add to favorites
+- ✅ `DELETE /api/favorites` - Remove from favorites
+- ✅ `GET /api/external/media` - External media list
+- ✅ `POST /api/external/media` - External media creation
+- ✅ `GET /api/external/media/:id` - Media details
+- ✅ `DELETE /api/external/media/:id` - Media deletion
+- ✅ `DELETE /api/external/media` - Bulk deletion
+- ✅ `POST /api/db` - SQL operations (admin)
+- ✅ `POST /api/change-user` - User switching
 
 ### ✅ Admin & Auth (12+ endpoints)
 
-- ✅ `GET /api/admin/api-keys` - Liste des clés API (admin)
-- ✅ `POST /api/admin/api-keys` - Création de clé API (admin)
-- ✅ `DELETE /api/admin/api-keys/:id` - Suppression de clé (admin)
-- ✅ `GET /api/admin/db-inspect` - Inspection DB (admin)
-- ✅ `GET /api/admin/db-export` - Export DB (admin)
-- ✅ `POST /api/admin/db-import` - Import DB (admin)
-- ✅ `POST /api/admin/db-backup` - Backup DB (admin)
-- ✅ `POST /api/admin/db-restore` - Restore DB (admin)
+- ✅ `GET /api/admin/api-keys` - API key list (admin)
+- ✅ `POST /api/admin/api-keys` - API key creation (admin)
+- ✅ `DELETE /api/admin/api-keys/:id` - Key deletion (admin)
+- ✅ `GET /api/admin/db-inspect` - DB inspection (admin)
+- ✅ `GET /api/admin/db-export` - DB export (admin)
+- ✅ `POST /api/admin/db-import` - DB import (admin)
+- ✅ `POST /api/admin/db-backup` - DB backup (admin)
+- ✅ `POST /api/admin/db-restore` - DB restore (admin)
 - ✅ `GET /api/health` - Health check
-- ✅ Validation des scopes (read, write, delete, admin)
-- ✅ Gestion des API keys
+- ✅ Scope validation (read, write, delete, admin)
+- ✅ API key management
 - ✅ Rate limiting
 
 ### ✅ People/Photos-CV (15+ endpoints)
 
-- ✅ `GET /api/people/people` - Liste des personnes
-- ✅ `GET /api/people/people/:id/photos` - Photos d'une personne
+- ✅ `GET /api/people/people` - People list
+- ✅ `GET /api/people/people/:id/photos` - Person's photos
 - ✅ `GET /api/people/people/:id/photos-stream` - Photos (streaming)
-- ✅ `GET /api/people/person/:id/my-photos` - Mes photos
-- ✅ `GET /api/people/person/:id/album-photos` - Photos d'album
-- ✅ `GET /api/people` - Personnes avec filtres
-- ✅ `POST /api/people` - Création de personne
-- ✅ `GET /api/people/album` - Album PhotoCV
-- ✅ `GET /api/people/album/info` - Infos album PhotoCV
-- ✅ `GET /api/people/album/:id/assets` - Assets PhotoCV
-- ✅ `PUT /api/people/album/:id/assets` - Ajout assets PhotoCV
-- ✅ `DELETE /api/people/album/:id/assets` - Suppression assets
-- ✅ Filtres (promo, département, option)
-- ✅ Recherche par nom
-- ✅ Gestion des timeouts Immich
+- ✅ `GET /api/people/person/:id/my-photos` - My photos
+- ✅ `GET /api/people/person/:id/album-photos` - Album photos
+- ✅ `GET /api/people` - People with filters
+- ✅ `POST /api/people` - Person creation
+- ✅ `GET /api/people/album` - PhotoCV album
+- ✅ `GET /api/people/album/info` - PhotoCV album info
+- ✅ `GET /api/people/album/:id/assets` - PhotoCV assets
+- ✅ `PUT /api/people/album/:id/assets` - Add PhotoCV assets
+- ✅ `DELETE /api/people/album/:id/assets` - Delete assets
+- ✅ Filters (class year, department, option)
+- ✅ Search by name
+- ✅ Immich timeout handling
 
 ### ✅ Immich Proxy (20+ endpoints)
 
@@ -209,150 +209,150 @@ node ./scripts/test-api.cjs
 - ✅ `PUT /api/immich/*` - Proxy PUT
 - ✅ `DELETE /api/immich/*` - Proxy DELETE
 - ✅ `PATCH /api/immich/*` - Proxy PATCH
-- ✅ Transmission des headers (auth, custom)
-- ✅ Gestion du cache (Cache-Control, ETag)
-- ✅ Content-Types (images, vidéos, JSON)
-- ✅ Chemins imbriqués complexes
-- ✅ Paramètres de query
-- ✅ FormData et uploads
-- ✅ Gestion des erreurs (502, 504, timeouts)
-- ✅ Validation des scopes
+- ✅ Header forwarding (auth, custom)
+- ✅ Cache management (Cache-Control, ETag)
+- ✅ Content-Types (images, videos, JSON)
+- ✅ Complex nested paths
+- ✅ Query parameters
+- ✅ FormData and uploads
+- ✅ Error handling (502, 504, timeouts)
+- ✅ Scope validation
 
-### ✅ E2E Integration (workflows complets)
+### ✅ E2E Integration (complete workflows)
 
-- ✅ Workflow utilisateur complet (CRUD)
-- ✅ Workflow album complet (CRUD)
-- ✅ Workflow permissions et scopes
-- ✅ Workflow favoris
-- ✅ Workflow médias externes
-- ✅ Vérification endpoints critiques
-- ✅ Tests de performance (20+ requêtes simultanées)
-- ✅ Tests de stress
-- ✅ Validation cohérente des données
-- ✅ Setup/teardown automatiques
+- ✅ Complete user workflow (CRUD)
+- ✅ Complete album workflow (CRUD)
+- ✅ Permissions and scopes workflow
+- ✅ Favorites workflow
+- ✅ External media workflow
+- ✅ Critical endpoint verification
+- ✅ Performance tests (20+ simultaneous requests)
+- ✅ Stress tests
+- ✅ Consistent data validation
+- ✅ Automatic setup/teardown
 
-## 🔧 Configuration et Helpers
+## 🔧 Configuration and Helpers
 
-### Configuration centralisée (`test-helpers.ts`)
+### Centralized configuration (`test-helpers.ts`)
 
-- ✅ Configuration des timeouts
-- ✅ Scopes et rôles
-- ✅ Helpers d'authentification
-- ✅ Générateurs de données de test
-- ✅ Gestion des erreurs Immich
-- ✅ Nettoyage automatique des ressources
-- ✅ Types TypeScript
+- ✅ Timeout configuration
+- ✅ Scopes and roles
+- ✅ Authentication helpers
+- ✅ Test data generators
+- ✅ Immich error handling
+- ✅ Automatic resource cleanup
+- ✅ TypeScript types
 
-## 📋 Couverture des tests (legacy)
+## 📋 Test Coverage (legacy)
 
-### ✅ Authentification
+### ✅ Authentication
 
-- Détection de l'utilisateur système `les.roots`
-- Connexion via `/dev/login-as`
-- Création/suppression de clés API
+- Detection of system user `les.roots`
+- Login via `/dev/login-as`
+- API key creation/deletion
 
 ### ✅ Albums
 
-- `GET /api/albums` - Liste des albums
+- `GET /api/albums` - Album list
 
-### ✅ Utilisateurs
+### ✅ Users
 
-- `GET /api/users` - Liste (admin)
-- `GET /api/users/:id` - Détails
-- `POST /api/users` - Création (admin)
+- `GET /api/users` - List (admin)
+- `GET /api/users/:id` - Details
+- `POST /api/users` - Creation (admin)
 - `PUT /api/users/:id` - Modification (admin)
-- `DELETE /api/users/:id` - Suppression (admin)
+- `DELETE /api/users/:id` - Deletion (admin)
 
 ### ✅ Photos-CV
 
-- `GET /api/people/people` - Personnes reconnues
+- `GET /api/people/people` - Recognized people
 
-### ✅ Clés API
+### ✅ API Keys
 
-- `GET /api/admin/api-keys` - Liste (admin)
-- `POST /api/admin/api-keys` - Création (admin)
-- `DELETE /api/admin/api-keys/:id` - Suppression (admin)
+- `GET /api/admin/api-keys` - List (admin)
+- `POST /api/admin/api-keys` - Creation (admin)
+- `DELETE /api/admin/api-keys/:id` - Deletion (admin)
 
-### ✅ Assets Immich
+### ✅ Immich Assets
 
-- `GET /api/immich/assets` - Proxy Immich
+- `GET /api/immich/assets` - Immich proxy
 
-### ✅ Médias externes
+### ✅ External Media
 
-- `GET /api/external/media` - Album PortailEtu
+- `GET /api/external/media` - PortailEtu album
 
 ### ✅ Health
 
-- `GET /api/health` - Santé de l'API
+- `GET /api/health` - API health
 
 ## 🚀 CI/CD
 
 ### GitHub Actions
 
-Les tests sont automatiquement exécutés dans deux workflows :
+Tests are automatically executed in two workflows:
 
 #### 1. CI - `.github/workflows/ci.yml`
 
-- ✅ Build du projet
-- ✅ Initialisation de la base de données de test
-- ✅ Démarrage du serveur en background
-- ✅ Exécution de la suite de tests Vitest
-- ✅ Arrêt du serveur
+- ✅ Project build
+- ✅ Test database initialization
+- ✅ Server startup in background
+- ✅ Vitest test suite execution
+- ✅ Server shutdown
 
 #### 2. Deploy - `.github/workflows/deploy.yml`
 
-- ✅ Déploiement sur le serveur de production
-- ✅ Redémarrage du serveur avec PM2
-- ✅ Exécution des tests de validation post-déploiement
+- ✅ Deployment to production server
+- ✅ Server restart with PM2
+- ✅ Post-deployment validation tests
 
 ## 🔧 Configuration
 
-### Variables d'environnement
+### Environment variables
 
 ```bash
-# URL de base de l'API (défaut: http://localhost:3000)
+# API base URL (default: http://localhost:3000)
 API_BASE_URL=http://localhost:3000
 
-# Chemin de la base de données (défaut: ./data/migallery.db)
+# Database path (default: ./data/migallery.db)
 DATABASE_PATH=./data/migallery.db
 ```
 
-### Configuration Vitest
+### Vitest Configuration
 
-Voir `vitest.config.ts` :
+See `vitest.config.ts`:
 
-- Timeout global : 30 secondes
-- Tests d'API avec timeout étendu : 15 secondes
-- Environnement : Node.js
+- Global timeout: 30 seconds
+- API tests with extended timeout: 15 seconds
+- Environment: Node.js
 
-## 📝 Prérequis
+## 📝 Prerequisites
 
-### Pour les tests locaux :
+### For local tests:
 
-1. **Base de données initialisée**
+1. **Initialized database**
 
    ```bash
    npm run db:init
    ```
 
-2. **Utilisateur système créé** (`les.roots`)
+2. **System user created** (`les.roots`)
 
    ```bash
    node scripts/create-system-user.cjs
    ```
 
-3. **Serveur en cours d'exécution**
+3. **Server running**
 
    ```bash
-   # Mode développement
+   # Development mode
    npm run dev
 
-   # ou mode production
+   # or production mode
    npm run build
    node build/index.js
    ```
 
-4. **Variables d'environnement configurées** (`.env`)
+4. **Environment variables configured** (`.env`)
    ```env
    AUTH_URL=http://localhost:3000
    AUTH_TRUST_HOST=true
@@ -362,67 +362,67 @@ Voir `vitest.config.ts` :
    ENABLE_DEV_ROUTES=true
    ```
 
-## 🐛 Dépannage
+## 🐛 Troubleshooting
 
-### Erreur: "Base de données introuvable"
+### Error: "Database not found"
 
 ```bash
 npm run db:init
 ```
 
-### Erreur: "Utilisateur système les.roots introuvable"
+### Error: "System user les.roots not found"
 
 ```bash
 node scripts/create-system-user.cjs
 ```
 
-### Timeouts sur les tests Immich
+### Timeouts on Immich tests
 
-C'est normal si Immich est down ou inaccessible. Les tests passent quand même avec un avertissement.
+This is normal if Immich is down or unreachable. Tests still pass with a warning.
 
-### Erreur: "Connection refused"
+### Error: "Connection refused"
 
-Vérifiez que le serveur tourne sur le port 3000 :
+Check that the server is running on port 3000:
 
 ```bash
 curl http://localhost:3000/api/health
 ```
 
-## 📊 Exemple de sortie
+## 📊 Example Output
 
 ```
-🚀 Setup des tests API
-📍 URL de base: http://localhost:3000
+🚀 API test setup
+📍 Base URL: http://localhost:3000
 
-✅ Utilisateur système les.roots existe (rôle: admin)
-✅ Connexion réussie avec cookie de session
-✅ Clé API créée: Fw0v6dGLtjlR...
+✅ System user les.roots exists (role: admin)
+✅ Login successful with session cookie
+✅ API key created: Fw0v6dGLtjlR...
 
-✓ Albums API > devrait lister les albums
-✓ Users API > devrait lister les utilisateurs (admin)
-✓ Users API > devrait récupérer l'utilisateur système
-✓ Users CRUD (Admin) > devrait créer un utilisateur
-✓ Users CRUD (Admin) > devrait récupérer l'utilisateur créé
-✓ Users CRUD (Admin) > devrait modifier l'utilisateur
-✓ Users CRUD (Admin) > devrait supprimer l'utilisateur
-⚠️  Immich non accessible (timeout)
-✓ Photos-CV API > devrait lister les personnes
-✓ API Keys (Admin) > devrait lister les clés API
-⚠️  Immich non accessible (timeout)
-✓ Assets API (Immich proxy) > devrait lister les assets
-✓ External Media API > devrait lister les médias externes
-✓ Health API > devrait vérifier la santé de l'API
+✓ Albums API > should list albums
+✓ Users API > should list users (admin)
+✓ Users API > should retrieve the system user
+✓ Users CRUD (Admin) > should create a user
+✓ Users CRUD (Admin) > should retrieve the created user
+✓ Users CRUD (Admin) > should modify the user
+✓ Users CRUD (Admin) > should delete the user
+⚠️  Immich unreachable (timeout)
+✓ Photos-CV API > should list people
+✓ API Keys (Admin) > should list API keys
+⚠️  Immich unreachable (timeout)
+✓ Assets API (Immich proxy) > should list assets
+✓ External Media API > should list external media
+✓ Health API > should check API health
 
-🧹 Nettoyage après les tests
-✅ Clé API supprimée avec succès
-✅ Nettoyage terminé
+🧹 Cleanup after tests
+✅ API key successfully deleted
+✅ Cleanup complete
 
  12 pass
  0 fail
  22 expect() calls
 ```
 
-## 🔗 Liens utiles
+## 🔗 Useful Links
 
 - [Vitest Documentation](https://vitest.dev/)
 - [SvelteKit Testing](https://kit.svelte.dev/docs/testing)

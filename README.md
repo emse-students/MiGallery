@@ -15,265 +15,264 @@
 
 ---
 
-## 📋 Vue d'ensemble
+## 📋 Overview
 
-MiGallery est une application web moderne de gestion de galeries photos, développée avec **SvelteKit** et tournant sur **Node.js**. Elle permet de gérer des albums, des permissions utilisateurs, et s'intègre avec Immich pour la gestion avancée des photos.
+MiGallery is a modern photo gallery web application built with **SvelteKit** running on **Node.js**. It allows managing albums, user permissions, and integrates with Immich for advanced photo management.
 
-### ✨ Fonctionnalités principales
+### ✨ Main Features
 
-- 🖼️ **Gestion d'albums** - Création et organisation d'albums avec métadonnées
-- 👥 **Gestion des utilisateurs** - Système d'authentification et de rôles (admin, mitviste, user)
-- 🔒 **Permissions granulaires** - Contrôle d'accès par utilisateur ou par tag (ex: promo)
-- 🎨 **Interface moderne** - Design responsive avec Tailwind CSS
-- 📸 **Intégration Immich** - Synchronisation avec une instance Immich
-- 💾 **Base de données SQLite** - Stockage local performant avec better-sqlite3
-- 📦 **Déploiement facile** - Packaging complet pour déploiement simplifié
-- 🔧 **Interface admin** - Gestion de la DB via navigateur (export/import/sauvegarde)
+- 🖼️ **Album Management** - Create and organize albums with metadata
+- 👥 **User Management** - Authentication and role system (admin, mitviste, user)
+- 🔒 **Granular Permissions** - Access control by user or by tag (e.g., class year)
+- 🎨 **Modern Interface** - Responsive design with Tailwind CSS
+- 📸 **Immich Integration** - Synchronization with an Immich instance
+- 💾 **SQLite Database** - High-performance local storage with better-sqlite3
+- 📦 **Easy Deployment** - Complete packaging for simplified deployment
+- 🔧 **Admin Interface** - DB management via browser (export/import/backup)
 
 ---
 
 ## 🚀 Installation
 
-### Prérequis
+### Prerequisites
 
 - **Node.js** >= 20
-- SQLite (inclus avec better-sqlite3)
+- SQLite (included with better-sqlite3)
 
-Vérifier Node.js :
+Check Node.js:
 
 ```bash
 node --version
 ```
 
-### Étapes d'installation
+### Installation Steps
 
-1. **Cloner le dépôt**
+1. **Clone the repository**
 
 ```bash
 git clone https://github.com/emse-students/MiGallery.git
 cd MiGallery
 ```
 
-2. **Installer les dépendances**
+2. **Install dependencies**
 
 ```bash
 npm install
 ```
 
-3. **Configurer l'environnement**
+3. **Configure the environment**
 
-Créez un fichier `.env` à la racine :
+Create an `.env` file at the root:
 
 ```env
-# Générer un secret pour les cookies et Auth.js
+# Generate a secret for cookies and Auth.js
 # npm run generate:secret
-COOKIE_SECRET=votre_secret_genere
-AUTH_SECRET=votre_secret_genere
+COOKIE_SECRET=your_generated_secret
+AUTH_SECRET=your_generated_secret
 
-# Base de données
+# Database
 DATABASE_PATH=./data/migallery.db
 
-# Intégration Immich
-IMMICH_BASE_URL=http://votre-immich-url:2283
-IMMICH_API_KEY=votre_api_key
+# Immich Integration
+IMMICH_BASE_URL=http://your-immich-url:2283
+IMMICH_API_KEY=your_api_key
 
-# Authentification CAS EMSE
-CAS_CLIENT_ID=votre_client_id
-CAS_CLIENT_SECRET=votre_client_secret
-AUTH_TRUSTED_HOST=true # Mettre à true en production
+# EMSE CAS Authentication
+CAS_CLIENT_ID=your_client_id
+CAS_CLIENT_SECRET=your_client_secret
+AUTH_TRUSTED_HOST=true # Set to true in production
 ```
 
-4. **Initialiser la base de données**
+4. **Initialize the database**
 
 ```bash
 npm run db:init
 ```
 
-Cela crée automatiquement :
+This automatically creates:
 
-- La structure des tables (users, albums, permissions)
-- Un utilisateur système admin : **les.roots@etu.emse.fr** (n'apparaît pas sur le trombinoscope)
+- The table structure (users, albums, permissions)
+- A system admin user: **les.roots@etu.emse.fr** (does not appear in the directory)
 
-5. **Lancer le serveur de développement**
+5. **Start the development server**
 
 ```bash
 npm run dev
 ```
 
-L'application sera accessible sur `http://localhost:5173`
+The application will be accessible at `http://localhost:5173`
 
 ---
 
-## 🔧 Fonctionnement
+## 🔧 Workflow
 
-### Développement
+### Development
 
 ```bash
-# Lancer le serveur de développement avec HMR
+# Start the development server with HMR
 npm run dev
 
-# Vérifier les types TypeScript et Svelte
+# Check TypeScript and Svelte types
 npm run check
 ```
 
 ### Production
 
 ```bash
-# Compiler l'application pour la production
+# Compile the application for production
 npm run build
 
-# Prévisualiser la version de production
+# Preview the production version
 npm run preview
 ```
 
 ---
 
-## 🗄️ Maintenance de la base de données
+## 🗄️ Database Maintenance
 
-### Initialisation
+### Initialization
 
 ```bash
-# Initialiser une nouvelle base de données (si elle n'existe pas)
+# Initialize a new database (if it doesn't exist)
 npm run db:init
 ```
 
-### Sauvegardes
+### Backups
 
-#### Sauvegarde automatique (intégrée)
+#### Automatic backup (built-in)
 
-Depuis la version 1.1, **le serveur effectue automatiquement une sauvegarde quotidienne à minuit** sans
-configuration supplémentaire. Les sauvegardes sont stockées dans `data/backups/` (10 fichiers conservés
-maximum).
+Since version 1.1, **the server automatically performs a daily backup at midnight** without any
+additional configuration. Backups are stored in `data/backups/` (max 10 files retained).
 
-#### Sauvegarde manuelle
+#### Manual backup
 
 ```bash
-# Créer une sauvegarde de la base de données
+# Create a database backup
 npm run db:backup
 ```
 
-Les sauvegardes sont stockées dans `data/backups/` et seules les **10 dernières** sont conservées.
+Backups are stored in `data/backups/` and only the **last 10** are kept.
 
-#### Sauvegardes supplémentaires via cron (optionnel)
+#### Additional backups via cron (optional)
 
-Si vous souhaitez une redondance (ex. : toutes les 6 h ou export vers un stockage distant), consultez
+If you want redundancy (e.g., every 6 hours or export to remote storage), see
 `src/lib/docs/CRON_SETUP.md`.
 
-### Inspection et réparation
+### Inspection and Repair
 
 ```bash
-# Inspecter la base de données et détecter les erreurs
+# Inspect the database and detect errors
 npm run db:inspect
 
-# Tenter de réparer les erreurs automatiquement
+# Attempt to repair errors automatically
 npm run db:inspect -- --repair
 ```
 
-### Gestion via l'interface admin
+### Management via the admin interface
 
-L'interface d'administration (`/admin/database`) permet de :
+The admin interface (`/admin/database`) allows:
 
-- ✅ Exporter la base de données
-- ✅ Importer une base de données
-- ✅ Créer une sauvegarde manuelle
-- ✅ Restaurer une sauvegarde
-- ✅ Inspecter l'intégrité de la DB
-- ✅ Voir les statistiques (utilisateurs, albums, taille)
+- ✅ Export the database
+- ✅ Import a database
+- ✅ Create a manual backup
+- ✅ Restore a backup
+- ✅ Inspect DB integrity
+- ✅ View statistics (users, albums, size)
 
 ---
 
-## 📜 Utilisation des scripts
+## 📜 Using Scripts
 
-### Scripts de développement
+### Development Scripts
 
-| Commande          | Description                                |
-| ----------------- | ------------------------------------------ |
-| `npm run dev`     | Lance le serveur de développement avec HMR |
-| `npm run build`   | Compile l'application pour la production   |
-| `npm run preview` | Prévisualise la version de production      |
-| `npm run check`   | Vérifie les types TypeScript et Svelte     |
+| Command           | Description                             |
+| ----------------- | --------------------------------------- |
+| `npm run dev`     | Starts the development server with HMR  |
+| `npm run build`   | Compiles the application for production |
+| `npm run preview` | Previews the production version         |
+| `npm run check`   | Checks TypeScript and Svelte types      |
 
-### Scripts de base de données
+### Database Scripts
 
-| Commande                         | Description                               |
-| -------------------------------- | ----------------------------------------- |
-| `npm run db:init`                | Initialise une nouvelle base de données   |
-| `npm run db:backup`              | Crée une sauvegarde de la base de données |
-| `npm run db:inspect`             | Inspecte la base de données               |
-| `npm run db:inspect -- --repair` | Répare les erreurs détectées              |
+| Command                          | Description                |
+| -------------------------------- | -------------------------- |
+| `npm run db:init`                | Initializes a new database |
+| `npm run db:backup`              | Creates a database backup  |
+| `npm run db:inspect`             | Inspects the database      |
+| `npm run db:inspect -- --repair` | Repairs detected errors    |
 
-### Scripts utilitaires
+### Utility Scripts
 
-| Commande                  | Description                                        |
-| ------------------------- | -------------------------------------------------- |
-| `npm run generate:secret` | Génère un secret cryptographique pour les cookies  |
-| `npm run test:api`        | Lance les tests unitaires de l'API                 |
-| `npm run package`         | Crée un package complet (.tgz) avec DB, .env, etc. |
+| Command                   | Description                                           |
+| ------------------------- | ----------------------------------------------------- |
+| `npm run generate:secret` | Generates a cryptographic secret for cookies          |
+| `npm run test:api`        | Runs the API unit tests                               |
+| `npm run package`         | Creates a complete package (.tgz) with DB, .env, etc. |
 
-### Tests de l'API
+### API Tests
 
 ```bash
-# Tests avec l'URL par défaut (localhost:5173)
+# Tests with default URL (localhost:5173)
 npm run test:api
 
-# Tests avec une URL personnalisée et API Key
-API_BASE_URL=http://mon-serveur:3000 API_KEY=ma_cle npm run test:api
+# Tests with custom URL and API Key
+API_BASE_URL=http://my-server:3000 API_KEY=my_key npm run test:api
 ```
 
-Les tests vérifient :
+Tests verify:
 
-- ✅ Albums (listing, détails)
-- ✅ Users (listing, récupération)
-- ✅ Photos-CV (personnes, albums)
+- ✅ Albums (listing, details)
+- ✅ Users (listing, retrieval)
+- ✅ Photos-CV (people, albums)
 - ✅ API Keys (admin)
-- ✅ Assets (proxy Immich)
+- ✅ Assets (Immich proxy)
 - ✅ Health checks
 
 ---
 
-## 📦 Packaging et déploiement
+## 📦 Packaging and Deployment
 
-### Créer un package complet
+### Create a complete package
 
-Le script `package` crée une archive `.tgz` incluant :
+The `package` script creates a `.tgz` archive including:
 
-- Le build compilé
-- La base de données (`data/`)
-- Le fichier de configuration (`.env`)
-- Les scripts utilitaires
-- La documentation
+- The compiled build
+- The database (`data/`)
+- The configuration file (`.env`)
+- Utility scripts
+- Documentation
 
 ```bash
 npm run build
 npm run package
 ```
 
-Le package sera créé dans `build/artifacts/migallery-<version>-full.tgz`
+The package will be created at `build/artifacts/migallery-<version>-full.tgz`
 
-### Déployer sur une nouvelle machine
+### Deploy on a new machine
 
-1. **Copier le package** sur la machine cible
+1. **Copy the package** to the target machine
 
-2. **Extraire l'archive**
+2. **Extract the archive**
 
 ```bash
 tar -xzf migallery-x.x.x-full.tgz
 cd migallery
 ```
 
-3. **Installer les dépendances**
+3. **Install dependencies**
 
 ```bash
 npm ci --omit=dev
 ```
 
-4. **Vérifier/Modifier la configuration**
+4. **Check/Modify configuration**
 
 ```bash
-nano .env  # Adapter les URLs et chemins si nécessaire
+nano .env  # Adjust URLs and paths if necessary
 ```
 
-5. **Lancer l'application**
+5. **Start the application**
 
 ```bash
 node build/index.js
@@ -281,141 +280,141 @@ node build/index.js
 
 ---
 
-## 🏗️ Structure du projet
+## 🏗️ Project Structure
 
 ```
 MiGallery/
-├─ .env                    # Configuration (non committé)
-├─ package.json            # Dépendances et scripts
-├─ svelte.config.js        # Configuration SvelteKit
-├─ vite.config.ts          # Configuration Vite
-├─ build/                  # Build de production
+├─ .env                    # Configuration (not committed)
+├─ package.json            # Dependencies and scripts
+├─ svelte.config.js        # SvelteKit configuration
+├─ vite.config.ts          # Vite configuration
+├─ build/                  # Production build
 │  ├─ artifacts/           # Packages (.tgz)
 │  └─ ...
-├─ data/                   # Base de données
-│  ├─ migallery.db         # Base SQLite
-│  └─ backups/             # Sauvegardes automatiques
-├─ scripts/                # Scripts utilitaires
-│  ├─ init-db.cjs          # Initialisation DB
-│  ├─ backup-db.cjs        # Sauvegarde DB manuelle
-│  ├─ inspect-db.cjs       # Inspection/réparation DB
-│  ├─ migrate-export-db.cjs  # Migration depuis ancienne DB (usage unique)
-│  ├─ generate_cookie_secret.cjs  # Génération secret
-├─ static/                 # Fichiers statiques
-└─ src/                    # Code source
-   ├─ app.html             # Template HTML principal
-   ├─ hooks.server.ts      # Hooks serveur (auth, session...)
-   ├─ lib/                 # Bibliothèques et composants
-   │  ├─ components/       # Composants Svelte réutilisables
-   │  ├─ db/               # Schéma et accès DB
-   │  ├─ auth/             # Système d'authentification
-   │  ├─ immich/           # Intégration Immich
-   │  └─ docs/             # Documentation complète
-   └─ routes/              # Routes SvelteKit
-      ├─ +layout.svelte    # Layout global
-      ├─ +page.svelte      # Page d'accueil
-      ├─ admin/            # Interface admin
-      ├─ albums/           # Gestion des albums
-      ├─ trombinoscope/    # Page trombinoscope
-      └─ api/              # Endpoints API
+├─ data/                   # Database
+│  ├─ migallery.db         # SQLite database
+│  └─ backups/             # Automatic backups
+├─ scripts/                # Utility scripts
+│  ├─ init-db.cjs          # DB initialization
+│  ├─ backup-db.cjs        # Manual DB backup
+│  ├─ inspect-db.cjs       # DB inspection/repair
+│  ├─ migrate-export-db.cjs  # Migration from old DB (one-time use)
+│  ├─ generate_cookie_secret.cjs  # Secret generation
+├─ static/                 # Static files
+└─ src/                    # Source code
+   ├─ app.html             # Main HTML template
+   ├─ hooks.server.ts      # Server hooks (auth, session...)
+   ├─ lib/                 # Libraries and components
+   │  ├─ components/       # Reusable Svelte components
+   │  ├─ db/               # Schema and DB access
+   │  ├─ auth/             # Authentication system
+   │  ├─ immich/           # Immich integration
+   │  └─ docs/             # Complete documentation
+   └─ routes/              # SvelteKit routes
+      ├─ +layout.svelte    # Global layout
+      ├─ +page.svelte      # Home page
+      ├─ admin/            # Admin interface
+      ├─ albums/           # Album management
+      ├─ trombinoscope/    # Directory page
+      └─ api/              # API endpoints
 ```
 
 ---
 
-## 👤 Utilisateur système
+## 👤 System User
 
-Un utilisateur système admin est créé automatiquement lors de l'initialisation :
+A system admin user is automatically created during initialization:
 
 - **ID** : `les.roots`
 - **Email** : `les.roots@etu.emse.fr`
-- **Rôle** : `admin`
-- **Particularité** : N'apparaît pas sur le trombinoscope (promo_year = null)
+- **Role** : `admin`
+- **Special note** : Does not appear in the directory (promo_year = null)
 
-Cet utilisateur est destiné à l'administration système et ne doit pas être supprimé.
-
----
-
-## 🔧 Technologies utilisées
-
-- **[SvelteKit](https://kit.svelte.dev/)** - Framework web moderne et performant
-- **[Svelte 5](https://svelte.dev/)** - Framework UI réactif
-- **[Vite](https://vitejs.dev/)** - Build tool ultra-rapide
-- **[Node.js](https://nodejs.org/)** - Runtime JavaScript
-- **[Tailwind CSS](https://tailwindcss.com/)** - Framework CSS utilitaire
-- **[Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)** - Base de données SQLite synchrone
-- **[Auth.js](https://authjs.dev/)** - Authentification flexible
-- **[TypeScript](https://www.typescriptlang.org/)** - Typage statique
+This user is intended for system administration and should not be deleted.
 
 ---
 
-## 📚 Documentation complète
+## 🔧 Technologies Used
 
-La documentation technique de reference (anglais) se trouve dans
-**[`docs/wiki/`](docs/wiki/index.md)** : architecture, authentification, proxy
-Immich, albums et permissions, photos CV, telechargements, modele de donnees,
-reference API, deploiement.
-
-Autres documents dans le dossier `docs/` :
-
-### 📖 Guides généraux
-
-- **SCRIPTS.md** - Documentation détaillée de tous les scripts
-- **CRON_SETUP.md** - Configuration des sauvegardes automatiques
-- **NAVBAR_ACCESS_MATRIX.md** - Matrice de contrôle d'accès de la barre de navigation
-
-### 🔐 Documentation API
-
-- **API_SECURITY.md** - **[NOUVEAU]** Guide complet de sécurité API (scopes, permissions, exemples)
-- **POSTMAN_AVATAR.md** - **[NOUVEAU]** Guide Postman pour l'endpoint avatar
-- Interface web : `/admin` - Documentation technique (wiki) rendue depuis `docs/wiki/`
-
-### 📝 Ressources additionnelles
-
-- **tests/README.md** - Guide des tests automatisés (Vitest)
-- `src/lib/admin/endpoints.ts` - Définition TypeScript de tous les endpoints API
+- **[SvelteKit](https://kit.svelte.dev/)** - Modern, high-performance web framework
+- **[Svelte 5](https://svelte.dev/)** - Reactive UI framework
+- **[Vite](https://vitejs.dev/)** - Ultra-fast build tool
+- **[Node.js](https://nodejs.org/)** - JavaScript runtime
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)** - Synchronous SQLite database
+- **[Auth.js](https://authjs.dev/)** - Flexible authentication
+- **[TypeScript](https://www.typescriptlang.org/)** - Static typing
 
 ---
 
-## 📄 Licence
+## 📚 Complete Documentation
 
-Ce projet est sous licence **PolyForm Noncommercial 1.0.0** : open source, usage non commercial
-uniquement. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+The reference technical documentation (English) can be found in
+**[`docs/wiki/`](docs/wiki/index.md)** : architecture, authentication, Immich
+proxy, albums and permissions, CV photos, downloads, data model,
+API reference, deployment.
 
-MiGallery est une surcouche qui ajoute des fonctionnalités par-dessus **[Immich](https://github.com/immich-app/immich)**,
-un projet distinct sous licence **AGPL-3.0**. L'intégration se fait uniquement via l'API HTTP publique
-d'Immich (aucun code source d'Immich n'est inclus) ; Immich reste soumis à ses propres termes AGPL-3.0.
+Other documents in the `docs/` folder:
 
-Credits : **MiTV** et **Les ROOTZ** (EMSE) - Jolan BOUDIN, avec une participation de Gabriel DUPONT.
+### 📖 General Guides
+
+- **SCRIPTS.md** - Detailed documentation of all scripts
+- **CRON_SETUP.md** - Automatic backup configuration
+- **NAVBAR_ACCESS_MATRIX.md** - Navigation bar access control matrix
+
+### 🔐 API Documentation
+
+- **API_SECURITY.md** - **[NEW]** Complete API security guide (scopes, permissions, examples)
+- **POSTMAN_AVATAR.md** - **[NEW]** Postman guide for the avatar endpoint
+- Web interface: `/admin` - Technical documentation (wiki) rendered from `docs/wiki/`
+
+### 📝 Additional Resources
+
+- **tests/README.md** - Automated testing guide (Vitest)
+- `src/lib/admin/endpoints.ts` - TypeScript definition of all API endpoints
 
 ---
 
-## 🛠️ Qualité du Code & Architecture
+## 📄 License
 
-### Système de Types
+This project is licensed under **PolyForm Noncommercial 1.0.0**: open source, non-commercial use
+only. See the [LICENSE](LICENSE) file for more details.
 
-Le projet utilise un système de types centralisé et rigoureux :
+MiGallery is an overlay that adds features on top of **[Immich](https://github.com/immich-app/immich)**,
+a separate project licensed under **AGPL-3.0**. Integration is done solely via Immich's public HTTP
+API (no Immich source code is included); Immich remains subject to its own AGPL-3.0 terms.
 
-- **Source unique** : Tous les types sont définis dans `src/lib/types/api.ts`
-- **Documentation** : Chaque interface est documentée avec JSDoc
-- **Sécurité** : Typage strict activé dans `tsconfig.json`
+Credits : **MiTV** and **Les ROOTZ** (EMSE) - Jolan BOUDIN, with contributions by Gabriel DUPONT.
+
+---
+
+## 🛠️ Code Quality & Architecture
+
+### Type System
+
+The project uses a centralized and rigorous type system:
+
+- **Single source**: All types are defined in `src/lib/types/api.ts`
+- **Documentation**: Each interface is documented with JSDoc
+- **Security**: Strict typing enabled in `tsconfig.json`
 
 ### DevOps & Linting
 
-La qualité du code est assurée par une chaîne d'outils complète :
+Code quality is ensured by a comprehensive tool chain:
 
-- **ESLint** : Analyse statique du code (configuration stricte)
-- **Prettier** : Formatage automatique du code
-- **Husky** : Hooks git pour vérifier le code avant chaque commit
-- **CI/CD** : Scripts de vérification (`npm run check`, `npm run lint`)
+- **ESLint**: Static code analysis (strict configuration)
+- **Prettier**: Automatic code formatting
+- **Husky**: Git hooks to check code before each commit
+- **CI/CD**: Verification scripts (`npm run check`, `npm run lint`)
 
 ---
 
-## 👨‍💻 Auteur
+## 👨‍💻 Author
 
-Développé avec ❤️ par **[DeMASKe](https://github.com/DeMASKe)** et **[gd-pnjj](https://github.com/gd-pnjj)** pour **MiTV**
+Developed with ❤️ by **[DeMASKe](https://github.com/DeMASKe)** and **[gd-pnjj](https://github.com/gd-pnjj)** for **MiTV**
 
 - **Repository** : [github.com/emse-students/MiGallery](https://github.com/emse-students/MiGallery)
-- **Organisation** : EMSE Students
+- **Organization** : EMSE Students
 
 ---
 
@@ -427,32 +426,32 @@ Développé avec ❤️ par **[DeMASKe](https://github.com/DeMASKe)** et **[gd-p
 
 ---
 
-## 🗂️ Annexes DevOps
+## 🗂️ DevOps Appendices
 
 <details>
-<summary><strong>Commandes rapides</strong></summary>
+<summary><strong>Quick Commands</strong></summary>
 
 ```powershell
-# 1. Installer pre-commit
+# 1. Install pre-commit
 pip install pre-commit
 
-# 2. Installer dépendances
+# 2. Install dependencies
 npm install
 
-# 3. Activer les hooks
+# 3. Activate hooks
 pre-commit install
 
-# 4. Tester
+# 4. Test
 pre-commit run --all-files
 
-# Vérifier les erreurs
+# Check errors
 npm run lint
 
-# Corriger automatiquement
+# Auto-fix
 npm run lint:fix
 npm run format
 
-# Commiter (hooks s'exécutent automatiquement)
+# Commit (hooks run automatically)
 git add .
 git commit -m "message"
 ```
@@ -460,16 +459,16 @@ git commit -m "message"
 </details>
 
 <details>
-<summary><strong>Installation DevOps (résumé)</strong></summary>
+<summary><strong>DevOps Installation (summary)</strong></summary>
 
-1. Vérifier Python :
+1. Check Python:
 
 ```powershell
 python --version
-# Doit afficher Python 3.x
+# Should display Python 3.x
 ```
 
-2. Installation express (résumé) :
+2. Express installation (summary):
 
 ```powershell
 npm install
@@ -477,7 +476,7 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-3. Vérifier :
+3. Verify:
 
 ```powershell
 pre-commit run --all-files
@@ -487,30 +486,30 @@ npm run lint
 </details>
 
 <details>
-<summary><strong>DevOps README (résumé)</strong></summary>
+<summary><strong>DevOps README (summary)</strong></summary>
 
-Usage quotidien :
+Daily usage:
 
 ```powershell
-npm run lint              # Vérifier les erreurs
-npm run lint:fix          # Corriger automatiquement
-npm run format            # Formater le code
-git commit -m "message"   # Les hooks s'exécutent automatiquement !
+npm run lint              # Check errors
+npm run lint:fix          # Auto-fix
+npm run format            # Format code
+git commit -m "message"   # Hooks run automatically!
 ```
 
-Fichiers de configuration importants :
+Important configuration files:
 
-- `eslint.config.js` - Configuration ESLint
+- `eslint.config.js` - ESLint configuration
 - `.prettierrc` - Prettier
 - `.pre-commit-config.yaml` - pre-commit hooks
-- `.editorconfig` - configuration éditeur
+- `.editorconfig` - editor configuration
 
 </details>
 
 <details>
-<summary><strong>Dépannage & Troubleshooting</strong></summary>
+<summary><strong>Troubleshooting</strong></summary>
 
-Problèmes courants et solutions rapides :
+Common issues and quick solutions:
 
 - `pre-commit: command not found`
 
@@ -519,16 +518,16 @@ pip install --upgrade pre-commit
 pre-commit --version
 ```
 
-- `node: command not found` → Installez Node.js depuis <https://nodejs.org>
+- `node: command not found` → Install Node.js from <https://nodejs.org>
 
-- Les hooks ne s'exécutent pas :
+- Hooks not running:
 
 ```powershell
 pre-commit uninstall
 pre-commit install
 ```
 
-- Erreurs ESLint au linting :
+- ESLint errors during linting:
 
 ```powershell
 npm run lint:fix
@@ -541,6 +540,6 @@ npm run format
 pip install --upgrade pre-commit identify
 ```
 
-Si un commit échoue, corrigez les erreurs reportées par ESLint/Prettier puis réessayez.
+If a commit fails, fix the errors reported by ESLint/Prettier then try again.
 
 </details>

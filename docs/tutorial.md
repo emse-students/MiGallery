@@ -1,346 +1,346 @@
-# 📚 MiGallery - Mode d’emploi
+# 📚 MiGallery - User Guide
 
-Vous trouverez ici tout ce qu’il y a à savoir sur l’utilisation de MiGallery, galerie de photos et vidéos en ligne de l’association MiTV, développée par Jolan Boudin et Gabriel Dupont.
+Here you will find everything you need to know about using MiGallery, the online photo and video gallery of the MiTV association, developed by Jolan Boudin and Gabriel Dupont.
 
-## Sommaire
+## Table of Contents
 
-### Version Utilisateur
+### User Version
 
-1. [Première visite](#1-première-visite)
-2. [CGU et Politique de confidentialité](#2-cgu-et-politique-de-confidentialité)
-3. [Biométrie](#3-biométrie)
+1. [First Visit](#1-first-visit)
+2. [Terms of Service and Privacy Policy](#2-terms-of-service-and-privacy-policy)
+3. [Biometrics](#3-biometrics)
 4. [Albums](#4-albums)
-5. [Mes Photos](#5-mes-photos)
-6. [Photos CV](#6-photos-cv)
-7. [Paramètres](#7-paramètres)
+5. [My Photos](#5-my-photos)
+6. [CV Photos](#6-cv-photos)
+7. [Settings](#7-settings)
 
-### [Réservé aux membres de MiTV] Version MiTViste
+### [Reserved for MiTV Members] MiTViste Version
 
-1. [Première visite](#1-première-visite-1)
-2. [Gestion des Albums](#2-gestion-des-albums)
-3. [Gestion de la Corbeille](#3-gestion-de-la-corbeille)
-4. [Photos CV](#version-mitviste-4-photos-cv)
+1. [First Visit](#1-first-visit-1)
+2. [Album Management](#2-album-management)
+3. [Trash Management](#3-trash-management)
+4. [CV Photos](#mitviste-version-4-cv-photos)
 
-### Documentation Technique
+### Technical Documentation
 
-1. [Fonctionnement Global](#fonctionnement-global)
+1. [Global Operation](#global-operation)
 
 ---
 
-## Version Utilisateur
+## User Version
 
-## 1. Première visite
+## 1. First Visit
 
-Lorsque vous vous rendez à l’adresse [https://gallery.mitv.fr/](https://gallery.mitv.fr/), il y a deux cas de figure :
+When you go to [https://gallery.mitv.fr/](https://gallery.mitv.fr/), there are two scenarios:
 
-- Ou bien vous venez du portail ICM, dans ce cas vous êtes déjà identifié.
-- Ou bien non, il faudra vous identifier.
+- Either you are coming from the ICM portal, in which case you are already authenticated.
+- Or not, in which case you will need to sign in.
 
-Dans les deux cas de figure, vous devez cliquer sur **‘Se connecter’**.
+In both cases, you must click on **'Sign in'**.
 
-Dans le deuxième cas, vous serez donc redirigé vers le CAS (Service d'authentification centralisée de Mines Saint-Étienne) pour vous identifier.
+In the second case, you will be redirected to the CAS (Central Authentication Service of Mines Saint-Étienne) to authenticate.
 
-### Reste à configurer votre compte
+### Setting up your account
 
-Vous devriez maintenant avoir une pop-up : cliquez sur **‘Configurer mon profil’** afin de continuer.
+You should now have a pop-up: click on **'Set up my profile'** to continue.
 
-> **Attention !** Si vous renseignez mal votre promotion, vous n’accèderez pas aux albums MiGallery correspondant à votre passage à Mines Saint-Étienne ! Si jamais cela devait arriver, veuillez nous contacter à l’adresse mail [bureau@mitv.fr](mailto:bureau@mitv.fr).
+> **Warning!** If you enter your class year incorrectly, you will not have access to the MiGallery albums corresponding to your time at Mines Saint-Étienne! If this happens, please contact us at [bureau@mitv.fr](mailto:bureau@mitv.fr).
 
-### 2. CGU et Politique de confidentialité
+### 2. Terms of Service and Privacy Policy
 
-Avant de continuer la configuration de votre compte, il est essentiel que vous preniez connaissance de nos **CGU et Politique de confidentialité**.
+Before continuing to set up your account, it is essential that you read our **Terms of Service and Privacy Policy**.
 
-### 3. Biométrie
+### 3. Biometrics
 
-Pour mettre en place la reconnaissance faciale, il suffira de se rendre dans **‘Paramètres’** en cliquant sur l’icône correspondante à cet onglet.
+To set up facial recognition, simply go to **'Settings'** by clicking on the corresponding tab icon.
 
-Vous pourrez ainsi **‘Utiliser la webcam’** ou **‘Importer une photo’** de vous-même pour initier un traitement algorithmique qui retrouvera votre visage sur nos photos MiTV.
+You can then **'Use webcam'** or **'Upload a photo'** of yourself to initiate algorithmic processing that will find your face in our MiTV photos.
 
-> **NB :** Conformément à notre politique de confidentialité, les photos issues de l’initialisation de votre reconnaissance faciale ne sont stockées dans nos serveurs que pour **24h**. Passé ce délai, elles seront supprimées définitivement.
+> **Note:** In accordance with our privacy policy, photos from the initialization of your facial recognition are stored on our servers for only **24h**. After this period, they will be permanently deleted.
 
-Vous pouvez désormais accéder à toutes les fonctionnalités de MiGallery !
+You can now access all MiGallery features!
 
 ### 4. Albums
 
-Accessible en cliquant sur l’icône correspondante, cet onglet regroupe les albums de photos MiTV correspondant à votre passage à l’EMSE. Vous n’avez pas les mêmes accès comparé aux anciennes (ou nouvelles) promotions, dans un souci de respect de la ‘vie privée’ d’alumnis n’ayant pas ou pas encore souscrit à nos CGU et Politique de confidentialité.
+Accessible by clicking on the corresponding icon, this tab groups the MiTV photo albums corresponding to your time at EMSE. You do not have the same access compared to older (or newer) classes, out of respect for the 'privacy' of alumni who have not or have not yet accepted our Terms of Service and Privacy Policy.
 
-Vous pouvez effectuer une recherche sur le nom de l’album dans la barre de recherche et au passage de la souris, vous avez la possibilité de **‘Télécharger’** l’entièreté de l’album.
+You can search for an album name in the search bar and on hover, you have the option to **'Download'** the entire album.
 
-Une fois dans un album, vous pouvez admirer les photos. Au passage de la souris, vous pouvez ou bien **‘Sélectionner’** ou **‘Télécharger’** individuellement les photos et au clic, accéder à une interface de visualisation individualisée, photo par photo.
+Once inside an album, you can admire the photos. On hover, you can either **'Select'** or **'Download'** individual photos, and on click, access an individualized photo-by-photo viewing interface.
 
-Dans cette dernière, vous pouvez **‘Zoomer’**, **‘Télécharger’** et quitter le mode via les icônes correspondantes. Vous pouvez aussi vous déplacer dans l’album via les flèches à droite et à gauche de la photo regardée.
+In the latter, you can **'Zoom'**, **'Download'** and exit the mode via the corresponding icons. You can also navigate through the album using the arrows to the right and left of the viewed photo.
 
-Vous pouvez aussi **‘Sélectionner’** plusieurs photos et **‘Télécharger’** la sélection via le menu de sélection. Vous pouvez aussi **‘Télécharger’** tout l’album ou le **‘Partager’** via les icônes correspondantes.
+You can also **'Select'** multiple photos and **'Download'** the selection via the selection menu. You can also **'Download'** the entire album or **'Share'** it via the corresponding icons.
 
-### 5. Mes Photos
+### 5. My Photos
 
-Ici, vous retrouverez les photos que la reconnaissance faciale vous attribue. Il faut considérer cet onglet comme un album de vous finalement !
+Here you will find the photos that facial recognition assigns to you. Think of this tab as an album of you!
 
-Ainsi vous retrouverez les mêmes fonctionnalités que pour un album ‘classique’, comme développé ci-dessus. Vous avez une possibilité supplémentaire : **mettre en favoris** une ou plusieurs photos, au passage de la souris et en cliquant sur l’icône cœur associée à la photo regardée. Vous pouvez aussi mettre en favori une photo en la regardant depuis la visualisation individualisée.
+Thus you will find the same features as for a 'classic' album, as described above. You have an additional option: **favorite** one or more photos, on hover and by clicking on the heart icon associated with the viewed photo. You can also favorite a photo while viewing it from the individualized view.
 
-Une fois mise en favoris, la photo sera déplacée au début de ‘Mes Photos’ dans la catégorie **‘Favoris’**.
+Once favorited, the photo will be moved to the beginning of 'My Photos' in the **'Favorites'** category.
 
-> **NB :** Depuis ‘Mes Photos’, vous avez la possibilité de modifier votre photo de profil : au clic sur votre photo de profil actuelle, un menu de sélection sous forme de pop-up apparaîtra et vous pourrez sélectionner la photo de vous que vous préférez parmi toutes celles de ‘Mes Photos’. Cette fonctionnalité est accessible aussi depuis les ‘Paramètres’.
+> **Note:** From 'My Photos', you can change your profile picture: by clicking on your current profile picture, a pop-up selection menu will appear and you can select your preferred photo of yourself among all those in 'My Photos'. This feature is also accessible from 'Settings'.
 
-### 6. Photos CV
+### 6. CV Photos
 
-Dans cet onglet, vous retrouverez l’entièreté de vos ‘photos CV’, réalisées par MiTV : de même que pour un album de ‘photos CV’ donc pour plus d’info c’est ici !
+In this tab, you will find all your 'CV photos', taken by MiTV: just like a 'CV photo' album, so for more info, it's right here!
 
-### 7. Paramètres
+### 7. Settings
 
-Dans l’onglet ‘Paramètres’, vous pouvez modifier vos paramètres d’utilisateurs comme bon vous semble.
+In the 'Settings' tab, you can modify your user settings as you see fit.
 
-#### A. Photo de profil
+#### A. Profile Picture
 
-Ici, pareil à l’onglet ‘Mes Photos’, en cliquant sur **‘Choisir sa photo’** vous aurez accès à un menu de sélection de photo de profil résultant de la reconnaissance faciale.
+Here, same as the 'My Photos' tab, by clicking on **'Choose your photo'** you will have access to a profile picture selection menu resulting from facial recognition.
 
-#### B. Apparence
+#### B. Appearance
 
-En cliquant sur **‘Mode Clair’** ou **‘Mode Sombre’**, vous passerez de la version 1 à la version 2 de MiGallery.
+By clicking on **'Light Mode'** or **'Dark Mode'**, you will switch from version 1 to version 2 of MiGallery.
 
-#### C. Reconnaissance faciale
+#### C. Facial Recognition
 
-Dans cette section de l’onglet ‘Paramètres’, vous pourrez (ré)activer la reconnaissance faciale de MiGallery. Il suffit d’utiliser sa webcam ou d’importer une photo de votre visage seul. Pour plus d’info, lisez nos CGU et Politique de confidentialité ainsi que la section [Première visite](#1-première-visite).
+In this section of the 'Settings' tab, you can (re)activate MiGallery's facial recognition. Simply use your webcam or upload a photo of your face alone. For more info, read our Terms of Service and Privacy Policy as well as the [First Visit](#1-first-visit) section.
 
-#### D. Partage de vos photos (interne à MiGallery)
+#### D. Sharing Your Photos (internal to MiGallery)
 
-Dans cette section, vous pouvez donner accès à d’autres utilisateurs l’accès à vos photos issues de ‘Mes Photos’. Cette fonctionnalité est à destination des associations pour la création d’affiches avec les membres des associations. Le partage de vos photos n’engage que vous.
+In this section, you can grant other users access to your photos from 'My Photos'. This feature is intended for associations creating posters with member photos. Sharing your photos is your responsibility alone.
 
-### E. ‘Zone de Danger’
+### E. 'Danger Zone'
 
-Dans cette ultime partie de ‘Paramètres’ vous pouvez, comme cela est explicitement écrit, **‘Dissocier mon visage’** c’est-à-dire supprimer toute reconnaissance faciale relative à votre visage et à votre compte. Cette action supprime aussi l’accès à vos photos de ‘Mes Photos’ aux personnes auxquelles vous auriez autorisé leurs accès.
+In this final part of 'Settings' you can, as explicitly written, **'Unlink my face'** i.e., delete all facial recognition related to your face and your account. This action also removes access to your 'My Photos' photos for people you may have authorized.
 
-Vous pouvez aussi **‘Supprimer [votre] compte’**. Ainsi même identifié par le CAS, vous ne serez définitivement plus authentifié par MiGallery. **Cette action est irréversible.**
+You can also **'Delete [your] account'**. Thus, even authenticated by CAS, you will no longer be authenticated by MiGallery. **This action is irreversible.**
 
 ---
 
-## Version MiTViste
+## MiTViste Version
 
-## 1. Première visite
+## 1. First Visit
 
-Le déroulement de la première connexion d’un compte MiTViste est identique à celui d’un compte ‘classique’ d’utilisateur. La marche à suivre est [ici](#1-première-visite). La version MiTViste diffère sur la gestion des Albums, l’accès à la Corbeille, et des photos CV.
+The first login process for a MiTViste account is identical to that of a 'classic' user account. The steps are [here](#1-first-visit). The MiTViste version differs in Album management, Trash access, and CV photos.
 
-> **NB :** Comme indiqué ci-dessus, vous avez ‘plus’ de vision que les utilisateurs normaux : vous avez accès aux albums grisés, invisibles pour les utilisateurs non autorisés.
+> **Note:** As stated above, you have 'more' visibility than normal users: you have access to grayed-out albums, invisible to unauthorized users.
 
-### 2. Gestion des Albums
+### 2. Album Management
 
-Dans la section ‘Albums’ vous avez les droits en tant que membre MiTV, d’apporter vos modifications à cette section. En clair vous pouvez :
+In the 'Albums' section, as a MiTV member, you have the rights to make modifications to this section. Specifically, you can:
 
-- Créer/supprimer un album
-- Importer de nouvelles photos
-- Supprimer les photos d’un album
-- Modifier les accès
+- Create/delete an album
+- Import new photos
+- Delete photos from an album
+- Modify access permissions
 
-### A. Création/Suppression d’un album
+### A. Album Creation/Deletion
 
-Pour créer un nouvel album, il suffit de cliquer sur le bouton de création.
+To create a new album, simply click on the creation button.
 
-Vous serez alors amené sur la fenêtre où vous pourrez remplir les caractéristiques de l’album :
+You will then be taken to the window where you can fill in the album characteristics:
 
-- **Nom** (obligatoire)
-- **Date** (optionnel)
-- **Lieu** (optionnel)
-- **Visibilité**
-- Les **Tags** (Promotions ICM et autres)
-- Les **Utilisateurs autorisés**
+- **Name** (required)
+- **Date** (optional)
+- **Location** (optional)
+- **Visibility**
+- **Tags** (ICM Classes and others)
+- **Authorized Users**
 
-> **NB :** À la création de l’album, par défaut il sera accessible par toutes les promotions, veillez à bien rendre cela impossible en supprimant les Tags ‘promos’, le temps d’importer la totalité de vos fichiers.
+> **Note:** When creating an album, by default it will be accessible to all classes; make sure to prevent this by removing the 'promo' Tags while you import all your files.
 
-Vous pouvez directement **‘Éditer’** les caractéristiques de l’album ou le supprimer avec les icônes correspondantes. Les icônes ‘Partager’ et ‘Télécharger’ sont identiques à la version Utilisateurs.
+You can directly **'Edit'** the album characteristics or delete it with the corresponding icons. The 'Share' and 'Download' icons are identical to the User version.
 
-Pour **supprimer** un album, dans l’onglet ‘Albums’ vous avez la possibilité au passage de la souris sur l’icône correspondante, de soit Télécharger ou Supprimer l’album en question. Une pop-up apparaîtra, à noter que cette action est **définitive**.
+To **delete** an album, in the 'Albums' tab you have the option on hover over the corresponding icon to either Download or Delete the album in question. A pop-up will appear; note that this action is **permanent**.
 
-#### B. Importer vos photos/vidéos
+#### B. Import Your Photos/Videos
 
-Comme désigné par l’interface, vous pouvez importer un fichier image de type `.png`, `.jpeg`, `.HEIC`, `.gif` mais aussi des vidéos en `.avi`, `.mp4`, `.m4v`, `.mov`, `.mpg`, `.mpeg`, `.wmv`, etc… Tout autre format de fichier ne sera pas reconnu par l’interface.
+As indicated by the interface, you can import image files such as `.png`, `.jpeg`, `.HEIC`, `.gif` as well as videos in `.avi`, `.mp4`, `.m4v`, `.mov`, `.mpg`, `.mpeg`, `.wmv`, etc... Any other file format will not be recognized by the interface.
 
-Aussi, en tant que MiTViste mais surtout en tant qu'utilisateur de MiGallery vous êtes soumis à nos CGU et Politique de confidentialité sur toutes les images, vidéos ou autres que vous importez.
+Also, as a MiTViste but especially as a MiGallery user, you are subject to our Terms of Service and Privacy Policy for all images, videos, or other content you upload.
 
-> **NB :** Lors de l’importation, il se peut que certaines de vos nouvelles photos aient le même nom, un algorithme de suppression de doublon est mis en place sur la galerie, veillez à bien vérifier vos photos avant de les importer !
+> **Note:** When importing, some of your new photos may have the same name; a duplicate removal algorithm is in place on the gallery; make sure to check your photos before importing them!
 
-Les icônes de vos nouveaux fichiers ne s’afficheront pas directement, pour vérifier ‘à vue’, il faut recharger la page pour mettre à jour l’ensemble des icônes.
+The icons for your new files will not appear immediately; to verify visually, you need to reload the page to update all icons.
 
-#### C. Sélection
+#### C. Selection
 
-Au passage de la souris sur les icônes, vous aurez la possibilité de **Sélectionner** (en haut à gauche de l’icône), **Télécharger** (en haut à droite) ou de **Déplacer dans la Corbeille** (en bas à droite).
+On hover over icons, you will have the option to **Select** (top left of the icon), **Download** (top right), or **Move to Trash** (bottom right).
 
-Si vous sélectionnez une image, le menu de gestion apparaîtra. Cela vous permet de :
+If you select an image, the management menu will appear. This allows you to:
 
-- ‘Tout sélectionner’
-- ‘Tout désélectionner’
-- ‘Télécharger’ (la sélection active)
-- ‘Retirer’ (la sélection active) -> Retirer de l'album sans supprimer (Uniquement dans un album)
-- ‘Supprimer’ (la sélection active) -> Déplacer dans la Corbeille
+- 'Select all'
+- 'Deselect all'
+- 'Download' (the active selection)
+- 'Remove' (the active selection) -> Remove from album without deleting (Only within an album)
+- 'Delete' (the active selection) -> Move to Trash
 
-À noter que les photos que vous ‘Supprimez’ sont bien déplacées dans la ‘Corbeille’ (suppression globale de Immich). Celles que vous ‘Retirez’ sont simplement enlevées de l'album mais restent dans la bibliothèque globale.
+Note that photos you 'Delete' are indeed moved to the 'Trash' (global Immich deletion). Those you 'Remove' are simply taken out of the album but remain in the global library.
 
-### D. Gestion des accès à l’album
+### D. Album Access Management
 
-Peut-être la première chose à faire lors de la création d’un album mais surtout la dernière et la plus importante. La gestion des accès à un album est le cœur de notre politique de confidentialité. Veillez à bien respecter les directives de MiTV concernant tel ou tel album et de bien vérifier les paramètres d’accès à l’album avant de fermer votre onglet MiGallery.
+Perhaps the first thing to do when creating an album, but especially the last and most important. Album access management is the core of our privacy policy. Make sure to follow MiTV's guidelines regarding each album and carefully check the album access settings before closing your MiGallery tab.
 
-La modification des accès se fait conjointement avec les modifications des paramètres de l’album, en cliquant sur l’icône **‘Éditer’**.
+Access modification is done together with album settings modification, by clicking on the **'Edit'** icon.
 
-La **visibilité** est le paramètre clef de cette section. Vous avez trois choix :
+**Visibility** is the key parameter of this section. You have three choices:
 
-1. **Privé** : accès réservé aux Tags/Utilisateurs autorisés (généralement un album de Soirée ou autres event ICM).
-2. **Authentifié** (tous les utilisateurs connectés) : toutes les personnes pouvant se connecter par le CAS sont capables de voir l’album. C’est un album public réservé aux utilisateurs connectés.
-3. **Accès par lien** : véritablement public, toute personne même non authentifiée a accès par lien à l’album. Prenez vos précautions !
+1. **Private**: access reserved for authorized Tags/Users (typically a Party album or other ICM event).
+2. **Authenticated** (all signed-in users): all people who can log in via CAS are able to see the album. This is a public album reserved for signed-in users.
+3. **Link access**: truly public, any person even if not authenticated has access to the album via a link. Take precautions!
 
-> **NB :** Visibilité ne veut pas dire Visible ! Cette case à cocher gère la publication dans l’onglet Albums pour les utilisateurs sans grade.
+> **Note:** Visibility does not mean Visible! This checkbox controls publication in the Albums tab for users without a role.
 
-Les **Tags** sont générés par l’admin. Ce sont généralement les promotions ICM (jusqu’à 4 promotions en simultané sauf exceptions). Vous pouvez les renseigner dans la section associée, en veillant à bien séparer par une virgule ‘,’ les différents Tags.
+**Tags** are generated by the admin. These are typically ICM classes (up to 4 simultaneous classes except in special cases). You can enter them in the associated section, making sure to separate different tags with a comma ','.
 
-Les **Utilisateurs autorisés** sont exactement les personnes (en dehors des MiTVistes et admins) qui ont accès à l’album. De même, veillez à bien séparer par une ‘,’ les `id_user`.
+**Authorized Users** are exactly the people (apart from MiTVistes and admins) who have access to the album. Similarly, make sure to separate `user_id` values with a ','.
 
-### 3. Gestion de la Corbeille
+### 3. Trash Management
 
-Supposons que je veuille supprimer une sélection de fichiers d’un album. Une pop-up s’affiche pour confirmer la mise en place dans la Corbeille. Une fois que le bouton ‘Mettre à la corbeille’ est cliqué, une notification en haut à droite de la fenêtre web apparaît.
+Suppose I want to delete a selection of files from an album. A pop-up appears to confirm moving them to the Trash. Once the 'Move to trash' button is clicked, a notification appears in the top right corner of the web window.
 
-Maintenant en cliquant sur l’onglet **‘Corbeille’**, on retrouve mon fichier supprimé. Au passage de la souris sur son icône, on a toujours la sélection, la suppression définitive cette fois, et aussi la restauration. **‘Restaurer’** renvoie le fichier dans son album d’origine.
+Now by clicking on the **'Trash'** tab, you will find the deleted file. On hover over its icon, you still have selection, permanent deletion this time, and also restoration. **'Restore'** sends the file back to its original album.
 
-En cliquant sur la suppression définitive, une nouvelle pop-up apparaît.
+By clicking on permanent deletion, a new pop-up appears.
 
-> **NB :** L’intégralité des photos de la biométrie se retrouve dans la Corbeille, les photos ne sont pas stockées plus de 24h, comme selon nos CGU et Politique de confidentialité.
+> **Note:** All biometric photos end up in the Trash; photos are not stored for more than 24h, as per our Terms of Service and Privacy Policy.
 
-### 4. Photos CV
+### 4. CV Photos
 
-Exactement comme pour la version Utilisateur, seulement comme pour un album, vous pouvez importer de nouvelles photos CV.
-
----
-
-## Fonctionnement Global
-
-Cette section détaille l'architecture technique et le fonctionnement interne de MiGallery. Elle est destinée aux développeurs et aux administrateurs souhaitant comprendre les rouages de l'application.
-
-## 1. Philosophie et Architecture
-
-MiGallery a été conçue comme une **interface légère et sécurisée** (façade) devant une instance **Immich**. L'objectif est de fournir une expérience utilisateur simplifiée et adaptée aux besoins de l'association MiTV (gestion des promotions, confidentialité, biométrie), tout en déléguant la gestion lourde des médias (stockage, transcodage, ML) à Immich.
-
-#### Stack Technique
-
-- **Frontend & Backend** : [SvelteKit](https://kit.svelte.dev/)
-  - **SSR (Server-Side Rendering)** : Pour une meilleure performance initiale et le SEO.
-  - **Routing** : Basé sur le système de fichiers (`src/routes`).
-  - **API** : Endpoints internes (`src/routes/api`) pour sécuriser les appels vers Immich.
-- **Runtime** : [Node.js](https://nodejs.org/)
-  - Utilisé pour sa rapidité d'exécution et son gestionnaire de paquets intégré.
-- **Base de Données** : **SQLite**
-  - Fichier local (`data/migallery.db`).
-  - Stocke : Utilisateurs, Permissions, Métadonnées étendues des albums (visibilité, tags), Logs.
-  - Accès via `better-sqlite3` (abstraction dans `src/lib/db/database.ts`).
-- **Moteur Média** : [Immich](https://immich.app/)
-  - Stockage physique des fichiers.
-  - Génération des miniatures.
-  - Reconnaissance faciale (Machine Learning).
+Exactly the same as the User version, only like an album, you can import new CV photos.
 
 ---
 
-### 2. Structure du Projet et Relations
+## Global Operation
 
-Voici comment les différents dossiers interagissent entre eux :
+This section details the technical architecture and internal workings of MiGallery. It is intended for developers and administrators who want to understand the inner workings of the application.
+
+## 1. Philosophy and Architecture
+
+MiGallery was designed as a **lightweight and secure interface** (facade) in front of an **Immich** instance. The goal is to provide a simplified user experience adapted to the needs of the MiTV association (class management, privacy, biometrics), while delegating heavy media management (storage, transcoding, ML) to Immich.
+
+#### Technical Stack
+
+- **Frontend & Backend**: [SvelteKit](https://kit.svelte.dev/)
+  - **SSR (Server-Side Rendering)**: For better initial performance and SEO.
+  - **Routing**: File-system based (`src/routes`).
+  - **API**: Internal endpoints (`src/routes/api`) to secure calls to Immich.
+- **Runtime**: [Node.js](https://nodejs.org/)
+  - Used for its execution speed and built-in package manager.
+- **Database**: **SQLite**
+  - Local file (`data/migallery.db`).
+  - Stores: Users, Permissions, Extended album metadata (visibility, tags), Logs.
+  - Access via `better-sqlite3` (abstraction in `src/lib/db/database.ts`).
+- **Media Engine**: [Immich](https://immich.app/)
+  - Physical file storage.
+  - Thumbnail generation.
+  - Facial recognition (Machine Learning).
+
+---
+
+### 2. Project Structure and Relationships
+
+Here is how the different folders interact with each other:
 
 #### A. Routes (`src/routes`)
 
-C'est le point d'entrée de l'application.
+This is the entry point of the application.
 
-- **`+layout.svelte`** : Le squelette global. Il contient la barre de navigation (`MobileNav.svelte` sur mobile) et gère l'état global de l'authentification.
-- **`+page.svelte`** : La page d'accueil.
-- **`albums/`** :
-  - **`+page.svelte`** : Liste tous les albums. Charge les données via `+page.server.ts` qui filtre les albums selon les droits de l'utilisateur (`src/lib/albums.ts`).
-  - **`[id]/+page.svelte`** : Vue détaillée d'un album.
-    - Utilise `PhotosGrid.svelte` pour afficher les images.
-    - Gère le streaming des assets via `PhotosState` (`src/lib/photos.svelte.ts`).
-- **`api/`** : Le backend interne.
-  - **`immich/[...path]/+server.ts`** : **Le cœur du proxy**. Toutes les requêtes vers Immich passent par ici. Ce fichier : 1. Vérifie l'authentification de l'utilisateur. 2. Vérifie les permissions spécifiques (ex: a-t-il le droit de voir cet album ?). 3. Transmet la requête à Immich avec la clé API admin. 4. Renvoie la réponse (ou le flux d'image) au client.
+- **`+layout.svelte`**: The global skeleton. It contains the navigation bar (`MobileNav.svelte` on mobile) and manages the global authentication state.
+- **`+page.svelte`**: The home page.
+- **`albums/`**:
+  - **`+page.svelte`**: Lists all albums. Loads data via `+page.server.ts` which filters albums based on user rights (`src/lib/albums.ts`).
+  - **`[id]/+page.svelte`**: Detailed view of an album.
+    - Uses `PhotosGrid.svelte` to display images.
+    - Manages asset streaming via `PhotosState` (`src/lib/photos.svelte.ts`).
+- **`api/`**: The internal backend.
+  - **`immich/[...path]/+server.ts`**: **The proxy core**. All requests to Immich go through here. This file: 1. Checks user authentication. 2. Checks specific permissions (e.g., does the user have the right to see this album?). 3. Forwards the request to Immich with the admin API key. 4. Returns the response (or image stream) to the client.
 
-#### B. Composants (`src/lib/components`)
+#### B. Components (`src/lib/components`)
 
-Les briques visuelles réutilisables.
+Reusable visual building blocks.
 
-- **`PhotosGrid.svelte`** :
-  - **Rôle** : Affiche une grille de photos (album ou résultats de recherche).
-  - **Dépendances** : `PhotoCard.svelte` (carte individuelle), `PhotoModal.svelte` (lightbox).
-  - **Logique** : Reçoit un objet `PhotosState` qui contient la liste des photos.
-- **`PhotoModal.svelte`** :
-  - **Rôle** : Affichage plein écran d'une photo.
-  - **Fonctionnalités** : Zoom, téléchargement, navigation clavier (flèches), suppression (si admin).
-- **`UploadZone.svelte`** :
-  - **Rôle** : Zone de drag & drop pour l'upload.
-  - **Logique** : Utilise `src/lib/album-operations.ts` pour envoyer les fichiers par chunks.
+- **`PhotosGrid.svelte`**:
+  - **Role**: Displays a photo grid (album or search results).
+  - **Dependencies**: `PhotoCard.svelte` (individual card), `PhotoModal.svelte` (lightbox).
+  - **Logic**: Receives a `PhotosState` object containing the photo list.
+- **`PhotoModal.svelte`**:
+  - **Role**: Full-screen photo display.
+  - **Features**: Zoom, download, keyboard navigation (arrows), deletion (if admin).
+- **`UploadZone.svelte`**:
+  - **Role**: Drag & drop upload zone.
+  - **Logic**: Uses `src/lib/album-operations.ts` to send files in chunks.
 
-#### C. Logique Métier (`src/lib`)
+#### C. Business Logic (`src/lib`)
 
-- **`photos.svelte.ts` (`PhotosState`)** :
-  - Une classe réactive (Svelte 5 runes) qui gère l'état d'une liste de photos.
-  - Gère le chargement progressif (streaming NDJSON) pour afficher les photos dès qu'elles sont trouvées, sans attendre la fin de la requête.
-- **`immich/`** :
-  - Contient les fonctions d'aide pour interagir avec Immich (`albums.ts`, `download.ts`).
-- **`db/`** :
-  - `database.ts` : Singleton de connexion à SQLite.
-  - `schema.sql` : Définition des tables.
+- **`photos.svelte.ts` (`PhotosState`)**:
+  - A reactive class (Svelte 5 runes) that manages the state of a photo list.
+  - Handles progressive loading (NDJSON streaming) to display photos as soon as they are found, without waiting for the request to complete.
+- **`immich/`**:
+  - Contains helper functions to interact with Immich (`albums.ts`, `download.ts`).
+- **`db/`**:
+  - `database.ts`: SQLite connection singleton.
+  - `schema.sql`: Table definitions.
 
 ---
 
-### 3. Flux de Données Détaillé
+### 3. Detailed Data Flow
 
-#### Exemple : Affichage d'un Album Privé
+#### Example: Viewing a Private Album
 
-1. **Navigation** : L'utilisateur va sur `/albums/123`.
-2. **Server Load (`albums/[id]/+page.server.ts`)** :
-   - Récupère l'album `123` dans la DB SQLite.
-   - Vérifie via `checkAlbumAccess` (`src/lib/albums.ts`) si l'utilisateur (session CAS) a le droit de voir cet album (vérification des tags promo, liste d'utilisateurs autorisés).
-   - Si OK, renvoie les métadonnées de base au client.
-3. **Client Mount (`albums/[id]/+page.svelte`)** :
-   - Initialise `PhotosState`.
-   - Appelle `photosState.loadAlbumWithStreaming`.
-4. **API Call (Streaming)** :
-   - Le client appelle `/api/immich/albums/123/assets`.
-   - **Proxy (`api/immich/[...path]`)** :
-     - Intercepte la requête.
-     - Vérifie à nouveau les droits d'accès en DB.
-     - Interroge Immich pour avoir la liste des assets.
-     - Renvoie les assets un par un (NDJSON) au client.
-5. **Rendu (`PhotosGrid.svelte`)** :
-   - À chaque asset reçu, `PhotosState` met à jour sa liste.
-   - Svelte met à jour le DOM pour afficher la nouvelle `PhotoCard`.
-6. **Chargement d'Image** :
+1. **Navigation**: The user goes to `/albums/123`.
+2. **Server Load (`albums/[id]/+page.server.ts`)**:
+   - Retrieves album `123` from the SQLite DB.
+   - Checks via `checkAlbumAccess` (`src/lib/albums.ts`) whether the user (CAS session) has the right to view this album (checking class tags, authorized user list).
+   - If OK, returns basic metadata to the client.
+3. **Client Mount (`albums/[id]/+page.svelte`)**:
+   - Initializes `PhotosState`.
+   - Calls `photosState.loadAlbumWithStreaming`.
+4. **API Call (Streaming)**:
+   - The client calls `/api/immich/albums/123/assets`.
+   - **Proxy (`api/immich/[...path]`)**:
+     - Intercepts the request.
+     - Re-checks access rights in DB.
+     - Queries Immich for the asset list.
+     - Returns assets one by one (NDJSON) to the client.
+5. **Rendering (`PhotosGrid.svelte`)**:
+   - With each asset received, `PhotosState` updates its list.
+   - Svelte updates the DOM to display the new `PhotoCard`.
+6. **Image Loading**:
    - `<img src="/api/immich/assets/xyz/thumbnail">`
-   - Le proxy vérifie que l'utilisateur a accès à l'album contenant l'asset `xyz`.
-   - Si OK, il pipe le flux d'image depuis Immich vers le navigateur.
+   - The proxy checks that the user has access to the album containing asset `xyz`.
+   - If OK, it pipes the image stream from Immich to the browser.
 
 ---
 
-### 4. Schéma des Relations (Simplifié)
+### 4. Relationship Diagram (Simplified)
 
 ```mermaid
 graph TD
-    User[Utilisateur] -->|HTTPS| SvelteKit[MiGallery (SvelteKit)]
+    User[User] -->|HTTPS| SvelteKit[MiGallery (SvelteKit)]
 
     subgraph "MiGallery Server"
         Auth[Auth (CAS)]
         Proxy[API Proxy (/api/immich/*)]
-        DB[(SQLite Local)]
-        Logic[Logique Métier (src/lib)]
+        DB[(Local SQLite)]
+        Logic[Business Logic (src/lib)]
     end
 
     subgraph "External"
         Immich[Immich Server]
-        Storage[Disque Dur / NAS]
+        Storage[Hard Drive / NAS]
     end
 
     SvelteKit --> Auth
     SvelteKit --> Proxy
 
-    Proxy -->|Vérifie Droits| DB
-    Proxy -->|API Key Admin| Immich
+    Proxy -->|Checks Rights| DB
+    Proxy -->|Admin API Key| Immich
 
     Logic --> DB
 
     Immich --> Storage
 ```
 
-### 5. Points d'Attention pour le Développement
+### 5. Development Considerations
 
-- **Sécurité avant tout** : Ne jamais faire confiance au client. Toujours revérifier les droits côté serveur (dans `+page.server.ts` et dans le proxy API).
-- **Performance** : Utiliser le streaming (NDJSON) pour les listes de photos. Ne pas charger 5000 photos d'un coup en mémoire.
-- **Immich est "bête"** : Pour MiGallery, Immich est juste un stockage. La logique de "qui a le droit de voir quoi" est entièrement dans MiGallery (SQLite). Ne pas essayer de gérer les permissions utilisateurs dans Immich directement.
+- **Security first**: Never trust the client. Always re-check rights server-side (in `+page.server.ts` and in the API proxy).
+- **Performance**: Use streaming (NDJSON) for photo lists. Do not load 5000 photos at once in memory.
+- **Immich is "dumb"**: For MiGallery, Immich is just storage. The "who has the right to see what" logic is entirely in MiGallery (SQLite). Do not try to manage user permissions in Immich directly.

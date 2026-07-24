@@ -1,103 +1,103 @@
-# MiGallery - Documentation Technique
+# MiGallery - Technical Documentation
 
-## 📖 Index de la Documentation
+## 📖 Documentation Index
 
-| Document                                             | Description                            |
-| ---------------------------------------------------- | -------------------------------------- |
-| **README.md**                                        | Ce document - Vue d'ensemble du projet |
-| [COMPONENTS.md](./COMPONENTS.md)                     | Guide des composants réutilisables     |
-| [STYLES.md](./STYLES.md)                             | Guide CSS et système de design         |
-| [SCRIPTS.md](./SCRIPTS.md)                           | Scripts utilitaires disponibles        |
-| [CRON_SETUP.md](./CRON_SETUP.md)                     | Configuration des tâches CRON          |
-| [NAVBAR_ACCESS_MATRIX.md](./NAVBAR_ACCESS_MATRIX.md) | Matrice d'accès selon les rôles        |
+| Document                                             | Description                      |
+| ---------------------------------------------------- | -------------------------------- |
+| **README.md**                                        | This document - Project overview |
+| [COMPONENTS.md](./COMPONENTS.md)                     | Reusable components guide        |
+| [STYLES.md](./STYLES.md)                             | CSS and design system guide      |
+| [SCRIPTS.md](./SCRIPTS.md)                           | Available utility scripts        |
+| [CRON_SETUP.md](./CRON_SETUP.md)                     | CRON task configuration          |
+| [NAVBAR_ACCESS_MATRIX.md](./NAVBAR_ACCESS_MATRIX.md) | Access matrix by role            |
 
-> **Documentation API** : Disponible dans l'interface admin `/admin` (rendu du wiki `docs/wiki/`)
+> **API Documentation**: Available in the admin interface `/admin` (wiki rendering from `docs/wiki/`)
 
 ---
 
-## Vue d'ensemble
+## Overview
 
-MiGallery est une galerie photo moderne pour les étudiants de l'École des Mines de Saint-Étienne (EMSE). L'application permet de gérer, visualiser et télécharger des photos organisées en albums, avec un système de droits basé sur les rôles.
+MiGallery is a modern photo gallery for the students of École des Mines de Saint-Étienne (EMSE). The application allows managing, viewing, and downloading photos organized into albums, with a role-based permission system.
 
-## Stack Technique
+## Technical Stack
 
-| Technologie      | Version | Usage                         |
-| ---------------- | ------- | ----------------------------- |
-| **SvelteKit**    | 2.x     | Framework full-stack          |
-| **Svelte**       | 5.x     | Framework UI avec runes       |
-| **Node.js**      | >= 20   | Runtime                       |
-| **SQLite**       | -       | Base de données locale        |
-| **Tailwind CSS** | 3.x     | Framework CSS utilitaire      |
-| **TypeScript**   | 5.x     | Typage statique               |
-| **Immich**       | -       | Backend de gestion des médias |
+| Technology       | Version | Usage                       |
+| ---------------- | ------- | --------------------------- |
+| **SvelteKit**    | 2.x     | Full-stack framework        |
+| **Svelte**       | 5.x     | UI framework with runes     |
+| **Node.js**      | >= 20   | Runtime                     |
+| **SQLite**       | -       | Local database              |
+| **Tailwind CSS** | 3.x     | Utility-first CSS framework |
+| **TypeScript**   | 5.x     | Static typing               |
+| **Immich**       | -       | Media management backend    |
 
 ## Architecture
 
 ```
 src/
-├── lib/                    # Code partagé
-│   ├── components/         # Composants Svelte réutilisables
-│   ├── db/                 # Accès base de données
-│   ├── server/             # Code côté serveur uniquement
-│   ├── types/              # Définitions TypeScript
-│   ├── docs/               # Documentation technique
-│   └── *.ts                # Utilitaires et stores
-├── routes/                 # Pages et API SvelteKit
-│   ├── api/                # Endpoints REST
-│   ├── admin/              # Interface d'administration
-│   ├── albums/             # Gestion des albums
-│   └── ...                 # Autres pages
-└── app.css                 # Styles globaux
+├── lib/                    # Shared code
+│   ├── components/         # Reusable Svelte components
+│   ├── db/                 # Database access
+│   ├── server/             # Server-side only code
+│   ├── types/              # TypeScript definitions
+│   ├── docs/               # Technical documentation
+│   └── *.ts                # Utilities and stores
+├── routes/                 # SvelteKit pages and API
+│   ├── api/                # REST endpoints
+│   ├── admin/              # Admin interface
+│   ├── albums/             # Album management
+│   └── ...                 # Other pages
+└── app.css                 # Global styles
 ```
 
-## Rôles Utilisateur
+## User Roles
 
-| Rôle       | Droits                                           |
-| ---------- | ------------------------------------------------ |
-| `user`     | Consulter les albums publics, ses propres photos |
-| `mitviste` | + Gérer les photos, créer des albums             |
-| `admin`    | + Gestion complète (utilisateurs, paramètres)    |
+| Role       | Permissions                         |
+| ---------- | ----------------------------------- |
+| `user`     | View public albums, own photos      |
+| `mitviste` | + Manage photos, create albums      |
+| `admin`    | + Full management (users, settings) |
 
-## Composants Principaux
+## Main Components
 
 ### UI Components (`src/lib/components/`)
 
-- **`Modal.svelte`** - Modal générique avec variantes (confirm, warning, form)
-- **`PhotosGrid.svelte`** - Grille de photos avec sélection multiple
-- **`PhotoModal.svelte`** - Visualisation photo plein écran
-- **`MobileNav.svelte`** - Navigation mobile (barre en bas)
-- **`Icon.svelte`** - Icônes Lucide
+- **`Modal.svelte`** - Generic modal with variants (confirm, warning, form)
+- **`PhotosGrid.svelte`** - Photo grid with multi-selection
+- **`PhotoModal.svelte`** - Full-screen photo viewer
+- **`MobileNav.svelte`** - Mobile navigation (bottom bar)
+- **`Icon.svelte`** - Lucide icons
 - **`Toast.svelte`** - Notifications
 
 ### Stores & State
 
-- **`photos.svelte.ts`** - État des photos (classe `PhotosState`)
-- **`toast.ts`** - Système de notifications
-- **`confirm.ts`** - Dialogues de confirmation
-- **`theme.ts`** - Gestion du thème clair/sombre
+- **`photos.svelte.ts`** - Photo state (`PhotosState` class)
+- **`toast.ts`** - Notification system
+- **`confirm.ts`** - Confirmation dialogs
+- **`theme.ts`** - Light/dark theme management
 
 ## API Endpoints
 
-Voir la documentation détaillée dans `docs/wiki/api-reference.md` (rendue sur `/admin`).
+See detailed documentation in `docs/wiki/api-reference.md` (rendered on `/admin`).
 
-### Principaux endpoints
+### Main endpoints
 
-| Méthode | Route              | Description             |
-| ------- | ------------------ | ----------------------- |
-| GET     | `/api/albums`      | Liste des albums        |
-| POST    | `/api/albums`      | Créer un album          |
-| GET     | `/api/albums/[id]` | Détails d'un album      |
-| DELETE  | `/api/albums/[id]` | Supprimer un album      |
-| GET     | `/api/users`       | Liste des utilisateurs  |
-| PUT     | `/api/users/[id]`  | Modifier un utilisateur |
-| GET     | `/api/immich/*`    | Proxy vers Immich       |
+| Method | Route              | Description     |
+| ------ | ------------------ | --------------- |
+| GET    | `/api/albums`      | Album list      |
+| POST   | `/api/albums`      | Create an album |
+| GET    | `/api/albums/[id]` | Album details   |
+| DELETE | `/api/albums/[id]` | Delete an album |
+| GET    | `/api/users`       | User list       |
+| PUT    | `/api/users/[id]`  | Modify a user   |
+| GET    | `/api/immich/*`    | Proxy to Immich |
 
-## Base de Données
+## Database
 
-### Tables principales
+### Main tables
 
 ```sql
--- Utilisateurs
+-- Users
 users (
   id_user TEXT PRIMARY KEY,
   email TEXT,
@@ -118,7 +118,7 @@ albums (
   visible INTEGER DEFAULT 1
 )
 
--- Relations album-utilisateur
+-- Album-user relationships
 album_users (album_id, user_id)
 
 -- Tags
@@ -127,84 +127,84 @@ album_tags (album_id, tag)
 
 ## Configuration
 
-### Variables d'environnement
+### Environment variables
 
 ```env
-# Authentification
-AUTH_SECRET=           # Secret pour les sessions
+# Authentication
+AUTH_SECRET=           # Session secret
 AUTH_TRUST_HOST=true
 
 # Immich
-IMMICH_URL=           # URL du serveur Immich
-IMMICH_API_KEY=       # Clé API Immich
+IMMICH_URL=           # Immich server URL
+IMMICH_API_KEY=       # Immich API key
 
-# Base de données
+# Database
 DATABASE_PATH=./data/migallery.db
 ```
 
-## Scripts disponibles
+## Available Scripts
 
 ```bash
-npm run dev           # Développement
-npm run build         # Build production
-npm run preview       # Prévisualisation
-npm run check         # Vérification TypeScript
+npm run dev           # Development
+npm run build         # Production build
+npm run preview       # Preview
+npm run check         # TypeScript check
 npm run lint          # Linting
-npm run lint:fix      # Linting avec corrections
-npm run db:init       # Initialiser la DB
-npm run db:backup     # Sauvegarder la DB
+npm run lint:fix      # Linting with fixes
+npm run db:init       # Initialize DB
+npm run db:backup     # Backup DB
 ```
 
-## Conventions de Code
+## Code Conventions
 
 ### Svelte 5 Runes
 
 ```svelte
 <script lang="ts">
-  // État local avec $state
+  // Local state with $state
   let count = $state(0);
 
-  // Dérivation avec $derived
+  // Derivation with $derived
   let doubled = $derived(count * 2);
 
-  // Props avec $props
+  // Props with $props
   let { name, onClose }: Props = $props();
 
-  // Effets avec $effect
+  // Effects with $effect
   $effect(() => {
     console.log('count changed:', count);
   });
 </script>
 ```
 
-### Nommage
+### Naming
 
-- **Composants** : PascalCase (`PhotosGrid.svelte`)
-- **Fichiers TS** : kebab-case (`album-operations.ts`)
-- **Variables** : camelCase
-- **Constantes** : SCREAMING_SNAKE_CASE
+- **Components**: PascalCase (`PhotosGrid.svelte`)
+- **TS files**: kebab-case (`album-operations.ts`)
+- **Variables**: camelCase
+- **Constants**: SCREAMING_SNAKE_CASE
 
 ### CSS
 
-- Utiliser les variables CSS définies dans `app.css`
-- Préférer les classes Tailwind pour le layout
-- CSS scoped dans les composants pour les styles spécifiques
+- Use CSS variables defined in `app.css`
+- Prefer Tailwind classes for layout
+- Scoped CSS in components for specific styles
 
 ## Responsive Design
 
-L'application utilise un design mobile-first avec :
+The application uses a mobile-first design with:
 
-- Barre de navigation en haut sur desktop
-- Barre de navigation fixe en bas sur mobile
-- Breakpoints principaux : 480px, 768px, 1024px
+- Top navigation bar on desktop
+- Fixed bottom navigation bar on mobile
+- Main breakpoints: 480px, 768px, 1024px
 
-## Sécurité
+## Security
 
-- Authentification CAS EMSE
-- Cookies signés pour la session
-- Validation des rôles sur chaque endpoint API
-- Proxy sécurisé vers Immich (pas d'exposition directe)
+- EMSE CAS authentication
+- Signed cookies for session
+- Role validation on every API endpoint
+- Secure proxy to Immich (no direct exposure)
 
 ---
 
-Pour plus de détails, consultez les autres fichiers de documentation dans ce dossier.
+For more details, see the other documentation files in this folder.

@@ -1,188 +1,188 @@
 # MiGallery v1.1.0
 
-**Date**: 5 février 2026
-**Type**: Release Mineure
+**Date**: February 5, 2026
+**Type**: Minor Release
 
-## 🎯 Objectif
+## 🎯 Objective
 
-Introduction de fonctionnalités de gestion avancée des albums pour améliorer la flexibilité sans compromettre les données.
+Introduction of advanced album management features to improve flexibility without compromising data.
 
-## ✨ Nouveautés et Améliorations
+## ✨ New Features and Improvements
 
-### 📸 Gestion des Photos
+### 📸 Photo Management
 
-- **Retrait sans suppression** : Possibilité de retirer des photos d'un album spécifique sans les supprimer définitivement de la bibliothèque Immich.
-- **Interface améliorée** : Ajout d'options contextuelles claires dans la barre d'outils de sélection (« Retirer » vs « Supprimer »).
-- **Sécurité** : Modales de confirmation distinctes pour éviter les suppressions accidentelles.
+- **Removal without deletion**: Ability to remove photos from a specific album without permanently deleting them from the Immich library.
+- **Improved interface**: Clear contextual options added to the selection toolbar ("Remove" vs "Delete").
+- **Security**: Separate confirmation modals to prevent accidental deletions.
 
 ---
 
 # MiGallery v1.0.0
 
-**Date**: 22 décembre 2025
-**Type**: Release Stable
+**Date**: December 22, 2025
+**Type**: Stable Release
 
-## 🎯 Objectif
+## 🎯 Objective
 
-Première version stable officielle de MiGallery. Cette version apporte une robustesse accrue, une gestion des permissions affinée et une intégration complète avec le CAS de l'EMSE.
+First official stable version of MiGallery. This version brings increased robustness, refined permission management, and full integration with the EMSE CAS.
 
-## ✨ Nouveautés et Améliorations
+## ✨ New Features and Improvements
 
-### 🔒 Sécurité et Authentification
+### 🔒 Security and Authentication
 
-- **Intégration CAS EMSE** : Authentification sécurisée via OIDC avec support du `client_secret_post`.
-- **Permissions Granulaires** : Refonte du système de scopes (`public`, `read`, `write`, `admin`).
-- **Téléchargements Sécurisés** : Le téléchargement d'archives ZIP est désormais considéré comme une opération de lecture (`read`), permettant un accès plus souple tout en restant sécurisé.
-- **Protection CSRF** : Implémentation d'une vérification d'origine personnalisée pour les mutations API.
+- **EMSE CAS Integration**: Secure authentication via OIDC with `client_secret_post` support.
+- **Granular Permissions**: Overhaul of the scopes system (`public`, `read`, `write`, `admin`).
+- **Secure Downloads**: ZIP archive downloads are now considered a read operation (`read`), allowing more flexible yet secure access.
+- **CSRF Protection**: Custom origin verification implementation for API mutations.
 
-### 📸 Gestion des Médias
+### 📸 Media Management
 
-- **Proxy Immich Optimisé** : Meilleure gestion des flux de données et résolution des chemins d'API.
-- **Téléchargement ZIP Fiable** : Nouvelle implémentation robuste pour le téléchargement d'albums complets, compatible avec tous les navigateurs modernes.
-- **Support des Albums Publics** : Accès simplifié aux albums non listés via des liens sécurisés.
+- **Optimized Immich Proxy**: Better data flow management and API path resolution.
+- **Reliable ZIP Download**: New robust implementation for downloading complete albums, compatible with all modern browsers.
+- **Public Album Support**: Simplified access to unlisted albums via secure links.
 
-### 🛠️ Administration et Maintenance
+### 🛠️ Administration and Maintenance
 
-- **Logs d'Audit** : Nouveau système de logs pour suivre les connexions, l'utilisation des clés d'API et les modifications d'assets.
-- **Nettoyage Automatique** : Scripts de maintenance pour purger les fichiers temporaires et optimiser l'espace disque.
-- **Documentation API** : Documentation interactive mise à jour et audit complet des permissions.
+- **Audit Logs**: New logging system to track logins, API key usage, and asset modifications.
+- **Automatic Cleanup**: Maintenance scripts to purge temporary files and optimize disk space.
+- **API Documentation**: Updated interactive documentation and complete permission audit.
 
-### 🚀 Performance et DevOps
+### 🚀 Performance and DevOps
 
-- **Optimisation Bun** : Utilisation intensive des capacités de Bun pour des performances maximales.
-- **CI/CD Robuste** : Workflow GitHub Actions amélioré pour des déploiements sans friction.
-- **Zéro Dette Technique** : Nettoyage complet des scripts obsolètes et correction de tous les avertissements de linting.
+- **Bun Optimization**: Intensive use of Bun capabilities for maximum performance.
+- **Robust CI/CD**: Improved GitHub Actions workflow for frictionless deployments.
+- **Zero Technical Debt**: Complete cleanup of obsolete scripts and fix of all linting warnings.
 
 ---
 
 # MiGallery v0.1.0-alpha.1
 
-**Date**: 21 novembre 2025
-**Type**: Pré-release (Alpha)
+**Date**: November 21, 2025
+**Type**: Pre-release (Alpha)
 
-## 🎯 Objectif
+## 🎯 Objective
 
-Première version alpha publique de MiGallery pour tests fonctionnels et retours utilisateurs. Cette version contient toutes les fonctionnalités principales et un système de CI/CD complet.
+First public alpha version of MiGallery for functional testing and user feedback. This version contains all core features and a complete CI/CD system.
 
-## ✨ Fonctionnalités principales
+## ✨ Core Features
 
 ### Core Features
 
-- 📸 Galerie photo moderne avec interface Svelte 5
-- 👤 Reconnaissance faciale via intégration Immich
-- 📁 Gestion d'albums personnalisés et partagés
-- 🎓 Système de trombinoscope pour organisations
-- 🔐 Authentification SSO (Authelia/Authentik)
-- 🗑️ Corbeille avec restauration
+- 📸 Modern photo gallery with Svelte 5 interface
+- 👤 Facial recognition via Immich integration
+- 📁 Custom and shared album management
+- 🎓 Directory system for organizations
+- 🔐 SSO Authentication (Authelia/Authentik)
+- 🗑️ Trash with restore
 
-### API & Sécurité
+### API & Security
 
-- ✅ API REST complète avec clés d'API et scopes (read/write/delete/admin)
-- ✅ Protection de tous les endpoints externes
-- ✅ Documentation API interactive (Swagger-like)
-- ✅ Tests unitaires avec Vitest (18+ tests)
+- ✅ Complete REST API with API keys and scopes (read/write/delete/admin)
+- ✅ Protection of all external endpoints
+- ✅ Interactive API documentation (Swagger-like)
+- ✅ Unit tests with Vitest (18+ tests)
 
-### DevOps & Qualité
+### DevOps & Quality
 
 - ✅ CI/CD GitHub Actions (lint, check, build, test, package, deploy)
-- ✅ Pre-commit hooks avec ESLint + TypeScript
-- ✅ Packaging automatique (.tgz avec build + data + .env)
-- ✅ 0 erreurs TypeScript strict mode
-- ✅ ESLint v9 avec configuration flat moderne
+- ✅ Pre-commit hooks with ESLint + TypeScript
+- ✅ Automatic packaging (.tgz with build + data + .env)
+- ✅ 0 TypeScript errors in strict mode
+- ✅ ESLint v9 with modern flat configuration
 
-## 📦 Contenu du package
+## 📦 Package Contents
 
-- `build/` - Application compilée prête pour production
-- `data/` - Base de données SQLite (si présente)
-- `.env` - Configuration (à adapter pour votre environnement)
-- `package.json` - Métadonnées et dépendances
-- `README.md` - Documentation complète
-- `scripts/` - Scripts d'administration (init-db, backup, etc.)
+- `build/` - Compiled application ready for production
+- `data/` - SQLite database (if present)
+- `.env` - Configuration (adjust for your environment)
+- `package.json` - Metadata and dependencies
+- `README.md` - Complete documentation
+- `scripts/` - Administration scripts (init-db, backup, etc.)
 
-## 🚀 Installation rapide
+## 🚀 Quick Installation
 
 ```bash
-# Extraire l'archive
+# Extract the archive
 tar -xzf migallery-0.1.0-alpha.1-full.tgz
 cd migallery
 
-# Installer les dépendances
+# Install dependencies
 npm ci --omit=dev
 
-# Configurer .env (éditer selon votre environnement)
-# Ajuster IMMICH_URL, IMMICH_API_KEY, AUTH_SECRET, COOKIE_SECRET
+# Configure .env (edit according to your environment)
+# Adjust IMMICH_URL, IMMICH_API_KEY, AUTH_SECRET, COOKIE_SECRET
 
-# Initialiser la base de données (si besoin)
+# Initialize the database (if needed)
 npm run db:init
 
-# Lancer l'application
+# Start the application
 node build/index.js
 ```
 
-Accédez à http://localhost:3000
+Access at http://localhost:3000
 
 ## 📚 Documentation
 
-- **README principal**: Instructions complètes d'installation et configuration
-- **Tutorial**: `docs/tutorials/tutorial.md` - Guide d'utilisation pas-à-pas
-- **API Security**: `docs/API_SECURITY.md` - Documentation des clés API et scopes
-- **Workflows CI/CD**: `.github/workflows/` - Pipelines automatisés
+- **Main README**: Complete installation and configuration instructions
+- **Tutorial**: `docs/tutorials/tutorial.md` - Step-by-step user guide
+- **API Security**: `docs/API_SECURITY.md` - API keys and scopes documentation
+- **CI/CD Workflows**: `.github/workflows/` - Automated pipelines
 
-## ⚠️ Limitations connues (Alpha)
+## ⚠️ Known Limitations (Alpha)
 
-- Tutorial incomplet (en cours de réécriture)
-- Vidéo de debugging non fournie (à venir)
-- Couverture de tests à améliorer (actuellement ~70%)
-- Certains warnings ESLint non-bloquants restants
+- Tutorial incomplete (being rewritten)
+- Debugging video not provided (coming soon)
+- Test coverage to be improved (currently ~70%)
+- Some non-blocking ESLint warnings remaining
 
-## 🔄 Changelog complet
+## 🔄 Full Changelog
 
 ### Features
 
-- Intégration complète Immich avec proxy API
-- Système de permissions granulaires par album
-- Streaming NDJSON pour chargement optimisé des photos
-- Cache client intelligent pour performances accrues
-- Interface admin complète (utilisateurs, API keys, base de données)
+- Complete Immich integration with API proxy
+- Granular permission system per album
+- NDJSON streaming for optimized photo loading
+- Smart client cache for increased performance
+- Complete admin interface (users, API keys, database)
 
 ### Fixes
 
-- ✅ Correction de 208 erreurs TypeScript
-- ✅ Consolidation des types API (`src/lib/types/api.ts`)
-- ✅ Sécurisation de tous les endpoints externes
-- ✅ Restauration du workflow CI après corruption
+- ✅ Fixed 208 TypeScript errors
+- ✅ Consolidated API types (`src/lib/types/api.ts`)
+- ✅ Secured all external endpoints
+- ✅ Restored CI workflow after corruption
 
 ### Chore
 
-- Mise à jour des hooks pre-commit (lint + check)
-- Merge de la documentation DevOps dans le README
-- Création du script de packaging automatique
-- Configuration ESLint v9 flat config
+- Updated pre-commit hooks (lint + check)
+- Merged DevOps documentation into README
+- Created automatic packaging script
+- ESLint v9 flat config configuration
 
-## 🐛 Bugs connus
+## 🐛 Known Bugs
 
-Aucun bug bloquant identifié. Pour signaler un problème :
+No blocking bugs identified. To report an issue:
 https://github.com/DeMASKe/MiGallery/issues
 
-## 📋 Prochaines étapes (v0.1.0-beta.1)
+## 📋 Next Steps (v0.1.0-beta.1)
 
-- [ ] Réécriture complète du tutorial avec captures d'écran
-- [ ] Vidéo de démonstration du debugging (3 min)
-- [ ] Tests E2E avec Playwright
-- [ ] Augmentation couverture de tests à 85%+
-- [ ] Documentation TypeDoc générée automatiquement
-- [ ] Support multi-langues (i18n)
+- [ ] Complete tutorial rewrite with screenshots
+- [ ] Debugging demonstration video (3 min)
+- [ ] E2E tests with Playwright
+- [ ] Increase test coverage to 85%+
+- [ ] Auto-generated TypeDoc documentation
+- [ ] Multi-language support (i18n)
 
-## 🙏 Contributeurs
+## 🙏 Contributors
 
-- **DeMASKe** - Développement principal
-- **Équipe MiTV** - Tests et retours
+- **DeMASKe** - Lead development
+- **MiTV Team** - Testing and feedback
 
 ## 📄 License
 
 GNU General Public License v3.0 (GPL-3.0)
-Voir `LICENSE` pour plus de détails.
+See `LICENSE` for more details.
 
 ---
 
-**Note**: Ceci est une pré-release alpha destinée aux tests. Ne pas utiliser en production sans tests approfondis.
+**Note**: This is an alpha pre-release intended for testing. Do not use in production without thorough testing.

@@ -1,56 +1,56 @@
-# Matrice d'accès à la barre de navigation - MiGallery
+# MiGallery Navigation Bar Access Matrix
 
-## Visibilité de la navbar selon le contexte
+## Navbar visibility by context
 
-### Page d'accueil (`/`)
+### Home page (`/`)
 
-- **Navbar complète** : **MASQUÉE** (sauf logo + bouton connexion/avatar)
-- **Raison** : Design épuré pour la landing page
+- **Full Navbar**: **HIDDEN** (except logo + login/avatar button)
+- **Reason**: Clean design for the landing page
 
-### Toutes les autres pages
+### All other pages
 
-- **Navbar complète** : **VISIBLE**
+- **Full Navbar**: **VISIBLE**
 
 ---
 
-## Permissions par rôle et conditions
+## Permissions by role and conditions
 
-### Type d'utilisateur
+### User type
 
-1. **Non authentifié** (visiteur)
-2. **Utilisateur standard** (`role = 'user'`)
+1. **Not authenticated** (visitor)
+2. **Standard user** (`role = 'user'`)
 3. **MiTViste** (`role = 'mitviste'`)
 4. **Admin** (`role = 'admin'`)
 
-### Conditions supplémentaires
+### Additional conditions
 
-- `hasPhoto` = utilisateur a un `photos_id` (présent dans Immich)
+- `hasPhoto` = user has a `photos_id` (present in Immich)
 
 ---
 
-## Matrice de visibilité des liens navbar
+## Navbar link visibility matrix
 
-| Lien / Bouton      | Non auth | User | User + hasPhoto | MiTViste | MiTViste + hasPhoto | Admin | Admin + hasPhoto |
+| Link / Button      | Non auth | User | User + hasPhoto | MiTViste | MiTViste + hasPhoto | Admin | Admin + hasPhoto |
 | ------------------ | -------- | ---- | --------------- | -------- | ------------------- | ----- | ---------------- |
-| **Logo MiGallery** | ✅       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
+| **MiGallery Logo** | ✅       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
 | **Albums**         | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
-| **Mes photos**     | ❌       | ❌   | ✅              | ❌       | ✅                  | ❌    | ✅               |
-| **Photos CV**      | ❌       | ❌   | ✅              | ✅       | ✅                  | ✅    | ✅               |
-| **Trombinoscope**  | ❌       | ❌   | ❌              | ❌       | ❌                  | ✅    | ✅               |
-| **Corbeille**      | ❌       | ❌   | ❌              | ✅       | ✅                  | ✅    | ✅               |
-| **Paramètres**     | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
-| **Avatar/Nom**     | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
-| **Déconnexion**    | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
-| **Connexion**      | ✅       | ❌   | ❌              | ❌       | ❌                  | ❌    | ❌               |
+| **My photos**      | ❌       | ❌   | ✅              | ❌       | ✅                  | ❌    | ✅               |
+| **CV Photos**      | ❌       | ❌   | ✅              | ✅       | ✅                  | ✅    | ✅               |
+| **Directory**      | ❌       | ❌   | ❌              | ❌       | ❌                  | ✅    | ✅               |
+| **Trash**          | ❌       | ❌   | ❌              | ✅       | ✅                  | ✅    | ✅               |
+| **Settings**       | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
+| **Avatar/Name**    | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
+| **Sign out**       | ❌       | ✅   | ✅              | ✅       | ✅                  | ✅    | ✅               |
+| **Sign in**        | ✅       | ❌   | ❌              | ❌       | ❌                  | ❌    | ❌               |
 
-**Note importante** : Admin et MiTViste ont accès à "Photos CV" même **sans** `photos_id`, mais dans ce cas :
+**Important note**: Admin and MiTViste have access to "CV Photos" even **without** `photos_id`, but in this case:
 
-- L'onglet "Mes photos CV" est masqué
-- Seul l'onglet "Toutes les photos CV" est affiché (pour gérer les imports)
+- The "My CV photos" tab is hidden
+- Only the "All CV photos" tab is displayed (to manage imports)
 
 ---
 
-## Logique actuelle dans `+layout.svelte`
+## Current logic in `+layout.svelte`
 
 ```typescript
 let isAuthenticated = $derived(!!u);
@@ -61,155 +61,155 @@ let hasPhoto = $derived(!!u?.photos_id);
 let isHomePage = $derived(page.url.pathname === '/');
 ```
 
-### Conditions d'affichage des liens
+### Link display conditions
 
 ```typescript
-// Navbar complète visible pour tous les utilisateurs authentifiés (y compris sur /)
+// Full navbar visible for all authenticated users (including on /)
 {#if isAuthenticated}
 
-  // Section gauche
+  // Left section
   <a href="/albums">Albums</a>
 
   {#if hasPhoto}
-    <a href="/mes-photos">Mes photos</a>
+    <a href="/mes-photos">My photos</a>
   {/if}
 
   {#if hasPhoto || canManagePhotos}
-    <a href="/photos-cv">Photos CV</a>
+    <a href="/photos-cv">CV Photos</a>
   {/if}
 
-  // Section droite
+  // Right section
   {#if isAdmin}
-    <a href="/trombinoscope">Trombinoscope</a>
+    <a href="/trombinoscope">Directory</a>
   {/if}
 
   {#if canManagePhotos}
-    <a href="/corbeille">Corbeille</a>
+    <a href="/corbeille">Trash</a>
   {/if}
 
-  <a href="/parametres">Paramètres</a>
+  <a href="/parametres">Settings</a>
 
 {/if}
 ```
 
 ---
 
-## Protection des pages (server-side)
+## Page protection (server-side)
 
-| Page             | Protection                                            | Méthode actuelle          | Problème ?                 |
+| Page             | Protection                                            | Current method            | Issue?                     |
 | ---------------- | ----------------------------------------------------- | ------------------------- | -------------------------- |
-| `/`              | Public                                                | Aucune                    | ✅ OK                      |
+| `/`              | Public                                                | None                      | ✅ OK                      |
 | `/albums`        | `isAuthenticated`                                     | ❌ `locals.auth()` direct | 🔴 **BUG** - bypass cookie |
 | `/albums/[id]`   | `isAuthenticated`                                     | ❌ `locals.auth()` direct | 🔴 **BUG** - bypass cookie |
 | `/mes-photos`    | `isAuthenticated`                                     | ✅ `await parent()`       | ✅ OK                      |
 | `/photos-cv`     | `isAuthenticated` + (`hasPhoto` OR `canManagePhotos`) | ✅ `await parent()`       | ✅ OK                      |
 | `/trombinoscope` | `isAdmin`                                             | ❌ `locals.auth()` direct | 🔴 **BUG** - bypass cookie |
-| `/corbeille`     | Aucune                                                | Aucune                    | ⚠️ Devrait être protégé    |
+| `/corbeille`     | None                                                  | None                      | ⚠️ Should be protected     |
 | `/parametres`    | `isAuthenticated`                                     | ✅ `await parent()`       | ✅ OK                      |
 | `/admin/*`       | `isAdmin`                                             | ✅ `ensureAdmin()`        | ✅ OK                      |
 
 ---
 
-## Bugs identifiés
+## Identified bugs
 
-### 🔴 Bug 1 : Pages qui bypass le cookie signé
+### 🔴 Bug 1: Pages that bypass the signed cookie
 
-**Pages concernées** :
+**Concerned pages**:
 
 - `/albums/+page.server.ts`
 - `/albums/[id]/+page.server.ts`
 - `/trombinoscope/+page.server.ts`
 
-**Problème** : Utilisent `locals.auth()` directement au lieu de `await parent()`, ce qui :
+**Problem**: Use `locals.auth()` directly instead of `await parent()`, which:
 
-- Bypass le système de cookie signé
-- Ne fonctionne pas en dev avec `/dev/login-as`
-- Requiert une session provider active (CAS) à chaque fois
+- Bypasses the signed cookie system
+- Does not work in dev with `/dev/login-as`
+- Requires an active session provider (CAS) every time
 
-**Solution** : Remplacer par `await parent()` pour récupérer la session du layout parent.
+**Solution**: Replace with `await parent()` to retrieve the session from the parent layout.
 
-### 🔴 Bug 2 : Page corbeille non protégée
+### 🔴 Bug 2: Trash page not protected
 
-**Page concernée** : `/corbeille/+page.svelte`
+**Concerned page**: `/corbeille/+page.svelte`
 
-**Problème** : Aucune protection server-side, alors qu'elle devrait être accessible uniquement aux admins/mitvistes.
+**Problem**: No server-side protection, although it should only be accessible to admins/mitvistes.
 
-**Solution** : Ajouter un `+page.server.ts` avec protection `canManagePhotos`.
+**Solution**: Add a `+page.server.ts` with `canManagePhotos` protection.
 
-### 🔴 Bug 3 : Liens navbar masqués sur page d'accueil (même pour admin)
+### 🔴 Bug 3: Navbar links hidden on home page (even for admin)
 
-**Contexte** : Sur la page d'accueil, TOUTE la navbar est masquée (sauf logo + avatar).
+**Context**: On the home page, ALL navbar is hidden (except logo + avatar).
 
-**Problème rapporté** : "les boutons de la page navigation ne sont toujours pas accessibles sur la page d'accueil"
+**Reported issue**: "the navigation page buttons are still not accessible on the home page"
 
-**Question design** :
+**Design question**:
 
-- Faut-il **toujours** masquer les liens sur `/` ?
-- Ou faut-il les afficher pour les utilisateurs authentifiés ?
+- Should links **always** be hidden on `/`?
+- Or should they be shown for authenticated users?
 
-**Options** :
+**Options**:
 
-1. **Garder l'état actuel** : masqué sur `/` pour tout le monde (design épuré)
-2. **Afficher pour authentifiés** : `{#if !isHomePage || isAuthenticated}`
-3. **Toujours afficher** : supprimer la condition `!isHomePage`
-
----
-
-## Recommandations
-
-### Corrections immédiates
-
-1. ✅ Corriger les 3 pages qui utilisent `locals.auth()` → `await parent()`
-2. ✅ Ajouter protection server-side à `/corbeille`
-3. ⚠️ Décider du comportement navbar sur page d'accueil
-
-### Améliorations futures
-
-- Centraliser les checks de permission dans un helper réutilisable
-- Ajouter des tests E2E pour chaque rôle
-- Documenter les permissions dans le code (JSDoc)
+1. **Keep current state**: hidden on `/` for everyone (clean design)
+2. **Show for authenticated users**: `{#if !isHomePage || isAuthenticated}`
+3. **Always show**: remove the `!isHomePage` condition
 
 ---
 
-## Tests manuels recommandés
+## Recommendations
 
-Après corrections, tester avec chaque rôle :
+### Immediate fixes
 
-### En tant que visiteur (non auth)
+1. ✅ Fix the 3 pages that use `locals.auth()` → `await parent()`
+2. ✅ Add server-side protection to `/corbeille`
+3. ⚠️ Decide on navbar behavior on the home page
 
-- [ ] Page d'accueil accessible
-- [ ] Navbar minimale (logo + bouton connexion)
-- [ ] Toutes les autres pages redirigent vers `/`
+### Future improvements
 
-### En tant que `user` (sans photo)
+- Centralize permission checks in a reusable helper
+- Add E2E tests for each role
+- Document permissions in code (JSDoc)
 
-- [ ] Peut accéder : `/albums`, `/parametres`
-- [ ] Ne peut PAS accéder : `/mes-photos`, `/photos-cv`, `/trombinoscope`, `/corbeille`
-- [ ] Navbar affiche : Albums, Paramètres
+---
 
-### En tant que `user` (avec photo)
+## Recommended manual tests
 
-- [ ] Peut accéder : `/albums`, `/mes-photos`, `/photos-cv`, `/parametres`
-- [ ] Navbar affiche : Albums, Mes photos, Photos CV, Paramètres
+After fixes, test with each role:
 
-### En tant que `mitviste`
+### As visitor (non auth)
 
-- [ ] Peut accéder : tout sauf `/trombinoscope`
-- [ ] Navbar affiche : Albums, Mes photos*, Photos CV*, Corbeille, Paramètres
-- [ ] (\*si hasPhoto)
+- [ ] Home page accessible
+- [ ] Minimal navbar (logo + login button)
+- [ ] All other pages redirect to `/`
 
-### En tant que `admin`
+### As `user` (without photo)
 
-- [ ] Peut accéder : toutes les pages
-- [ ] Navbar affiche : tout
+- [ ] Can access: `/albums`, `/parametres`
+- [ ] Cannot access: `/mes-photos`, `/photos-cv`, `/trombinoscope`, `/corbeille`
+- [ ] Navbar shows: Albums, Settings
+
+### As `user` (with photo)
+
+- [ ] Can access: `/albums`, `/mes-photos`, `/photos-cv`, `/parametres`
+- [ ] Navbar shows: Albums, My photos, CV Photos, Settings
+
+### As `mitviste`
+
+- [ ] Can access: everything except `/trombinoscope`
+- [ ] Navbar shows: Albums, My photos*, CV Photos*, Trash, Settings
+- [ ] (\*if hasPhoto)
+
+### As `admin`
+
+- [ ] Can access: all pages
+- [ ] Navbar shows: everything
 - [ ] `/admin/*` accessible
 
 ---
 
-## Code de référence : dérivées navbar
+## Reference code: navbar derived values
 
 ```typescript
-// Dans +layout.svelte
+// In +layout.svelte
 let u = $derived(page.data?.session?.user as any);
 let isAdmin = $derived(u?.role === 'admin');
 let isMitviste = $derived(u?.role === 'mitviste');
@@ -219,8 +219,8 @@ let isAuthenticated = $derived(!!u);
 let isHomePage = $derived(page.url.pathname === '/');
 ```
 
-Ces dérivées sont calculées à partir de `page.data.session.user` qui est chargé dans `+layout.server.ts` via :
+These derived values are computed from `page.data.session.user` which is loaded in `+layout.server.ts` via:
 
-1. Cookie signé (fast-path)
+1. Signed cookie (fast-path)
 2. Fallback provider session
-3. Création auto si premier login
+3. Auto-creation if first login

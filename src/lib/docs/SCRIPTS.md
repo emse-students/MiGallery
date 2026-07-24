@@ -1,293 +1,293 @@
-# Scripts MiGallery - Documentation
+# MiGallery Scripts - Documentation
 
-Ce dossier contient tous les scripts utilitaires pour gérer MiGallery.
-
----
-
-## 📚 Liste des scripts
-
-### 🗄️ Gestion de la base de données
-
-#### `init-db.cjs` - Initialisation de la base de données
-
-**Utilisation** : `npm run db:init` ou `node scripts/init-db.cjs`
-
-**Description** :
-
-- Crée une nouvelle base de données SQLite si elle n'existe pas
-- Applique le schéma complet (tables, contraintes, indexes)
-- Crée l'utilisateur système admin (`les.roots@etu.emse.fr`)
-- N'écrase PAS une base de données existante (sécurité)
-
-**Quand l'utiliser** :
-
-- ✅ Installation sur une nouvelle machine
-- ✅ Première configuration de l'application
-- ✅ Après avoir supprimé/corrompu la base de données
-
-**Important** :
-
-- Ce script refuse de s'exécuter si une base de données existe déjà
-- Pour réinitialiser, supprimez d'abord `data/migallery.db`
+This folder contains all utility scripts for managing MiGallery.
 
 ---
 
-#### `backup-db.cjs` - Sauvegarde de la base de données
+## 📚 Script list
 
-**Utilisation** : `npm run db:backup` ou `node scripts/backup-db.cjs`
+### 🗄️ Database management
 
-> **✨ Sauvegarde automatique** : depuis la version actuelle, le serveur déclenche automatiquement une sauvegarde
-> quotidienne à minuit dès son démarrage (`src/lib/server/backup.ts` → `startBackupScheduler()`). **Aucun cron
-> extérieur n'est nécessaire.** Le script ci-dessous reste utile pour des sauvegardes manuelles ponctuelles.
+#### `init-db.cjs` - Database initialization
 
-**Description** :
+**Usage**: `npm run db:init` or `node scripts/init-db.cjs`
 
-- Crée une copie de la base de données avec timestamp
-- Conserve uniquement les 10 dernières sauvegardes
-- Supprime automatiquement les anciennes sauvegardes
-- Affiche la taille du fichier créé
+**Description**:
 
-**Quand l'utiliser** :
+- Creates a new SQLite database if it doesn't exist
+- Applies the complete schema (tables, constraints, indexes)
+- Creates the system admin user (`les.roots@etu.emse.fr`)
+- Does NOT overwrite an existing database (safety)
 
-- ✅ Avant une mise à jour importante
-- ✅ Avant des modifications massives de données
-- ✅ Avant de tester le script de réparation
+**When to use**:
 
-**Emplacement des sauvegardes** : `data/backups/`
+- ✅ Installation on a new machine
+- ✅ First application setup
+- ✅ After deleting/corrupting the database
 
-**Format des fichiers** : `migallery_backup_YYYY-MM-DD_HH-MM-SS.db`
+**Important**:
 
----
-
-#### `inspect-db.cjs` - Inspection et réparation de la base de données
-
-**Utilisation** :
-
-- Inspection : `npm run db:inspect`
-- Réparation : `npm run db:inspect -- --repair`
-
-**Description** :
-
-- Vérifie l'intégrité de la base de données (PRAGMA integrity_check)
-- Contrôle la présence de toutes les tables attendues
-- Vérifie les contraintes de clés étrangères
-- Affiche des statistiques (nombre d'utilisateurs, albums, etc.)
-- Vérifie l'utilisateur système admin
-- Peut tenter de réparer automatiquement certaines erreurs
-
-**Quand l'utiliser** :
-
-- ✅ En cas d'erreur suspecte dans l'application
-- ✅ Après une panne ou arrêt brutal
-- ✅ Pour vérifier la santé de la DB régulièrement
-- ✅ Avant une migration importante
-
-**Mode réparation** :
-
-- Recrée l'utilisateur système s'il est manquant
-- Corrige le rôle de l'utilisateur système
-- Propose de sauvegarder et réinitialiser en cas d'erreur irréparable
-
-**Erreurs détectées** :
-
-- ❌ Problèmes d'intégrité SQLite
-- ❌ Tables manquantes
-- ❌ Violations de clés étrangères
-- ❌ Utilisateur système manquant ou incorrect
+- This script refuses to run if a database already exists
+- To reset, first delete `data/migallery.db`
 
 ---
 
-### 🔒 Sécurité
+#### `backup-db.cjs` - Database backup
 
-#### `generate_cookie_secret.cjs` - Génération de secret cryptographique
+**Usage**: `npm run db:backup` or `node scripts/backup-db.cjs`
 
-**Utilisation** : `npm run generate:secret` ou `node scripts/generate_cookie_secret.cjs`
+> **✨ Automatic backup**: since the current version, the server automatically triggers a daily
+> backup at midnight on startup (`src/lib/server/backup.ts` → `startBackupScheduler()`). **No external
+> cron is required.** The script below remains useful for occasional manual backups.
 
-**Description** :
+**Description**:
 
-- Génère un secret cryptographique sécurisé (32 bytes)
-- Utilise `crypto.randomBytes()` pour un vrai aléatoire
-- Encode en base64url (compatible avec les variables d'environnement)
+- Creates a copy of the database with a timestamp
+- Keeps only the last 10 backups
+- Automatically deletes old backups
+- Displays the size of the created file
 
-**Quand l'utiliser** :
+**When to use**:
 
-- ✅ Lors de la première installation
-- ✅ Pour renouveler le secret périodiquement (sécurité)
-- ✅ Après une compromission potentielle
+- ✅ Before a major update
+- ✅ Before massive data modifications
+- ✅ Before testing the repair script
 
-**Exemple d'utilisation** :
+**Backup location**: `data/backups/`
+
+**File format**: `migallery_backup_YYYY-MM-DD_HH-MM-SS.db`
+
+---
+
+#### `inspect-db.cjs` - Database inspection and repair
+
+**Usage**:
+
+- Inspection: `npm run db:inspect`
+- Repair: `npm run db:inspect -- --repair`
+
+**Description**:
+
+- Checks database integrity (PRAGMA integrity_check)
+- Verifies the presence of all expected tables
+- Checks foreign key constraints
+- Displays statistics (number of users, albums, etc.)
+- Verifies the system admin user
+- Can attempt to automatically repair certain errors
+
+**When to use**:
+
+- ✅ In case of a suspicious error in the application
+- ✅ After a crash or abrupt shutdown
+- ✅ To regularly check DB health
+- ✅ Before a major migration
+
+**Repair mode**:
+
+- Recreates the system user if missing
+- Fixes the system user's role
+- Offers to backup and reset in case of irreparable errors
+
+**Detected errors**:
+
+- ❌ SQLite integrity issues
+- ❌ Missing tables
+- ❌ Foreign key violations
+- ❌ Missing or incorrect system user
+
+---
+
+### 🔒 Security
+
+#### `generate_cookie_secret.cjs` - Cryptographic secret generation
+
+**Usage**: `npm run generate:secret` or `node scripts/generate_cookie_secret.cjs`
+
+**Description**:
+
+- Generates a secure cryptographic secret (32 bytes)
+- Uses `crypto.randomBytes()` for true randomness
+- Encodes in base64url (compatible with environment variables)
+
+**When to use**:
+
+- ✅ During first installation
+- ✅ To periodically renew the secret (security)
+- ✅ After potential compromise
+
+**Usage example**:
 
 ```bash
-# Générer et copier dans .env
+# Generate and copy to .env
 echo "COOKIE_SECRET=$(npm run generate:secret)" >> .env
 ```
 
-**Important** :
+**Important**:
 
-- ⚠️ Changer le secret invalide toutes les sessions utilisateurs
-- ⚠️ Gardez ce secret confidentiel (ne jamais le committer)
+- ⚠️ Changing the secret invalidates all user sessions
+- ⚠️ Keep this secret confidential (never commit it)
 
 ---
 
-### 📦 Packaging et déploiement
+### 📦 Packaging and deployment
 
 #### Packaging (`npm run package`)
 
-**Utilisation** : `npm run package`
+**Usage**: `npm run package`
 
-**Description** :
+**Description**:
 
-- Crée une archive `.tgz` complète de l'application
-- Inclut : build/, data/, .env, scripts/, README.md, package.json
-- Prêt pour un déploiement sur une autre machine
-- Génère un nom de fichier avec la version du package
+- Creates a complete `.tgz` archive of the application
+- Includes: build/, data/, .env, scripts/, README.md, package.json
+- Ready for deployment on another machine
+- Generates a filename with the package version
 
-**Quand l'utiliser** :
+**When to use**:
 
-- ✅ Pour déployer sur un serveur de production
-- ✅ Pour créer une release
-- ✅ Pour sauvegarder l'état complet de l'application
-- ✅ Pour migrer vers une nouvelle machine
+- ✅ To deploy to a production server
+- ✅ To create a release
+- ✅ To backup the complete application state
+- ✅ To migrate to a new machine
 
-**Fichier créé** : `build/artifacts/migallery-<version>-full.tgz`
+**Created file**: `build/artifacts/migallery-<version>-full.tgz`
 
-**Prérequis** :
+**Prerequisites**:
 
-- Avoir exécuté `npm run build` au préalable
-- Avoir configuré `.env` et la base de données
+- Must have run `npm run build` beforehand
+- Must have configured `.env` and the database
 
-**Déploiement** :
+**Deployment**:
 
 ```bash
-# Sur la machine cible
+# On the target machine
 tar -xzf migallery-x.x.x-full.tgz
 cd migallery
 npm ci --omit=dev
-# Vérifier/adapter .env si nécessaire
+# Check/adjust .env if necessary
 node build/index.js
 ```
 
 ---
 
-## 🔄 Workflow recommandé
+## 🔄 Recommended workflow
 
-### Installation initiale (nouvelle machine)
+### Initial installation (new machine)
 
 ```bash
-# 1. Cloner et installer
+# 1. Clone and install
 git clone https://github.com/emse-students/MiGallery.git
 cd MiGallery
 npm install
 
-# 2. Configurer l'environnement
-npm run generate:secret  # Copier la sortie
-nano .env  # Créer et remplir avec les variables
+# 2. Configure the environment
+npm run generate:secret  # Copy the output
+nano .env  # Create and fill with variables
 
-# 3. Initialiser la base de données
+# 3. Initialize the database
 npm run db:init
 
-# 4. La sauvegarde automatique est gérée par le serveur (startBackupScheduler).
-#    Elle se déclenche à minuit dès le démarrage - rien à configurer.
+# 4. Automatic backup is handled by the server (startBackupScheduler).
+#    It triggers at midnight on startup - nothing to configure.
 
-# 5. Lancer l'application
-npm run dev  # Développement
-# ou
+# 5. Start the application
+npm run dev  # Development
+# or
 npm run build && node build/index.js  # Production
 ```
 
-### Maintenance régulière
+### Regular maintenance
 
 ```bash
-# Vérifier la santé de la DB (mensuel recommandé)
+# Check DB health (monthly recommended)
 npm run db:inspect
 
-# Créer une sauvegarde manuelle avant une grosse opération
+# Create a manual backup before a major operation
 npm run db:backup
 
-# Vérifier les sauvegardes automatiques
+# Check automatic backups
 ls -lh data/backups/
 ```
 
-### Avant une mise à jour majeure
+### Before a major update
 
 ```bash
-# 1. Sauvegarder la base de données
+# 1. Backup the database
 npm run db:backup
 
-# 2. Créer un package complet (snapshot)
+# 2. Create a complete package (snapshot)
 npm run build
 npm run package
 
-# 3. Vérifier l'intégrité
+# 3. Check integrity
 npm run db:inspect
 
-# 4. Procéder à la mise à jour
+# 4. Proceed with the update
 git pull
 npm install
 npm run build
 ```
 
-### En cas de problème
+### In case of problems
 
 ```bash
-# 1. Inspecter et diagnostiquer
+# 1. Inspect and diagnose
 npm run db:inspect
 
-# 2. Tenter une réparation automatique
+# 2. Attempt automatic repair
 npm run db:inspect -- --repair
 
-# 3. Si échec : sauvegarder et réinitialiser
+# 3. If failure: backup and reset
 cp data/migallery.db data/migallery.db.corrupt
 npm run db:init
-# Puis restaurer les données manuellement ou depuis une sauvegarde
+# Then restore data manually or from a backup
 ```
 
 ---
 
-## 📋 Variables d'environnement utilisées
+## 📋 Environment variables used
 
-Les scripts utilisent les variables d'environnement suivantes :
+Scripts use the following environment variables:
 
-| Variable          | Description                  | Valeur par défaut     | Utilisé par             |
-| ----------------- | ---------------------------- | --------------------- | ----------------------- |
-| `DATABASE_PATH`   | Chemin de la base de données | `./data/migallery.db` | Tous les scripts DB     |
-| `BACKUP_DIR`      | Dossier des sauvegardes      | `./data/backups`      | backup-db.cjs           |
-| `IMMICH_BASE_URL` | URL de l'instance Immich     | -                     | init-db.cjs (optionnel) |
-| `IMMICH_API_KEY`  | Clé API Immich               | -                     | init-db.cjs (optionnel) |
+| Variable          | Description         | Default value         | Used by                |
+| ----------------- | ------------------- | --------------------- | ---------------------- |
+| `DATABASE_PATH`   | Database file path  | `./data/migallery.db` | All DB scripts         |
+| `BACKUP_DIR`      | Backups folder      | `./data/backups`      | backup-db.cjs          |
+| `IMMICH_BASE_URL` | Immich instance URL | -                     | init-db.cjs (optional) |
+| `IMMICH_API_KEY`  | Immich API key      | -                     | init-db.cjs (optional) |
 
 ---
 
-## 🛠️ Dépendances
+## 🛠️ Dependencies
 
-Les scripts nécessitent les packages suivants (installés automatiquement) :
+Scripts require the following packages (installed automatically):
 
-- **better-sqlite3** - Interface SQLite pour Node.js
-- **tar** - Création d'archives
-- **crypto** (natif) - Génération de secrets
+- **better-sqlite3** - SQLite interface for Node.js
+- **tar** - Archive creation
+- **crypto** (native) - Secret generation
 
 ---
 
 ## 📞 Support
 
-En cas de problème avec les scripts :
+In case of script issues:
 
-1. Vérifier les logs d'erreur
-2. Consulter la documentation dans `README.md`
-3. Vérifier les permissions (lecture/écriture sur `data/`)
-4. Ouvrir une issue sur GitHub
+1. Check error logs
+2. Consult documentation in `README.md`
+3. Check permissions (read/write on `data/`)
+4. Open an issue on GitHub
 
 ---
 
-## 🔐 Sécurité
+## 🔐 Security
 
-**Fichiers sensibles** (NE JAMAIS COMMITTER) :
+**Sensitive files** (NEVER COMMIT):
 
-- `.env` - Configuration et secrets
-- `data/migallery.db` - Base de données
-- `data/backups/*.db` - Sauvegardes
-- `build/artifacts/*.tgz` - Packages incluant .env et DB
+- `.env` - Configuration and secrets
+- `data/migallery.db` - Database
+- `data/backups/*.db` - Backups
+- `build/artifacts/*.tgz` - Packages including .env and DB
 
-Ajoutés au `.gitignore` :
+Added to `.gitignore`:
 
 ```
 .env
@@ -297,19 +297,19 @@ build/
 
 ---
 
-## ✅ Checklist de déploiement
+## ✅ Deployment checklist
 
-Avant de déployer en production :
+Before deploying to production:
 
-- [ ] Base de données initialisée (`npm run db:init`)
-- [ ] Secret cookie généré et configuré dans `.env`
-- [ ] Variables Immich configurées dans `.env`
-- [ ] Test de l'application en local (`npm run dev`)
-- [ ] Build de production réussie (`npm run build`)
-- [ ] Inspection de la DB sans erreur (`npm run db:inspect`)
-- [ ] Package complet créé (`npm run package`)
-- [ ] Vérifier que les sauvegardes automatiques se créent bien dans `data/backups/` après minuit
+- [ ] Database initialized (`npm run db:init`)
+- [ ] Cookie secret generated and configured in `.env`
+- [ ] Immich variables configured in `.env`
+- [ ] Application tested locally (`npm run dev`)
+- [ ] Production build successful (`npm run build`)
+- [ ] DB inspection error-free (`npm run db:inspect`)
+- [ ] Complete package created (`npm run package`)
+- [ ] Verify that automatic backups are being created in `data/backups/` after midnight
 
 ---
 
-**Documentation à jour : Avril 2026**
+**Documentation up to date: April 2026**

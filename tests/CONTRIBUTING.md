@@ -1,58 +1,58 @@
-# 🧪 Guide de Contribution aux Tests
+# 🧪 Test Contribution Guide
 
-Ce guide explique comment ajouter, modifier et maintenir les tests de MiGallery.
+This guide explains how to add, modify, and maintain MiGallery tests.
 
-## 📋 Table des matières
+## 📋 Table of Contents
 
-- [Principes de base](#principes-de-base)
-- [Structure des tests](#structure-des-tests)
-- [Ajouter un nouveau test](#ajouter-un-nouveau-test)
-- [Helpers et utilitaires](#helpers-et-utilitaires)
-- [Best practices](#best-practices)
+- [Basic Principles](#basic-principles)
+- [Test Structure](#test-structure)
+- [Adding a New Test](#adding-a-new-test)
+- [Helpers and Utilities](#helpers-and-utilities)
+- [Best Practices](#best-practices)
 - [Debugging](#debugging)
 
 ---
 
-## Principes de base
+## Basic Principles
 
-### Organisation des fichiers
+### File Organization
 
-Les tests sont organisés par **domaine fonctionnel** :
+Tests are organized by **functional domain**:
 
 ```
 tests/
-├── albums.test.ts              # Tests pour l'API Albums
-├── users.test.ts               # Tests pour l'API Utilisateurs
-├── favorites-external.test.ts  # Tests Favoris & External Media
-├── admin-auth.test.ts          # Tests Admin & Authentification
-├── people-photoscv.test.ts     # Tests People & Photos-CV
-├── immich-proxy.test.ts        # Tests Proxy Immich
-├── e2e-integration.test.ts     # Tests End-to-End
-├── test-helpers.ts             # Configuration et helpers
+├── albums.test.ts              # Albums API tests
+├── users.test.ts               # Users API tests
+├── favorites-external.test.ts  # Favorites & External Media tests
+├── admin-auth.test.ts          # Admin & Authentication tests
+├── people-photoscv.test.ts     # People & Photos-CV tests
+├── immich-proxy.test.ts        # Immich Proxy tests
+├── e2e-integration.test.ts     # End-to-End tests
+├── test-helpers.ts             # Configuration and helpers
 └── README.md                   # Documentation
 ```
 
-### Conventions de nommage
+### Naming Conventions
 
-- **Fichiers** : `{domaine}.test.ts`
-- **Describe blocks** : `{Domaine} API - {Méthode} {Endpoint}`
-- **Tests** : `devrait {action attendue}`
+- **Files**: `{domain}.test.ts`
+- **Describe blocks**: `{Domain} API - {Method} {Endpoint}`
+- **Tests**: `should {expected action}`
 
-### Exemple
+### Example
 
 ```typescript
 describe('Albums API - GET /api/albums', () => {
-	it('devrait lister tous les albums', async () => {
-		// Test ici
+	it('should list all albums', async () => {
+		// Test here
 	});
 });
 ```
 
 ---
 
-## Structure des tests
+## Test Structure
 
-### Template de base
+### Basic Template
 
 ```typescript
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -62,16 +62,16 @@ const API_BASE_URL = TEST_CONFIG.API_BASE_URL;
 let API_KEY = '';
 
 beforeAll(async () => {
-	// Setup : créer des ressources nécessaires
+	// Setup: create necessary resources
 });
 
 afterAll(async () => {
-	// Cleanup : supprimer les ressources créées
+	// Cleanup: delete created resources
 });
 
-describe('Mon Domaine API - GET /api/mon-endpoint', () => {
-	it('devrait faire quelque chose', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/mon-endpoint`, {
+describe('My Domain API - GET /api/my-endpoint', () => {
+	it('should do something', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/my-endpoint`, {
 			headers: getAuthHeaders(API_KEY)
 		});
 
@@ -87,49 +87,49 @@ describe('Mon Domaine API - GET /api/mon-endpoint', () => {
 
 ---
 
-## Ajouter un nouveau test
+## Adding a New Test
 
-### 1. Choisir le fichier approprié
+### 1. Choose the appropriate file
 
-**Question** : Mon test concerne quelle fonctionnalité ?
+**Question**: Which feature does my test concern?
 
 - Albums → `albums.test.ts`
-- Utilisateurs → `users.test.ts`
-- Favoris/External Media → `favorites-external.test.ts`
+- Users → `users.test.ts`
+- Favorites/External Media → `favorites-external.test.ts`
 - Admin/Auth → `admin-auth.test.ts`
 - People/Photos-CV → `people-photoscv.test.ts`
-- Proxy Immich → `immich-proxy.test.ts`
-- Workflow complet → `e2e-integration.test.ts`
-- Nouvelle fonctionnalité → Créer un nouveau fichier
+- Immich Proxy → `immich-proxy.test.ts`
+- Complete workflow → `e2e-integration.test.ts`
+- New feature → Create a new file
 
-### 2. Créer le describe block
+### 2. Create the describe block
 
 ```typescript
-describe('Mon Domaine API - {Méthode} {Endpoint}', () => {
-	// Tests ici
+describe('My Domain API - {Method} {Endpoint}', () => {
+	// Tests here
 });
 ```
 
-### 3. Ajouter les tests
+### 3. Add tests
 
 ```typescript
-it('devrait {action attendue}', async () => {
-	// 1. Préparer les données
+it('should {expected action}', async () => {
+	// 1. Prepare data
 	const requestData = {
 		/* ... */
 	};
 
-	// 2. Faire la requête
+	// 2. Make the request
 	const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
 		method: 'POST',
 		headers: getAuthHeaders(API_KEY),
 		body: JSON.stringify(requestData)
 	});
 
-	// 3. Vérifier la réponse
+	// 3. Check the response
 	expect([200, 201, 400, 401]).toContain(response.status);
 
-	// 4. Vérifier les données (si succès)
+	// 4. Check data (if success)
 	if (response.status === 200 || response.status === 201) {
 		const data = await response.json();
 		expect(data).toHaveProperty('id');
@@ -138,11 +138,11 @@ it('devrait {action attendue}', async () => {
 });
 ```
 
-### 4. Ajouter le cleanup
+### 4. Add cleanup
 
 ```typescript
 afterAll(async () => {
-	// Supprimer les ressources créées pendant les tests
+	// Delete resources created during tests
 	if (createdResourceId) {
 		await fetch(`${API_BASE_URL}/api/resource/${createdResourceId}`, {
 			method: 'DELETE',
@@ -154,9 +154,9 @@ afterAll(async () => {
 
 ---
 
-## Helpers et utilitaires
+## Helpers and Utilities
 
-### Utiliser `test-helpers.ts`
+### Using `test-helpers.ts`
 
 ```typescript
 import {
@@ -167,35 +167,35 @@ import {
 	TEST_CONFIG
 } from './test-helpers';
 
-// Headers d'authentification
+// Authentication headers
 const headers = getAuthHeaders(apiKey);
 
-// Générer un utilisateur de test unique
+// Generate a unique test user
 const user = generateTestUser('mytest');
 // → { id_user: 'mytest.user.1234567890', email: '...', ... }
 
-// Gérer les erreurs Immich
+// Handle Immich errors
 try {
 	const response = await fetch('...');
 } catch (error) {
 	if (handleImmichError(error)) {
-		// Immich indisponible, test passe quand même
+		// Immich unavailable, test still passes
 		return;
 	}
 	throw error;
 }
 
-// Nettoyer une ressource
+// Clean up a resource
 await cleanupResource(TEST_CONFIG.API_BASE_URL + '/api/albums', apiKey, albumId);
 ```
 
-### Créer un nouveau helper
+### Creating a new helper
 
-Si vous avez besoin d'un helper réutilisable, ajoutez-le dans `test-helpers.ts` :
+If you need a reusable helper, add it to `test-helpers.ts`:
 
 ```typescript
 /**
- * Helper pour créer un album de test
+ * Helper to create a test album
  */
 export async function createTestAlbum(apiKey: string, name?: string): Promise<string> {
 	const albumName = name || `Test Album ${Date.now()}`;
@@ -217,40 +217,40 @@ export async function createTestAlbum(apiKey: string, name?: string): Promise<st
 
 ---
 
-## Best practices
+## Best Practices
 
 ### ✅ DO
 
-1. **Utiliser les helpers** pour éviter la duplication
-2. **Tester tous les cas** : succès, erreurs, cas limites
-3. **Nettoyer les ressources** dans `afterAll()`
-4. **Gérer les services externes** (Immich) avec des timeouts et retry
-5. **Documenter les tests complexes** avec des commentaires
-6. **Utiliser des données uniques** (timestamp, random) pour éviter les conflits
+1. **Use helpers** to avoid duplication
+2. **Test all cases**: success, errors, edge cases
+3. **Clean up resources** in `afterAll()`
+4. **Handle external services** (Immich) with timeouts and retry
+5. **Document complex tests** with comments
+6. **Use unique data** (timestamp, random) to avoid conflicts
 
 ### ❌ DON'T
 
-1. **Ne pas hardcoder les IDs** → Utiliser des variables ou générer
-2. **Ne pas laisser de ressources** → Toujours nettoyer
-3. **Ne pas ignorer les erreurs** → Vérifier les status codes
-4. **Ne pas dupliquer le code** → Utiliser les helpers
-5. **Ne pas faire de tests trop longs** → Séparer en plusieurs tests
+1. **Don't hardcode IDs** → Use variables or generate
+2. **Don't leave resources behind** → Always clean up
+3. **Don't ignore errors** → Check status codes
+4. **Don't duplicate code** → Use helpers
+5. **Don't make overly long tests** → Split into multiple tests
 
-### Exemple de bonnes pratiques
+### Best practices example
 
 ```typescript
 describe('Albums API - POST /api/albums', () => {
 	let createdAlbumId: string | null = null;
 
 	afterAll(async () => {
-		// ✅ Cleanup automatique
+		// ✅ Automatic cleanup
 		if (createdAlbumId) {
 			await cleanupResource(`${API_BASE_URL}/api/albums`, API_KEY, createdAlbumId);
 		}
 	});
 
-	it('devrait créer un album', async () => {
-		// ✅ Données uniques
+	it('should create an album', async () => {
+		// ✅ Unique data
 		const albumData = {
 			albumName: `Test Album ${Date.now()}`,
 			description: 'Created by tests'
@@ -262,10 +262,10 @@ describe('Albums API - POST /api/albums', () => {
 			body: JSON.stringify(albumData)
 		});
 
-		// ✅ Vérifier plusieurs status possibles
+		// ✅ Check multiple possible statuses
 		expect([200, 201, 400, 401]).toContain(response.status);
 
-		// ✅ Sauvegarder l'ID pour le cleanup
+		// ✅ Save ID for cleanup
 		if (response.ok) {
 			const album = await response.json();
 			createdAlbumId = album.id;
@@ -273,14 +273,14 @@ describe('Albums API - POST /api/albums', () => {
 		}
 	});
 
-	it('devrait rejeter un album sans nom', async () => {
+	it('should reject an album without a name', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/albums`, {
 			method: 'POST',
 			headers: getAuthHeaders(API_KEY),
 			body: JSON.stringify({ description: 'No name' })
 		});
 
-		// ✅ Tester les cas d'erreur
+		// ✅ Test error cases
 		expect([400, 401]).toContain(response.status);
 	});
 });
@@ -290,26 +290,26 @@ describe('Albums API - POST /api/albums', () => {
 
 ## Debugging
 
-### Voir les logs détaillés
+### View detailed logs
 
 ```bash
-# Lancer les tests avec plus de détails
+# Run tests with more details
 npx vitest run --reporter=verbose
 
-# Lancer un seul fichier de test
+# Run a single test file
 npx vitest run tests/albums.test.ts
 
-# Lancer un seul test (utiliser .only)
-it.only('devrait faire quelque chose', async () => { /* ... */ });
+# Run a single test (use .only)
+it.only('should do something', async () => { /* ... */ });
 ```
 
-### Inspecter les réponses
+### Inspect responses
 
 ```typescript
-it('devrait retourner des données', async () => {
+it('should return data', async () => {
 	const response = await fetch(`${API_BASE_URL}/api/endpoint`);
 
-	// Afficher la réponse pour debugging
+	// Display response for debugging
 	console.log('Status:', response.status);
 	console.log('Headers:', Object.fromEntries(response.headers));
 
@@ -320,67 +320,67 @@ it('devrait retourner des données', async () => {
 });
 ```
 
-### Problèmes courants
+### Common Issues
 
 #### ❌ Timeout Error
 
-**Cause** : Le serveur ou Immich ne répond pas assez vite
+**Cause**: Server or Immich not responding fast enough
 
-**Solution** :
+**Solution**:
 
 ```typescript
-// Augmenter le timeout du test
-it('devrait faire quelque chose', async () => {
+// Increase test timeout
+it('should do something', async () => {
 	// ...
-}, 30000); // 30 secondes
+}, 30000); // 30 seconds
 
-// Ou gérer l'erreur Immich
+// Or handle Immich error
 try {
 	const response = await fetch(url, {
 		signal: AbortSignal.timeout(10000)
 	});
 } catch (error) {
 	if (handleImmichError(error)) {
-		return; // Test passe quand même
+		return; // Test still passes
 	}
 	throw error;
 }
 ```
 
-#### ❌ Test échoue de manière intermittente
+#### ❌ Test fails intermittently
 
-**Cause** : Données partagées, race conditions, services externes
+**Cause**: Shared data, race conditions, external services
 
-**Solution** :
+**Solution**:
 
 ```typescript
-// 1. Utiliser des données uniques
+// 1. Use unique data
 const userId = `test.user.${Date.now()}.${Math.random()}`;
 
-// 2. Nettoyer avant ET après
+// 2. Clean before AND after
 beforeAll(async () => {
-	// Nettoyer les anciennes ressources
+	// Clean old resources
 });
 
 afterAll(async () => {
-	// Nettoyer les nouvelles ressources
+	// Clean new resources
 });
 
-// 3. Configurer retry dans vitest.config.ts
+// 3. Configure retry in vitest.config.ts
 test: {
-	retry: 1; // Retry une fois si échec
+	retry: 1; // Retry once on failure
 }
 ```
 
-#### ❌ Ressources non nettoyées
+#### ❌ Resources not cleaned up
 
-**Cause** : Erreur avant le cleanup ou cleanup raté
+**Cause**: Error before cleanup or failed cleanup
 
-**Solution** :
+**Solution**:
 
 ```typescript
 afterAll(async () => {
-	// Cleanup robuste
+	// Robust cleanup
 	if (createdUserId) {
 		try {
 			await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
@@ -389,7 +389,7 @@ afterAll(async () => {
 			});
 		} catch (error) {
 			console.warn('Cleanup failed:', error);
-			// Ne pas throw, continuer le cleanup
+			// Don't throw, continue cleanup
 		}
 		createdUserId = null;
 	}
@@ -398,12 +398,12 @@ afterAll(async () => {
 
 ---
 
-## Exemples complets
+## Complete Examples
 
-### Test simple (GET)
+### Simple test (GET)
 
 ```typescript
-it('devrait lister les albums', async () => {
+it('should list albums', async () => {
 	const response = await fetch(`${API_BASE_URL}/api/albums`, {
 		headers: getAuthHeaders(API_KEY)
 	});
@@ -417,7 +417,7 @@ it('devrait lister les albums', async () => {
 });
 ```
 
-### Test avec création (POST)
+### Test with creation (POST)
 
 ```typescript
 let createdAlbumId: string | null = null;
@@ -428,7 +428,7 @@ afterAll(async () => {
 	}
 });
 
-it('devrait créer un album', async () => {
+it('should create an album', async () => {
 	const response = await fetch(`${API_BASE_URL}/api/albums`, {
 		method: 'POST',
 		headers: getAuthHeaders(API_KEY),
@@ -447,10 +447,10 @@ it('devrait créer un album', async () => {
 });
 ```
 
-### Test avec timeout Immich
+### Test with Immich timeout
 
 ```typescript
-it('devrait gérer Immich indisponible', async () => {
+it('should handle Immich unavailable', async () => {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/people/people`, {
 			headers: getAuthHeaders(API_KEY),
@@ -469,22 +469,22 @@ it('devrait gérer Immich indisponible', async () => {
 
 ---
 
-## Checklist avant commit
+## Pre-commit Checklist
 
-- [ ] Les tests passent localement (`npm run test`)
-- [ ] Les ressources sont nettoyées (pas de fuite)
-- [ ] Les timeouts sont appropriés
-- [ ] Les cas d'erreur sont testés
-- [ ] Les helpers sont utilisés quand possible
-- [ ] Le code est commenté si nécessaire
-- [ ] La documentation est à jour
+- [ ] Tests pass locally (`npm run test`)
+- [ ] Resources are cleaned up (no leaks)
+- [ ] Timeouts are appropriate
+- [ ] Error cases are tested
+- [ ] Helpers are used when possible
+- [ ] Code is commented if necessary
+- [ ] Documentation is up to date
 
 ---
 
-## Questions ?
+## Questions?
 
-- 📖 Voir `tests/README.md` pour la documentation complète
-- 🔍 Regarder les tests existants comme exemples
-- 💬 Demander de l'aide à l'équipe
+- 📖 See `tests/README.md` for complete documentation
+- 🔍 Look at existing tests as examples
+- 💬 Ask the team for help
 
 **Happy Testing! 🧪**

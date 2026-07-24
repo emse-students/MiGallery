@@ -1,97 +1,97 @@
-# 🎨 Guide des Styles CSS - MiGallery
+# 🎨 CSS Styles Guide - MiGallery
 
-## Vue d'ensemble
+## Overview
 
-MiGallery utilise une combinaison de **Tailwind CSS** et de **CSS personnalisé** avec un système de variables pour assurer la cohérence visuelle sur l'ensemble de l'application.
+MiGallery uses a combination of **Tailwind CSS** and **custom CSS** with a variable system to ensure visual consistency across the entire application.
 
 ---
 
-## 📐 Variables CSS Globales
+## 📐 Global CSS Variables
 
-Les variables CSS sont définies dans `src/app.css` et constituent la base du système de design.
+CSS variables are defined in `src/app.css` and form the foundation of the design system.
 
-### Couleurs
+### Colors
 
 ```css
 :root {
-	/* Arrière-plans */
-	--bg-primary: #0f0f0f; /* Fond principal (noir profond) */
-	--bg-secondary: #1a1a1a; /* Fond secondaire */
-	--bg-tertiary: #242424; /* Fond tertiaire */
-	--bg-elevated: #1f1f1f; /* Fond élevé (cartes, modales) */
+	/* Backgrounds */
+	--bg-primary: #0f0f0f; /* Main background (deep black) */
+	--bg-secondary: #1a1a1a; /* Secondary background */
+	--bg-tertiary: #242424; /* Tertiary background */
+	--bg-elevated: #1f1f1f; /* Elevated background (cards, modals) */
 
-	/* Texte */
-	--text-primary: #ffffff; /* Texte principal (blanc) */
-	--text-secondary: #a0a0a0; /* Texte secondaire (gris clair) */
-	--text-muted: #6b7280; /* Texte désactivé */
-	--text-tertiary: #808080; /* Texte tertiaire */
+	/* Text */
+	--text-primary: #ffffff; /* Primary text (white) */
+	--text-secondary: #a0a0a0; /* Secondary text (light gray) */
+	--text-muted: #6b7280; /* Disabled text */
+	--text-tertiary: #808080; /* Tertiary text */
 
 	/* Accent */
-	--accent: #3b82f6; /* Bleu principal */
-	--accent-hover: #2563eb; /* Bleu au hover */
-	--accent-subtle: rgba(59, 130, 246, 0.1); /* Bleu subtil */
+	--accent: #3b82f6; /* Primary blue */
+	--accent-hover: #2563eb; /* Blue on hover */
+	--accent-subtle: rgba(59, 130, 246, 0.1); /* Subtle blue */
 
-	/* Bordures */
-	--border: #333333; /* Bordure principale */
+	/* Borders */
+	--border: #333333; /* Main border */
 	--border-color: #333333; /* Alias */
 }
 ```
 
-### Rayons de bordure
+### Border radii
 
 ```css
 :root {
-	--radius-xs: 4px; /* Éléments petits (badges) */
-	--radius-sm: 8px; /* Éléments moyens (boutons, inputs) */
-	--radius-md: 12px; /* Cartes, conteneurs */
-	--radius-lg: 16px; /* Grandes cartes */
-	--radius-xl: 24px; /* Éléments arrondis */
+	--radius-xs: 4px; /* Small elements (badges) */
+	--radius-sm: 8px; /* Medium elements (buttons, inputs) */
+	--radius-md: 12px; /* Cards, containers */
+	--radius-lg: 16px; /* Large cards */
+	--radius-xl: 24px; /* Rounded elements */
 }
 ```
 
-### Navigation mobile
+### Mobile navigation
 
 ```css
 :root {
-	--mobile-nav-height: 72px; /* Hauteur barre mobile */
+	--mobile-nav-height: 72px; /* Mobile bar height */
 }
 ```
 
 ---
 
-## 📱 Points de rupture (Breakpoints)
+## 📱 Breakpoints
 
-| Breakpoint   | Largeur max | Usage               |
-| ------------ | ----------- | ------------------- |
-| Mobile petit | 480px       | Téléphones compacts |
-| Mobile       | 640px       | Téléphones standard |
-| Tablette     | 768px       | Tablettes portrait  |
-| Desktop      | 1024px      | Ordinateurs         |
-| Large        | 1280px      | Grands écrans       |
+| Breakpoint   | Max width | Usage            |
+| ------------ | --------- | ---------------- |
+| Small mobile | 480px     | Compact phones   |
+| Mobile       | 640px     | Standard phones  |
+| Tablet       | 768px     | Portrait tablets |
+| Desktop      | 1024px    | Computers        |
+| Large        | 1280px    | Large screens    |
 
-### Utilisation
+### Usage
 
 ```css
 /* Mobile first - Desktop enhancement */
 .element {
-	padding: 1rem; /* Mobile par défaut */
+	padding: 1rem; /* Mobile default */
 }
 
 @media (min-width: 768px) {
 	.element {
-		padding: 2rem; /* Tablette et plus */
+		padding: 2rem; /* Tablet and up */
 	}
 }
 ```
 
 ---
 
-## 🧩 Classes utilitaires
+## 🧩 Utility classes
 
-### Boutons
+### Buttons
 
 ```css
-/* Bouton principal (accent) */
+/* Primary button (accent) */
 .btn-primary {
 	background: var(--accent);
 	color: white;
@@ -99,21 +99,21 @@ Les variables CSS sont définies dans `src/app.css` et constituent la base du sy
 	border-radius: var(--radius-sm);
 }
 
-/* Bouton secondaire */
+/* Secondary button */
 .btn-secondary {
 	background: var(--bg-elevated);
 	color: var(--text-primary);
 	border: 1px solid var(--border);
 }
 
-/* Bouton danger */
+/* Danger button */
 .btn-delete-selection {
 	background: #dc2626;
 	color: white;
 }
 ```
 
-### Cartes
+### Cards
 
 ```css
 .card {
@@ -126,20 +126,20 @@ Les variables CSS sont définies dans `src/app.css` et constituent la base du sy
 
 ---
 
-## 🌈 Effets visuels
+## 🌈 Visual effects
 
-### Gradient blobs (fond statique)
+### Gradient blobs (static background)
 
-Les blobs sont **figés** : pas d'animation, pas de `filter: blur`, pas de `mix-blend-mode`.
-Le gradient radial suffit à adoucir le halo, et l'opacité seule remplace le blend (crashs
-mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `BackgroundBlobs.svelte`.
+Blobs are **frozen**: no animation, no `filter: blur`, no `mix-blend-mode`.
+The radial gradient alone is enough to soften the halo, and opacity alone replaces blend (memory
+crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `BackgroundBlobs.svelte`.
 
 ```css
 .gradient-blob {
 	position: absolute;
 	border-radius: 50%;
 	background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
-	opacity: 0.22; /* 0.16 en dark */
+	opacity: 0.22; /* 0.16 in dark */
 }
 
 .blob-1 {
@@ -155,7 +155,7 @@ mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `Ba
 }
 ```
 
-### Animation de hover
+### Hover animation
 
 ```css
 .photo-card:hover {
@@ -176,7 +176,7 @@ mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `Ba
 
 ---
 
-## 📸 Grilles de photos
+## 📸 Photo grids
 
 ### Flexbox masonry
 
@@ -193,7 +193,7 @@ mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `Ba
 	height: 220px;
 }
 
-/* Élément fantôme pour dernière ligne */
+/* Ghost element for last row */
 .photos-grid::after {
 	content: '';
 	flex-grow: 999999;
@@ -226,7 +226,7 @@ mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `Ba
 	border-bottom: 1px solid var(--border);
 }
 
-/* Navigation cachée sur mobile (utilise MobileNav) */
+/* Navigation hidden on mobile (uses MobileNav) */
 @media (max-width: 768px) {
 	.topbar-links {
 		display: none;
@@ -236,18 +236,18 @@ mémoire sur Safari mobile). Coût quasi nul, identique desktop/mobile. Voir `Ba
 
 ---
 
-## 📲 Navigation mobile (MobileNav)
+## 📲 Mobile navigation (MobileNav)
 
-La barre de navigation mobile (`MobileNav.svelte`) est un composant global qui apparaît en bas de l'écran sur mobile.
+The mobile navigation bar (`MobileNav.svelte`) is a global component that appears at the bottom of the screen on mobile.
 
-### Caractéristiques
+### Characteristics
 
-- Position fixe en bas
-- Icônes uniquement (pas de texte)
-- Fond avec blur
-- Cachée sur desktop (`display: none` au-dessus de 768px)
+- Fixed position at the bottom
+- Icons only (no text)
+- Background with blur
+- Hidden on desktop (`display: none` above 768px)
 
-### Intégration dans main
+### Integration in main
 
 ```css
 main {
@@ -263,18 +263,18 @@ main {
 
 ---
 
-## 🎯 Bonnes pratiques
+## 🎯 Best practices
 
-### 1. Utiliser les variables CSS
+### 1. Use CSS variables
 
 ```css
-/* ✅ Bon */
+/* ✅ Good */
 .element {
 	background: var(--bg-secondary);
 	color: var(--text-primary);
 }
 
-/* ❌ Éviter */
+/* ❌ Avoid */
 .element {
 	background: #1a1a1a;
 	color: white;
@@ -283,11 +283,11 @@ main {
 
 ### 2. Mobile-first
 
-Écrire d'abord les styles mobiles, puis ajouter des media queries pour les écrans plus grands.
+Write mobile styles first, then add media queries for larger screens.
 
-### 3. Utiliser les classes Tailwind
+### 3. Use Tailwind classes
 
-Pour les modifications rapides, utiliser Tailwind :
+For quick modifications, use Tailwind:
 
 ```svelte
 <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
@@ -295,23 +295,23 @@ Pour les modifications rapides, utiliser Tailwind :
 </button>
 ```
 
-### 4. Styles scopés dans les composants
+### 4. Scoped styles in components
 
-Les styles spécifiques aux composants doivent être dans le bloc `<style>` du composant Svelte :
+Component-specific styles should be in the Svelte component's `<style>` block:
 
 ```svelte
 <style>
   .my-component {
-    /* Styles scopés automatiquement */
+    /* Automatically scoped styles */
   }
 </style>
 ```
 
 ---
 
-## 🔗 Fichiers de référence
+## 🔗 Reference files
 
-- `src/app.css` - Variables globales et styles de base
-- `src/lib/components/MobileNav.svelte` - Navigation mobile
-- `src/routes/+layout.svelte` - Layout principal
-- `tailwind.config.cjs` - Configuration Tailwind
+- `src/app.css` - Global variables and base styles
+- `src/lib/components/MobileNav.svelte` - Mobile navigation
+- `src/routes/+layout.svelte` - Main layout
+- `tailwind.config.cjs` - Tailwind configuration

@@ -1,28 +1,28 @@
-# Guide des Composants
+# Components Guide
 
-Ce document décrit les composants réutilisables de l'application MiGallery.
+This document describes the reusable components of the MiGallery application.
 
-## Composants UI
+## UI Components
 
 ### Modal.svelte
 
-Modal générique supportant plusieurs types d'affichage.
+Generic modal supporting multiple display types.
 
 ```svelte
 <Modal
   bind:show={showModal}
-  title="Titre du modal"
+  title="Modal title"
   type="confirm"           <!-- 'default' | 'confirm' | 'warning' | 'danger' -->
-  icon="alert-circle"      <!-- Nom de l'icône Lucide (optionnel) -->
-  confirmText="Confirmer"  <!-- Texte du bouton de confirmation -->
-  cancelText="Annuler"     <!-- Texte du bouton d'annulation -->
-  confirmDisabled={false}  <!-- Désactiver le bouton de confirmation -->
-  showCloseButton={true}   <!-- Afficher le bouton X -->
-  onConfirm={() => {}}     <!-- Callback de confirmation -->
-  onCancel={() => {}}      <!-- Callback d'annulation -->
+  icon="alert-circle"      <!-- Lucide icon name (optional) -->
+  confirmText="Confirm"    <!-- Confirm button text -->
+  cancelText="Cancel"      <!-- Cancel button text -->
+  confirmDisabled={false}  <!-- Disable confirm button -->
+  showCloseButton={true}   <!-- Show X button -->
+  onConfirm={() => {}}     <!-- Confirm callback -->
+  onCancel={() => {}}      <!-- Cancel callback -->
 >
   {#snippet children()}
-    <p>Contenu du modal</p>
+    <p>Modal content</p>
   {/snippet}
 </Modal>
 ```
@@ -30,49 +30,49 @@ Modal générique supportant plusieurs types d'affichage.
 **Props:**
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `show` | `boolean` | `true` | Contrôle l'affichage (bindable) |
-| `title` | `string` | `''` | Titre du modal |
-| `type` | `string` | `'default'` | Type de modal (affecte les couleurs) |
-| `icon` | `string` | - | Icône à afficher dans le header |
-| `confirmText` | `string` | `'Confirmer'` | Texte du bouton principal |
-| `cancelText` | `string` | `'Annuler'` | Texte du bouton secondaire |
-| `confirmDisabled` | `boolean` | `false` | Désactive le bouton de confirmation |
-| `showCloseButton` | `boolean` | `true` | Affiche le bouton de fermeture |
-| `onConfirm` | `function` | - | Callback appelé à la confirmation |
-| `onCancel` | `function` | - | Callback appelé à l'annulation |
+| `show` | `boolean` | `true` | Controls display (bindable) |
+| `title` | `string` | `''` | Modal title |
+| `type` | `string` | `'default'` | Modal type (affects colors) |
+| `icon` | `string` | - | Icon to display in header |
+| `confirmText` | `string` | `'Confirm'` | Primary button text |
+| `cancelText` | `string` | `'Cancel'` | Secondary button text |
+| `confirmDisabled` | `boolean` | `false` | Disables confirm button |
+| `showCloseButton` | `boolean` | `true` | Shows close button |
+| `onConfirm` | `function` | - | Callback called on confirm |
+| `onCancel` | `function` | - | Callback called on cancel |
 
 ---
 
-**Icônes disponibles:** folder, user, camera, trash, settings, edit, download, share, check-square, x, alert-circle, image, chevron-left, users, plus, etc.
+**Available icons:** folder, user, camera, trash, settings, edit, download, share, check-square, x, alert-circle, image, chevron-left, users, plus, etc.
 
 ---
 
 ### PhotosGrid.svelte
 
-Grille de photos avec mode sélection et modal de visualisation.
+Photo grid with selection mode and viewing modal.
 
 ```svelte
 <PhotosGrid
-  state={photosState}      <!-- Instance de PhotosState -->
-  visibility="private"     <!-- Visibilité de l'album -->
-  albumId="123"            <!-- ID de l'album (optionnel) -->
-  onModalClose={(changed) => {}} <!-- Callback après fermeture du modal photo -->
+  state={photosState}      <!-- PhotosState instance -->
+  visibility="private"     <!-- Album visibility -->
+  albumId="123"            <!-- Album ID (optional) -->
+  onModalClose={(changed) => {}} <!-- Callback after photo modal close -->
 />
 ```
 
-**PhotosState (classe):**
+**PhotosState (class):**
 
 ```typescript
 class PhotosState {
-	assets: Asset[]; // Liste des photos
-	loading: boolean; // Chargement en cours
-	error: string | null; // Message d'erreur
-	selecting: boolean; // Mode sélection actif
-	selected: Set<string>; // IDs des photos sélectionnées
-	isDownloading: boolean; // Téléchargement en cours
-	downloadProgress: number; // Progression (0-1)
+	assets: Asset[]; // Photo list
+	loading: boolean; // Loading in progress
+	error: string | null; // Error message
+	selecting: boolean; // Selection mode active
+	selected: Set<string>; // Selected photo IDs
+	isDownloading: boolean; // Download in progress
+	downloadProgress: number; // Progress (0-1)
 
-	// Méthodes
+	// Methods
 	loadAlbumWithStreaming(immichId, name?, visibility?): Promise<void>;
 	toggleSelect(id: string): void;
 	selectAll(): void;
@@ -84,23 +84,23 @@ class PhotosState {
 
 ### Toast.svelte / ToastContainer.svelte
 
-Système de notifications.
+Notification system.
 
 ```typescript
 import { toast } from '$lib/toast';
 
 // Usage
-toast.success('Opération réussie');
-toast.error('Une erreur est survenue');
+toast.success('Operation successful');
+toast.error('An error occurred');
 toast.info('Information');
-toast.warning('Attention');
+toast.warning('Warning');
 ```
 
 ---
 
 ### Spinner.svelte
 
-Indicateur de chargement.
+Loading indicator.
 
 ```svelte
 <Spinner size={20} />
@@ -110,14 +110,14 @@ Indicateur de chargement.
 
 ### UploadZone.svelte
 
-Zone de drag & drop pour l'upload de fichiers.
+Drag & drop zone for file upload.
 
 ```svelte
 <UploadZone
   onUpload={(files, onProgress) => Promise<UploadResult[]>}
-  accept="image/*"           <!-- Types de fichiers acceptés -->
-  multiple={true}            <!-- Autoriser plusieurs fichiers -->
-  maxSize={10485760}         <!-- Taille max en bytes (10MB) -->
+  accept="image/*"           <!-- Accepted file types -->
+  multiple={true}            <!-- Allow multiple files -->
+  maxSize={10485760}         <!-- Max size in bytes (10MB) -->
 />
 ```
 
@@ -125,13 +125,13 @@ Zone de drag & drop pour l'upload de fichiers.
 
 ### AlbumModal.svelte
 
-Modal de création/édition d'album.
+Album creation/editing modal.
 
 ```svelte
 <AlbumModal
-  albumId="123"              <!-- Si présent: mode édition -->
-  onClose={() => {}}         <!-- Callback de fermeture -->
-  onSuccess={() => {}}       <!-- Callback après succès -->
+  albumId="123"              <!-- If present: edit mode -->
+  onClose={() => {}}         <!-- Close callback -->
+  onSuccess={() => {}}       <!-- Success callback -->
 />
 ```
 
@@ -139,7 +139,7 @@ Modal de création/édition d'album.
 
 ### LazyImage.svelte
 
-Image avec chargement différé et placeholder.
+Image with lazy loading and placeholder.
 
 ```svelte
 <LazyImage
@@ -153,11 +153,11 @@ Image avec chargement différé et placeholder.
 
 ### Skeleton.svelte
 
-Placeholder de chargement animé.
+Animated loading placeholder.
 
 ```svelte
 <Skeleton aspectRatio="1" rounded={false}>
-  <!-- Contenu optionnel (icône, etc.) -->
+  <!-- Optional content (icon, etc.) -->
 </Skeleton>
 ```
 
@@ -165,55 +165,55 @@ Placeholder de chargement animé.
 
 ### MobileNav.svelte
 
-Barre de navigation mobile (fixée en bas).
+Mobile navigation bar (fixed at bottom).
 
-Ce composant est automatiquement inclus dans le layout et s'affiche uniquement sur mobile (< 768px). Il affiche les liens de navigation principaux avec des icônes.
+This component is automatically included in the layout and only shows on mobile (< 768px). It displays main navigation links with icons.
 
 ---
 
-## Composants de Page
+## Page Components
 
 ### PhotoModal.svelte
 
-Modal plein écran pour visualiser une photo avec navigation.
+Full-screen modal for viewing a photo with navigation.
 
 ### ChangePhotoModal.svelte
 
-Modal pour changer la photo de profil d'un utilisateur.
+Modal for changing a user's profile picture.
 
 ### ConfirmHost.svelte
 
-Host pour les dialogues de confirmation programmatiques (via `showConfirm()`).
+Host for programmatic confirmation dialogs (via `showConfirm()`).
 
 ---
 
-## Patterns d'utilisation
+## Usage Patterns
 
-### Confirmation programmatique
+### Programmatic confirmation
 
 ```typescript
 import { showConfirm } from '$lib/confirm';
 
 async function deleteItem() {
-	const confirmed = await showConfirm('Voulez-vous vraiment supprimer cet élément ?', 'Supprimer');
+	const confirmed = await showConfirm('Do you really want to delete this item?', 'Delete');
 	if (confirmed) {
-		// Effectuer la suppression
+		// Perform the deletion
 	}
 }
 ```
 
-### Gestion des photos avec PhotosState
+### Photo management with PhotosState
 
 ```typescript
 import { PhotosState } from '$lib/photos.svelte';
 
-// Dans un composant
+// In a component
 const photosState = new PhotosState();
 
-// Charger un album
+// Load an album
 await photosState.loadAlbumWithStreaming('album-id', 'Album Name', 'private');
 
-// Mode sélection
+// Selection mode
 photosState.selecting = true;
 photosState.toggleSelect('photo-id');
 const selectedIds = Array.from(photosState.selected);
@@ -226,8 +226,8 @@ import { toast } from '$lib/toast';
 
 try {
 	await saveData();
-	toast.success('Données sauvegardées');
+	toast.success('Data saved');
 } catch (e) {
-	toast.error('Erreur: ' + e.message);
+	toast.error('Error: ' + e.message);
 }
 ```
