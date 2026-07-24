@@ -111,6 +111,8 @@
 	"camera_capture_error": "Erreur lors de la capture",
 	"changephoto_no_user": "Aucun identifiant utilisateur fourni",
 	"photos_no_profile": "Aucune photo de profil configurée pour cet utilisateur",
+	"photos_today": "Aujourd'hui",
+	"photos_yesterday": "Hier",
 	"upload_album_success": "{count} fichier(s) uploadé(s) et ajouté(s) à l'album !",
 	"upload_error_long": "Erreur lors de l'upload : {message}",
 	"photos_none_selected": "Aucune image sélectionnée",

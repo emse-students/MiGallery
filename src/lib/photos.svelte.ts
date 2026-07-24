@@ -26,11 +26,11 @@ export type Asset = {
 
 export function formatDayLabel(dateStr: string | null) {
 	if (!dateStr) {
-		return 'Sans date';
+		return m.albums_no_date();
 	}
 	const d = new Date(dateStr);
 	if (isNaN(d.getTime())) {
-		return 'Sans date';
+		return m.albums_no_date();
 	}
 
 	const year = d.getFullYear();
@@ -47,10 +47,10 @@ export function formatDayLabel(dateStr: string | null) {
 	const diff = Math.round((tMid.getTime() - dMid.getTime()) / (1000 * 60 * 60 * 24));
 
 	if (diff === 0) {
-		return "Aujourd'hui";
+		return m.photos_today();
 	}
 	if (diff === 1) {
-		return 'Hier';
+		return m.photos_yesterday();
 	}
 	return dMid.toLocaleDateString(undefined, {
 		weekday: 'long',
