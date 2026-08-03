@@ -97,7 +97,7 @@
 	},
 	"dependencies": {
 		"@eslint/js": "^10.0.1",
-		"better-sqlite3": "^13.0.1",
+		"better-sqlite3": "^13.0.2",
 		"dotenv": "^17.4.2",
 		"form-data": "^4.0.6",
 		"jspdf": "^4.2.1",
