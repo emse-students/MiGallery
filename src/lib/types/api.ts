@@ -38,6 +38,8 @@ export interface UserRow {
 	promo: number | null;
 	formation?: string | null;
 	first_login?: number;
+	// Preferred UI language ('fr' | 'en'), NULL when the user never chose one.
+	locale?: string | null;
 }
 
 /**

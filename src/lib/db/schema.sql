@@ -84,6 +84,26 @@ CREATE TABLE IF NOT EXISTS logs (
     ip TEXT
 );
 
+-- Sessions: the server-side half of the login cookie. The cookie carries an
+-- opaque token and NOTHING else, so a session is a row we own: it can be
+-- expired, listed and deleted. Deleting the row IS logging out.
+--
+-- impersonated_id_user is the admin "act as" feature (see /admin/login-as). It
+-- lives here rather than in a second cookie so it cannot outlive the session
+-- that authorised it, and so the real account behind an impersonation is always
+-- known - which is what makes stopping one safe to authorise.
+CREATE TABLE IF NOT EXISTS sessions (
+    token TEXT PRIMARY KEY,
+    id_user TEXT NOT NULL,
+    impersonated_id_user TEXT,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    FOREIGN KEY(id_user) REFERENCES users(id_user) ON DELETE CASCADE,
+    FOREIGN KEY(impersonated_id_user) REFERENCES users(id_user) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_id_user ON sessions(id_user);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
 -- API Keys: for external access (e.g. scripts, other apps)
 CREATE TABLE IF NOT EXISTS api_keys (
     id INTEGER PRIMARY KEY,

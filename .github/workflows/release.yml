@@ -45,7 +45,6 @@ jobs:
      run: |
       cat > .env << 'EOF'
       ENABLE_DEV_ROUTES=true
-      COOKIE_SECRET=ci-test-secret-not-for-production-use
       DATABASE_PATH=./data/migallery.db
       IMMICH_BASE_URL=
       IMMICH_API_KEY=

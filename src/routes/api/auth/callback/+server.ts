@@ -2,6 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { completeOIDCFlow } from '$lib/auth';
 import { setSessionCookie } from '$lib/session';
+import { createSession, deleteExpiredSessions } from '$lib/db/sessions';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -39,8 +40,11 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 			throw error(500, 'Authentication failed');
 		}
 
-		// Set session cookie
-		setSessionCookie(cookies, result.dbUser.id_user);
+		// Open a server-side session and hand the browser its token. Login is the
+		// one moment we are already writing to `sessions`, so purge the dead rows here.
+		deleteExpiredSessions();
+		const { token, expiresAt } = createSession(result.dbUser.id_user);
+		setSessionCookie(cookies, token, expiresAt);
 
 		// Clear OIDC cookies
 		cookies.delete('__oidc_state', { path: '/' });

@@ -28,7 +28,7 @@
 - FILE UPLOADS (No RAM): \<10MB direct, \>10MB chunked. Stream to disk (`fs.createWriteStream`) then to Immich. NEVER use `Buffer.alloc`.
 - ARCHIVE DOWNLOADS: Flow is `POST /api/download` (creates UUID token) \-\> `GET /api/download/{token}` (native browser streaming). Do NOT use StreamSaver or the Service Worker for this.
 - Synchronous SQLite: `better-sqlite3` queries live in server handlers. Stores ONLY what Immich lacks (users, roles, permissions, logs). Upload concurrency uses per-file locks `fs.openSync(lockPath, 'wx')`. Do not remove.
-- Auth.js \+ Authentik: Roles are `admin` (full access), `mitviste` (gallery mgmt, no admin), `user` (basic).
+- Authentik (OIDC) \+ OPAQUE sessions: the `migallery_session` cookie carries a random TOKEN, never an identity; the `sessions` row is the truth (`src/lib/db/sessions.ts`), which is what makes logout and revocation real. Auth.js is long gone - no `AUTH_SECRET`, no `COOKIE_SECRET`, nothing to sign or rotate. Roles are `admin` (full access), `mitviste` (gallery mgmt, no admin), `user` (basic).
 
 ## **CODING STANDARDS**
 
@@ -60,5 +60,8 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 
 - `/mes-photos` favorites (commit b69fcd7): the separate top "Favoris" section is GONE. Favorites now stay in chronological place with a passive `.favorite-badge` in `PhotoCard`, plus a "Toutes/Favoris" filter chip in `PhotosGrid` (`favoritesFilter` state -> `displayedAssets`). The lightbox navigates `displayedAssets` (chronological), which is what prevents the old "toggle favorite -> jump to top" bug. Do NOT reintroduce a `[...favoriteAssets, ...nonFavoriteAssets]` reordering for the modal list.
 - Mobile `PhotoCard`: corner action buttons are hidden on mobile; actions live in the long-press `.action-sheet` (bottom sheet). The favorite corner button's always-on state was replaced by `.favorite-badge`. `.mobile-actions-overlay` has a 400ms guard (`sheetOpenedAt`) so the synthetic post-long-press click doesn't instantly close the sheet.
+- A cookie whose content IS the identity it claims is not a credential, whatever flags it carries: `httpOnly` stops other people's JS from READING it, never the holder from WRITING one. That was the `__session_user` hole (fixed 2026-08-04). The ids it needed were public to any logged-in user via `/api/albums/permissions/options`, so "hard to guess" was never a defence either.
+- Impersonation lives in the session ROW (`impersonated_id_user`), never in a second cookie: a parallel credential outlives the logout of the first, and nothing can then prove who the real actor was. `ensureAdmin` judges the EFFECTIVE user, `canStopImpersonating` the REAL one - that split is the whole design.
+- A SvelteKit `redirect()` is NOT an `Error`, so a `try { ... throw redirect() } catch (e) { if (e instanceof Error) ... }` swallows it and answers 500 on a handler that worked. Throw redirects OUTSIDE the try.
 - `requireScope(event, 'read')` returns `grantedScope: 'read'` for a SESSION admin (only 'admin' required-scope or an admin API key yields `grantedScope: 'admin'`). To gate cross-user actions on a read/write endpoint, check `auth.user?.role === 'admin'`, never `grantedScope === 'admin'`.
 - `/api/users/[username]/avatar`: unbusted URLs (shared `Avatar.svelte`) now revalidate via ETag=asset id (`no-cache`); only `?v=assetId` URLs are `immutable`. Don't reintroduce a long `max-age` on the unbusted path or the profile photo goes stale for ~1h.

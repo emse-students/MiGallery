@@ -99,33 +99,9 @@ This folder contains all utility scripts for managing MiGallery.
 
 ### 🔒 Security
 
-#### `generate_cookie_secret.cjs` - Cryptographic secret generation
-
-**Usage**: `npm run generate:secret` or `node scripts/generate_cookie_secret.cjs`
-
-**Description**:
-
-- Generates a secure cryptographic secret (32 bytes)
-- Uses `crypto.randomBytes()` for true randomness
-- Encodes in base64url (compatible with environment variables)
-
-**When to use**:
-
-- ✅ During first installation
-- ✅ To periodically renew the secret (security)
-- ✅ After potential compromise
-
-**Usage example**:
-
-```bash
-# Generate and copy to .env
-echo "COOKIE_SECRET=$(npm run generate:secret)" >> .env
-```
-
-**Important**:
-
-- ⚠️ Changing the secret invalidates all user sessions
-- ⚠️ Keep this secret confidential (never commit it)
+No secret has to be generated for sessions. The login cookie carries an opaque
+token and the `sessions` table holds everything else, so there is no key to
+create, store or renew - revoking a session is deleting its row.
 
 ---
 

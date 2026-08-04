@@ -29,7 +29,6 @@ const dbFiles = ['data/migallery.db', 'data/migallery.db-wal', 'data/migallery.d
 // Mirrors the .env ci.yml writes for its test job (empty Immich, dev routes on).
 const SYNTH_ENV = [
 	'ENABLE_DEV_ROUTES=true',
-	'COOKIE_SECRET=ci-local-secret-not-for-production-use',
 	'DATABASE_PATH=./data/migallery.db',
 	'IMMICH_BASE_URL=',
 	'IMMICH_API_KEY=',

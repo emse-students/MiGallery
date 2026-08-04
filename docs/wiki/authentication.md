@@ -19,23 +19,36 @@ role is **not** taken from the SSO; it is stored locally (`users.role`) so it is
 never escalated by a login. On first login, `users.first_login = 1` triggers the
 promo/formation modal (`FirstLoginModal`), after which it is set to 0.
 
-## Session cookies
+## Sessions
 
-Two cookies can carry identity; `getCurrentUser`/`ensureAdmin`
-(`src/lib/server/auth.ts`) consult them in this order:
+**One cookie, and it carries no identity.** `migallery_session` holds a random
+opaque token; everything else is a row of the `sessions` table
+(`src/lib/db/sessions.ts`), which the server owns:
 
-1. **`current_user_id`** - a **signed** cookie (`$lib/auth/cookies`
-   `signSigned`/`verifySigned`). When present it is the single source of truth:
-   even the provider identity is ignored, so an admin who impersonates a
-   non-admin genuinely drops admin rights (see impersonation below).
-2. **`__session_user`** - a plain cookie holding the user id, set at login by
-   `setSessionCookie` (`src/lib/session.ts`), 1-year max-age, httpOnly.
-3. **`locals.user`** - populated by the session hook from `__session_user`, used
-   as the final fallback.
+| column                      | meaning                                                      |
+| --------------------------- | ------------------------------------------------------------ |
+| `token`                     | what the cookie carries, and the only thing it carries       |
+| `id_user`                   | the account that authenticated                               |
+| `impersonated_id_user`      | set while that account acts as someone else                  |
+| `created_at` / `expires_at` | 7-day lifetime, the same as Sky and the Canari refresh token |
 
-Each resolves to a `users` row by `id_user`. `hooks.server.ts` also strips
-legacy-format `current_user_id` cookies (old short `prenom.nom` values) so they
-cannot linger.
+`resolveSession` returns both the **effective** user (the impersonated one when
+impersonating) and the **real** one. `getCurrentUser` answers the first,
+`getRealUser` the second, and only decisions _about_ an impersonation may use it
+(`src/lib/server/auth.ts`). There is no fallback chain: a request either carries
+a live session or it is anonymous.
+
+Because the row is ours, a session is revocable: `deleteSession` is what logout
+does, deleting a user takes their sessions with it through the foreign key, and
+signing an account out everywhere is one `DELETE ... WHERE id_user = ?` away.
+
+> **History.** Until 2026-08 the cookie held the RAW `id_user` and nothing
+> verified it, while a second signed cookie (`current_user_id`, HMAC with
+> `COOKIE_SECRET`) carried impersonation. Any logged-in user could therefore
+> become any other by editing one cookie - the ids being handed out by
+> `/api/albums/permissions/options`. Both cookies are now deleted on sight by
+> `hooks.server.ts`, and `COOKIE_SECRET` no longer exists: an opaque token needs
+> no key, so there is nothing left to leak or to rotate.
 
 ## Roles
 
@@ -76,8 +89,15 @@ Presented via the `x-api-key` (or `X-API-KEY`) header. Usage is audit-logged.
 
 ## Impersonation
 
-Admins can act as another user (the `change-user` endpoint / admin UI). This sets
-the signed `current_user_id` cookie, which - because it is checked first and
-overrides the provider identity - makes the whole app behave as that user,
-including dropping admin rights when impersonating a non-admin. Clearing it
-returns the admin to their own identity.
+Admins can act as another user (`/admin/login-as?u=<id>`, the `change-user`
+endpoint, the admin UI). It writes `impersonated_id_user` **on the caller's own
+session row**, so:
+
+- the whole app behaves as that user, admin rights included - `ensureAdmin`
+  judges the effective user, so impersonating a non-admin genuinely drops them;
+- stopping is authorised on the session's REAL user
+  (`canStopImpersonating`), which the client cannot influence - the previous
+  design had to guess this from a second signed cookie;
+- an impersonation cannot outlive the session that authorised it, so logging out
+  ends it; and
+- the audit log (`logEvent`) records the REAL account, because that is who acted.

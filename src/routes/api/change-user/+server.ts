@@ -1,47 +1,53 @@
-import { json } from '@sveltejs/kit';
+import { json, isHttpError } from '@sveltejs/kit';
 
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from '@sveltejs/kit';
-import { signId } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
+import { canStopImpersonating } from '$lib/server/auth';
+import { getSessionToken } from '$lib/session';
+import { setSessionImpersonation } from '$lib/db/sessions';
 
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('change-user');
+
+/**
+ * Start or stop impersonating, on the caller's own session.
+ * Body: `{ userId }` to impersonate, `{ userId: null }` to stop.
+ */
 export const POST: RequestHandler = async (event) => {
-	const { request, cookies } = event;
+	const { request, cookies, locals } = event;
 	try {
 		const { userId } = (await request.json()) as { userId: string | null | undefined };
 
-		// If userId is null, delete the cookie (logout)
+		const token = getSessionToken(cookies);
+		if (!token) {
+			return json({ success: false, error: 'No session' }, { status: 401 });
+		}
+
+		// Stopping is judged on the REAL account, which is still the admin that
+		// started the impersonation - see /admin/stop-impersonating.
 		if (userId === null || userId === undefined) {
-			cookies.delete('current_user_id', { path: '/' });
+			if (!canStopImpersonating({ locals, cookies })) {
+				return json({ success: false, error: 'Forbidden' }, { status: 403 });
+			}
+			setSessionImpersonation(token, null);
+
 			return json({ success: true });
 		}
 
-		// To set another userId (impersonation), you must be admin
+		// Starting one requires being an admin right now.
 		await requireScope(event, 'admin');
-
-		// Sign the user ID and store it in a cookie
-		const signed = signId(String(userId));
-		cookies.set('current_user_id', signed, {
-			path: '/',
-			httpOnly: true,
-			sameSite: 'strict',
-			secure: String(process.env.NODE_ENV) === 'production',
-			maxAge: 60 * 60 * 24 * 30 // 30 jours
-		});
+		setSessionImpersonation(token, String(userId));
 
 		return json({ success: true });
 	} catch (error: unknown) {
-		const _err = ensureError(error);
-		log.error('Error changing user:', error);
-		return json(
-			{
-				success: false,
-				error: error instanceof Error ? error.message : 'Error'
-			},
-			{ status: 500 }
-		);
+		// requireScope refuses with an HttpError - let it answer 403, not 500.
+		if (isHttpError(error)) {
+			throw error;
+		}
+		const err = ensureError(error);
+		log.error('Error changing user:', err);
+		return json({ success: false, error: err.message }, { status: 500 });
 	}
 };

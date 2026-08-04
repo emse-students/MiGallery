@@ -27,18 +27,16 @@ The CD generates `.env` from GitHub repo secrets. Non-secret values (ORIGIN,
 IMMICH_BASE_URL, MICONNECT_ISSUER, ports) have defaults in
 `docker-compose.prod.yml`.
 
-| Variable                                                   | Role                                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `IMMICH_BASE_URL`                                          | Immich API base (e.g. `http://10.0.0.4:2283`)                 |
-| `IMMICH_API_KEY` (secret)                                  | Immich API access; injected server-side by the proxy          |
-| `MICONNECT_ISSUER`                                         | Authentik issuer (`.../application/o/migallery`)              |
-| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` (secret) | OIDC client                                                   |
-| `AUTH_SECRET` (secret)                                     | session/signature secret (`scripts/generate-auth-secret.cjs`) |
-| `COOKIE_SECRET` (secret)                                   | signed-cookie key (`scripts/generate_cookie_secret.cjs`)      |
-| `ORIGIN`                                                   | public origin (`https://gallery.mitv.fr`)                     |
-| `DATABASE_PATH`                                            | SQLite path (`./data/migallery.db`)                           |
-| `BODY_SIZE_LIMIT`                                          | max upload body (e.g. `20G`)                                  |
-| `ENABLE_DEV_ROUTES`                                        | dev-only routes; must be `false` in production                |
+| Variable                                                   | Role                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| `IMMICH_BASE_URL`                                          | Immich API base (e.g. `http://10.0.0.4:2283`)        |
+| `IMMICH_API_KEY` (secret)                                  | Immich API access; injected server-side by the proxy |
+| `MICONNECT_ISSUER`                                         | Authentik issuer (`.../application/o/migallery`)     |
+| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` (secret) | OIDC client                                          |
+| `ORIGIN`                                                   | public origin (`https://gallery.mitv.fr`)            |
+| `DATABASE_PATH`                                            | SQLite path (`./data/migallery.db`)                  |
+| `BODY_SIZE_LIMIT`                                          | max upload body (e.g. `20G`)                         |
+| `ENABLE_DEV_ROUTES`                                        | dev-only routes; must be `false` in production       |
 
 ## Backups
 

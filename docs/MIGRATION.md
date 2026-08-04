@@ -34,12 +34,10 @@ install as a service. The runner user must be able to run `docker`
 
 The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 
-| Secret                                            | Role                                                            |
-| ------------------------------------------------- | --------------------------------------------------------------- |
-| `IMMICH_API_KEY`                                  | access to the Immich API                                        |
-| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                  |
-| `AUTH_SECRET`                                     | Auth.js signatures (`node ./scripts/generate-auth-secret.cjs`)  |
-| `COOKIE_SECRET`                                   | cookie encryption (`node ./scripts/generate_cookie_secret.cjs`) |
+| Secret                                            | Role                     |
+| ------------------------------------------------- | ------------------------ |
+| `IMMICH_API_KEY`                                  | access to the Immich API |
+| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik           |
 
 Non-secret values (ORIGIN, IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
 have defaults in `docker-compose.prod.yml`, overridable if needed.

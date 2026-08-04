@@ -1,146 +1,77 @@
-import { getDatabase } from '$lib/db/database';
-import { verifySigned } from '$lib/auth/cookies';
+/**
+ * Resolving who a request is coming from.
+ *
+ * There is exactly ONE answer to that question - the session row behind the
+ * cookie (`$lib/db/sessions`). No cookie is ever trusted for its contents, and
+ * there is no fallback chain: a request either carries a live session or it is
+ * anonymous.
+ */
+import { getSession } from '$lib/session';
 import { createLogger } from '$lib/server/logger';
+import type { ResolvedSession } from '$lib/db/sessions';
 import type { UserRow } from '$lib/types/api';
 import type { Cookies } from '@sveltejs/kit';
 
-const SESSION_COOKIE_NAME = '__session_user';
 const log = createLogger('auth');
 
+/** Kept as an object so the many call sites read the same on both sides. */
+export interface AuthContext {
+	locals: App.Locals;
+	cookies: Cookies;
+}
+
+/** The live session of the request, or null. */
+export function getRequestSession({ cookies }: AuthContext): ResolvedSession | null {
+	return getSession(cookies);
+}
+
 /**
- * Try to resolve a local DB user from the signed cookie `current_user_id`.
- * Returns the DB row or null.
+ * The user the request acts as - the impersonated one while an admin
+ * impersonates, the account itself otherwise.
  */
-export function getUserFromSignedCookie(cookies: Cookies): UserRow | null {
-	try {
-		const cookieSigned = cookies.get('current_user_id');
-		if (!cookieSigned) {
-			return null;
-		}
-		const verified = verifySigned(cookieSigned);
-		if (!verified) {
-			log.warn('current_user_id cookie failed verification');
-			return null;
-		}
-		const db = getDatabase();
-		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(verified) as
-			| UserRow
-			| undefined;
-		if (!user) {
-			log.warn('current_user_id cookie references unknown user', { id: verified });
-			return null;
-		}
-		return user || null;
-	} catch (e) {
-		log.warn('error while resolving signed cookie', e);
-		return null;
-	}
+export function getCurrentUser(context: AuthContext): UserRow | null {
+	return getRequestSession(context)?.user ?? null;
 }
 
 /**
- * Try to resolve a local DB user from the plain session cookie `__session_user`.
- * Returns the DB row or null.
+ * The account that actually authenticated, ignoring any impersonation.
+ * Only authorisation decisions ABOUT an impersonation may use this.
  */
-export function getUserFromSessionCookie(cookies: Cookies): UserRow | null {
-	try {
-		const userId = cookies.get(SESSION_COOKIE_NAME);
-		if (!userId) {
-			return null;
-		}
-
-		const db = getDatabase();
-		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(userId) as
-			| UserRow
-			| undefined;
-
-		if (!user) {
-			log.warn('__session_user cookie references unknown user', { id: userId });
-			return null;
-		}
-
-		return user;
-	} catch (e) {
-		log.warn('error while resolving __session_user cookie', e);
-		return null;
-	}
+export function getRealUser(context: AuthContext): UserRow | null {
+	return getRequestSession(context)?.realUser ?? null;
 }
 
-function getUserFromLocals(locals: App.Locals): UserRow | null {
-	try {
-		const maybeUser = (locals as Record<string, unknown>)?.user as
-			| { id?: string; id_user?: string }
-			| null
-			| undefined;
-
-		const candidateId = maybeUser?.id_user || maybeUser?.id;
-		if (!candidateId) {
-			return null;
-		}
-
-		const db = getDatabase();
-		const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(candidateId) as
-			| UserRow
-			| undefined;
-		return user || null;
-	} catch {
-		return null;
-	}
+function isAdmin(user: UserRow | null): boolean {
+	return (user?.role || 'user') === 'admin';
 }
 
 /**
- * Ensure the caller is an admin. Uses cookie fast-path first, then provider fallback via locals.auth()
- * IMPORTANT: this helper DOES NOT create users automatically from provider identity - it only maps
- * provider identities to existing DB users. This avoids accidental privilege escalations.
+ * The admin behind the request, or null.
  *
- * Returns the DB user row when admin or null otherwise.
+ * Deliberately judged on the EFFECTIVE user: an admin who is impersonating a
+ * regular user must not keep admin rights while doing so.
  */
-export function ensureAdmin({
-	locals,
-	cookies
-}: {
-	locals: App.Locals;
-	cookies: Cookies;
-}): UserRow | null {
-	const fromCookie = getUserFromSignedCookie(cookies);
-	// If a signed cookie exists, use it as the single source of truth.
-	// Do NOT fall back to the provider identity when a cookie is present,
-	// otherwise an admin who impersonates a non-admin would keep admin rights.
-	if (fromCookie) {
-		if ((fromCookie.role || 'user') === 'admin') {
-			return fromCookie;
-		}
+export function ensureAdmin(context: AuthContext): UserRow | null {
+	const user = getCurrentUser(context);
+	if (!isAdmin(user)) {
 		return null;
 	}
 
-	const fromSessionCookie = getUserFromSessionCookie(cookies);
-	if (fromSessionCookie && (fromSessionCookie.role || 'user') === 'admin') {
-		return fromSessionCookie;
-	}
-
-	const fromLocals = getUserFromLocals(locals);
-	if (fromLocals && (fromLocals.role || 'user') === 'admin') {
-		return fromLocals;
-	}
-
-	return null;
+	return user;
 }
 
-export function getCurrentUser({
-	locals,
-	cookies
-}: {
-	locals: App.Locals;
-	cookies: Cookies;
-}): UserRow | null {
-	const cookieUser = getUserFromSignedCookie(cookies);
-	if (cookieUser) {
-		return cookieUser;
+/** True when the real account may end an impersonation on its own session. */
+export function canStopImpersonating(context: AuthContext): boolean {
+	const session = getRequestSession(context);
+	if (!session) {
+		return false;
 	}
 
-	const sessionCookieUser = getUserFromSessionCookie(cookies);
-	if (sessionCookieUser) {
-		return sessionCookieUser;
+	if (!isAdmin(session.realUser)) {
+		log.warn('non-admin session tried to stop an impersonation', { id: session.realUser.id_user });
+
+		return false;
 	}
 
-	return getUserFromLocals(locals);
+	return true;
 }

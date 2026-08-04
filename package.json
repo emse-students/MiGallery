@@ -61,8 +61,6 @@
 		"test:immich": "vitest run tests/immich-proxy.test.ts",
 		"test:favorites": "vitest run tests/favorites-external.test.ts",
 		"test:e2e": "vitest run tests/e2e-integration.test.ts",
-		"generate:secret": "node ./scripts/generate_cookie_secret.cjs",
-		"generate:auth-secret": "node ./scripts/generate-auth-secret.cjs",
 		"cleanup:chunked-temp": "node ./scripts/cleanup-chunked-temp.js",
 		"db:reset-users": "node ./scripts/reset-users-for-authentik.cjs"
 	},

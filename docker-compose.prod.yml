@@ -30,9 +30,8 @@ services:
    MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://auth.canari-emse.fr/application/o/migallery}
    MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}
    MICONNECT_CLIENT_SECRET: ${MICONNECT_CLIENT_SECRET:?MICONNECT_CLIENT_SECRET requis}
-   AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET requis}
-   AUTH_TRUSTED_HOST: 'true'
-   COOKIE_SECRET: ${COOKIE_SECRET:?COOKIE_SECRET requis}
+   # Aucun secret de session : le cookie ne transporte qu'un jeton opaque et la
+   # table `sessions` porte tout le reste - rien a signer, donc rien a tourner.
    # Max request body accepted by adapter-node. Nothing legitimately needs a big
    # body: simple uploads are < 10MB and large files are sent in 5MB chunks, so
    # keep a small, safe cap.

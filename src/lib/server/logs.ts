@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 import { getDatabase } from '$lib/db/database';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getUserFromSignedCookie } from '$lib/server/auth';
+import { getRequestSession } from '$lib/server/auth';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('audit-log');
@@ -22,7 +22,17 @@ export function logEvent(
 
 		let actor: string | null = null;
 		try {
-			if (event?.locals) {
+			// An audit trail names the account that ACTED. While an admin impersonates
+			// someone, that is still the admin - so the session is asked first, and for
+			// its real user, rather than for the identity the request is wearing.
+			if (event?.cookies) {
+				const session = getRequestSession({ locals: event.locals, cookies: event.cookies });
+				if (session) {
+					actor = session.realUser.id_user;
+				}
+			}
+
+			if (!actor && event?.locals) {
 				const localUser = (event.locals as any).user;
 				if (localUser) {
 					actor = (localUser.id_user || localUser.id || localUser.email) as string;
@@ -30,13 +40,6 @@ export function logEvent(
 
 				if (!actor && (event.locals as any).userId) {
 					actor = (event.locals as any).userId as string;
-				}
-			}
-
-			if (!actor && event?.cookies) {
-				const fromCookie = getUserFromSignedCookie(event.cookies);
-				if (fromCookie) {
-					actor = fromCookie.id_user;
 				}
 			}
 		} catch {

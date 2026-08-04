@@ -53,6 +53,14 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+### `sessions`
+
+`sessions(token, id_user, impersonated_id_user, created_at, expires_at)` - the
+server-side half of the login cookie, which carries the opaque `token` and
+nothing else. Deleting a row logs that session out everywhere; both foreign keys
+cascade, so deleting a user removes their sessions and ends any impersonation of
+them. See [authentication.md](authentication.md).
+
 ### `api_keys`
 
 `api_keys(id, key_hash, label, scopes, revoked, created_at)` - hashed external

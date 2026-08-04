@@ -2,6 +2,7 @@ import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
+import { clearSessionCookie } from '$lib/session';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -73,7 +74,9 @@ export const DELETE: RequestHandler = async (event) => {
 			return json({ error: 'Failed to delete user' }, { status: 500 });
 		}
 
-		cookies.delete('current_user_id', { path: '/' });
+		// The sessions of a deleted account go with it through the FK cascade;
+		// only this browser's now-dangling cookie is left to clear.
+		clearSessionCookie(cookies);
 
 		return json({ success: true, message: 'Account deleted successfully' });
 	} catch (e) {

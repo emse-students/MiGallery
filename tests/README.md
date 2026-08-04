@@ -356,7 +356,6 @@ See `vitest.config.ts`:
    ```env
    AUTH_URL=http://localhost:3000
    AUTH_TRUST_HOST=true
-   COOKIE_SECRET=your_64_char_hex_secret
    IMMICH_BASE_URL=http://your-immich-server:2283
    IMMICH_API_KEY=your_immich_api_key
    ENABLE_DEV_ROUTES=true

@@ -3,9 +3,12 @@ config({ override: true }); // Override existing vars to ensure .env takes prece
 
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
-import { getSessionUser } from '$lib/session';
+import {
+	getSessionUser,
+	LEGACY_IMPERSONATION_COOKIES,
+	LEGACY_SESSION_COOKIE_NAME
+} from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
-import { verifySigned } from '$lib/auth/cookies';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { cookieName as LOCALE_COOKIE, isLocale } from '$lib/paraglide/runtime';
 
@@ -121,8 +124,12 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 };
 
 /**
- * Hook to resolve the user session before the response is generated.
- * Also cleans up old legacy-format cookies (firstname.lastname) by deleting them.
+ * Resolve the session before the response is generated, and delete the cookies
+ * of the mechanisms this replaced.
+ *
+ * Those cookies are not merely obsolete: `__session_user` used to hold a RAW
+ * user id that nothing verified, so a browser still holding one is holding a
+ * forgeable credential. They are cleared on sight rather than left to expire.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
 	const user = getSessionUser(event.cookies);
@@ -140,22 +147,9 @@ const sessionHandler: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	// Clean up old legacy-format cookies (containing dots = "firstname.lastname")
-	// or invalid cookies (too short or malformed)
-	const cookieSigned = event.cookies.get('current_user_id');
-	if (cookieSigned) {
-		// Verify the cookie can be decoded and has a valid format
-		const decoded = verifySigned(cookieSigned);
-		if (decoded) {
-			// OIDC IDs are long UUIDs (64 hexadecimal characters or 36 standard UUID)
-			// Old "firstname.lastname" formats are short (10-20 characters) and contain dots
-			const isLegacyFormat =
-				decoded.length < 32 || // UUID hex = 64 chars, too short means legacy
-				(decoded.includes('.') && !decoded.includes('-')); // "firstname.lastname" format
-
-			if (isLegacyFormat) {
-				event.cookies.delete('current_user_id', { path: '/' });
-			}
+	for (const name of [LEGACY_SESSION_COOKIE_NAME, ...LEGACY_IMPERSONATION_COOKIES]) {
+		if (event.cookies.get(name) !== undefined) {
+			event.cookies.delete(name, { path: '/' });
 		}
 	}
 

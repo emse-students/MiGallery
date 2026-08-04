@@ -67,7 +67,6 @@ Create an `.env` file at the root:
 ```env
 # Generate a secret for cookies and Auth.js
 # npm run generate:secret
-COOKIE_SECRET=your_generated_secret
 AUTH_SECRET=your_generated_secret
 
 # Database
@@ -299,7 +298,6 @@ MiGallery/
 │  ├─ backup-db.cjs        # Manual DB backup
 │  ├─ inspect-db.cjs       # DB inspection/repair
 │  ├─ migrate-export-db.cjs  # Migration from old DB (one-time use)
-│  ├─ generate_cookie_secret.cjs  # Secret generation
 ├─ static/                 # Static files
 └─ src/                    # Source code
    ├─ app.html             # Main HTML template

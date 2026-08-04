@@ -1,12 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
-import { verifySigned } from '$lib/auth/cookies';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
 import { m } from '$lib/paraglide/messages';
 
-const SESSION_COOKIE_NAME = '__session_user';
 const log = createLogger('user-face');
 
 /**
@@ -18,7 +16,7 @@ const log = createLogger('user-face');
  * - user_id: string (optional, admin only) - Allows editing another user
  */
 export const PATCH: RequestHandler = async (event) => {
-	const { request, locals, cookies } = event;
+	const { request } = event;
 
 	const auth = await requireScope(event, 'read');
 
@@ -30,38 +28,15 @@ export const PATCH: RequestHandler = async (event) => {
 			photos_asset_id?: string | null;
 		};
 
-		let userId: string | null = null;
-
 		// A session-authenticated admin gets grantedScope 'read' here (requireScope
 		// only returns 'admin' for the 'admin' required-scope or an admin API key),
 		// so gate cross-user edits on the actual role, not the granted scope.
 		const isAdmin = auth.grantedScope === 'admin' || auth.user?.role === 'admin';
 
-		if (isAdmin && body.user_id) {
-			userId = body.user_id;
-		} else {
-			const cookieSigned = cookies.get('current_user_id') ?? null;
-			userId = auth.user?.id_user ?? null;
-
-			if (cookieSigned) {
-				const verified = verifySigned(cookieSigned);
-				if (verified) {
-					userId = verified;
-				}
-			}
-
-			if (!userId) {
-				const sessionUserId = cookies.get(SESSION_COOKIE_NAME) ?? null;
-				if (sessionUserId) {
-					userId = sessionUserId;
-				}
-			}
-
-			if (!userId) {
-				const localUser = locals.user as { id?: string; id_user?: string } | null | undefined;
-				userId = localUser?.id_user || localUser?.id || null;
-			}
-		}
+		// Anything other than an explicit admin edit targets the session's own user.
+		// An API key carries no user, so it must name one to get anywhere.
+		const userId: string | null =
+			isAdmin && body.user_id ? body.user_id : (auth.user?.id_user ?? null);
 
 		if (!userId) {
 			return json({ error: 'Unauthorized - no user identified' }, { status: 401 });

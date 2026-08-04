@@ -76,10 +76,8 @@ jobs:
       IMMICH_API_KEY: ${{ secrets.IMMICH_API_KEY }}
       MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
       MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
-      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-      COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
      run: |
-      for v in IMMICH_API_KEY MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET AUTH_SECRET COOKIE_SECRET; do
+      for v in IMMICH_API_KEY MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET; do
         if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
       done
       mkdir -p "$DEPLOY_DIR"
@@ -88,8 +86,6 @@ jobs:
         printf 'IMMICH_API_KEY=%s\n' "$IMMICH_API_KEY"
         printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
         printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
-        printf 'AUTH_SECRET=%s\n' "$AUTH_SECRET"
-        printf 'COOKIE_SECRET=%s\n' "$COOKIE_SECRET"
       } > "$DEPLOY_DIR/.env"
 
    - name: Sync deploy files

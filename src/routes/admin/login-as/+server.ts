@@ -1,19 +1,28 @@
 import { getDatabase } from '$lib/db/database';
-import { signId } from '$lib/auth/cookies';
 import { ensureAdmin } from '$lib/server/auth';
+import { getSessionToken } from '$lib/session';
+import { setSessionImpersonation } from '$lib/db/sessions';
 import type { RequestHandler } from './$types';
 import { redirect } from '@sveltejs/kit';
 
 /**
- * Admin-only helper: set the signed `current_user_id` cookie to impersonate another user.
+ * Admin-only helper: act as another user.
  * Usage: GET /admin/login-as?u=<user_id>
- * Requires: Current user must be admin
+ *
+ * The impersonation is recorded ON THE CALLER'S SESSION, not in a cookie of its
+ * own, so it cannot outlive the session that authorised it and the real admin
+ * behind it stays known.
  */
 export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 	// Verify the current user is admin
 	const admin = await ensureAdmin({ locals, cookies });
 	if (!admin) {
 		return new Response('Forbidden: Admin access required', { status: 403 });
+	}
+
+	const token = getSessionToken(cookies);
+	if (!token) {
+		return new Response('Forbidden: no session to impersonate through', { status: 403 });
 	}
 
 	const username = url.searchParams.get('u');
@@ -30,22 +39,8 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 		return new Response(`User ${username} not found in database.`, { status: 404 });
 	}
 
-	const cookieOpts = {
-		httpOnly: true,
-		secure: String(process.env.NODE_ENV) === 'production',
-		sameSite: 'lax' as const,
-		path: '/',
-		maxAge: 60 * 60 * 24 * 30 // 30 days
-	};
+	setSessionImpersonation(token, String(user.id_user));
 
-	// Remember the original admin so they can return to their account (see
-	// /admin/stop-impersonating). ensureAdmin already guaranteed the caller is
-	// admin here, so this cookie can only be set by an admin.
-	cookies.set('impersonator_admin_id', signId(String(admin.id_user)), cookieOpts);
-
-	const signed = signId(String(user.id_user));
-	cookies.set('current_user_id', signed, cookieOpts);
-
-	// Redirect to home where the layout will pick up the new cookie
+	// Redirect to home where the layout will pick up the new effective user
 	throw redirect(303, '/');
 };

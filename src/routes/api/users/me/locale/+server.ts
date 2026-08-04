@@ -1,13 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
-import { verifySigned } from '$lib/auth/cookies';
-import { requireScope } from '$lib/server/permissions';
+import { requireSession } from '$lib/server/permissions';
 import { isLocale } from '$lib/paraglide/runtime';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('users-me-locale');
-const SESSION_COOKIE_NAME = '__session_user';
 
 /**
  * PATCH /api/users/me/locale
@@ -16,38 +14,13 @@ const SESSION_COOKIE_NAME = '__session_user';
  * written client-side by setLocale(); this only records the durable preference.
  */
 export const PATCH: RequestHandler = async (event) => {
-	const { request, locals, cookies } = event;
+	const { request } = event;
 
-	const auth = await requireScope(event, 'read');
+	// "me" is whoever the session says it is - there is no other answer to look for.
+	const userId = (await requireSession(event)).id_user;
 
 	try {
 		const db = getDatabase();
-
-		const cookieSigned = cookies.get('current_user_id') ?? null;
-		let userId: string | null = auth.user?.id_user ?? null;
-
-		if (cookieSigned) {
-			const verified = verifySigned(cookieSigned);
-			if (verified) {
-				userId = verified;
-			}
-		}
-
-		if (!userId) {
-			const sessionUserId = cookies.get(SESSION_COOKIE_NAME) ?? null;
-			if (sessionUserId) {
-				userId = sessionUserId;
-			}
-		}
-
-		if (!userId) {
-			const localUser = locals.user as { id?: string; id_user?: string } | null | undefined;
-			userId = localUser?.id_user || localUser?.id || null;
-		}
-
-		if (!userId) {
-			return json({ error: 'Unauthorized' }, { status: 401 });
-		}
 
 		const body = (await request.json()) as { locale?: string };
 		const locale = body.locale;

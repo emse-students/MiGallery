@@ -4,13 +4,11 @@ This folder contains utility scripts for development, maintenance, and deploymen
 
 ## Maintenance & Production
 
-| Script                       | Description                                                               | Usage                                     |
-| :--------------------------- | :------------------------------------------------------------------------ | :---------------------------------------- |
-| `init-db.cjs`                | Initializes the SQLite database (creates tables and admin).               | `npm run db:init`                         |
-| `backup-db.cjs`              | Manual database backup (daily automatic backup is handled by the server). | `npm run db:backup`                       |
-| `cleanup-chunked-temp.js`    | Cleans up orphaned temporary upload files.                                | `npm run cleanup:chunked-temp`            |
-| `generate-auth-secret.cjs`   | Generates an `AUTH_SECRET` key for configuration.                         | `node scripts/generate-auth-secret.cjs`   |
-| `generate_cookie_secret.cjs` | Generates a `COOKIE_SECRET` key for session.                              | `node scripts/generate_cookie_secret.cjs` |
+| Script                    | Description                                                               | Usage                          |
+| :------------------------ | :------------------------------------------------------------------------ | :----------------------------- |
+| `init-db.cjs`             | Initializes the SQLite database (creates tables and admin).               | `npm run db:init`              |
+| `backup-db.cjs`           | Manual database backup (daily automatic backup is handled by the server). | `npm run db:backup`            |
+| `cleanup-chunked-temp.js` | Cleans up orphaned temporary upload files.                                | `npm run cleanup:chunked-temp` |
 
 ## Development & Testing
 

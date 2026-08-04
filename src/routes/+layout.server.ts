@@ -1,10 +1,8 @@
-import { getDatabase } from '$lib/db/database';
 import type { UserRow } from '$lib/types/api';
-import { verifySigned } from '$lib/auth/cookies';
+import { getSession } from '$lib/session';
 import { createLogger } from '$lib/server/logger';
 import type { LayoutServerLoad } from './$types';
 
-const SESSION_COOKIE_NAME = '__session_user';
 const log = createLogger('layout');
 
 type SessionPageUser = NonNullable<NonNullable<App.PageData['session']>['user']>;
@@ -29,45 +27,22 @@ function toSessionUser(user: UserRow): SessionPageUser {
 	};
 }
 
+/**
+ * Expose the logged-in user to every page. The session already carries the
+ * effective user (the impersonated one while an admin impersonates), so there
+ * is nothing to resolve here beyond shaping it for the client.
+ */
 export const load: LayoutServerLoad = (event) => {
-	const { cookies } = event;
 	try {
-		const db = getDatabase();
-
-		const cookieSigned = cookies.get('current_user_id');
-
-		if (cookieSigned) {
-			const verified = verifySigned(cookieSigned);
-			if (verified) {
-				const userInfo = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(verified) as
-					| UserRow
-					| undefined;
-				if (userInfo) {
-					return { session: { user: toSessionUser(userInfo) } };
-				}
-			}
-		}
-
-		const sessionUserId = cookies.get(SESSION_COOKIE_NAME);
-		if (!sessionUserId) {
+		const session = getSession(event.cookies);
+		if (!session) {
 			return { session: null };
 		}
 
-		const userInfo = db
-			.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1')
-			.get(sessionUserId) as UserRow | undefined;
-
-		if (!userInfo) {
-			return { session: null };
-		}
-
-		return {
-			session: {
-				user: toSessionUser(userInfo)
-			}
-		};
+		return { session: { user: toSessionUser(session.user) } };
 	} catch (e) {
-		log.warn('error while loading session from cookies', e);
+		log.warn('error while loading the session', e);
+
 		return { session: null };
 	}
 };

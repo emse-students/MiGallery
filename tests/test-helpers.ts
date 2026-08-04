@@ -299,9 +299,9 @@ async function loginAsSystemUser(): Promise<string> {
 		if (response.status === 303 || response.status === 302 || response.status === 200) {
 			const cookies = response.headers.get('set-cookie');
 			if (cookies) {
-				const match = cookies.match(/current_user_id=([^;]+)/);
+				const match = cookies.match(/migallery_session=([^;]+)/);
 				if (match) {
-					const sessionCookie = `current_user_id=${match[1]}`;
+					const sessionCookie = `migallery_session=${match[1]}`;
 					return sessionCookie;
 				}
 			}

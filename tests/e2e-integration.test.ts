@@ -32,9 +32,9 @@ beforeAll(async () => {
 		if (response.status === 303 || response.status === 302) {
 			const cookies = response.headers.get('set-cookie');
 			if (cookies) {
-				const match = cookies.match(/current_user_id=([^;]+)/);
+				const match = cookies.match(/migallery_session=([^;]+)/);
 				if (match) {
-					sessionCookie = `current_user_id=${match[1]}`;
+					sessionCookie = `migallery_session=${match[1]}`;
 					console.debug('✅ Authenticated with session cookie');
 				}
 			}

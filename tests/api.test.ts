@@ -98,9 +98,9 @@ async function loginAsSystemUser(): Promise<boolean> {
 
 		if (response.status === 303 || response.status === 302) {
 			if (cookies) {
-				const match = cookies.match(/current_user_id=([^;]+)/);
+				const match = cookies.match(/migallery_session=([^;]+)/);
 				if (match) {
-					sessionCookie = `current_user_id=${match[1]}`;
+					sessionCookie = `migallery_session=${match[1]}`;
 					// console.debug('✅ Successful login with session cookie');
 					return true;
 				}

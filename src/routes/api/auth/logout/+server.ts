@@ -1,24 +1,36 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { clearSessionCookie } from '$lib/session';
+import { clearSessionCookie, getSessionToken } from '$lib/session';
+import { deleteSession } from '$lib/db/sessions';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('auth-logout');
 
+/**
+ * Log out: delete the session row, then the cookie.
+ *
+ * Deleting the row is what makes this real - the token stops being accepted
+ * everywhere, immediately. Any impersonation dies with it, since it is a column
+ * of that row rather than a cookie of its own.
+ */
 export const POST: RequestHandler = ({ cookies }) => {
-	try {
-		clearSessionCookie(cookies);
-		// Also clear impersonation cookies: an orphaned `current_user_id` (set by
-		// /admin/login-as) otherwise survives logout and locks admin access for ~30 days.
-		cookies.delete('current_user_id', { path: '/' });
-		cookies.delete('impersonator_admin_id', { path: '/' });
+	const token = getSessionToken(cookies);
 
-		throw redirect(302, '/');
-	} catch (e) {
-		if (e instanceof Error && e.message.includes('Redirect')) {
-			throw e; // Re-throw redirect
+	if (token) {
+		try {
+			deleteSession(token);
+		} catch (e) {
+			// The row is what makes the token dead. If it survives, the session is NOT
+			// revoked - report that instead of a logout that did not happen.
+			log.error('could not delete the session row', e);
+			clearSessionCookie(cookies);
+			throw error(500, 'Logout failed');
 		}
-		log.error('logout failed', e);
-		throw error(500, 'Logout failed');
 	}
+
+	clearSessionCookie(cookies);
+
+	// Thrown OUTSIDE any try: a SvelteKit redirect is not an Error, so a catch
+	// around it swallows the redirect and answers 500 on a logout that worked.
+	throw redirect(302, '/');
 };
