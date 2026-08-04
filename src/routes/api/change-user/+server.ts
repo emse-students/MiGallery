@@ -2,6 +2,7 @@ import { json, isHttpError } from '@sveltejs/kit';
 
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from '@sveltejs/kit';
+import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { canStopImpersonating } from '$lib/server/auth';
 import { getSessionToken } from '$lib/session';
@@ -38,6 +39,16 @@ export const POST: RequestHandler = async (event) => {
 
 		// Starting one requires being an admin right now.
 		await requireScope(event, 'admin');
+
+		// Refuse a target that does not exist: storing it would leave the session
+		// pointing at nothing, which only surfaces later as a cleared impersonation.
+		const target = getDatabase()
+			.prepare('SELECT id_user FROM users WHERE id_user = ? LIMIT 1')
+			.get(String(userId));
+		if (!target) {
+			return json({ success: false, error: 'User not found' }, { status: 404 });
+		}
+
 		setSessionImpersonation(token, String(userId));
 
 		return json({ success: true });

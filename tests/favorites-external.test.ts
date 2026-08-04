@@ -399,6 +399,8 @@ describe('Change User API - POST /api/change-user', () => {
 			})
 		});
 
-		expect([200, 400, 404]).toContain(response.status);
+		// 401 when the caller has no session: an impersonation is recorded ON a
+		// session row, so an API-key caller has nothing to change.
+		expect([400, 401, 404]).toContain(response.status);
 	});
 });
