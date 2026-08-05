@@ -2,6 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { generateAuthorizationUrl } from '$lib/auth';
 import { randomBytes } from 'crypto';
+import { REDIRECT_PARAM, RETURN_COOKIE_NAME, safeRedirectTarget } from '$lib/auth-redirect';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -37,6 +38,22 @@ export const GET: RequestHandler = ({ cookies, url }) => {
 			secure: true,
 			httpOnly: true
 		});
+
+		// Park the page the visitor was after for the length of the round trip.
+		// Nothing to park means DELETING it: a leftover from an abandoned attempt
+		// would otherwise decide where this login lands.
+		const returnTo = safeRedirectTarget(url.searchParams.get(REDIRECT_PARAM));
+		if (returnTo) {
+			cookies.set(RETURN_COOKIE_NAME, returnTo, {
+				path: '/',
+				maxAge: 600,
+				sameSite: 'lax',
+				secure: true,
+				httpOnly: true
+			});
+		} else {
+			cookies.delete(RETURN_COOKIE_NAME, { path: '/' });
+		}
 
 		// Determine redirect URI
 		const callbackUrl = new URL('/api/auth/callback', url.origin);

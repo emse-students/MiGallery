@@ -1,18 +1,9 @@
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
+import { requireAdminPage } from '$lib/server/auth';
 
-export const load: PageServerLoad = async ({ parent }) => {
-	const { session } = await parent();
-	const user = session?.user;
-
-	if (!user) {
-		throw redirect(303, '/');
-	}
-
-	// Trash is admin-only: mitviste no longer has access (moved under /admin).
-	if (user.role !== 'admin') {
-		throw redirect(303, '/');
-	}
+// Trash is admin-only: mitviste no longer has access (moved under /admin).
+export const load: PageServerLoad = ({ locals, cookies, url }) => {
+	requireAdminPage({ locals, cookies }, url);
 
 	return {};
 };

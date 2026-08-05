@@ -1,15 +1,11 @@
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
-import { ensureAdmin } from '$lib/server/auth';
+import { requireAdminPage } from '$lib/server/auth';
 import { getDatabase } from '$lib/db/database';
 
 const PAGE_SIZE = 50;
 
-export const load: PageServerLoad = async ({ locals, cookies, url }) => {
-	const ok = await ensureAdmin({ locals, cookies });
-	if (!ok) {
-		throw redirect(303, '/');
-	}
+export const load: PageServerLoad = ({ locals, cookies, url }) => {
+	requireAdminPage({ locals, cookies }, url);
 
 	const db = getDatabase();
 

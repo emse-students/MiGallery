@@ -13,6 +13,7 @@
 	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { loginUrlWithRedirect, REDIRECT_PARAM } from '$lib/auth-redirect';
 	import '../app.css';
 
 	let u = $derived(page.data?.session?.user as User);
@@ -81,7 +82,12 @@
 	}
 
 	function handleSignIn() {
-		window.location.href = '/api/auth/login';
+		// Signing in from the navbar means "carry on where I am", except on the
+		// home page, which may already carry a destination of its own.
+		const target = isHomePage
+			? page.url.searchParams.get(REDIRECT_PARAM)
+			: page.url.pathname + page.url.search;
+		window.location.href = loginUrlWithRedirect(target);
 	}
 </script>
 

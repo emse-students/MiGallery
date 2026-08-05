@@ -1,15 +1,11 @@
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { mdToHtml } from '$lib/docs/render-md';
-import { ensureAdmin } from '$lib/server/auth';
+import { requireAdminPage } from '$lib/server/auth';
 
-export const load: PageServerLoad = async ({ locals, cookies }) => {
-	const admin = await ensureAdmin({ locals, cookies });
-	if (!admin) {
-		throw redirect(303, '/');
-	}
+export const load: PageServerLoad = ({ locals, cookies, url }) => {
+	requireAdminPage({ locals, cookies }, url);
 
 	const docsDir = join(process.cwd(), 'docs', 'wiki');
 	let files: { name: string; filename: string; html: string }[] = [];

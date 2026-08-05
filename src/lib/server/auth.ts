@@ -8,9 +8,10 @@
  */
 import { getSession } from '$lib/session';
 import { createLogger } from '$lib/server/logger';
+import { loginBounceTarget } from '$lib/auth-redirect';
 import type { ResolvedSession } from '$lib/db/sessions';
 import type { UserRow } from '$lib/types/api';
-import type { Cookies } from '@sveltejs/kit';
+import { redirect, type Cookies } from '@sveltejs/kit';
 
 const log = createLogger('auth');
 
@@ -55,6 +56,31 @@ export function ensureAdmin(context: AuthContext): UserRow | null {
 	const user = getCurrentUser(context);
 	if (!isAdmin(user)) {
 		return null;
+	}
+
+	return user;
+}
+
+/**
+ * The admin behind a PAGE request, or a redirect out of it.
+ *
+ * The two refusals are not the same refusal, which is why this exists rather
+ * than a bare `if (!ensureAdmin(...))`: an ANONYMOUS visitor keeps the path
+ * they asked for, so signing in returns them to it, while a logged-in
+ * non-admin is simply sent home - a destination there would bounce them
+ * straight back into the same refusal.
+ *
+ * Pages only. API handlers answer a status code (`requireAdminSession`), never
+ * a redirect.
+ */
+export function requireAdminPage(context: AuthContext, url: URL): UserRow {
+	const user = getCurrentUser(context);
+	if (!user) {
+		throw redirect(303, loginBounceTarget(url.pathname + url.search));
+	}
+
+	if (!isAdmin(user)) {
+		throw redirect(303, '/');
 	}
 
 	return user;

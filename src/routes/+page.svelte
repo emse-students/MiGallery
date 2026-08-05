@@ -5,6 +5,7 @@
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { m } from '$lib/paraglide/messages';
+	import { loginUrlWithRedirect, REDIRECT_PARAM } from '$lib/auth-redirect';
 
 	let user = $derived(page.data.session?.user as User | undefined);
 	let isAuthenticated = $derived(!!user);
@@ -14,7 +15,9 @@
 	const greeting = hour < 18 ? m.greeting_day() : m.greeting_evening();
 
 	function handleSignIn() {
-		window.location.href = '/api/auth/login';
+		// A guard that bounced someone here left the page they asked for in the
+		// URL - hand it to the login so the round trip comes back to it.
+		window.location.href = loginUrlWithRedirect(page.url.searchParams.get(REDIRECT_PARAM));
 	}
 </script>
 

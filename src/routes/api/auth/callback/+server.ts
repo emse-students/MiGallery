@@ -3,12 +3,15 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { completeOIDCFlow } from '$lib/auth';
 import { setSessionCookie } from '$lib/session';
 import { createSession, deleteExpiredSessions } from '$lib/db/sessions';
+import { RETURN_COOKIE_NAME, safeRedirectTarget } from '$lib/auth-redirect';
 
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('auth-callback');
 export const GET: RequestHandler = async ({ cookies, url }) => {
-	const targetRedirect = '/';
+	// Home unless the login carried a destination - validated again here, since
+	// the cookie is as much browser input as the query param that filled it.
+	const targetRedirect = safeRedirectTarget(cookies.get(RETURN_COOKIE_NAME)) ?? '/';
 
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
@@ -27,6 +30,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 	const storedState = cookies.get('__oidc_state');
 	if (state !== storedState) {
 		log.error('State mismatch');
+		cookies.delete(RETURN_COOKIE_NAME, { path: '/' });
 		throw error(400, 'State validation failed');
 	}
 
@@ -49,6 +53,7 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
 		// Clear OIDC cookies
 		cookies.delete('__oidc_state', { path: '/' });
 		cookies.delete('__oidc_nonce', { path: '/' });
+		cookies.delete(RETURN_COOKIE_NAME, { path: '/' });
 	} catch (e) {
 		log.error('Error during authentication:', e);
 		throw error(500, 'Authentication error');

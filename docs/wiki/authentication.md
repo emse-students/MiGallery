@@ -8,11 +8,43 @@ the session or an API key.
 
 The routes live under `src/routes/api/auth/`:
 
-- **`GET /api/auth/login`** starts the OIDC flow (redirect to Authentik).
+- **`GET /api/auth/login`** starts the OIDC flow (redirect to Authentik). It
+  accepts `?redirectTo=<in-app path>`, which it parks in the `__oidc_return`
+  cookie for the round trip (see below).
 - **`GET /api/auth/callback`** handles the return: it resolves the Authentik
   identity to a local `users` row (matched by the OIDC `sub` stored as
   `id_user`), and sets the session cookie.
 - **`GET /api/auth/logout`** clears the session.
+
+### Coming back to the page that was asked for
+
+A shared album link opened while logged out used to end on the home page: the
+guard answered a bare `redirect(303, '/')` and the requested path was gone. It
+now travels with the visitor, through three hops, all validated by
+`safeRedirectTarget` (`src/lib/auth-redirect.ts`):
+
+1. the guard bounces to `/?redirectTo=<path>` (`loginBounceTarget`);
+2. the sign-in button forwards it to `/api/auth/login?redirectTo=<path>`
+   (`loginUrlWithRedirect`), which parks it in the `__oidc_return` cookie -
+   httpOnly, 10 minutes, beside `__oidc_state` and `__oidc_nonce`. **No value
+   deletes the cookie**, so an abandoned attempt cannot steer the next login;
+3. the callback reads it, validates it **again** (the cookie is browser input
+   like any other), deletes it, and redirects there instead of `/`.
+
+Two rules the guards encode:
+
+- **Only the anonymous case carries a destination.** A visitor who is logged in
+  and simply not allowed (`checkAlbumAccess`, a non-admin under `/admin`) gets a
+  plain `/`; giving them a destination would return them to the same refusal
+  forever. `requireAdminPage` (`src/lib/server/auth.ts`) is that split for the
+  admin pages, and the pages that guard on `parent()` split it inline.
+- **A path starting with `/` is not proof it is ours.** `//evil.com` and
+  `/\evil.com` both do, and both leave the site; so do control characters in a
+  `Location` value, and `/api/auth/*` (a login loop). `tests/auth-redirect.test.ts`
+  pins the whole refusal list.
+
+An unlisted album is unaffected: it returns before any auth check, so a public
+link never bounces at all.
 
 Claims used: `sub` (the stable user id), name, `promo`, `formation`. A user's
 role is **not** taken from the SSO; it is stored locally (`users.role`) so it is

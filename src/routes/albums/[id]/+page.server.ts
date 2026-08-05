@@ -3,6 +3,7 @@ import { getDatabase } from '$lib/db/database';
 import { checkAlbumAccess } from '$lib/albums';
 import type { User, Album } from '$lib/types/api';
 import { redirect } from '@sveltejs/kit';
+import { loginBounceTarget } from '$lib/auth-redirect';
 
 /** Formate la date et le lieu en description OG lisible (ex. "15 mai 2024 · Paris"). */
 function buildOgDescription(date?: string | null, location?: string | null): string {
@@ -62,10 +63,14 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { session } = await parent();
 	const user = session?.user as User | undefined;
 
+	// A shared album link is the whole point of this page: send an anonymous
+	// visitor home CARRYING it, so signing in lands them on the album.
 	if (!user) {
-		throw redirect(303, '/');
+		throw redirect(303, loginBounceTarget(url.pathname + url.search));
 	}
 
+	// Signed in and still refused is a different answer: no destination, or the
+	// login would return them here to be refused again.
 	const allowed = checkAlbumAccess(user, { ...album, visibility: album.visibility || 'private' });
 	if (!allowed) {
 		throw redirect(303, '/');
