@@ -65,7 +65,7 @@
 		"db:reset-users": "node ./scripts/reset-users-for-authentik.cjs"
 	},
 	"devDependencies": {
-		"@inlang/paraglide-js": "^2.23.0",
+		"@inlang/paraglide-js": "^2.23.2",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-node": "^5.5.7",
 		"@sveltejs/kit": "^2.70.2",
@@ -73,16 +73,16 @@
 		"@tailwindcss/postcss": "^4.3.3",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/form-data": "^2.5.2",
-		"@typescript-eslint/eslint-plugin": "^8.64.0",
-		"@typescript-eslint/parser": "^8.58.0",
+		"@typescript-eslint/eslint-plugin": "^8.66.0",
+		"@typescript-eslint/parser": "^8.66.0",
 		"@vitest/coverage-v8": "^4.1.5",
 		"autoprefixer": "^10.5.4",
 		"eslint": "^10.8.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.22.0",
 		"husky": "^9.1.7",
-		"lint-staged": "^17.2.0",
-		"postcss": "^8.5.25",
+		"lint-staged": "^17.3.0",
+		"postcss": "^8.5.26",
 		"prettier": "^3.9.6",
 		"prettier-plugin-svelte": "^4.1.1",
 		"svelte": "^5.56.8",
@@ -91,7 +91,7 @@
 		"tailwindcss": "^4.3.1",
 		"tar": "^7.5.22",
 		"typescript": "~6.0.3",
-		"vite": "^8.2.0"
+		"vite": "^8.2.1"
 	},
 	"dependencies": {
 		"@eslint/js": "^10.0.1",
