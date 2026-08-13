@@ -14,12 +14,17 @@ The `albums` row (keyed by the Immich album UUID) holds:
 
 ## Permission dimensions
 
-Four tables grant access to an album, in addition to its visibility:
+One unified table, `album_permissions(album_id, kind, value)`, grants access to
+an album, in addition to its visibility. `kind` selects the dimension:
 
-- `album_user_permissions` - specific users (by `id_user`).
-- `album_formation_permissions` - by formation (ICM, ISMIN, FSSS, Master, …).
-- `album_promo_permissions` - by graduation year (promo).
-- `album_tag_permissions` - free-form tags (e.g. "Promo 2024") for labeling.
+- `user` - specific users (`value` = `id_user`).
+- `formation` - by formation (ICM, ISMIN, FSSS, Master, …).
+- `promo` - by graduation year (`value` = promo year, stored as text).
+- `tag` - free-form tags (e.g. "Promo 2024") for labeling.
+
+(Four separate tables existed historically, one per dimension; they were
+backfilled into `album_permissions` and dropped - see
+[data-model.md](data-model.md).)
 
 ## Access resolution
 
@@ -31,10 +36,12 @@ truth. It evaluates, in order:
    [immich-proxy.md](immich-proxy.md)).
 2. **No user** (and not unlisted) -> denied.
 3. **`mitviste` or `admin`** role -> full access.
-4. **Explicit user permission** (`album_user_permissions`) -> access.
-5. **Formation AND promo** match combined -> access. This is an INNER JOIN: the
-   user needs BOTH a matching `formation` AND a matching `promo_year` permission
-   on the same album, not either alone.
+4. **Explicit user permission** (`album_permissions` row with `kind = 'user'`,
+   `value = id_user`) -> access.
+5. **Formation AND promo** match combined -> access. This is a self-join on
+   `album_permissions`: the user needs BOTH a `kind = 'formation'` row matching
+   their formation AND a `kind = 'promo'` row matching their promo year, on the
+   same album - not either alone.
 6. **`authenticated`** visibility -> any logged-in user has access.
 7. Otherwise (`private` with no matching grant) -> denied.
 
@@ -43,16 +50,17 @@ the difference is that `unlisted` additionally allows direct link access without
 session, while `private` never does. `authenticated` opens the album to every
 signed-in user.
 
-> Note: `album_tag_permissions` is a labeling/permission dimension surfaced in the
+> Note: `kind = 'tag'` rows are a labeling/permission dimension surfaced in the
 > album editor and the permissions options endpoint; the core `checkAlbumAccess`
-> path above keys on user + (formation AND promo) + visibility. Keep this in mind
-> when changing access logic.
+> path above keys on user + (formation AND promo) + visibility, and never reads
+> `kind = 'tag'` rows. Keep this in mind when changing access logic.
 
 ## Managing albums
 
 - **Create/update**: `POST`/`PATCH /api/albums` and `/api/albums/[id]` write the
-  `albums` row and replace the permission rows (user/formation/promo/tag) from the
-  request. Album creation is logged (`logEvent`).
+  `albums` row and replace the `album_permissions` rows (kinds
+  user/formation/promo/tag) from the request. Album creation is logged
+  (`logEvent`).
 - **Options**: `GET /api/albums/permissions/options` returns the selectable
   formations, promos, tags and users for the permission editor.
 - **Covers and OG**: `/api/albums/[id]/cover`, `/og-cover`, `/og-preview` produce

@@ -27,14 +27,16 @@ the local DB match the corresponding Immich UUIDs.
 
 - `albums(id, name, date, location, visibility, visible)` - `visibility` is
   `private | authenticated | unlisted`; `visible` toggles listing.
-- `album_user_permissions(album_id, id_user)` - explicit users.
-- `album_formation_permissions(album_id, formation)` - by formation.
-- `album_promo_permissions(album_id, promo_year)` - by promo.
-- `album_tag_permissions(album_id, tag)` - free-form tags.
+- `album_permissions(album_id, kind, value)` - unified permissions table,
+  `PRIMARY KEY (album_id, kind, value)`. `kind` is one of `user | tag | formation
+| promo` and `value` holds the corresponding id/tag/formation name/promo year
+  (promo stored as text). Replaces four legacy tables
+  (`album_user_permissions`, `album_formation_permissions`,
+  `album_promo_permissions`, `album_tag_permissions`), which were backfilled into
+  this table and dropped by the `database.ts` migration at `PRAGMA user_version 2`.
 
-All permission tables cascade on album delete. Access resolution combines these
-with visibility in `checkAlbumAccess` (see
-[albums-and-permissions.md](albums-and-permissions.md)).
+Cascades on album delete. Access resolution combines this with visibility in
+`checkAlbumAccess` (see [albums-and-permissions.md](albums-and-permissions.md)).
 
 ### `user_favorites`
 
