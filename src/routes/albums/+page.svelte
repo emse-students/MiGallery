@@ -3,14 +3,14 @@
 	import { goto } from '$app/navigation';
 	import {
 		Plus,
-		XCircle,
 		Image as ImageIcon,
 		Search,
 		Download,
 		Trash2,
 		Lock,
 		Link as LinkIcon,
-		Eye
+		Eye,
+		ChevronRight
 	} from 'lucide-svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
@@ -18,8 +18,6 @@
 	import LazyImage from '$lib/components/LazyImage.svelte';
 	import AlbumModal from '$lib/components/AlbumModal.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-	import Skeleton from '$lib/components/Skeleton.svelte';
-	import { consumeNDJSONStream } from '$lib/streaming';
 	import { showConfirm } from '$lib/confirm';
 	import { m } from '$lib/paraglide/messages';
 	import { getLocale } from '$lib/paraglide/runtime';
@@ -31,25 +29,22 @@
 	import { onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 
-	let loading = $state(true);
-	let error = $state<string | null>(null);
+	/**
+	 * Day of August a school year rolls over on: an album dated on or after
+	 * 15 August belongs to the year that starts that summer.
+	 */
+	const SCHOOL_YEAR_START_MONTH = 7; // August (0-indexed)
+	const SCHOOL_YEAR_START_DAY = 15;
+
 	let albums = $state<Album[]>([]);
 	let showAlbumModal = $state(false);
 	let searchQuery = $state<string>('');
-	let filteredAlbums = $state<Album[]>([]);
-	let pageLimit = $state(20);
-	let displayedAlbums = $derived(filteredAlbums.slice(0, pageLimit));
 
-	$effect(() => {
-		pageLimit = 20; // Reset pagination on search change or albums update
-		if (!searchQuery.trim()) {
-			filteredAlbums = albums.slice();
-			return;
-		}
-		filteredAlbums = albums.filter((a) =>
-			fuzzyMatch(searchQuery, `${a.name || ''} ${a.location || ''}`)
-		);
-	});
+	let filteredAlbums = $derived(
+		searchQuery.trim()
+			? albums.filter((a) => fuzzyMatch(searchQuery, `${a.name || ''} ${a.location || ''}`))
+			: albums
+	);
 
 	let showConfirmModal = $state(false);
 	let confirmModalConfig = $state<{
@@ -63,14 +58,7 @@
 	let canCreateAlbum = $derived(userRole === 'mitviste' || userRole === 'admin');
 
 	$effect(() => {
-		if (typeof page.data !== 'undefined') {
-			if (page.data?.albums) {
-				albums = page.data.albums as Album[];
-			} else {
-				albums = [];
-			}
-			loading = false;
-		}
+		albums = (page.data?.albums as Album[] | undefined) ?? [];
 	});
 
 	function monthLabelFor(dateStr?: string | null) {
@@ -81,85 +69,100 @@
 		return label.charAt(0).toUpperCase() + label.slice(1);
 	}
 
-	function groupAlbumsByMonth(list: Album[]) {
-		const out: Record<string, Album[]> = {};
-		for (const a of list) {
-			const key = monthLabelFor(a.date);
-			if (!out[key]) out[key] = [];
-			out[key].push(a);
-		}
-		return out;
+	/** Start year of the school year an album belongs to; null when undated. */
+	function schoolYearOf(dateStr?: string | null): number | null {
+		if (!dateStr) return null;
+		const d = new Date(dateStr);
+		if (isNaN(d.getTime())) return null;
+		const month = d.getMonth();
+		const day = d.getDate();
+		const afterRollover =
+			month > SCHOOL_YEAR_START_MONTH ||
+			(month === SCHOOL_YEAR_START_MONTH && day >= SCHOOL_YEAR_START_DAY);
+		return afterRollover ? d.getFullYear() : d.getFullYear() - 1;
 	}
 
-	let downloadingAlbumId = $state<string | null>(null);
-	let downloadingProgress = $state<Record<string, number>>({});
-	let albumCovers = $state<Record<string, { id: string; type?: string }>>({});
-	let currentDownloadController: AbortController | null = null;
+	interface SchoolYearGroup {
+		key: string;
+		label: string;
+		count: number;
+		months: Array<{ label: string; albums: Album[] }>;
+	}
 
-	async function loadCoversFor(list: Album[]) {
-		const albumIds = list.map((a) => a.id);
-		const missing: string[] = [];
-		const cachedCovers: Record<string, { id: string; type?: string }> = {};
-
-		for (const albumId of albumIds) {
-			if (albumCovers[albumId]) continue;
-
-			const cached = await clientCache.get<{ id: string; type?: string }>('album-covers', albumId);
-			if (cached) {
-				cachedCovers[albumId] = cached;
+	/**
+	 * Albums bucketed by school year (newest first, undated last), each keeping
+	 * the month sub-grouping inside. Only expanded groups are rendered, which is
+	 * what keeps a 300-album gallery to one short page.
+	 */
+	let schoolYearGroups = $derived.by<SchoolYearGroup[]>(() => {
+		const byYear = new Map<number | null, Album[]>();
+		for (const a of filteredAlbums) {
+			const year = schoolYearOf(a.date);
+			const bucket = byYear.get(year);
+			if (bucket) {
+				bucket.push(a);
 			} else {
-				missing.push(albumId);
+				byYear.set(year, [a]);
 			}
 		}
 
-		if (Object.keys(cachedCovers).length > 0) {
-			albumCovers = { ...albumCovers, ...cachedCovers };
-		}
+		const years = Array.from(byYear.keys()).sort((a, b) => {
+			if (a === null) return 1;
+			if (b === null) return -1;
+			return b - a;
+		});
 
-		if (missing.length === 0) return;
-
-		try {
-			const res = await fetch('/api/albums/covers', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ albumIds: missing })
-			});
-
-			await consumeNDJSONStream<{ albumId: string; cover: { assetId: string; type: string } }>(
-				res,
-				({ albumId, cover }) => {
-					if (cover && typeof cover === 'object' && 'assetId' in cover) {
-						const coverData = { id: cover.assetId, type: cover.type };
-						albumCovers[albumId] = coverData;
-						clientCache.set('album-covers', albumId, coverData);
-					}
+		return years.map((year) => {
+			const list = byYear.get(year) as Album[];
+			const months = new Map<string, Album[]>();
+			for (const a of list) {
+				const label = monthLabelFor(a.date);
+				const bucket = months.get(label);
+				if (bucket) {
+					bucket.push(a);
+				} else {
+					months.set(label, [a]);
 				}
-			);
-		} catch (e: unknown) {
-			console.warn('Error loading album covers', e);
-		}
+			}
+			return {
+				key: year === null ? 'undated' : String(year),
+				label: year === null ? m.albums_no_date() : `${year}-${year + 1}`,
+				count: list.length,
+				months: Array.from(months, ([label, albums]) => ({ label, albums }))
+			};
+		});
+	});
+
+	// Only the newest school year opens by default; a search opens everything
+	// that matches, otherwise the results would hide behind collapsed headers.
+	let toggledYears = $state<Record<string, boolean>>({});
+	let searching = $derived(searchQuery.trim().length > 0);
+
+	function isExpanded(key: string, index: number): boolean {
+		if (searching) return true;
+		return toggledYears[key] ?? index === 0;
 	}
 
-	$effect(() => {
-		if (displayedAlbums.length > 0) {
-			void loadCoversFor(displayedAlbums);
-		}
-	});
+	function toggleYear(key: string, index: number) {
+		toggledYears = { ...toggledYears, [key]: !isExpanded(key, index) };
+	}
 
-	let loadMoreElement: HTMLDivElement | null = $state(null);
-	$effect(() => {
-		if (!loadMoreElement) return;
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (entries[0].isIntersecting && pageLimit < filteredAlbums.length) {
-					pageLimit += 20;
-				}
-			},
-			{ rootMargin: '400px' }
-		);
-		observer.observe(loadMoreElement);
-		return () => observer.disconnect();
-	});
+	/**
+	 * Stable per-album cover URL. `?v=` is the asset id, so the browser caches
+	 * the image forever and still picks up a cover change immediately.
+	 */
+	function coverUrl(a: Album): string {
+		return a.coverAssetId
+			? `/api/albums/${a.id}/cover?v=${a.coverAssetId}`
+			: `/api/albums/${a.id}/cover`;
+	}
+
+	// Albums whose cover failed to load (typically an album with no photo yet).
+	let coverErrors = $state<Record<string, boolean>>({});
+
+	let downloadingAlbumId = $state<string | null>(null);
+	let downloadingProgress = $state<Record<string, number>>({});
+	let currentDownloadController: AbortController | null = null;
 
 	function getVisibilityIcon(visibility?: string): string {
 		if (!visibility || visibility === 'private') return 'lock';
@@ -231,7 +234,6 @@
 				try {
 					const res = await fetch(`/api/albums/${immichId}`, { method: 'DELETE' });
 					if (!res.ok) throw new Error((await res.text()) || m.albums_delete_failed());
-					await clientCache.delete('album-covers', immichId);
 					await clientCache.delete('albums', immichId);
 					albums = albums.filter((a) => a.id !== immichId);
 					toast.success(m.albums_deleted());
@@ -301,144 +303,135 @@
 			{/if}
 		</header>
 
-		{#if error}
-			<div class="state-message error" in:fade>
-				<XCircle size={20} /> {m.common_error()}: {error}
-			</div>
-		{/if}
-
-		{#if loading}
-			<div class="state-message loading" in:fade>
-				<Spinner size={20} /> {m.albums_loading()}
-			</div>
-		{/if}
-
-		{#if !loading && !error && albums.length === 0}
+		{#if albums.length === 0}
 			<div in:fade>
 				<EmptyState icon={ImageIcon} title={m.albums_empty()} />
 			</div>
-		{/if}
+		{:else if filteredAlbums.length === 0}
+			<div in:fade>
+				<EmptyState icon={Search} title={m.albums_no_match()} />
+			</div>
+		{:else}
+			<div class="albums-timeline">
+				{#each schoolYearGroups as group, groupIndex (group.key)}
+					{@const expanded = isExpanded(group.key, groupIndex)}
+					<section class="year-group">
+						<button
+							type="button"
+							class="year-header"
+							aria-expanded={expanded}
+							onclick={() => toggleYear(group.key, groupIndex)}
+						>
+							<span class="year-chevron" class:open={expanded}><ChevronRight size={20} /></span>
+							<h2 class="year-title">{group.label}</h2>
+							<span class="year-badge">{group.count}</span>
+							<div class="divider"></div>
+						</button>
 
-		{#if !loading && albums.length > 0}
-			{#if filteredAlbums.length === 0}
-				<div in:fade>
-					<EmptyState icon={Search} title={m.albums_no_match()} />
-				</div>
-			{:else}
-				<div class="albums-timeline">
-					{#each Object.entries(groupAlbumsByMonth(displayedAlbums)) as [month, items], i}
-						<div class="month-group" in:fade={{ delay: i * 100, duration: 400 }}>
-							<div class="month-header">
-								<h3 class="month-title">{month}</h3>
-								<span class="month-badge">{items.length}</span>
-								<div class="divider"></div>
-							</div>
+						{#if expanded}
+							<div class="year-body">
+								{#each group.months as month (month.label)}
+									<div class="month-group">
+										<div class="month-header">
+											<h3 class="month-title">{month.label}</h3>
+											<span class="month-badge">{month.albums.length}</span>
+											<div class="divider"></div>
+										</div>
 
-							<div class="album-grid">
-								{#each items as a}
-									<div class="album-item" class:album-hidden={!a.visible && canCreateAlbum}>
-										<a
-											href={`/albums/${a.id}`}
-											class="album-link"
-											onclick={(e) => {
-												if (downloadingAlbumId) {
-													e.preventDefault();
-												}
-											}}
-										>
-											<div class="album-cover-wrapper">
-												{#if albumCovers[a.id]}
-													<LazyImage
-														src={`/api/albums/${a.id}/cover/${albumCovers[a.id].id}`}
-														alt={a.name}
-														class="album-cover"
-														aspectRatio="1"
-														isVideo={albumCovers[a.id].type === 'VIDEO'}
-														radius="0"
-													/>
-												{:else}
-													<div class="skeleton-wrapper">
-														<Skeleton aspectRatio="1" radius="0">
-															<div class="skeleton-icon"><ImageIcon size={32} /></div>
-														</Skeleton>
-													</div>
-												{/if}
-
-												<!-- Overlay -->
-												<div class="album-info-overlay">
-													<div class="overlay-content">
-														<span class="album-name" title={a.name}>{a.name}</span>
-														<div class="album-meta">
-															{#if a.date}
-																<span class="album-date">
-																	{new Date(a.date).toLocaleDateString(getLocale(), {
-																		day: 'numeric',
-																		month: 'short',
-																		year: 'numeric'
-																	})}
-																</span>
+										<div class="album-grid">
+											{#each month.albums as a (a.id)}
+												<div class="album-item" class:album-hidden={!a.visible && canCreateAlbum}>
+													<a href={`/albums/${a.id}`} class="album-link">
+														<div class="album-cover-wrapper">
+															{#if coverErrors[a.id]}
+																<div class="cover-placeholder"><ImageIcon size={32} /></div>
+															{:else}
+																<LazyImage
+																	src={coverUrl(a)}
+																	alt={a.name}
+																	class="album-cover"
+																	aspectRatio="1"
+																	isVideo={a.coverAssetType === 'VIDEO'}
+																	radius="0"
+																	onError={() => (coverErrors = { ...coverErrors, [a.id]: true })}
+																/>
 															{/if}
-															<span class="visibility-icon" title={getVisibilityLabel(a.visibility)}>
-																{#if getVisibilityIcon(a.visibility) === 'lock'}
-																	<Lock size={12} />
-																{:else if getVisibilityIcon(a.visibility) === 'link'}
-																	<LinkIcon size={12} />
-																{:else}
-																	<Eye size={12} />
-																{/if}
-															</span>
+
+															<!-- Overlay -->
+															<div class="album-info-overlay">
+																<div class="overlay-content">
+																	<span class="album-name" title={a.name}>{a.name}</span>
+																	<div class="album-meta">
+																		{#if a.date}
+																			<span class="album-date">
+																				{new Date(a.date).toLocaleDateString(getLocale(), {
+																					day: 'numeric',
+																					month: 'short',
+																					year: 'numeric'
+																				})}
+																			</span>
+																		{/if}
+																		<span
+																			class="visibility-icon"
+																			title={getVisibilityLabel(a.visibility)}
+																		>
+																			{#if getVisibilityIcon(a.visibility) === 'lock'}
+																				<Lock size={12} />
+																			{:else if getVisibilityIcon(a.visibility) === 'link'}
+																				<LinkIcon size={12} />
+																			{:else}
+																				<Eye size={12} />
+																			{/if}
+																		</span>
+																	</div>
+																</div>
+															</div>
 														</div>
+													</a>
+
+													<!-- Actions -->
+													<div class="album-actions">
+														<button
+															type="button"
+															class="action-btn"
+															onclick={(e) => {
+																e.preventDefault();
+																downloadAlbumAssets(a.id, a.name);
+															}}
+															disabled={downloadingAlbumId === a.id}
+															title={m.albums_download_zip()}
+														>
+															{#if downloadingAlbumId === a.id}
+																<Spinner size={14} />
+															{:else}
+																<Download size={20} />
+															{/if}
+														</button>
+
+														{#if canCreateAlbum}
+															<button
+																type="button"
+																class="action-btn delete"
+																onclick={(e) => {
+																	e.preventDefault();
+																	deleteAlbum(a.id, a.name);
+																}}
+																title={m.common_delete()}
+															>
+																<Trash2 size={20} />
+															</button>
+														{/if}
 													</div>
 												</div>
-											</div>
-										</a>
-
-										<!-- Actions -->
-										<div class="album-actions">
-											<button
-												type="button"
-												class="action-btn"
-												onclick={(e) => {
-													e.preventDefault();
-													downloadAlbumAssets(a.id, a.name);
-												}}
-												disabled={downloadingAlbumId === a.id}
-												title={m.albums_download_zip()}
-											>
-												{#if downloadingAlbumId === a.id}
-													<Spinner size={14} />
-												{:else}
-													<Download size={20} />
-												{/if}
-											</button>
-
-											{#if canCreateAlbum}
-												<button
-													type="button"
-													class="action-btn delete"
-													onclick={(e) => {
-														e.preventDefault();
-														deleteAlbum(a.id, a.name);
-													}}
-													title={m.common_delete()}
-												>
-													<Trash2 size={20} />
-												</button>
-											{/if}
+											{/each}
 										</div>
 									</div>
 								{/each}
 							</div>
-						</div>
-					{/each}
-
-					{#if pageLimit < filteredAlbums.length}
-						<div class="load-more-sentinel" bind:this={loadMoreElement}>
-							<Spinner size={32} />
-						</div>
-					{/if}
-				</div>
-			{/if}
+						{/if}
+					</section>
+				{/each}
+			</div>
 		{/if}
 	</div>
 
@@ -504,6 +497,61 @@
 	}
 
 	/* --- TIMELINE --- */
+	.year-group {
+		margin-bottom: 2rem;
+	}
+	/* The whole header row is the toggle, so it stays a button (keyboard +
+	   screen readers) while looking like a section heading. */
+	.year-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		padding: 0.5rem 0;
+		margin-bottom: 1rem;
+		background: none;
+		border: none;
+		color: inherit;
+		cursor: pointer;
+		text-align: left;
+	}
+	.year-header:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 4px;
+		border-radius: var(--radius-xs);
+	}
+	.year-chevron {
+		display: flex;
+		align-items: center;
+		color: var(--text-secondary);
+		transition: transform 0.25s ease;
+	}
+	.year-chevron.open {
+		transform: rotate(90deg);
+	}
+	.year-title {
+		font-size: 1.6rem;
+		font-weight: 800;
+		letter-spacing: -0.02em;
+		margin: 0;
+		white-space: nowrap;
+	}
+	.year-badge {
+		background: color-mix(in srgb, var(--accent) 18%, transparent);
+		color: var(--text-primary);
+		padding: 0.2rem 0.65rem;
+		border-radius: var(--radius-xs);
+		font-size: 0.85rem;
+		font-weight: 700;
+	}
+	.year-header:hover .year-title,
+	.year-header:hover .year-chevron {
+		color: var(--accent);
+	}
+	.year-body {
+		padding-left: 0.25rem;
+	}
+
 	.month-group {
 		margin-bottom: 3rem;
 	}
@@ -660,12 +708,8 @@
 		font-weight: 500;
 	}
 
-	/* --- SKELETON --- */
-	.skeleton-wrapper {
-		width: 100%;
-		height: 100%;
-	}
-	.skeleton-icon {
+	/* --- COVER FALLBACK (album with no photo yet) --- */
+	.cover-placeholder {
 		width: 100%;
 		height: 100%;
 		display: flex;
@@ -712,32 +756,6 @@
 	}
 	.action-btn.delete:hover {
 		background-color: var(--error, #ef4444);
-	}
-
-	/* --- STATES --- */
-	.state-message {
-		text-align: center;
-		padding: 4rem;
-		color: var(--text-secondary);
-		display: flex;
-		justify-content: center;
-		gap: 0.5rem;
-		background: var(--glass-bg);
-		border-radius: var(--radius);
-		border: 1px solid var(--border);
-	}
-	.state-message.error {
-		color: var(--error, #ef4444);
-		border-color: color-mix(in srgb, var(--error, #ef4444) 20%, transparent);
-	}
-
-	.load-more-sentinel {
-		height: 50px;
-		width: 100%;
-		margin-top: 2rem;
-		display: flex;
-		justify-content: center;
-		align-items: center;
 	}
 
 	.confirm-message {

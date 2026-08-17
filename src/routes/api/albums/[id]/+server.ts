@@ -7,6 +7,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { getStoredCover, pruneAlbumCovers } from '$lib/server/album-cover';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -97,8 +98,14 @@ export const DELETE: RequestHandler = async (event) => {
 
 		try {
 			const db = getDatabase();
+			// Read the cover before the row is gone: it is what tells us which
+			// cached image just lost its last reference.
+			const cover = id ? getStoredCover(id) : null;
 			db.prepare('DELETE FROM albums WHERE id = ?').run(id);
 			db.prepare('DELETE FROM album_permissions WHERE album_id = ?').run(id);
+			if (id) {
+				pruneAlbumCovers(id, cover?.assetId);
+			}
 		} catch (dbErr: unknown) {
 			const err = ensureError(dbErr);
 			log.error('Error deleting album from local DB:', err);

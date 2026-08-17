@@ -36,7 +36,14 @@ CREATE TABLE IF NOT EXISTS albums (
     -- visibility: 'private' | 'authenticated' | 'unlisted'
     visibility TEXT NOT NULL DEFAULT 'authenticated',
     -- visible: whether to show the album in public listings (1 = show, 0 = hide)
-    visible INTEGER NOT NULL DEFAULT 1
+    visible INTEGER NOT NULL DEFAULT 1,
+    -- cover_asset_id: the asset whose square thumbnail is this album's cover.
+    -- Persisted so the gallery never has to ask the media backend "which asset
+    -- is the cover?" on every page load, and so the on-disk cover file can be
+    -- pruned when it stops being referenced. NULL = not resolved yet.
+    cover_asset_id TEXT,
+    -- cover_asset_type: 'IMAGE' | 'VIDEO', kept only to badge video covers.
+    cover_asset_type TEXT
 );
 
 -- Unified album permissions: the single source of truth for album access.

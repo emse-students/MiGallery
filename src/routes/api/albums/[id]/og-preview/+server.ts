@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
+import { getStoredCover } from '$lib/server/album-cover';
 
 /**
  * GET /api/albums/[id]/og-preview
@@ -10,9 +11,13 @@ import { getDatabase } from '$lib/db/database';
  * in external applications (e.g., Canari).
  *
  * Private albums return 403. For non-private albums, returns:
- * { name, date, location, visibility, coverUrl }
+ * { name, date, location, visibility, coverUrl, squareCoverUrl }
  *
- * `coverUrl` points to /api/albums/[id]/og-cover, which serves the image publicly.
+ * `coverUrl` points to /api/albums/[id]/og-cover (1200x630), the shape link
+ * unfurlers expect. `squareCoverUrl` points to /api/albums/[id]/cover (1:1),
+ * for consumers that render the cover in a square or a narrow thumbnail strip
+ * where the wide image would be cropped to an unreadable band. Both are public
+ * for non-private albums.
  */
 export const GET: RequestHandler = ({ params, url }) => {
 	const { id } = params;
@@ -24,8 +29,7 @@ export const GET: RequestHandler = ({ params, url }) => {
 	const row = db
 		.prepare('SELECT name, date, location, visibility FROM albums WHERE id = ?')
 		.get(id) as
-		| { name: string; date?: string | null; location?: string | null; visibility?: string }
-		| undefined;
+		{ name: string; date?: string | null; location?: string | null; visibility?: string } | undefined;
 
 	if (!row) {
 		throw error(404, 'Album not found');
@@ -37,12 +41,17 @@ export const GET: RequestHandler = ({ params, url }) => {
 	}
 
 	const coverUrl = `${url.origin}/api/albums/${id}/og-cover`;
+	// Versioned when the cover is already resolved, so a cover change is picked
+	// up immediately instead of sitting in a downstream cache.
+	const stored = getStoredCover(id);
+	const squareCoverUrl = `${url.origin}/api/albums/${id}/cover${stored ? `?v=${stored.assetId}` : ''}`;
 
 	return json({
 		name: row.name,
 		date: row.date || null,
 		location: row.location || null,
 		visibility,
-		coverUrl
+		coverUrl,
+		squareCoverUrl
 	});
 };

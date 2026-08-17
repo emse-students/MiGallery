@@ -155,27 +155,25 @@ describe('Permissions Albums - WRITE operations', () => {
 		expect(result.write.passed).toBe(true);
 		expect(result.admin.passed).toBe(true);
 	});
-});
 
-describe('Permissions Albums - READ operations', () => {
-	it('POST /api/albums/covers - should require READ', async () => {
+	it('PUT /api/albums/[id]/cover - should require WRITE', async () => {
 		if (!testAlbumId) {
 			console.warn('Skipping: No test album available');
 			return;
 		}
 
 		const result = await testPermissions({
-			endpoint: '/api/albums/covers',
-			method: 'POST',
-			body: { albumIds: [testAlbumId] },
-			requiredScope: 'read',
-			description: 'Retrieve album covers'
+			endpoint: `/api/albums/${testAlbumId}/cover`,
+			method: 'PUT',
+			body: { assetId: 'test-asset' },
+			requiredScope: 'write',
+			description: 'Pin an album cover'
 		});
 
-		expect(result.noAuth.passed).toBe(true); // 401/403
-		expect(result.read.passed).toBe(true); // 200
-		expect(result.write.passed).toBe(true); // 200
-		expect(result.admin.passed).toBe(true); // 200
+		expect(result.noAuth.passed).toBe(true);
+		expect(result.read.passed).toBe(true);
+		expect(result.write.passed).toBe(true);
+		expect(result.admin.passed).toBe(true);
 	});
 });
 

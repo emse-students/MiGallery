@@ -82,6 +82,9 @@ export interface Album {
 	location?: string | null;
 	visibility?: 'private' | 'authenticated' | 'unlisted';
 	visible?: number | boolean;
+	/** Asset backing the square cover; also the cache-busting version. */
+	coverAssetId?: string | null;
+	coverAssetType?: string | null;
 }
 
 /**
@@ -89,12 +92,15 @@ export interface Album {
  * Matches exactly the SQLite table structure
  */
 export interface AlbumRow {
-	id: string; // immich UUID
+	id: string; // media backend UUID
 	name: string;
 	date?: string | null;
 	location?: string | null;
 	visibility: 'private' | 'authenticated' | 'unlisted';
 	visible?: number | boolean;
+	/** NULL until the cover is resolved once; see $lib/server/album-cover. */
+	cover_asset_id?: string | null;
+	cover_asset_type?: string | null;
 }
 
 // ----------------------------------------------------------------------------

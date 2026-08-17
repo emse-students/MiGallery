@@ -5,7 +5,7 @@ import path from 'node:path';
 import sharp from '$lib/server/sharp-config';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
-import type { ImmichAlbum } from '$lib/types/api';
+import { resolveCover } from '$lib/server/album-cover';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
 
 import { createLogger } from '$lib/server/logger';
@@ -39,8 +39,7 @@ export const GET: RequestHandler = async (event) => {
 
 	const db = getDatabase();
 	const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(id) as
-		| { visibility?: string }
-		| undefined;
+		{ visibility?: string } | undefined;
 
 	if (!row) {
 		throw error(404, 'Album not found');
@@ -65,22 +64,16 @@ export const GET: RequestHandler = async (event) => {
 	const apiKey = env.IMMICH_API_KEY;
 	const baseUrl = env.IMMICH_BASE_URL;
 	if (!apiKey || !baseUrl) {
-		throw error(500, 'Immich config missing');
+		throw error(500, 'Media backend not configured');
 	}
 
-	// Fetches the thumbnail asset ID from Immich
-	const albumRes = await fetch(`${baseUrl}/api/albums/${id}`, {
-		headers: { 'x-api-key': apiKey }
-	});
-	if (!albumRes.ok) {
-		throw error(albumRes.status, 'Album not found in Immich');
-	}
-
-	const album = (await albumRes.json()) as ImmichAlbum;
-	const assetId = album.albumThumbnailAssetId;
-	if (!assetId) {
+	// Same persisted cover as the square variant, so both formats always show
+	// the same photo and neither re-asks the backend which asset that is.
+	const cover = await resolveCover(id, fetch);
+	if (!cover) {
 		throw error(404, 'Album has no cover image');
 	}
+	const assetId = cover.assetId;
 
 	const thumbRes = await fetch(`${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`, {
 		headers: { 'x-api-key': apiKey }

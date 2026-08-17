@@ -15,7 +15,8 @@
 		Inbox,
 		FileText,
 		RotateCcw,
-		Box
+		Box,
+		Images
 	} from 'lucide-svelte';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
@@ -37,6 +38,7 @@
 	let backing = $state(false);
 	let inspecting = $state(false);
 	let repairing = $state(false);
+	let pruningCovers = $state(false);
 	let databaseStatus = $state<any>(null);
 	let showRepairModal = $state(false);
 
@@ -122,6 +124,36 @@
 			toast.error(m.db_backup_error({ error: String(error) }));
 		} finally {
 			backing = false;
+		}
+	}
+
+	function formatBytes(bytes: number): string {
+		if (bytes < 1024) return `${bytes} o`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+		return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+	}
+
+	async function pruneCovers() {
+		pruningCovers = true;
+		try {
+			const response = await fetch('/api/admin/covers-prune', { method: 'POST' });
+			if (!response.ok) throw new Error(m.db_covers_prune_fail());
+			const result = (await response.json()) as { deleted: number; bytes: number };
+
+			if (result.deleted === 0) {
+				toast.info(m.db_covers_prune_none());
+			} else {
+				toast.success(
+					m.db_covers_prune_done({
+						deleted: String(result.deleted),
+						size: formatBytes(result.bytes)
+					})
+				);
+			}
+		} catch (error: unknown) {
+			toast.error(String(error));
+		} finally {
+			pruningCovers = false;
 		}
 	}
 
@@ -257,6 +289,21 @@
 							<div class="btn-content">
 								<span class="btn-title">{m.db_export_btn()}</span>
 								<span class="btn-desc">{exporting ? m.db_in_progress() : m.db_export_desc()}</span>
+							</div>
+						</button>
+
+						<button
+							type="button"
+							class="action-btn secondary"
+							onclick={pruneCovers}
+							disabled={pruningCovers}
+						>
+							<div class="btn-icon-wrapper"><Images size={24} /></div>
+							<div class="btn-content">
+								<span class="btn-title">{m.db_covers_prune_btn()}</span>
+								<span class="btn-desc"
+									>{pruningCovers ? m.db_in_progress() : m.db_covers_prune_desc()}</span
+								>
 							</div>
 						</button>
 

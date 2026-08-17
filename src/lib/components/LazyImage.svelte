@@ -46,9 +46,11 @@
         aspectRatio?: string;
         isVideo?: boolean;
         radius?: string;
+        /** Called when the image itself fails to load, so the caller can show its own fallback. */
+        onError?: () => void;
     }
 
-    let { src, highRes = undefined, highResDprThreshold = 1.25, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px' }: Props = $props();
+    let { src, highRes = undefined, highResDprThreshold = 1.25, alt, class: className = '', aspectRatio = '1', isVideo = false, radius = '12px', onError = undefined }: Props = $props();
 
     let isLoaded = $state(false);
     let isInView = $state(false);
@@ -145,6 +147,7 @@
             class="lazy-image"
             class:loaded={isLoaded}
             onload={handleLoad}
+            onerror={() => onError?.()}
             loading="eager"
             decoding="async"
         />

@@ -21,9 +21,11 @@ interface CacheConfig {
 
 const DEFAULT_CONFIG: CacheConfig = {
 	name: 'migallery-cache',
-	version: 1,
+	// v2 dropped 'album-covers': album covers are resolved server-side and
+	// served from a stable, versioned URL, so the browser's HTTP cache holds
+	// them and there is nothing left to mirror in IndexedDB.
+	version: 2,
 	stores: [
-		{ name: 'album-covers', ttl: 36000000 },
 		{ name: 'albums', ttl: 300000 },
 		{ name: 'assets', ttl: 600000 },
 		{ name: 'people', ttl: 1800000 },
@@ -71,6 +73,15 @@ class ClientCache {
 				for (const store of this.config.stores) {
 					if (!db.objectStoreNames.contains(store.name)) {
 						db.createObjectStore(store.name);
+					}
+				}
+
+				// Drop stores this version no longer declares, so a retired cache
+				// does not keep occupying the user's disk forever.
+				const declared = new Set(this.config.stores.map((s) => s.name));
+				for (const name of Array.from(db.objectStoreNames)) {
+					if (!declared.has(name)) {
+						db.deleteObjectStore(name);
 					}
 				}
 			};

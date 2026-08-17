@@ -63,8 +63,20 @@ signed-in user.
   (`logEvent`).
 - **Options**: `GET /api/albums/permissions/options` returns the selectable
   formations, promos, tags and users for the permission editor.
-- **Covers and OG**: `/api/albums/[id]/cover`, `/og-cover`, `/og-preview` produce
-  the album cover and social preview images.
+- **Covers and OG**: which asset is an album's cover is persisted in
+  `albums.cover_asset_id`, resolved once from the media backend and then read
+  from SQLite, so listing albums never costs a round trip per album.
+  `GET /api/albums/[id]/cover` serves the square 400x400 WebP from
+  `data/cache/covers/<assetId>.webp` (append `?v=<assetId>` for an immutable
+  URL); `/og-cover` serves the wide 1200x630 variant for link unfurling and
+  `/og-preview` returns both URLs as JSON. `PUT /api/albums/[id]/cover` pins a
+  new cover.
+  A cached image is deleted only once nothing points at it any more - the cover
+  changed, or the album was deleted. Files are named after the ASSET, so two
+  albums sharing a cover share one file. `POST /api/admin/covers-prune` (admin)
+  resolves any album whose cover was never resolved, then sweeps both cover
+  directories for unreferenced files; it is wired to the "Couvertures
+  orphelines" button on the admin database page.
 - **Assets**: `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`,
   `/asset-original`, `/asset-thumbnail` serve album contents (streamed from
   Immich through the proxy, gated by `checkAlbumAccess`).

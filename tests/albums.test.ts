@@ -507,16 +507,23 @@ describe('Albums API - Asset Original', () => {
 });
 
 describe('Albums API - Covers', () => {
-	it('should generate album covers', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/albums/covers`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				albumIds: [testAlbumId]
-			})
+	it('should serve the square album cover', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/cover`, {
+			headers: getAuthHeaders()
 		});
 
-		expect([200, 400, 401, 500]).toContain(response.status);
+		// 404 when the test album has no asset to build a cover from.
+		expect([200, 307, 401, 404, 500]).toContain(response.status);
+	});
+
+	it('should reject a cover assignment without an assetId', async () => {
+		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/cover`, {
+			method: 'PUT',
+			headers: getAuthHeaders(),
+			body: JSON.stringify({})
+		});
+
+		expect([400, 401, 404]).toContain(response.status);
 	});
 });
 

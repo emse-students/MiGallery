@@ -18,7 +18,6 @@
 	import type { Asset } from '$lib/photos.svelte';
 	import { toast } from '$lib/toast';
 	import { setAlbumCover } from '$lib/immich/albums';
-	import { clientCache } from '$lib/client-cache';
 	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
@@ -402,7 +401,6 @@
 		try {
 			await setAlbumCover(albumId, assetId);
 			toast.success(m.pm_cover_updated());
-			clientCache.delete('album-covers', albumId);
 		} catch (e) {
 			toast.error(m.common_error_detail({ error: (e as Error).message }));
 		} finally {

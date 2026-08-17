@@ -19,10 +19,10 @@ the effective minimum.
 | `GET/PATCH/DELETE /api/albums/[id]`                                          | per `checkAlbumAccess` / write | Album detail and edit             |
 | `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`                | album access                   | Album assets                      |
 | `/api/albums/[id]/asset-original/[assetId]` and `/asset-thumbnail/[assetId]` | album access                   | Single asset / thumbnail          |
-| `/api/albums/[id]/cover/[assetId]`, `/og-cover`, `/og-preview`               | album access                   | Cover and social preview          |
+| `GET/PUT /api/albums/[id]/cover`                                             | public / write                 | Square cover, pin a cover         |
+| `/api/albums/[id]/og-cover`, `/og-preview`                                   | public unless private          | Wide cover and social preview     |
 | `/api/albums/[id]/info`, `/metadata`                                         | album access                   | Album info/metadata               |
 | `/api/albums/[id]/permissions/users`, `/tags`                                | write                          | Edit album permissions            |
-| `/api/albums/covers`                                                         | read                           | Cover batch                       |
 | `/api/albums/permissions/options`                                            | write                          | Options for the permission editor |
 
 ## People / CV directory
@@ -77,6 +77,7 @@ All under `requireAdminSession` / admin scope.
 | -------------------------------------------------------------------------------- | --------------------------- |
 | `/api/admin/api-keys`, `/[id]`                                                   | Create/list/revoke API keys |
 | `/api/admin/db-export`, `/db-import`, `/db-backup`, `/db-restore`, `/db-inspect` | Database maintenance        |
+| `POST /api/admin/covers-prune`                                                   | Delete orphan album covers  |
 
 Admin pages: `/admin`, `/admin/api-keys`, `/admin/database`,
 `/admin/logs`.

@@ -125,6 +125,14 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 			if (acols.length > 0 && !acols.includes('visible')) {
 				dbInstance.prepare('ALTER TABLE albums ADD COLUMN visible INTEGER NOT NULL DEFAULT 1').run();
 			}
+			// Persisted album cover: resolved once from the media backend, then
+			// read from here. NULL rows are resolved lazily on first request.
+			if (acols.length > 0 && !acols.includes('cover_asset_id')) {
+				dbInstance.prepare('ALTER TABLE albums ADD COLUMN cover_asset_id TEXT').run();
+			}
+			if (acols.length > 0 && !acols.includes('cover_asset_type')) {
+				dbInstance.prepare('ALTER TABLE albums ADD COLUMN cover_asset_type TEXT').run();
+			}
 		} catch (_e) {
 			try {
 				log.warn('migration (albums.visible) notice', (_e as Error).message);
