@@ -54,7 +54,8 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 
 **Roadmap (Active WP):**
 
-- (none)
+- Post-deploy of b25fad2: click "Couvertures orphelines" once on `/admin/database` to reclaim the ~330 pre-tracking cover files on prod (it resolves missing `cover_asset_id` first, then sweeps).
+- Canari repo (separate): `MiGalleryLinkPreview.svelte` still reads `preview.image` (1200x630). `/api/albums/[id]/og-preview` now also returns `squareCoverUrl` - switch it there when the square format is wanted.
 
 **Memory Gotchas (Do not repeat):**
 
@@ -66,4 +67,9 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 - Post-login destination (`src/lib/auth-redirect.ts`, wiki `authentication.md`): only the ANONYMOUS branch of a guard may carry one. Giving it to "logged in but refused" (`checkAlbumAccess`, a non-admin under `/admin`) returns the user to the same refusal forever - hence `requireAdminPage`, which splits what `ensureAdmin` conflates.
 - A leading `/` does not prove a path is ours: `//evil.com` and `/\evil.com` both start with one and both leave the site. Control characters split the `Location` header, and `/api/auth/*` loops the login. One sanitizer, applied on WRITE (login) and again on READ (callback) - the `__oidc_return` cookie is browser input like any query param.
 - `requireScope(event, 'read')` returns `grantedScope: 'read'` for a SESSION admin (only 'admin' required-scope or an admin API key yields `grantedScope: 'admin'`). To gate cross-user actions on a read/write endpoint, check `auth.user?.role === 'admin'`, never `grantedScope === 'admin'`.
+- Album covers (commit b25fad2, `src/lib/server/album-cover.ts`): WHICH asset is the cover lives in `albums.cover_asset_id`; the 400x400 WebP lives in `data/cache/covers/<assetId>.webp` - keyed by ASSET, not album, so two albums sharing a cover share one file. Retention = "delete once nothing points at it" (`pruneCoverAsset` checks `SELECT 1 FROM albums WHERE cover_asset_id = ?`). NEVER resolve a cover client-side again: that meant 2 upstream calls + a paginated asset search per album per load. `resolveMissingCovers` MUST run before `pruneOrphanCovers` or unresolved albums' valid files look orphaned.
+- `GET /api/albums/[id]/cover` follows og-cover's rule: only `private` albums require a read scope (needed for Canari link previews). The deleted `/cover/[assetId]` required read for everything but `unlisted` - this is a deliberate widening, not an oversight.
+- A Svelte 5 `$effect` stops tracking at its first `await`, but everything read SYNCHRONOUSLY before it IS tracked. Reading your own cache (`albumCovers[id]`) at the top of an async effect therefore re-fires the effect on every write to it. That was the albums-page fetch loop.
+- Prettier here has NO `plugins` entry, so `.svelte` files are silently skipped by lint-staged's `--ignore-unknown` and are not prettier-managed. Format with `npm run format` (or let husky do it) - a bare `npx prettier --write "src/**/*.svelte"` just errors "No parser could be inferred".
+- `npm run test` refuses to run while `IMMICH_BASE_URL` points at prod (it creates real `[TEST]` albums). Do not set `ALLOW_REMOTE_IMMICH_TESTS=true`. Server-free suites that always run: `tests/disk-cache.test.ts`, `tests/auth-redirect.test.ts`.
 - `/api/users/[username]/avatar`: unbusted URLs (shared `Avatar.svelte`) now revalidate via ETag=asset id (`no-cache`); only `?v=assetId` URLs are `immutable`. Don't reintroduce a long `max-age` on the unbusted path or the profile photo goes stale for ~1h.
