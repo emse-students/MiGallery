@@ -30,6 +30,7 @@
 	import { downloadInBatches } from '$lib/immich/download';
 	import { activeOperations } from '$lib/operations';
 	import { navigationModalStore } from '$lib/navigation-store';
+	import { albumsView } from '$lib/albums-view-state.svelte';
 	import type { User, Album } from '$lib/types/api';
 	import { m } from '$lib/paraglide/messages';
 
@@ -55,8 +56,12 @@
 
 	function handleBackClick() {
 		if (hasActiveOps) {
+			// That branch does a full page load, which wipes the in-memory view
+			// state anyway - nothing to restore, so nothing to mark.
 			navigationModalStore.set({ show: true, href: '/albums' });
 		} else {
+			// goto() pushes, so SvelteKit would scroll to top: restore it ourselves.
+			albumsView.markReturnTrip();
 			goto('/albums');
 		}
 	}

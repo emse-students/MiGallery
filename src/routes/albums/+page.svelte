@@ -24,9 +24,10 @@
 	import { toast } from '$lib/toast';
 	import { fuzzyMatch } from '$lib/fuzzy';
 	import { clientCache } from '$lib/client-cache';
+	import { albumsView } from '$lib/albums-view-state.svelte';
 	import type { User, Album, ImmichAsset } from '$lib/types/api';
 	import { downloadInBatches } from '$lib/immich/download';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 
 	/**
@@ -36,13 +37,15 @@
 	const SCHOOL_YEAR_START_MONTH = 7; // August (0-indexed)
 	const SCHOOL_YEAR_START_DAY = 15;
 
-	let albums = $state<Album[]>([]);
+	// Derived, not filled from an $effect: the grid must have its full height on
+	// the very first paint, or a restored scroll offset lands on a short page.
+	// Deletion reassigns it, which holds until the server data changes.
+	let albums = $derived((page.data?.albums as Album[] | undefined) ?? []);
 	let showAlbumModal = $state(false);
-	let searchQuery = $state<string>('');
 
 	let filteredAlbums = $derived(
-		searchQuery.trim()
-			? albums.filter((a) => fuzzyMatch(searchQuery, `${a.name || ''} ${a.location || ''}`))
+		albumsView.search.trim()
+			? albums.filter((a) => fuzzyMatch(albumsView.search, `${a.name || ''} ${a.location || ''}`))
 			: albums
 	);
 
@@ -56,10 +59,6 @@
 
 	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
 	let canCreateAlbum = $derived(userRole === 'mitviste' || userRole === 'admin');
-
-	$effect(() => {
-		albums = (page.data?.albums as Album[] | undefined) ?? [];
-	});
 
 	function monthLabelFor(dateStr?: string | null) {
 		if (!dateStr) return m.albums_no_date();
@@ -135,17 +134,35 @@
 
 	// Only the newest school year opens by default; a search opens everything
 	// that matches, otherwise the results would hide behind collapsed headers.
-	let toggledYears = $state<Record<string, boolean>>({});
-	let searching = $derived(searchQuery.trim().length > 0);
+	// The overrides live in albumsView so a return trip finds them unfolded.
+	let searching = $derived(albumsView.search.trim().length > 0);
 
 	function isExpanded(key: string, index: number): boolean {
 		if (searching) return true;
-		return toggledYears[key] ?? index === 0;
+		return albumsView.expandedYears[key] ?? index === 0;
 	}
 
 	function toggleYear(key: string, index: number) {
-		toggledYears = { ...toggledYears, [key]: !isExpanded(key, index) };
+		albumsView.expandedYears = {
+			...albumsView.expandedYears,
+			[key]: !isExpanded(key, index)
+		};
 	}
+
+	onMount(() => {
+		const rememberScroll = () => {
+			albumsView.scrollY = window.scrollY;
+		};
+		window.addEventListener('scroll', rememberScroll, { passive: true });
+
+		// One frame of slack so the restored folding is laid out before we jump.
+		if (albumsView.consumeReturnTrip()) {
+			const target = albumsView.scrollY;
+			requestAnimationFrame(() => window.scrollTo(0, target));
+		}
+
+		return () => window.removeEventListener('scroll', rememberScroll);
+	});
 
 	/**
 	 * Stable per-album cover URL. `?v=` is the asset id, so the browser caches
@@ -285,10 +302,7 @@
 				<input
 					class="search-input"
 					placeholder={m.albums_search_placeholder()}
-					bind:value={searchQuery}
-					oninput={(e) => {
-						searchQuery = (e.target as HTMLInputElement).value;
-					}}
+					bind:value={albumsView.search}
 					aria-label={m.albums_search_aria()}
 				/>
 			</div>
