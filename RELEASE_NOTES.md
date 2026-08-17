@@ -1,3 +1,68 @@
+# MiGallery v2.0.0
+
+**Date**: August 17, 2026
+**Type**: Major Release
+
+## 🎯 Objective
+
+Rebuild authentication on a foundation that can actually revoke a session, and make the gallery usable in two languages. Six months of work: the login stack was replaced, every user-visible string was externalized, and the album grid was rewritten around covers served from disk.
+
+## ⚠️ Breaking Changes
+
+Read this section before upgrading: a 1.1.0 deployment will not start unchanged.
+
+- **Authentication moved to Authentik (MiConnect) OIDC.** EMSE CAS is gone. Three new variables are required: `MICONNECT_ISSUER`, `MICONNECT_CLIENT_ID`, `MICONNECT_CLIENT_SECRET`.
+- **Auth.js was removed entirely.** `AUTH_SECRET` and `COOKIE_SECRET` are no longer read by anything - drop them. There is nothing left to sign or rotate.
+- **Sessions are server-side rows.** The `migallery_session` cookie now carries a random opaque token; the row in the database is the truth. This is what makes logout and revocation real instead of advisory. **Every existing session is invalidated by the upgrade** - all users log in again.
+- **Node 24 is required** (`engines: >=24.0.0`).
+- **Legacy `album_*_permissions` tables were dropped** in favour of a single unified permissions table. The migration runs on startup.
+
+## ✨ New Features and Improvements
+
+### 🔐 Authentication and Security
+
+- Native OIDC implementation, with the post-login destination sanitized on both write and read so a crafted return path cannot bounce a user off-site.
+- A shared album link now lands on that album after login, not on the home page.
+- Impersonation lives in the session row, so the real actor stays provable and a revoked session cannot outlive its logout.
+- Path traversal, file-system race conditions in the image caches, and log leakage were fixed.
+
+### 🌍 Internationalization
+
+- Full French/English UI through Paraglide, with the choice persisted per user.
+- All server-side diagnostics and code comments are English-only.
+
+### 📸 Albums and Photos
+
+- Album covers are rendered once and persisted on disk as square WebP, keyed by asset, instead of being resolved by the browser on every page load.
+- The album grid is grouped into a school-year timeline (rollover on 15 August), and browsing state - search, unfolded years, scroll - survives a trip into an album and back.
+- Accent- and typo-tolerant search across albums and the member directory.
+- Uploads survive a connection loss, report live per-file status, and accept new files while one is already in flight.
+- Favorites filter and long-press action sheet on mobile.
+
+### 👤 Profiles
+
+- Face-first profile picture picker with server-side square crops.
+- Photo sharing between users, by person, formation or promotion.
+
+### 🛠️ Administration
+
+- Users and roles page, server health metrics, searchable and paginated logs, database maintenance, and the wiki rendered in-app.
+- Scheduled database backups.
+
+### 🎨 Interface
+
+- Unified design tokens, theme-aware components, a global keyboard focus ring, and decluttered navigation.
+
+## 🔧 Migration from 1.1.0
+
+1. Register the application in Authentik and set `MICONNECT_ISSUER`, `MICONNECT_CLIENT_ID` and `MICONNECT_CLIENT_SECRET`.
+2. Remove `AUTH_SECRET` and `COOKIE_SECRET` from the environment.
+3. Upgrade the runtime to Node 24.
+4. Back up `data/migallery.db`, then start the application - the schema migrations run automatically.
+5. Warn users that they will be signed out once.
+
+---
+
 # MiGallery v1.1.0
 
 **Date**: February 5, 2026
