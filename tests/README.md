@@ -140,7 +140,8 @@ node ./scripts/test-api.cjs
 - ✅ `PUT /api/albums/:id/metadata` - Metadata update
 - ✅ `GET /api/albums/:id/asset-thumbnail/:assetId` - Thumbnails
 - ✅ `GET /api/albums/:id/asset-original/:assetId` - Original assets
-- ✅ `POST /api/albums/covers` - Cover generation
+- ✅ `GET /api/albums/:id/cover` - Square cover (public)
+- ✅ `PUT /api/albums/:id/cover` - Pin a cover (write)
 - ✅ Pagination, cursors, validations
 
 ### ✅ Users API (10+ endpoints)

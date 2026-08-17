@@ -20,7 +20,8 @@ the effective minimum.
 | `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`                | album access                   | Album assets                      |
 | `/api/albums/[id]/asset-original/[assetId]` and `/asset-thumbnail/[assetId]` | album access                   | Single asset / thumbnail          |
 | `GET/PUT /api/albums/[id]/cover`                                             | public / write                 | Square cover, pin a cover         |
-| `/api/albums/[id]/og-cover`, `/og-preview`                                   | public unless private          | Wide cover and social preview     |
+| `GET /api/albums/[id]/og-cover`                                              | public                         | Wide cover (1200x630)             |
+| `GET /api/albums/[id]/og-preview`                                            | public unless private          | Social preview metadata           |
 | `/api/albums/[id]/info`, `/metadata`                                         | album access                   | Album info/metadata               |
 | `/api/albums/[id]/permissions/users`, `/tags`                                | write                          | Edit album permissions            |
 | `/api/albums/permissions/options`                                            | write                          | Options for the permission editor |

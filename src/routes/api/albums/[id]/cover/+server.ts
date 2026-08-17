@@ -25,8 +25,10 @@ function albumVisibility(albumId: string): string | null {
  * bust the cache when the cover changes; that versioned form is `immutable`,
  * the bare form revalidates via ETag (an unversioned URL must never go stale).
  *
- * Access mirrors the link-preview rule: only private albums require a key, so
- * a shared album's cover renders in external previews.
+ * Public for every album, whatever its visibility: a cover is a 400x400 crop of
+ * a single photo, and external sites (Canari) must be able to render it from an
+ * <img> tag, which carries no key. The album's contents stay gated everywhere
+ * else - this endpoint exposes the cover only.
  */
 export const GET: RequestHandler = async (event) => {
 	const { params, url, request, fetch } = event;
@@ -35,12 +37,8 @@ export const GET: RequestHandler = async (event) => {
 		throw error(400, 'Missing album ID');
 	}
 
-	const visibility = albumVisibility(albumId);
-	if (!visibility) {
+	if (!albumVisibility(albumId)) {
 		throw error(404, 'Album not found');
-	}
-	if (visibility === 'private') {
-		await requireScope(event, 'read');
 	}
 
 	const cover = await resolveCover(albumId, fetch);

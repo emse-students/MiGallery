@@ -4,7 +4,6 @@ import { env } from '$env/dynamic/private';
 import path from 'node:path';
 import sharp from '$lib/server/sharp-config';
 import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
 import { resolveCover } from '$lib/server/album-cover';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
 
@@ -25,29 +24,23 @@ try {
  * Serves the album cover resized to Open Graph format (1200×630 WebP).
  * Used for link previews in Canari.
  *
- * - Unlisted / authenticated albums: free access (no auth required).
- * - Private albums: requires an API key with 'read' scope (e.g., Canari via x-api-key).
+ * Public for every album, like the square variant: both serve one cropped photo
+ * and both are loaded by external <img> / unfurler requests that carry no key.
  *
  * The image is cached to disk for subsequent requests.
  */
-export const GET: RequestHandler = async (event) => {
-	const { params, fetch } = event;
+export const GET: RequestHandler = async ({ params, fetch }) => {
 	const { id } = params;
 	if (!id) {
 		throw error(400, 'Missing album ID');
 	}
 
 	const db = getDatabase();
-	const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(id) as
-		{ visibility?: string } | undefined;
+	const row = db.prepare('SELECT id FROM albums WHERE id = ?').get(id) as
+		{ id?: string } | undefined;
 
 	if (!row) {
 		throw error(404, 'Album not found');
-	}
-
-	// Private albums require an API key; others are public.
-	if (row.visibility === 'private') {
-		await requireScope(event, 'read');
 	}
 
 	const cacheFile = path.join(CACHE_DIR, `${id}.webp`);

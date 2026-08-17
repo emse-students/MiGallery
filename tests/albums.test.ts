@@ -513,7 +513,16 @@ describe('Albums API - Covers', () => {
 		});
 
 		// 404 when the test album has no asset to build a cover from.
-		expect([200, 307, 401, 404, 500]).toContain(response.status);
+		expect([200, 307, 404, 500]).toContain(response.status);
+	});
+
+	it('should serve the square album cover without authentication', async () => {
+		// Covers are public for every visibility so external sites can embed
+		// them from an <img> tag, which carries no key.
+		const response = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}/cover`);
+
+		expect(response.status).not.toBe(401);
+		expect(response.status).not.toBe(403);
 	});
 
 	it('should reject a cover assignment without an assetId', async () => {

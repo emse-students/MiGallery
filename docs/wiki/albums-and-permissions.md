@@ -71,6 +71,10 @@ signed-in user.
   URL); `/og-cover` serves the wide 1200x630 variant for link unfurling and
   `/og-preview` returns both URLs as JSON. `PUT /api/albums/[id]/cover` pins a
   new cover.
+  Both image endpoints are public for every album, whatever its visibility:
+  external sites embed them from an `<img>` tag, which carries no key. Only the
+  cover is exposed that way - `/og-preview` still refuses private albums and the
+  album's contents stay gated by `checkAlbumAccess`.
   A cached image is deleted only once nothing points at it any more - the cover
   changed, or the album was deleted. Files are named after the ASSET, so two
   albums sharing a cover share one file. `POST /api/admin/covers-prune` (admin)
