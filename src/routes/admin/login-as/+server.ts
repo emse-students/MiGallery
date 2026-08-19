@@ -32,8 +32,7 @@ export const GET: RequestHandler = async ({ url, cookies, locals }) => {
 
 	const db = getDatabase();
 	const user = db.prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(username) as
-		| { id_user: string }
-		| undefined;
+		{ id_user: string } | undefined;
 
 	if (!user) {
 		return new Response(`User ${username} not found in database.`, { status: 404 });

@@ -28,18 +28,19 @@ Generic modal supporting multiple display types.
 ```
 
 **Props:**
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `show` | `boolean` | `true` | Controls display (bindable) |
-| `title` | `string` | `''` | Modal title |
-| `type` | `string` | `'default'` | Modal type (affects colors) |
-| `icon` | `string` | - | Icon to display in header |
-| `confirmText` | `string` | `'Confirm'` | Primary button text |
-| `cancelText` | `string` | `'Cancel'` | Secondary button text |
-| `confirmDisabled` | `boolean` | `false` | Disables confirm button |
-| `showCloseButton` | `boolean` | `true` | Shows close button |
-| `onConfirm` | `function` | - | Callback called on confirm |
-| `onCancel` | `function` | - | Callback called on cancel |
+
+| Prop              | Type       | Default     | Description                 |
+| ----------------- | ---------- | ----------- | --------------------------- |
+| `show`            | `boolean`  | `true`      | Controls display (bindable) |
+| `title`           | `string`   | `''`        | Modal title                 |
+| `type`            | `string`   | `'default'` | Modal type (affects colors) |
+| `icon`            | `string`   | -           | Icon to display in header   |
+| `confirmText`     | `string`   | `'Confirm'` | Primary button text         |
+| `cancelText`      | `string`   | `'Cancel'`  | Secondary button text       |
+| `confirmDisabled` | `boolean`  | `false`     | Disables confirm button     |
+| `showCloseButton` | `boolean`  | `true`      | Shows close button          |
+| `onConfirm`       | `function` | -           | Callback called on confirm  |
+| `onCancel`        | `function` | -           | Callback called on cancel   |
 
 ---
 

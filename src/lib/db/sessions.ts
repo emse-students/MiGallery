@@ -47,8 +47,7 @@ interface SessionRow {
 
 function findUser(id: string): UserRow | null {
 	const row = getDatabase().prepare('SELECT * FROM users WHERE id_user = ? LIMIT 1').get(id) as
-		| UserRow
-		| undefined;
+		UserRow | undefined;
 
 	return row ?? null;
 }

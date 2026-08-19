@@ -33,8 +33,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const db = getDatabase();
 
 	let albumRow = db.prepare('SELECT * FROM albums WHERE id = ? LIMIT 1').get(paramId) as
-		| Album
-		| undefined;
+		Album | undefined;
 	if (!albumRow) {
 		const num = Number(paramId);
 		if (!isNaN(num)) {

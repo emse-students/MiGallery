@@ -69,9 +69,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const uploadJson = (await uploadRes.json().catch(() => null)) as
-		| { id?: string; assets?: { id?: string }[] }
-		| { id?: string }[]
-		| null;
+		{ id?: string; assets?: { id?: string }[] } | { id?: string }[] | null;
 	let assetIds: string[] = [];
 	if (Array.isArray(uploadJson)) {
 		assetIds = uploadJson.map((it) => it.id).filter((id): id is string => Boolean(id));

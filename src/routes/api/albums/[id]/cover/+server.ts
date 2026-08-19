@@ -12,8 +12,7 @@ const log = createLogger('albums-id-cover');
 function albumVisibility(albumId: string): string | null {
 	const db = getDatabase();
 	const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(albumId) as
-		| { visibility?: string }
-		| undefined;
+		{ visibility?: string } | undefined;
 	return row ? row.visibility || 'private' : null;
 }
 

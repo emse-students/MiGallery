@@ -44,8 +44,7 @@ type FetchFn = typeof fetch;
  * 'config' -> 500 (missing Immich env); 'error' -> 500 (unexpected).
  */
 export type FaceCropResult =
-	| { ok: true; buffer: Buffer }
-	| { ok: false; reason: 'busy' | 'notfound' | 'config' | 'error' };
+	{ ok: true; buffer: Buffer } | { ok: false; reason: 'busy' | 'notfound' | 'config' | 'error' };
 
 /**
  * Generate (or read from disk cache) a square WebP cropped and centered on the

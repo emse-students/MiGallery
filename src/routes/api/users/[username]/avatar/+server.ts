@@ -31,8 +31,7 @@ export const GET: RequestHandler = async (event) => {
 
 		const userStmt = db.prepare('SELECT photos_id, photos_asset_id FROM users WHERE id_user = ?');
 		const user = userStmt.get(username) as
-			| { photos_id?: string | null; photos_asset_id?: string | null }
-			| undefined;
+			{ photos_id?: string | null; photos_asset_id?: string | null } | undefined;
 
 		if (!user) {
 			return svelteError(404, 'User not found');

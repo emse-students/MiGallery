@@ -66,8 +66,7 @@ export const GET: RequestHandler = async (event) => {
 		try {
 			const db = getDatabase();
 			const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(id) as
-				| { visibility?: string }
-				| undefined;
+				{ visibility?: string } | undefined;
 			localVisibility = row?.visibility;
 		} catch (dbErr: unknown) {
 			const _dbErr = ensureError(dbErr);
@@ -119,8 +118,7 @@ export const GET: RequestHandler = async (event) => {
 						}
 
 						const exif = (asset as ImmichAsset).exifInfo as
-							| { exifImageWidth?: number; exifImageHeight?: number }
-							| undefined;
+							{ exifImageWidth?: number; exifImageHeight?: number } | undefined;
 						const minimalData = {
 							id: asset.id,
 							type: asset.type,

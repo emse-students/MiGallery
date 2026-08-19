@@ -115,9 +115,7 @@ describe('My Domain API - {Method} {Endpoint}', () => {
 ```typescript
 it('should {expected action}', async () => {
 	// 1. Prepare data
-	const requestData = {
-		/* ... */
-	};
+	const requestData = {/* ... */};
 
 	// 2. Make the request
 	const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
