@@ -3,6 +3,7 @@ import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY;
@@ -20,7 +21,10 @@ export const GET: RequestHandler = async (event) => {
 	if (IMMICH_API_KEY) {
 		headers['x-api-key'] = IMMICH_API_KEY;
 	}
-	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}`, { headers });
+	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
+		headers,
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS)
+	});
 	if (!res.ok) {
 		throw error(500, `Failed to fetch album: ${res.statusText}`);
 	}
@@ -45,6 +49,7 @@ export const PUT: RequestHandler = async (event) => {
 		headers['x-api-key'] = IMMICH_API_KEY;
 	}
 	const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'PUT',
 		headers,
 		body: JSON.stringify({ ids: assetIds })
@@ -77,6 +82,7 @@ export const DELETE: RequestHandler = async (event) => {
 		headers['x-api-key'] = IMMICH_API_KEY;
 	}
 	const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'DELETE',
 		headers,
 		body: JSON.stringify({ ids: assetIds })

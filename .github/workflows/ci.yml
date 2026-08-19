@@ -36,6 +36,11 @@ jobs:
       NODE_OPTIONS: '--max-old-space-size=16384'
      run: npm run lint
 
+   # A husky pre-commit hook is not a gate: `--no-verify` skips it, and it never runs on a pull
+   # request at all. Prettier only counts once something red says so.
+   - name: Check formatting
+     run: npm run format:check
+
    - name: Build
      run: npm run build
 

@@ -5,6 +5,7 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('albums-id-assets');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -34,6 +35,7 @@ export const PUT: RequestHandler = async (event) => {
 		if (Array.isArray(ids) && ids.length > 0) {
 			try {
 				await fetch(`${IMMICH_BASE_URL}/api/trash/restore/assets`, {
+					signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 					method: 'POST',
 					headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
 					body: JSON.stringify({ ids })
@@ -45,6 +47,7 @@ export const PUT: RequestHandler = async (event) => {
 		}
 
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'PUT',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
@@ -88,6 +91,7 @@ export const DELETE: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'DELETE',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,

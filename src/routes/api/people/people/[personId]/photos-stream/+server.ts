@@ -9,6 +9,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getPersonAssets } from '$lib/photos-cv/handlers';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-people-personId-photos-stream');
 /**
@@ -82,6 +83,7 @@ export const GET: RequestHandler = async (event) => {
 						const detailsPromises = batch.map(async (asset: ImmichAsset) => {
 							try {
 								const detailRes = await fetch(`${IMMICH_BASE_URL}/api/assets/${asset.id}`, {
+									signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 									headers: {
 										'x-api-key': IMMICH_API_KEY,
 										Accept: 'application/json'

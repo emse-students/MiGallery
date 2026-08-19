@@ -19,6 +19,7 @@ const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
+import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '$lib/server/outbound';
 
 /**
  * Cleans a header value to ensure it contains only Latin-1 characters.
@@ -112,6 +113,7 @@ async function checkPublicAssetAccess(
 	if (!assetData) {
 		try {
 			const res = await fetch(assetUrl, {
+				signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 				headers: { 'x-api-key': apiKey, accept: 'application/json' }
 			});
 			if (!res.ok) {
@@ -142,6 +144,7 @@ async function checkPublicAssetAccess(
 			if (!albumData) {
 				try {
 					const res = await fetch(albumUrl, {
+						signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 						headers: { 'x-api-key': apiKey, accept: 'application/json' }
 					});
 					if (res.ok) {
@@ -753,7 +756,13 @@ const handle: RequestHandler = async function (event) {
 	};
 
 	try {
-		const res = await fetch(resolvedRemoteUrl, init);
+		// A body being forwarded means this is an upload, and a clock started here would measure how
+		// big the file is rather than whether Immich is answering. Everything else - which is every
+		// asset, thumbnail and metadata read the gallery makes - gets the answer budget, and streams
+		// its body afterwards for as long as it keeps moving.
+		const res = bodyToForward
+			? await fetch(resolvedRemoteUrl, init)
+			: await fetchWithAnswerDeadline(resolvedRemoteUrl, init);
 
 		// Log upstream errors (only real errors >= 400). Treat 304 Not Modified as cache hit.
 		if (!res.ok && res.status >= 400) {

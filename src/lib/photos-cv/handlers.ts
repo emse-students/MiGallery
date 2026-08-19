@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -25,6 +26,7 @@ async function searchAllAssets(
 
 	while (hasNext) {
 		const res = await fetchFn(`${IMMICH_BASE_URL}/api/search/metadata`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'POST',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
@@ -104,6 +106,7 @@ export async function getAlbumInfo(fetchFn: typeof fetch): Promise<{
 }> {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
 	const albumRes = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
 	});
 	if (!albumRes.ok) {
@@ -126,6 +129,7 @@ export async function addAssetsToAlbum(
 ): Promise<{ success: boolean }> {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
 	const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'PUT',
 		headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ ids: assetIds })
@@ -144,6 +148,7 @@ export async function removeAssetsFromAlbum(
 ): Promise<{ success: boolean }> {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
 	const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'DELETE',
 		headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ ids: assetIds })

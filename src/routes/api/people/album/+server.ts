@@ -9,6 +9,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-album');
 export const GET: RequestHandler = async (event) => {
@@ -28,6 +29,7 @@ export const GET: RequestHandler = async (event) => {
 		const { fetch: _fetch } = event;
 		const albumId = await getOrCreateSystemAlbum(_fetch, 'PhotoCV');
 		const albumRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' }
 		});
 		if (!albumRes.ok) {

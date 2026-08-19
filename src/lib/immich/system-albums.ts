@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import type { ImmichAlbum } from '$lib/types/api';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 const log = createLogger('system-albums');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -16,6 +17,7 @@ async function fetchAlbums(fetchFn: typeof fetch): Promise<ImmichAlbum[]> {
 		throw new Error('IMMICH_BASE_URL not configured');
 	}
 	const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		headers: {
 			'x-api-key': IMMICH_API_KEY,
 			Accept: 'application/json'
@@ -43,6 +45,7 @@ export async function getOrCreateSystemAlbum(
 	}
 
 	const createRes = await fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'POST',
 		headers: {
 			'x-api-key': IMMICH_API_KEY,

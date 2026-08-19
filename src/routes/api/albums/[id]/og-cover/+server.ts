@@ -8,6 +8,7 @@ import { resolveCover } from '$lib/server/album-cover';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('albums-id-og-cover');
 const CACHE_DIR = path.resolve('data/cache/og-covers');
@@ -70,6 +71,7 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 	const assetId = cover.assetId;
 
 	const thumbRes = await fetch(`${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		headers: { 'x-api-key': apiKey }
 	});
 	if (!thumbRes.ok) {

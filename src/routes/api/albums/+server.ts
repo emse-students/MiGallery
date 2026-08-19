@@ -8,6 +8,7 @@ import { requireScope } from '$lib/server/permissions';
 import { ensureError } from '$lib/ts-utils';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('albums');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -132,6 +133,7 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		const immichRes = await event.fetch(`${IMMICH_BASE_URL}/api/albums`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'POST',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,

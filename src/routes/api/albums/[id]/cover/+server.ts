@@ -5,6 +5,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { getCoverImage, resolveCover, storeCover } from '$lib/server/album-cover';
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('albums-id-cover');
 
@@ -112,6 +113,7 @@ export const PUT: RequestHandler = async (event) => {
 	}
 
 	const res = await fetch(`${baseUrl}/api/albums/${albumId}`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'PATCH',
 		headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
 		body: JSON.stringify({ albumThumbnailAssetId: assetId })

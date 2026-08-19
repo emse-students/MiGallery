@@ -2,6 +2,7 @@ import { env } from '$env/dynamic/private';
 import { getUserByCasId, createUser, updateUser } from '$lib/db/users';
 import { createLogger } from '$lib/server/logger';
 import type { DBUser } from '$lib/db/users';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 const log = createLogger('auth-oidc');
@@ -137,6 +138,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
 	try {
 		const tokenUrl = `${getAuthEndpointBase()}/token/`;
 		const response = await fetch(tokenUrl, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/x-www-form-urlencoded'
@@ -170,6 +172,7 @@ async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null
 	try {
 		const userinfoUrl = `${getAuthEndpointBase()}/userinfo/`;
 		const response = await fetch(userinfoUrl, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			headers: {
 				Authorization: `Bearer ${accessToken}`
 			}

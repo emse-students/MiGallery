@@ -10,6 +10,7 @@ import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { getStoredCover, pruneAlbumCovers } from '$lib/server/album-cover';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('albums-id');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -58,6 +59,7 @@ export const GET: RequestHandler = async (event) => {
 			throw error(500, 'IMMICH_BASE_URL not configured');
 		}
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			headers: {
 				'x-api-key': IMMICH_API_KEY,
 				Accept: 'application/json'
@@ -117,6 +119,7 @@ export const DELETE: RequestHandler = async (event) => {
 		} else {
 			try {
 				const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
+					signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 					method: 'DELETE',
 					headers: {
 						'x-api-key': IMMICH_API_KEY

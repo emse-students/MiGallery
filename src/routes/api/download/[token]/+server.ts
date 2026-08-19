@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { consumeDownloadToken } from '$lib/server/download-tokens';
 import { env } from '$env/dynamic/private';
 import { ensureError } from '$lib/ts-utils';
+import { fetchWithAnswerDeadline } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -20,7 +21,9 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	try {
-		const res = await fetch(`${IMMICH_BASE_URL}/api/download/archive`, {
+		// The answer is bounded, the archive that follows is not: this body is the whole download,
+		// and a reader on a phone connection is allowed to take as long as they take.
+		const res = await fetchWithAnswerDeadline(`${IMMICH_BASE_URL}/api/download/archive`, {
 			method: 'POST',
 			headers: {
 				'x-api-key': IMMICH_API_KEY,

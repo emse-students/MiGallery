@@ -7,6 +7,7 @@ import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('external-media');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -48,6 +49,11 @@ export const POST: RequestHandler = async (event) => {
 	immichFormData.append('fileModifiedAt', now);
 	immichFormData.append('isFavorite', 'false');
 
+	// DELIBERATELY UNBOUNDED, and it is the one call here that is. The body is the file the caller
+	// just uploaded, so a 4 s clock started now would measure how big that file is, not whether
+	// Immich is answering - a 200 MB video would abort every time. `fetch` offers no hook for
+	// "after the request has been sent", so what actually bounds this is undici's headersTimeout
+	// (300 s). Stated rather than silently absent. See src/lib/server/outbound.ts.
 	const uploadRes = await fetch(`${IMMICH_BASE_URL}/api/assets`, {
 		method: 'POST',
 		headers: {
@@ -79,6 +85,7 @@ export const POST: RequestHandler = async (event) => {
 		const albumId = await getOrCreateSystemAlbum(fetch, 'PortailEtu');
 		if (assetIds.length > 0) {
 			const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+				signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 				method: 'PUT',
 				headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
 				body: JSON.stringify({ ids: assetIds })
@@ -142,6 +149,7 @@ export const DELETE: RequestHandler = async (event) => {
 	}
 
 	const deleteRes = await fetch(`${IMMICH_BASE_URL}/api/assets`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'DELETE',
 		headers: {
 			'x-api-key': IMMICH_API_KEY || '',

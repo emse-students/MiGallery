@@ -30,19 +30,20 @@ the page is a bug.
 
 ## Map of the wiki
 
-| Page                                                   | What it covers                                                               |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| [architecture.md](architecture.md)                     | Request lifecycle, hooks, CORS/CSRF, repo layout                             |
-| [authentication.md](authentication.md)                 | OIDC login, session cookies, roles, scopes, API keys, impersonation          |
-| [immich-proxy.md](immich-proxy.md)                     | The universal `/api/immich/*` proxy, chunked uploads, public assets, caching |
-| [albums-and-permissions.md](albums-and-permissions.md) | Album visibility and the four permission dimensions                          |
-| [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent             |
-| [downloads.md](downloads.md)                           | Token-based archive download (native browser save)                           |
-| [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked    |
-| [seo.md](seo.md)                                       | Link previews, why there is no SEO, and why the head still matters           |
-| [data-model.md](data-model.md)                         | The local SQLite schema                                                      |
-| [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                              |
-| [deployment.md](deployment.md)                         | Docker, CD, secrets, backups                                                 |
+| Page                                                   | What it covers                                                                        |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| [architecture.md](architecture.md)                     | Request lifecycle, hooks, CORS/CSRF, repo layout                                      |
+| [authentication.md](authentication.md)                 | OIDC login, session cookies, roles, scopes, API keys, impersonation                   |
+| [immich-proxy.md](immich-proxy.md)                     | The universal `/api/immich/*` proxy, chunked uploads, public assets, caching          |
+| [albums-and-permissions.md](albums-and-permissions.md) | Album visibility and the four permission dimensions                                   |
+| [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent                      |
+| [downloads.md](downloads.md)                           | Token-based archive download (native browser save)                                    |
+| [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked             |
+| [seo.md](seo.md)                                       | Link previews, why there is no SEO, and why the head still matters                    |
+| [outbound.md](outbound.md)                             | The 4 s deadline on every call to Immich and Authentik, and the three shapes it takes |
+| [data-model.md](data-model.md)                         | The local SQLite schema                                                               |
+| [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                                       |
+| [deployment.md](deployment.md)                         | Docker, CD, secrets, backups                                                          |
 
 ## Conventions used in MiGallery code
 

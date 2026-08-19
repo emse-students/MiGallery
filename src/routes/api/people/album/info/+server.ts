@@ -6,6 +6,7 @@ import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { requireScope } from '$lib/server/permissions';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-album-info');
 export const GET: RequestHandler = async (event) => {
@@ -17,7 +18,10 @@ export const GET: RequestHandler = async (event) => {
 		if (process.env.IMMICH_API_KEY) {
 			headers['x-api-key'] = process.env.IMMICH_API_KEY;
 		}
-		const albumRes = await fetch(`${process.env.IMMICH_BASE_URL}/api/albums/${albumId}`, { headers });
+		const albumRes = await fetch(`${process.env.IMMICH_BASE_URL}/api/albums/${albumId}`, {
+			headers,
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS)
+		});
 		if (!albumRes.ok) {
 			throw error(500, `Failed to fetch album: ${albumRes.statusText}`);
 		}

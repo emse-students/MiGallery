@@ -6,6 +6,7 @@ import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-album-assets');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -25,6 +26,7 @@ export const PUT: RequestHandler = async (event) => {
 		}
 		const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'PUT',
 			headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
 			body: JSON.stringify({ ids: assetIds })
@@ -62,6 +64,7 @@ export const DELETE: RequestHandler = async (event) => {
 		}
 		const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'DELETE',
 			headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
 			body: JSON.stringify({ ids: assetIds })

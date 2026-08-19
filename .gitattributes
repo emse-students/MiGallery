@@ -1,0 +1,17 @@
+# The working tree is LF everywhere, on every platform.
+#
+# Prettier has no `endOfLine` override here, so it defaults to `lf`. Without this file a checkout
+# on Windows (`core.autocrlf=true`) materialises CRLF, and `format:check` then fails on files
+# nobody touched - a gate reporting the operating system rather than the code.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.db binary

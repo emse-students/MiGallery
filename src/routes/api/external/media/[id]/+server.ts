@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -9,12 +10,12 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'read');
 	const id = event.params.id;
-	const { fetch } = event;
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
 
-	const res = await fetch(`${IMMICH_BASE_URL}/api/assets/${id}/thumbnail`, {
+	// Streamed straight to the caller below, so the budget covers the answer only.
+	const res = await fetchWithAnswerDeadline(`${IMMICH_BASE_URL}/api/assets/${id}/thumbnail`, {
 		headers: { 'x-api-key': IMMICH_API_KEY }
 	});
 	if (!res.ok) {
@@ -42,12 +43,12 @@ export const GET: RequestHandler = async (event) => {
 export const DELETE: RequestHandler = async (event) => {
 	await requireScope(event, 'write');
 	const id = event.params.id;
-	const { fetch } = event;
 	if (!IMMICH_BASE_URL) {
 		throw error(500, 'IMMICH_BASE_URL not configured');
 	}
 
 	const res = await fetch(`${IMMICH_BASE_URL}/api/assets/${id}`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'DELETE',
 		headers: { 'x-api-key': IMMICH_API_KEY }
 	});

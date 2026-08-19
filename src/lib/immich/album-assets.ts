@@ -1,3 +1,4 @@
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 const IMMICH_BASE_URL = (typeof process !== 'undefined' && process.env?.IMMICH_BASE_URL) || '';
 const IMMICH_API_KEY = (typeof process !== 'undefined' && process.env?.IMMICH_API_KEY) || '';
 
@@ -25,6 +26,7 @@ export async function fetchAlbumAssets(
 	}
 
 	const albumRes = await fetchFn(`${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`, {
+		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		headers: {
 			'x-api-key': apiKey,
 			Accept: 'application/json'
@@ -50,6 +52,7 @@ export async function fetchAlbumAssets(
 	let page = 1;
 	while (page <= 50) {
 		const searchRes = await fetchFn(`${base}/api/search/metadata`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'POST',
 			headers: {
 				'x-api-key': apiKey,

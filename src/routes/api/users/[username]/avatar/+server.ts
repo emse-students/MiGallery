@@ -7,6 +7,7 @@ import { requireScope } from '$lib/server/permissions';
 import { generateFaceCrop } from '$lib/server/face-crop';
 
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('users-username-avatar');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -78,6 +79,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		const res = await fetch(`${IMMICH_BASE_URL}/api/people/${userId}/thumbnail`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			headers: {
 				'x-api-key': IMMICH_API_KEY
 			}

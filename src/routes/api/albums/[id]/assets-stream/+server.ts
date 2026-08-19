@@ -7,6 +7,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('albums-id-assets-stream');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -39,6 +40,7 @@ export const GET: RequestHandler = async (event) => {
 		let albumVisibility: string | undefined;
 		try {
 			const albumMetaRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
+				signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 				headers: albumHeaders
 			});
 			if (albumMetaRes.ok) {
