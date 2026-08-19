@@ -27,7 +27,7 @@
 	import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
 	import Avatar from '$lib/components/Avatar.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
-	import { fuzzyMatch } from '$lib/fuzzy';
+	import { fuzzySearch } from '$lib/fuzzy';
 	import { PhotosState } from '$lib/photos.svelte';
 	import { theme } from '$lib/theme';
 	import { asApiResponse } from '$lib/ts-utils';
@@ -103,6 +103,16 @@
 	let isLoadingAvailableUsers = $state<boolean>(false);
 	let searchQuery = $state<string>('');
 	let showUserDropdown = $state<boolean>(false);
+
+	// Ranked best-first: this dropdown is what somebody types a colleague's name into, so the
+	// closest match belongs at the top rather than wherever the roster happened to put them.
+	const matchingUsers = $derived(
+		fuzzySearch(availableUsers, searchQuery, (u) =>
+			[u.name, u.first_name, u.last_name, u.formation, u.promo != null ? String(u.promo) : '']
+				.filter(Boolean)
+				.join(' ')
+		)
+	);
 
 	$effect(() => {
 		loadCurrentUserFaceStatus();
@@ -800,18 +810,7 @@
 									{#if isLoadingAvailableUsers}
 										<div class="dropdown-loading"><Spinner size={16} /> {m.common_loading()}</div>
 									{:else}
-										{#each availableUsers.filter((u) => {
-											const haystack = [
-												u.name,
-												u.first_name,
-												u.last_name,
-												u.formation,
-												u.promo != null ? String(u.promo) : ''
-											]
-												.filter(Boolean)
-												.join(' ');
-											return fuzzyMatch(searchQuery, haystack);
-										}) as user (user.id_user)}
+										{#each matchingUsers as user (user.id_user)}
 											<button
 												type="button"
 												class="dropdown-item"

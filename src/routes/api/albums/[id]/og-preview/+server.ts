@@ -29,7 +29,8 @@ export const GET: RequestHandler = ({ params, url }) => {
 	const row = db
 		.prepare('SELECT name, date, location, visibility FROM albums WHERE id = ?')
 		.get(id) as
-		{ name: string; date?: string | null; location?: string | null; visibility?: string } | undefined;
+		| { name: string; date?: string | null; location?: string | null; visibility?: string }
+		| undefined;
 
 	if (!row) {
 		throw error(404, 'Album not found');

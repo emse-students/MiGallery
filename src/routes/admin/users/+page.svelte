@@ -18,7 +18,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { fuzzyMatch } from '$lib/fuzzy';
+	import { fuzzySearch } from '$lib/fuzzy';
 	import { toast } from '$lib/toast';
 	import { uploadFileChunked } from '$lib/album-operations';
 	import jsPDF from 'jspdf';
@@ -71,9 +71,11 @@
 	let showDelete = $state(false);
 	let deleteTarget = $state<UserRow | null>(null);
 
+	// Ranked best-first while a query is present; with an empty box the list keeps the alphabetical
+	// order sorted above.
 	const filtered = $derived(
-		users.filter((u) => {
-			const haystack = [
+		fuzzySearch(users, searchQuery, (u) =>
+			[
 				u.name,
 				u.first_name,
 				u.last_name,
@@ -82,9 +84,8 @@
 				ROLE_LABELS[u.role || 'user']
 			]
 				.filter(Boolean)
-				.join(' ');
-			return fuzzyMatch(searchQuery, haystack);
-		})
+				.join(' ')
+		)
 	);
 
 	// --- PDF export ---

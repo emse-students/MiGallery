@@ -37,7 +37,8 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
 
 	const db = getDatabase();
 	const row = db.prepare('SELECT id FROM albums WHERE id = ?').get(id) as
-		{ id?: string } | undefined;
+		| { id?: string }
+		| undefined;
 
 	if (!row) {
 		throw error(404, 'Album not found');

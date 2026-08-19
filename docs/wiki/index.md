@@ -38,6 +38,7 @@ the page is a bug.
 | [albums-and-permissions.md](albums-and-permissions.md) | Album visibility and the four permission dimensions                          |
 | [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent             |
 | [downloads.md](downloads.md)                           | Token-based archive download (native browser save)                           |
+| [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked    |
 | [data-model.md](data-model.md)                         | The local SQLite schema                                                      |
 | [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                              |
 | [deployment.md](deployment.md)                         | Docker, CD, secrets, backups                                                 |

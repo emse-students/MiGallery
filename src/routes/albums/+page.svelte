@@ -43,6 +43,11 @@
 	let albums = $derived((page.data?.albums as Album[] | undefined) ?? []);
 	let showAlbumModal = $state(false);
 
+	// FILTERED, not ranked, and that is the one surface where it is the right answer: the grid
+	// buckets by school year and then by month and shows every match, so there is no truncation for
+	// a relevance order to rescue - reordering here would only scramble the chronology inside a
+	// month. `fuzzyMatch` still carries the typo and word-inversion tolerance; only the sort is
+	// declined. Every list that TRUNCATES uses `fuzzySearch` instead (see docs/wiki/search.md).
 	let filteredAlbums = $derived(
 		albumsView.search.trim()
 			? albums.filter((a) => fuzzyMatch(albumsView.search, `${a.name || ''} ${a.location || ''}`))

@@ -4,6 +4,7 @@
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
 	import { m } from '$lib/paraglide/messages';
+	import { fuzzySearch } from '$lib/fuzzy';
 
 	interface Props {
 		albumId?: string;
@@ -110,16 +111,18 @@
 			.filter((u): u is UserOption => !!u)
 	);
 
+	// The last search box in MiGallery still on plain substring matching, and the one where it hurt
+	// most: it shows EIGHT suggestions, so a name spelled slightly differently from what was typed
+	// was not merely ranked low, it was unreachable. Scored and sorted, then truncated - truncating
+	// an unordered filter throws the best match away as readily as the worst.
 	const userSuggestions = $derived.by(() => {
-		const q = userSearch.trim().toLowerCase();
-		if (!q) return [];
-		return availableUsers
-			.filter((u) => !selectedUserIds.includes(u.id_user))
-			.filter((u) => {
-				const hay = `${u.id_user} ${u.name || ''} ${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
-				return hay.includes(q);
-			})
-			.slice(0, 8);
+		if (!userSearch.trim()) return [];
+		const candidates = availableUsers.filter((u) => !selectedUserIds.includes(u.id_user));
+		return fuzzySearch(
+			candidates,
+			userSearch,
+			(u) => `${u.id_user} ${u.name || ''} ${u.first_name || ''} ${u.last_name || ''}`
+		).slice(0, 8);
 	});
 
 	function addFormation(formation: string) {
