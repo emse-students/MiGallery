@@ -1,4 +1,6 @@
 import type { PageServerLoad } from './$types';
+import type { SeoMeta } from '$lib/seo';
+import { m } from '$lib/paraglide/messages';
 import { getDatabase } from '$lib/db/database';
 import { checkAlbumAccess } from '$lib/albums';
 import type { User, Album } from '$lib/types/api';
@@ -52,12 +54,25 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		visibility: albumRow.visibility
 	};
 
-	const ogCoverUrl =
-		album.visibility !== 'private' ? `${url.origin}/api/albums/${album.id}/og-cover` : null;
-	const ogDescription = buildOgDescription(album.date, album.location);
+	// The link-preview card for this album, rendered by the root layout.
+	//
+	// A PRIVATE album gets no image: an og:image is fetched by whoever the link reaches, with no
+	// session and no permission check, so publishing one would hand out the cover of an album the
+	// recipient cannot open. The rest of the card is the album's own name, date and place - which
+	// is what a shared link is FOR - and an unlisted album is exactly the case built for sharing.
+	const seo: SeoMeta = {
+		title: album.name || m.albumd_default_title(),
+		description: buildOgDescription(album.date, album.location),
+		image: album.visibility !== 'private' ? `${url.origin}/api/albums/${album.id}/og-cover` : null,
+		imageAlt: m.albumd_cover_alt(),
+		// The og-cover endpoint renders a fixed 1200x630 WebP, so these describe THIS image.
+		imageWidth: 1200,
+		imageHeight: 630,
+		imageType: 'image/webp'
+	};
 
 	if ((album.visibility || '').toLowerCase() === 'unlisted') {
-		return { album, ogCoverUrl, ogDescription };
+		return { album, seo };
 	}
 
 	const { session } = await parent();
@@ -76,5 +91,5 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		throw redirect(303, '/');
 	}
 
-	return { album, ogCoverUrl, ogDescription };
+	return { album, seo };
 };

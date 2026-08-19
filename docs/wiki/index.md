@@ -39,6 +39,7 @@ the page is a bug.
 | [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent             |
 | [downloads.md](downloads.md)                           | Token-based archive download (native browser save)                           |
 | [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked    |
+| [seo.md](seo.md)                                       | Link previews, why there is no SEO, and why the head still matters           |
 | [data-model.md](data-model.md)                         | The local SQLite schema                                                      |
 | [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                              |
 | [deployment.md](deployment.md)                         | Docker, CD, secrets, backups                                                 |

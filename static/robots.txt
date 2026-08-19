@@ -1,3 +1,16 @@
-# Block all crawlers for privacy (MiGallery is a private photo gallery)
+# MiGallery is a private photo gallery. Every crawler is refused, and that is
+# deliberate and permanent: the content is photographs of named students.
+#
+# There is deliberately NO sitemap. A sitemap exists to hand a crawler a link
+# graph, and there is no crawler here to hand one to. Publishing one would be a
+# list of album URLs, in a file anybody can fetch, for an audience that has
+# already been told to go away.
+#
+# This does NOT make the Open Graph tags in the pages dead weight. An unfurler -
+# Discord, Slack, WhatsApp, Canari's own link preview - is not a crawler: it
+# fetches the exact URL somebody pasted and never reads this file. Sharing an
+# album link is a supported action, so the card it produces is part of the
+# product. See docs/wiki/seo.md.
+
 User-agent: *
 Disallow: /

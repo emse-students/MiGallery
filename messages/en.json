@@ -555,5 +555,7 @@
 	"db_repair_modal_title": "Repair the structure?",
 	"db_repair_modal_body": "This operation will recreate the missing tables. No existing data will be lost, but it is recommended to make a backup first.",
 	"db_repairing": "Repairing...",
-	"db_repair_confirm_btn": "Confirm repair"
+	"db_repair_confirm_btn": "Confirm repair",
+	"app_logo_alt": "The MiGallery logo.",
+	"albumd_cover_alt": "The album cover photo."
 }

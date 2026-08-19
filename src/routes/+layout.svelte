@@ -12,11 +12,19 @@
 	import MobileNav from '$lib/components/MobileNav.svelte';
 	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
+	import Seo from '$lib/components/Seo.svelte';
+	import { siteSeo, type SeoMeta } from '$lib/seo';
 	import { m } from '$lib/paraglide/messages';
 	import { loginUrlWithRedirect, REDIRECT_PARAM } from '$lib/auth-redirect';
 	import '../app.css';
 
 	let u = $derived(page.data?.session?.user as User);
+
+	// One head for the whole app. A page contributes its card by returning `seo` from its `load`
+	// (only the album page does - it is the only URL anybody shares); everything else falls back to
+	// the gallery's own. Emitting it here rather than per page is what keeps a single og:title in
+	// the document: two of any of these tags is an unfurler picking one at random.
+	let seo = $derived((page.data as { seo?: SeoMeta }).seo ?? siteSeo());
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
 	let isFirstLogin = $derived(u?.first_login === 1);
@@ -93,10 +101,16 @@
 
 <svelte:head>
 	<link rel="icon" type="image/png" sizes="32x32" href="/icon.png" />
-	<meta name="description" content={m.app_meta_description()} />
 	<meta name="theme-color" content="#3b82f6" />
-	<title>MiGallery</title>
 </svelte:head>
+
+<!--
+	The `<title>` element stays with the pages, and every route sets one. This layout also carried
+	`<title>MiGallery</title>`, which never reached a single page: Svelte deduplicates `<title>` in
+	`<svelte:head>` and the page's wins, so the layout read as the source of a title it never
+	supplied. Verified on prod - `/` served exactly one, `MiGallery - Accueil`.
+-->
+<Seo meta={seo} />
 
 <nav class="topbar">
 	<div class="brand">
