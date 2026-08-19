@@ -52,10 +52,18 @@ Three decisions inside that are worth stating, because each was measurable and n
   Levenshtein prices it at two substitutions - the same as a genuinely different name. Under a
   tolerance of one edit that is the difference between "jaen" finding Jean and not finding him,
   and loosening the tolerance to two instead would have matched everything else at distance two.
-- **A short token gets one edit and no more.** At distance 2 a three-letter query reaches most of a
-  promotion ("ana" is within two edits of "jean", "anne" and "max"). Length is the only signal
-  separating a typo in a name from a different name. A PREFIX is free regardless: somebody typing
-  "dupon" has not made a mistake, they have stopped typing.
+- **The tolerance ladder is the ecosystem's, and it was measured rather than chosen.** Tolerance is
+  taken from the SHORTER of the two tokens compared: **0 up to 3 characters, 1 from 4 to 7, 2 from
+  8**. Against a real roster of 207 people, a tolerance of 2 below eight characters recovered no
+  typo that a tolerance of 1 did not - every single-keystroke fault is one edit by construction -
+  while putting a wrong name in the list on half of all queries instead of one in twenty. This
+  repository used to allow 2 from five characters, which is exactly that case. Three characters get
+  nothing at all, because at one edit they reach most of a promotion; that rung is survivable
+  because a three-letter query is nearly always a PREFIX, and a prefix is free regardless -
+  somebody typing "dupon" has not made a mistake, they have stopped typing.
+
+  The numbers, the measurement and what every other repository owes are in the canari repository at
+  `docs/wiki/search-contract.md`. Change them there, not here.
 
 ## The surfaces
 

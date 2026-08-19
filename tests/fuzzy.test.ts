@@ -70,8 +70,10 @@ describe('fuzzyScore', () => {
 	});
 
 	it('ranks fewer typos above more', () => {
-		const one = fuzzyScore('dupond', 'Jean Dupont')!;
-		const two = fuzzyScore('dupand', 'Jean Dupont')!;
+		// Long enough a token that two edits are still inside the ladder - at six characters they
+		// are not, deliberately, which is what the tolerance tests below pin.
+		const one = fuzzyScore('dupontler', 'Jean Dupontier')!;
+		const two = fuzzyScore('dupontlar', 'Jean Dupontier')!;
 
 		expect(one).toBeLessThan(two);
 	});
@@ -90,14 +92,47 @@ describe('fuzzyScore', () => {
 		expect(fuzzyScore('marie 2024', 'Marie Dupont')).toBeNull();
 	});
 
-	it('keeps a short token tight, so three letters do not match a whole promotion', () => {
-		// At distance 2 "ana" reaches "jean", "anne" and "max" alike - length is the only thing that
-		// separates a typo in a name from a different name, so short tokens get one edit and no more.
-		expect(fuzzyScore('ana', 'Jean Dupont')).toBeNull();
-		expect(fuzzyScore('ana', 'Anne Dupont')).toBeNull();
-		// One edit still lands, and a prefix is free.
-		expect(fuzzyScore('ann', 'Anne Dupont')).not.toBeNull();
-		expect(fuzzyScore('jaen', 'Jean Dupont')).not.toBeNull();
+	/**
+	 * The ecosystem's tolerance ladder, measured against a real roster and written down in canari at
+	 * `docs/wiki/search-contract.md`: OSA distance, tolerance taken from the SHORTER of the two
+	 * tokens, 0 up to 3 characters, 1 from 4 to 7, 2 from 8. These three tests are the same three
+	 * every repo in the ecosystem pins, and they are the contract - not an observation about this
+	 * implementation.
+	 */
+	describe('the tolerance ladder', () => {
+		it('gives a token of three characters or fewer no edit at all', () => {
+			// Three letters carry no information: at one edit "ana" reaches "anne", "ana" and half a
+			// promotion besides. Measured cost of that rung: nearly one wrong name per query.
+			expect(fuzzyScore('ana', 'Anne Dupont')).toBeNull();
+			expect(fuzzyScore('ana', 'Jean Dupont')).toBeNull();
+			// A prefix is free, which is what makes the rung survivable - a three-letter query is
+			// almost always somebody who has stopped typing, and that never reaches the fuzzy tier.
+			expect(fuzzyScore('ann', 'Anne Dupont')).not.toBeNull();
+		});
+
+		it('gives one edit from four characters, transposition included', () => {
+			expect(fuzzyScore('jaen', 'Jean Dupont')).not.toBeNull();
+			expect(fuzzyScore('dupond', 'Jean Dupont')).not.toBeNull();
+		});
+
+		it('refuses a SECOND edit below eight characters', () => {
+			// The measured heart of the ladder: every single-keystroke fault is one edit, so the
+			// second recovers nothing and offers a wrong name on half of all queries.
+			expect(fuzzyScore('dupand', 'Jean Dupont')).toBeNull();
+			expect(fuzzyScore('marlon', 'Marion Dupont')).not.toBeNull();
+		});
+
+		it('allows two edits from eight characters, where a name can carry two faults', () => {
+			expect(fuzzyScore('dupontlar', 'Jean Dupontier')).not.toBeNull();
+		});
+
+		it('takes the tolerance from the SHORTER token, never the longer', () => {
+			// Otherwise a short query buys itself the tolerance of whatever long name it is compared
+			// against, at which ratio the tolerance matches most of the roster - the same as not
+			// filtering at all. Both of these would match if the rung were read off the candidate.
+			expect(fuzzyScore('jen', 'Jean Dupont')).toBeNull();
+			expect(fuzzyScore('dupontr', 'Jean Dupontier')).toBeNull();
+		});
 	});
 
 	it('searches every field the caller joined, not just the name', () => {

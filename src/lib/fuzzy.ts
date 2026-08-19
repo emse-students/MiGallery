@@ -5,8 +5,10 @@
  * The contract is the one every search box in the ecosystem answers to: a query tolerates typos and
  * word inversion, and results are RANKED by how close they are rather than merely filtered. Canari
  * gets that from Postgres (`applyFuzzyNameSearch`, pg_trgm + unaccent) because its directory is a
- * table it queries; Sky and MiGallery filter in memory over a list already loaded, so they score in
- * TypeScript. See `docs/wiki/search.md`.
+ * table it queries; Sky, Le Cercle, Portail-etu and MiGallery filter in memory over a list already
+ * loaded, so they score in TypeScript. See `docs/wiki/search.md`, and the ecosystem-wide contract
+ * in canari at `docs/wiki/search-contract.md` - which is where the tolerance ladder below comes
+ * from and where the measurement that produced it is written down.
  */
 
 /** Lowercase + strip diacritics (e -> e) for accent/case-insensitive matching. */
@@ -60,14 +62,24 @@ export function editDistance(a: string, b: string): number {
 }
 
 /**
- * Edit distance still tolerated inside one token, by that token's length.
+ * Edit distance still tolerated inside one token, by the length of the SHORTER of the two compared.
  *
- * Deliberately tight on short tokens: at distance 2 "ana" reaches "jean", "anne" and "max", so a
- * three-letter query would match most of a promotion. Length is the only thing separating "a typo
- * in a name" from "a different name".
+ * The ecosystem's ladder, measured rather than chosen: against a roster of 207 people, a tolerance
+ * of 2 below eight characters recovered no typo that a tolerance of 1 did not - every single
+ * keystroke fault is one edit by construction - while offering nearly one WRONG name per query
+ * instead of one every fourteen. The rung at 4 is a deliberate loss: three characters carry no
+ * information, and a three-character query is nearly always a prefix, which the tier above catches
+ * before this one is reached.
+ *
+ * Taken from the shorter token so a short query cannot buy itself two edits against a long
+ * surname - at that ratio the tolerance matches most of the roster.
  */
-function tokenTolerance(token: string): number {
-	return token.length <= 4 ? 1 : 2;
+function tokenTolerance(shorter: number): number {
+	if (shorter <= 3) {
+		return 0;
+	}
+
+	return shorter <= 7 ? 1 : 2;
 }
 
 /**
@@ -113,8 +125,12 @@ export function fuzzyScore(query: string, haystack: string): number | null {
 				best = 0;
 				break;
 			}
+			const tolerance = tokenTolerance(Math.min(qt.length, ht.length));
+			if (tolerance === 0) {
+				continue;
+			}
 			const d = editDistance(qt, ht);
-			if (d <= tokenTolerance(qt) && d < best) {
+			if (d <= tolerance && d < best) {
 				best = d;
 			}
 		}
