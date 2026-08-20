@@ -447,6 +447,28 @@
 		}
 	}
 
+	// A click whose press started inside the modal (a text selection dragged out,
+	// for instance) still reports the backdrop as its target: that is the common
+	// ancestor of press and release. Only a press AND a release on the backdrop close.
+	let pressedOnBackdrop = false;
+
+	function handleBackdropPointerDown(e: PointerEvent) {
+		pressedOnBackdrop = e.target === e.currentTarget;
+	}
+
+	function handleBackdropPointerUp(e: PointerEvent) {
+		if (e.target !== e.currentTarget) {
+			pressedOnBackdrop = false;
+		}
+	}
+
+	function handleBackdropClick(e: MouseEvent) {
+		const fromBackdrop = pressedOnBackdrop;
+		pressedOnBackdrop = false;
+
+		if (fromBackdrop && e.target === e.currentTarget) onClose();
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onClose();
 		else if (e.key === 'ArrowLeft') goToPrevious();
@@ -482,7 +504,9 @@
 <div
 	bind:this={portalRoot}
 	class="modal-backdrop"
-	onclick={(e) => e.target === e.currentTarget && onClose()}
+	onpointerdown={handleBackdropPointerDown}
+	onpointerup={handleBackdropPointerUp}
+	onclick={handleBackdropClick}
 	role="button"
 	tabindex="-1"
 	onkeydown={(e) => e.key === 'Escape' && onClose()}

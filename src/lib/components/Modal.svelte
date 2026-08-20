@@ -113,8 +113,26 @@
 		show = false;
 	}
 
+	// A click whose press started inside the modal (a text selection dragged out,
+	// for instance) still reports the dialog as its target: that is the common
+	// ancestor of press and release. Only a press AND a release on the backdrop close.
+	let pressedOnBackdrop = false;
+
+	function handleBackdropPointerDown(e: PointerEvent) {
+		pressedOnBackdrop = e.target === dialogElement;
+	}
+
+	function handleBackdropPointerUp(e: PointerEvent) {
+		if (e.target !== dialogElement) {
+			pressedOnBackdrop = false;
+		}
+	}
+
 	function handleBackdropClick(e: MouseEvent) {
-		if (e.target === dialogElement && !isProcessing) {
+		const fromBackdrop = pressedOnBackdrop;
+		pressedOnBackdrop = false;
+
+		if (fromBackdrop && e.target === dialogElement && !isProcessing) {
 			handleCancel();
 		}
 	}
@@ -138,6 +156,8 @@
 	bind:this={dialogElement}
 	class="modal-dialog"
 	onkeydown={handleKeydown}
+	onpointerdown={handleBackdropPointerDown}
+	onpointerup={handleBackdropPointerUp}
 	onclick={handleBackdropClick}
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
