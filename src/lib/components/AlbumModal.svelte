@@ -682,8 +682,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 2.1rem;
-		height: 2.1rem;
+		width: 2.35rem;
+		height: 2.35rem;
+		padding: 0;
 		border-radius: 50%;
 		border: none;
 		background: var(--accent);
@@ -695,8 +696,6 @@
 
 	.promo-add-btn :global(svg) {
 		display: block;
-		width: 1rem;
-		height: 1rem;
 	}
 
 	.promo-add-btn:not(:disabled):hover {
