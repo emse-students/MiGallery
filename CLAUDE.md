@@ -59,6 +59,23 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 
 **Memory Gotchas (Do not repeat):**
 
+- **The `users` row is a COPY of Authentik, never a second opinion** (`handleUserInDatabase`, commit
+  ace982a). `SSO_OWNED_FIELDS` - `first_name`, `last_name`, `promo`, `formation` - are written on
+  EVERY login, **nulls included**. The `if (value != null)` guard that stood there until 2026-08-24
+  meant a claim Authentik had REMOVED survived here for ever, and `promo` is an album-access key.
+  What licenses erasing a local value is that `completeOIDCFlow` only reaches this function after
+  the token exchange AND the userinfo fetch both SUCCEEDED: an absent claim is then the IdP's
+  ANSWER, not a transport failure. `role`, `photos_id`, `photos_asset_id` and `locale` are the
+  app's own and stay out of that list on purpose. Pinned by `tests/sso-mirror.test.ts`, which is
+  the first test this module ever had - `$env/dynamic/private` is unresolvable outside a SvelteKit
+  build, so `vitest.config.ts` aliases it to `tests/mocks/env-dynamic-private.ts`. Reuse that alias
+  for any other server module you need under test.
+- **`first_login` and its graduation-year modal are DELETED, column included** (commit 82b0254). It
+  was the one place a user could CHOOSE their own promo, which is an album-access key; Authentik
+  describes 277 of the 280 accounts on prod, and for the school staff it does not describe (no
+  promo, and none owed - they get public and directly shared albums) the modal wrote NULL over
+  NULL. Do not reintroduce a client-writable promo: the SSO is its only writer.
+
 - Releases: the tag MUST be `vX.Y.Z`. `release.yml` triggers on `v*.*.*` only, so the historical bare tags (`1.0.0`, `1.1.0`) never fired it - those releases were made by hand. v2.0.0 (2026-08-17) is the first one the workflow actually produced. Bump `package.json` + `RELEASE_NOTES.md` (newest entry on top), commit, push, THEN tag.
 
 - Closing a modal on an outside click can NEVER be judged from the `click` event alone: its target is the common ancestor of press and release, so selecting text inside the modal and releasing on the backdrop reports the backdrop and closed it. Both `Modal.svelte` (the `<dialog>`) and `PhotoModal.svelte` (the portal backdrop) now require pointerdown AND pointerup on the backdrop. Do not "simplify" either back to `e.target === e.currentTarget && close()`.
