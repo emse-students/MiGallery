@@ -13,15 +13,14 @@ the local DB match the corresponding Immich UUIDs.
 
 ### `users`
 
-| Column                            | Notes                                                  |
-| --------------------------------- | ------------------------------------------------------ |
-| `id_user` TEXT PK                 | the OIDC `sub`                                         |
-| `name`, `first_name`, `last_name` | display identity                                       |
-| `photos_id` TEXT                  | linked Immich person id (for face-based "my photos")   |
-| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`        |
-| `promo` INTEGER                   | graduation year                                        |
-| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                               |
-| `first_login` INTEGER             | 1 until the promo/formation modal is completed, then 0 |
+| Column                            | Notes                                                |
+| --------------------------------- | ---------------------------------------------------- |
+| `id_user` TEXT PK                 | the OIDC `sub`                                       |
+| `name`, `first_name`, `last_name` | display identity                                     |
+| `photos_id` TEXT                  | linked Immich person id (for face-based "my photos") |
+| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`      |
+| `promo` INTEGER                   | graduation year, **written only by the SSO**         |
+| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                             |
 
 ### `albums` and permissions
 

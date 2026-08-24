@@ -151,7 +151,6 @@ node ./scripts/test-api.cjs
 - ✅ `GET /api/users/:id` - User details
 - ✅ `PUT /api/users/:id` - User modification (admin)
 - ✅ `DELETE /api/users/:id` - User deletion (admin)
-- ✅ `PATCH /api/users/me/promo` - Class year update
 - ✅ `GET /api/users/:username/avatar` - Avatar (multi-size)
 - ✅ Data validation (email, role, class year)
 - ✅ Duplicate handling

@@ -9,7 +9,7 @@ const log = createLogger('user-face');
 
 /**
  * PATCH /api/users/me/face
- * Updates the person ID (photos_id) and first_login status of the logged-in user
+ * Updates the person ID (photos_id) of the logged-in user
  *
  * Body:
  * - person_id: string | null (required) - The person ID to associate

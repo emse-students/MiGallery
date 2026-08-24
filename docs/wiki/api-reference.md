@@ -41,7 +41,6 @@ the effective minimum.
 | `GET /api/users`, `/api/users/[id]`                         | admin / self | User management                    |
 | `/api/users/me`                                             | session      | Current user                       |
 | `/api/users/me/face`                                        | session      | Own reference face                 |
-| `/api/users/me/promo`                                       | session      | Set promo/formation (first login)  |
 | `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session      | RGPD photo-access consent          |
 | `/api/users/[userId]/photo-access`                          | admin / self | A user's grants                    |
 | `/api/users/[username]/avatar`                              | read         | User avatar (used by Sky, Canari)  |

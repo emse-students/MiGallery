@@ -10,7 +10,6 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
-	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 	import LocaleToggle from '$lib/components/LocaleToggle.svelte';
 	import Seo from '$lib/components/Seo.svelte';
@@ -28,29 +27,12 @@
 	let seo = $derived((page.data as { seo?: SeoMeta }).seo ?? siteSeo());
 	let isAuthenticated = $derived(!!u);
 	let isHomePage = $derived(page.url.pathname === '/');
-	let isFirstLogin = $derived(u?.first_login === 1);
 
 	let { children } = $props();
 
-	let showFirstLoginModal = $state(false);
-
 	onMount(() => {
 		theme.initialize();
-
-		if (isFirstLogin) {
-			showFirstLoginModal = true;
-		}
 	});
-
-	$effect(() => {
-		if (isFirstLogin && isAuthenticated && !showFirstLoginModal) {
-			showFirstLoginModal = true;
-		}
-	});
-
-	function handleFirstLoginComplete() {
-		window.location.reload();
-	}
 
 	let navigationModal = $derived($navigationModalStore);
 	let showNavigationWarning = $derived.by(() => navigationModal?.show ?? false);
@@ -188,8 +170,6 @@
 <ConfirmHost />
 
 <MobileNav />
-
-<FirstLoginModal bind:show={showFirstLoginModal} onComplete={handleFirstLoginComplete} />
 
 <Modal
 	bind:show={showNavigationWarning}

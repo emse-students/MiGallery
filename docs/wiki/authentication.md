@@ -48,8 +48,15 @@ link never bounces at all.
 
 Claims used: `sub` (the stable user id), name, `promo`, `formation`. A user's
 role is **not** taken from the SSO; it is stored locally (`users.role`) so it is
-never escalated by a login. On first login, `users.first_login = 1` triggers the
-promo/formation modal (`FirstLoginModal`), after which it is set to 0.
+never escalated by a login.
+
+**Nothing but the SSO writes `promo`.** A `FirstLoginModal` used to ask the user
+for their own graduation year whenever the claim was missing, gated on a
+`users.first_login` column. It was deleted, column included: Authentik describes
+277 of the 280 accounts on prod, and for the school staff it does not describe,
+the modal wrote NULL over NULL - its only effect was to stop showing itself. It
+was also the one place a user could **choose** a promo, and a promo is an
+album-access key (see [albums-and-permissions](albums-and-permissions.md)).
 
 ## Sessions
 

@@ -106,10 +106,13 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
 		if (!cols.includes('formation')) {
 			dbInstance.prepare('ALTER TABLE users ADD COLUMN formation TEXT').run();
 		}
-		if (!cols.includes('first_login')) {
-			dbInstance.prepare('ALTER TABLE users ADD COLUMN first_login INTEGER DEFAULT 1').run();
-			// Existing users who already have a promo set don't need the modal
-			dbInstance.prepare('UPDATE users SET first_login = 0 WHERE promo IS NOT NULL').run();
+		// `first_login` gated a modal that asked the user for their own graduation year. Authentik
+		// carries that claim for every account it describes - 277 of the 280 on prod - and for the
+		// staff accounts it does not describe, the modal wrote NULL over NULL: its only effect was
+		// to stop showing itself. It was also the one place where a user could CHOOSE a promo, and
+		// a promo is an album-access key, so removing it leaves the SSO as its only writer.
+		if (cols.includes('first_login')) {
+			dbInstance.prepare('ALTER TABLE users DROP COLUMN first_login').run();
 		}
 		if (!cols.includes('locale')) {
 			dbInstance.prepare('ALTER TABLE users ADD COLUMN locale TEXT').run();

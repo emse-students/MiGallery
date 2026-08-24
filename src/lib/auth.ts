@@ -281,9 +281,7 @@ function handleUserInDatabase(
 			role: isAdmin ? 'admin' : 'user',
 			promo,
 			formation,
-			photos_id: null,
-			// first_login=0 if OIDC already provided the promo, 1 otherwise (modal will ask)
-			first_login: promo !== null ? 0 : 1
+			photos_id: null
 		};
 
 		if (!existingUser) {
@@ -308,7 +306,6 @@ function handleUserInDatabase(
 			}
 			if (promo !== null) {
 				updatePayload.promo = promo;
-				updatePayload.first_login = 0;
 			}
 			if (formation !== null) {
 				updatePayload.formation = formation;

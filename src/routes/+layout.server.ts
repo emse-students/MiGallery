@@ -22,8 +22,7 @@ function toSessionUser(user: UserRow): SessionPageUser {
 		photos_asset_id: user.photos_asset_id,
 		role: normalizeRole(user.role),
 		promo: user.promo,
-		formation: user.formation,
-		first_login: (user.first_login ?? 1) as number
+		formation: user.formation
 	};
 }
 

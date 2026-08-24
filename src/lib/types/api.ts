@@ -20,7 +20,6 @@ export interface User {
 	role?: 'admin' | 'mitviste' | 'user';
 	promo?: number | null;
 	formation?: string | null;
-	first_login?: number;
 }
 
 /**
@@ -37,7 +36,6 @@ export interface UserRow {
 	role: string | null;
 	promo: number | null;
 	formation?: string | null;
-	first_login?: number;
 	// Preferred UI language ('fr' | 'en'), NULL when the user never chose one.
 	locale?: string | null;
 }
