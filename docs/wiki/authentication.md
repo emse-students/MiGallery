@@ -58,6 +58,22 @@ the modal wrote NULL over NULL - its only effect was to stop showing itself. It
 was also the one place a user could **choose** a promo, and a promo is an
 album-access key (see [albums-and-permissions](albums-and-permissions.md)).
 
+**The row is a copy, not a second opinion.** `handleUserInDatabase`
+(`src/lib/auth.ts`) rewrites `first_name`, `last_name`, `promo` and `formation`
+on **every** login, **nulls included**. Until 2026-08-24 it skipped the absent
+claims, so a _change_ in Authentik propagated but a _removal_ never did: a promo
+the school had taken off an account kept opening that promo's albums, with
+nothing in the product able to close it. Writing the null is sound only because
+of where that runs - `completeOIDCFlow` reaches it after the token exchange
+**and** the userinfo fetch have both succeeded, so a missing claim is the IdP's
+answer, never an unreachable IdP; a transport failure returns earlier and
+touches nothing. Every erasure is logged at WARN with the value it replaced.
+
+`role`, `photos_id`, `photos_asset_id` and `locale` are deliberately outside
+that set - they are MiGallery's own, and are left out of the update payload so
+the generated `SET` never names them. `tests/sso-mirror.test.ts` pins all four
+behaviours against a throwaway SQLite file.
+
 ## Sessions
 
 **One cookie, and it carries no identity.** `migallery_session` holds a random
