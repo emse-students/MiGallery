@@ -11,7 +11,8 @@
 	import ConfirmHost from '$lib/components/ConfirmHost.svelte';
 	import MobileNav from '$lib/components/MobileNav.svelte';
 	import FirstLoginModal from '$lib/components/FirstLoginModal.svelte';
-	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import LocaleToggle from '$lib/components/LocaleToggle.svelte';
 	import Seo from '$lib/components/Seo.svelte';
 	import { siteSeo, type SeoMeta } from '$lib/seo';
 	import { m } from '$lib/paraglide/messages';
@@ -164,7 +165,15 @@
 			<span class="user-name">{u.name}</span>
 			<button type="button" class="btn-logout" onclick={() => handleSignOut()}>{m.nav_logout()}</button>
 		{:else}
-			<LocaleSwitcher />
+			<!--
+				Theme and language sit here only while signed out. Once there is an account they live in
+				/parametres, which is the account's own page and already carries them: drawing them in
+				both places would be the same preference offered twice, in a bar that is already full.
+			-->
+			<div class="nav-toggles">
+				<ThemeToggle />
+				<LocaleToggle />
+			</div>
 			<button type="button" class="btn-login" onclick={() => handleSignIn()}>{m.nav_login()}</button>
 		{/if}
 	</div>

@@ -1087,6 +1087,21 @@
 {/if}
 
 <style>
+	/*
+	 * One height for every control this page owns. Each of them used to size itself from its own
+	 * padding, so a button, a select and an input sharing a row came out three different heights -
+	 * most visibly the theme button beside the language select, and the search field beside
+	 * "Autoriser". Padding still varies with the content; the height does not.
+	 *
+	 * It is declared on :root and not on .settings-main because this page's modals are rendered in
+	 * a <dialog> that is a SIBLING of that element, not a descendant: a custom property cascades by
+	 * DOM ancestry, so scoping it to the main would have left every control inside a modal silently
+	 * unstyled - which is exactly what it did until the delete-account field was measured.
+	 */
+	:root {
+		--st-control-height: 2.75rem;
+	}
+
 	.settings-main {
 		/* Danger-zone tint pair (theme-independent, derived from --error). */
 		--st-danger-bg: color-mix(in srgb, var(--error) 7%, transparent);
@@ -1201,8 +1216,10 @@
 	.theme-toggle-btn {
 		display: flex;
 		align-items: center;
+		justify-content: center;
 		gap: 0.5rem;
-		padding: 0.5rem 1rem;
+		min-height: var(--st-control-height);
+		padding: 0 1rem;
 		background: var(--bg-primary);
 		border: 1px solid var(--border);
 		border-radius: 99px;
@@ -1220,13 +1237,15 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.4rem 0.75rem;
+		min-height: var(--st-control-height);
+		padding: 0 1rem;
 		background: var(--bg-primary);
 		border: 1px solid var(--border);
 		border-radius: 99px;
 		color: var(--text-primary);
 	}
 	.lang-select select {
+		align-self: stretch;
 		background: transparent;
 		border: none;
 		outline: none;
@@ -1317,7 +1336,8 @@
 
 	/* --- FORMS & INPUTS --- */
 	.settings-input {
-		padding: 0.75rem 1rem;
+		min-height: var(--st-control-height);
+		padding: 0.5rem 1rem;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-xs);
 		background: var(--bg-primary);
@@ -1337,7 +1357,8 @@
 		display: flex;
 		gap: 0.5rem;
 		margin-bottom: 1.5rem;
-		align-items: flex-start;
+		/* Both controls are one height now, so centring them actually lines them up. */
+		align-items: center;
 	}
 
 	.user-selector {

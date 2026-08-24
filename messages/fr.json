@@ -13,6 +13,8 @@
 	"nav_admin": "Admin",
 	"nav_logout": "Déconnexion",
 	"nav_login": "Connexion",
+	"nav_theme_toggle": "Basculer le thème clair / sombre",
+	"nav_language_toggle": "Changer la langue",
 	"nav_op_title": "Opération en cours",
 	"nav_op_leave_anyway": "Quitter quand même",
 	"nav_op_continue": "Continuer l'opération",

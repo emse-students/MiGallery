@@ -13,6 +13,8 @@
 	"nav_admin": "Admin",
 	"nav_logout": "Sign out",
 	"nav_login": "Sign in",
+	"nav_theme_toggle": "Switch between light and dark",
+	"nav_language_toggle": "Change language",
 	"nav_op_title": "Operation in progress",
 	"nav_op_leave_anyway": "Leave anyway",
 	"nav_op_continue": "Continue the operation",

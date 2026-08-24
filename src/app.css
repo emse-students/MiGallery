@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 :root {
+	/*
+	 * Native controls follow the theme too. A <select>'s popup, a scrollbar, a date picker and the
+	 * autofill box are painted by the BROWSER, not by us: without this they stay light while our
+	 * own `color` token goes white, which is how the language menu came out white on white in dark
+	 * mode. Declaring it beside the tokens keeps the two from ever disagreeing again.
+	 */
+	color-scheme: dark;
+
 	/* Typography. Web fonts are loaded in app.html (preconnect + display=swap) so
 	   the app looks the same on every device; the system stack is only a fallback
 	   while the font loads. Inter = body/UI, Space Grotesk = headings/brand. */
@@ -94,6 +102,8 @@
 
 /* Light theme */
 [data-theme='light'] {
+	color-scheme: light;
+
 	--bg-primary: #ffffff;
 	--bg-secondary: #f9fafb;
 	--bg-tertiary: #f3f4f6;
@@ -406,6 +416,43 @@
 		font-weight: 500;
 		color: var(--text-primary);
 		white-space: nowrap;
+	}
+
+	/*
+	 * The pair of round controls the signed-out bar carries: theme and language. They are grouped so
+	 * the two read as one cluster of preferences rather than as two more items in the bar, which is
+	 * why the gap between them is tighter than `.user`'s own.
+	 */
+	.topbar .nav-toggles {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.topbar .nav-toggle {
+		width: 36px;
+		height: 36px;
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid var(--border);
+		border-radius: 50%;
+		background: var(--bg-elevated);
+		color: var(--text-secondary);
+		/* Sized for the two-letter locale code; the icon variant carries its own size. */
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		line-height: 1;
+		cursor: pointer;
+		transition: all var(--ease) 150ms;
+	}
+
+	.topbar .nav-toggle:hover {
+		background: var(--bg-tertiary);
+		color: var(--text-primary);
+		border-color: var(--accent);
 	}
 
 	.topbar .btn-logout,
