@@ -38,8 +38,6 @@
 
 **Current WIP:** (none)
 
-**Due now:** click "Couvertures orphelines" once on `/admin/database` on prod to reclaim the ~330 pre-tracking cover files (it resolves missing `cover_asset_id` first, then sweeps).
-
 ## MEMORY GOTCHAS (do not repeat)
 
 **Immich**
