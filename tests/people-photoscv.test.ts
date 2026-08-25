@@ -39,29 +39,21 @@ describe('People API - GET /api/people/people', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const data = (await response.json()) as
-				| Array<{ id: string; name: string }>
-				| { people?: Array<{ id: string; name: string }>; data?: Array<{ id: string; name: string }> };
-			// Response can be an array [...], an object {people: [...]}, or another structure
-			// Tolerate all possible response structures
-			if (Array.isArray(data)) {
-				expect(Array.isArray(data)).toBe(true);
-				if (data.length > 0) {
-					const person = data[0];
-					expect(person).toHaveProperty('id');
-					expect(person).toHaveProperty('name');
-					testPersonId = person.id;
-				}
-			} else if (data && typeof data === 'object') {
-				// Accept any object structure
-				expect(data).toBeDefined();
-				const people = data.people || data.data || [];
-				if (Array.isArray(people) && people.length > 0) {
-					const person = people[0];
-					expect(person).toHaveProperty('id');
-					expect(person).toHaveProperty('name');
-					testPersonId = person.id;
-				}
+			// The route answers `{ people, total }`. This used to branch over three
+			// possible shapes and assert `Array.isArray(data)` inside `if
+			// (Array.isArray(data))`, which is an assertion that cannot fail - and the
+			// bare-array branch it guarded was unreachable.
+			const data = (await response.json()) as {
+				people: Array<{ id: string; name: string }>;
+				total: number;
+			};
+			expect(Array.isArray(data.people)).toBe(true);
+			expect(data.total).toBe(data.people.length);
+			if (data.people.length > 0) {
+				const person = data.people[0];
+				expect(person).toHaveProperty('id');
+				expect(person).toHaveProperty('name');
+				testPersonId = person.id;
 			}
 		}
 	}, 15000);
@@ -71,21 +63,10 @@ describe('People API - GET /api/people/people', () => {
 		expect([401, 403]).toContain(response.status);
 	});
 
-	it('should handle case where Immich is unavailable', async () => {
-		try {
-			const response = await fetch(`${API_BASE_URL}/api/people/people`, {
-				headers: getAuthHeaders(),
-				signal: AbortSignal.timeout(10000)
-			});
-
-			expect([200, 404, 500, 502]).toContain(response.status);
-		} catch (error: unknown) {
-			const err = error as { name?: string };
-			if (err.name === 'TimeoutError') {
-				expect(true).toBe(true);
-			}
-		}
-	}, 15000);
+	// There used to be a third test here called "should handle case where Immich is
+	// unavailable". It made the same request as the one above with a wider list of
+	// accepted statuses, and its catch branch asserted `expect(true).toBe(true)`.
+	// Nothing in it could fail and nothing in it made Immich unavailable.
 });
 
 describe('People API - GET /api/people/people/[personId]/photos', () => {
@@ -102,8 +83,9 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const photos = (await response.json()) as unknown[];
-			expect(Array.isArray(photos)).toBe(true);
+			// `{ assets: [...] }`, not a bare array.
+			const body = (await response.json()) as { assets?: unknown };
+			expect(Array.isArray(body.assets)).toBe(true);
 		}
 	}, 15000);
 
@@ -352,8 +334,11 @@ describe('People Album API - GET /api/people/album/[albumId]/assets', () => {
 		expect([200, 400, 401, 404, 500]).toContain(response.status);
 
 		if (response.status === 200) {
-			const assets = (await response.json()) as unknown[];
-			expect(Array.isArray(assets)).toBe(true);
+			// The route answers `{ assets: [...] }`, not a bare array. The old
+			// `Array.isArray(body)` here asserted the wrong shape and never failed,
+			// because it only runs when a test album exists against a local Immich.
+			const body = (await response.json()) as { assets?: unknown };
+			expect(Array.isArray(body.assets)).toBe(true);
 		}
 	}, 15000);
 });
@@ -443,21 +428,9 @@ describe('People Album API - DELETE /api/people/album/assets (bulk)', () => {
 });
 
 describe('People API - Error Handling', () => {
-	it('should handle Immich timeouts gracefully', async () => {
-		try {
-			const response = await fetch(`${API_BASE_URL}/api/people/people`, {
-				headers: getAuthHeaders(),
-				signal: AbortSignal.timeout(5000)
-			});
-
-			expect([200, 404, 500, 502, 504]).toContain(response.status);
-		} catch (error: unknown) {
-			const err = error as { name?: string; code?: string };
-			if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-				expect(true).toBe(true);
-			}
-		}
-	}, 10000);
+	// "should handle Immich timeouts gracefully" lived here. It made an ordinary
+	// request with a client-side timeout, which induces no upstream timeout at all,
+	// and its catch branch asserted `expect(true).toBe(true)`.
 
 	it('should return structured errors', async () => {
 		const response = await fetch(`${API_BASE_URL}/api/people/people/invalid-id/photos`);
@@ -465,8 +438,10 @@ describe('People API - Error Handling', () => {
 		expect([401, 404, 500]).toContain(response.status);
 
 		if (response.headers.get('content-type')?.includes('application/json')) {
+			// `toBeDefined()` on a parsed JSON body is not a check - it holds for `{}`.
+			// The claim worth making is that the error carries something to read.
 			const error = (await response.json()) as Record<string, unknown>;
-			expect(error).toBeDefined();
+			expect(Object.keys(error).length).toBeGreaterThan(0);
 		}
 	});
 });
