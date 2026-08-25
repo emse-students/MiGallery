@@ -48,8 +48,31 @@ link never bounces at all.
 
 Claims used: `sub` (the stable user id), name, `promo`, `formation`. A user's
 role is **not** taken from the SSO; it is stored locally (`users.role`) so it is
-never escalated by a login. On first login, `users.first_login = 1` triggers the
-promo/formation modal (`FirstLoginModal`), after which it is set to 0.
+never escalated by a login.
+
+**Nothing but the SSO writes `promo`.** A `FirstLoginModal` used to ask the user
+for their own graduation year whenever the claim was missing, gated on a
+`users.first_login` column. It was deleted, column included: Authentik describes
+277 of the 280 accounts on prod, and for the school staff it does not describe,
+the modal wrote NULL over NULL - its only effect was to stop showing itself. It
+was also the one place a user could **choose** a promo, and a promo is an
+album-access key (see [albums-and-permissions](albums-and-permissions.md)).
+
+**The row is a copy, not a second opinion.** `handleUserInDatabase`
+(`src/lib/auth.ts`) rewrites `first_name`, `last_name`, `promo` and `formation`
+on **every** login, **nulls included**. Until 2026-08-24 it skipped the absent
+claims, so a _change_ in Authentik propagated but a _removal_ never did: a promo
+the school had taken off an account kept opening that promo's albums, with
+nothing in the product able to close it. Writing the null is sound only because
+of where that runs - `completeOIDCFlow` reaches it after the token exchange
+**and** the userinfo fetch have both succeeded, so a missing claim is the IdP's
+answer, never an unreachable IdP; a transport failure returns earlier and
+touches nothing. Every erasure is logged at WARN with the value it replaced.
+
+`role`, `photos_id`, `photos_asset_id` and `locale` are deliberately outside
+that set - they are MiGallery's own, and are left out of the update payload so
+the generated `SET` never names them. `tests/sso-mirror.test.ts` pins all four
+behaviours against a throwaway SQLite file.
 
 ## Sessions
 

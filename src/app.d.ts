@@ -18,7 +18,6 @@ declare global {
 					photos_asset_id?: string | null;
 					role?: 'admin' | 'mitviste' | 'user';
 					promo?: number | null;
-					first_login?: number;
 				} | null;
 			} | null;
 		}

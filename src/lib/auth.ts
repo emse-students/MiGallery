@@ -233,9 +233,25 @@ function extractCustomClaims(idToken: string): Record<string, unknown> | null {
 }
 
 /**
- * Handle user creation/update in database
+ * The fields Authentik owns. MiGallery mirrors them and writes nothing else into them, so this list
+ * is the whole of what a login is allowed to overwrite - `role`, `photos_id`, `photos_asset_id` and
+ * `locale` are the app's own and stay out of it on purpose.
  */
-function handleUserInDatabase(
+const SSO_OWNED_FIELDS = ['first_name', 'last_name', 'promo', 'formation'] as const;
+
+/** A column carries a value. NULL from SQLite, undefined from an optional field: both are "unset". */
+function hasValue(value: unknown): boolean {
+	return value !== null && value !== undefined;
+}
+
+/**
+ * Create or refresh the local mirror of an Authentik account, and return the row as it now stands.
+ *
+ * Exported for `tests/sso-mirror.test.ts`: this is the only place a login writes to `users`, and
+ * what it must guarantee - that Authentik overwrites, removals included - is invisible from the
+ * outside until an account is looked at months later.
+ */
+export function handleUserInDatabase(
 	profile: OIDCProfile | Record<string, unknown>,
 	customClaims: Record<string, unknown>
 ): DBUser | null {
@@ -281,9 +297,7 @@ function handleUserInDatabase(
 			role: isAdmin ? 'admin' : 'user',
 			promo,
 			formation,
-			photos_id: null,
-			// first_login=0 if OIDC already provided the promo, 1 otherwise (modal will ask)
-			first_login: promo !== null ? 0 : 1
+			photos_id: null
 		};
 
 		if (!existingUser) {
@@ -293,26 +307,39 @@ function handleUserInDatabase(
 				formation: userData.formation ?? null
 			});
 		} else {
-			// Always overwrite with SSO data on each login.
-			// We only pass non-null fields so we don't erase manual values
-			// when SSO does not provide the field (e.g. promo for staff).
+			// The local row is a COPY of Authentik, never a second opinion: every field the IdP owns
+			// is written on every login, NULLS INCLUDED. Skipping the nulls - which is what this did
+			// until 2026-08-24 - meant a claim Authentik had REMOVED survived here for ever, and
+			// `promo` is an album-access key: a promo the school has taken off an account would have
+			// kept opening that promo's albums, with nothing in the product able to close it.
+			//
+			// Writing the null is only sound because of WHERE this runs. `completeOIDCFlow` reaches
+			// this line only after the token exchange AND the userinfo fetch both succeeded, so a
+			// missing claim is the IdP's ANSWER ("this account has no promo" - true of the school
+			// staff among the 280 accounts on prod), never an unreachable IdP. A transport failure
+			// returns earlier and touches nothing.
+			//
+			// `role`, `photos_id`, `photos_asset_id` and `locale` are deliberately absent: they are
+			// MiGallery's own and no login may set them. Leaving them out of the payload is what
+			// keeps `updateUser`'s generated SET from naming them at all.
+			const erased = SSO_OWNED_FIELDS.filter(
+				(field) => hasValue(existingUser[field]) && userData[field] === null
+			);
+			if (erased.length > 0) {
+				log.warn(`SSO no longer describes ${erased.join(', ')} - clearing the local copy`, {
+					user: userId,
+					before: Object.fromEntries(erased.map((field) => [field, existingUser[field]]))
+				});
+			}
+
 			const updatePayload: Partial<DBUser> & { id_user: string } = {
 				id_user: userId,
-				name: userData.name
+				name: userData.name,
+				first_name: firstName,
+				last_name: lastName,
+				promo,
+				formation
 			};
-			if (firstName !== null) {
-				updatePayload.first_name = firstName;
-			}
-			if (lastName !== null) {
-				updatePayload.last_name = lastName;
-			}
-			if (promo !== null) {
-				updatePayload.promo = promo;
-				updatePayload.first_login = 0;
-			}
-			if (formation !== null) {
-				updatePayload.formation = formation;
-			}
 
 			updateUser(updatePayload);
 		}

@@ -73,6 +73,22 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 - `buildImmichUploadFormData` appends every metadata field BEFORE `assetData`, deliberately. Immich parses the multipart body as a stream, so metadata arriving after the file part reaches the DTO validator too late and it answers `400 ... fileCreatedAt ... received undefined` - 5 such 400s on prod in 30 days before commit. Never move `assetData` back to the front.
 
 - PortailEtu is DEAD (deleted 2026-08-25, user's call): the album, `POST/GET/DELETE /api/external/media`, `SYSTEM_ALBUMS`, `getSystemAlbumIds`, `getAllAssetIdsInSystemAlbums`. What SURVIVES on purpose: `/api/external/media/[id]` (Sky/Canari avatars), `getOrCreateSystemAlbum` (still used for `'PhotoCV'`), and the `https://portail-etu.emse.fr` CORS origin in `hooks.server.ts` - that is the site origin, not the album.
+- **The `users` row is a COPY of Authentik, never a second opinion** (`handleUserInDatabase`, commit
+  ace982a). `SSO_OWNED_FIELDS` - `first_name`, `last_name`, `promo`, `formation` - are written on
+  EVERY login, **nulls included**. The `if (value != null)` guard that stood there until 2026-08-24
+  meant a claim Authentik had REMOVED survived here for ever, and `promo` is an album-access key.
+  What licenses erasing a local value is that `completeOIDCFlow` only reaches this function after
+  the token exchange AND the userinfo fetch both SUCCEEDED: an absent claim is then the IdP's
+  ANSWER, not a transport failure. `role`, `photos_id`, `photos_asset_id` and `locale` are the
+  app's own and stay out of that list on purpose. Pinned by `tests/sso-mirror.test.ts`, which is
+  the first test this module ever had - `$env/dynamic/private` is unresolvable outside a SvelteKit
+  build, so `vitest.config.ts` aliases it to `tests/mocks/env-dynamic-private.ts`. Reuse that alias
+  for any other server module you need under test.
+- **`first_login` and its graduation-year modal are DELETED, column included** (commit 82b0254). It
+  was the one place a user could CHOOSE their own promo, which is an album-access key; Authentik
+  describes 277 of the 280 accounts on prod, and for the school staff it does not describe (no
+  promo, and none owed - they get public and directly shared albums) the modal wrote NULL over
+  NULL. Do not reintroduce a client-writable promo: the SSO is its only writer.
 
 - Releases: the tag MUST be `vX.Y.Z`. `release.yml` triggers on `v*.*.*` only, so the historical bare tags (`1.0.0`, `1.1.0`) never fired it - those releases were made by hand. v2.0.0 (2026-08-17) is the first one the workflow actually produced. Bump `package.json` + `RELEASE_NOTES.md` (newest entry on top), commit, push, THEN tag.
 

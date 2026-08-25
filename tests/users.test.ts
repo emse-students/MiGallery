@@ -296,42 +296,9 @@ describe('Users API - PUT /api/users/[id]', () => {
 	});
 });
 
-describe('Users API - PATCH /api/users/me/promo', () => {
-	it("should update the logged-in user's promo", async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
-			method: 'PATCH',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				promo_year: 2020
-			})
-		});
-
-		expect([400, 401, 403, 500]).toContain(response.status);
-	});
-	it('should reject an invalid promo year', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
-			method: 'PATCH',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				promo_year: 'invalid'
-			})
-		});
-
-		expect([400, 401, 403, 500]).toContain(response.status);
-	});
-
-	it('should reject a promo year in the past', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/users/me/promo`, {
-			method: 'PATCH',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				promo_year: 1999
-			})
-		});
-
-		expect([400, 401, 403, 500]).toContain(response.status);
-	});
-});
+// `PATCH /api/users/me/promo` was covered here until the route was deleted. It let a user set
+// their own graduation year, which is an album-access key; the SSO is now its only writer, so
+// there is no endpoint left to exercise.
 
 describe('Users API - GET /api/users/[username]/avatar', () => {
 	it('should fetch user avatar', async () => {
