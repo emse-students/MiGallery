@@ -6,7 +6,7 @@
 	import {
 		User as UserIcon,
 		Users,
-		XCircle,
+		CircleX,
 		CloudUpload,
 		ChevronLeft,
 		ChevronRight
@@ -155,7 +155,7 @@
 
 					{#if myPhotosState.error}
 						<div class="state-message error">
-							<XCircle size={20} />
+							<CircleX size={20} />
 							{myPhotosState.error}
 						</div>
 					{/if}
@@ -195,7 +195,7 @@
 
 					{#if allPhotosState.error}
 						<div class="state-message error">
-							<XCircle size={20} />
+							<CircleX size={20} />
 							{allPhotosState.error}
 						</div>
 					{/if}

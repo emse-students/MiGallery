@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Key, Book, CirclePlus, Check, Info, AlertCircle, RefreshCw, Trash2 } from 'lucide-svelte';
+	import { Key, Book, CirclePlus, Check, Info, CircleAlert, RefreshCw, Trash2 } from 'lucide-svelte';
 	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import LoadingState from '$lib/components/LoadingState.svelte';
@@ -145,7 +145,7 @@
 
 		{#if error}
 			<div class="glass-card p-4 border-l-4 border-red-500 text-red-500 flex items-center gap-2">
-				<AlertCircle size={20} />
+				<CircleAlert size={20} />
 				{error}
 			</div>
 		{/if}

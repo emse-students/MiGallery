@@ -10,13 +10,13 @@
 		Moon,
 		ScanEye,
 		Info,
-		CheckCircle,
-		AlertCircle,
+		CircleCheckBig,
+		CircleAlert,
 		Share2,
 		X,
 		Users,
 		ChevronRight,
-		AlertTriangle,
+		TriangleAlert,
 		Languages,
 		Shield
 	} from 'lucide-svelte';
@@ -700,12 +700,12 @@
 							</div>
 						{:else if assetId && !needsNewPhoto && !detectionTimeout}
 							<div class="status-success">
-								<CheckCircle size={20} />
+								<CircleCheckBig size={20} />
 								<span>{m.param_face_ok()}</span>
 							</div>
 						{:else if needsNewPhoto}
 							<div class="status-error">
-								<AlertCircle size={20} />
+								<CircleAlert size={20} />
 								<div class="error-message">
 									<span>{m.param_face_multi()}</span>
 									<p class="text-sm">{uploadStatus}</p>
@@ -725,7 +725,7 @@
 							</div>
 						{:else if detectionTimeout}
 							<div class="status-warning">
-								<AlertTriangle size={20} />
+								<TriangleAlert size={20} />
 								<div class="error-message">
 									<span>{uploadStatus}</span>
 									<button
@@ -743,7 +743,7 @@
 							</div>
 						{:else if uploadStatus && !isProcessing}
 							<div class="status-error">
-								<AlertCircle size={20} />
+								<CircleAlert size={20} />
 								<div class="error-message">
 									<span>{uploadStatus}</span>
 									<button
@@ -965,7 +965,7 @@
 		<section class="settings-card danger-zone">
 			<div class="card-header">
 				<div class="icon-wrapper red">
-					<AlertTriangle size={24} />
+					<TriangleAlert size={24} />
 				</div>
 				<div>
 					<h2>{m.param_danger_title()}</h2>

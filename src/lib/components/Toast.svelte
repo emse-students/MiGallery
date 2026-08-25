@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Info, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-svelte';
+	import { Info, CircleCheckBig, CircleX, TriangleAlert, X } from 'lucide-svelte';
 	import { m } from '$lib/paraglide/messages';
 
 	interface Props {
@@ -17,9 +17,9 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const iconMap: Record<string, any> = {
 		info: Info,
-		success: CheckCircle,
-		error: XCircle,
-		warning: AlertTriangle
+		success: CircleCheckBig,
+		error: CircleX,
+		warning: TriangleAlert
 	};
 
 	const ToastIcon = $derived(iconMap[type] ?? Info);

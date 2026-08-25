@@ -3,10 +3,10 @@
 	import { m } from '$lib/paraglide/messages';
 	import {
 		Info,
-		CheckCircle,
-		XCircle,
-		AlertTriangle,
-		HelpCircle,
+		CircleCheckBig,
+		CircleX,
+		TriangleAlert,
+		CircleQuestionMark,
 		X,
 		UserX,
 		Camera
@@ -50,10 +50,10 @@
 	// Map string names to Lucide components
 	const icons: Record<string, any> = {
 		info: Info,
-		'check-circle': CheckCircle,
-		'x-circle': XCircle,
-		'alert-triangle': AlertTriangle,
-		'help-circle': HelpCircle,
+		'check-circle': CircleCheckBig,
+		'x-circle': CircleX,
+		'alert-triangle': TriangleAlert,
+		'help-circle': CircleQuestionMark,
 		'user-x': UserX,
 		camera: Camera,
 		x: X

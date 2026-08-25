@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Image as ImageIcon, AlertCircle, CheckCircle } from 'lucide-svelte';
+	import { Image as ImageIcon, CircleAlert, CircleCheckBig } from 'lucide-svelte';
 	import FaceCropThumb from './FaceCropThumb.svelte';
 	import Spinner from './Spinner.svelte';
 	import EmptyState from './EmptyState.svelte';
@@ -116,7 +116,7 @@
 
 	{#if error}
 		<div class="error-message">
-			<AlertCircle size={20} />
+			<CircleAlert size={20} />
 			<p>{error}</p>
 		</div>
 	{/if}
@@ -147,7 +147,7 @@
 					/>
 					{#if selectedAssetId === asset.id}
 						<div class="selected-overlay">
-							<CheckCircle size={32} />
+							<CircleCheckBig size={32} />
 						</div>
 					{/if}
 				</button>

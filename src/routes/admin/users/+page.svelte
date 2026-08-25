@@ -8,7 +8,7 @@
 		Funnel,
 		GraduationCap,
 		BookOpen,
-		CheckCircle,
+		CircleCheckBig,
 		CloudUpload,
 		Check
 	} from 'lucide-svelte';
@@ -659,7 +659,7 @@
 					<div class="photo-content">
 						{#if photoTarget.photos_id}
 							<div class="photo-status success">
-								<CheckCircle size={16} />
+								<CircleCheckBig size={16} />
 								<span
 									>{m.trombi_photo_linked_label()}
 									<code class="code-pill">{photoTarget.photos_id.substring(0, 8)}...</code></span

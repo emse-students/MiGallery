@@ -7,10 +7,10 @@
 		Download,
 		Activity,
 		Wrench,
-		AlertTriangle,
+		TriangleAlert,
 		CloudUpload,
-		CheckCircle,
-		XCircle,
+		CircleCheckBig,
+		CircleX,
 		Archive,
 		Inbox,
 		FileText,
@@ -334,7 +334,7 @@
 
 				<!-- Import (Danger Zone) -->
 				<section class="glass-card danger-zone">
-					<h2 class="section-title text-red-500"><AlertTriangle size={20} /> {m.db_danger_zone()}</h2>
+					<h2 class="section-title text-red-500"><TriangleAlert size={20} /> {m.db_danger_zone()}</h2>
 					<p class="text-sm text-muted mb-4">
 						{m.db_danger_note()}
 					</p>
@@ -380,9 +380,9 @@
 							{#each databaseStatus.tables || [] as table}
 								<div class="table-check-item {table.exists ? 'valid' : 'invalid'}">
 									{#if table.exists}
-										<CheckCircle size={16} />
+										<CircleCheckBig size={16} />
 									{:else}
-										<XCircle size={16} />
+										<CircleX size={16} />
 									{/if}
 									<span class="t-name">{table.name}</span>
 									<span class="t-count">{table.rowCount ?? 0}</span>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { AlertCircle, Search, X, Plus } from 'lucide-svelte';
+	import { CircleAlert, Search, X, Plus } from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
 	import Modal from './Modal.svelte';
 	import { m } from '$lib/paraglide/messages';
@@ -334,7 +334,7 @@
 >
 	{#if error}
 		<div class="error-message">
-			<AlertCircle size={20} />
+			<CircleAlert size={20} />
 			<p>{error}</p>
 		</div>
 	{/if}

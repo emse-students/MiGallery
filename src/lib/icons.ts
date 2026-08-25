@@ -10,6 +10,13 @@
  * `UploadCloud` -> `CloudUpload`). A wrong name renders an empty `<svg>` that
  * *looks* like a missing icon but is really a bad import.
  *
+ * The subtler trap is the opposite: 1.0.x still re-exports 243 DEPRECATED
+ * aliases (`AlertCircle`, `CheckCircle`, `XCircle`, `AlertTriangle`,
+ * `HelpCircle`...) from `dist/aliases`, so a legacy name renders correctly and
+ * nothing warns - until the next major drops them. Canonical names only.
+ * `dist/icons/index.js` is the list that counts; `dist/aliases/aliases.js` is
+ * the list to stay out of.
+ *
  * RULES
  * -----
  * - Import icons from THIS file, not directly from 'lucide-svelte'.
@@ -47,8 +54,8 @@ export {
 	Trash2,
 	Wrench,
 	// Status / feedback
-	AlertCircle,
 	ChartColumn,
+	CircleAlert,
 	Code,
 	Film,
 	ImageOff,

@@ -4,7 +4,7 @@
 	import AdminPage from '$lib/components/AdminPage.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import {
-		AlertCircle,
+		CircleAlert,
 		Film,
 		FolderPlus,
 		ImageOff,
@@ -518,7 +518,7 @@
 	<section class="card">
 		<h2><Layers size={18} /> {m.med_scan_title()}</h2>
 		<p class="hint">{m.med_scan_desc()}</p>
-		<p class="readonly-note"><AlertCircle size={14} /> {m.med_scan_readonly()}</p>
+		<p class="readonly-note"><CircleAlert size={14} /> {m.med_scan_readonly()}</p>
 
 		{#if scanRunning}
 			<p class="loading">

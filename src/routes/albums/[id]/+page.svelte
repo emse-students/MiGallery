@@ -5,14 +5,14 @@
 	import { fade, fly } from 'svelte/transition';
 	import {
 		Check,
-		CheckCircle,
+		CircleCheckBig,
 		Pencil,
 		Trash2,
 		Share2,
 		Download,
 		ArrowLeft,
 		MapPin,
-		AlertCircle,
+		CircleAlert,
 		Image as ImageIcon
 	} from 'lucide-svelte';
 	import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
@@ -199,7 +199,7 @@
 				{#if photosState.selecting}
 					<Check size={18} />
 				{:else}
-					<CheckCircle size={18} />
+					<CircleCheckBig size={18} />
 				{/if}
 				{#if !mobile || photosState.selecting}
 					<span class="label">{photosState.selecting ? m.common_ok() : m.albumd_selection()}</span>
@@ -284,7 +284,7 @@
 
 		{#if photosState.error}
 			<div class="glass-card error-card">
-				<AlertCircle size={24} />
+				<CircleAlert size={24} />
 				<p>{photosState.error}</p>
 			</div>
 		{/if}

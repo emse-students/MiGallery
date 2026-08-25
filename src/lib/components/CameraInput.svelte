@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { AlertCircle, Camera, X, Upload } from 'lucide-svelte';
+	import { CircleAlert, Camera, X, Upload } from 'lucide-svelte';
 	import Spinner from './Spinner.svelte';
 	import { m } from '$lib/paraglide/messages';
 
@@ -140,7 +140,7 @@
 <div class="camera-input-container">
 	{#if error}
 		<div class="error-message">
-			<AlertCircle size={20} />
+			<CircleAlert size={20} />
 			<span>{error}</span>
 			<button class="btn-dismiss" onclick={() => (error = null)}>×</button>
 		</div>

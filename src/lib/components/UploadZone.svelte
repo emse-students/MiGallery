@@ -1,11 +1,11 @@
 <script lang="ts">
 	import {
-		CheckCircle,
-		XCircle,
-		AlertCircle,
+		CircleCheckBig,
+		CircleX,
+		CircleAlert,
 		Check,
 		X,
-		AlertTriangle,
+		TriangleAlert,
 		RefreshCw,
 		Upload,
 		WifiOff,
@@ -389,19 +389,19 @@
 				{/if}
 				{#if successCount > 0}
 					<div class="summary-item success">
-						<CheckCircle size={24} />
+						<CircleCheckBig size={24} />
 						<span>{m.uz_uploaded_count({ count: successCount })}</span>
 					</div>
 				{/if}
 				{#if errorCountPersist > 0}
 					<div class="summary-item error">
-						<XCircle size={24} />
+						<CircleX size={24} />
 						<span>{m.uz_error_count({ count: errorCountPersist })}</span>
 					</div>
 				{/if}
 				{#if duplicateCountPersist > 0}
 					<div class="summary-item duplicate">
-						<AlertCircle size={24} />
+						<CircleAlert size={24} />
 						<span>{m.uz_duplicate_count({ count: duplicateCountPersist })}</span>
 					</div>
 				{/if}
@@ -420,7 +420,7 @@
 									{:else if item.status === 'error'}
 										<X size={16} />
 									{:else if item.status === 'duplicate'}
-										<AlertTriangle size={16} />
+										<TriangleAlert size={16} />
 									{:else if item.status === 'uploading'}
 										<Spinner size={16} />
 									{:else if item.status === 'pending'}
