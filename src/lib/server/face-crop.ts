@@ -4,6 +4,7 @@ import sharp from '$lib/server/sharp-config';
 import { acquireSharp } from '$lib/server/sharp-limit';
 import { createLogger } from '$lib/server/logger';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('face-crop');
 const CACHE_DIR = path.resolve('data/cache/faces');
@@ -85,6 +86,7 @@ export async function generateFaceCrop(
 	if (personId && personId !== 'center') {
 		try {
 			const facesRes = await fetchFn(`${baseUrl}/api/faces?id=${assetId}`, {
+				signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 				headers: { 'x-api-key': apiKey, accept: 'application/json' }
 			});
 			if (facesRes.ok) {
@@ -108,8 +110,13 @@ export async function generateFaceCrop(
 	try {
 		// Source = "preview" thumbnail (a few hundred KB), never the full-resolution
 		// original: enough pixels for a 320px square without a large native buffer.
+		// Deadline as everywhere else, and it counts double here: the Sharp slot is
+		// already held, so a hung download starves the pool rather than one request.
 		const previewUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
-		const previewRes = await fetchFn(previewUrl, { headers: { 'x-api-key': apiKey } });
+		const previewRes = await fetchFn(previewUrl, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+			headers: { 'x-api-key': apiKey }
+		});
 		if (!previewRes.ok) {
 			return { ok: false, reason: 'notfound' };
 		}

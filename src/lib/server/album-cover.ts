@@ -5,7 +5,9 @@ import sharp from '$lib/server/sharp-config';
 import { acquireSharp } from '$lib/server/sharp-limit';
 import { getDatabase } from '$lib/db/database';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
+import { searchAssetPage } from '$lib/server/immich-search';
 import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('album-cover');
 
@@ -102,6 +104,7 @@ export async function resolveCover(
 
 	try {
 		const albumRes = await fetchFn(`${baseUrl}/api/albums/${albumId}`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			headers: { 'x-api-key': apiKey, Accept: 'application/json' }
 		});
 		if (!albumRes.ok) {
@@ -129,18 +132,10 @@ export async function resolveCover(
 		}
 
 		// Assets are not inlined by recent backend versions: ask for exactly one.
-		const searchRes = await fetchFn(`${baseUrl}/api/search/metadata`, {
-			method: 'POST',
-			headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ albumIds: [albumId], page: 1, size: 1 })
-		});
-		if (!searchRes.ok) {
-			return null;
-		}
-		const searchData = (await searchRes.json()) as {
-			assets?: { items?: Array<{ id: string; type?: string }> };
-		};
-		const first = searchData.assets?.items?.[0];
+		// A failure here throws and is caught below as "no cover", which is the
+		// right answer for a cover: there is nothing to fall back to.
+		const { items } = await searchAssetPage(fetchFn, { albumIds: [albumId] }, 1, 1);
+		const first = items[0];
 		if (!first?.id) {
 			return null;
 		}
@@ -184,7 +179,12 @@ export async function getCoverImage(
 	try {
 		// Source = the "preview" thumbnail (a few hundred KB), never the original
 		// (JPEG 5-30 MB, RAW 50 MB+), to build a 400x400 square.
+		//
+		// The deadline matters MORE here than on a plain call: the Sharp slot is
+		// already held, so a download that hangs does not stall one request, it
+		// starves every other request waiting for a slot.
 		const thumbRes = await fetchFn(`${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`, {
+			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			headers: { 'x-api-key': apiKey }
 		});
 		if (!thumbRes.ok) {
