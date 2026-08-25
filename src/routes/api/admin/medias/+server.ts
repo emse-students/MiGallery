@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireScope } from '$lib/server/permissions';
 import { getAlbumInventory, getScanState, loadScanSnapshot } from '$lib/server/media-anomalies';
+import type { ScanResult } from '$lib/server/media-anomalies';
 
 /**
  * GET /api/admin/medias
@@ -11,6 +12,28 @@ import { getAlbumInventory, getScanState, loadScanSnapshot } from '$lib/server/m
  * size of the page rather than of the result set, so counting orphans means
  * paginating them, which is what `/orphans` does one page at a time.
  */
+/**
+ * The full multi-album list can run to hundreds of entries; the summary only
+ * says whether there is one, how old it is and how much it covered.
+ *
+ * A function rather than a ternary because ESLint's `indent` rule and Prettier
+ * disagree about an object literal nested in a ternary, and .ts files here
+ * answer to both.
+ */
+function summarize(result: ScanResult | null) {
+	if (!result) {
+		return null;
+	}
+	return {
+		scannedAt: result.scannedAt,
+		albumsScanned: result.albumsScanned,
+		albumsFailed: result.albumsFailed.length,
+		assetsSeen: result.assetsSeen,
+		multiAlbumCount: result.multiAlbum.length,
+		truncated: result.truncated
+	};
+}
+
 export const GET: RequestHandler = async (event) => {
 	await requireScope(event, 'admin');
 
@@ -27,18 +50,7 @@ export const GET: RequestHandler = async (event) => {
 			albumsDone: scan.albumsDone,
 			requests: scan.requests,
 			error: scan.error,
-			// The full multi-album list can run to hundreds of entries; the summary
-			// only says whether there is one and how old it is.
-			lastScan: lastResult
-				? {
-						scannedAt: lastResult.scannedAt,
-						albumsScanned: lastResult.albumsScanned,
-						albumsFailed: lastResult.albumsFailed.length,
-						assetsSeen: lastResult.assetsSeen,
-						multiAlbumCount: lastResult.multiAlbum.length,
-						truncated: lastResult.truncated
-					}
-				: null
+			lastScan: summarize(lastResult)
 		}
 	});
 };
