@@ -9,6 +9,7 @@
 		Users,
 		Key,
 		Database,
+		Images,
 		Trash2,
 		ShieldCheck
 	} from '$lib/icons';
@@ -20,6 +21,7 @@
 		{ href: '/admin/users', label: m.adm_nav_users, icon: Users },
 		{ href: '/admin/api-keys', label: m.adm_nav_keys, icon: Key },
 		{ href: '/admin/database', label: m.adm_nav_database, icon: Database },
+		{ href: '/admin/medias', label: m.adm_nav_medias, icon: Images },
 		{ href: '/admin/corbeille', label: m.adm_nav_trash, icon: Trash2 }
 	];
 	let { children } = $props();

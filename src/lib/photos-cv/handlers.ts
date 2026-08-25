@@ -4,68 +4,29 @@ import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
+import { searchAllAssets } from '$lib/server/immich-search';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
- * Paginate POST /api/search/metadata for an arbitrary filter body and collect
- * every asset. Immich AND-combines its filter fields, so passing both personIds
- * and albumIds returns exactly the intersection server-side (verified on prod:
- * personIds+albumIds == person-assets INTERSECT album-assets). Smaller pages
- * (500) keep the native memory peak per response low; the page cap is generous
- * so heavily-photographed people are never truncated.
+ * Trombinoscope searches only ever want photos, and smaller pages (500) keep the
+ * native memory peak per response low. The page cap is generous so heavily
+ * photographed people are never truncated.
  */
-async function searchAllAssets(
-	fetchFn: typeof fetch,
-	filter: Record<string, unknown>
-): Promise<ImmichAsset[]> {
-	const allAssets: ImmichAsset[] = [];
-	let page = 1;
-	let hasNext = true;
-
-	while (hasNext) {
-		const res = await fetchFn(`${IMMICH_BASE_URL}/api/search/metadata`, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			method: 'POST',
-			headers: {
-				'x-api-key': IMMICH_API_KEY,
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ ...filter, type: 'IMAGE', page, size: 500 })
-		});
-
-		if (!res.ok) {
-			const txt = await res.text();
-			throw error(res.status, `Search failed: ${txt}`);
-		}
-
-		const data = (await res.json()) as {
-			assets?: {
-				items?: ImmichAsset[];
-				nextPage?: number | null;
-			};
-		};
-		const items = data.assets?.items || [];
-		if (items.length === 0) {
-			break;
-		}
-		allAssets.push(...items);
-		hasNext = data.assets?.nextPage !== null && data.assets?.nextPage !== undefined;
-		page++;
-		if (page > 20) {
-			break;
-		}
-	}
-	return allAssets;
-}
+const CV_SEARCH = { size: 500, maxPages: 20 } as const;
+const PHOTOS_ONLY = { type: 'IMAGE' } as const;
 
 /**
  * A person's photos, partitioned by PhotoCV-album membership.
  *
- * - inAlbum=true: a single combined personIds+albumIds search (Immich filters
- *   the intersection server-side) - no full-album fetch, no in-memory filtering.
+ * Immich AND-combines its filter fields, so passing both personIds and albumIds
+ * returns exactly the intersection server-side (verified on prod:
+ * personIds+albumIds == person-assets INTERSECT album-assets).
+ *
+ * - inAlbum=true: a single combined personIds+albumIds search - no full-album
+ *   fetch, no in-memory filtering.
  * - inAlbum=false: all of the person's photos MINUS the (small) in-album subset.
  *   We still need every person asset to know what is NOT in the album, but we
  *   subtract the combined-query result instead of fetching the entire PhotoCV
@@ -79,12 +40,20 @@ export async function getPersonAssets(
 	const photoCVId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
 
 	if (inAlbum) {
-		return searchAllAssets(fetchFn, { personIds: [personId], albumIds: [photoCVId] });
+		return searchAllAssets(
+			fetchFn,
+			{ ...PHOTOS_ONLY, personIds: [personId], albumIds: [photoCVId] },
+			CV_SEARCH
+		);
 	}
 
 	const [allAssets, inAlbumAssets] = await Promise.all([
-		searchAllAssets(fetchFn, { personIds: [personId] }),
-		searchAllAssets(fetchFn, { personIds: [personId], albumIds: [photoCVId] })
+		searchAllAssets(fetchFn, { ...PHOTOS_ONLY, personIds: [personId] }, CV_SEARCH),
+		searchAllAssets(
+			fetchFn,
+			{ ...PHOTOS_ONLY, personIds: [personId], albumIds: [photoCVId] },
+			CV_SEARCH
+		)
 	]);
 	const inAlbumIds = new Set(inAlbumAssets.map((a) => a.id));
 	return allAssets.filter((asset) => !inAlbumIds.has(asset.id));

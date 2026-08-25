@@ -27,6 +27,7 @@ export {
 	// Admin domains (sidebar + page headers)
 	Activity, // server health / metrics
 	Database, // database maintenance
+	Images, // media anomalies
 	Key, // API keys
 	ScrollText, // logs
 	ShieldCheck, // admin brand
@@ -39,15 +40,20 @@ export {
 	CirclePlus,
 	CloudUpload,
 	FileText,
+	FolderPlus,
 	RefreshCw,
 	RotateCcw,
+	ScanSearch,
 	Trash2,
 	Wrench,
 	// Status / feedback
 	AlertCircle,
 	ChartColumn,
 	Code,
+	Film,
+	ImageOff,
 	Info,
+	Layers,
 	Lock,
 	Terminal
 } from 'lucide-svelte';
