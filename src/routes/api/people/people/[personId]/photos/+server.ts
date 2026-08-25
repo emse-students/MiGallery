@@ -32,8 +32,8 @@ async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: type
 				}
 
 				return (await detailRes.json()) as ImmichAsset;
-			} catch (e: unknown) {
-				const _err = ensureError(e);
+			} catch {
+				// Enrichment is best-effort: keep the search result as it came.
 				return asset;
 			}
 		})

@@ -99,7 +99,6 @@ export const GET: RequestHandler = async (event) => {
 								}
 								return null;
 							} catch (e: unknown) {
-								const _err = ensureError(e);
 								log.warn(`Failed to fetch details for asset ${asset.id}:`, e);
 								return null;
 							}

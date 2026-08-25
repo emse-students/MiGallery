@@ -3,7 +3,7 @@ import { error } from '@sveltejs/kit';
 import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
+import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -124,46 +124,12 @@ export async function getAlbumInfo(fetchFn: typeof fetch): Promise<{
 	};
 }
 
-export async function addAssetsToAlbum(
-	assetIds: string[],
-	fetchFn: typeof fetch
-): Promise<{ success: boolean }> {
+export async function addAssetsToAlbum(assetIds: string[], fetchFn: typeof fetch) {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
-
-	// Same trap as the album endpoint: a re-imported photo Immich answered as a
-	// duplicate can be sitting in the trash, and adding a trashed asset to
-	// PhotoCV never makes it visible. No-op when nothing is trashed.
-	await restoreAssetsFromTrash(fetchFn, assetIds);
-
-	const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-		method: 'PUT',
-		headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ ids: assetIds })
-	});
-	if (!res.ok) {
-		const errorText = await res.text();
-		throw error(500, `Failed to add assets to album: ${errorText}`);
-	}
-
-	return res.json() as Promise<{ success: boolean }>;
+	return addAlbumAssets(fetchFn, albumId, assetIds);
 }
 
-export async function removeAssetsFromAlbum(
-	assetIds: string[],
-	fetchFn: typeof fetch
-): Promise<{ success: boolean }> {
+export async function removeAssetsFromAlbum(assetIds: string[], fetchFn: typeof fetch) {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
-	const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-		method: 'DELETE',
-		headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ ids: assetIds })
-	});
-	if (!res.ok) {
-		const errorText = await res.text();
-		throw error(500, `Failed to remove assets from album: ${errorText}`);
-	}
-
-	return res.json() as Promise<{ success: boolean }>;
+	return removeAlbumAssets(fetchFn, albumId, assetIds);
 }

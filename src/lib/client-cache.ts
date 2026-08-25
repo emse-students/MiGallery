@@ -1,4 +1,3 @@
-import { ensureError } from '$lib/ts-utils';
 /**
  * Client-side cache for API data
  * Uses IndexedDB for persistence across sessions
@@ -126,7 +125,6 @@ class ClientCache {
 				};
 			});
 		} catch (error: unknown) {
-			const _err = ensureError(error);
 			console.warn('Cache get error:', error);
 			return null;
 		}
@@ -155,7 +153,6 @@ class ClientCache {
 				request.onsuccess = () => resolve();
 			});
 		} catch (error: unknown) {
-			const _err = ensureError(error);
 			console.warn('Cache set error:', error);
 		}
 	}
@@ -176,7 +173,6 @@ class ClientCache {
 				request.onsuccess = () => resolve();
 			});
 		} catch (error: unknown) {
-			const _err = ensureError(error);
 			console.warn('Cache delete error:', error);
 		}
 	}
@@ -197,7 +193,6 @@ class ClientCache {
 				request.onsuccess = () => resolve();
 			});
 		} catch (error: unknown) {
-			const _err = ensureError(error);
 			console.warn('Cache clear store error:', error);
 		}
 	}
@@ -234,7 +229,6 @@ class ClientCache {
 
 			return stats;
 		} catch (error: unknown) {
-			const _err = ensureError(error);
 			console.warn('Cache stats error:', error);
 			return [];
 		}
@@ -268,7 +262,6 @@ class ClientCache {
 				};
 			}
 		} catch (error: unknown) {
-			const _err = ensureError(error);
 			console.warn('Cache cleanup error:', error);
 		}
 	}

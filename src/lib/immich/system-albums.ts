@@ -1,6 +1,9 @@
 import { env } from '$env/dynamic/private';
+import { createLogger } from '$lib/server/logger';
 import type { ImmichAlbum } from '$lib/types/api';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+const log = createLogger('system-albums');
+
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
@@ -32,6 +35,18 @@ export async function getOrCreateSystemAlbum(
 		return albumIdCache[albumName].id;
 	}
 
+	try {
+		return await resolveSystemAlbum(fetchFn, albumName);
+	} catch (e: unknown) {
+		// There is no `handleError` hook in this app, so an unlogged throw here is
+		// invisible in prod - and this is where the album list round trip times out
+		// under load, which is the failure worth seeing.
+		log.error(`failed to resolve system album ${albumName}:`, e);
+		throw e;
+	}
+}
+
+async function resolveSystemAlbum(fetchFn: typeof fetch, albumName: string): Promise<string> {
 	const albums = await fetchAlbums(fetchFn);
 	const existing = albums.find((a) => a.albumName === albumName);
 	if (existing) {

@@ -3,100 +3,51 @@ import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
-import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY;
 
-export const GET: RequestHandler = async (event) => {
-	const albumId = event.params.albumId;
+function requireAlbumId(albumId: string | undefined): string {
 	if (!albumId) {
 		throw error(400, 'albumId required');
 	}
+	return albumId;
+}
 
+/** External callers send either `assetIds` or `ids`; both have always worked. */
+async function readAssetIds(request: Request): Promise<string[]> {
+	const body = (await request.json()) as Record<string, unknown>;
+	const assetIds = typeof body.assetIds !== 'undefined' ? body.assetIds : body.ids;
+	if (!Array.isArray(assetIds) || assetIds.length === 0) {
+		throw error(400, 'assetIds required');
+	}
+	return assetIds as string[];
+}
+
+export const GET: RequestHandler = async (event) => {
+	const albumId = requireAlbumId(event.params.albumId);
 	await requireScope(event, 'read');
-	const { fetch } = event;
 
-	const headers: Record<string, string> = { Accept: 'application/json' };
-	if (IMMICH_API_KEY) {
-		headers['x-api-key'] = IMMICH_API_KEY;
-	}
-	const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}`, {
-		headers,
-		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS)
-	});
-	if (!res.ok) {
-		throw error(500, `Failed to fetch album: ${res.statusText}`);
-	}
-	const assets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, albumId);
+	// fetchAlbumAssets fetches the album itself and throws when it is missing, so
+	// the album GET this handler used to run first - and throw the answer away -
+	// was a second identical round trip against the same 4s outbound budget.
+	const assets = await fetchAlbumAssets(event.fetch, IMMICH_BASE_URL, IMMICH_API_KEY, albumId);
 	return json({ assets });
 };
 
 export const PUT: RequestHandler = async (event) => {
-	const albumId = event.params.albumId;
-	if (!albumId) {
-		throw error(400, 'albumId required');
-	}
+	const albumId = requireAlbumId(event.params.albumId);
 	await requireScope(event, 'write');
 
-	const body = (await event.request.json()) as Record<string, unknown>;
-	const assetIds = (typeof body.assetIds !== 'undefined' ? body.assetIds : body.ids) as unknown;
-	if (!Array.isArray(assetIds) || assetIds.length === 0) {
-		throw error(400, 'assetIds required');
-	}
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-	if (IMMICH_API_KEY) {
-		headers['x-api-key'] = IMMICH_API_KEY;
-	}
-	// A trashed asset added to an album stays invisible - restore first.
-	await restoreAssetsFromTrash(event.fetch, assetIds as string[]);
-	const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-		method: 'PUT',
-		headers,
-		body: JSON.stringify({ ids: assetIds })
-	});
-	if (!res.ok) {
-		const txt = await res.text();
-		if (res.status >= 400 && res.status < 500) {
-			throw error(res.status, `Failed to add assets: ${txt}`);
-		}
-		throw error(500, `Failed to add assets: ${txt}`);
-	}
-	const data = (await res.json()) as { success?: boolean };
-	return json({ success: true, added: data });
+	const added = await addAlbumAssets(event.fetch, albumId, await readAssetIds(event.request));
+	return json({ success: true, added });
 };
 
 export const DELETE: RequestHandler = async (event) => {
-	const albumId = event.params.albumId;
-	if (!albumId) {
-		throw error(400, 'albumId required');
-	}
+	const albumId = requireAlbumId(event.params.albumId);
 	await requireScope(event, 'write');
 
-	const body = (await event.request.json()) as Record<string, unknown>;
-	const assetIds = (typeof body.assetIds !== 'undefined' ? body.assetIds : body.ids) as unknown;
-	if (!Array.isArray(assetIds) || assetIds.length === 0) {
-		throw error(400, 'assetIds required');
-	}
-	const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-	if (IMMICH_API_KEY) {
-		headers['x-api-key'] = IMMICH_API_KEY;
-	}
-	const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-		method: 'DELETE',
-		headers,
-		body: JSON.stringify({ ids: assetIds })
-	});
-	if (!res.ok) {
-		const txt = await res.text();
-		if (res.status >= 400 && res.status < 500) {
-			throw error(res.status, `Failed to remove assets: ${txt}`);
-		}
-		throw error(500, `Failed to remove assets: ${txt}`);
-	}
-	const data = (await res.json()) as { success?: boolean };
-	return json({ success: true, removed: data });
+	const removed = await removeAlbumAssets(event.fetch, albumId, await readAssetIds(event.request));
+	return json({ success: true, removed });
 };

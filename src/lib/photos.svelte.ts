@@ -273,7 +273,6 @@ export class PhotosState {
 
 			this.loading = false;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			this.error = (e as Error).message;
 			this.loading = false;
 		}
@@ -343,7 +342,6 @@ export class PhotosState {
 
 			this.loading = false;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			this.error = (e as Error).message;
 			this.loading = false;
 		}
@@ -385,7 +383,6 @@ export class PhotosState {
 			this.photoCVTotalCount = data.totalCount ?? 0;
 			this.photoCVCurrentPage = data.currentPage ?? 1;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			this.error = (e as Error).message;
 		} finally {
 			this.loading = false;
@@ -427,7 +424,6 @@ export class PhotosState {
 			this.photoCVTotalCount = data.totalCount ?? 0;
 			this.photoCVCurrentPage = nextPage;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			this.error = (e as Error).message;
 		} finally {
 			this.loading = false;
@@ -472,7 +468,6 @@ export class PhotosState {
 			this.photoCVTotalCount = data.totalCount ?? 0;
 			this.photoCVCurrentPage = prevPage;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			this.error = (e as Error).message;
 		} finally {
 			this.loading = false;
@@ -564,7 +559,6 @@ export class PhotosState {
 			this.selectedAssets = [];
 			this.selecting = false;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			const err = e as { name?: string; message?: string };
 			if (err.name !== 'AbortError') {
 				toast.error(m.photos_error({ message: err.message || m.common_unknown_error() }));
@@ -636,7 +630,6 @@ export class PhotosState {
 
 			this.loading = false;
 		} catch (e: unknown) {
-			const _err = ensureError(e);
 			this.error = (e as Error).message;
 			this.loading = false;
 		}

@@ -1,92 +1,32 @@
 import { json, error } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
-import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
-import { env } from '$env/dynamic/private';
+import { addAssetsToAlbum, removeAssetsFromAlbum } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
-import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
-const log = createLogger('people-album-assets');
-const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
+/**
+ * Bulk add/remove on the PhotoCV system album - the album id is resolved
+ * server-side, callers only send ids. `POST /api/people` does the same thing
+ * for the app itself; this route is what external API-key callers use, so it
+ * still exists (it is hit on prod) and it goes through the same handlers.
+ */
+async function readAssetIds(request: Request): Promise<string[]> {
+	const body = (await request.json()) as { assetIds?: string[]; ids?: string[] };
+	const assetIds = body.assetIds || body.ids || [];
+	if (!Array.isArray(assetIds) || assetIds.length === 0) {
+		throw error(400, 'assetIds required');
+	}
+	return assetIds;
+}
 
 export const PUT: RequestHandler = async (event) => {
 	await requireScope(event, 'write');
-	try {
-		const body = (await event.request.json()) as {
-			assetIds?: string[];
-			ids?: string[];
-		};
-		const { fetch } = event;
-		const assetIds = body.assetIds || body.ids || [];
-		if (!Array.isArray(assetIds) || assetIds.length === 0) {
-			throw error(400, 'assetIds required');
-		}
-		const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
-		// A trashed asset added to an album stays invisible - restore first.
-		await restoreAssetsFromTrash(fetch, assetIds);
-		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			method: 'PUT',
-			headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ids: assetIds })
-		});
-		if (!res.ok) {
-			const txt = await res.text();
-			if (res.status >= 400 && res.status < 500) {
-				throw error(res.status, `Failed to add assets: ${txt}`);
-			}
-			throw error(500, `Failed to add assets: ${txt}`);
-		}
-		const data = (await res.json()) as { success?: boolean };
-		return json({ success: true, added: data });
-	} catch (e: unknown) {
-		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
-			throw e;
-		}
-		const err = ensureError(e);
-		log.error('Error in /api/people/album/assets PUT:', err);
-		throw error(500, err.message);
-	}
+	const added = await addAssetsToAlbum(await readAssetIds(event.request), event.fetch);
+	return json({ success: true, added });
 };
 
 export const DELETE: RequestHandler = async (event) => {
 	await requireScope(event, 'write');
-	try {
-		const body = (await event.request.json()) as {
-			assetIds?: string[];
-			ids?: string[];
-		};
-		const { fetch } = event;
-		const assetIds = body.assetIds || body.ids || [];
-		if (!Array.isArray(assetIds) || assetIds.length === 0) {
-			throw error(400, 'assetIds required');
-		}
-		const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
-		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			method: 'DELETE',
-			headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ids: assetIds })
-		});
-		if (!res.ok) {
-			const txt = await res.text();
-			if (res.status >= 400 && res.status < 500) {
-				throw error(res.status, `Failed to remove assets: ${txt}`);
-			}
-			throw error(500, `Failed to remove assets: ${txt}`);
-		}
-		const data = (await res.json()) as { success?: boolean };
-		return json({ success: true, removed: data });
-	} catch (e: unknown) {
-		if (e && typeof e === 'object' && 'status' in e && 'body' in e) {
-			throw e;
-		}
-		const err = ensureError(e);
-		log.error('Error in /api/people/album/assets DELETE:', err);
-		throw error(500, err.message);
-	}
+	const removed = await removeAssetsFromAlbum(await readAssetIds(event.request), event.fetch);
+	return json({ success: true, removed });
 };

@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { requireScope } from '$lib/server/permissions';
 import { getDatabase } from '$lib/db/database';
@@ -36,7 +35,6 @@ export const GET: RequestHandler = async (event) => {
 			}
 		});
 	} catch (err: unknown) {
-		const _err = ensureError(err);
 		log.error('Error exporting database:', err);
 		throw error(500, 'Failed to export the database');
 	}

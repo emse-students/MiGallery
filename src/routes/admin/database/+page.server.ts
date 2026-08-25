@@ -1,6 +1,5 @@
 import { error } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
 import type { PageServerLoad } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { createLogger } from '$lib/server/logger';
@@ -35,7 +34,6 @@ export const load: PageServerLoad = async ({ parent }) => {
 			dbSize = `${(sizeKB / 1024).toFixed(2)} MB`;
 		}
 	} catch (e: unknown) {
-		const _err = ensureError(e);
 		log.error('error getting DB size', e);
 	}
 
@@ -64,7 +62,6 @@ export const load: PageServerLoad = async ({ parent }) => {
 			backups = files.map(({ filename, date, size }) => ({ filename, date, size }));
 		}
 	} catch (e: unknown) {
-		const _err = ensureError(e);
 		log.error('error listing backups', e);
 	}
 
