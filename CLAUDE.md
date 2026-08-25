@@ -54,8 +54,8 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 
 **Roadmap (Active WP):**
 
-- WP-B SHIPPED 2026-08-25: `/admin/medias` (page + `/api/admin/medias`, `/orphans?page=N`, `/scan` POST|GET). Detection tooling only, no automatic sorting - the multi-album list is read-only and there is no permanent delete anywhere. The same-name-albums family was DROPPED by the user's call (the roadmap's "2 same-name albums" did not reproduce: exact name gave 49 groups, name+date 0, name+year 8, Immich's case-insensitive compare 38 - no definition of "duplicate" was defensible). Not deployed yet.
-- Post-deploy of b25fad2: click "Couvertures orphelines" once on `/admin/database` to reclaim the ~330 pre-tracking cover files on prod (it resolves missing `cover_asset_id` first, then sweeps).
+- WP-B SHIPPED 2026-08-25: `/admin/medias` (page + `/api/admin/medias`, `/orphans?page=N`, `/scan` POST|GET). Detection tooling only, no automatic sorting - the multi-album list is read-only and there is no permanent delete anywhere. The same-name-albums family was DROPPED by the user's call (the roadmap's "2 same-name albums" did not reproduce: exact name gave 49 groups, name+date 0, name+year 8, Immich's case-insensitive compare 38 - no definition of "duplicate" was defensible). DEPLOYED to prod 2026-08-25 (run 32850613053, container healthy on `:latest`), along with the trash-restore upload fix and the album-assets refactor.
+- DUE NOW (b25fad2 is deployed): click "Couvertures orphelines" once on `/admin/database` to reclaim the ~330 pre-tracking cover files on prod (it resolves missing `cover_asset_id` first, then sweeps).
 - (Canari side done 2026-08-17, commits 7be8d7a3 + 73606ddc + 741efee8a: `EcosystemCoverPreview.svelte` builds the square cover URL from the link itself via `ecosystemHosts.ts`. One rule now governs the key there: an image is public and needs no key, a metadata read does - only `/api/albums/[id]/info` carries `MIGALLERY_API_KEY`, covers go through Canari's SSRF-guarded image proxy. The keyed `mls/gallery-cover/:albumId` proxy is deleted.)
 
 **Memory Gotchas (Do not repeat):**
