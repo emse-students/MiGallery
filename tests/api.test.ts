@@ -489,25 +489,6 @@ describe('Assets API (Immich proxy)', () => {
 });
 
 // ========================================
-// Tests External Media
-// ========================================
-
-describe('External Media API', () => {
-	it('should list external media', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/external/media`, {
-			headers: getAuthHeaders()
-		});
-
-		expect([200, 401, 500, 502]).toContain(response.status);
-
-		if (response.status === 200) {
-			const data = (await response.json()) as { success: boolean };
-			expect(data.success).toBe(true);
-		}
-	});
-});
-
-// ========================================
 // Tests Health
 // ========================================
 

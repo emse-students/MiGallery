@@ -5,6 +5,7 @@ import type { RequestHandler } from './$types';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
@@ -25,6 +26,8 @@ export const PUT: RequestHandler = async (event) => {
 			throw error(400, 'assetIds required');
 		}
 		const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
+		// A trashed asset added to an album stays invisible - restore first.
+		await restoreAssetsFromTrash(fetch, assetIds);
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
 			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 			method: 'PUT',

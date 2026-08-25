@@ -338,45 +338,6 @@ describe('E2E - Favorites workflow', () => {
 	}, 30000);
 });
 
-describe('E2E - External media workflow', () => {
-	it('should handle complete external media cycle', async () => {
-		// 1. Create an external media item
-		const createResponse = await fetch(`${API_BASE_URL}/api/external/media`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': adminApiKey
-			},
-			body: JSON.stringify({
-				type: 'url',
-				url: 'https://example.com/e2e-test-video.mp4',
-				title: 'E2E Test Media',
-				description: 'Media created by E2E tests'
-			})
-		});
-
-		if (createResponse.ok) {
-			const media = (await createResponse.json()) as { media: { id: string } };
-			const mediaId = media.media.id;
-
-			// 2. Fetch the media
-			const getResponse = await fetch(`${API_BASE_URL}/api/external/media/${mediaId}`, {
-				headers: { 'x-api-key': adminApiKey }
-			});
-
-			expect([200, 404]).toContain(getResponse.status);
-
-			// 3. Delete the media
-			const deleteResponse = await fetch(`${API_BASE_URL}/api/external/media/${mediaId}`, {
-				method: 'DELETE',
-				headers: { 'x-api-key': adminApiKey }
-			});
-
-			expect([200, 204, 404]).toContain(deleteResponse.status);
-		}
-	}, 30000);
-});
-
 describe('E2E - Health et monitoring', () => {
 	it('should verify all critical endpoints are accessible', async () => {
 		const endpoints = [

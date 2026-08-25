@@ -1,13 +1,8 @@
 import { env } from '$env/dynamic/private';
 import type { ImmichAlbum } from '$lib/types/api';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-const log = createLogger('system-albums');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-
-export const SYSTEM_ALBUMS = ['PhotoCV', 'PortailEtu'];
 
 const albumIdCache: Record<string, { id: string; updatedAt: number }> = {};
 const ALBUM_CACHE_TTL = 60 * 1000; // 1 minute
@@ -62,35 +57,4 @@ export async function getOrCreateSystemAlbum(
 	const newAlbum = (await createRes.json()) as ImmichAlbum;
 	albumIdCache[albumName] = { id: newAlbum.id, updatedAt: Date.now() };
 	return newAlbum.id;
-}
-
-export async function getSystemAlbumIds(fetchFn: typeof fetch): Promise<string[]> {
-	const ids: string[] = [];
-	for (const name of SYSTEM_ALBUMS) {
-		try {
-			const id = await getOrCreateSystemAlbum(fetchFn, name);
-			if (id) {
-				ids.push(id);
-			}
-		} catch (e: unknown) {
-			log.warn(`getSystemAlbumIds failed for ${name}`, e);
-		}
-	}
-	return ids;
-}
-
-export async function getAllAssetIdsInSystemAlbums(fetchFn: typeof fetch): Promise<string[]> {
-	const albumIds = await getSystemAlbumIds(fetchFn);
-	const allAssetIds = new Set<string>();
-	for (const aid of albumIds) {
-		try {
-			const assets = await fetchAlbumAssets(fetchFn, IMMICH_BASE_URL, IMMICH_API_KEY, aid);
-			for (const a of assets) {
-				allAssetIds.add(a.id);
-			}
-		} catch (_e) {
-			void _e;
-		}
-	}
-	return Array.from(allAssetIds);
 }

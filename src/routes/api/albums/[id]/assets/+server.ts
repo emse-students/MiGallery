@@ -4,6 +4,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
@@ -32,18 +33,8 @@ export const PUT: RequestHandler = async (event) => {
 		// trash; adding it to an album would then never make it visible. Restore the
 		// ids from trash first (no-op for assets that are not trashed).
 		const ids = (body as { ids?: unknown })?.ids;
-		if (Array.isArray(ids) && ids.length > 0) {
-			try {
-				await fetch(`${IMMICH_BASE_URL}/api/trash/restore/assets`, {
-					signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-					method: 'POST',
-					headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-					body: JSON.stringify({ ids })
-				});
-			} catch (restoreErr) {
-				// Non-fatal: still try to add even if the restore call fails.
-				log.warn('trash restore failed (continuing):', restoreErr);
-			}
+		if (Array.isArray(ids)) {
+			await restoreAssetsFromTrash(fetch, ids as string[]);
 		}
 
 		const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}/assets`, {

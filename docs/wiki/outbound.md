@@ -43,7 +43,7 @@ a broken one.
 | -------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | A small answer | album metadata, an asset detail, a people list, the OIDC token and userinfo calls                   | `signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS)` at the call site |
 | A download     | `asset-original`, the thumbnail proxies, `/api/download/[token]`, every GET through `/api/immich/*` | `fetchWithAnswerDeadline()`                                        |
-| An upload      | `POST /api/external/media`, any body forwarded through `/api/immich/*`                              | nothing here - see below                                           |
+| An upload      | any body forwarded through `/api/immich/*` (simple and chunked)                                     | nothing here - see below                                           |
 
 **A small answer** is bounded end to end, headers and body together. That is
 what `AbortSignal.timeout()` does, and for two kilobytes of JSON it is the whole

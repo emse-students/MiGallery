@@ -65,10 +65,10 @@ the effective minimum.
 
 ## External (API key)
 
-| Path                                              | Auth        | Purpose                                                            |
-| ------------------------------------------------- | ----------- | ------------------------------------------------------------------ |
-| `/api/external/media`, `/api/external/media/[id]` | `x-api-key` | Server-to-server media access (consumed by Sky/Canari for avatars) |
-| `/api/health`                                     | public      | Liveness probe                                                     |
+| Path                       | Auth        | Purpose                                                            |
+| -------------------------- | ----------- | ------------------------------------------------------------------ |
+| `/api/external/media/[id]` | `x-api-key` | Server-to-server media access (consumed by Sky/Canari for avatars) |
+| `/api/health`              | public      | Liveness probe                                                     |
 
 ## Admin
 

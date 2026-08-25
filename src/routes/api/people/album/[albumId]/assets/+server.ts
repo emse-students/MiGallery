@@ -3,6 +3,7 @@ import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { requireScope } from '$lib/server/permissions';
+import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -48,6 +49,8 @@ export const PUT: RequestHandler = async (event) => {
 	if (IMMICH_API_KEY) {
 		headers['x-api-key'] = IMMICH_API_KEY;
 	}
+	// A trashed asset added to an album stays invisible - restore first.
+	await restoreAssetsFromTrash(event.fetch, assetIds as string[]);
 	const res = await event.fetch(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
 		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'PUT',

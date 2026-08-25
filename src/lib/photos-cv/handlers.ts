@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -128,6 +129,12 @@ export async function addAssetsToAlbum(
 	fetchFn: typeof fetch
 ): Promise<{ success: boolean }> {
 	const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
+
+	// Same trap as the album endpoint: a re-imported photo Immich answered as a
+	// duplicate can be sitting in the trash, and adding a trashed asset to
+	// PhotoCV never makes it visible. No-op when nothing is trashed.
+	await restoreAssetsFromTrash(fetchFn, assetIds);
+
 	const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
 		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
 		method: 'PUT',

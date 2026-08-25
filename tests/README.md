@@ -157,16 +157,13 @@ node ./scripts/test-api.cjs
 - ✅ Duplicate handling
 - ✅ System user protection
 
-### ✅ Favorites & External Media (10+ endpoints)
+### ✅ Favorites & External Media (7 endpoints)
 
 - ✅ `GET /api/favorites` - Favorites list
 - ✅ `POST /api/favorites` - Add to favorites
 - ✅ `DELETE /api/favorites` - Remove from favorites
-- ✅ `GET /api/external/media` - External media list
-- ✅ `POST /api/external/media` - External media creation
 - ✅ `GET /api/external/media/:id` - Media details
 - ✅ `DELETE /api/external/media/:id` - Media deletion
-- ✅ `DELETE /api/external/media` - Bulk deletion
 - ✅ `POST /api/db` - SQL operations (admin)
 - ✅ `POST /api/change-user` - User switching
 
@@ -277,10 +274,6 @@ node ./scripts/test-api.cjs
 ### ✅ Immich Assets
 
 - `GET /api/immich/assets` - Immich proxy
-
-### ✅ External Media
-
-- `GET /api/external/media` - PortailEtu album
 
 ### ✅ Health
 

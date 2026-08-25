@@ -4,6 +4,7 @@ import { logEvent } from '$lib/server/logs';
 import { createLogger } from '$lib/server/logger';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { getDatabase } from '$lib/db/database';
 
 const log = createLogger('immich-proxy');
@@ -45,6 +46,8 @@ interface ImmichAssetResponse {
 	id: string;
 	albums?: ImmichAlbumResponse[];
 	albumId?: string;
+	// Upload responses only: 'created' | 'replaced' | 'duplicate'.
+	status?: string;
 	[key: string]: unknown;
 }
 
@@ -439,89 +442,11 @@ async function handleChunkedUpload(
 		});
 		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 
-		// Clean up immediately if successful (but wait for stream to finish?)
-		// Actually, we can't delete the file until the upload stream is done.
-		// formData.submit starts the request. The 'res' callback fires when headers are received.
-		// The request body (our file) might still be sending?
-		// NodeFormData calls back when response starts.
-		// We should probably rely on a timeout or separate cleanup process, OR
-		// Since we wait for response, usually upload is done.
-
-		if (response.ok) {
-			// We need to clone headers/status but stream body
-			// The logging logic at lines 405 reads the body to get AssetID.
-			// Currently it does: respClone.json().
-			// If we stream the response to the client, we cannot read it here unless we tee() it.
-			try {
-				const [logBranch, clientBranch] = response.body ? response.body.tee() : [null, null];
-
-				// Process log branch
-				if (logBranch) {
-					// We don't await this to keep response fast, but safe to do so
-					(async () => {
-						try {
-							const reader = logBranch.getReader();
-							const chunks: Uint8Array[] = [];
-							while (true) {
-								const { done, value } = await reader.read();
-								if (done) {
-									break;
-								}
-								if (value) {
-									chunks.push(value);
-								}
-							}
-							const text = new TextDecoder().decode(Buffer.concat(chunks));
-							const respData = JSON.parse(text) as ImmichAssetResponse;
-							const assetId = respData.id;
-							if (assetId) {
-								await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
-							}
-
-							// Cleanup after successful upload and logging
-							try {
-								if (fs.existsSync(finalFilePath)) {
-									fs.unlinkSync(finalFilePath);
-								}
-								if (fs.existsSync(tempFilePath)) {
-									fs.unlinkSync(tempFilePath);
-								}
-							} catch {
-								/* ignore */
-							}
-						} catch (e) {
-							log.warn('failed to log upload', e);
-						}
-					})();
-				}
-
-				const forwardedHeaders = new Headers();
-				const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
-				for (const h of safeRespForward) {
-					const v = response.headers.get(h);
-					if (v !== null && v !== undefined) {
-						forwardedHeaders.set(h, v);
-					}
-				}
-
-				return new Response(clientBranch, {
-					status: response.status,
-					headers: forwardedHeaders
-				});
-			} catch (e) {
-				log.warn('error teeing response', e);
-				// Fallback
-				return response;
-			}
-		} else {
-			// Error case - we can read body
-			const errorBody = await response.text();
-			log.error(
-				`upload failed for ${originalName}: ${response.status} ${response.statusText}`,
-				errorBody
-			);
-
-			// Cleanup
+		// The on-disk part file can only go once Immich has finished reading it, so
+		// the cleanup is handed to finishImmichUpload rather than run here:
+		// formData.submit's callback fires when the response HEADERS arrive, which
+		// is not the same instant as the request body being done with the file.
+		return finishImmichUpload(event, response, originalName, () => {
 			try {
 				if (fs.existsSync(finalFilePath)) {
 					fs.unlinkSync(finalFilePath);
@@ -532,12 +457,7 @@ async function handleChunkedUpload(
 			} catch {
 				/* ignore */
 			}
-
-			return new Response(errorBody, {
-				status: response.status,
-				headers: response.headers
-			});
-		}
+		});
 	} catch (err: unknown) {
 		const _err = ensureError(err);
 		log.error('error processing chunk', _err);
@@ -1004,6 +924,13 @@ function handleChunkStatus(event: RequestEvent) {
  * the on-disk temp file. On success the body is tee'd so we can log the created
  * asset id without buffering the client-facing branch; cleanup runs once the log
  * branch is fully drained. On error the (small) error body is read and returned.
+ *
+ * This is also where a re-imported photo is pulled back out of the trash: Immich
+ * answers a known checksum with `{ status: 'duplicate', id }` and leaves the
+ * asset trashed, so without this the import "succeeded" and the photo stayed
+ * invisible. Restoring here covers EVERY upload surface at once - albums,
+ * photos CV, and anything added later - because both the simple and the chunked
+ * path end up in this function.
  */
 async function finishImmichUpload(
 	event: RequestEvent,
@@ -1042,6 +969,15 @@ async function finishImmichUpload(
 					const text = new TextDecoder().decode(Buffer.concat(chunks));
 					const respData = JSON.parse(text) as ImmichAssetResponse;
 					const assetId = respData.id;
+					if (assetId && respData.status === 'duplicate') {
+						const restored = await restoreAssetsFromTrash(event.fetch, [assetId]);
+						if (restored > 0) {
+							await logEvent(event, 'update', 'asset', assetId, {
+								action: 'restore_duplicate_from_trash',
+								originalName
+							});
+						}
+					}
 					if (assetId) {
 						await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
 					}

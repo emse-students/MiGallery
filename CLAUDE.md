@@ -54,10 +54,17 @@ _Cleared 2026-07-14: all shipped WPs and the i18n plan are complete; prod migrat
 
 **Roadmap (Active WP):**
 
+- WP-B, not started: `/admin/medias` tab for media anomalies. Prod numbers measured 2026-08-25: 4 533 assets in no album, 605 in several, 2 same-name albums, 1 untracked Immich album (PhotoCV itself), 0 ghost DB rows. Orphans are cheap and can be listed live (`POST /api/search/metadata {isNotInAlbum:true}`, 5 pages x 1000); the multi-album list is READ-ONLY by the user's explicit call and needs a manual deep scan (~530 paginated requests) cached in memory + a JSON snapshot under `data/cache/`. Orphan actions: "Ajouter a un album" + "Mettre a la corbeille" only, no permanent delete.
 - Post-deploy of b25fad2: click "Couvertures orphelines" once on `/admin/database` to reclaim the ~330 pre-tracking cover files on prod (it resolves missing `cover_asset_id` first, then sweeps).
 - (Canari side done 2026-08-17, commits 7be8d7a3 + 73606ddc + 741efee8a: `EcosystemCoverPreview.svelte` builds the square cover URL from the link itself via `ecosystemHosts.ts`. One rule now governs the key there: an image is public and needs no key, a metadata read does - only `/api/albums/[id]/info` carries `MIGALLERY_API_KEY`, covers go through Canari's SSRF-guarded image proxy. The keyed `mls/gallery-cover/:albumId` proxy is deleted.)
 
 **Memory Gotchas (Do not repeat):**
+
+- Immich answers a re-upload of a known checksum with `{status:'duplicate', id}` and does NOT restore the asset if it is in the trash (verified in v3.1.0 `asset-media.service.ts`), and a trashed asset added to an album stays invisible. `restoreAssetsFromTrash` (`src/lib/server/immich-trash.ts`) is the single shared fix - it never throws, and restoring a non-trashed id is an upstream no-op, so callers fire it unconditionally. It runs in `finishImmichUpload` (the proxy's ONE finish point for both the simple and the chunked path, which is why the fix covers albums, photos CV and anything added later at once) plus every add-to-album path. Do not re-inline a copy of it.
+
+- `buildImmichUploadFormData` appends every metadata field BEFORE `assetData`, deliberately. Immich parses the multipart body as a stream, so metadata arriving after the file part reaches the DTO validator too late and it answers `400 ... fileCreatedAt ... received undefined` - 5 such 400s on prod in 30 days before commit. Never move `assetData` back to the front.
+
+- PortailEtu is DEAD (deleted 2026-08-25, user's call): the album, `POST/GET/DELETE /api/external/media`, `SYSTEM_ALBUMS`, `getSystemAlbumIds`, `getAllAssetIdsInSystemAlbums`. What SURVIVES on purpose: `/api/external/media/[id]` (Sky/Canari avatars), `getOrCreateSystemAlbum` (still used for `'PhotoCV'`), and the `https://portail-etu.emse.fr` CORS origin in `hooks.server.ts` - that is the site origin, not the album.
 
 - Releases: the tag MUST be `vX.Y.Z`. `release.yml` triggers on `v*.*.*` only, so the historical bare tags (`1.0.0`, `1.1.0`) never fired it - those releases were made by hand. v2.0.0 (2026-08-17) is the first one the workflow actually produced. Bump `package.json` + `RELEASE_NOTES.md` (newest entry on top), commit, push, THEN tag.
 
