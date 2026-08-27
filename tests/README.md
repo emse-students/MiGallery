@@ -342,7 +342,7 @@ See `vitest.config.ts`:
 
    # or production mode
    bun run build
-   node build/index.js
+   bun build/index.js
    ```
 
 4. **Environment variables configured** (`.env`)

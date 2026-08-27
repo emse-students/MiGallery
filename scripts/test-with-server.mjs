@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Script pour lancer les tests API avec un serveur local
  * Usage: bun run test
@@ -11,7 +11,7 @@ import { join } from 'path';
 
 /**
  * Kill the server process. On Windows child.kill() does not terminate the
- * detached node process tree, which leaks a zombie holding port 3000 and
+ * detached bun process tree, which leaks a zombie holding port 3000 and
  * breaks the next test run; taskkill /T tears down the whole tree.
  */
 function killServer(server) {
@@ -140,7 +140,7 @@ async function main() {
     console.log('🚀 Démarrage du serveur de test...\n');
 
     // 2. Démarrer le serveur
-    server = spawn('node', ['./build/index.js'], {
+    server = spawn('bun', ['./build/index.js'], {
       stdio: 'inherit',
       detached: false,
       env: { ...process.env, ...envVars, NODE_ENV: 'test' },
@@ -175,7 +175,7 @@ async function main() {
 
       // 6. Nettoyer les artefacts de test
       console.log('\n🧹 Nettoyage des artefacts de test...');
-      const cleanup = spawn('node', ['./scripts/cleanup-test-artifacts.cjs'], {
+      const cleanup = spawn('bun', ['./scripts/cleanup-test-artifacts.cjs'], {
         stdio: 'inherit',
       });
 

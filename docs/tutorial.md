@@ -227,7 +227,7 @@ MiGallery was designed as a **lightweight and secure interface** (facade) in fro
 - **Database**: **SQLite**
   - Local file (`data/migallery.db`).
   - Stores: Users, Permissions, Extended album metadata (visibility, tags), Logs.
-  - Access via `better-sqlite3` (abstraction in `src/lib/db/database.ts`).
+  - Access via `bun:sqlite` (abstraction in `src/lib/db/database.ts`).
 - **Media Engine**: [Immich](https://immich.app/)
   - Physical file storage.
   - Thumbnail generation.

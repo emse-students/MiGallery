@@ -38,11 +38,36 @@ export function createUser(user: DBUser) {
   );
 }
 
+/**
+ * Update the columns present on `user`, leaving every other column alone.
+ *
+ * Positional `?` parameters, NOT the `@name` form this used to carry. Under better-sqlite3 a named
+ * parameter with no matching key threw; under `bun:sqlite` it binds NULL and reports `changes: 1`,
+ * so a key that went missing here would have silently WIPED that column instead of failing. The
+ * SET clause is built from `Object.keys`, which is precisely the shape where that happens.
+ * `getDatabase()` refuses bare-keyed object binds for the same reason.
+ */
 export function updateUser(user: Partial<DBUser> & { id_user: string }) {
   const db = getDatabase();
-  // Simple helper to update fields
   const keys = Object.keys(user).filter((k) => k !== 'id_user');
-  const sets = keys.map((k) => `${k} = @${k}`).join(', ');
-  const stmt = db.prepare(`UPDATE users SET ${sets} WHERE id_user = @id_user`);
-  return stmt.run(user);
+  if (keys.length === 0) {
+    // No column to write. The alternative is `UPDATE users SET  WHERE ...`, a syntax error.
+    return { changes: 0, lastInsertRowid: 0 };
+  }
+
+  const values = keys.map((k) => {
+    const value = user[k as keyof DBUser];
+    if (value === undefined) {
+      // better-sqlite3 threw here and callers were written against that. `bun:sqlite` would bind
+      // NULL instead, turning "I forgot to set this field" into "erase this column".
+      throw new Error(
+        `updateUser: column '${k}' was passed as undefined. Pass null to clear it, or omit the key to leave it alone.`
+      );
+    }
+    return value;
+  });
+
+  const sets = keys.map((k) => `${k} = ?`).join(', ');
+  const stmt = db.prepare(`UPDATE users SET ${sets} WHERE id_user = ?`);
+  return stmt.run(...values, user.id_user);
 }

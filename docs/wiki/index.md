@@ -15,7 +15,7 @@ the page is a bug.
 
 - **Framework**: SvelteKit 2 + Svelte 5 runes (SSR, `adapter-node`), TypeScript
 - **Styling**: Tailwind CSS 4
-- **Local database**: SQLite via `better-sqlite3` (synchronous by design)
+- **Local database**: SQLite via `bun:sqlite` (synchronous by design)
 - **Auth**: Authentik OIDC (MiConnect) + signed session cookies
 - **Photo backend**: Immich, proxied through `/api/immich/*`
 - **Runtime**: Node.js (production container)

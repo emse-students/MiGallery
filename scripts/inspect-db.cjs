@@ -1,18 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 const fs = require('fs');
 const path = require('path');
 
-function isBunRuntime() {
-  return typeof Bun !== 'undefined';
-}
-
-let Database;
-if (isBunRuntime()) {
-  Database = require('bun:sqlite').Database;
-} else {
-  Database = require('better-sqlite3');
-}
+const { Database } = require('bun:sqlite');
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const REPAIR_MODE = process.argv.includes('--repair');
@@ -34,12 +25,7 @@ const errors = [];
 // Inspection
 let db;
 try {
-  if (isBunRuntime()) {
-    // Bun:sqlite options are slightly different or more sensitive
-    db = new Database(DB_PATH, REPAIR_MODE ? { readwrite: true } : { readonly: true });
-  } else {
-    db = new Database(DB_PATH, { readonly: !REPAIR_MODE });
-  }
+  db = new Database(DB_PATH, REPAIR_MODE ? { readwrite: true } : { readonly: true });
 } catch (e) {
   console.error(`❌ Impossible d'ouvrir la base de données: ${e.message}`);
   process.exit(1);
@@ -181,11 +167,7 @@ if (!hasErrors) {
 
     try {
       const dbWrite = new Database(DB_PATH);
-      if (isBunRuntime()) {
-        dbWrite.exec('PRAGMA foreign_keys = ON');
-      } else {
-        dbWrite.pragma('foreign_keys = ON');
-      }
+      dbWrite.exec('PRAGMA foreign_keys = ON');
 
       let repaired = false;
 

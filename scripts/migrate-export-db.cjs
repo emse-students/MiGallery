@@ -1,20 +1,15 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 const fs = require('fs');
 const path = require('path');
 
-let Database;
-try {
-  Database = require('bun:sqlite').Database;
-} catch {
-  Database = require('better-sqlite3');
-}
+const { Database } = require('bun:sqlite');
 
 const sourcePath = process.argv[2];
 const targetPath = process.argv[3] || path.join(process.cwd(), 'data', 'migallery.db');
 
 if (!sourcePath) {
-  console.error('Usage: node scripts/migrate-export-db.cjs <source.db> [target.db]');
+  console.error('Usage: bun scripts/migrate-export-db.cjs <source.db> [target.db]');
   process.exit(1);
 }
 

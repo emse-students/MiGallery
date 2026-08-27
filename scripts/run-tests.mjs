@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Script pour lancer les tests par catégorie
- * Usage: node scripts/run-tests.mjs [category]
+ * Usage: bun scripts/run-tests.mjs [category]
  *
  * Categories disponibles:
  * - all: Tous les tests

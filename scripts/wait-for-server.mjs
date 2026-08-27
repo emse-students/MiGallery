@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Script pour attendre que le serveur soit prêt avant de lancer les tests
- * Usage: node scripts/wait-for-server.mjs [url] [timeout]
+ * Usage: bun scripts/wait-for-server.mjs [url] [timeout]
  */
 
 const API_BASE_URL = process.argv[2] || process.env.API_BASE_URL || 'http://localhost:3000';

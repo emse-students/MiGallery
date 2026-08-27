@@ -12,13 +12,13 @@ This folder contains utility scripts for development, maintenance, and deploymen
 
 ## Development & Testing
 
-| Script                 | Description                                                         | Usage                             |
-| :--------------------- | :------------------------------------------------------------------ | :-------------------------------- |
-| `run-tests.mjs`        | Runs the full test suite (unit and integration).                    | `bun run test`                    |
-| `mock-immich.js`       | Simulates a local Immich server to test uploads without a real one. | `node scripts/mock-immich.js`     |
-| `test-with-server.mjs` | Runs tests by automatically starting a temporary server.            | `bun run test`                    |
-| `create-api-key.cjs`   | Utility to generate an API key with specific scopes.                | `node scripts/create-api-key.cjs` |
-| `inspect-db.cjs`       | Debug tool to quickly view table contents.                          | `bun run db:inspect`              |
+| Script                 | Description                                                         | Usage                            |
+| :--------------------- | :------------------------------------------------------------------ | :------------------------------- |
+| `run-tests.mjs`        | Runs the full test suite (unit and integration).                    | `bun run test`                   |
+| `mock-immich.js`       | Simulates a local Immich server to test uploads without a real one. | `bun scripts/mock-immich.js`     |
+| `test-with-server.mjs` | Runs tests by automatically starting a temporary server.            | `bun run test`                   |
+| `create-api-key.cjs`   | Utility to generate an API key with specific scopes.                | `bun scripts/create-api-key.cjs` |
+| `inspect-db.cjs`       | Debug tool to quickly view table contents.                          | `bun run db:inspect`             |
 
 ## Deployment & CI
 
@@ -29,7 +29,7 @@ This folder contains utility scripts for development, maintenance, and deploymen
 
 ## Migration (one-time use)
 
-| Script                          | Description                                                                            | Usage                                                        |
-| :------------------------------ | :------------------------------------------------------------------------------------- | :----------------------------------------------------------- |
-| `reset-users-for-authentik.cjs` | Deletes all users (CAS → Authentik migration, already executed).                       | `bun run db:reset-users`                                     |
-| `migrate-export-db.cjs`         | Imports albums/permissions/logs from an old exported DB (migration, already executed). | `node scripts/migrate-export-db.cjs <source.db> [target.db]` |
+| Script                          | Description                                                                            | Usage                                                       |
+| :------------------------------ | :------------------------------------------------------------------------------------- | :---------------------------------------------------------- |
+| `reset-users-for-authentik.cjs` | Deletes all users (CAS → Authentik migration, already executed).                       | `bun run db:reset-users`                                    |
+| `migrate-export-db.cjs`         | Imports albums/permissions/logs from an old exported DB (migration, already executed). | `bun scripts/migrate-export-db.cjs <source.db> [target.db]` |

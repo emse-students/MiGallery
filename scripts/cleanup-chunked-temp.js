@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Supprime les fichiers .part et .complete plus vieux que X heures dans le tmpdir
 import fs from 'fs';
 import path from 'path';

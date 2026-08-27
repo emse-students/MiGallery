@@ -4,11 +4,13 @@ name: CI
 # as the CD gate (cd.yml calls it before building/deploying the image).
 # No `push` trigger: on main, the CD runs this CI exactly once.
 #
-# Bun is the package manager, Node is the runtime, and the split is measured, not
-# stylistic: bun as a RUNTIME inflated request-body reads ~80x and retained the
-# memory (unfixed upstream bug), which OOM-killed prod, and it segfaults outright
-# on better-sqlite3 (a V8-ABI addon). So bun installs and drives the scripts here,
-# and every step that executes application code executes it under Node.
+# bun is BOTH the package manager and the runtime. It was package-manager-only for
+# two measured reasons, both re-measured on bun 1.4.0: the ~80x request-body read
+# inflation that OOM-killed prod is GONE (2.2 GB of bodies: bun 211 MB RSS against
+# node's 248 MB), and the better-sqlite3 segfault is still real but no longer
+# applies, because the app now uses `bun:sqlite` and better-sqlite3 is removed.
+# There is no node on this runner: a step running under a runtime production does
+# not use is a step that can go green while prod is broken.
 on:
   pull_request:
     branches: [main]
@@ -21,11 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

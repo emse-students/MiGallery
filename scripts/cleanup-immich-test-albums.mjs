@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Delete leftover "[TEST] ..." albums that the integration suite creates in
  * Immich but does not always tear down (interrupted runs, untracked ids, or a
@@ -11,10 +11,10 @@
  *   - Only deletes EMPTY albums (assetCount === 0) unless --include-nonempty.
  *
  * Usage:
- *   node scripts/cleanup-immich-test-albums.mjs                 # dry run
- *   node scripts/cleanup-immich-test-albums.mjs --apply         # delete empty [TEST] albums
- *   node scripts/cleanup-immich-test-albums.mjs --apply --include-nonempty
- *   node scripts/cleanup-immich-test-albums.mjs --prefix "[TEST] " --apply
+ *   bun scripts/cleanup-immich-test-albums.mjs                 # dry run
+ *   bun scripts/cleanup-immich-test-albums.mjs --apply         # delete empty [TEST] albums
+ *   bun scripts/cleanup-immich-test-albums.mjs --apply --include-nonempty
+ *   bun scripts/cleanup-immich-test-albums.mjs --prefix "[TEST] " --apply
  *
  * Env: IMMICH_BASE_URL and IMMICH_API_KEY (read from process.env, falling back
  * to a local .env file if present).

@@ -7,6 +7,12 @@ const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
 const log = createLogger('db');
 
 type Statement = {
+  /**
+   * Returns `null` - NOT `undefined` - when no row matches. That is `bun:sqlite`'s contract and it
+   * differs from better-sqlite3, which this used to be. Truthiness checks, `??` and `?.` behave
+   * identically across the two; a strict `=== undefined` would not. There are none in `src/`, and
+   * that was checked rather than assumed when the driver was swapped.
+   */
   get: (...params: unknown[]) => unknown;
   all: (...params: unknown[]) => unknown[];
   run: (...params: unknown[]) => { changes: number; lastInsertRowid: number };
@@ -16,10 +22,78 @@ type DatabaseInstance = {
   prepare: (sql: string) => Statement;
   exec: (sql: string) => void;
   run?: (sql: string) => void;
-  close?: () => void;
+  /**
+   * `bun:sqlite` closes LAZILY by default: with prepared statements still outstanding, `close()`
+   * returns having left the file open. Pass `true` to close immediately. On Windows that is the
+   * difference between being able to delete the file and `EBUSY`; everywhere it is the difference
+   * between releasing the handle and leaking it until GC.
+   */
+  close?: (throwOnError?: boolean) => void;
 };
 
 let db: DatabaseInstance | null = null;
+
+/**
+ * Reject an object bind whose keys are not sigil-prefixed, before it reaches the driver.
+ *
+ * better-sqlite3 accepted `@promo` in the SQL bound from `{ promo: 2025 }` and THREW when a named
+ * parameter had no key. `bun:sqlite` does neither: the key must carry the same sigil as the
+ * placeholder (`{ '@promo': 2025 }`), a bare key matches nothing and the statement runs having
+ * bound NOTHING - `changes: 0`, no error - and a key that is merely absent binds NULL and reports
+ * `changes: 1`. Both were measured. A driver swap therefore turns "this row was updated" into
+ * "this row was silently skipped" or "this column was silently erased", with nothing logged.
+ *
+ * Nothing in `src/` binds by name any more, so this is not load-bearing today; it exists so that
+ * reintroducing the pattern fails LOUDLY at the call site instead of corrupting a row months later.
+ * Sigil-prefixed keys pass through untouched - the feature is available, just not by accident.
+ */
+const PARAM_SIGILS = ['@', ':', '$'];
+
+function assertNoBareKeyedBind(sql: string, params: unknown[]): void {
+  if (params.length !== 1) {
+    return;
+  }
+  const only = params[0];
+  if (only === null || typeof only !== 'object') {
+    return;
+  }
+  // A single BLOB, Date or array argument is a positional value, not a bind map.
+  if (Array.isArray(only) || ArrayBuffer.isView(only) || only instanceof Date) {
+    return;
+  }
+
+  const bare = Object.keys(only).filter((key) => !PARAM_SIGILS.includes(key.charAt(0)));
+  if (bare.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `SQLite bind rejected: keys [${bare.join(', ')}] have no '@', ':' or '$' prefix. ` +
+      `bun:sqlite matches an object key to a placeholder only when the sigils match, and binds ` +
+      `nothing at all otherwise - silently. Prefix the keys to match the SQL, or use positional ` +
+      `'?' parameters. SQL: ${sql}`
+  );
+}
+
+/**
+ * Wrap a driver statement so every bind goes through {@link assertNoBareKeyedBind} first.
+ */
+function guardStatement(sql: string, stmt: Statement): Statement {
+  return {
+    get: (...params: unknown[]) => {
+      assertNoBareKeyedBind(sql, params);
+      return stmt.get(...params);
+    },
+    all: (...params: unknown[]) => {
+      assertNoBareKeyedBind(sql, params);
+      return stmt.all(...params);
+    },
+    run: (...params: unknown[]) => {
+      assertNoBareKeyedBind(sql, params);
+      return stmt.run(...params);
+    },
+  };
+}
 
 /**
  * Apply the canonical schema (src/lib/db/schema.sql) and run idempotent
@@ -254,9 +328,21 @@ export function getDatabase(): DatabaseInstance {
       mkdirSync(dir, { recursive: true });
     }
 
+    // `createRequire` rather than a static import: `bun:sqlite` is a runtime builtin with no file
+    // on disk, and a static import would make vite try to resolve and bundle it at build time.
+    // Requiring it keeps the resolution where it belongs - in the runtime that provides it.
     const require = createRequire(import.meta.url);
-    const Database = require('better-sqlite3') as new (path: string) => DatabaseInstance;
-    const dbInstance: DatabaseInstance = new Database(DB_PATH) as DatabaseInstance;
+    const { Database } = require('bun:sqlite') as {
+      Database: new (path: string) => DatabaseInstance;
+    };
+    const driver: DatabaseInstance = new Database(DB_PATH) as DatabaseInstance;
+    // Every statement in the app is prepared through here, so the bind guard has no way around it.
+    const dbInstance: DatabaseInstance = {
+      ...driver,
+      prepare: (sql: string) => guardStatement(sql, driver.prepare(sql)),
+      exec: (sql: string) => driver.exec(sql),
+      close: (throwOnError?: boolean) => driver.close?.(throwOnError ?? true),
+    };
 
     try {
       dbInstance.exec('PRAGMA foreign_keys = ON');
@@ -276,7 +362,9 @@ export function resetDatabase() {
   if (db) {
     try {
       if (db.close) {
-        db.close();
+        // `true`: close now rather than when the last statement is collected. A lazy close here
+        // means the next getDatabase() can open a second handle to a file the first still holds.
+        db.close(true);
       }
     } catch (e) {
       log.error('error closing database', e);

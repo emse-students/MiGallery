@@ -14,6 +14,7 @@ import type {
   ApiKeysListResponse,
   HealthResponse,
 } from '$lib/types/api';
+import { openTestDatabase } from './test-helpers';
 
 // Configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -31,38 +32,16 @@ let createdUserId: string | null = null;
 async function ensureSystemUserExists(): Promise<boolean> {
   console.debug('Checking system user existence...');
   try {
-    const fs = await import('fs');
-    const path = await import('path');
-
-    const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
-    console.debug(`DB Path: ${DB_PATH}`);
-
-    if (!fs.existsSync(DB_PATH)) {
-      console.warn('⚠️  Database not found');
+    const db = await openTestDatabase({ readonly: true });
+    if (!db) {
       return false;
     }
-
-    interface SqliteDatabase {
-      prepare: (sql: string) => {
-        get: (param: string) => UserRow | undefined;
-      };
-      close: () => void;
-    }
-
-    type DatabaseConstructor = new (
-      path: string,
-      options?: { readonly?: boolean }
-    ) => SqliteDatabase;
-
-    const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
-
-    const db = new Database(DB_PATH, { readonly: true });
 
     try {
       const user = db
         .prepare('SELECT id_user, role FROM users WHERE id_user = ?')
-        .get('dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782');
-      db.close();
+        .get('dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782') as UserRow | null;
+      db.close(true);
 
       if (user) {
         console.debug(
@@ -76,7 +55,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
         return false;
       }
     } catch (dbError) {
-      db.close();
+      db.close(true);
       throw dbError;
     }
   } catch (error) {

@@ -26,7 +26,7 @@ MiGallery is a modern photo gallery web application built with **SvelteKit** run
 - 🔒 **Granular Permissions** - Access control by user or by tag (e.g., class year)
 - 🎨 **Modern Interface** - Responsive design with Tailwind CSS
 - 📸 **Immich Integration** - Synchronization with an Immich instance
-- 💾 **SQLite Database** - High-performance local storage with better-sqlite3
+- 💾 **SQLite Database** - High-performance local storage with `bun:sqlite`
 - 📦 **Easy Deployment** - Complete packaging for simplified deployment
 - 🔧 **Admin Interface** - DB management via browser (export/import/backup)
 
@@ -37,7 +37,7 @@ MiGallery is a modern photo gallery web application built with **SvelteKit** run
 ### Prerequisites
 
 - **Node.js** >= 20
-- SQLite (included with better-sqlite3)
+- SQLite (built into the bun runtime, `bun:sqlite`)
 
 Check Node.js:
 
@@ -274,7 +274,7 @@ nano .env  # Adjust URLs and paths if necessary
 5. **Start the application**
 
 ```bash
-node build/index.js
+bun build/index.js
 ```
 
 ---
@@ -339,7 +339,7 @@ This user is intended for system administration and should not be deleted.
 - **[Vite](https://vitejs.dev/)** - Ultra-fast build tool
 - **[Node.js](https://nodejs.org/)** - JavaScript runtime
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
-- **[Better-SQLite3](https://github.com/WiseLibs/better-sqlite3)** - Synchronous SQLite database
+- **[bun:sqlite](https://bun.sh/docs/api/sqlite)** - Synchronous SQLite database, built into the runtime
 - **[Auth.js](https://authjs.dev/)** - Flexible authentication
 - **[TypeScript](https://www.typescriptlang.org/)** - Static typing
 

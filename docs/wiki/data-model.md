@@ -1,7 +1,7 @@
 # Data model
 
 MiGallery's local database is a single SQLite file (`DATABASE_PATH`, default
-`./data/migallery.db`), accessed synchronously through `better-sqlite3`
+`./data/migallery.db`), accessed synchronously through `bun:sqlite`
 (`src/lib/db/database.ts`). The schema is `src/lib/db/schema.sql`.
 
 The local DB stores **only what Immich does not**: identity/roles, album

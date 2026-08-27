@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Script de sauvegarde de la base de données
  * - Sauvegarde automatique quotidienne à minuit (via cron ou tâche planifiée)

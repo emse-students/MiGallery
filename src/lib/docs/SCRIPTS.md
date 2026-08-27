@@ -140,7 +140,7 @@ tar -xzf migallery-x.x.x-full.tgz
 cd migallery
 bun install --frozen-lockfile --production
 # Check/adjust .env if necessary
-node build/index.js
+bun build/index.js
 ```
 
 ---
@@ -168,7 +168,7 @@ bun run db:init
 # 5. Start the application
 bun run dev  # Development
 # or
-bun run build && node build/index.js  # Production
+bun run build && bun build/index.js  # Production
 ```
 
 ### Regular maintenance
@@ -237,7 +237,7 @@ Scripts use the following environment variables:
 
 Scripts require the following packages (installed automatically):
 
-- **better-sqlite3** - SQLite interface for Node.js
+- **bun:sqlite** - SQLite interface built into the bun runtime
 - **tar** - Archive creation
 - **crypto** (native) - Secret generation
 

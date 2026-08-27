@@ -1,18 +1,9 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-function isBunRuntime() {
-  return typeof Bun !== 'undefined';
-}
-
-let Database;
-if (isBunRuntime()) {
-  Database = require('bun:sqlite').Database;
-} else {
-  Database = require('better-sqlite3');
-}
+const { Database } = require('bun:sqlite');
 
 function generateRawKey() {
   return crypto

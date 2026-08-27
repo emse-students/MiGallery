@@ -1,22 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 const fs = require('fs');
 const path = require('path');
 
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
-function isBunRuntime() {
-  return typeof Bun !== 'undefined';
-}
-
-let Database;
-if (isBunRuntime()) {
-  Database = require('bun:sqlite').Database;
-} else {
-  Database = require('better-sqlite3');
-}
+const { Database } = require('bun:sqlite');
 
 console.log('🚀 Initialisation de la base de données...');
-console.log(`   Runtime: ${isBunRuntime() ? 'Bun (bun:sqlite)' : 'Node.js (better-sqlite3)'}`);
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const dir = path.dirname(DB_PATH);
@@ -75,11 +65,7 @@ async function importAlbumsFromImmich(base, apiKey) {
 
 async function main() {
   try {
-    if (isBunRuntime()) {
-      db.exec('PRAGMA foreign_keys = ON');
-    } else {
-      db.pragma('foreign_keys = ON');
-    }
+    db.exec('PRAGMA foreign_keys = ON');
 
     const schemaPath = path.join(process.cwd(), 'src', 'lib', 'db', 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');

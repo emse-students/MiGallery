@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * SCRIPT DE MIGRATION UNIQUE - Passage CAS → Authentik (MiConnect)
  * ================================================================
@@ -13,8 +13,8 @@
  * ATTENTION : Action irréversible. Une sauvegarde est faite automatiquement.
  *
  * Usage :
- *   node ./scripts/reset-users-for-authentik.cjs
- *   node ./scripts/reset-users-for-authentik.cjs --dry-run
+ *   bun ./scripts/reset-users-for-authentik.cjs
+ *   bun ./scripts/reset-users-for-authentik.cjs --dry-run
  */
 
 const fs = require('fs');
@@ -33,12 +33,7 @@ if (isDryRun) {
   console.log('🔍 Mode DRY-RUN : aucune modification ne sera appliquée.\n');
 }
 
-let Database;
-try {
-  Database = require('bun:sqlite').Database;
-} catch {
-  Database = require('better-sqlite3');
-}
+const { Database } = require('bun:sqlite');
 
 const db = new Database(DB_PATH);
 

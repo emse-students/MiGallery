@@ -181,7 +181,7 @@ npm ci --omit=dev
 npm run db:init
 
 # Start the application
-node build/index.js
+bun build/index.js
 ```
 
 Access at http://localhost:3000

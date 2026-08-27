@@ -162,57 +162,47 @@ export function createTestContext(): TestContext {
 }
 
 /**
- * Verify that the system user exists in the database
+ * Open the application's SQLite file with the SAME driver the application uses.
+ *
+ * `bun:sqlite`, not better-sqlite3: a test that opens the database through a different driver than
+ * production proves nothing about production. The interface below is structural on purpose, so no
+ * bun type package is needed to type it.
+ *
+ * Returns `null` when the file does not exist yet - the caller decides whether that is fatal.
+ *
+ * Two `bun:sqlite` behaviours differ from better-sqlite3 and both are load-bearing here:
+ * `get()` yields `null` rather than `undefined` when no row matches, and `close()` is LAZY unless
+ * given `true`, which on Windows leaves the file undeletable.
  */
-async function _ensureSystemUserExists(): Promise<boolean> {
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
+export interface TestDatabase {
+  prepare: (sql: string) => {
+    get: (...params: unknown[]) => unknown;
+    all: (...params: unknown[]) => unknown[];
+    run: (...params: unknown[]) => { changes: number };
+  };
+  close: (throwOnError?: boolean) => void;
+}
 
-    const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+export async function openTestDatabase(
+  options: { readonly?: boolean } = {}
+): Promise<TestDatabase | null> {
+  const fs = await import('fs');
+  const path = await import('path');
 
-    if (!fs.existsSync(DB_PATH)) {
-      console.warn('⚠️  Database not found');
-      return false;
-    }
+  const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
-    interface SqliteDatabase {
-      prepare: (sql: string) => {
-        get: (param: string) => { id_user: string; role: string } | undefined;
-      };
-      close: () => void;
-    }
-
-    type DatabaseConstructor = new (
-      path: string,
-      options?: { readonly?: boolean }
-    ) => SqliteDatabase;
-
-    const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
-
-    const db = new Database(DB_PATH, { readonly: true });
-
-    try {
-      const user = db
-        .prepare('SELECT id_user, role FROM users WHERE id_user = ?')
-        .get(TEST_CONFIG.SYSTEM_USER_ID);
-      db.close();
-
-      if (user) {
-        console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} exists (role: ${user.role})`);
-        return true;
-      } else {
-        console.warn(`⚠️  System user ${TEST_CONFIG.SYSTEM_USER_ID} not found`);
-        return false;
-      }
-    } catch (dbError) {
-      db.close();
-      throw dbError;
-    }
-  } catch (error) {
-    console.error(`❌ Error during verification: ${(error as Error).message}`);
-    return false;
+  if (!fs.existsSync(DB_PATH)) {
+    console.warn('WARN  Database not found at ' + DB_PATH);
+    return null;
   }
+
+  type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => TestDatabase;
+
+  const { Database } = (await import('bun:sqlite')) as unknown as {
+    Database: DatabaseConstructor;
+  };
+
+  return new Database(DB_PATH, options);
 }
 
 /**
@@ -221,32 +211,10 @@ async function _ensureSystemUserExists(): Promise<boolean> {
  */
 async function ensureSystemUserExists(): Promise<boolean> {
   try {
-    const fs = await import('fs');
-    const path = await import('path');
-
-    const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
-
-    if (!fs.existsSync(DB_PATH)) {
-      console.warn('⚠️  Database not found');
+    const db = await openTestDatabase();
+    if (!db) {
       return false;
     }
-
-    interface SqliteDatabase {
-      prepare: (sql: string) => {
-        get: (param?: unknown) => unknown;
-        run: (...params: unknown[]) => { changes: number };
-      };
-      close: () => void;
-    }
-
-    type DatabaseConstructor = new (
-      path: string,
-      options?: { readonly?: boolean }
-    ) => SqliteDatabase;
-
-    const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
-
-    const db = new Database(DB_PATH);
 
     try {
       // Check if user exists
@@ -256,7 +224,7 @@ async function ensureSystemUserExists(): Promise<boolean> {
 
       if (existingUser) {
         console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} already exists`);
-        db.close();
+        db.close(true);
         return true;
       }
 
@@ -266,11 +234,11 @@ async function ensureSystemUserExists(): Promise<boolean> {
       ).run(TEST_CONFIG.SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', 'admin', null, null);
 
       console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} created in the DB`);
-      db.close();
+      db.close(true);
       return true;
     } catch (dbError) {
       try {
-        db.close();
+        db.close(true);
       } catch {
         void 0;
       }
