@@ -43,7 +43,7 @@ jobs:
       # couple of minutes of every pipeline, spent silently inside a step named "Lint". The key
       # names the revision, so it must move when OXVELTE_REV does.
       - name: Cache oxvelte build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/bin/oxvelte
