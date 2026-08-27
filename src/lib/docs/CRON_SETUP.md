@@ -22,7 +22,7 @@ crontab -e
 2. Add this line for a daily backup at midnight:
 
 ```bash
-0 0 * * * cd /absolute/path/to/MiGallery && npm run db:backup >> /var/log/migallery-backup.log 2>&1
+0 0 * * * cd /absolute/path/to/MiGallery && bun run db:backup >> /var/log/migallery-backup.log 2>&1
 ```
 
 3. Save and quit (usually: `Ctrl+X`, then `Y`, then `Enter`)
@@ -50,16 +50,16 @@ crontab -l
 
 ```bash
 # Every day at midnight
-0 0 * * * cd /path/to/MiGallery && npm run db:backup
+0 0 * * * cd /path/to/MiGallery && bun run db:backup
 
 # Every day at 2am
-0 2 * * * cd /path/to/MiGallery && npm run db:backup
+0 2 * * * cd /path/to/MiGallery && bun run db:backup
 
 # Every Sunday at 3am
-0 3 * * 0 cd /path/to/MiGallery && npm run db:backup
+0 3 * * 0 cd /path/to/MiGallery && bun run db:backup
 
 # Every 6 hours
-0 */6 * * * cd /path/to/MiGallery && npm run db:backup
+0 */6 * * * cd /path/to/MiGallery && bun run db:backup
 ```
 
 ---
@@ -89,7 +89,7 @@ crontab -l
 4. **Configure the action**
    - Select **"Start a program"**
    - Click **Next**
-   - Program/script: `npm` (or full path: `C:\Users\YourName\.npm\bin\npm.exe`)
+   - Program/script: `bun` (or full path: `C:\Users\YourName\.bun\bin\bun.exe`)
    - Add arguments: `run db:backup`
    - Start in: `D:\Projects\MiGallery`
    - Click **Next**
@@ -114,7 +114,7 @@ crontab -l
 # Define variables
 $taskName = "MiGallery-BackupDB"
 $taskDescription = "Daily MiGallery database backup"
-$bunPath = "npm"  # or full path
+$bunPath = "bun"  # or full path
 $projectPath = "D:\Projects\MiGallery"
 $time = "00:00"  # midnight
 
@@ -188,30 +188,30 @@ tail -f /var/log/migallery-backup.log
 
 ### The task does not run
 
-1. **Check that npm is in PATH**
+1. **Check that bun is in PATH**
 
    ```bash
-   which npm  # Linux/Mac
-   where npm  # Windows
+   which bun  # Linux/Mac
+   where bun  # Windows
    ```
 
 2. **Test manually**
 
    ```bash
    cd /path/to/MiGallery
-   npm run db:backup
+   bun run db:backup
    ```
 
 3. **Check permissions**
    - The user running the task must have write permissions in `data/backups/`
 
 4. **Use absolute paths**
-   - Replace `npm` with the full path: `/usr/local/bin/npm` or `C:\Users\...\npm.exe`
+   - Replace `bun` with the full path: `/usr/local/bin/bun` or `C:\Users\...\bun.exe`
 
 ### Old backups are not deleted
 
 - Check that backups are being created in `data/backups/` after midnight (managed by the server)
-- Run `npm run db:backup` manually to test the backup logic
+- Run `bun run db:backup` manually to test the backup logic
 
 ---
 

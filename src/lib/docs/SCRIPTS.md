@@ -10,7 +10,7 @@ This folder contains all utility scripts for managing MiGallery.
 
 #### `init-db.cjs` - Database initialization
 
-**Usage**: `npm run db:init` or `node scripts/init-db.cjs`
+**Usage**: `bun run db:init` or `node scripts/init-db.cjs`
 
 **Description**:
 
@@ -34,7 +34,7 @@ This folder contains all utility scripts for managing MiGallery.
 
 #### `backup-db.cjs` - Database backup
 
-**Usage**: `npm run db:backup` or `node scripts/backup-db.cjs`
+**Usage**: `bun run db:backup` or `node scripts/backup-db.cjs`
 
 > **✨ Automatic backup**: since the current version, the server automatically triggers a daily
 > backup at midnight on startup (`src/lib/server/backup.ts` → `startBackupScheduler()`). **No external
@@ -63,8 +63,8 @@ This folder contains all utility scripts for managing MiGallery.
 
 **Usage**:
 
-- Inspection: `npm run db:inspect`
-- Repair: `npm run db:inspect -- --repair`
+- Inspection: `bun run db:inspect`
+- Repair: `bun run db:inspect -- --repair`
 
 **Description**:
 
@@ -107,9 +107,9 @@ create, store or renew - revoking a session is deleting its row.
 
 ### 📦 Packaging and deployment
 
-#### Packaging (`npm run package`)
+#### Packaging (`bun run package`)
 
-**Usage**: `npm run package`
+**Usage**: `bun run package`
 
 **Description**:
 
@@ -129,7 +129,7 @@ create, store or renew - revoking a session is deleting its row.
 
 **Prerequisites**:
 
-- Must have run `npm run build` beforehand
+- Must have run `bun run build` beforehand
 - Must have configured `.env` and the database
 
 **Deployment**:
@@ -138,7 +138,7 @@ create, store or renew - revoking a session is deleting its row.
 # On the target machine
 tar -xzf migallery-x.x.x-full.tgz
 cd migallery
-npm ci --omit=dev
+bun install --frozen-lockfile --production
 # Check/adjust .env if necessary
 node build/index.js
 ```
@@ -153,32 +153,32 @@ node build/index.js
 # 1. Clone and install
 git clone https://github.com/emse-students/MiGallery.git
 cd MiGallery
-npm install
+bun install
 
 # 2. Configure the environment
-npm run generate:secret  # Copy the output
+bun run generate:secret  # Copy the output
 nano .env  # Create and fill with variables
 
 # 3. Initialize the database
-npm run db:init
+bun run db:init
 
 # 4. Automatic backup is handled by the server (startBackupScheduler).
 #    It triggers at midnight on startup - nothing to configure.
 
 # 5. Start the application
-npm run dev  # Development
+bun run dev  # Development
 # or
-npm run build && node build/index.js  # Production
+bun run build && node build/index.js  # Production
 ```
 
 ### Regular maintenance
 
 ```bash
 # Check DB health (monthly recommended)
-npm run db:inspect
+bun run db:inspect
 
 # Create a manual backup before a major operation
-npm run db:backup
+bun run db:backup
 
 # Check automatic backups
 ls -lh data/backups/
@@ -188,33 +188,33 @@ ls -lh data/backups/
 
 ```bash
 # 1. Backup the database
-npm run db:backup
+bun run db:backup
 
 # 2. Create a complete package (snapshot)
-npm run build
-npm run package
+bun run build
+bun run package
 
 # 3. Check integrity
-npm run db:inspect
+bun run db:inspect
 
 # 4. Proceed with the update
 git pull
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ### In case of problems
 
 ```bash
 # 1. Inspect and diagnose
-npm run db:inspect
+bun run db:inspect
 
 # 2. Attempt automatic repair
-npm run db:inspect -- --repair
+bun run db:inspect -- --repair
 
 # 3. If failure: backup and reset
 cp data/migallery.db data/migallery.db.corrupt
-npm run db:init
+bun run db:init
 # Then restore data manually or from a backup
 ```
 
@@ -277,13 +277,13 @@ build/
 
 Before deploying to production:
 
-- [ ] Database initialized (`npm run db:init`)
+- [ ] Database initialized (`bun run db:init`)
 - [ ] Cookie secret generated and configured in `.env`
 - [ ] Immich variables configured in `.env`
-- [ ] Application tested locally (`npm run dev`)
-- [ ] Production build successful (`npm run build`)
-- [ ] DB inspection error-free (`npm run db:inspect`)
-- [ ] Complete package created (`npm run package`)
+- [ ] Application tested locally (`bun run dev`)
+- [ ] Production build successful (`bun run build`)
+- [ ] DB inspection error-free (`bun run db:inspect`)
+- [ ] Complete package created (`bun run package`)
 - [ ] Verify that automatic backups are being created in `data/backups/` after midnight
 
 ---

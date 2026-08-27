@@ -33,12 +33,14 @@ vite.config.ts.timestamp-*
 
 .eslintcache
 
-# Lockfiles: package-lock.json IS tracked (npm is the project's package manager,
-# and the Docker build needs it for `npm ci`). Other managers' lockfiles are not.
+# Lockfiles: bun.lock IS tracked (bun is the project's package manager, and the
+# Docker build needs it for `bun install --frozen-lockfile`). Every other manager's
+# lockfile is ignored, package-lock.json now included: a stray `npm install` must
+# not be able to commit a second source of truth that resolves differently.
 yarn.lock
 pnpm-lock.yaml
 bun.lockb
-bun.lock
+package-lock.json
 
 # Claude Code
 .claude/

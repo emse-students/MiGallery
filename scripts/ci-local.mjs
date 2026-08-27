@@ -4,7 +4,7 @@
  *
  * Runs the same gates CI runs (type-check, lint, build, fresh-DB integration
  * tests) so failures surface here instead of in CD after a push. Wired to the
- * pre-push hook (.husky/pre-push) via `npm run validate`.
+ * pre-push hook (.husky/pre-push) via `bun run validate`.
  *
  * Why the .env dance: the built server force-loads the repo-root .env
  * (hooks.server.ts calls dotenv config({ override: true })), and the dev .env
@@ -114,8 +114,8 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 
 try {
 	// Static gates first, while the real .env is still in place.
-	run('Type check', 'npm', ['run', 'check']);
-	run('Lint', 'npm', ['run', 'lint'], { NODE_OPTIONS: '--max-old-space-size=16384' });
+	run('Type check', 'bun', ['run', 'check']);
+	run('Lint', 'bun', ['run', 'lint'], { NODE_OPTIONS: '--max-old-space-size=16384' });
 
 	// Stand in the synthetic env for the server-backed steps.
 	snapshot();
@@ -124,9 +124,9 @@ try {
 	// Fresh DB (ci.yml "Setup test database"), then build + integration tests.
 	// test-with-server.mjs builds the server itself, so a build break fails here
 	// too, covering ci.yml's standalone "Build" step.
-	run('DB init', 'npm', ['run', 'db:init'], { DATABASE_PATH: './data/migallery.db' });
+	run('DB init', 'bun', ['run', 'db:init'], { DATABASE_PATH: './data/migallery.db' });
 	freePort(3000);
-	run('Build + tests', 'npm', ['run', 'test'], { API_BASE_URL: 'http://localhost:3000' });
+	run('Build + tests', 'bun', ['run', 'test'], { API_BASE_URL: 'http://localhost:3000' });
 
 	console.log('\n\x1b[32m✅ Local CI passed - safe to push.\x1b[0m');
 } finally {

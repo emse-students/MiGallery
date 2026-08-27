@@ -292,10 +292,10 @@ describe('Albums API - POST /api/albums', () => {
 
 ```bash
 # Run tests with more details
-npx vitest run --reporter=verbose
+bunx vitest run --reporter=verbose
 
 # Run a single test file
-npx vitest run tests/albums.test.ts
+bunx vitest run tests/albums.test.ts
 
 # Run a single test (use .only)
 it.only('should do something', async () => { /* ... */ });
@@ -469,7 +469,7 @@ it('should handle Immich unavailable', async () => {
 
 ## Pre-commit Checklist
 
-- [ ] Tests pass locally (`npm run test`)
+- [ ] Tests pass locally (`bun run test`)
 - [ ] Resources are cleaned up (no leaks)
 - [ ] Timeouts are appropriate
 - [ ] Error cases are tested

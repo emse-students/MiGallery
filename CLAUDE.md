@@ -32,7 +32,7 @@
 ## KEY PATHS & COMMANDS
 
 - API proxy: `src/routes/api/immich/[...path]/+server.ts` - DB queries: `src/lib/db/`
-- `npm run dev`, `npm run check`, `npm run test`, `npm run db:init`, `npm run validate` (full CI mirror)
+- `bun run dev`, `bun run check`, `bun run test`, `bun run db:init`, `bun run validate` (full CI mirror)
 
 ## SESSION STATE
 
@@ -78,10 +78,12 @@
 
 **Tooling**
 
-- NEVER run `npm install` to "refresh" node_modules: npm on Windows rewrites `package-lock.json` against the Windows optional-dependency tree and drops Linux-only entries (`@emnapi/*`), so `npm ci` on the runner fails. If a branch changes no deps the lockfile must come back byte-identical - `git checkout <upstream-ref> -- package-lock.json`. Only install when deliberately changing `package.json`.
-- Repo-wide `npm run format` rewrites ~190 files (prettier drift + CRLF churn). Format your own files, then `git checkout -- . ':!<your files>'`.
-- Prettier has no `plugins` entry, so `.svelte` is skipped by lint-staged. Use `npm run format`, not a bare `npx prettier --write "src/**/*.svelte"`.
-- `npm run test` refuses to run while `IMMICH_BASE_URL` points at prod. Do not set `ALLOW_REMOTE_IMMICH_TESTS=true`. Server-free suites: `tests/disk-cache.test.ts`, `tests/auth-redirect.test.ts`.
+- **bun is the PACKAGE MANAGER, node is the RUNTIME**, and two independent measurements fix that split: `better-sqlite3` (a V8-ABI addon) segfaults the bun runtime outright on 1.4.0, and bun as a runtime inflated every request-body read ~80x and retained the memory, which OOM-killed prod. So `bun install`, `bun run <script>`, and `node build/index.js`. Do not collapse the two halves without re-running both.
+- The npm-on-Windows hazard is GONE, and it was verified gone rather than assumed: npm rewrote `package-lock.json` against the Windows optional-dependency tree, dropping Linux-only entries (`@emnapi/*`) and breaking `npm ci` on the runner. `bun.lock` records every platform's optional dependencies, and the lockfile generated on Windows drove a Linux `bun install --frozen-lockfile` all the way through a production image build that serves 200. Still install only when deliberately changing `package.json`.
+- **`bun.lock` MUST stay `lockfileVersion: 1`.** Dependabot bundles bun 1.3.14 with `MAX_SUPPORTED_LOCKFILE_VERSION = 1` and answers `DependencyFileNotSupported` to v2+, so a v2 lockfile silently stops EVERY dependency update and the symptom is an absence of pull requests. bun >= 1.4 writes v2 for a lockfile it creates from nothing: regenerate with `bunx --bun bun@1.3.14 install`. `code-analysis.yml` guards it.
+- Repo-wide `bun run format` rewrites ~190 files (prettier drift + CRLF churn). Format your own files, then `git checkout -- . ':!<your files>'`.
+- Prettier has no `plugins` entry, so `.svelte` is skipped by lint-staged. Use `bun run format`, not a bare `bunx prettier --write "src/**/*.svelte"`.
+- `bun run test` refuses to run while `IMMICH_BASE_URL` points at prod. Do not set `ALLOW_REMOTE_IMMICH_TESTS=true`. Server-free suites: `tests/disk-cache.test.ts`, `tests/auth-redirect.test.ts`.
 - Tests: no assertions inside a guard that repeats them (`expect(true).toBe(true)`, `expect(body).toBeDefined()` on parsed JSON). The accepted status sets in `tests/people-photoscv.test.ts` ARE pinned on purpose - do not narrow them.
 - Do not reintroduce `const _err = ensureError(e)` followed by logging the raw `e`. If you normalize an error, use the result.
 - Releases: the tag MUST be `vX.Y.Z` (`release.yml` triggers on `v*.*.*`). Bump `package.json` + `RELEASE_NOTES.md`, commit, push, THEN tag.

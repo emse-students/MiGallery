@@ -52,11 +52,11 @@ does not manage Immich's data.
 ## Local development
 
 ```bash
-npm run dev          # dev server with HMR
-npm run build        # production build -> build/
-npm run check        # svelte-kit sync + svelte-check
-npm run lint         # ESLint
-npm run test         # integration suite; npm run test:unit for Vitest only
+bun run dev          # dev server with HMR
+bun run build        # production build -> build/
+bun run check        # svelte-kit sync + svelte-check
+bun run lint         # ESLint
+bun run test         # integration suite; bun run test:unit for Vitest only
 ```
 
 The Husky pre-commit hook runs ESLint + Prettier + svelte-check; keep all three

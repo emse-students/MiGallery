@@ -24,7 +24,7 @@ console.log('');
 
 if (!fs.existsSync(DB_PATH)) {
 	console.error('❌ Base de données non trouvée:', DB_PATH);
-	console.log('\n💡 Utilisez "npm run db:init" pour créer une nouvelle base de données.');
+	console.log('\n💡 Utilisez "bun run db:init" pour créer une nouvelle base de données.');
 	process.exit(1);
 }
 
@@ -218,7 +218,7 @@ if (!hasErrors) {
 		}
 	} else {
 		console.log('\n💡 Pour tenter une réparation automatique:');
-		console.log('   npm run db:inspect -- --repair');
+		console.log('   bun run db:inspect -- --repair');
 		console.log('\n💡 Si la réparation échoue, une sauvegarde et réinitialisation sera proposée.');
 	}
 
@@ -229,9 +229,9 @@ function suggestBackupAndReset() {
 	console.log('\n⚠️  RÉPARATION AUTOMATIQUE IMPOSSIBLE');
 	console.log('\n💡 Solutions recommandées:');
 	console.log('   1. Sauvegarder la base actuelle:');
-	console.log('      npm run db:backup');
+	console.log('      bun run db:backup');
 	console.log('   2. Renommer ou supprimer la base corrompue');
 	console.log('   3. Réinitialiser avec:');
-	console.log('      npm run db:init');
+	console.log('      bun run db:init');
 	console.log('\n⚠️  Toutes les données seront perdues lors de la réinitialisation !');
 }

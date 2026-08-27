@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Script pour lancer les tests API avec un serveur local
- * Usage: npm run test
+ * Usage: bun run test
  */
 
 import { spawn, spawnSync } from 'child_process';
@@ -64,7 +64,7 @@ async function buildServer() {
 	const env = { ...process.env, NODE_ENV: 'test' };
 
 	return new Promise((resolve, reject) => {
-		const build = spawn('npm', ['run', 'build'], {
+		const build = spawn('bun', ['run', 'build'], {
 			stdio: 'inherit',
 			shell: process.platform === 'win32',
 			env
@@ -160,7 +160,7 @@ async function main() {
 		console.log('🧪 Lancement des tests...\n');
 
 		// 4. Lancer les tests
-		const tests = spawn('npm', ['run', 'test:unit'], {
+		const tests = spawn('bun', ['run', 'test:unit'], {
 			stdio: 'inherit',
 			shell: process.platform === 'win32',
 			env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' }

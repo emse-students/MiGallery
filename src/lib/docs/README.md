@@ -145,14 +145,14 @@ DATABASE_PATH=./data/migallery.db
 ## Available Scripts
 
 ```bash
-npm run dev           # Development
-npm run build         # Production build
-npm run preview       # Preview
-npm run check         # TypeScript check
-npm run lint          # Linting
-npm run lint:fix      # Linting with fixes
-npm run db:init       # Initialize DB
-npm run db:backup     # Backup DB
+bun run dev           # Development
+bun run build         # Production build
+bun run preview       # Preview
+bun run check         # TypeScript check
+bun run lint          # Linting
+bun run lint:fix      # Linting with fixes
+bun run db:init       # Initialize DB
+bun run db:backup     # Backup DB
 ```
 
 ## Code Conventions

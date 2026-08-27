@@ -56,47 +56,47 @@ Modern tests with Vitest, executed in CI/CD.
 
 ```bash
 # Run all tests (requires a running server)
-npm run test
+bun run test
 
 # Run a specific test file
-npx vitest run tests/albums.test.ts
-npx vitest run tests/users.test.ts
-npx vitest run tests/admin-auth.test.ts
-npx vitest run tests/e2e-integration.test.ts
+bunx vitest run tests/albums.test.ts
+bunx vitest run tests/users.test.ts
+bunx vitest run tests/admin-auth.test.ts
+bunx vitest run tests/e2e-integration.test.ts
 
 # Watch mode (development)
-npm run test:watch
+bun run test:watch
 
 # Tests with coverage
-npm run test:coverage
+bun run test:coverage
 
 # Tests with automatic server startup
-npm run test
+bun run test
 ```
 
 ### 2. Tests by Domain
 
 ```bash
 # Albums tests only
-npx vitest run tests/albums.test.ts
+bunx vitest run tests/albums.test.ts
 
 # Users tests only
-npx vitest run tests/users.test.ts
+bunx vitest run tests/users.test.ts
 
 # Favorites and External Media tests
-npx vitest run tests/favorites-external.test.ts
+bunx vitest run tests/favorites-external.test.ts
 
 # Admin and Auth tests
-npx vitest run tests/admin-auth.test.ts
+bunx vitest run tests/admin-auth.test.ts
 
 # People/Photos-CV tests
-npx vitest run tests/people-photoscv.test.ts
+bunx vitest run tests/people-photoscv.test.ts
 
 # Immich Proxy tests
-npx vitest run tests/immich-proxy.test.ts
+bunx vitest run tests/immich-proxy.test.ts
 
 # Complete E2E tests
-npx vitest run tests/e2e-integration.test.ts
+bunx vitest run tests/e2e-integration.test.ts
 ```
 
 ### 3. Legacy Tests (Node.js script)
@@ -105,7 +105,7 @@ Classic Node.js test script with colored output.
 
 ```bash
 # Run the original test script
-npm run test:api
+bun run test:api
 # or
 node ./scripts/test-api.cjs
 ```
@@ -325,7 +325,7 @@ See `vitest.config.ts`:
 1. **Initialized database**
 
    ```bash
-   npm run db:init
+   bun run db:init
    ```
 
 2. **System user created** (`les.roots`)
@@ -338,10 +338,10 @@ See `vitest.config.ts`:
 
    ```bash
    # Development mode
-   npm run dev
+   bun run dev
 
    # or production mode
-   npm run build
+   bun run build
    node build/index.js
    ```
 
@@ -359,7 +359,7 @@ See `vitest.config.ts`:
 ### Error: "Database not found"
 
 ```bash
-npm run db:init
+bun run db:init
 ```
 
 ### Error: "System user les.roots not found"

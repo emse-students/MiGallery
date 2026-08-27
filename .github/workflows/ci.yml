@@ -4,8 +4,11 @@ name: CI
 # as the CD gate (cd.yml calls it before building/deploying the image).
 # No `push` trigger: on main, the CD runs this CI exactly once.
 #
-# Node runtime (npm). Bun was dropped: it inflated request-body reads ~80x and
-# retained memory (unfixed upstream bug), which OOM-killed prod.
+# Bun is the package manager, Node is the runtime, and the split is measured, not
+# stylistic: bun as a RUNTIME inflated request-body reads ~80x and retained the
+# memory (unfixed upstream bug), which OOM-killed prod, and it segfaults outright
+# on better-sqlite3 (a V8-ABI addon). So bun installs and drives the scripts here,
+# and every step that executes application code executes it under Node.
 on:
  pull_request:
   branches: [main]
@@ -23,31 +26,35 @@ jobs:
      uses: actions/setup-node@v7
      with:
       node-version: 24
-      cache: npm
+
+   - name: Setup Bun
+     uses: oven-sh/setup-bun@v2
+     with:
+      bun-version-file: '.bun-version'
 
    - name: Install dependencies
-     run: npm ci
+     run: bun install --frozen-lockfile
 
    - name: Type check
-     run: npm run check
+     run: bun run check
 
    - name: Lint
      env:
       NODE_OPTIONS: '--max-old-space-size=16384'
-     run: npm run lint
+     run: bun run lint
 
    # A husky pre-commit hook is not a gate: `--no-verify` skips it, and it never runs on a pull
    # request at all. Prettier only counts once something red says so.
    - name: Check formatting
-     run: npm run format:check
+     run: bun run format:check
 
    - name: Build
-     run: npm run build
+     run: bun run build
 
    - name: Setup test database
      run: |
       mkdir -p data
-      npm run db:init || true
+      bun run db:init || true
 
    - name: Create .env for tests
      run: |
@@ -62,4 +69,4 @@ jobs:
    - name: Run tests
      env:
       API_BASE_URL: http://localhost:3000
-     run: npm run test
+     run: bun run test

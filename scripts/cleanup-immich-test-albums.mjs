@@ -2,7 +2,7 @@
 /**
  * Delete leftover "[TEST] ..." albums that the integration suite creates in
  * Immich but does not always tear down (interrupted runs, untracked ids, or a
- * `npm run test` accidentally pointed at a real Immich). They show up as empty
+ * `bun run test` accidentally pointed at a real Immich). They show up as empty
  * "[TEST] Album" / "[TEST] Permission Album <timestamp>" albums.
  *
  * Safe by default:

@@ -57,7 +57,7 @@ cd MiGallery
 2. **Install dependencies**
 
 ```bash
-npm install
+bun install
 ```
 
 3. **Configure the environment**
@@ -66,7 +66,7 @@ Create an `.env` file at the root:
 
 ```env
 # Generate a secret for cookies and Auth.js
-# npm run generate:secret
+# bun run generate:secret
 AUTH_SECRET=your_generated_secret
 
 # Database
@@ -85,7 +85,7 @@ AUTH_TRUSTED_HOST=true # Set to true in production
 4. **Initialize the database**
 
 ```bash
-npm run db:init
+bun run db:init
 ```
 
 This automatically creates:
@@ -96,7 +96,7 @@ This automatically creates:
 5. **Start the development server**
 
 ```bash
-npm run dev
+bun run dev
 ```
 
 The application will be accessible at `http://localhost:5173`
@@ -109,20 +109,20 @@ The application will be accessible at `http://localhost:5173`
 
 ```bash
 # Start the development server with HMR
-npm run dev
+bun run dev
 
 # Check TypeScript and Svelte types
-npm run check
+bun run check
 ```
 
 ### Production
 
 ```bash
 # Compile the application for production
-npm run build
+bun run build
 
 # Preview the production version
-npm run preview
+bun run preview
 ```
 
 ---
@@ -133,7 +133,7 @@ npm run preview
 
 ```bash
 # Initialize a new database (if it doesn't exist)
-npm run db:init
+bun run db:init
 ```
 
 ### Backups
@@ -147,7 +147,7 @@ additional configuration. Backups are stored in `data/backups/` (max 10 files re
 
 ```bash
 # Create a database backup
-npm run db:backup
+bun run db:backup
 ```
 
 Backups are stored in `data/backups/` and only the **last 10** are kept.
@@ -161,10 +161,10 @@ If you want redundancy (e.g., every 6 hours or export to remote storage), see
 
 ```bash
 # Inspect the database and detect errors
-npm run db:inspect
+bun run db:inspect
 
 # Attempt to repair errors automatically
-npm run db:inspect -- --repair
+bun run db:inspect -- --repair
 ```
 
 ### Management via the admin interface
@@ -186,36 +186,36 @@ The admin interface (`/admin/database`) allows:
 
 | Command           | Description                             |
 | ----------------- | --------------------------------------- |
-| `npm run dev`     | Starts the development server with HMR  |
-| `npm run build`   | Compiles the application for production |
-| `npm run preview` | Previews the production version         |
-| `npm run check`   | Checks TypeScript and Svelte types      |
+| `bun run dev`     | Starts the development server with HMR  |
+| `bun run build`   | Compiles the application for production |
+| `bun run preview` | Previews the production version         |
+| `bun run check`   | Checks TypeScript and Svelte types      |
 
 ### Database Scripts
 
 | Command                          | Description                |
 | -------------------------------- | -------------------------- |
-| `npm run db:init`                | Initializes a new database |
-| `npm run db:backup`              | Creates a database backup  |
-| `npm run db:inspect`             | Inspects the database      |
-| `npm run db:inspect -- --repair` | Repairs detected errors    |
+| `bun run db:init`                | Initializes a new database |
+| `bun run db:backup`              | Creates a database backup  |
+| `bun run db:inspect`             | Inspects the database      |
+| `bun run db:inspect -- --repair` | Repairs detected errors    |
 
 ### Utility Scripts
 
 | Command                   | Description                                           |
 | ------------------------- | ----------------------------------------------------- |
-| `npm run generate:secret` | Generates a cryptographic secret for cookies          |
-| `npm run test:api`        | Runs the API unit tests                               |
-| `npm run package`         | Creates a complete package (.tgz) with DB, .env, etc. |
+| `bun run generate:secret` | Generates a cryptographic secret for cookies          |
+| `bun run test:api`        | Runs the API unit tests                               |
+| `bun run package`         | Creates a complete package (.tgz) with DB, .env, etc. |
 
 ### API Tests
 
 ```bash
 # Tests with default URL (localhost:5173)
-npm run test:api
+bun run test:api
 
 # Tests with custom URL and API Key
-API_BASE_URL=http://my-server:3000 API_KEY=my_key npm run test:api
+API_BASE_URL=http://my-server:3000 API_KEY=my_key bun run test:api
 ```
 
 Tests verify:
@@ -242,8 +242,8 @@ The `package` script creates a `.tgz` archive including:
 - Documentation
 
 ```bash
-npm run build
-npm run package
+bun run build
+bun run package
 ```
 
 The package will be created at `build/artifacts/migallery-<version>-full.tgz`
@@ -262,7 +262,7 @@ cd migallery
 3. **Install dependencies**
 
 ```bash
-npm ci --omit=dev
+bun install --frozen-lockfile --production
 ```
 
 4. **Check/Modify configuration**
@@ -403,7 +403,7 @@ Code quality is ensured by a comprehensive tool chain:
 - **ESLint**: Static code analysis (strict configuration)
 - **Prettier**: Automatic code formatting
 - **Husky**: Git hooks to check code before each commit
-- **CI/CD**: Verification scripts (`npm run check`, `npm run lint`)
+- **CI/CD**: Verification scripts (`bun run check`, `bun run lint`)
 
 ---
 
@@ -434,7 +434,7 @@ Developed with ❤️ by **[DeMASKe](https://github.com/DeMASKe)** and **[gd-pnj
 pip install pre-commit
 
 # 2. Install dependencies
-npm install
+bun install
 
 # 3. Activate hooks
 pre-commit install
@@ -443,11 +443,11 @@ pre-commit install
 pre-commit run --all-files
 
 # Check errors
-npm run lint
+bun run lint
 
 # Auto-fix
-npm run lint:fix
-npm run format
+bun run lint:fix
+bun run format
 
 # Commit (hooks run automatically)
 git add .
@@ -469,7 +469,7 @@ python --version
 2. Express installation (summary):
 
 ```powershell
-npm install
+bun install
 pre-commit install
 pre-commit run --all-files
 ```
@@ -478,7 +478,7 @@ pre-commit run --all-files
 
 ```powershell
 pre-commit run --all-files
-npm run lint
+bun run lint
 ```
 
 </details>
@@ -489,9 +489,9 @@ npm run lint
 Daily usage:
 
 ```powershell
-npm run lint              # Check errors
-npm run lint:fix          # Auto-fix
-npm run format            # Format code
+bun run lint              # Check errors
+bun run lint:fix          # Auto-fix
+bun run format            # Format code
 git commit -m "message"   # Hooks run automatically!
 ```
 
@@ -528,8 +528,8 @@ pre-commit install
 - ESLint errors during linting:
 
 ```powershell
-npm run lint:fix
-npm run format
+bun run lint:fix
+bun run format
 ```
 
 - `Type tag 'typescript' is not recognized` :
