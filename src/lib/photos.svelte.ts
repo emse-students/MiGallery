@@ -7,758 +7,758 @@ import { toast } from '$lib/toast';
 import { m } from '$lib/paraglide/messages';
 
 export type Asset = {
-	id: string;
-	originalFileName?: string;
-	type?: string;
-	date?: string | null;
-	width?: number;
-	height?: number;
-	fileCreatedAt?: string;
-	createdAt?: string;
-	updatedAt?: string;
-	isFavorite?: boolean;
-	exifInfo?: {
-		exifImageWidth?: number;
-		exifImageHeight?: number;
-	} | null;
-	_raw?: ImmichAsset;
+  id: string;
+  originalFileName?: string;
+  type?: string;
+  date?: string | null;
+  width?: number;
+  height?: number;
+  fileCreatedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isFavorite?: boolean;
+  exifInfo?: {
+    exifImageWidth?: number;
+    exifImageHeight?: number;
+  } | null;
+  _raw?: ImmichAsset;
 };
 
 export function formatDayLabel(dateStr: string | null) {
-	if (!dateStr) {
-		return m.albums_no_date();
-	}
-	const d = new Date(dateStr);
-	if (isNaN(d.getTime())) {
-		return m.albums_no_date();
-	}
+  if (!dateStr) {
+    return m.albums_no_date();
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) {
+    return m.albums_no_date();
+  }
 
-	const year = d.getFullYear();
-	const month = d.getMonth();
-	const day = d.getDate();
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const day = d.getDate();
 
-	const today = new Date();
-	const todayYear = today.getFullYear();
-	const todayMonth = today.getMonth();
-	const todayDay = today.getDate();
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth();
+  const todayDay = today.getDate();
 
-	const dMid = new Date(year, month, day);
-	const tMid = new Date(todayYear, todayMonth, todayDay);
-	const diff = Math.round((tMid.getTime() - dMid.getTime()) / (1000 * 60 * 60 * 24));
+  const dMid = new Date(year, month, day);
+  const tMid = new Date(todayYear, todayMonth, todayDay);
+  const diff = Math.round((tMid.getTime() - dMid.getTime()) / (1000 * 60 * 60 * 24));
 
-	if (diff === 0) {
-		return m.photos_today();
-	}
-	if (diff === 1) {
-		return m.photos_yesterday();
-	}
-	return dMid.toLocaleDateString(undefined, {
-		weekday: 'long',
-		day: '2-digit',
-		month: 'short',
-		year: 'numeric'
-	});
+  if (diff === 0) {
+    return m.photos_today();
+  }
+  if (diff === 1) {
+    return m.photos_yesterday();
+  }
+  return dMid.toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 export function groupByDay(list: Asset[]) {
-	const out: Record<string, Asset[]> = {};
-	for (const a of list) {
-		const key = formatDayLabel(a.date || null);
-		out[key] = out[key] || [];
-		out[key].push(a);
-	}
-	return out;
+  const out: Record<string, Asset[]> = {};
+  for (const a of list) {
+    const key = formatDayLabel(a.date || null);
+    out[key] = out[key] || [];
+    out[key].push(a);
+  }
+  return out;
 }
 
 export class PhotosState {
-	#assets = $state<Asset[]>([]);
-	#selectedAssets = $state<string[]>([]);
-	#selecting = $state(false);
-	#loading = $state(false);
-	#error = $state<string | null>(null);
-	#imageUrl = $state<string | null>(null);
-	#_prevImageUrl = $state<string | null>(null);
-	#personName = $state<string>('');
-	#peopleId = $state<string>('');
-	#isDownloading = $state(false);
-	#downloadProgress = $state(0);
-	currentDownloadController: AbortController | null = null;
-
-	get assets() {
-		return this.#assets;
-	}
-	set assets(value) {
-		this.#assets = value;
-	}
-
-	get selectedAssets() {
-		return this.#selectedAssets;
-	}
-	set selectedAssets(value) {
-		this.#selectedAssets = value;
-	}
-
-	get selecting() {
-		return this.#selecting;
-	}
-	set selecting(value) {
-		this.#selecting = value;
-	}
-
-	get loading() {
-		return this.#loading;
-	}
-	set loading(value) {
-		this.#loading = value;
-	}
-
-	get error() {
-		return this.#error;
-	}
-	set error(value) {
-		this.#error = value;
-	}
-
-	get imageUrl() {
-		return this.#imageUrl;
-	}
-	set imageUrl(value) {
-		this.#imageUrl = value;
-	}
-
-	get _prevImageUrl() {
-		return this.#_prevImageUrl;
-	}
-	set _prevImageUrl(value) {
-		this.#_prevImageUrl = value;
-	}
-
-	get personName() {
-		return this.#personName;
-	}
-	set personName(value) {
-		this.#personName = value;
-	}
-
-	get peopleId() {
-		return this.#peopleId;
-	}
-	set peopleId(value) {
-		this.#peopleId = value;
-	}
-
-	get isDownloading() {
-		return this.#isDownloading;
-	}
-	set isDownloading(value) {
-		this.#isDownloading = value;
-	}
-
-	get downloadProgress() {
-		return this.#downloadProgress;
-	}
-	set downloadProgress(value) {
-		this.#downloadProgress = value;
-	}
-
-	/**
-	 * Loads ALL of a person's photos EXCEPT those in the PhotoCV album
-	 * Used by: "Mes photos" page
-	 *
-	 * When `profile.userId` is provided, the header photo is served by MiGallery's
-	 * own square crop endpoint (/api/users/{id}/avatar) instead of Immich's tightly
-	 * hard-coded person thumbnail. `profile.version` (the backing asset id) busts
-	 * the browser cache so a freshly changed photo shows immediately.
-	 */
-	async loadPerson(id: string, profile?: { userId?: string | null; version?: string | null }) {
-		if (!id) {
-			this.error = m.photos_no_profile();
-			return;
-		}
-
-		this.loading = true;
-		this.error = null;
-		this.assets = [];
-		this.imageUrl = null;
-		this.personName = '';
-		this.peopleId = id;
-
-		try {
-			const favoritesPromise = this.loadFavoritesSet();
-
-			const personRes = await fetch(`/api/immich/people/${id}`);
-			if (personRes.ok) {
-				const personData = (await personRes.json()) as { name?: string };
-				this.personName = personData.name || 'Sans nom';
-			}
-
-			if (profile?.userId) {
-				// MiGallery's own square crop (see /api/users/[username]/avatar). It is
-				// a plain URL, not a blob, so release any previous blob URL.
-				if (this._prevImageUrl) {
-					URL.revokeObjectURL(this._prevImageUrl);
-					this._prevImageUrl = null;
-				}
-				const v = profile.version ? `?v=${encodeURIComponent(profile.version)}` : '';
-				this.imageUrl = `/api/users/${encodeURIComponent(profile.userId)}/avatar${v}`;
-			} else {
-				const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
-				if (thumb.ok) {
-					const blob = await thumb.blob();
-					if (this._prevImageUrl) {
-						URL.revokeObjectURL(this._prevImageUrl);
-						this._prevImageUrl = null;
-					}
-					const url = URL.createObjectURL(blob);
-					this.imageUrl = url;
-					this._prevImageUrl = url;
-				}
-			}
-
-			const res = await fetch(
-				`/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=false`
-			);
-
-			const assetsMap = new Map<string, Asset>();
-
-			try {
-				await consumeNDJSONStream<{
-					phase: 'minimal' | 'full';
-					asset: ImmichAsset;
-				}>(res, ({ phase, asset }) => {
-					if (phase === 'minimal') {
-						assetsMap.set(asset.id, {
-							...asset,
-							date: null,
-							isFavorite: false,
-							exifInfo:
-								asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
-									? {
-											exifImageWidth: asset.exifInfo.exifImageWidth,
-											exifImageHeight: asset.exifInfo.exifImageHeight
-										}
-									: null,
-							_raw: asset
-						});
-						if (assetsMap.size === 1) {
-							this.loading = false;
-						}
-					} else if (phase === 'full') {
-						const existing = assetsMap.get(asset.id);
-						assetsMap.set(asset.id, {
-							...asset,
-							date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-							isFavorite: existing?.isFavorite ?? false,
-							_raw: asset
-						});
-					}
-
-					this.assets = [...Array.from(assetsMap.values())];
-				});
-			} catch (streamErr) {
-				// The stream can be cut mid-enrichment (e.g. a reverse-proxy idle
-				// timeout during the per-asset detail phase). Photos already received
-				// must not be discarded: only surface the error when nothing loaded.
-				if (assetsMap.size === 0) {
-					throw streamErr;
-				}
-				console.warn('photos-stream interrupted, keeping partial results', streamErr);
-			}
-
-			const favoriteSet = await favoritesPromise;
-			this.assets = this.assets.map((a) => ({
-				...a,
-				isFavorite: favoriteSet.has(a.id)
-			}));
-
-			this.loading = false;
-		} catch (e: unknown) {
-			this.error = (e as Error).message;
-			this.loading = false;
-		}
-	}
-
-	/**
-	 * Loads a person's photos IN the PhotoCV album
-	 * Used by: Photos CV page ("Mes photos CV" tab)
-	 */
-	async loadMyPhotosCV(id: string): Promise<void> {
-		if (!id) {
-			this.error = m.photos_no_profile();
-			return;
-		}
-
-		this.loading = true;
-		this.error = null;
-		this.assets = [];
-
-		try {
-			// Use the same NDJSON streaming endpoint as /mes-photos (loadPerson),
-			// only with in_album=true to keep the PhotoCV portraits. The former
-			// non-streaming /photos endpoint was the odd one out and stopped
-			// returning after the Immich v3 migration.
-			const res = await fetch(
-				`/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=true`
-			);
-
-			if (!res.ok) {
-				const text = await res.text().catch(() => res.statusText);
-				throw new Error(text || `HTTP ${res.status}`);
-			}
-
-			const assetsMap = new Map<string, Asset>();
-			await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: ImmichAsset }>(
-				res,
-				({ phase, asset }) => {
-					if (phase === 'minimal') {
-						assetsMap.set(asset.id, {
-							...asset,
-							date: null,
-							isFavorite: false,
-							exifInfo:
-								asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
-									? {
-											exifImageWidth: asset.exifInfo.exifImageWidth,
-											exifImageHeight: asset.exifInfo.exifImageHeight
-										}
-									: null,
-							_raw: asset
-						});
-						if (assetsMap.size === 1) {
-							this.loading = false;
-						}
-					} else if (phase === 'full') {
-						const existing = assetsMap.get(asset.id);
-						assetsMap.set(asset.id, {
-							...asset,
-							date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-							isFavorite: existing?.isFavorite ?? false,
-							_raw: asset
-						});
-					}
-					this.assets = [...Array.from(assetsMap.values())];
-				}
-			);
-
-			this.loading = false;
-		} catch (e: unknown) {
-			this.error = (e as Error).message;
-			this.loading = false;
-		}
-	}
-
-	/**
-	 * Loads the first page of photos IN the PhotoCV album (pagination, 100 by default)
-	 * Used by: Photos CV page ("Toutes les photos CV" tab - mitvistes/admins only)
-	 */
-	async loadAllPhotosCV(limit: number = 100): Promise<void> {
-		this.loading = true;
-		this.error = null;
-		this.assets = [];
-		this.photoCVCurrentPage = 1;
-
-		try {
-			const res = await fetch(`/api/people/album?page=1&limit=${limit}`);
-
-			if (!res.ok) {
-				const text = await res.text().catch(() => res.statusText);
-				throw new Error(text || `HTTP ${res.status}`);
-			}
-
-			const data = (await res.json()) as {
-				assets?: ImmichAsset[];
-				hasMore?: boolean;
-				totalCount?: number;
-				currentPage?: number;
-			};
-			const allAssets = data.assets || [];
-
-			this.assets = allAssets.map((it) => ({
-				...it,
-				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-				isFavorite: false,
-				_raw: it
-			}));
-			this.photoCVHasMore = data.hasMore ?? false;
-			this.photoCVTotalCount = data.totalCount ?? 0;
-			this.photoCVCurrentPage = data.currentPage ?? 1;
-		} catch (e: unknown) {
-			this.error = (e as Error).message;
-		} finally {
-			this.loading = false;
-		}
-	}
-
-	/**
-	 * Loads the next page of PhotoCV photos
-	 */
-	async loadNextPagePhotosCV(limit: number = 100): Promise<void> {
-		const nextPage = this.photoCVCurrentPage + 1;
-		this.loading = true;
-		this.error = null;
-
-		try {
-			const res = await fetch(`/api/people/album?page=${nextPage}&limit=${limit}`);
-
-			if (!res.ok) {
-				const text = await res.text().catch(() => res.statusText);
-				throw new Error(text || `HTTP ${res.status}`);
-			}
-
-			const data = (await res.json()) as {
-				assets?: ImmichAsset[];
-				hasMore?: boolean;
-				totalCount?: number;
-				currentPage?: number;
-			};
-			const pageAssets = data.assets || [];
-
-			const newAssets = pageAssets.map((it) => ({
-				...it,
-				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-				isFavorite: false,
-				_raw: it
-			}));
-			this.assets = newAssets;
-			this.photoCVHasMore = data.hasMore ?? false;
-			this.photoCVTotalCount = data.totalCount ?? 0;
-			this.photoCVCurrentPage = nextPage;
-		} catch (e: unknown) {
-			this.error = (e as Error).message;
-		} finally {
-			this.loading = false;
-		}
-	}
-
-	/**
-	 * Loads the previous page of PhotoCV photos
-	 */
-	async loadPrevPagePhotosCV(limit: number = 100): Promise<void> {
-		const prevPage = Math.max(1, this.photoCVCurrentPage - 1);
-		if (prevPage === this.photoCVCurrentPage) {
-			return;
-		}
-		this.loading = true;
-		this.error = null;
-
-		try {
-			const res = await fetch(`/api/people/album?page=${prevPage}&limit=${limit}`);
-
-			if (!res.ok) {
-				const text = await res.text().catch(() => res.statusText);
-				throw new Error(text || `HTTP ${res.status}`);
-			}
-
-			const data = (await res.json()) as {
-				assets?: ImmichAsset[];
-				hasMore?: boolean;
-				totalCount?: number;
-				currentPage?: number;
-			};
-			const pageAssets = data.assets || [];
-
-			const newAssets = pageAssets.map((it) => ({
-				...it,
-				date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
-				isFavorite: false,
-				_raw: it
-			}));
-			this.assets = newAssets;
-			this.photoCVHasMore = data.hasMore ?? false;
-			this.photoCVTotalCount = data.totalCount ?? 0;
-			this.photoCVCurrentPage = prevPage;
-		} catch (e: unknown) {
-			this.error = (e as Error).message;
-		} finally {
-			this.loading = false;
-		}
-	}
-
-	toggleSelect(id: string, checked: boolean) {
-		if (checked) {
-			if (!this.selectedAssets.includes(id)) {
-				this.selectedAssets = [...this.selectedAssets, id];
-				this.selecting = true;
-			}
-		} else {
-			this.selectedAssets = this.selectedAssets.filter((x) => x !== id);
-			if (this.selectedAssets.length === 0) {
-				this.selecting = false;
-			}
-		}
-	}
-
-	handlePhotoClick(id: string, event: Event) {
-		if (this.selecting) {
-			event.preventDefault();
-			const isSelected = this.selectedAssets.includes(id);
-			this.toggleSelect(id, !isSelected);
-		} else {
-			import('$app/navigation').then(({ goto }) => {
-				goto(`/asset/${id}`);
-			});
-		}
-	}
-
-	selectAll() {
-		this.selectedAssets = [...this.assets].map((a) => a.id);
-	}
-
-	deselectAll() {
-		this.selectedAssets = [];
-		this.selecting = false;
-	}
-
-	async downloadSingle(id: string) {
-		const asset = this.assets.find((x) => x.id === id);
-		const res = await fetch(`/api/immich/assets/${id}/original`);
-		if (!res.ok) {
-			throw new Error('Download error');
-		}
-		const blob = await res.blob();
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = asset?.originalFileName || id;
-		document.body.appendChild(a);
-		a.click();
-		a.remove();
-		URL.revokeObjectURL(url);
-	}
-
-	async downloadSelected(skipConfirm?: boolean) {
-		if (this.selectedAssets.length === 0) {
-			toast.error(m.photos_none_selected());
-			return;
-		}
-		if (!skipConfirm) {
-			const ok = await showConfirm(
-				m.pg_download_archive_confirm({ count: this.selectedAssets.length }),
-				m.common_download()
-			);
-			if (!ok) {
-				return;
-			}
-		}
-
-		if (this.currentDownloadController) {
-			this.currentDownloadController.abort();
-			this.currentDownloadController = null;
-		}
-		const controller = new AbortController();
-		this.currentDownloadController = controller;
-		this.isDownloading = true;
-		this.downloadProgress = 0;
-		try {
-			await downloadInBatches(this.selectedAssets, 'mes-photos', {
-				onProgress: (p) => {
-					this.downloadProgress = p;
-				},
-				signal: controller.signal
-			});
-			this.selectedAssets = [];
-			this.selecting = false;
-		} catch (e: unknown) {
-			const err = e as { name?: string; message?: string };
-			if (err.name !== 'AbortError') {
-				toast.error(m.photos_error({ message: err.message || m.common_unknown_error() }));
-			}
-		} finally {
-			this.isDownloading = false;
-			this.downloadProgress = 0;
-			this.currentDownloadController = null;
-		}
-	}
-
-	/**
-	 * Loads an album's assets with streaming and client cache
-	 * Used by: /albums/[id]
-	 */
-	async loadAlbumWithStreaming(
-		albumId: string,
-		albumName?: string,
-		visibility?: string
-	): Promise<void> {
-		this.loading = true;
-		this.error = null;
-		this.assets = [];
-		this.personName = albumName || 'Album';
-
-		try {
-			const qp = visibility ? `?visibility=${encodeURIComponent(visibility)}` : '';
-			const res = await fetch(`/api/albums/${albumId}/assets-stream${qp}`);
-
-			if (!res.ok) {
-				throw new Error(`HTTP ${res.status}`);
-			}
-
-			const assetsMap = new Map<string, Asset>();
-
-			await consumeNDJSONStream<{
-				phase: 'minimal' | 'full';
-				asset: ImmichAsset;
-			}>(res, ({ phase, asset }) => {
-				if (phase === 'minimal') {
-					assetsMap.set(asset.id, {
-						...asset,
-						date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-						isFavorite: false,
-						exifInfo:
-							asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
-								? {
-										exifImageWidth: asset.exifInfo.exifImageWidth,
-										exifImageHeight: asset.exifInfo.exifImageHeight
-									}
-								: null,
-						_raw: asset
-					});
-					if (assetsMap.size === 1) {
-						this.loading = false;
-					}
-				} else if (phase === 'full') {
-					const existing = assetsMap.get(asset.id);
-					assetsMap.set(asset.id, {
-						...asset,
-						date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-						isFavorite: existing?.isFavorite ?? false,
-						_raw: asset
-					});
-				}
-
-				this.assets = [...Array.from(assetsMap.values())];
-			});
-
-			this.loading = false;
-		} catch (e: unknown) {
-			this.error = (e as Error).message;
-			this.loading = false;
-		}
-	}
-
-	/**
-	 * Toggles the favorite status of an asset (stored locally per user)
-	 * @param assetId - Asset ID
-	 * @returns The new favorite status
-	 */
-	async toggleFavorite(assetId: string): Promise<boolean> {
-		const asset = this.assets.find((a) => a.id === assetId);
-		if (!asset) {
-			throw new Error('Asset not found');
-		}
-
-		const newFavoriteStatus = !asset.isFavorite;
-
-		try {
-			const res = await fetch('/api/favorites', {
-				method: newFavoriteStatus ? 'POST' : 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ assetId })
-			});
-
-			if (!res.ok) {
-				const text = await res.text().catch(() => res.statusText);
-				throw new Error(text || `HTTP ${res.status}`);
-			}
-
-			this.assets = this.assets.map((a) =>
-				a.id === assetId ? { ...a, isFavorite: newFavoriteStatus } : a
-			);
-
-			return newFavoriteStatus;
-		} catch (e: unknown) {
-			const err = ensureError(e);
-			throw err;
-		}
-	}
-
-	/**
-	 * Loads the user's favorites and returns a Set
-	 * Useful for loading in parallel with streaming
-	 */
-	async loadFavoritesSet(): Promise<Set<string>> {
-		try {
-			const res = await fetch('/api/favorites');
-			if (!res.ok) {
-				return new Set();
-			}
-
-			const data = (await res.json()) as { favorites: string[] };
-			return new Set(data.favorites);
-		} catch (e: unknown) {
-			console.warn('Error loading favorites:', e);
-			return new Set();
-		}
-	}
-
-	/**
-	 * Loads the user's favorites and updates the assets
-	 */
-	async loadFavorites(): Promise<void> {
-		try {
-			const res = await fetch('/api/favorites');
-			if (!res.ok) {
-				return;
-			}
-
-			const data = (await res.json()) as { favorites: string[] };
-			const favoriteSet = new Set(data.favorites);
-
-			this.assets = this.assets.map((a) => ({
-				...a,
-				isFavorite: favoriteSet.has(a.id)
-			}));
-		} catch (e: unknown) {
-			console.warn('Error loading favorites:', e);
-		}
-	}
-
-	/**
-	 * Returns the favorite assets
-	 */
-	get favorites(): Asset[] {
-		return this.assets.filter((a) => a.isFavorite);
-	}
-
-	/**
-	 * Returns the non-favorite assets
-	 */
-	get nonFavorites(): Asset[] {
-		return this.assets.filter((a) => !a.isFavorite);
-	}
-
-	#photoCVCurrentPage = $state(1);
-	#photoCVHasMore = $state(false);
-	#photoCVTotalCount = $state(0);
-
-	get photoCVCurrentPage() {
-		return this.#photoCVCurrentPage;
-	}
-	set photoCVCurrentPage(value) {
-		this.#photoCVCurrentPage = value;
-	}
-
-	get photoCVHasMore() {
-		return this.#photoCVHasMore;
-	}
-	set photoCVHasMore(value) {
-		this.#photoCVHasMore = value;
-	}
-
-	get photoCVTotalCount() {
-		return this.#photoCVTotalCount;
-	}
-	set photoCVTotalCount(value) {
-		this.#photoCVTotalCount = value;
-	}
-
-	cleanup() {
-		if (this.currentDownloadController) {
-			this.currentDownloadController.abort();
-			this.currentDownloadController = null;
-		}
-		if (this._prevImageUrl) {
-			URL.revokeObjectURL(this._prevImageUrl);
-			this._prevImageUrl = null;
-		}
-	}
+  #assets = $state<Asset[]>([]);
+  #selectedAssets = $state<string[]>([]);
+  #selecting = $state(false);
+  #loading = $state(false);
+  #error = $state<string | null>(null);
+  #imageUrl = $state<string | null>(null);
+  #_prevImageUrl = $state<string | null>(null);
+  #personName = $state<string>('');
+  #peopleId = $state<string>('');
+  #isDownloading = $state(false);
+  #downloadProgress = $state(0);
+  currentDownloadController: AbortController | null = null;
+
+  get assets() {
+    return this.#assets;
+  }
+  set assets(value) {
+    this.#assets = value;
+  }
+
+  get selectedAssets() {
+    return this.#selectedAssets;
+  }
+  set selectedAssets(value) {
+    this.#selectedAssets = value;
+  }
+
+  get selecting() {
+    return this.#selecting;
+  }
+  set selecting(value) {
+    this.#selecting = value;
+  }
+
+  get loading() {
+    return this.#loading;
+  }
+  set loading(value) {
+    this.#loading = value;
+  }
+
+  get error() {
+    return this.#error;
+  }
+  set error(value) {
+    this.#error = value;
+  }
+
+  get imageUrl() {
+    return this.#imageUrl;
+  }
+  set imageUrl(value) {
+    this.#imageUrl = value;
+  }
+
+  get _prevImageUrl() {
+    return this.#_prevImageUrl;
+  }
+  set _prevImageUrl(value) {
+    this.#_prevImageUrl = value;
+  }
+
+  get personName() {
+    return this.#personName;
+  }
+  set personName(value) {
+    this.#personName = value;
+  }
+
+  get peopleId() {
+    return this.#peopleId;
+  }
+  set peopleId(value) {
+    this.#peopleId = value;
+  }
+
+  get isDownloading() {
+    return this.#isDownloading;
+  }
+  set isDownloading(value) {
+    this.#isDownloading = value;
+  }
+
+  get downloadProgress() {
+    return this.#downloadProgress;
+  }
+  set downloadProgress(value) {
+    this.#downloadProgress = value;
+  }
+
+  /**
+   * Loads ALL of a person's photos EXCEPT those in the PhotoCV album
+   * Used by: "Mes photos" page
+   *
+   * When `profile.userId` is provided, the header photo is served by MiGallery's
+   * own square crop endpoint (/api/users/{id}/avatar) instead of Immich's tightly
+   * hard-coded person thumbnail. `profile.version` (the backing asset id) busts
+   * the browser cache so a freshly changed photo shows immediately.
+   */
+  async loadPerson(id: string, profile?: { userId?: string | null; version?: string | null }) {
+    if (!id) {
+      this.error = m.photos_no_profile();
+      return;
+    }
+
+    this.loading = true;
+    this.error = null;
+    this.assets = [];
+    this.imageUrl = null;
+    this.personName = '';
+    this.peopleId = id;
+
+    try {
+      const favoritesPromise = this.loadFavoritesSet();
+
+      const personRes = await fetch(`/api/immich/people/${id}`);
+      if (personRes.ok) {
+        const personData = (await personRes.json()) as { name?: string };
+        this.personName = personData.name || 'Sans nom';
+      }
+
+      if (profile?.userId) {
+        // MiGallery's own square crop (see /api/users/[username]/avatar). It is
+        // a plain URL, not a blob, so release any previous blob URL.
+        if (this._prevImageUrl) {
+          URL.revokeObjectURL(this._prevImageUrl);
+          this._prevImageUrl = null;
+        }
+        const v = profile.version ? `?v=${encodeURIComponent(profile.version)}` : '';
+        this.imageUrl = `/api/users/${encodeURIComponent(profile.userId)}/avatar${v}`;
+      } else {
+        const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
+        if (thumb.ok) {
+          const blob = await thumb.blob();
+          if (this._prevImageUrl) {
+            URL.revokeObjectURL(this._prevImageUrl);
+            this._prevImageUrl = null;
+          }
+          const url = URL.createObjectURL(blob);
+          this.imageUrl = url;
+          this._prevImageUrl = url;
+        }
+      }
+
+      const res = await fetch(
+        `/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=false`
+      );
+
+      const assetsMap = new Map<string, Asset>();
+
+      try {
+        await consumeNDJSONStream<{
+          phase: 'minimal' | 'full';
+          asset: ImmichAsset;
+        }>(res, ({ phase, asset }) => {
+          if (phase === 'minimal') {
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: null,
+              isFavorite: false,
+              exifInfo:
+                asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
+                  ? {
+                      exifImageWidth: asset.exifInfo.exifImageWidth,
+                      exifImageHeight: asset.exifInfo.exifImageHeight,
+                    }
+                  : null,
+              _raw: asset,
+            });
+            if (assetsMap.size === 1) {
+              this.loading = false;
+            }
+          } else if (phase === 'full') {
+            const existing = assetsMap.get(asset.id);
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+              isFavorite: existing?.isFavorite ?? false,
+              _raw: asset,
+            });
+          }
+
+          this.assets = [...Array.from(assetsMap.values())];
+        });
+      } catch (streamErr) {
+        // The stream can be cut mid-enrichment (e.g. a reverse-proxy idle
+        // timeout during the per-asset detail phase). Photos already received
+        // must not be discarded: only surface the error when nothing loaded.
+        if (assetsMap.size === 0) {
+          throw streamErr;
+        }
+        console.warn('photos-stream interrupted, keeping partial results', streamErr);
+      }
+
+      const favoriteSet = await favoritesPromise;
+      this.assets = this.assets.map((a) => ({
+        ...a,
+        isFavorite: favoriteSet.has(a.id),
+      }));
+
+      this.loading = false;
+    } catch (e: unknown) {
+      this.error = (e as Error).message;
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Loads a person's photos IN the PhotoCV album
+   * Used by: Photos CV page ("Mes photos CV" tab)
+   */
+  async loadMyPhotosCV(id: string): Promise<void> {
+    if (!id) {
+      this.error = m.photos_no_profile();
+      return;
+    }
+
+    this.loading = true;
+    this.error = null;
+    this.assets = [];
+
+    try {
+      // Use the same NDJSON streaming endpoint as /mes-photos (loadPerson),
+      // only with in_album=true to keep the PhotoCV portraits. The former
+      // non-streaming /photos endpoint was the odd one out and stopped
+      // returning after the Immich v3 migration.
+      const res = await fetch(
+        `/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=true`
+      );
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      const assetsMap = new Map<string, Asset>();
+      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: ImmichAsset }>(
+        res,
+        ({ phase, asset }) => {
+          if (phase === 'minimal') {
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: null,
+              isFavorite: false,
+              exifInfo:
+                asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
+                  ? {
+                      exifImageWidth: asset.exifInfo.exifImageWidth,
+                      exifImageHeight: asset.exifInfo.exifImageHeight,
+                    }
+                  : null,
+              _raw: asset,
+            });
+            if (assetsMap.size === 1) {
+              this.loading = false;
+            }
+          } else if (phase === 'full') {
+            const existing = assetsMap.get(asset.id);
+            assetsMap.set(asset.id, {
+              ...asset,
+              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+              isFavorite: existing?.isFavorite ?? false,
+              _raw: asset,
+            });
+          }
+          this.assets = [...Array.from(assetsMap.values())];
+        }
+      );
+
+      this.loading = false;
+    } catch (e: unknown) {
+      this.error = (e as Error).message;
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Loads the first page of photos IN the PhotoCV album (pagination, 100 by default)
+   * Used by: Photos CV page ("Toutes les photos CV" tab - mitvistes/admins only)
+   */
+  async loadAllPhotosCV(limit: number = 100): Promise<void> {
+    this.loading = true;
+    this.error = null;
+    this.assets = [];
+    this.photoCVCurrentPage = 1;
+
+    try {
+      const res = await fetch(`/api/people/album?page=1&limit=${limit}`);
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      const data = (await res.json()) as {
+        assets?: ImmichAsset[];
+        hasMore?: boolean;
+        totalCount?: number;
+        currentPage?: number;
+      };
+      const allAssets = data.assets || [];
+
+      this.assets = allAssets.map((it) => ({
+        ...it,
+        date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+        isFavorite: false,
+        _raw: it,
+      }));
+      this.photoCVHasMore = data.hasMore ?? false;
+      this.photoCVTotalCount = data.totalCount ?? 0;
+      this.photoCVCurrentPage = data.currentPage ?? 1;
+    } catch (e: unknown) {
+      this.error = (e as Error).message;
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Loads the next page of PhotoCV photos
+   */
+  async loadNextPagePhotosCV(limit: number = 100): Promise<void> {
+    const nextPage = this.photoCVCurrentPage + 1;
+    this.loading = true;
+    this.error = null;
+
+    try {
+      const res = await fetch(`/api/people/album?page=${nextPage}&limit=${limit}`);
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      const data = (await res.json()) as {
+        assets?: ImmichAsset[];
+        hasMore?: boolean;
+        totalCount?: number;
+        currentPage?: number;
+      };
+      const pageAssets = data.assets || [];
+
+      const newAssets = pageAssets.map((it) => ({
+        ...it,
+        date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+        isFavorite: false,
+        _raw: it,
+      }));
+      this.assets = newAssets;
+      this.photoCVHasMore = data.hasMore ?? false;
+      this.photoCVTotalCount = data.totalCount ?? 0;
+      this.photoCVCurrentPage = nextPage;
+    } catch (e: unknown) {
+      this.error = (e as Error).message;
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Loads the previous page of PhotoCV photos
+   */
+  async loadPrevPagePhotosCV(limit: number = 100): Promise<void> {
+    const prevPage = Math.max(1, this.photoCVCurrentPage - 1);
+    if (prevPage === this.photoCVCurrentPage) {
+      return;
+    }
+    this.loading = true;
+    this.error = null;
+
+    try {
+      const res = await fetch(`/api/people/album?page=${prevPage}&limit=${limit}`);
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      const data = (await res.json()) as {
+        assets?: ImmichAsset[];
+        hasMore?: boolean;
+        totalCount?: number;
+        currentPage?: number;
+      };
+      const pageAssets = data.assets || [];
+
+      const newAssets = pageAssets.map((it) => ({
+        ...it,
+        date: it.fileCreatedAt || it.createdAt || it.updatedAt || null,
+        isFavorite: false,
+        _raw: it,
+      }));
+      this.assets = newAssets;
+      this.photoCVHasMore = data.hasMore ?? false;
+      this.photoCVTotalCount = data.totalCount ?? 0;
+      this.photoCVCurrentPage = prevPage;
+    } catch (e: unknown) {
+      this.error = (e as Error).message;
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  toggleSelect(id: string, checked: boolean) {
+    if (checked) {
+      if (!this.selectedAssets.includes(id)) {
+        this.selectedAssets = [...this.selectedAssets, id];
+        this.selecting = true;
+      }
+    } else {
+      this.selectedAssets = this.selectedAssets.filter((x) => x !== id);
+      if (this.selectedAssets.length === 0) {
+        this.selecting = false;
+      }
+    }
+  }
+
+  handlePhotoClick(id: string, event: Event) {
+    if (this.selecting) {
+      event.preventDefault();
+      const isSelected = this.selectedAssets.includes(id);
+      this.toggleSelect(id, !isSelected);
+    } else {
+      import('$app/navigation').then(({ goto }) => {
+        goto(`/asset/${id}`);
+      });
+    }
+  }
+
+  selectAll() {
+    this.selectedAssets = [...this.assets].map((a) => a.id);
+  }
+
+  deselectAll() {
+    this.selectedAssets = [];
+    this.selecting = false;
+  }
+
+  async downloadSingle(id: string) {
+    const asset = this.assets.find((x) => x.id === id);
+    const res = await fetch(`/api/immich/assets/${id}/original`);
+    if (!res.ok) {
+      throw new Error('Download error');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = asset?.originalFileName || id;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async downloadSelected(skipConfirm?: boolean) {
+    if (this.selectedAssets.length === 0) {
+      toast.error(m.photos_none_selected());
+      return;
+    }
+    if (!skipConfirm) {
+      const ok = await showConfirm(
+        m.pg_download_archive_confirm({ count: this.selectedAssets.length }),
+        m.common_download()
+      );
+      if (!ok) {
+        return;
+      }
+    }
+
+    if (this.currentDownloadController) {
+      this.currentDownloadController.abort();
+      this.currentDownloadController = null;
+    }
+    const controller = new AbortController();
+    this.currentDownloadController = controller;
+    this.isDownloading = true;
+    this.downloadProgress = 0;
+    try {
+      await downloadInBatches(this.selectedAssets, 'mes-photos', {
+        onProgress: (p) => {
+          this.downloadProgress = p;
+        },
+        signal: controller.signal,
+      });
+      this.selectedAssets = [];
+      this.selecting = false;
+    } catch (e: unknown) {
+      const err = e as { name?: string; message?: string };
+      if (err.name !== 'AbortError') {
+        toast.error(m.photos_error({ message: err.message || m.common_unknown_error() }));
+      }
+    } finally {
+      this.isDownloading = false;
+      this.downloadProgress = 0;
+      this.currentDownloadController = null;
+    }
+  }
+
+  /**
+   * Loads an album's assets with streaming and client cache
+   * Used by: /albums/[id]
+   */
+  async loadAlbumWithStreaming(
+    albumId: string,
+    albumName?: string,
+    visibility?: string
+  ): Promise<void> {
+    this.loading = true;
+    this.error = null;
+    this.assets = [];
+    this.personName = albumName || 'Album';
+
+    try {
+      const qp = visibility ? `?visibility=${encodeURIComponent(visibility)}` : '';
+      const res = await fetch(`/api/albums/${albumId}/assets-stream${qp}`);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const assetsMap = new Map<string, Asset>();
+
+      await consumeNDJSONStream<{
+        phase: 'minimal' | 'full';
+        asset: ImmichAsset;
+      }>(res, ({ phase, asset }) => {
+        if (phase === 'minimal') {
+          assetsMap.set(asset.id, {
+            ...asset,
+            date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+            isFavorite: false,
+            exifInfo:
+              asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
+                ? {
+                    exifImageWidth: asset.exifInfo.exifImageWidth,
+                    exifImageHeight: asset.exifInfo.exifImageHeight,
+                  }
+                : null,
+            _raw: asset,
+          });
+          if (assetsMap.size === 1) {
+            this.loading = false;
+          }
+        } else if (phase === 'full') {
+          const existing = assetsMap.get(asset.id);
+          assetsMap.set(asset.id, {
+            ...asset,
+            date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+            isFavorite: existing?.isFavorite ?? false,
+            _raw: asset,
+          });
+        }
+
+        this.assets = [...Array.from(assetsMap.values())];
+      });
+
+      this.loading = false;
+    } catch (e: unknown) {
+      this.error = (e as Error).message;
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Toggles the favorite status of an asset (stored locally per user)
+   * @param assetId - Asset ID
+   * @returns The new favorite status
+   */
+  async toggleFavorite(assetId: string): Promise<boolean> {
+    const asset = this.assets.find((a) => a.id === assetId);
+    if (!asset) {
+      throw new Error('Asset not found');
+    }
+
+    const newFavoriteStatus = !asset.isFavorite;
+
+    try {
+      const res = await fetch('/api/favorites', {
+        method: newFavoriteStatus ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetId }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      this.assets = this.assets.map((a) =>
+        a.id === assetId ? { ...a, isFavorite: newFavoriteStatus } : a
+      );
+
+      return newFavoriteStatus;
+    } catch (e: unknown) {
+      const err = ensureError(e);
+      throw err;
+    }
+  }
+
+  /**
+   * Loads the user's favorites and returns a Set
+   * Useful for loading in parallel with streaming
+   */
+  async loadFavoritesSet(): Promise<Set<string>> {
+    try {
+      const res = await fetch('/api/favorites');
+      if (!res.ok) {
+        return new Set();
+      }
+
+      const data = (await res.json()) as { favorites: string[] };
+      return new Set(data.favorites);
+    } catch (e: unknown) {
+      console.warn('Error loading favorites:', e);
+      return new Set();
+    }
+  }
+
+  /**
+   * Loads the user's favorites and updates the assets
+   */
+  async loadFavorites(): Promise<void> {
+    try {
+      const res = await fetch('/api/favorites');
+      if (!res.ok) {
+        return;
+      }
+
+      const data = (await res.json()) as { favorites: string[] };
+      const favoriteSet = new Set(data.favorites);
+
+      this.assets = this.assets.map((a) => ({
+        ...a,
+        isFavorite: favoriteSet.has(a.id),
+      }));
+    } catch (e: unknown) {
+      console.warn('Error loading favorites:', e);
+    }
+  }
+
+  /**
+   * Returns the favorite assets
+   */
+  get favorites(): Asset[] {
+    return this.assets.filter((a) => a.isFavorite);
+  }
+
+  /**
+   * Returns the non-favorite assets
+   */
+  get nonFavorites(): Asset[] {
+    return this.assets.filter((a) => !a.isFavorite);
+  }
+
+  #photoCVCurrentPage = $state(1);
+  #photoCVHasMore = $state(false);
+  #photoCVTotalCount = $state(0);
+
+  get photoCVCurrentPage() {
+    return this.#photoCVCurrentPage;
+  }
+  set photoCVCurrentPage(value) {
+    this.#photoCVCurrentPage = value;
+  }
+
+  get photoCVHasMore() {
+    return this.#photoCVHasMore;
+  }
+  set photoCVHasMore(value) {
+    this.#photoCVHasMore = value;
+  }
+
+  get photoCVTotalCount() {
+    return this.#photoCVTotalCount;
+  }
+  set photoCVTotalCount(value) {
+    this.#photoCVTotalCount = value;
+  }
+
+  cleanup() {
+    if (this.currentDownloadController) {
+      this.currentDownloadController.abort();
+      this.currentDownloadController = null;
+    }
+    if (this._prevImageUrl) {
+      URL.revokeObjectURL(this._prevImageUrl);
+      this._prevImageUrl = null;
+    }
+  }
 }

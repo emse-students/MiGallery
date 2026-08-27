@@ -20,19 +20,19 @@ const WEBP_QUALITY = 68;
 
 // Cache initialization
 try {
-	ensureCacheDir(CACHE_DIR);
+  ensureCacheDir(CACHE_DIR);
 } catch (e) {
-	log.error('Failed to create face cache directory', e);
+  log.error('Failed to create face cache directory', e);
 }
 
 interface ImmichFace {
-	boundingBoxX1?: number;
-	boundingBoxY1?: number;
-	boundingBoxX2?: number;
-	boundingBoxY2?: number;
-	imageWidth?: number;
-	imageHeight?: number;
-	person?: { id?: string } | null;
+  boundingBoxX1?: number;
+  boundingBoxY1?: number;
+  boundingBoxX2?: number;
+  boundingBoxY2?: number;
+  imageWidth?: number;
+  imageHeight?: number;
+  person?: { id?: string } | null;
 }
 
 type Region = { left: number; top: number; width: number; height: number };
@@ -45,7 +45,8 @@ type FetchFn = typeof fetch;
  * 'config' -> 500 (missing Immich env); 'error' -> 500 (unexpected).
  */
 export type FaceCropResult =
-	{ ok: true; buffer: Buffer } | { ok: false; reason: 'busy' | 'notfound' | 'config' | 'error' };
+  | { ok: true; buffer: Buffer }
+  | { ok: false; reason: 'busy' | 'notfound' | 'config' | 'error' };
 
 /**
  * Generate (or read from disk cache) a square WebP cropped and centered on the
@@ -59,97 +60,97 @@ export type FaceCropResult =
  * serve the exact same crop and hit the same cache.
  */
 export async function generateFaceCrop(
-	assetId: string,
-	personId: string,
-	fetchFn: FetchFn
+  assetId: string,
+  personId: string,
+  fetchFn: FetchFn
 ): Promise<FaceCropResult> {
-	const apiKey = env.IMMICH_API_KEY;
-	const baseUrl = env.IMMICH_BASE_URL?.replace(/\/$/, '');
-	if (!apiKey || !baseUrl) {
-		return { ok: false, reason: 'config' };
-	}
+  const apiKey = env.IMMICH_API_KEY;
+  const baseUrl = env.IMMICH_BASE_URL?.replace(/\/$/, '');
+  if (!apiKey || !baseUrl) {
+    return { ok: false, reason: 'config' };
+  }
 
-	// One square per (asset, person): a single photo yields a different crop per
-	// detected face.
-	const cacheFile = path.join(CACHE_DIR, `${assetId}_${personId}.webp`);
-	try {
-		const cached = readCacheFile(cacheFile);
-		if (cached) {
-			return { ok: true, buffer: cached };
-		}
-	} catch (e) {
-		log.warn('Face cache read failed, regenerating', e);
-	}
+  // One square per (asset, person): a single photo yields a different crop per
+  // detected face.
+  const cacheFile = path.join(CACHE_DIR, `${assetId}_${personId}.webp`);
+  try {
+    const cached = readCacheFile(cacheFile);
+    if (cached) {
+      return { ok: true, buffer: cached };
+    }
+  } catch (e) {
+    log.warn('Face cache read failed, regenerating', e);
+  }
 
-	// Look up the face box BEFORE taking a Sharp slot: it is a cheap JSON call.
-	let face: ImmichFace | null = null;
-	if (personId && personId !== 'center') {
-		try {
-			const facesRes = await fetchFn(`${baseUrl}/api/faces?id=${assetId}`, {
-				signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-				headers: { 'x-api-key': apiKey, accept: 'application/json' }
-			});
-			if (facesRes.ok) {
-				const faces = (await facesRes.json()) as ImmichFace[];
-				if (Array.isArray(faces)) {
-					face = faces.find((f) => f.person?.id === personId) ?? null;
-				}
-			}
-		} catch (e) {
-			log.warn('face lookup failed, will center-crop', e);
-		}
-	}
+  // Look up the face box BEFORE taking a Sharp slot: it is a cheap JSON call.
+  let face: ImmichFace | null = null;
+  if (personId && personId !== 'center') {
+    try {
+      const facesRes = await fetchFn(`${baseUrl}/api/faces?id=${assetId}`, {
+        signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+        headers: { 'x-api-key': apiKey, accept: 'application/json' },
+      });
+      if (facesRes.ok) {
+        const faces = (await facesRes.json()) as ImmichFace[];
+        if (Array.isArray(faces)) {
+          face = faces.find((f) => f.person?.id === personId) ?? null;
+        }
+      }
+    } catch (e) {
+      log.warn('face lookup failed, will center-crop', e);
+    }
+  }
 
-	// Acquire the Sharp slot BEFORE downloading the source so concurrent requests
-	// do not each materialize a preview buffer in native RAM (see sharp-limit).
-	const release = await acquireSharp();
-	if (!release) {
-		return { ok: false, reason: 'busy' };
-	}
+  // Acquire the Sharp slot BEFORE downloading the source so concurrent requests
+  // do not each materialize a preview buffer in native RAM (see sharp-limit).
+  const release = await acquireSharp();
+  if (!release) {
+    return { ok: false, reason: 'busy' };
+  }
 
-	try {
-		// Source = "preview" thumbnail (a few hundred KB), never the full-resolution
-		// original: enough pixels for a 320px square without a large native buffer.
-		// Deadline as everywhere else, and it counts double here: the Sharp slot is
-		// already held, so a hung download starves the pool rather than one request.
-		const previewUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
-		const previewRes = await fetchFn(previewUrl, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			headers: { 'x-api-key': apiKey }
-		});
-		if (!previewRes.ok) {
-			return { ok: false, reason: 'notfound' };
-		}
+  try {
+    // Source = "preview" thumbnail (a few hundred KB), never the full-resolution
+    // original: enough pixels for a 320px square without a large native buffer.
+    // Deadline as everywhere else, and it counts double here: the Sharp slot is
+    // already held, so a hung download starves the pool rather than one request.
+    const previewUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
+    const previewRes = await fetchFn(previewUrl, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      headers: { 'x-api-key': apiKey },
+    });
+    if (!previewRes.ok) {
+      return { ok: false, reason: 'notfound' };
+    }
 
-		const srcBuf = Buffer.from(await previewRes.arrayBuffer());
-		const image = sharp(srcBuf);
-		const meta = await image.metadata();
-		const sw = meta.width ?? 0;
-		const sh = meta.height ?? 0;
-		if (!sw || !sh) {
-			return { ok: false, reason: 'error' };
-		}
+    const srcBuf = Buffer.from(await previewRes.arrayBuffer());
+    const image = sharp(srcBuf);
+    const meta = await image.metadata();
+    const sw = meta.width ?? 0;
+    const sh = meta.height ?? 0;
+    if (!sw || !sh) {
+      return { ok: false, reason: 'error' };
+    }
 
-		const region = computeSquare(face, sw, sh);
-		const processed = await image
-			.extract(region)
-			.resize(OUTPUT_SIZE, OUTPUT_SIZE, { fit: 'cover' })
-			.webp({ quality: WEBP_QUALITY })
-			.toBuffer();
+    const region = computeSquare(face, sw, sh);
+    const processed = await image
+      .extract(region)
+      .resize(OUTPUT_SIZE, OUTPUT_SIZE, { fit: 'cover' })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
 
-		try {
-			writeCacheFileAtomic(cacheFile, processed);
-		} catch (e) {
-			log.error('Face cache write failed', e);
-		}
+    try {
+      writeCacheFileAtomic(cacheFile, processed);
+    } catch (e) {
+      log.error('Face cache write failed', e);
+    }
 
-		return { ok: true, buffer: processed };
-	} catch (e) {
-		log.error('Error generating face crop:', e);
-		return { ok: false, reason: 'error' };
-	} finally {
-		release();
-	}
+    return { ok: true, buffer: processed };
+  } catch (e) {
+    log.error('Error generating face crop:', e);
+    return { ok: false, reason: 'error' };
+  } finally {
+    release();
+  }
 }
 
 /**
@@ -159,38 +160,44 @@ export async function generateFaceCrop(
  * image when no usable face box is available.
  */
 function computeSquare(face: ImmichFace | null, sw: number, sh: number): Region {
-	const maxSquare = Math.min(sw, sh);
+  const maxSquare = Math.min(sw, sh);
 
-	if (!face || !face.imageWidth || !face.imageHeight || !face.boundingBoxX2 || !face.boundingBoxY2) {
-		const side = maxSquare;
-		return {
-			left: Math.round((sw - side) / 2),
-			top: Math.round((sh - side) / 2),
-			width: side,
-			height: side
-		};
-	}
+  if (
+    !face ||
+    !face.imageWidth ||
+    !face.imageHeight ||
+    !face.boundingBoxX2 ||
+    !face.boundingBoxY2
+  ) {
+    const side = maxSquare;
+    return {
+      left: Math.round((sw - side) / 2),
+      top: Math.round((sh - side) / 2),
+      width: side,
+      height: side,
+    };
+  }
 
-	const sx = sw / face.imageWidth;
-	const sy = sh / face.imageHeight;
-	const x1 = (face.boundingBoxX1 ?? 0) * sx;
-	const y1 = (face.boundingBoxY1 ?? 0) * sy;
-	const x2 = face.boundingBoxX2 * sx;
-	const y2 = face.boundingBoxY2 * sy;
+  const sx = sw / face.imageWidth;
+  const sy = sh / face.imageHeight;
+  const x1 = (face.boundingBoxX1 ?? 0) * sx;
+  const y1 = (face.boundingBoxY1 ?? 0) * sy;
+  const x2 = face.boundingBoxX2 * sx;
+  const y2 = face.boundingBoxY2 * sy;
 
-	const cx = (x1 + x2) / 2;
-	const cy = (y1 + y2) / 2;
-	const faceSize = Math.max(x2 - x1, y2 - y1);
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  const faceSize = Math.max(x2 - x1, y2 - y1);
 
-	// Enlarge so the face fills ~FACE_TARGET of the square, then clamp so the
-	// square never exceeds the image and stays fully inside it.
-	let side = Math.round(Math.min(faceSize / FACE_TARGET, maxSquare));
-	side = Math.max(1, side);
+  // Enlarge so the face fills ~FACE_TARGET of the square, then clamp so the
+  // square never exceeds the image and stays fully inside it.
+  let side = Math.round(Math.min(faceSize / FACE_TARGET, maxSquare));
+  side = Math.max(1, side);
 
-	let left = Math.round(cx - side / 2);
-	let top = Math.round(cy - side / 2);
-	left = Math.min(Math.max(0, left), sw - side);
-	top = Math.min(Math.max(0, top), sh - side);
+  let left = Math.round(cx - side / 2);
+  let top = Math.round(cy - side / 2);
+  left = Math.min(Math.max(0, left), sw - side);
+  top = Math.min(Math.max(0, top), sh - side);
 
-	return { left, top, width: side, height: side };
+  return { left, top, width: side, height: side };
 }

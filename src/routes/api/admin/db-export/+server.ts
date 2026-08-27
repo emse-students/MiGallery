@@ -10,32 +10,32 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('admin-db-export');
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+  const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
-	if (!fs.existsSync(DB_PATH)) {
-		throw error(404, 'Database not found');
-	}
+  if (!fs.existsSync(DB_PATH)) {
+    throw error(404, 'Database not found');
+  }
 
-	try {
-		const db = getDatabase();
-		if (db.exec) {
-			db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
-		}
+  try {
+    const db = getDatabase();
+    if (db.exec) {
+      db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+    }
 
-		const dbBuffer = fs.readFileSync(DB_PATH);
-		const filename = `migallery_export_${new Date().toISOString().split('T')[0]}.db`;
+    const dbBuffer = fs.readFileSync(DB_PATH);
+    const filename = `migallery_export_${new Date().toISOString().split('T')[0]}.db`;
 
-		return new Response(dbBuffer, {
-			headers: {
-				'Content-Type': 'application/x-sqlite3',
-				'Content-Disposition': `attachment; filename="${filename}"`,
-				'Content-Length': dbBuffer.length.toString()
-			}
-		});
-	} catch (err: unknown) {
-		log.error('Error exporting database:', err);
-		throw error(500, 'Failed to export the database');
-	}
+    return new Response(dbBuffer, {
+      headers: {
+        'Content-Type': 'application/x-sqlite3',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': dbBuffer.length.toString(),
+      },
+    });
+  } catch (err: unknown) {
+    log.error('Error exporting database:', err);
+    throw error(500, 'Failed to export the database');
+  }
 };

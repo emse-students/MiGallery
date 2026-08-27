@@ -1,335 +1,335 @@
 <script lang="ts">
-	import { onMount, type Snippet, type Component } from 'svelte';
-	import { m } from '$lib/paraglide/messages';
-	import {
-		Info,
-		CircleCheckBig,
-		CircleX,
-		TriangleAlert,
-		CircleQuestionMark,
-		X,
-		UserX,
-		Camera
-	} from 'lucide-svelte';
+  import { onMount, type Snippet, type Component } from 'svelte';
+  import { m } from '$lib/paraglide/messages';
+  import {
+    Info,
+    CircleCheckBig,
+    CircleX,
+    TriangleAlert,
+    CircleQuestionMark,
+    X,
+    UserX,
+    Camera,
+  } from 'lucide-svelte';
 
-	interface Props {
-		show: boolean;
-		title?: string;
-		icon?: string;
-		type?: 'info' | 'success' | 'error' | 'warning' | 'confirm';
-		confirmText?: string;
-		cancelText?: string;
-		onConfirm?: () => void | Promise<void>;
-		onCancel?: () => void;
-		children?: Snippet;
-		wide?: boolean;
-		confirmDisabled?: boolean;
-		showCloseButton?: boolean;
-		showActions?: boolean;
-	}
+  interface Props {
+    show: boolean;
+    title?: string;
+    icon?: string;
+    type?: 'info' | 'success' | 'error' | 'warning' | 'confirm';
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm?: () => void | Promise<void>;
+    onCancel?: () => void;
+    children?: Snippet;
+    wide?: boolean;
+    confirmDisabled?: boolean;
+    showCloseButton?: boolean;
+    showActions?: boolean;
+  }
 
-	let {
-		show = $bindable(false),
-		title = '',
-		icon = '',
-		type = 'info',
-		confirmText = m.common_ok(),
-		cancelText = m.common_cancel(),
-		onConfirm,
-		onCancel,
-		children,
-		wide = false,
-		confirmDisabled = false,
-		showCloseButton = false,
-		showActions = true
-	}: Props = $props();
+  let {
+    show = $bindable(false),
+    title = '',
+    icon = '',
+    type = 'info',
+    confirmText = m.common_ok(),
+    cancelText = m.common_cancel(),
+    onConfirm,
+    onCancel,
+    children,
+    wide = false,
+    confirmDisabled = false,
+    showCloseButton = false,
+    showActions = true,
+  }: Props = $props();
 
-	let dialogElement: HTMLDialogElement;
-	let isProcessing = $state(false);
+  let dialogElement: HTMLDialogElement;
+  let isProcessing = $state(false);
 
-	// Map string names to Lucide components
-	const icons: Record<string, any> = {
-		info: Info,
-		'check-circle': CircleCheckBig,
-		'x-circle': CircleX,
-		'alert-triangle': TriangleAlert,
-		'help-circle': CircleQuestionMark,
-		'user-x': UserX,
-		camera: Camera,
-		x: X
-	};
+  // Map string names to Lucide components
+  const icons: Record<string, any> = {
+    info: Info,
+    'check-circle': CircleCheckBig,
+    'x-circle': CircleX,
+    'alert-triangle': TriangleAlert,
+    'help-circle': CircleQuestionMark,
+    'user-x': UserX,
+    camera: Camera,
+    x: X,
+  };
 
-	$effect(() => {
-		if (!dialogElement) return;
+  $effect(() => {
+    if (!dialogElement) return;
 
-		if (show && !dialogElement.open) {
-			dialogElement.showModal();
-		} else if (!show && dialogElement.open) {
-			dialogElement.close();
-		}
-	});
+    if (show && !dialogElement.open) {
+      dialogElement.showModal();
+    } else if (!show && dialogElement.open) {
+      dialogElement.close();
+    }
+  });
 
-	function handleKeydown(e: KeyboardEvent) {
-		const active = document.activeElement as HTMLElement | null;
+  function handleKeydown(e: KeyboardEvent) {
+    const active = document.activeElement as HTMLElement | null;
 
-		if (e.key === 'Enter' && !isProcessing) {
-			const tag = active?.tagName?.toUpperCase() || '';
-			const isEditable = active?.isContentEditable;
-			const ignoreEnter = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable;
-			if (!ignoreEnter && typeof onConfirm === 'function') {
-				e.preventDefault();
-				void handleConfirm();
-				return;
-			}
-		}
+    if (e.key === 'Enter' && !isProcessing) {
+      const tag = active?.tagName?.toUpperCase() || '';
+      const isEditable = active?.isContentEditable;
+      const ignoreEnter = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || isEditable;
+      if (!ignoreEnter && typeof onConfirm === 'function') {
+        e.preventDefault();
+        void handleConfirm();
+        return;
+      }
+    }
 
-		if (e.key === 'Escape' && !isProcessing) {
-			handleCancel();
-		}
-	}
+    if (e.key === 'Escape' && !isProcessing) {
+      handleCancel();
+    }
+  }
 
-	async function handleConfirm() {
-		if (isProcessing) return;
+  async function handleConfirm() {
+    if (isProcessing) return;
 
-		try {
-			isProcessing = true;
-			if (onConfirm) {
-				await onConfirm();
-			}
-			show = false;
-		} catch (error: unknown) {
-			console.error('Error in onConfirm:', error);
-		} finally {
-			isProcessing = false;
-		}
-	}
+    try {
+      isProcessing = true;
+      if (onConfirm) {
+        await onConfirm();
+      }
+      show = false;
+    } catch (error: unknown) {
+      console.error('Error in onConfirm:', error);
+    } finally {
+      isProcessing = false;
+    }
+  }
 
-	function handleCancel() {
-		if (isProcessing) return;
+  function handleCancel() {
+    if (isProcessing) return;
 
-		if (onCancel) {
-			onCancel();
-		}
-		show = false;
-	}
+    if (onCancel) {
+      onCancel();
+    }
+    show = false;
+  }
 
-	// A click whose press started inside the modal (a text selection dragged out,
-	// for instance) still reports the dialog as its target: that is the common
-	// ancestor of press and release. Only a press AND a release on the backdrop close.
-	let pressedOnBackdrop = false;
+  // A click whose press started inside the modal (a text selection dragged out,
+  // for instance) still reports the dialog as its target: that is the common
+  // ancestor of press and release. Only a press AND a release on the backdrop close.
+  let pressedOnBackdrop = false;
 
-	function handleBackdropPointerDown(e: PointerEvent) {
-		pressedOnBackdrop = e.target === dialogElement;
-	}
+  function handleBackdropPointerDown(e: PointerEvent) {
+    pressedOnBackdrop = e.target === dialogElement;
+  }
 
-	function handleBackdropPointerUp(e: PointerEvent) {
-		if (e.target !== dialogElement) {
-			pressedOnBackdrop = false;
-		}
-	}
+  function handleBackdropPointerUp(e: PointerEvent) {
+    if (e.target !== dialogElement) {
+      pressedOnBackdrop = false;
+    }
+  }
 
-	function handleBackdropClick(e: MouseEvent) {
-		const fromBackdrop = pressedOnBackdrop;
-		pressedOnBackdrop = false;
+  function handleBackdropClick(e: MouseEvent) {
+    const fromBackdrop = pressedOnBackdrop;
+    pressedOnBackdrop = false;
 
-		if (fromBackdrop && e.target === dialogElement && !isProcessing) {
-			handleCancel();
-		}
-	}
+    if (fromBackdrop && e.target === dialogElement && !isProcessing) {
+      handleCancel();
+    }
+  }
 
-	const typeConfig = $derived(
-		{
-			info: { icon: 'info', color: 'text-blue-500' },
-			success: { icon: 'check-circle', color: 'text-green-500' },
-			error: { icon: 'x-circle', color: 'text-red-500' },
-			warning: { icon: 'alert-triangle', color: 'text-yellow-500' },
-			confirm: { icon: 'help-circle', color: 'text-blue-500' }
-		}[type]
-	);
+  const typeConfig = $derived(
+    {
+      info: { icon: 'info', color: 'text-blue-500' },
+      success: { icon: 'check-circle', color: 'text-green-500' },
+      error: { icon: 'x-circle', color: 'text-red-500' },
+      warning: { icon: 'alert-triangle', color: 'text-yellow-500' },
+      confirm: { icon: 'help-circle', color: 'text-blue-500' },
+    }[type]
+  );
 
-	const iconName = $derived(icon || typeConfig.icon);
-	const IconComponent = $derived(icons[iconName]);
+  const iconName = $derived(icon || typeConfig.icon);
+  const IconComponent = $derived(icons[iconName]);
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <dialog
-	bind:this={dialogElement}
-	class="modal-dialog"
-	onkeydown={handleKeydown}
-	onpointerdown={handleBackdropPointerDown}
-	onpointerup={handleBackdropPointerUp}
-	onclick={handleBackdropClick}
+  bind:this={dialogElement}
+  class="modal-dialog"
+  onkeydown={handleKeydown}
+  onpointerdown={handleBackdropPointerDown}
+  onpointerup={handleBackdropPointerUp}
+  onclick={handleBackdropClick}
 >
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		class="modal-content {wide ? 'modal-content-wide' : ''}"
-		role="group"
-		tabindex="-1"
-		onclick={(e) => e.stopPropagation()}
-		onkeydown={(e) => e.stopPropagation()}
-	>
-		{#if title || IconComponent}
-			<div class="modal-header">
-				<h2 class="modal-title">
-					{#if IconComponent}
-						<IconComponent size={24} class={typeConfig.color} />
-					{/if}
-					{title}
-				</h2>
-				{#if showCloseButton}
-					<button class="close-btn" onclick={handleCancel} aria-label={m.common_close()}>
-						<X size={20} />
-					</button>
-				{/if}
-			</div>
-		{/if}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="modal-content {wide ? 'modal-content-wide' : ''}"
+    role="group"
+    tabindex="-1"
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
+  >
+    {#if title || IconComponent}
+      <div class="modal-header">
+        <h2 class="modal-title">
+          {#if IconComponent}
+            <IconComponent size={24} class={typeConfig.color} />
+          {/if}
+          {title}
+        </h2>
+        {#if showCloseButton}
+          <button class="close-btn" onclick={handleCancel} aria-label={m.common_close()}>
+            <X size={20} />
+          </button>
+        {/if}
+      </div>
+    {/if}
 
-		<div class="modal-body">
-			{#if children}
-				{@render children()}
-			{/if}
-		</div>
+    <div class="modal-body">
+      {#if children}
+        {@render children()}
+      {/if}
+    </div>
 
-		{#if showActions}
-		<div class="modal-actions">
-			{#if type === 'confirm'}
-				<button type="button" onclick={handleCancel} disabled={isProcessing} class="btn-glass">
-					{cancelText}
-				</button>
-				<button
-					type="button"
-					onclick={handleConfirm}
-					disabled={isProcessing || confirmDisabled}
-					class="btn-glass primary"
-				>
-					{isProcessing ? m.common_processing() : confirmText}
-				</button>
-			{:else}
-				<button
-					type="button"
-					onclick={handleConfirm}
-					disabled={isProcessing || confirmDisabled}
-					class="btn-glass primary"
-				>
-					{isProcessing ? m.common_processing() : confirmText}
-				</button>
-			{/if}
-		</div>
-		{/if}
-	</div>
+    {#if showActions}
+      <div class="modal-actions">
+        {#if type === 'confirm'}
+          <button type="button" onclick={handleCancel} disabled={isProcessing} class="btn-glass">
+            {cancelText}
+          </button>
+          <button
+            type="button"
+            onclick={handleConfirm}
+            disabled={isProcessing || confirmDisabled}
+            class="btn-glass primary"
+          >
+            {isProcessing ? m.common_processing() : confirmText}
+          </button>
+        {:else}
+          <button
+            type="button"
+            onclick={handleConfirm}
+            disabled={isProcessing || confirmDisabled}
+            class="btn-glass primary"
+          >
+            {isProcessing ? m.common_processing() : confirmText}
+          </button>
+        {/if}
+      </div>
+    {/if}
+  </div>
 </dialog>
 
 <style>
-	.modal-dialog {
-		border: none;
-		border-radius: 0.75rem;
-		padding: 0;
-		background: transparent;
-		max-width: 90vw;
-		max-height: 90vh;
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		margin: 0;
-		z-index: 10050;
-	}
+  .modal-dialog {
+    border: none;
+    border-radius: 0.75rem;
+    padding: 0;
+    background: transparent;
+    max-width: 90vw;
+    max-height: 90vh;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    z-index: 10050;
+  }
 
-	.modal-dialog::backdrop {
-		background: rgba(0, 0, 0, 0.65);
-		backdrop-filter: blur(8px) saturate(130%);
-	}
+  .modal-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px) saturate(130%);
+  }
 
-	.modal-content {
-		/* Glassmorphism modal surface (more opaque for better legibility) */
-		background: rgba(255, 255, 255, 0.22);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		border-radius: 0.9rem;
-		padding: 1.5rem;
-		min-width: 400px;
-		max-width: 600px;
-		box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
-		backdrop-filter: blur(10px) saturate(130%);
-		transition:
-			background-color 0.3s ease,
-			border-color 0.3s ease,
-			transform 0.2s ease;
-		display: flex;
-		flex-direction: column;
-		max-height: 90vh;
-	}
+  .modal-content {
+    /* Glassmorphism modal surface (more opaque for better legibility) */
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.9rem;
+    padding: 1.5rem;
+    min-width: 400px;
+    max-width: 600px;
+    box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
+    backdrop-filter: blur(10px) saturate(130%);
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      transform 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+  }
 
-	/* Adjust modal surface per color scheme for legibility */
-	:global([data-theme='dark']) .modal-content {
-		background: rgba(6, 12, 18, 0.78);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-	}
-	:global([data-theme='light']) .modal-content {
-		background: rgba(255, 255, 255, 0.95);
-		border: 1px solid rgba(0, 0, 0, 0.06);
-	}
+  /* Adjust modal surface per color scheme for legibility */
+  :global([data-theme='dark']) .modal-content {
+    background: rgba(6, 12, 18, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  :global([data-theme='light']) .modal-content {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
 
-	.modal-content-wide {
-		min-width: 600px;
-		max-width: 800px;
-	}
+  .modal-content-wide {
+    min-width: 600px;
+    max-width: 800px;
+  }
 
-	.modal-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1rem;
-		flex-shrink: 0;
-	}
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+  }
 
-	.modal-title {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		font-size: 1.25rem;
-		font-weight: 600;
-		margin: 0;
-		color: var(--text-primary);
-	}
+  .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+  }
 
-	.close-btn {
-		background: transparent;
-		border: none;
-		color: var(--text-secondary);
-		cursor: pointer;
-		padding: 0.25rem;
-		border-radius: 6px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.2s;
-	}
+  .close-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
 
-	.close-btn:hover {
-		background: var(--bg-tertiary);
-		color: var(--text-primary);
-	}
+  .close-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
 
-	.modal-body {
-		margin-bottom: 1.5rem;
-		color: var(--text-secondary);
-		overflow-y: auto;
-		flex: 1;
-		min-height: 0;
-	}
+  .modal-body {
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
 
-	.modal-actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.75rem;
-		flex-shrink: 0;
-	}
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
 
-	@media (max-width: 640px) {
-		.modal-content,
-		.modal-content-wide {
-			min-width: auto;
-			width: 90vw;
-		}
-	}
+  @media (max-width: 640px) {
+    .modal-content,
+    .modal-content-wide {
+      min-width: auto;
+      width: 90vw;
+    }
+  }
 </style>

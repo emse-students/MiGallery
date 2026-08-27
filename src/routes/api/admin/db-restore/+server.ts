@@ -10,50 +10,50 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('admin-db-restore');
 export const POST: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const { request } = event;
+  const { request } = event;
 
-	try {
-		const { filename } = (await request.json()) as { filename?: string };
+  try {
+    const { filename } = (await request.json()) as { filename?: string };
 
-		if (!filename) {
-			throw error(400, 'Missing filename');
-		}
+    if (!filename) {
+      throw error(400, 'Missing filename');
+    }
 
-		const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'data', 'backups');
-		const backupPath = path.join(BACKUP_DIR, filename);
+    const BACKUP_DIR = process.env.BACKUP_DIR || path.join(process.cwd(), 'data', 'backups');
+    const backupPath = path.join(BACKUP_DIR, filename);
 
-		if (!fs.existsSync(backupPath)) {
-			throw error(404, 'Backup file not found');
-		}
+    if (!fs.existsSync(backupPath)) {
+      throw error(404, 'Backup file not found');
+    }
 
-		const realBackupPath = fs.realpathSync(backupPath);
-		const realBackupDir = fs.realpathSync(BACKUP_DIR);
+    const realBackupPath = fs.realpathSync(backupPath);
+    const realBackupDir = fs.realpathSync(BACKUP_DIR);
 
-		if (!realBackupPath.startsWith(realBackupDir)) {
-			throw error(403, 'File access denied');
-		}
+    if (!realBackupPath.startsWith(realBackupDir)) {
+      throw error(403, 'File access denied');
+    }
 
-		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
-		const SAFETY_BACKUP = `${DB_PATH}.before-restore.${Date.now()}`;
+    const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+    const SAFETY_BACKUP = `${DB_PATH}.before-restore.${Date.now()}`;
 
-		resetDatabase();
+    resetDatabase();
 
-		if (fs.existsSync(DB_PATH)) {
-			fs.copyFileSync(DB_PATH, SAFETY_BACKUP);
-		}
+    if (fs.existsSync(DB_PATH)) {
+      fs.copyFileSync(DB_PATH, SAFETY_BACKUP);
+    }
 
-		fs.copyFileSync(backupPath, DB_PATH);
+    fs.copyFileSync(backupPath, DB_PATH);
 
-		return json({
-			success: true,
-			message: 'Backup restored successfully',
-			safetyBackup: SAFETY_BACKUP
-		});
-	} catch (e: unknown) {
-		const err = ensureError(e);
-		log.error('Error restoring backup:', err);
-		throw error(500, err.message || 'Error during restore');
-	}
+    return json({
+      success: true,
+      message: 'Backup restored successfully',
+      safetyBackup: SAFETY_BACKUP,
+    });
+  } catch (e: unknown) {
+    const err = ensureError(e);
+    log.error('Error restoring backup:', err);
+    throw error(500, err.message || 'Error during restore');
+  }
 };

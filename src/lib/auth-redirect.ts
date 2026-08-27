@@ -31,23 +31,23 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
  * home page (nothing to remember) and the auth routes themselves (a loop).
  */
 export function safeRedirectTarget(raw: string | null | undefined): string | null {
-	if (!raw || typeof raw !== 'string') {
-		return null;
-	}
+  if (!raw || typeof raw !== 'string') {
+    return null;
+  }
 
-	if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) {
-		return null;
-	}
+  if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) {
+    return null;
+  }
 
-	if (CONTROL_CHARACTERS.test(raw)) {
-		return null;
-	}
+  if (CONTROL_CHARACTERS.test(raw)) {
+    return null;
+  }
 
-	if (raw === '/' || raw.startsWith('/api/auth/')) {
-		return null;
-	}
+  if (raw === '/' || raw.startsWith('/api/auth/')) {
+    return null;
+  }
 
-	return raw;
+  return raw;
 }
 
 /**
@@ -58,16 +58,16 @@ export function safeRedirectTarget(raw: string | null | undefined): string | nul
  * only bounce them back into the same refusal.
  */
 export function loginBounceTarget(pathWithQuery: string | null | undefined): string {
-	const target = safeRedirectTarget(pathWithQuery);
+  const target = safeRedirectTarget(pathWithQuery);
 
-	return target ? `/?${REDIRECT_PARAM}=${encodeURIComponent(target)}` : '/';
+  return target ? `/?${REDIRECT_PARAM}=${encodeURIComponent(target)}` : '/';
 }
 
 /** The login route, carrying the destination the browser asked to come back to. */
 export function loginUrlWithRedirect(rawTarget: string | null | undefined): string {
-	const target = safeRedirectTarget(rawTarget);
+  const target = safeRedirectTarget(rawTarget);
 
-	return target
-		? `/api/auth/login?${REDIRECT_PARAM}=${encodeURIComponent(target)}`
-		: '/api/auth/login';
+  return target
+    ? `/api/auth/login?${REDIRECT_PARAM}=${encodeURIComponent(target)}`
+    : '/api/auth/login';
 }

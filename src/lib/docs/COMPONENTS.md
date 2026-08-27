@@ -65,19 +65,19 @@ Photo grid with selection mode and viewing modal.
 
 ```typescript
 class PhotosState {
-	assets: Asset[]; // Photo list
-	loading: boolean; // Loading in progress
-	error: string | null; // Error message
-	selecting: boolean; // Selection mode active
-	selected: Set<string>; // Selected photo IDs
-	isDownloading: boolean; // Download in progress
-	downloadProgress: number; // Progress (0-1)
+  assets: Asset[]; // Photo list
+  loading: boolean; // Loading in progress
+  error: string | null; // Error message
+  selecting: boolean; // Selection mode active
+  selected: Set<string>; // Selected photo IDs
+  isDownloading: boolean; // Download in progress
+  downloadProgress: number; // Progress (0-1)
 
-	// Methods
-	loadAlbumWithStreaming(immichId, name?, visibility?): Promise<void>;
-	toggleSelect(id: string): void;
-	selectAll(): void;
-	clearSelection(): void;
+  // Methods
+  loadAlbumWithStreaming(immichId, name?, visibility?): Promise<void>;
+  toggleSelect(id: string): void;
+  selectAll(): void;
+  clearSelection(): void;
 }
 ```
 
@@ -143,11 +143,7 @@ Album creation/editing modal.
 Image with lazy loading and placeholder.
 
 ```svelte
-<LazyImage
-  src="/api/immich/assets/123/thumbnail"
-  alt="Photo description"
-  aspectRatio="1"
-/>
+<LazyImage src="/api/immich/assets/123/thumbnail" alt="Photo description" aspectRatio="1" />
 ```
 
 ---
@@ -196,10 +192,10 @@ Host for programmatic confirmation dialogs (via `showConfirm()`).
 import { showConfirm } from '$lib/confirm';
 
 async function deleteItem() {
-	const confirmed = await showConfirm('Do you really want to delete this item?', 'Delete');
-	if (confirmed) {
-		// Perform the deletion
-	}
+  const confirmed = await showConfirm('Do you really want to delete this item?', 'Delete');
+  if (confirmed) {
+    // Perform the deletion
+  }
 }
 ```
 
@@ -226,9 +222,9 @@ const selectedIds = Array.from(photosState.selected);
 import { toast } from '$lib/toast';
 
 try {
-	await saveData();
-	toast.success('Data saved');
+  await saveData();
+  toast.success('Data saved');
 } catch (e) {
-	toast.error('Error: ' + e.message);
+  toast.error('Error: ' + e.message);
 }
 ```

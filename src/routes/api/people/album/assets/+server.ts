@@ -11,22 +11,22 @@ import { requireScope } from '$lib/server/permissions';
  * still exists (it is hit on prod) and it goes through the same handlers.
  */
 async function readAssetIds(request: Request): Promise<string[]> {
-	const body = (await request.json()) as { assetIds?: string[]; ids?: string[] };
-	const assetIds = body.assetIds || body.ids || [];
-	if (!Array.isArray(assetIds) || assetIds.length === 0) {
-		throw error(400, 'assetIds required');
-	}
-	return assetIds;
+  const body = (await request.json()) as { assetIds?: string[]; ids?: string[] };
+  const assetIds = body.assetIds || body.ids || [];
+  if (!Array.isArray(assetIds) || assetIds.length === 0) {
+    throw error(400, 'assetIds required');
+  }
+  return assetIds;
 }
 
 export const PUT: RequestHandler = async (event) => {
-	await requireScope(event, 'write');
-	const added = await addAssetsToAlbum(await readAssetIds(event.request), event.fetch);
-	return json({ success: true, added });
+  await requireScope(event, 'write');
+  const added = await addAssetsToAlbum(await readAssetIds(event.request), event.fetch);
+  return json({ success: true, added });
 };
 
 export const DELETE: RequestHandler = async (event) => {
-	await requireScope(event, 'write');
-	const removed = await removeAssetsFromAlbum(await readAssetIds(event.request), event.fetch);
-	return json({ success: true, removed });
+  await requireScope(event, 'write');
+  const removed = await removeAssetsFromAlbum(await readAssetIds(event.request), event.fetch);
+  return json({ success: true, removed });
 };

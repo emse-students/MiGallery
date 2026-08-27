@@ -1,919 +1,936 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import {
-		Image as ImageIcon,
-		Minus,
-		Plus,
-		RefreshCw,
-		Heart,
-		Download,
-		Trash2,
-		X,
-		ChevronLeft,
-		ChevronRight
-	} from 'lucide-svelte';
-	import Modal from './Modal.svelte';
-	import { page } from '$app/state';
-	import type { ImmichAsset, User } from '$lib/types/api';
-	import type { Asset } from '$lib/photos.svelte';
-	import { toast } from '$lib/toast';
-	import { setAlbumCover } from '$lib/immich/albums';
-	import { m } from '$lib/paraglide/messages';
+  import { onMount, onDestroy } from 'svelte';
+  import {
+    Image as ImageIcon,
+    Minus,
+    Plus,
+    RefreshCw,
+    Heart,
+    Download,
+    Trash2,
+    X,
+    ChevronLeft,
+    ChevronRight,
+  } from 'lucide-svelte';
+  import Modal from './Modal.svelte';
+  import { page } from '$app/state';
+  import type { ImmichAsset, User } from '$lib/types/api';
+  import type { Asset } from '$lib/photos.svelte';
+  import { toast } from '$lib/toast';
+  import { setAlbumCover } from '$lib/immich/albums';
+  import { m } from '$lib/paraglide/messages';
 
-	interface Props {
-		assetId: string;
-		assets: Asset[];
-		onClose: () => void;
-		onAssetDeleted?: (assetId: string) => void;
-		albumVisibility?: string;
-		albumId?: string;
-		showFavorite?: boolean;
-		onFavoriteToggle?: (assetId: string) => Promise<void>;
-	}
+  interface Props {
+    assetId: string;
+    assets: Asset[];
+    onClose: () => void;
+    onAssetDeleted?: (assetId: string) => void;
+    albumVisibility?: string;
+    albumId?: string;
+    showFavorite?: boolean;
+    onFavoriteToggle?: (assetId: string) => Promise<void>;
+  }
 
-	let {
-		assetId = $bindable(),
-		assets,
-		onClose,
-		onAssetDeleted,
-		albumVisibility,
-		albumId,
-		showFavorite = false,
-		onFavoriteToggle
-	}: Props = $props();
+  let {
+    assetId = $bindable(),
+    assets,
+    onClose,
+    onAssetDeleted,
+    albumVisibility,
+    albumId,
+    showFavorite = false,
+    onFavoriteToggle,
+  }: Props = $props();
 
-	// -- Reactive state --
-	let currentIndex = $state(0);
-	let asset = $state<Asset | null>(null);
-	let mediaUrl = $state<string | null>(null);
-	let loading = $state(false);
-	let isVideo = $state(false);
-	let imageLoaded = $state(false);
-	let highResLoaded = $state(false);
+  // -- Reactive state --
+  let currentIndex = $state(0);
+  let asset = $state<Asset | null>(null);
+  let mediaUrl = $state<string | null>(null);
+  let loading = $state(false);
+  let isVideo = $state(false);
+  let imageLoaded = $state(false);
+  let highResLoaded = $state(false);
 
-	// -- Zoom state --
-	let scale = $state(1);
-	let minScale = $state(0.1);
-	const MAX_SCALE = 5;
+  // -- Zoom state --
+  let scale = $state(1);
+  let minScale = $state(0.1);
+  const MAX_SCALE = 5;
 
-	// Tracking flag to avoid resetting when the high-resolution image loads
-	let lastProcessedAssetId = $state<string | null>(null);
+  // Tracking flag to avoid resetting when the high-resolution image loads
+  let lastProcessedAssetId = $state<string | null>(null);
 
-	let userRole = $derived((page.data.session?.user as User)?.role || 'user');
-	let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
+  let userRole = $derived((page.data.session?.user as User)?.role || 'user');
+  let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
 
-	let showConfirmModal = $state(false);
-	let confirmModalConfig = $state<{
-		title: string;
-		message: string;
-		confirmText?: string;
-		onConfirm: () => void;
-	} | null>(null);
+  let showConfirmModal = $state(false);
+  let confirmModalConfig = $state<{
+    title: string;
+    message: string;
+    confirmText?: string;
+    onConfirm: () => void;
+  } | null>(null);
 
-	function computeMinScale(): number {
-		return 0.5;
-	}
-	let isDragging = $state(false);
-	let dragStart = $state({ x: 0, y: 0 });
-	let translate = $state({ x: 0, y: 0 });
-	let imgElement = $state<HTMLImageElement | null>(null);
-	let containerElement = $state<HTMLDivElement | null>(null);
+  function computeMinScale(): number {
+    return 0.5;
+  }
+  let isDragging = $state(false);
+  let dragStart = $state({ x: 0, y: 0 });
+  let translate = $state({ x: 0, y: 0 });
+  let imgElement = $state<HTMLImageElement | null>(null);
+  let containerElement = $state<HTMLDivElement | null>(null);
 
-	let portalRoot = $state<HTMLDivElement | null>(null);
+  let portalRoot = $state<HTMLDivElement | null>(null);
 
-	let touchStartDistance = $state(0);
-	let touchStartScale = $state(1);
-	let isTouchDragging = $state(false);
-	let touchDragStart = $state({ x: 0, y: 0 });
-	let lastTouchEnd = $state(0);
+  let touchStartDistance = $state(0);
+  let touchStartScale = $state(1);
+  let isTouchDragging = $state(false);
+  let touchDragStart = $state({ x: 0, y: 0 });
+  let lastTouchEnd = $state(0);
 
-	let lastLoadedAssetId = $state<string | null>(null);
+  let lastLoadedAssetId = $state<string | null>(null);
 
-	$effect(() => {
-		const index = assets.findIndex((a) => a.id === assetId);
-		if (index >= 0) currentIndex = index;
-	});
+  $effect(() => {
+    const index = assets.findIndex((a) => a.id === assetId);
+    if (index >= 0) currentIndex = index;
+  });
 
-	$effect(() => {
-		if (!assetId) return;
+  $effect(() => {
+    if (!assetId) return;
 
-		const latest = assets.find((a) => a.id === assetId) || null;
-		if (latest && latest !== asset) {
-			asset = latest;
-			isVideo = asset?.type === 'VIDEO';
-		}
-	});
+    const latest = assets.find((a) => a.id === assetId) || null;
+    if (latest && latest !== asset) {
+      asset = latest;
+      isVideo = asset?.type === 'VIDEO';
+    }
+  });
 
-	async function loadAsset(id: string) {
-		if (!id) return;
-		loading = true;
+  async function loadAsset(id: string) {
+    if (!id) return;
+    loading = true;
 
-		// IMPORTANT: only reset the loaded state when the ID actually changed, so the
-		// "preview" image stays visible while the "original" image loads.
-		if (id !== lastProcessedAssetId) {
-			imageLoaded = false;
-		}
+    // IMPORTANT: only reset the loaded state when the ID actually changed, so the
+    // "preview" image stays visible while the "original" image loads.
+    if (id !== lastProcessedAssetId) {
+      imageLoaded = false;
+    }
 
-		highResLoaded = false;
-		asset = null;
-		mediaUrl = null;
-		isVideo = false;
+    highResLoaded = false;
+    asset = null;
+    mediaUrl = null;
+    isVideo = false;
 
-		try {
-			const local = assets.find((a) => a.id === id);
-			if (local) {
-				asset = local;
-				isVideo = asset?.type === 'VIDEO';
-			} else {
-				try {
-					const metaRes = await fetch(`/api/immich/assets/${id}`);
-					if (metaRes.ok) {
-						const rawAsset = (await metaRes.json()) as ImmichAsset;
-						asset = {
-							id: rawAsset.id,
-							originalFileName: rawAsset.originalFileName,
-							type: rawAsset.type,
-							isFavorite: rawAsset.isFavorite,
-							_raw: rawAsset
-						};
-						isVideo = asset?.type === 'VIDEO';
-					}
-				} catch (err) {
-					void err;
-				}
-			}
+    try {
+      const local = assets.find((a) => a.id === id);
+      if (local) {
+        asset = local;
+        isVideo = asset?.type === 'VIDEO';
+      } else {
+        try {
+          const metaRes = await fetch(`/api/immich/assets/${id}`);
+          if (metaRes.ok) {
+            const rawAsset = (await metaRes.json()) as ImmichAsset;
+            asset = {
+              id: rawAsset.id,
+              originalFileName: rawAsset.originalFileName,
+              type: rawAsset.type,
+              isFavorite: rawAsset.isFavorite,
+              _raw: rawAsset,
+            };
+            isVideo = asset?.type === 'VIDEO';
+          }
+        } catch (err) {
+          void err;
+        }
+      }
 
-			if (isVideo) {
-				mediaUrl = `/api/immich/assets/${id}/video/playback`;
-				imageLoaded = true;
-			} else {
-				let size = 'preview';
-				if (typeof window !== 'undefined') {
-					const isMobileViewport = window.innerWidth <= 768;
-					const highDPR = (window.devicePixelRatio || 1) > 1.5;
-					if (isMobileViewport || highDPR) size = 'original';
-				}
+      if (isVideo) {
+        mediaUrl = `/api/immich/assets/${id}/video/playback`;
+        imageLoaded = true;
+      } else {
+        let size = 'preview';
+        if (typeof window !== 'undefined') {
+          const isMobileViewport = window.innerWidth <= 768;
+          const highDPR = (window.devicePixelRatio || 1) > 1.5;
+          if (isMobileViewport || highDPR) size = 'original';
+        }
 
-				if (albumVisibility === 'unlisted' && albumId) {
-					const proxySize = size === 'original' ? 'preview' : size;
-					mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
-				} else {
-					mediaUrl =
-						size === 'original'
-							? `/api/immich/assets/${id}/original`
-							: `/api/immich/assets/${id}/thumbnail?size=${size}`;
-				}
-			}
-		} catch (e) {
-			console.error('Asset load error:', e);
-		} finally {
-			loading = false;
-		}
-	}
+        if (albumVisibility === 'unlisted' && albumId) {
+          const proxySize = size === 'original' ? 'preview' : size;
+          mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
+        } else {
+          mediaUrl =
+            size === 'original'
+              ? `/api/immich/assets/${id}/original`
+              : `/api/immich/assets/${id}/thumbnail?size=${size}`;
+        }
+      }
+    } catch (e) {
+      console.error('Asset load error:', e);
+    } finally {
+      loading = false;
+    }
+  }
 
-	$effect(() => {
-		if (assetId && assetId !== lastLoadedAssetId) {
-			loadAsset(assetId);
-			lastLoadedAssetId = assetId;
-		}
-	});
+  $effect(() => {
+    if (assetId && assetId !== lastLoadedAssetId) {
+      loadAsset(assetId);
+      lastLoadedAssetId = assetId;
+    }
+  });
 
-	function handleWheel(e: WheelEvent) {
-		if (!mediaUrl || isVideo || !containerElement) return;
-		e.preventDefault();
+  function handleWheel(e: WheelEvent) {
+    if (!mediaUrl || isVideo || !containerElement) return;
+    e.preventDefault();
 
-		const rect = containerElement.getBoundingClientRect();
-		const delta = e.deltaY > 0 ? -0.2 : 0.2;
-		const oldScale = scale;
-		const newScale = Math.min(Math.max(minScale, scale + delta), MAX_SCALE);
+    const rect = containerElement.getBoundingClientRect();
+    const delta = e.deltaY > 0 ? -0.2 : 0.2;
+    const oldScale = scale;
+    const newScale = Math.min(Math.max(minScale, scale + delta), MAX_SCALE);
 
-		if (newScale !== oldScale) {
-			const scaleChange = newScale / oldScale;
-			const imgCenterX = rect.width / 2;
-			const imgCenterY = rect.height / 2;
-			const offsetX = e.clientX - rect.left - imgCenterX;
-			const offsetY = e.clientY - rect.top - imgCenterY;
+    if (newScale !== oldScale) {
+      const scaleChange = newScale / oldScale;
+      const imgCenterX = rect.width / 2;
+      const imgCenterY = rect.height / 2;
+      const offsetX = e.clientX - rect.left - imgCenterX;
+      const offsetY = e.clientY - rect.top - imgCenterY;
 
-			translate = {
-				x: translate.x * scaleChange + offsetX * (1 - scaleChange),
-				y: translate.y * scaleChange + offsetY * (1 - scaleChange)
-			};
-			scale = newScale;
+      translate = {
+        x: translate.x * scaleChange + offsetX * (1 - scaleChange),
+        y: translate.y * scaleChange + offsetY * (1 - scaleChange),
+      };
+      scale = newScale;
 
-			if (newScale > 1.3 && !highResLoaded) ensureHighRes();
-			setTimeout(() => {
-				translate = constrainTranslate(translate);
-			}, 0);
-		}
-		if (scale <= 1) translate = { x: 0, y: 0 };
-	}
+      if (newScale > 1.3 && !highResLoaded) ensureHighRes();
+      setTimeout(() => {
+        translate = constrainTranslate(translate);
+      }, 0);
+    }
+    if (scale <= 1) translate = { x: 0, y: 0 };
+  }
 
-	function handleDoubleClick(e: MouseEvent) {
-		if (!mediaUrl || isVideo || !containerElement) return;
-		e.preventDefault();
+  function handleDoubleClick(e: MouseEvent) {
+    if (!mediaUrl || isVideo || !containerElement) return;
+    e.preventDefault();
 
-		const rect = containerElement.getBoundingClientRect();
-		const oldScale = scale;
-		const target = oldScale > 1.1 ? 1 : 2.5;
+    const rect = containerElement.getBoundingClientRect();
+    const oldScale = scale;
+    const target = oldScale > 1.1 ? 1 : 2.5;
 
-		const scaleChange = target / oldScale;
-		const imgCenterX = rect.width / 2;
-		const imgCenterY = rect.height / 2;
-		const offsetX = e.clientX - rect.left - imgCenterX;
-		const offsetY = e.clientY - rect.top - imgCenterY;
+    const scaleChange = target / oldScale;
+    const imgCenterX = rect.width / 2;
+    const imgCenterY = rect.height / 2;
+    const offsetX = e.clientX - rect.left - imgCenterX;
+    const offsetY = e.clientY - rect.top - imgCenterY;
 
-		translate = {
-			x: translate.x * scaleChange + offsetX * (1 - scaleChange),
-			y: translate.y * scaleChange + offsetY * (1 - scaleChange)
-		};
-		scale = target;
+    translate = {
+      x: translate.x * scaleChange + offsetX * (1 - scaleChange),
+      y: translate.y * scaleChange + offsetY * (1 - scaleChange),
+    };
+    scale = target;
 
-		if (scale > 1.3 && !highResLoaded) ensureHighRes();
-		setTimeout(() => {
-			translate = constrainTranslate(translate);
-		}, 0);
-		if (scale <= 1) translate = { x: 0, y: 0 };
-	}
+    if (scale > 1.3 && !highResLoaded) ensureHighRes();
+    setTimeout(() => {
+      translate = constrainTranslate(translate);
+    }, 0);
+    if (scale <= 1) translate = { x: 0, y: 0 };
+  }
 
-	function handleMouseDown(e: MouseEvent) {
-		if (scale <= 1) return;
-		isDragging = true;
-		dragStart = { x: e.clientX - translate.x, y: e.clientY - translate.y };
-	}
+  function handleMouseDown(e: MouseEvent) {
+    if (scale <= 1) return;
+    isDragging = true;
+    dragStart = { x: e.clientX - translate.x, y: e.clientY - translate.y };
+  }
 
-	function constrainTranslate(newTranslate: { x: number; y: number }): { x: number; y: number } {
-		if (!imgElement || !containerElement || scale <= 1) return { x: 0, y: 0 };
+  function constrainTranslate(newTranslate: { x: number; y: number }): { x: number; y: number } {
+    if (!imgElement || !containerElement || scale <= 1) return { x: 0, y: 0 };
 
-		const containerRect = containerElement.getBoundingClientRect();
-		const imgAspect = imgElement.naturalWidth / imgElement.naturalHeight;
-		const containerAspect = containerRect.width / containerRect.height;
+    const containerRect = containerElement.getBoundingClientRect();
+    const imgAspect = imgElement.naturalWidth / imgElement.naturalHeight;
+    const containerAspect = containerRect.width / containerRect.height;
 
-		let displayedWidth, displayedHeight;
-		if (imgAspect > containerAspect) {
-			displayedWidth = containerRect.width;
-			displayedHeight = containerRect.width / imgAspect;
-		} else {
-			displayedHeight = containerRect.height;
-			displayedWidth = containerRect.height * imgAspect;
-		}
+    let displayedWidth, displayedHeight;
+    if (imgAspect > containerAspect) {
+      displayedWidth = containerRect.width;
+      displayedHeight = containerRect.width / imgAspect;
+    } else {
+      displayedHeight = containerRect.height;
+      displayedWidth = containerRect.height * imgAspect;
+    }
 
-		const scaledWidth = displayedWidth * scale;
-		const scaledHeight = displayedHeight * scale;
-		const maxTranslateX = Math.max(0, (scaledWidth - containerRect.width) / 2);
-		const maxTranslateY = Math.max(0, (scaledHeight - containerRect.height) / 2);
+    const scaledWidth = displayedWidth * scale;
+    const scaledHeight = displayedHeight * scale;
+    const maxTranslateX = Math.max(0, (scaledWidth - containerRect.width) / 2);
+    const maxTranslateY = Math.max(0, (scaledHeight - containerRect.height) / 2);
 
-		return {
-			x: Math.max(-maxTranslateX, Math.min(maxTranslateX, newTranslate.x)),
-			y: Math.max(-maxTranslateY, Math.min(maxTranslateY, newTranslate.y))
-		};
-	}
+    return {
+      x: Math.max(-maxTranslateX, Math.min(maxTranslateX, newTranslate.x)),
+      y: Math.max(-maxTranslateY, Math.min(maxTranslateY, newTranslate.y)),
+    };
+  }
 
-	function handleMouseMove(e: MouseEvent) {
-		if (!isDragging) return;
-		translate = constrainTranslate({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-	}
+  function handleMouseMove(e: MouseEvent) {
+    if (!isDragging) return;
+    translate = constrainTranslate({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  }
 
-	function handleMouseUp() {
-		isDragging = false;
-	}
+  function handleMouseUp() {
+    isDragging = false;
+  }
 
-	async function ensureHighRes() {
-		if (!asset || isVideo || highResLoaded) return;
-		try {
-			if (albumVisibility === 'unlisted' && albumId) {
-				highResLoaded = true;
-				return;
-			}
-			mediaUrl = `/api/immich/assets/${asset.id}/original`;
-			highResLoaded = true;
-		} catch (e) {
-			console.warn('High-resolution load failed', e);
-		}
-	}
+  async function ensureHighRes() {
+    if (!asset || isVideo || highResLoaded) return;
+    try {
+      if (albumVisibility === 'unlisted' && albumId) {
+        highResLoaded = true;
+        return;
+      }
+      mediaUrl = `/api/immich/assets/${asset.id}/original`;
+      highResLoaded = true;
+    } catch (e) {
+      console.warn('High-resolution load failed', e);
+    }
+  }
 
-	function getTouchDistance(touches: TouchList): number {
-		if (touches.length < 2) return 0;
-		const dx = touches[0].clientX - touches[1].clientX;
-		const dy = touches[0].clientY - touches[1].clientY;
-		return Math.sqrt(dx * dx + dy * dy);
-	}
+  function getTouchDistance(touches: TouchList): number {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 
-	function handleTouchStart(e: TouchEvent) {
-		if (e.touches.length === 2) {
-			e.preventDefault();
-			touchStartDistance = getTouchDistance(e.touches);
-			touchStartScale = scale;
-			isTouchDragging = false;
-		} else if (e.touches.length === 1) {
-			const now = Date.now();
-			if (now - lastTouchEnd < 300) {
-				e.preventDefault();
-				if (scale > 1.1) {
-					scale = 1;
-					translate = { x: 0, y: 0 };
-				} else {
-					scale = 2.5;
-				}
-				lastTouchEnd = 0;
-			} else if (scale > 1) {
-				isTouchDragging = true;
-				touchDragStart = {
-					x: e.touches[0].clientX - translate.x,
-					y: e.touches[0].clientY - translate.y
-				};
-			}
-		}
-	}
+  function handleTouchStart(e: TouchEvent) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      touchStartDistance = getTouchDistance(e.touches);
+      touchStartScale = scale;
+      isTouchDragging = false;
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTouchEnd < 300) {
+        e.preventDefault();
+        if (scale > 1.1) {
+          scale = 1;
+          translate = { x: 0, y: 0 };
+        } else {
+          scale = 2.5;
+        }
+        lastTouchEnd = 0;
+      } else if (scale > 1) {
+        isTouchDragging = true;
+        touchDragStart = {
+          x: e.touches[0].clientX - translate.x,
+          y: e.touches[0].clientY - translate.y,
+        };
+      }
+    }
+  }
 
-	function handleTouchMove(e: TouchEvent) {
-		if (e.touches.length === 2 && touchStartDistance > 0) {
-			e.preventDefault();
-			const currentDistance = getTouchDistance(e.touches);
-			const scaleChange = currentDistance / touchStartDistance;
-			scale = Math.max(minScale, Math.min(MAX_SCALE, touchStartScale * scaleChange));
-			if (scale > 1.3 && !highResLoaded) ensureHighRes();
-			if (scale <= 1) translate = { x: 0, y: 0 };
-		} else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
-			e.preventDefault();
-			translate = constrainTranslate({
-				x: e.touches[0].clientX - touchDragStart.x,
-				y: e.touches[0].clientY - touchDragStart.y
-			});
-		}
-	}
+  function handleTouchMove(e: TouchEvent) {
+    if (e.touches.length === 2 && touchStartDistance > 0) {
+      e.preventDefault();
+      const currentDistance = getTouchDistance(e.touches);
+      const scaleChange = currentDistance / touchStartDistance;
+      scale = Math.max(minScale, Math.min(MAX_SCALE, touchStartScale * scaleChange));
+      if (scale > 1.3 && !highResLoaded) ensureHighRes();
+      if (scale <= 1) translate = { x: 0, y: 0 };
+    } else if (e.touches.length === 1 && isTouchDragging && scale > 1) {
+      e.preventDefault();
+      translate = constrainTranslate({
+        x: e.touches[0].clientX - touchDragStart.x,
+        y: e.touches[0].clientY - touchDragStart.y,
+      });
+    }
+  }
 
-	function handleTouchEnd(e: TouchEvent) {
-		if (e.touches.length === 0) {
-			lastTouchEnd = Date.now();
-			touchStartDistance = 0;
-			isTouchDragging = false;
-			setTimeout(() => {
-				translate = constrainTranslate(translate);
-			}, 0);
-			if (scale <= 1) translate = { x: 0, y: 0 };
-		}
-	}
+  function handleTouchEnd(e: TouchEvent) {
+    if (e.touches.length === 0) {
+      lastTouchEnd = Date.now();
+      touchStartDistance = 0;
+      isTouchDragging = false;
+      setTimeout(() => {
+        translate = constrainTranslate(translate);
+      }, 0);
+      if (scale <= 1) translate = { x: 0, y: 0 };
+    }
+  }
 
-	function resetZoom() {
-		scale = 1;
-		translate = { x: 0, y: 0 };
-	}
-	function goToPrevious() {
-		if (currentIndex > 0) assetId = assets[currentIndex - 1].id;
-	}
-	function goToNext() {
-		if (currentIndex < assets.length - 1) assetId = assets[currentIndex + 1].id;
-	}
+  function resetZoom() {
+    scale = 1;
+    translate = { x: 0, y: 0 };
+  }
+  function goToPrevious() {
+    if (currentIndex > 0) assetId = assets[currentIndex - 1].id;
+  }
+  function goToNext() {
+    if (currentIndex < assets.length - 1) assetId = assets[currentIndex + 1].id;
+  }
 
-	let isDownloading = $state(false);
-	let isSettingCover = $state(false);
+  let isDownloading = $state(false);
+  let isSettingCover = $state(false);
 
-	async function downloadAsset() {
-		if (!assetId || !asset || isDownloading) return;
-		isDownloading = true;
-		try {
-			let downloadUrl = `/api/immich/assets/${assetId}/original`;
-			if (albumVisibility === 'unlisted' && albumId) {
-				downloadUrl = `/api/albums/${albumId}/asset-original/${assetId}`;
-			}
-			const res = await fetch(downloadUrl);
-			if (res.ok) {
-				const blob = await res.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				a.href = url;
-				a.download = asset.originalFileName || `photo-${assetId}.jpg`;
-				a.click();
-				URL.revokeObjectURL(url);
-			} else {
-				toast.error(m.common_error_detail({ error: res.statusText || String(res.status) }));
-			}
-		} catch (e) {
-			toast.error(m.common_error_detail({ error: (e as Error).message }));
-		} finally {
-			isDownloading = false;
-		}
-	}
+  async function downloadAsset() {
+    if (!assetId || !asset || isDownloading) return;
+    isDownloading = true;
+    try {
+      let downloadUrl = `/api/immich/assets/${assetId}/original`;
+      if (albumVisibility === 'unlisted' && albumId) {
+        downloadUrl = `/api/albums/${albumId}/asset-original/${assetId}`;
+      }
+      const res = await fetch(downloadUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = asset.originalFileName || `photo-${assetId}.jpg`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        toast.error(m.common_error_detail({ error: res.statusText || String(res.status) }));
+      }
+    } catch (e) {
+      toast.error(m.common_error_detail({ error: (e as Error).message }));
+    } finally {
+      isDownloading = false;
+    }
+  }
 
-	async function handleSetCover() {
-		if (!albumId || !assetId || isSettingCover) return;
-		isSettingCover = true;
-		try {
-			await setAlbumCover(albumId, assetId);
-			toast.success(m.pm_cover_updated());
-		} catch (e) {
-			toast.error(m.common_error_detail({ error: (e as Error).message }));
-		} finally {
-			isSettingCover = false;
-		}
-	}
+  async function handleSetCover() {
+    if (!albumId || !assetId || isSettingCover) return;
+    isSettingCover = true;
+    try {
+      await setAlbumCover(albumId, assetId);
+      toast.success(m.pm_cover_updated());
+    } catch (e) {
+      toast.error(m.common_error_detail({ error: (e as Error).message }));
+    } finally {
+      isSettingCover = false;
+    }
+  }
 
-	async function deleteCurrentAsset(skipConfirmation = false) {
-		if (!canManagePhotos || !assetId) return;
-		const performDelete = async () => {
-			showConfirmModal = false;
-			try {
-				const res = await fetch(`/api/immich/assets`, {
-					method: 'DELETE',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ ids: [assetId] })
-				});
-				if (!res.ok && res.status !== 204) {
-					const errText = await res.text().catch(() => res.statusText);
-					throw new Error(errText || m.albums_delete_failed());
-				}
-				const nextIndexSnapshot =
-					currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
-				const nextAssetId =
-					nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length
-						? assets[nextIndexSnapshot].id
-						: null;
-				if (onAssetDeleted) onAssetDeleted(assetId);
-				if (nextAssetId) assetId = nextAssetId;
-				else onClose();
-			} catch (e) {
-				toast.error(m.albums_delete_error({ error: (e as Error).message }));
-			}
-		};
-		if (skipConfirmation) await performDelete();
-		else {
-			confirmModalConfig = {
-				title: m.photo_delete_title(),
-				message: m.photo_trash_confirm(),
-				confirmText: m.trash_to_bin(),
-				onConfirm: performDelete
-			};
-			showConfirmModal = true;
-		}
-	}
+  async function deleteCurrentAsset(skipConfirmation = false) {
+    if (!canManagePhotos || !assetId) return;
+    const performDelete = async () => {
+      showConfirmModal = false;
+      try {
+        const res = await fetch(`/api/immich/assets`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [assetId] }),
+        });
+        if (!res.ok && res.status !== 204) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(errText || m.albums_delete_failed());
+        }
+        const nextIndexSnapshot =
+          currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
+        const nextAssetId =
+          nextIndexSnapshot >= 0 && nextIndexSnapshot < assets.length
+            ? assets[nextIndexSnapshot].id
+            : null;
+        if (onAssetDeleted) onAssetDeleted(assetId);
+        if (nextAssetId) assetId = nextAssetId;
+        else onClose();
+      } catch (e) {
+        toast.error(m.albums_delete_error({ error: (e as Error).message }));
+      }
+    };
+    if (skipConfirmation) await performDelete();
+    else {
+      confirmModalConfig = {
+        title: m.photo_delete_title(),
+        message: m.photo_trash_confirm(),
+        confirmText: m.trash_to_bin(),
+        onConfirm: performDelete,
+      };
+      showConfirmModal = true;
+    }
+  }
 
-	// A click whose press started inside the modal (a text selection dragged out,
-	// for instance) still reports the backdrop as its target: that is the common
-	// ancestor of press and release. Only a press AND a release on the backdrop close.
-	let pressedOnBackdrop = false;
+  // A click whose press started inside the modal (a text selection dragged out,
+  // for instance) still reports the backdrop as its target: that is the common
+  // ancestor of press and release. Only a press AND a release on the backdrop close.
+  let pressedOnBackdrop = false;
 
-	function handleBackdropPointerDown(e: PointerEvent) {
-		pressedOnBackdrop = e.target === e.currentTarget;
-	}
+  function handleBackdropPointerDown(e: PointerEvent) {
+    pressedOnBackdrop = e.target === e.currentTarget;
+  }
 
-	function handleBackdropPointerUp(e: PointerEvent) {
-		if (e.target !== e.currentTarget) {
-			pressedOnBackdrop = false;
-		}
-	}
+  function handleBackdropPointerUp(e: PointerEvent) {
+    if (e.target !== e.currentTarget) {
+      pressedOnBackdrop = false;
+    }
+  }
 
-	function handleBackdropClick(e: MouseEvent) {
-		const fromBackdrop = pressedOnBackdrop;
-		pressedOnBackdrop = false;
+  function handleBackdropClick(e: MouseEvent) {
+    const fromBackdrop = pressedOnBackdrop;
+    pressedOnBackdrop = false;
 
-		if (fromBackdrop && e.target === e.currentTarget) onClose();
-	}
+    if (fromBackdrop && e.target === e.currentTarget) onClose();
+  }
 
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onClose();
-		else if (e.key === 'ArrowLeft') goToPrevious();
-		else if (e.key === 'ArrowRight') goToNext();
-		else if (e.key === '+' || e.key === '=') scale = Math.min(scale + 0.5, MAX_SCALE);
-		else if (e.key === '-' || e.key === '_') scale = Math.max(scale - 0.5, minScale);
-		else if (e.key === '0') resetZoom();
-		// Delete always goes through the confirm modal (no accidental Shift+Delete bypass).
-		else if (e.key === 'Delete' && canManagePhotos) deleteCurrentAsset();
-	}
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') onClose();
+    else if (e.key === 'ArrowLeft') goToPrevious();
+    else if (e.key === 'ArrowRight') goToNext();
+    else if (e.key === '+' || e.key === '=') scale = Math.min(scale + 0.5, MAX_SCALE);
+    else if (e.key === '-' || e.key === '_') scale = Math.max(scale - 0.5, minScale);
+    else if (e.key === '0') resetZoom();
+    // Delete always goes through the confirm modal (no accidental Shift+Delete bypass).
+    else if (e.key === 'Delete' && canManagePhotos) deleteCurrentAsset();
+  }
 
-	onMount(() => {
-		if (portalRoot && portalRoot.parentNode !== document.body) document.body.appendChild(portalRoot);
-		window.addEventListener('keydown', handleKeydown);
-		window.addEventListener('mousemove', handleMouseMove);
-		window.addEventListener('mouseup', handleMouseUp);
-		document.body.classList.add('modal-open');
-	});
+  onMount(() => {
+    if (portalRoot && portalRoot.parentNode !== document.body)
+      document.body.appendChild(portalRoot);
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    document.body.classList.add('modal-open');
+  });
 
-	onDestroy(() => {
-		window.removeEventListener('keydown', handleKeydown);
-		window.removeEventListener('mousemove', handleMouseMove);
-		window.removeEventListener('mouseup', handleMouseUp);
-		document.body.classList.remove('modal-open');
-		if (portalRoot?.parentNode === document.body) {
-			try {
-				document.body.removeChild(portalRoot);
-			} catch {}
-		}
-	});
+  onDestroy(() => {
+    window.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('mousemove', handleMouseMove);
+    window.removeEventListener('mouseup', handleMouseUp);
+    document.body.classList.remove('modal-open');
+    if (portalRoot?.parentNode === document.body) {
+      try {
+        document.body.removeChild(portalRoot);
+      } catch {}
+    }
+  });
 </script>
 
 <div
-	bind:this={portalRoot}
-	class="modal-backdrop"
-	onpointerdown={handleBackdropPointerDown}
-	onpointerup={handleBackdropPointerUp}
-	onclick={handleBackdropClick}
-	role="button"
-	tabindex="-1"
-	onkeydown={(e) => e.key === 'Escape' && onClose()}
+  bind:this={portalRoot}
+  class="modal-backdrop"
+  onpointerdown={handleBackdropPointerDown}
+  onpointerup={handleBackdropPointerUp}
+  onclick={handleBackdropClick}
+  role="button"
+  tabindex="-1"
+  onkeydown={(e) => e.key === 'Escape' && onClose()}
 >
-	<div class="modal-content">
-		<div class="modal-header">
-			<div class="modal-title">
-				{#if asset?.originalFileName}
-					<ImageIcon size={20} />
-					<span>{asset.originalFileName}</span>
-				{:else}
-					<span>{m.common_loading()}</span>
-				{/if}
-			</div>
-			<div class="modal-actions">
-				{#if canManagePhotos && albumId}
-					<button
-						type="button"
-						class="btn-icon"
-						onclick={handleSetCover}
-						title={m.pm_set_cover()}
-						disabled={isSettingCover}
-					>
-						<ImageIcon size={20} />
-					</button>
-				{/if}
-				{#if !isVideo && mediaUrl}
-					<button
-						type="button"
-						class="btn-icon"
-						onclick={() => (scale = Math.max(scale - 0.5, minScale))}
-						title="Zoom -"
-						disabled={scale <= minScale}
-					>
-						<Minus size={20} />
-					</button>
-					<span class="zoom-level">{Math.round(scale * 100)}%</span>
-					<button
-						type="button"
-						class="btn-icon"
-						onclick={() => (scale = Math.min(scale + 0.5, MAX_SCALE))}
-						title="Zoom +"
-						disabled={scale >= MAX_SCALE}
-					>
-						<Plus size={20} />
-					</button>
-					<button type="button" class="btn-icon" onclick={resetZoom} title="Reset (100%)" disabled={scale === 1}>
-						<RefreshCw size={20} />
-					</button>
-				{/if}
-				{#if showFavorite && asset && onFavoriteToggle}
-					<button
-						type="button"
-						class="btn-icon btn-favorite"
-						class:active={asset.isFavorite}
-						onclick={async () => {
-							try {
-								await onFavoriteToggle!(asset!.id);
-							} catch {
-								toast.error(m.pm_favorite_error());
-							}
-						}}
-						title={asset.isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
-					>
-						<Heart size={20} fill={asset.isFavorite ? 'currentColor' : 'none'} />
-					</button>
-				{/if}
-				<button
-					type="button"
-					class="btn-icon"
-					onclick={downloadAsset}
-					title={m.common_download()}
-					disabled={!asset || isDownloading}
-				>
-					<Download size={20} />
-				</button>
-				{#if canManagePhotos}
-					<button
-						type="button"
-						class="btn-icon btn-delete"
-						onclick={() => deleteCurrentAsset(false)}
-						title={m.pm_delete_key()}
-						disabled={!asset}
-					>
-						<Trash2 size={20} />
-					</button>
-				{/if}
-				<button type="button" class="btn-icon" onclick={onClose} title={m.common_close()}>
-					<X size={20} />
-				</button>
-			</div>
-		</div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">
+        {#if asset?.originalFileName}
+          <ImageIcon size={20} />
+          <span>{asset.originalFileName}</span>
+        {:else}
+          <span>{m.common_loading()}</span>
+        {/if}
+      </div>
+      <div class="modal-actions">
+        {#if canManagePhotos && albumId}
+          <button
+            type="button"
+            class="btn-icon"
+            onclick={handleSetCover}
+            title={m.pm_set_cover()}
+            disabled={isSettingCover}
+          >
+            <ImageIcon size={20} />
+          </button>
+        {/if}
+        {#if !isVideo && mediaUrl}
+          <button
+            type="button"
+            class="btn-icon"
+            onclick={() => (scale = Math.max(scale - 0.5, minScale))}
+            title="Zoom -"
+            disabled={scale <= minScale}
+          >
+            <Minus size={20} />
+          </button>
+          <span class="zoom-level">{Math.round(scale * 100)}%</span>
+          <button
+            type="button"
+            class="btn-icon"
+            onclick={() => (scale = Math.min(scale + 0.5, MAX_SCALE))}
+            title="Zoom +"
+            disabled={scale >= MAX_SCALE}
+          >
+            <Plus size={20} />
+          </button>
+          <button
+            type="button"
+            class="btn-icon"
+            onclick={resetZoom}
+            title="Reset (100%)"
+            disabled={scale === 1}
+          >
+            <RefreshCw size={20} />
+          </button>
+        {/if}
+        {#if showFavorite && asset && onFavoriteToggle}
+          <button
+            type="button"
+            class="btn-icon btn-favorite"
+            class:active={asset.isFavorite}
+            onclick={async () => {
+              try {
+                await onFavoriteToggle!(asset!.id);
+              } catch {
+                toast.error(m.pm_favorite_error());
+              }
+            }}
+            title={asset.isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
+          >
+            <Heart size={20} fill={asset.isFavorite ? 'currentColor' : 'none'} />
+          </button>
+        {/if}
+        <button
+          type="button"
+          class="btn-icon"
+          onclick={downloadAsset}
+          title={m.common_download()}
+          disabled={!asset || isDownloading}
+        >
+          <Download size={20} />
+        </button>
+        {#if canManagePhotos}
+          <button
+            type="button"
+            class="btn-icon btn-delete"
+            onclick={() => deleteCurrentAsset(false)}
+            title={m.pm_delete_key()}
+            disabled={!asset}
+          >
+            <Trash2 size={20} />
+          </button>
+        {/if}
+        <button type="button" class="btn-icon" onclick={onClose} title={m.common_close()}>
+          <X size={20} />
+        </button>
+      </div>
+    </div>
 
-		<div class="modal-body">
-			{#if currentIndex > 0}
-				<button type="button" class="nav-button nav-left" onclick={goToPrevious} title={m.photo_previous()}>
-					<ChevronLeft size={32} />
-				</button>
-			{/if}
+    <div class="modal-body">
+      {#if currentIndex > 0}
+        <button
+          type="button"
+          class="nav-button nav-left"
+          onclick={goToPrevious}
+          title={m.photo_previous()}
+        >
+          <ChevronLeft size={32} />
+        </button>
+      {/if}
 
-			<div
-				class="media-container"
-				onwheel={handleWheel}
-				role="img"
-				tabindex="-1"
-				bind:this={containerElement}
-			>
-				{#if mediaUrl}
-					{#if isVideo}
-						<video src={mediaUrl} controls class="media loaded"><track kind="captions" /></video>
-					{:else}
-						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-						<img
-							bind:this={imgElement}
-							src={mediaUrl}
-							alt={asset?.originalFileName || 'Photo'}
-							class="media"
-							class:loaded={imageLoaded}
-							class:zoomed={scale > 1}
-							class:no-transition={isDragging || isTouchDragging}
-							style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y /
-								scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
-							onload={() => {
-								// CRUCIAL: only reset when switching photo, not when switching resolution
-								if (asset?.id !== lastProcessedAssetId) {
-									minScale = computeMinScale();
-									scale = 1;
-									translate = { x: 0, y: 0 };
-									lastProcessedAssetId = asset?.id ?? null;
-								}
-								imageLoaded = true;
-							}}
-							onmousedown={handleMouseDown}
-							ondblclick={handleDoubleClick}
-							ontouchstart={handleTouchStart}
-							ontouchmove={handleTouchMove}
-							ontouchend={handleTouchEnd}
-							draggable="false"
-						/>
-					{/if}
-				{/if}
-			</div>
+      <div
+        class="media-container"
+        onwheel={handleWheel}
+        role="img"
+        tabindex="-1"
+        bind:this={containerElement}
+      >
+        {#if mediaUrl}
+          {#if isVideo}
+            <video src={mediaUrl} controls class="media loaded"><track kind="captions" /></video>
+          {:else}
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <img
+              bind:this={imgElement}
+              src={mediaUrl}
+              alt={asset?.originalFileName || 'Photo'}
+              class="media"
+              class:loaded={imageLoaded}
+              class:zoomed={scale > 1}
+              class:no-transition={isDragging || isTouchDragging}
+              style="transform: scale({scale}) translate({translate.x / scale}px, {translate.y /
+                scale}px); cursor: {scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}"
+              onload={() => {
+                // CRUCIAL: only reset when switching photo, not when switching resolution
+                if (asset?.id !== lastProcessedAssetId) {
+                  minScale = computeMinScale();
+                  scale = 1;
+                  translate = { x: 0, y: 0 };
+                  lastProcessedAssetId = asset?.id ?? null;
+                }
+                imageLoaded = true;
+              }}
+              onmousedown={handleMouseDown}
+              ondblclick={handleDoubleClick}
+              ontouchstart={handleTouchStart}
+              ontouchmove={handleTouchMove}
+              ontouchend={handleTouchEnd}
+              draggable="false"
+            />
+          {/if}
+        {/if}
+      </div>
 
-			{#if currentIndex < assets.length - 1}
-				<button type="button" class="nav-button nav-right" onclick={goToNext} title={m.photo_next()}>
-					<ChevronRight size={32} />
-				</button>
-			{/if}
-		</div>
+      {#if currentIndex < assets.length - 1}
+        <button
+          type="button"
+          class="nav-button nav-right"
+          onclick={goToNext}
+          title={m.photo_next()}
+        >
+          <ChevronRight size={32} />
+        </button>
+      {/if}
+    </div>
 
-		<div class="modal-footer">
-			<span class="counter">{currentIndex + 1} / {assets.length}</span>
-		</div>
-	</div>
+    <div class="modal-footer">
+      <span class="counter">{currentIndex + 1} / {assets.length}</span>
+    </div>
+  </div>
 </div>
 
 {#if showConfirmModal && confirmModalConfig}
-	<Modal
-		bind:show={showConfirmModal}
-		title={confirmModalConfig.title}
-		type="confirm"
-		confirmText={confirmModalConfig.confirmText}
-		onConfirm={confirmModalConfig.onConfirm}
-		onCancel={() => (showConfirmModal = false)}
-	>
-		<p>{confirmModalConfig.message}</p>
-	</Modal>
+  <Modal
+    bind:show={showConfirmModal}
+    title={confirmModalConfig.title}
+    type="confirm"
+    confirmText={confirmModalConfig.confirmText}
+    onConfirm={confirmModalConfig.onConfirm}
+    onCancel={() => (showConfirmModal = false)}
+  >
+    <p>{confirmModalConfig.message}</p>
+  </Modal>
 {/if}
 
 <style>
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(8px) saturate(120%);
-		z-index: 1000;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
-		animation: fadeIn 0.2s ease-out;
-	}
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px) saturate(120%);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: fadeIn 0.2s ease-out;
+  }
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
-	.modal-content {
-		width: 100%;
-		max-width: 1400px;
-		height: 90vh;
-		display: flex;
-		flex-direction: column;
-		animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: var(--radius-md);
-		backdrop-filter: blur(10px) saturate(120%);
-		box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
-	}
-	@keyframes slideUp {
-		from {
-			transform: translateY(20px);
-			opacity: 0;
-		}
-		to {
-			transform: translateY(0);
-			opacity: 1;
-		}
-	}
+  .modal-content {
+    width: 100%;
+    max-width: 1400px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(10px) saturate(120%);
+    box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
+  }
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 
-	.modal-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 1rem;
-		background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-		z-index: 10;
-		backdrop-filter: blur(6px);
-	}
-	.modal-title {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		color: white;
-		font-weight: 600;
-		overflow: hidden;
-	}
-	.modal-title span {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.modal-actions {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-	}
-	.zoom-level {
-		color: white;
-		font-size: 0.875rem;
-		font-weight: 600;
-		min-width: 50px;
-		text-align: center;
-	}
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    z-index: 10;
+    backdrop-filter: blur(6px);
+  }
+  .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    font-weight: 600;
+    overflow: hidden;
+  }
+  .modal-title span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .zoom-level {
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 600;
+    min-width: 50px;
+    text-align: center;
+  }
 
-	.btn-icon {
-		background: rgba(255, 255, 255, 0.1);
-		border: none;
-		color: white;
-		padding: 0.5rem;
-		border-radius: var(--radius-xs);
-		cursor: pointer;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.btn-icon:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.2);
-		transform: scale(1.05);
-	}
-	.btn-icon:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-	.btn-delete {
-		background: color-mix(in srgb, var(--error-hover) 80%, transparent);
-	}
-	.btn-delete:hover:not(:disabled) {
-		background: var(--error-hover);
-	}
-	.btn-favorite {
-		color: var(--error);
-	}
-	.btn-favorite:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--error) 20%, transparent);
-	}
-	.btn-favorite.active {
-		background: color-mix(in srgb, var(--error) 90%, transparent);
-		color: white;
-	}
+  .btn-icon {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    padding: 0.5rem;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn-icon:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+  }
+  .btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-delete {
+    background: color-mix(in srgb, var(--error-hover) 80%, transparent);
+  }
+  .btn-delete:hover:not(:disabled) {
+    background: var(--error-hover);
+  }
+  .btn-favorite {
+    color: var(--error);
+  }
+  .btn-favorite:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--error) 20%, transparent);
+  }
+  .btn-favorite.active {
+    background: color-mix(in srgb, var(--error) 90%, transparent);
+    color: white;
+  }
 
-	.modal-body {
-		flex: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		position: relative;
-		min-height: 0;
-		overflow: hidden;
-	}
-	.media-container {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		position: relative;
-		overflow: hidden;
-		user-select: none;
-		touch-action: none;
-	}
-	.media {
-		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		border-radius: var(--radius-md);
-		opacity: 0;
-		transition:
-			opacity 0.3s ease,
-			transform 160ms cubic-bezier(0.2, 0, 0, 1);
-		will-change: transform;
-		transform-origin: center center;
-	}
-	.media.loaded {
-		opacity: 1;
-	}
-	.media.no-transition {
-		transition: none !important;
-	}
+  .modal-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .media-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+  }
+  .media {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    opacity: 0;
+    transition:
+      opacity 0.3s ease,
+      transform 160ms cubic-bezier(0.2, 0, 0, 1);
+    will-change: transform;
+    transform-origin: center center;
+  }
+  .media.loaded {
+    opacity: 1;
+  }
+  .media.no-transition {
+    transition: none !important;
+  }
 
-	.nav-button {
-		position: absolute;
-		top: 50%;
-		transform: translateY(-50%);
-		background: rgba(255, 255, 255, 0.1);
-		backdrop-filter: blur(10px);
-		border: none;
-		color: white;
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 10;
-	}
-	.nav-button:hover {
-		background: rgba(255, 255, 255, 0.2);
-		transform: translateY(-50%) scale(1.1);
-	}
-	.nav-left {
-		left: 1rem;
-	}
-	.nav-right {
-		right: 1rem;
-	}
+  .nav-button {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: none;
+    color: white;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+  }
+  .nav-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-50%) scale(1.1);
+  }
+  .nav-left {
+    left: 1rem;
+  }
+  .nav-right {
+    right: 1rem;
+  }
 
-	.modal-footer {
-		padding: 1rem;
-		text-align: center;
-		color: rgba(255, 255, 255, 0.85);
-		background: linear-gradient(to top, rgba(255, 255, 255, 0.02), transparent);
-		border-top: 1px solid rgba(255, 255, 255, 0.03);
-		border-radius: 0 0 var(--radius-md) var(--radius-md);
-		backdrop-filter: blur(6px);
-		z-index: 10;
-		position: relative;
-	}
-	.counter {
-		font-weight: 600;
-	}
+  .modal-footer {
+    padding: 1rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.85);
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.02), transparent);
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    backdrop-filter: blur(6px);
+    z-index: 10;
+    position: relative;
+  }
+  .counter {
+    font-weight: 600;
+  }
 
-	@media (max-width: 768px) {
-		.modal-backdrop {
-			padding: 0;
-		}
-		.modal-content {
-			height: 100dvh;
-			max-width: 100%;
-		}
-		.modal-header,
-		.modal-footer {
-			border-radius: 0;
-			padding: 0.75rem;
-		}
-		.modal-title span {
-			font-size: 0.8125rem;
-			max-width: 200px;
-		}
-		.modal-actions {
-			gap: 0.25rem;
-		}
-		.zoom-level {
-			font-size: 0.75rem;
-			min-width: 40px;
-		}
-		.media {
-			border-radius: 0;
-		}
-		.nav-button {
-			width: 40px;
-			height: 40px;
-		}
-		.nav-left {
-			left: 0.5rem;
-		}
-		.nav-right {
-			right: 0.5rem;
-		}
-	}
+  @media (max-width: 768px) {
+    .modal-backdrop {
+      padding: 0;
+    }
+    .modal-content {
+      height: 100dvh;
+      max-width: 100%;
+    }
+    .modal-header,
+    .modal-footer {
+      border-radius: 0;
+      padding: 0.75rem;
+    }
+    .modal-title span {
+      font-size: 0.8125rem;
+      max-width: 200px;
+    }
+    .modal-actions {
+      gap: 0.25rem;
+    }
+    .zoom-level {
+      font-size: 0.75rem;
+      min-width: 40px;
+    }
+    .media {
+      border-radius: 0;
+    }
+    .nav-button {
+      width: 40px;
+      height: 40px;
+    }
+    .nav-left {
+      left: 0.5rem;
+    }
+    .nav-right {
+      right: 0.5rem;
+    }
+  }
 </style>

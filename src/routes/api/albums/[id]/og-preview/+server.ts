@@ -20,38 +20,39 @@ import { getStoredCover } from '$lib/server/album-cover';
  * for non-private albums.
  */
 export const GET: RequestHandler = ({ params, url }) => {
-	const { id } = params;
-	if (!id) {
-		throw error(400, 'Album ID missing');
-	}
+  const { id } = params;
+  if (!id) {
+    throw error(400, 'Album ID missing');
+  }
 
-	const db = getDatabase();
-	const row = db
-		.prepare('SELECT name, date, location, visibility FROM albums WHERE id = ?')
-		.get(id) as
-		{ name: string; date?: string | null; location?: string | null; visibility?: string } | undefined;
+  const db = getDatabase();
+  const row = db
+    .prepare('SELECT name, date, location, visibility FROM albums WHERE id = ?')
+    .get(id) as
+    | { name: string; date?: string | null; location?: string | null; visibility?: string }
+    | undefined;
 
-	if (!row) {
-		throw error(404, 'Album not found');
-	}
+  if (!row) {
+    throw error(404, 'Album not found');
+  }
 
-	const visibility = row.visibility || 'private';
-	if (visibility === 'private') {
-		throw error(403, 'Album is private');
-	}
+  const visibility = row.visibility || 'private';
+  if (visibility === 'private') {
+    throw error(403, 'Album is private');
+  }
 
-	const coverUrl = `${url.origin}/api/albums/${id}/og-cover`;
-	// Versioned when the cover is already resolved, so a cover change is picked
-	// up immediately instead of sitting in a downstream cache.
-	const stored = getStoredCover(id);
-	const squareCoverUrl = `${url.origin}/api/albums/${id}/cover${stored ? `?v=${stored.assetId}` : ''}`;
+  const coverUrl = `${url.origin}/api/albums/${id}/og-cover`;
+  // Versioned when the cover is already resolved, so a cover change is picked
+  // up immediately instead of sitting in a downstream cache.
+  const stored = getStoredCover(id);
+  const squareCoverUrl = `${url.origin}/api/albums/${id}/cover${stored ? `?v=${stored.assetId}` : ''}`;
 
-	return json({
-		name: row.name,
-		date: row.date || null,
-		location: row.location || null,
-		visibility,
-		coverUrl,
-		squareCoverUrl
-	});
+  return json({
+    name: row.name,
+    date: row.date || null,
+    location: row.location || null,
+    visibility,
+    coverUrl,
+    squareCoverUrl,
+  });
 };

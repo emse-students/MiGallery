@@ -1,52 +1,52 @@
 version: 2
 updates:
- # GitHub Actions
- - package-ecosystem: 'github-actions'
-   directory: '/'
-   rebase-strategy: auto
-   schedule:
-    interval: 'weekly'
-    day: 'monday'
-   commit-message:
-    prefix: 'chore(deps):'
-    include: 'scope'
-   labels:
-    - 'dependencies'
-    - 'github-actions'
-   open-pull-requests-limit: 5
+  # GitHub Actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    rebase-strategy: auto
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    commit-message:
+      prefix: 'chore(deps):'
+      include: 'scope'
+    labels:
+      - 'dependencies'
+      - 'github-actions'
+    open-pull-requests-limit: 5
 
- # Application dependencies (root). Dev minor/patch and prod patch are grouped into a single PR
- # to limit noise; majors arrive as individual PRs to review.
- #
- # `bun`, not `npm`: the npm ecosystem does not know `bun.lock`, so it opens PRs that touch only
- # package.json - and every pipeline here installs with `--frozen-lockfile`, which rejects exactly
- # that. The PRs would open and every one of them would fail.
- - package-ecosystem: 'bun'
-   directory: '/'
-   rebase-strategy: auto
-   schedule:
-    interval: 'weekly'
-    day: 'monday'
-   commit-message:
-    prefix: 'chore(deps):'
-    include: 'scope'
-   labels:
-    - 'dependencies'
-    - 'bun'
-   open-pull-requests-limit: 5
-   # TypeScript majors are held, not refused: `dependabot-auto-merge.yml` squash-merges a green
-   # Dependabot PR unattended, and TS 7 is a compiler rewrite that has NOT been measured against
-   # this repository. Lift the ignore once it has been, never by letting it land on its own.
-   ignore:
-    - dependency-name: 'typescript'
-      update-types: ['version-update:semver-major']
-   groups:
-    development-dependencies:
-     dependency-type: 'development'
-     update-types:
-      - 'minor'
-      - 'patch'
-    production-dependencies:
-     dependency-type: 'production'
-     update-types:
-      - 'patch'
+  # Application dependencies (root). Dev minor/patch and prod patch are grouped into a single PR
+  # to limit noise; majors arrive as individual PRs to review.
+  #
+  # `bun`, not `npm`: the npm ecosystem does not know `bun.lock`, so it opens PRs that touch only
+  # package.json - and every pipeline here installs with `--frozen-lockfile`, which rejects exactly
+  # that. The PRs would open and every one of them would fail.
+  - package-ecosystem: 'bun'
+    directory: '/'
+    rebase-strategy: auto
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    commit-message:
+      prefix: 'chore(deps):'
+      include: 'scope'
+    labels:
+      - 'dependencies'
+      - 'bun'
+    open-pull-requests-limit: 5
+    # TypeScript majors are held, not refused: `dependabot-auto-merge.yml` squash-merges a green
+    # Dependabot PR unattended, and TS 7 is a compiler rewrite that has NOT been measured against
+    # this repository. Lift the ignore once it has been, never by letting it land on its own.
+    ignore:
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+    groups:
+      development-dependencies:
+        dependency-type: 'development'
+        update-types:
+          - 'minor'
+          - 'patch'
+      production-dependencies:
+        dependency-type: 'production'
+        update-types:
+          - 'patch'

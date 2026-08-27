@@ -69,8 +69,8 @@ the catch-all proxy picks its treatment from whether it has a body to forward:
 
 ```ts
 const res = bodyToForward
-	? await fetch(resolvedRemoteUrl, init)
-	: await fetchWithAnswerDeadline(resolvedRemoteUrl, init);
+  ? await fetch(resolvedRemoteUrl, init)
+  : await fetchWithAnswerDeadline(resolvedRemoteUrl, init);
 ```
 
 ## What is deliberately NOT bounded

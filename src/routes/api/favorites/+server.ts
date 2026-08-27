@@ -11,24 +11,24 @@ const log = createLogger('favorites');
  * Gets all favorites of the logged-in user
  */
 export const GET: RequestHandler = async (event) => {
-	const user = await requireScope(event, 'read');
+  const user = await requireScope(event, 'read');
 
-	try {
-		const db = getDatabase();
-		const userId = user.user?.id_user;
-		if (!userId) {
-			return json({ error: 'User context required (session only)' }, { status: 401 });
-		}
+  try {
+    const db = getDatabase();
+    const userId = user.user?.id_user;
+    if (!userId) {
+      return json({ error: 'User context required (session only)' }, { status: 401 });
+    }
 
-		const favorites = db
-			.prepare('SELECT asset_id FROM user_favorites WHERE user_id = ?')
-			.all(userId) as { asset_id: string }[];
+    const favorites = db
+      .prepare('SELECT asset_id FROM user_favorites WHERE user_id = ?')
+      .all(userId) as { asset_id: string }[];
 
-		return json({ favorites: favorites.map((f) => f.asset_id) });
-	} catch (e: unknown) {
-		log.error('Error fetching favorites:', e);
-		return json({ error: 'Database error' }, { status: 500 });
-	}
+    return json({ favorites: favorites.map((f) => f.asset_id) });
+  } catch (e: unknown) {
+    log.error('Error fetching favorites:', e);
+    return json({ error: 'Database error' }, { status: 500 });
+  }
 };
 
 /**
@@ -37,31 +37,32 @@ export const GET: RequestHandler = async (event) => {
  * Body: { assetId: string }
  */
 export const POST: RequestHandler = async (event) => {
-	const user = await requireScope(event, 'write');
+  const user = await requireScope(event, 'write');
 
-	try {
-		const body = (await event.request.json()) as { assetId?: string };
-		const { assetId } = body;
+  try {
+    const body = (await event.request.json()) as { assetId?: string };
+    const { assetId } = body;
 
-		if (!assetId) {
-			return json({ error: 'assetId is required' }, { status: 400 });
-		}
+    if (!assetId) {
+      return json({ error: 'assetId is required' }, { status: 400 });
+    }
 
-		const userId = user.user?.id_user;
-		if (!userId) {
-			return json({ error: 'User context required (session only)' }, { status: 401 });
-		}
+    const userId = user.user?.id_user;
+    if (!userId) {
+      return json({ error: 'User context required (session only)' }, { status: 401 });
+    }
 
-		const db = getDatabase();
-		db
-			.prepare('INSERT OR IGNORE INTO user_favorites (user_id, asset_id) VALUES (?, ?)')
-			.run(userId, assetId);
+    const db = getDatabase();
+    db.prepare('INSERT OR IGNORE INTO user_favorites (user_id, asset_id) VALUES (?, ?)').run(
+      userId,
+      assetId
+    );
 
-		return json({ success: true, isFavorite: true });
-	} catch (e: unknown) {
-		log.error('Error adding favorite:', e);
-		return json({ error: 'Database error' }, { status: 500 });
-	}
+    return json({ success: true, isFavorite: true });
+  } catch (e: unknown) {
+    log.error('Error adding favorite:', e);
+    return json({ error: 'Database error' }, { status: 500 });
+  }
 };
 
 /**
@@ -70,27 +71,30 @@ export const POST: RequestHandler = async (event) => {
  * Body: { assetId: string }
  */
 export const DELETE: RequestHandler = async (event) => {
-	const user = await requireScope(event, 'write');
+  const user = await requireScope(event, 'write');
 
-	try {
-		const body = (await event.request.json()) as { assetId?: string };
-		const { assetId } = body;
+  try {
+    const body = (await event.request.json()) as { assetId?: string };
+    const { assetId } = body;
 
-		if (!assetId) {
-			return json({ error: 'assetId is required' }, { status: 400 });
-		}
+    if (!assetId) {
+      return json({ error: 'assetId is required' }, { status: 400 });
+    }
 
-		const userId = user.user?.id_user;
-		if (!userId) {
-			return json({ error: 'User context required (session only)' }, { status: 401 });
-		}
+    const userId = user.user?.id_user;
+    if (!userId) {
+      return json({ error: 'User context required (session only)' }, { status: 401 });
+    }
 
-		const db = getDatabase();
-		db.prepare('DELETE FROM user_favorites WHERE user_id = ? AND asset_id = ?').run(userId, assetId);
+    const db = getDatabase();
+    db.prepare('DELETE FROM user_favorites WHERE user_id = ? AND asset_id = ?').run(
+      userId,
+      assetId
+    );
 
-		return json({ success: true, isFavorite: false });
-	} catch (e: unknown) {
-		log.error('Error removing favorite:', e);
-		return json({ error: 'Database error' }, { status: 500 });
-	}
+    return json({ success: true, isFavorite: false });
+  } catch (e: unknown) {
+    log.error('Error removing favorite:', e);
+    return json({ error: 'Database error' }, { status: 500 });
+  }
 };

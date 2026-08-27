@@ -26,34 +26,34 @@ const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
 
 const categories = {
-	all: ['tests/**/*.test.ts'],
-	api: ['tests/api.test.ts'],
-	albums: ['tests/albums.test.ts'],
-	users: ['tests/users.test.ts'],
-	favorites: ['tests/favorites-external.test.ts'],
-	admin: ['tests/admin-auth.test.ts'],
-	people: ['tests/people-photoscv.test.ts'],
-	immich: ['tests/immich-proxy.test.ts'],
-	e2e: ['tests/e2e-integration.test.ts'],
-	quick: [
-		'tests/api.test.ts',
-		'tests/albums.test.ts',
-		'tests/users.test.ts',
-		'tests/favorites-external.test.ts',
-		'tests/admin-auth.test.ts'
-	],
-	full: ['tests/**/*.test.ts']
+  all: ['tests/**/*.test.ts'],
+  api: ['tests/api.test.ts'],
+  albums: ['tests/albums.test.ts'],
+  users: ['tests/users.test.ts'],
+  favorites: ['tests/favorites-external.test.ts'],
+  admin: ['tests/admin-auth.test.ts'],
+  people: ['tests/people-photoscv.test.ts'],
+  immich: ['tests/immich-proxy.test.ts'],
+  e2e: ['tests/e2e-integration.test.ts'],
+  quick: [
+    'tests/api.test.ts',
+    'tests/albums.test.ts',
+    'tests/users.test.ts',
+    'tests/favorites-external.test.ts',
+    'tests/admin-auth.test.ts',
+  ],
+  full: ['tests/**/*.test.ts'],
 };
 
 const category = process.argv[2] || 'all';
 
 if (!categories[category]) {
-	console.error(`❌ Catégorie inconnue: ${category}`);
-	console.log('\n📋 Catégories disponibles:');
-	Object.keys(categories).forEach((cat) => {
-		console.log(`  - ${cat}`);
-	});
-	process.exit(1);
+  console.error(`❌ Catégorie inconnue: ${category}`);
+  console.log('\n📋 Catégories disponibles:');
+  Object.keys(categories).forEach((cat) => {
+    console.log(`  - ${cat}`);
+  });
+  process.exit(1);
 }
 
 console.log(`🧪 Lancement des tests: ${category}\n`);
@@ -62,26 +62,26 @@ const testFiles = categories[category];
 const args = ['vitest', 'run'];
 
 if (category === 'full') {
-	args.push('--coverage');
+  args.push('--coverage');
 }
 
 args.push(...testFiles);
 
 const vitest = spawn('bunx', args, {
-	cwd: projectRoot,
-	stdio: 'inherit',
-	shell: process.platform === 'win32',
-	env: {
-		...process.env,
-		API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000'
-	}
+  cwd: projectRoot,
+  stdio: 'inherit',
+  shell: process.platform === 'win32',
+  env: {
+    ...process.env,
+    API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000',
+  },
 });
 
 vitest.on('exit', (code) => {
-	if (code === 0) {
-		console.log('\n✅ Tests terminés avec succès');
-	} else {
-		console.error(`\n❌ Tests échoués (code: ${code})`);
-	}
-	process.exit(code || 0);
+  if (code === 0) {
+    console.log('\n✅ Tests terminés avec succès');
+  } else {
+    console.error(`\n❌ Tests échoués (code: ${code})`);
+  }
+  process.exit(code || 0);
 });

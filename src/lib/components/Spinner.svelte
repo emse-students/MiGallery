@@ -2,7 +2,13 @@
   let { size = 24, ariaLabel = null }: { size?: number; ariaLabel?: string | null } = $props();
 </script>
 
-<div class="spinner" role="status" aria-hidden={ariaLabel ? "false" : "true"} aria-label={ariaLabel} style="width: {size}px; height: {size}px;"></div>
+<div
+  class="spinner"
+  role="status"
+  aria-hidden={ariaLabel ? 'false' : 'true'}
+  aria-label={ariaLabel}
+  style="width: {size}px; height: {size}px;"
+></div>
 
 <style>
   .spinner {
@@ -17,6 +23,8 @@
   }
 
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>

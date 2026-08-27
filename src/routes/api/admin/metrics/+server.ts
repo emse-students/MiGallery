@@ -9,25 +9,25 @@ import { requireScope } from '$lib/server/permissions';
  * Admin scope only (session admin or admin API key).
  */
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const mem = process.memoryUsage();
+  const mem = process.memoryUsage();
 
-	return json({
-		success: true,
-		timestamp: Date.now(),
-		process: {
-			uptimeSeconds: Math.round(process.uptime()),
-			pid: process.pid,
-			nodeVersion: process.version,
-			// All values in bytes; the UI formats them.
-			memory: {
-				rss: mem.rss,
-				heapTotal: mem.heapTotal,
-				heapUsed: mem.heapUsed,
-				external: mem.external,
-				arrayBuffers: mem.arrayBuffers
-			}
-		}
-	});
+  return json({
+    success: true,
+    timestamp: Date.now(),
+    process: {
+      uptimeSeconds: Math.round(process.uptime()),
+      pid: process.pid,
+      nodeVersion: process.version,
+      // All values in bytes; the UI formats them.
+      memory: {
+        rss: mem.rss,
+        heapTotal: mem.heapTotal,
+        heapUsed: mem.heapUsed,
+        external: mem.external,
+        arrayBuffers: mem.arrayBuffers,
+      },
+    },
+  });
 };

@@ -27,57 +27,57 @@ export const LEGACY_IMPERSONATION_COOKIES = ['current_user_id', 'impersonator_ad
 
 /** Set the session cookie. It expires with the row it points at. */
 export function setSessionCookie(cookies: Cookies, token: string, expiresAt: number): void {
-	cookies.set(SESSION_COOKIE_NAME, token, {
-		path: '/',
-		expires: new Date(expiresAt * 1000),
-		sameSite: 'lax',
-		secure: !dev,
-		httpOnly: true
-	});
+  cookies.set(SESSION_COOKIE_NAME, token, {
+    path: '/',
+    expires: new Date(expiresAt * 1000),
+    sameSite: 'lax',
+    secure: !dev,
+    httpOnly: true,
+  });
 }
 
 /** Remove the session cookie. Deleting the DB row is a separate, deliberate step. */
 export function clearSessionCookie(cookies: Cookies): void {
-	cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+  cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 }
 
 /** Read the raw token, for the callers that need to act on the session itself. */
 export function getSessionToken(cookies: Cookies): string | null {
-	return cookies.get(SESSION_COOKIE_NAME) ?? null;
+  return cookies.get(SESSION_COOKIE_NAME) ?? null;
 }
 
 /** Resolve the live session behind the cookie, or null. */
 export function getSession(cookies: Cookies): ResolvedSession | null {
-	try {
-		return resolveSession(getSessionToken(cookies));
-	} catch (e) {
-		log.error('error resolving the session', e);
+  try {
+    return resolveSession(getSessionToken(cookies));
+  } catch (e) {
+    log.error('error resolving the session', e);
 
-		return null;
-	}
+    return null;
+  }
 }
 
 function normalizeRole(role: string | null | undefined): string {
-	return role === 'admin' || role === 'mitviste' ? role : 'user';
+  return role === 'admin' || role === 'mitviste' ? role : 'user';
 }
 
 /** The logged-in user for `locals.user`, or null. */
 export function getSessionUser(cookies: Cookies): SessionUser | null {
-	const session = getSession(cookies);
-	if (!session) {
-		return null;
-	}
+  const session = getSession(cookies);
+  if (!session) {
+    return null;
+  }
 
-	const user = session.user;
+  const user = session.user;
 
-	return {
-		id: user.id_user,
-		name: user.name,
-		first_name: user.first_name,
-		last_name: user.last_name,
-		role: normalizeRole(user.role),
-		promo: user.promo,
-		formation: user.formation,
-		locale: user.locale
-	};
+  return {
+    id: user.id_user,
+    name: user.name,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    role: normalizeRole(user.role),
+    promo: user.promo,
+    formation: user.formation,
+    locale: user.locale,
+  };
 }

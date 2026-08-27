@@ -8,33 +8,33 @@ const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d
 const log = createLogger('auth-oidc');
 
 interface OIDCToken {
-	access_token: string;
-	id_token: string;
-	token_type: string;
-	expires_in: number;
-	refresh_token?: string;
-	scope?: string;
+  access_token: string;
+  id_token: string;
+  token_type: string;
+  expires_in: number;
+  refresh_token?: string;
+  scope?: string;
 }
 
 interface OIDCProfile {
-	sub: string;
-	name?: string;
-	firstName?: string;
-	lastName?: string;
-	given_name?: string;
-	family_name?: string;
-	email?: string;
-	promo?: string | number;
-	formation?: string;
-	[key: string]: unknown;
+  sub: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  given_name?: string;
+  family_name?: string;
+  email?: string;
+  promo?: string | number;
+  formation?: string;
+  [key: string]: unknown;
 }
 
 function getTrimmedString(value: unknown): string | null {
-	return typeof value === 'string' ? value.trim() : null;
+  return typeof value === 'string' ? value.trim() : null;
 }
 
 function getProfileSub(profile: OIDCProfile | Record<string, unknown>): string | null {
-	return getTrimmedString(profile.sub);
+  return getTrimmedString(profile.sub);
 }
 
 /**
@@ -45,10 +45,10 @@ function getProfileSub(profile: OIDCProfile | Record<string, unknown>): string |
  */
 
 function getProfilePromo(
-	profile: OIDCProfile | Record<string, unknown>,
-	customClaims: Record<string, unknown>
+  profile: OIDCProfile | Record<string, unknown>,
+  customClaims: Record<string, unknown>
 ): unknown {
-	return profile.promo ?? customClaims.promo;
+  return profile.promo ?? customClaims.promo;
 }
 
 /**
@@ -58,178 +58,178 @@ function getProfilePromo(
  * Authentik (the slug only serves to identify the token issuer).
  */
 function getAuthEndpointBase(): string {
-	const raw = (env.MICONNECT_ISSUER || '').trim();
-	try {
-		return `${new URL(raw).origin}/application/o`;
-	} catch {
-		return '';
-	}
+  const raw = (env.MICONNECT_ISSUER || '').trim();
+  try {
+    return `${new URL(raw).origin}/application/o`;
+  } catch {
+    return '';
+  }
 }
 
 /**
  * Parse promo value to number
  */
 function parsePromo(value: unknown): number | null {
-	if (typeof value === 'number' && Number.isFinite(value)) {
-		return value;
-	}
-	if (typeof value === 'string' && value.trim().length > 0) {
-		const n = parseInt(value, 10);
-		return Number.isNaN(n) ? null : n;
-	}
-	return null;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const n = parseInt(value, 10);
+    return Number.isNaN(n) ? null : n;
+  }
+  return null;
 }
 
 /**
  * Compute display name from profile data
  */
 function computeName(profile: OIDCProfile | Record<string, unknown>, fallbackId: string): string {
-	const fullName = typeof profile.name === 'string' ? profile.name.trim() : '';
-	if (fullName) {
-		return fullName;
-	}
+  const fullName = typeof profile.name === 'string' ? profile.name.trim() : '';
+  if (fullName) {
+    return fullName;
+  }
 
-	const firstName =
-		typeof profile.firstName === 'string'
-			? profile.firstName.trim()
-			: typeof profile.given_name === 'string'
-				? profile.given_name.trim()
-				: '';
+  const firstName =
+    typeof profile.firstName === 'string'
+      ? profile.firstName.trim()
+      : typeof profile.given_name === 'string'
+        ? profile.given_name.trim()
+        : '';
 
-	const lastName =
-		typeof profile.lastName === 'string'
-			? profile.lastName.trim()
-			: typeof profile.family_name === 'string'
-				? profile.family_name.trim()
-				: '';
+  const lastName =
+    typeof profile.lastName === 'string'
+      ? profile.lastName.trim()
+      : typeof profile.family_name === 'string'
+        ? profile.family_name.trim()
+        : '';
 
-	const combined = `${firstName} ${lastName}`.trim();
-	return combined || fallbackId;
+  const combined = `${firstName} ${lastName}`.trim();
+  return combined || fallbackId;
 }
 
 /**
  * Decode JWT payload (without verification - only for parsing)
  */
 function decodeJWT(token: string): Record<string, unknown> | null {
-	try {
-		const parts = token.split('.');
-		if (parts.length !== 3) {
-			return null;
-		}
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
 
-		// JWT uses base64url encoding: replace - with + and _ with / then add padding
-		const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-		const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
-		const decoded = atob(padded);
-		const parsed: unknown = JSON.parse(decoded);
-		return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-			? (parsed as Record<string, unknown>)
-			: null;
-	} catch (e) {
-		log.error('failed to decode JWT', e);
-		return null;
-	}
+    // JWT uses base64url encoding: replace - with + and _ with / then add padding
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const decoded = atob(padded);
+    const parsed: unknown = JSON.parse(decoded);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch (e) {
+    log.error('failed to decode JWT', e);
+    return null;
+  }
 }
 
 /**
  * Exchange authorization code for tokens
  */
 async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<OIDCToken | null> {
-	try {
-		const tokenUrl = `${getAuthEndpointBase()}/token/`;
-		const response = await fetch(tokenUrl, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
-			},
-			body: new URLSearchParams({
-				grant_type: 'authorization_code',
-				code,
-				client_id: env.MICONNECT_CLIENT_ID as string,
-				client_secret: env.MICONNECT_CLIENT_SECRET as string,
-				redirect_uri: redirectUri
-			}).toString()
-		});
+  try {
+    const tokenUrl = `${getAuthEndpointBase()}/token/`;
+    const response = await fetch(tokenUrl, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: env.MICONNECT_CLIENT_ID as string,
+        client_secret: env.MICONNECT_CLIENT_SECRET as string,
+        redirect_uri: redirectUri,
+      }).toString(),
+    });
 
-		if (!response.ok) {
-			const errText = await response.text();
-			log.error('token exchange failed', { status: response.status, body: errText });
-			return null;
-		}
+    if (!response.ok) {
+      const errText = await response.text();
+      log.error('token exchange failed', { status: response.status, body: errText });
+      return null;
+    }
 
-		return (await response.json()) as OIDCToken;
-	} catch (e) {
-		log.error('token exchange error', e);
-		return null;
-	}
+    return (await response.json()) as OIDCToken;
+  } catch (e) {
+    log.error('token exchange error', e);
+    return null;
+  }
 }
 
 /**
  * Fetch and parse user profile from userinfo endpoint
  */
 async function fetchUserProfile(accessToken: string): Promise<OIDCProfile | null> {
-	try {
-		const userinfoUrl = `${getAuthEndpointBase()}/userinfo/`;
-		const response = await fetch(userinfoUrl, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			headers: {
-				Authorization: `Bearer ${accessToken}`
-			}
-		});
+  try {
+    const userinfoUrl = `${getAuthEndpointBase()}/userinfo/`;
+    const response = await fetch(userinfoUrl, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
-		if (!response.ok) {
-			const errText = await response.text();
-			log.error('userinfo fetch failed', { status: response.status, body: errText });
-			return null;
-		}
+    if (!response.ok) {
+      const errText = await response.text();
+      log.error('userinfo fetch failed', { status: response.status, body: errText });
+      return null;
+    }
 
-		return (await response.json()) as OIDCProfile;
-	} catch (e) {
-		log.error('failed to fetch user profile', e);
-		return null;
-	}
+    return (await response.json()) as OIDCProfile;
+  } catch (e) {
+    log.error('failed to fetch user profile', e);
+    return null;
+  }
 }
 
 /**
  * Parse custom claims from ID token
  */
 function extractCustomClaims(idToken: string): Record<string, unknown> | null {
-	const decoded = decodeJWT(idToken);
-	if (!decoded) {
-		log.warn('could not decode ID token');
-		return null;
-	}
+  const decoded = decodeJWT(idToken);
+  if (!decoded) {
+    log.warn('could not decode ID token');
+    return null;
+  }
 
-	// Extract all custom claims (everything that's not standard OIDC)
-	const standardClaims = [
-		'iss',
-		'sub',
-		'aud',
-		'exp',
-		'iat',
-		'auth_time',
-		'acr',
-		'nonce',
-		'at_hash',
-		'name',
-		'firstName',
-		'lastName',
-		'given_name',
-		'family_name',
-		'email',
-		'email_verified',
-		'picture'
-	];
+  // Extract all custom claims (everything that's not standard OIDC)
+  const standardClaims = [
+    'iss',
+    'sub',
+    'aud',
+    'exp',
+    'iat',
+    'auth_time',
+    'acr',
+    'nonce',
+    'at_hash',
+    'name',
+    'firstName',
+    'lastName',
+    'given_name',
+    'family_name',
+    'email',
+    'email_verified',
+    'picture',
+  ];
 
-	const customClaims: Record<string, unknown> = {};
-	for (const [key, value] of Object.entries(decoded)) {
-		if (!standardClaims.includes(key)) {
-			customClaims[key] = value;
-		}
-	}
+  const customClaims: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(decoded)) {
+    if (!standardClaims.includes(key)) {
+      customClaims[key] = value;
+    }
+  }
 
-	return customClaims;
+  return customClaims;
 }
 
 /**
@@ -241,7 +241,7 @@ const SSO_OWNED_FIELDS = ['first_name', 'last_name', 'promo', 'formation'] as co
 
 /** A column carries a value. NULL from SQLite, undefined from an optional field: both are "unset". */
 function hasValue(value: unknown): boolean {
-	return value !== null && value !== undefined;
+  return value !== null && value !== undefined;
 }
 
 /**
@@ -252,194 +252,194 @@ function hasValue(value: unknown): boolean {
  * outside until an account is looked at months later.
  */
 export function handleUserInDatabase(
-	profile: OIDCProfile | Record<string, unknown>,
-	customClaims: Record<string, unknown>
+  profile: OIDCProfile | Record<string, unknown>,
+  customClaims: Record<string, unknown>
 ): DBUser | null {
-	try {
-		const userId = getProfileSub(profile);
-		if (!userId) {
-			log.error('no sub in profile');
-			return null;
-		}
+  try {
+    const userId = getProfileSub(profile);
+    if (!userId) {
+      log.error('no sub in profile');
+      return null;
+    }
 
-		const existingUser = getUserByCasId(userId);
-		const isAdmin = userId === SYSTEM_USER_ID;
+    const existingUser = getUserByCasId(userId);
+    const isAdmin = userId === SYSTEM_USER_ID;
 
-		// Extract all available data
-		const firstName =
-			typeof profile.firstName === 'string'
-				? profile.firstName.trim()
-				: typeof profile.given_name === 'string'
-					? profile.given_name.trim()
-					: null;
+    // Extract all available data
+    const firstName =
+      typeof profile.firstName === 'string'
+        ? profile.firstName.trim()
+        : typeof profile.given_name === 'string'
+          ? profile.given_name.trim()
+          : null;
 
-		const lastName =
-			typeof profile.lastName === 'string'
-				? profile.lastName.trim()
-				: typeof profile.family_name === 'string'
-					? profile.family_name.trim()
-					: null;
+    const lastName =
+      typeof profile.lastName === 'string'
+        ? profile.lastName.trim()
+        : typeof profile.family_name === 'string'
+          ? profile.family_name.trim()
+          : null;
 
-		const rawPromo = getProfilePromo(profile, customClaims);
-		const promo = parsePromo(rawPromo);
-		const formation =
-			typeof profile.formation === 'string'
-				? profile.formation.trim()
-				: typeof customClaims.formation === 'string'
-					? (customClaims.formation as string).trim()
-					: null;
+    const rawPromo = getProfilePromo(profile, customClaims);
+    const promo = parsePromo(rawPromo);
+    const formation =
+      typeof profile.formation === 'string'
+        ? profile.formation.trim()
+        : typeof customClaims.formation === 'string'
+          ? (customClaims.formation as string).trim()
+          : null;
 
-		const userData: DBUser = {
-			id_user: userId,
-			name: computeName(profile, userId),
-			first_name: firstName,
-			last_name: lastName,
-			role: isAdmin ? 'admin' : 'user',
-			promo,
-			formation,
-			photos_id: null
-		};
+    const userData: DBUser = {
+      id_user: userId,
+      name: computeName(profile, userId),
+      first_name: firstName,
+      last_name: lastName,
+      role: isAdmin ? 'admin' : 'user',
+      promo,
+      formation,
+      photos_id: null,
+    };
 
-		if (!existingUser) {
-			createUser(userData);
-			log.info(`new user ${userData.name}`, {
-				promo: userData.promo ?? null,
-				formation: userData.formation ?? null
-			});
-		} else {
-			// The local row is a COPY of Authentik, never a second opinion: every field the IdP owns
-			// is written on every login, NULLS INCLUDED. Skipping the nulls - which is what this did
-			// until 2026-08-24 - meant a claim Authentik had REMOVED survived here for ever, and
-			// `promo` is an album-access key: a promo the school has taken off an account would have
-			// kept opening that promo's albums, with nothing in the product able to close it.
-			//
-			// Writing the null is only sound because of WHERE this runs. `completeOIDCFlow` reaches
-			// this line only after the token exchange AND the userinfo fetch both succeeded, so a
-			// missing claim is the IdP's ANSWER ("this account has no promo" - true of the school
-			// staff among the 280 accounts on prod), never an unreachable IdP. A transport failure
-			// returns earlier and touches nothing.
-			//
-			// `role`, `photos_id`, `photos_asset_id` and `locale` are deliberately absent: they are
-			// MiGallery's own and no login may set them. Leaving them out of the payload is what
-			// keeps `updateUser`'s generated SET from naming them at all.
-			const erased = SSO_OWNED_FIELDS.filter(
-				(field) => hasValue(existingUser[field]) && userData[field] === null
-			);
-			if (erased.length > 0) {
-				log.warn(`SSO no longer describes ${erased.join(', ')} - clearing the local copy`, {
-					user: userId,
-					before: Object.fromEntries(erased.map((field) => [field, existingUser[field]]))
-				});
-			}
+    if (!existingUser) {
+      createUser(userData);
+      log.info(`new user ${userData.name}`, {
+        promo: userData.promo ?? null,
+        formation: userData.formation ?? null,
+      });
+    } else {
+      // The local row is a COPY of Authentik, never a second opinion: every field the IdP owns
+      // is written on every login, NULLS INCLUDED. Skipping the nulls - which is what this did
+      // until 2026-08-24 - meant a claim Authentik had REMOVED survived here for ever, and
+      // `promo` is an album-access key: a promo the school has taken off an account would have
+      // kept opening that promo's albums, with nothing in the product able to close it.
+      //
+      // Writing the null is only sound because of WHERE this runs. `completeOIDCFlow` reaches
+      // this line only after the token exchange AND the userinfo fetch both succeeded, so a
+      // missing claim is the IdP's ANSWER ("this account has no promo" - true of the school
+      // staff among the 280 accounts on prod), never an unreachable IdP. A transport failure
+      // returns earlier and touches nothing.
+      //
+      // `role`, `photos_id`, `photos_asset_id` and `locale` are deliberately absent: they are
+      // MiGallery's own and no login may set them. Leaving them out of the payload is what
+      // keeps `updateUser`'s generated SET from naming them at all.
+      const erased = SSO_OWNED_FIELDS.filter(
+        (field) => hasValue(existingUser[field]) && userData[field] === null
+      );
+      if (erased.length > 0) {
+        log.warn(`SSO no longer describes ${erased.join(', ')} - clearing the local copy`, {
+          user: userId,
+          before: Object.fromEntries(erased.map((field) => [field, existingUser[field]])),
+        });
+      }
 
-			const updatePayload: Partial<DBUser> & { id_user: string } = {
-				id_user: userId,
-				name: userData.name,
-				first_name: firstName,
-				last_name: lastName,
-				promo,
-				formation
-			};
+      const updatePayload: Partial<DBUser> & { id_user: string } = {
+        id_user: userId,
+        name: userData.name,
+        first_name: firstName,
+        last_name: lastName,
+        promo,
+        formation,
+      };
 
-			updateUser(updatePayload);
-		}
+      updateUser(updatePayload);
+    }
 
-		// Re-fetch from the DB to get the real state (mitviste role, photos_id, etc.)
-		const freshUser = getUserByCasId(userId);
-		if (!freshUser) {
-			log.error('could not re-fetch user after create/update');
-			return userData;
-		}
-		return freshUser;
-	} catch (e) {
-		log.error('error handling user in database', e);
-		return null;
-	}
+    // Re-fetch from the DB to get the real state (mitviste role, photos_id, etc.)
+    const freshUser = getUserByCasId(userId);
+    if (!freshUser) {
+      log.error('could not re-fetch user after create/update');
+      return userData;
+    }
+    return freshUser;
+  } catch (e) {
+    log.error('error handling user in database', e);
+    return null;
+  }
 }
 
 /**
  * Complete OAuth2/OIDC flow: code -> tokens -> profile -> database
  */
 export async function completeOIDCFlow(
-	code: string,
-	redirectUri: string
+  code: string,
+  redirectUri: string
 ): Promise<{ tokens: OIDCToken; profile: OIDCProfile; dbUser: DBUser } | null> {
-	// Step 1: Exchange code for tokens
-	const tokens = await exchangeCodeForTokens(code, redirectUri);
-	if (!tokens) {
-		log.error('OIDC flow failed at token exchange');
-		return null;
-	}
+  // Step 1: Exchange code for tokens
+  const tokens = await exchangeCodeForTokens(code, redirectUri);
+  if (!tokens) {
+    log.error('OIDC flow failed at token exchange');
+    return null;
+  }
 
-	// Step 2: Extract custom claims from ID token
-	const customClaims = extractCustomClaims(tokens.id_token) || {};
+  // Step 2: Extract custom claims from ID token
+  const customClaims = extractCustomClaims(tokens.id_token) || {};
 
-	// Step 3: Fetch user profile from userinfo endpoint
-	const profile = await fetchUserProfile(tokens.access_token);
-	if (!profile) {
-		log.error('OIDC flow failed at userinfo fetch');
-		return null;
-	}
+  // Step 3: Fetch user profile from userinfo endpoint
+  const profile = await fetchUserProfile(tokens.access_token);
+  if (!profile) {
+    log.error('OIDC flow failed at userinfo fetch');
+    return null;
+  }
 
-	// Step 4: Handle user in database
-	const dbUser = handleUserInDatabase(profile, customClaims);
-	if (!dbUser) {
-		log.error('OIDC flow failed at database operation');
-		return null;
-	}
+  // Step 4: Handle user in database
+  const dbUser = handleUserInDatabase(profile, customClaims);
+  if (!dbUser) {
+    log.error('OIDC flow failed at database operation');
+    return null;
+  }
 
-	return { tokens, profile, dbUser };
+  return { tokens, profile, dbUser };
 }
 
 /**
  * Generate OIDC authorization URL
  */
 export function generateAuthorizationUrl(
-	redirectUri: string,
-	state: string,
-	nonce: string
+  redirectUri: string,
+  state: string,
+  nonce: string
 ): string {
-	const scopes = ['openid', 'profile', 'promo', 'name', 'formation'];
+  const scopes = ['openid', 'profile', 'promo', 'name', 'formation'];
 
-	const params = new URLSearchParams({
-		response_type: 'code',
-		client_id: env.MICONNECT_CLIENT_ID as string,
-		redirect_uri: redirectUri,
-		scope: scopes.join(' '),
-		state,
-		nonce
-	});
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: env.MICONNECT_CLIENT_ID as string,
+    redirect_uri: redirectUri,
+    scope: scopes.join(' '),
+    state,
+    nonce,
+  });
 
-	const authUrl = `${getAuthEndpointBase()}/authorize/?${params.toString()}`;
-	return authUrl;
+  const authUrl = `${getAuthEndpointBase()}/authorize/?${params.toString()}`;
+  return authUrl;
 }
 
 /**
  * Export session user data type
  */
 export interface SessionUser {
-	id: string;
-	name: string;
-	first_name?: string | null;
-	last_name?: string | null;
-	role: string;
-	promo?: number | null;
-	formation?: string | null;
-	locale?: string | null;
+  id: string;
+  name: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  role: string;
+  promo?: number | null;
+  formation?: string | null;
+  locale?: string | null;
 }
 
 /**
  * Convert DBUser to SessionUser
  */
 export function toSessionUser(dbUser: DBUser): SessionUser {
-	return {
-		id: dbUser.id_user,
-		name: dbUser.name,
-		first_name: dbUser.first_name,
-		last_name: dbUser.last_name,
-		role: dbUser.role,
-		promo: dbUser.promo,
-		formation: dbUser.formation,
-		locale: dbUser.locale
-	};
+  return {
+    id: dbUser.id_user,
+    name: dbUser.name,
+    first_name: dbUser.first_name,
+    last_name: dbUser.last_name,
+    role: dbUser.role,
+    promo: dbUser.promo,
+    formation: dbUser.formation,
+    locale: dbUser.locale,
+  };
 }

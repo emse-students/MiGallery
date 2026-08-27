@@ -9,263 +9,263 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const testAssetId = 'test-asset-123';
 
 beforeAll(async () => {
-	await setupTestAuth();
+  await setupTestAuth();
 });
 
 afterAll(async () => {
-	if (globalTestContext.adminApiKey) {
-		await teardownTestAuth(globalTestContext as import('./test-helpers').TestContext);
-	}
+  if (globalTestContext.adminApiKey) {
+    await teardownTestAuth(globalTestContext as import('./test-helpers').TestContext);
+  }
 });
 
 const getAuthHeaders = () => {
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json'
-	};
-	if (globalTestContext.adminApiKey) {
-		headers['x-api-key'] = globalTestContext.adminApiKey;
-	}
-	return headers;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (globalTestContext.adminApiKey) {
+    headers['x-api-key'] = globalTestContext.adminApiKey;
+  }
+  return headers;
 };
 
 describe('Favorites API - GET /api/favorites', () => {
-	it('should list user favorites', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			headers: getAuthHeaders()
-		});
+  it('should list user favorites', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      headers: getAuthHeaders(),
+    });
 
-		expect([200, 401, 403]).toContain(response.status);
+    expect([200, 401, 403]).toContain(response.status);
 
-		if (response.status === 200) {
-			const favorites = (await response.json()) as unknown[];
-			expect(Array.isArray(favorites)).toBe(true);
-		}
-	});
+    if (response.status === 200) {
+      const favorites = (await response.json()) as unknown[];
+      expect(Array.isArray(favorites)).toBe(true);
+    }
+  });
 
-	it('should reject access without authentication', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`);
-		expect([401, 403]).toContain(response.status);
-	});
+  it('should reject access without authentication', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`);
+    expect([401, 403]).toContain(response.status);
+  });
 
-	it('should return empty list if no favorites', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			headers: getAuthHeaders()
-		});
+  it('should return empty list if no favorites', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      headers: getAuthHeaders(),
+    });
 
-		if (response.status === 200) {
-			const favorites = (await response.json()) as unknown[];
-			expect(Array.isArray(favorites)).toBe(true);
-		}
-	});
+    if (response.status === 200) {
+      const favorites = (await response.json()) as unknown[];
+      expect(Array.isArray(favorites)).toBe(true);
+    }
+  });
 });
 
 describe('Favorites API - POST /api/favorites', () => {
-	it('should add asset to favorites', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				assetId: testAssetId
-			})
-		});
+  it('should add asset to favorites', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        assetId: testAssetId,
+      }),
+    });
 
-		expect([200, 201, 400, 401, 403, 409]).toContain(response.status);
+    expect([200, 201, 400, 401, 403, 409]).toContain(response.status);
 
-		if (response.status === 200 || response.status === 201) {
-			const data = (await response.json()) as { success: boolean };
-			expect(data.success).toBe(true);
-		}
-	});
+    if (response.status === 200 || response.status === 201) {
+      const data = (await response.json()) as { success: boolean };
+      expect(data.success).toBe(true);
+    }
+  });
 
-	it('should reject addition without assetId', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({})
-		});
+  it('should reject addition without assetId', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({}),
+    });
 
-		expect([400, 401, 403]).toContain(response.status);
-	});
+    expect([400, 401, 403]).toContain(response.status);
+  });
 
-	it('should handle duplicate addition gracefully', async () => {
-		// Add first time
-		await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				assetId: testAssetId
-			})
-		});
+  it('should handle duplicate addition gracefully', async () => {
+    // Add first time
+    await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        assetId: testAssetId,
+      }),
+    });
 
-		// Add second time (duplicate)
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				assetId: testAssetId
-			})
-		});
+    // Add second time (duplicate)
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        assetId: testAssetId,
+      }),
+    });
 
-		expect([200, 401, 409]).toContain(response.status);
-	});
+    expect([200, 401, 409]).toContain(response.status);
+  });
 });
 
 describe('Favorites API - DELETE /api/favorites', () => {
-	it('should remove asset from favorites', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'DELETE',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				assetId: testAssetId
-			})
-		});
+  it('should remove asset from favorites', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        assetId: testAssetId,
+      }),
+    });
 
-		expect([200, 204, 400, 401, 403, 404]).toContain(response.status);
-	});
+    expect([200, 204, 400, 401, 403, 404]).toContain(response.status);
+  });
 
-	it('should reject deletion without assetId', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'DELETE',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({})
-		});
+  it('should reject deletion without assetId', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({}),
+    });
 
-		expect([400, 401, 403]).toContain(response.status);
-	});
+    expect([400, 401, 403]).toContain(response.status);
+  });
 
-	it('should handle deletion of non-existent favorite', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/favorites`, {
-			method: 'DELETE',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				assetId: 'inexistant-asset-id-12345'
-			})
-		});
+  it('should handle deletion of non-existent favorite', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/favorites`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        assetId: 'inexistant-asset-id-12345',
+      }),
+    });
 
-		expect([200, 401, 404]).toContain(response.status);
-	});
+    expect([200, 401, 404]).toContain(response.status);
+  });
 });
 
 describe('External Media API - GET /api/external/media/[id]', () => {
-	it('should fetch specific external media', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/external/media/test-id-12345`, {
-			headers: getAuthHeaders()
-		});
+  it('should fetch specific external media', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/external/media/test-id-12345`, {
+      headers: getAuthHeaders(),
+    });
 
-		expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 500]).toContain(response.status);
 
-		if (response.status === 200) {
-			const data = (await response.json()) as { id: string };
-			expect(data).toHaveProperty('id');
-		}
-	});
+    if (response.status === 200) {
+      const data = (await response.json()) as { id: string };
+      expect(data).toHaveProperty('id');
+    }
+  });
 
-	it('should return 404 for non-existent media', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
-			headers: getAuthHeaders()
-		});
+  it('should return 404 for non-existent media', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
+      headers: getAuthHeaders(),
+    });
 
-		expect([400, 401, 404, 500]).toContain(response.status);
-	});
+    expect([400, 401, 404, 500]).toContain(response.status);
+  });
 });
 describe('External Media API - DELETE /api/external/media/[id]', () => {
-	it('should delete specific external media', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/external/media/test-id-12345`, {
-			method: 'DELETE',
-			headers: getAuthHeaders()
-		});
+  it('should delete specific external media', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/external/media/test-id-12345`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
 
-		expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
-	});
+    expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
+  });
 
-	it('should return 404 for non-existent media', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
-			method: 'DELETE',
-			headers: getAuthHeaders()
-		});
+  it('should return 404 for non-existent media', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/external/media/inexistant-id-12345`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
 
-		expect([404, 500]).toContain(response.status);
-	});
+    expect([404, 500]).toContain(response.status);
+  });
 });
 
 describe('Database API - POST /api/db', () => {
-	it('should allow SQL query execution (admin)', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/db`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				query: 'SELECT COUNT(*) FROM users'
-			})
-		});
+  it('should allow SQL query execution (admin)', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/db`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        query: 'SELECT COUNT(*) FROM users',
+      }),
+    });
 
-		expect([200, 400, 401, 403, 404]).toContain(response.status);
-	});
+    expect([200, 400, 401, 403, 404]).toContain(response.status);
+  });
 
-	it('should reject dangerous SQL queries', async () => {
-		const dangerousQueries = [
-			'DROP TABLE users',
-			'DELETE FROM users',
-			'UPDATE users SET role = "admin"'
-		];
+  it('should reject dangerous SQL queries', async () => {
+    const dangerousQueries = [
+      'DROP TABLE users',
+      'DELETE FROM users',
+      'UPDATE users SET role = "admin"',
+    ];
 
-		for (const query of dangerousQueries) {
-			const response = await fetch(`${API_BASE_URL}/api/db`, {
-				method: 'POST',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ query })
-			});
+    for (const query of dangerousQueries) {
+      const response = await fetch(`${API_BASE_URL}/api/db`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ query }),
+      });
 
-			expect([400, 401, 403, 404]).toContain(response.status);
-		}
-	});
+      expect([400, 401, 403, 404]).toContain(response.status);
+    }
+  });
 
-	it('should reject access for non-admins', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/db`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				query: 'SELECT * FROM users'
-			})
-		});
+  it('should reject access for non-admins', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/db`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        query: 'SELECT * FROM users',
+      }),
+    });
 
-		expect([200, 400, 401, 403, 404]).toContain(response.status);
-	});
+    expect([200, 400, 401, 403, 404]).toContain(response.status);
+  });
 });
 
 describe('Change User API - POST /api/change-user', () => {
-	it('should allow changing user (dev mode)', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/change-user`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				userId: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'
-			})
-		});
+  it('should allow changing user (dev mode)', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/change-user`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        userId: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+      }),
+    });
 
-		expect([200, 302, 401, 403]).toContain(response.status);
-	});
+    expect([200, 302, 401, 403]).toContain(response.status);
+  });
 
-	it('should reject the change without userId', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/change-user`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({})
-		});
+  it('should reject the change without userId', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/change-user`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({}),
+    });
 
-		expect([200, 400, 401, 403]).toContain(response.status);
-	});
+    expect([200, 400, 401, 403]).toContain(response.status);
+  });
 
-	it('should reject change to non-existent user', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/change-user`, {
-			method: 'POST',
-			headers: getAuthHeaders(),
-			body: JSON.stringify({
-				userId: 'inexistant.user.12345'
-			})
-		});
+  it('should reject change to non-existent user', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/change-user`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        userId: 'inexistant.user.12345',
+      }),
+    });
 
-		// 401 when the caller has no session: an impersonation is recorded ON a
-		// session row, so an API-key caller has nothing to change.
-		expect([400, 401, 404]).toContain(response.status);
-	});
+    // 401 when the caller has no session: an impersonation is recorded ON a
+    // session row, so an API-key caller has nothing to change.
+    expect([400, 401, 404]).toContain(response.status);
+  });
 });

@@ -14,23 +14,23 @@ const log = createLogger('auth-logout');
  * of that row rather than a cookie of its own.
  */
 export const POST: RequestHandler = ({ cookies }) => {
-	const token = getSessionToken(cookies);
+  const token = getSessionToken(cookies);
 
-	if (token) {
-		try {
-			deleteSession(token);
-		} catch (e) {
-			// The row is what makes the token dead. If it survives, the session is NOT
-			// revoked - report that instead of a logout that did not happen.
-			log.error('could not delete the session row', e);
-			clearSessionCookie(cookies);
-			throw error(500, 'Logout failed');
-		}
-	}
+  if (token) {
+    try {
+      deleteSession(token);
+    } catch (e) {
+      // The row is what makes the token dead. If it survives, the session is NOT
+      // revoked - report that instead of a logout that did not happen.
+      log.error('could not delete the session row', e);
+      clearSessionCookie(cookies);
+      throw error(500, 'Logout failed');
+    }
+  }
 
-	clearSessionCookie(cookies);
+  clearSessionCookie(cookies);
 
-	// Thrown OUTSIDE any try: a SvelteKit redirect is not an Error, so a catch
-	// around it swallows the redirect and answers 500 on a logout that worked.
-	throw redirect(302, '/');
+  // Thrown OUTSIDE any try: a SvelteKit redirect is not an Error, so a catch
+  // around it swallows the redirect and answers 500 on a logout that worked.
+  throw redirect(302, '/');
 };

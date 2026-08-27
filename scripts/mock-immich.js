@@ -10,63 +10,63 @@ const UPLOAD_DIR = path.join(process.cwd(), 'data', 'mock-uploads');
  * logging so a crafted method/URL cannot forge extra log lines (log injection).
  */
 function safeLog(value) {
-	// eslint-disable-next-line no-control-regex
-	return String(value).replace(/[\x00-\x1f\x7f]/g, '?');
+  // eslint-disable-next-line no-control-regex
+  return String(value).replace(/[\x00-\x1f\x7f]/g, '?');
 }
 
 if (!fs.existsSync(UPLOAD_DIR)) {
-	fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 const server = http.createServer((req, res) => {
-	console.log(`[MockImmich] ${safeLog(req.method)} ${safeLog(req.url)}`);
-	console.log('[MockImmich] Headers:', req.headers);
+  console.log(`[MockImmich] ${safeLog(req.method)} ${safeLog(req.url)}`);
+  console.log('[MockImmich] Headers:', req.headers);
 
-	if (req.method === 'POST' && req.url === '/api/assets') {
-		const contentType = req.headers['content-type'] || '';
-		const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  if (req.method === 'POST' && req.url === '/api/assets') {
+    const contentType = req.headers['content-type'] || '';
+    const boundaryMatch = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
 
-		if (!boundaryMatch) {
-			console.error('[MockImmich] Missing boundary in content-type');
-			res.writeHead(400);
-			res.end('Missing boundary');
-			return;
-		}
+    if (!boundaryMatch) {
+      console.error('[MockImmich] Missing boundary in content-type');
+      res.writeHead(400);
+      res.end('Missing boundary');
+      return;
+    }
 
-		const boundary = boundaryMatch[1] || boundaryMatch[2];
-		console.log(`[MockImmich] Multipart boundary received (length=${boundary.length})`);
+    const boundary = boundaryMatch[1] || boundaryMatch[2];
+    console.log(`[MockImmich] Multipart boundary received (length=${boundary.length})`);
 
-		// Simple stream to file to verify reception
-		const timestamp = Date.now();
-		const filePath = path.join(UPLOAD_DIR, `upload-${timestamp}.bin`);
-		const writeStream = fs.createWriteStream(filePath);
+    // Simple stream to file to verify reception
+    const timestamp = Date.now();
+    const filePath = path.join(UPLOAD_DIR, `upload-${timestamp}.bin`);
+    const writeStream = fs.createWriteStream(filePath);
 
-		let receivedBytes = 0;
-		req.on('data', (chunk) => {
-			receivedBytes += chunk.length;
-			writeStream.write(chunk);
-		});
+    let receivedBytes = 0;
+    req.on('data', (chunk) => {
+      receivedBytes += chunk.length;
+      writeStream.write(chunk);
+    });
 
-		req.on('end', () => {
-			writeStream.end();
-			console.log('[MockImmich] Upload complete.');
-			console.log(`[MockImmich] Saved to ${filePath}`);
+    req.on('end', () => {
+      writeStream.end();
+      console.log('[MockImmich] Upload complete.');
+      console.log(`[MockImmich] Saved to ${filePath}`);
 
-			res.writeHead(201, { 'Content-Type': 'application/json' });
-			res.end(JSON.stringify({ id: `mock-asset-${timestamp}`, status: 'created' }));
-		});
+      res.writeHead(201, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ id: `mock-asset-${timestamp}`, status: 'created' }));
+    });
 
-		req.on('error', (err) => {
-			console.error('[MockImmich] Error receiving data:', err);
-			res.writeHead(500);
-			res.end('Internal Server Error');
-		});
-	} else {
-		res.writeHead(404);
-		res.end('Not Found');
-	}
+    req.on('error', (err) => {
+      console.error('[MockImmich] Error receiving data:', err);
+      res.writeHead(500);
+      res.end('Internal Server Error');
+    });
+  } else {
+    res.writeHead(404);
+    res.end('Not Found');
+  }
 });
 
 server.listen(PORT, () => {
-	console.log(`Mock Immich server listening on http://localhost:${PORT}`);
+  console.log(`Mock Immich server listening on http://localhost:${PORT}`);
 });

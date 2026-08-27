@@ -24,40 +24,40 @@ import { m } from '$lib/paraglide/messages';
 
 /** Everything one page contributes to the head. Assembled in a `load`, rendered by the layout. */
 export interface SeoMeta {
-	/** The card's heading. NOT the `<title>` element - pages own that themselves. */
-	title: string;
-	/** The sentence the card shows under the title. */
-	description: string;
-	/**
-	 * Absolute URL of the preview image, or null for the site logo.
-	 *
-	 * Null is not only "no cover": the album loader deliberately withholds it for a PRIVATE album,
-	 * because a preview image is readable by anyone the link reaches.
-	 */
-	image?: string | null;
-	/** What the image shows, for a reader who cannot see it. */
-	imageAlt?: string;
-	/**
-	 * Pixel size and MIME type of {@link image}, when they are KNOWN.
-	 *
-	 * An unfurler that has them lays the card out before the image arrives, so the preview does not
-	 * reflow. They belong to a specific image, not to the concept of one: the album cover endpoint
-	 * renders a fixed 1200x630 WebP, the site logo does not, and declaring a size the image does not
-	 * have is worse than declaring none.
-	 */
-	imageWidth?: number;
-	imageHeight?: number;
-	imageType?: string;
+  /** The card's heading. NOT the `<title>` element - pages own that themselves. */
+  title: string;
+  /** The sentence the card shows under the title. */
+  description: string;
+  /**
+   * Absolute URL of the preview image, or null for the site logo.
+   *
+   * Null is not only "no cover": the album loader deliberately withholds it for a PRIVATE album,
+   * because a preview image is readable by anyone the link reaches.
+   */
+  image?: string | null;
+  /** What the image shows, for a reader who cannot see it. */
+  imageAlt?: string;
+  /**
+   * Pixel size and MIME type of {@link image}, when they are KNOWN.
+   *
+   * An unfurler that has them lays the card out before the image arrives, so the preview does not
+   * reflow. They belong to a specific image, not to the concept of one: the album cover endpoint
+   * renders a fixed 1200x630 WebP, the site logo does not, and declaring a size the image does not
+   * have is worse than declaring none.
+   */
+  imageWidth?: number;
+  imageHeight?: number;
+  imageType?: string;
 }
 
 /** Absolute URL of the default preview image, from a request origin. */
 export function defaultImage(origin: string): string {
-	return `${origin}/MiGallery.png`;
+  return `${origin}/MiGallery.png`;
 }
 
 /** Absolute URL for a path, from a request origin. Query and hash are deliberately dropped. */
 export function canonicalUrl(origin: string, pathname: string): string {
-	return `${origin}${pathname}`;
+  return `${origin}${pathname}`;
 }
 
 /**
@@ -67,10 +67,10 @@ export function canonicalUrl(origin: string, pathname: string): string {
  * that does, because it is the only URL anybody shares.
  */
 export function siteSeo(): SeoMeta {
-	return {
-		title: 'MiGallery',
-		description: m.app_meta_description(),
-		image: null,
-		imageAlt: m.app_logo_alt()
-	};
+  return {
+    title: 'MiGallery',
+    description: m.app_meta_description(),
+    image: null,
+    imageAlt: m.app_logo_alt(),
+  };
 }

@@ -19,49 +19,49 @@ type Level = 'debug' | 'info' | 'warn' | 'error';
 const LEVELS: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 
 function resolveThreshold(): number {
-	const env = process.env.LOG_LEVEL?.toLowerCase();
-	if (env && env in LEVELS) {
-		return LEVELS[env as Level];
-	}
-	if (process.env.NODE_ENV === 'test') {
-		return LEVELS.error;
-	}
-	if (process.env.NODE_ENV === 'production') {
-		return LEVELS.info;
-	}
-	return LEVELS.debug;
+  const env = process.env.LOG_LEVEL?.toLowerCase();
+  if (env && env in LEVELS) {
+    return LEVELS[env as Level];
+  }
+  if (process.env.NODE_ENV === 'test') {
+    return LEVELS.error;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return LEVELS.info;
+  }
+  return LEVELS.debug;
 }
 
 const threshold = resolveThreshold();
 
 function emit(level: Level, scope: string, message: string, fields?: unknown): void {
-	if (LEVELS[level] < threshold) {
-		return;
-	}
-	const line = `${new Date().toISOString()} ${level.toUpperCase()} [${scope}] ${message}`;
-	const sink = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
-	if (fields === undefined) {
-		sink(line);
-	} else {
-		sink(line, fields);
-	}
+  if (LEVELS[level] < threshold) {
+    return;
+  }
+  const line = `${new Date().toISOString()} ${level.toUpperCase()} [${scope}] ${message}`;
+  const sink = level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+  if (fields === undefined) {
+    sink(line);
+  } else {
+    sink(line, fields);
+  }
 }
 
 export interface Logger {
-	debug(message: string, fields?: unknown): void;
-	info(message: string, fields?: unknown): void;
-	warn(message: string, fields?: unknown): void;
-	error(message: string, fields?: unknown): void;
+  debug(message: string, fields?: unknown): void;
+  info(message: string, fields?: unknown): void;
+  warn(message: string, fields?: unknown): void;
+  error(message: string, fields?: unknown): void;
 }
 
 /**
  * Create a scoped logger. The scope is printed as `[scope]` on every line.
  */
 export function createLogger(scope: string): Logger {
-	return {
-		debug: (message, fields) => emit('debug', scope, message, fields),
-		info: (message, fields) => emit('info', scope, message, fields),
-		warn: (message, fields) => emit('warn', scope, message, fields),
-		error: (message, fields) => emit('error', scope, message, fields)
-	};
+  return {
+    debug: (message, fields) => emit('debug', scope, message, fields),
+    info: (message, fields) => emit('info', scope, message, fields),
+    warn: (message, fields) => emit('warn', scope, message, fields),
+    error: (message, fields) => emit('error', scope, message, fields),
+  };
 }

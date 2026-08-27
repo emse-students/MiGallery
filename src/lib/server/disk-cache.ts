@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
  * there is no check-then-create window between concurrent callers.
  */
 export function ensureCacheDir(dir: string): void {
-	fs.mkdirSync(dir, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true });
 }
 
 /**
@@ -23,14 +23,14 @@ export function ensureCacheDir(dir: string): void {
  * followed by a readFileSync that could race with a concurrent unlink.
  */
 export function readCacheFile(file: string): Buffer | null {
-	try {
-		return fs.readFileSync(file);
-	} catch (e) {
-		if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-			return null;
-		}
-		throw e;
-	}
+  try {
+    return fs.readFileSync(file);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw e;
+  }
 }
 
 /**
@@ -40,16 +40,16 @@ export function readCacheFile(file: string): Buffer | null {
  * corrupt each other's output. The temp file is cleaned up on failure.
  */
 export function writeCacheFileAtomic(file: string, data: Buffer): void {
-	const tmp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
-	try {
-		fs.writeFileSync(tmp, data);
-		fs.renameSync(tmp, file);
-	} catch (e) {
-		try {
-			fs.unlinkSync(tmp);
-		} catch {
-			// Temp file may not exist if writeFileSync itself failed; ignore.
-		}
-		throw e;
-	}
+  const tmp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
+  try {
+    fs.writeFileSync(tmp, data);
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      // Temp file may not exist if writeFileSync itself failed; ignore.
+    }
+    throw e;
+  }
 }

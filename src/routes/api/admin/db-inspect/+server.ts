@@ -11,36 +11,36 @@ import { getDatabase } from '$lib/db/database';
 const execFileAsync = promisify(execFile);
 
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	try {
-		const scriptPath = path.join(process.cwd(), 'scripts', 'inspect-db.cjs');
-		const { stdout: output } = await execFileAsync('node', [scriptPath], { encoding: 'utf-8' });
+  try {
+    const scriptPath = path.join(process.cwd(), 'scripts', 'inspect-db.cjs');
+    const { stdout: output } = await execFileAsync('node', [scriptPath], { encoding: 'utf-8' });
 
-		const hasErrors = output.includes('❌');
-		const errors = hasErrors ? ['See the logs for more details'] : [];
+    const hasErrors = output.includes('❌');
+    const errors = hasErrors ? ['See the logs for more details'] : [];
 
-		const db = getDatabase();
-		const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
-			name: string;
-		}[];
+    const db = getDatabase();
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+      name: string;
+    }[];
 
-		return json({
-			success: !hasErrors,
-			hasErrors,
-			errors,
-			output,
-			tables: tables.map((t) => t.name)
-		});
-	} catch (e: unknown) {
-		const err = ensureError(e);
-		const errOutput = e && typeof e === 'object' && 'stdout' in e ? String(e.stdout) : err.message;
+    return json({
+      success: !hasErrors,
+      hasErrors,
+      errors,
+      output,
+      tables: tables.map((t) => t.name),
+    });
+  } catch (e: unknown) {
+    const err = ensureError(e);
+    const errOutput = e && typeof e === 'object' && 'stdout' in e ? String(e.stdout) : err.message;
 
-		return json({
-			success: false,
-			hasErrors: true,
-			errors: ['Errors detected in the database'],
-			output: errOutput
-		});
-	}
+    return json({
+      success: false,
+      hasErrors: true,
+      errors: ['Errors detected in the database'],
+      output: errOutput,
+    });
+  }
 };

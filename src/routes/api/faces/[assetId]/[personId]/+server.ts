@@ -11,36 +11,36 @@ import { generateFaceCrop } from '$lib/server/face-crop';
  * avatar endpoint serves the exact same image.
  */
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'read');
-	const { assetId, personId } = event.params;
+  await requireScope(event, 'read');
+  const { assetId, personId } = event.params;
 
-	if (!assetId) {
-		throw error(400, 'Missing assetId');
-	}
+  if (!assetId) {
+    throw error(400, 'Missing assetId');
+  }
 
-	const result = await generateFaceCrop(assetId, personId || 'center', event.fetch);
+  const result = await generateFaceCrop(assetId, personId || 'center', event.fetch);
 
-	if (result.ok) {
-		return new Response(new Uint8Array(result.buffer), {
-			headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=15552000' }
-		});
-	}
+  if (result.ok) {
+    return new Response(new Uint8Array(result.buffer), {
+      headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=15552000' },
+    });
+  }
 
-	if (result.reason === 'busy') {
-		// Queue full: fall back to the proxied thumbnail (still an image, just not
-		// face-cropped) rather than load an image in RAM and risk OOM under burst.
-		return new Response(null, {
-			status: 307,
-			headers: {
-				Location: `/api/immich/assets/${assetId}/thumbnail?size=thumbnail`,
-				'Cache-Control': 'no-store'
-			}
-		});
-	}
+  if (result.reason === 'busy') {
+    // Queue full: fall back to the proxied thumbnail (still an image, just not
+    // face-cropped) rather than load an image in RAM and risk OOM under burst.
+    return new Response(null, {
+      status: 307,
+      headers: {
+        Location: `/api/immich/assets/${assetId}/thumbnail?size=thumbnail`,
+        'Cache-Control': 'no-store',
+      },
+    });
+  }
 
-	if (result.reason === 'notfound') {
-		throw error(404, 'Image source not found');
-	}
+  if (result.reason === 'notfound') {
+    throw error(404, 'Image source not found');
+  }
 
-	throw error(500, 'Internal Server Error');
+  throw error(500, 'Internal Server Error');
 };

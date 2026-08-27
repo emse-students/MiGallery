@@ -7,20 +7,20 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('users-me-photo-access');
 interface PhotoAccessPermission {
-	authorized_id: string;
-	authorized_name: string;
-	authorized_first_name: string | null;
-	authorized_last_name: string | null;
-	authorized_promo: number | null;
-	authorized_formation: string | null;
-	created_at: string;
+  authorized_id: string;
+  authorized_name: string;
+  authorized_first_name: string | null;
+  authorized_last_name: string | null;
+  authorized_promo: number | null;
+  authorized_formation: string | null;
+  created_at: string;
 }
 
 interface UserBasic {
-	id_user: string;
-	name: string;
-	first_name: string | null;
-	last_name: string | null;
+  id_user: string;
+  name: string;
+  first_name: string | null;
+  last_name: string | null;
 }
 
 /**
@@ -28,14 +28,14 @@ interface UserBasic {
  * Fetches the list of people authorized to view my photos
  */
 export const GET: RequestHandler = async (event) => {
-	const user = await requireSession(event);
+  const user = await requireSession(event);
 
-	try {
-		const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-		const permissions = db
-			.prepare(
-				`SELECT
+    const permissions = db
+      .prepare(
+        `SELECT
 					p.authorized_id,
 					u.name as authorized_name,
 					u.first_name as authorized_first_name,
@@ -47,15 +47,15 @@ export const GET: RequestHandler = async (event) => {
 				JOIN users u ON u.id_user = p.authorized_id
 				WHERE p.owner_id = ?
 				ORDER BY u.name, u.first_name`
-			)
-			.all(user.id_user) as PhotoAccessPermission[];
+      )
+      .all(user.id_user) as PhotoAccessPermission[];
 
-		return json({ success: true, permissions });
-	} catch (e) {
-		const err = e as Error;
-		log.error('GET /api/users/me/photo-access error', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    return json({ success: true, permissions });
+  } catch (e) {
+    const err = e as Error;
+    log.error('GET /api/users/me/photo-access error', err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };
 
 /**
@@ -69,52 +69,50 @@ export const GET: RequestHandler = async (event) => {
  * They are not in the "firstname.lastname" format - use the complete ID displayed in the user's profile.
  */
 export const POST: RequestHandler = async (event) => {
-	const user = await requireSession(event);
+  const user = await requireSession(event);
 
-	try {
-		const db = getDatabase();
-		const body = (await event.request.json()) as { user_id?: string };
+  try {
+    const db = getDatabase();
+    const body = (await event.request.json()) as { user_id?: string };
 
-		if (!body.user_id || typeof body.user_id !== 'string') {
-			return json({ error: 'user_id is required' }, { status: 400 });
-		}
+    if (!body.user_id || typeof body.user_id !== 'string') {
+      return json({ error: 'user_id is required' }, { status: 400 });
+    }
 
-		const authorizedId = body.user_id.trim();
+    const authorizedId = body.user_id.trim();
 
-		if (authorizedId === user.id_user) {
-			return json({ error: 'You cannot grant access to yourself' }, { status: 400 });
-		}
+    if (authorizedId === user.id_user) {
+      return json({ error: 'You cannot grant access to yourself' }, { status: 400 });
+    }
 
-		const targetUser = db
-			.prepare('SELECT id_user, name, first_name, last_name FROM users WHERE id_user = ?')
-			.get(authorizedId) as UserBasic | undefined;
+    const targetUser = db
+      .prepare('SELECT id_user, name, first_name, last_name FROM users WHERE id_user = ?')
+      .get(authorizedId) as UserBasic | undefined;
 
-		if (!targetUser) {
-			return json(
-				{
-					error:
-						"User not found. Please check the MiGallery user ID (available on the person's profile)."
-				},
-				{ status: 404 }
-			);
-		}
+    if (!targetUser) {
+      return json(
+        {
+          error:
+            "User not found. Please check the MiGallery user ID (available on the person's profile).",
+        },
+        { status: 404 }
+      );
+    }
 
-		db
-			.prepare(
-				'INSERT OR IGNORE INTO photo_access_permissions (owner_id, authorized_id) VALUES (?, ?)'
-			)
-			.run(user.id_user, authorizedId);
+    db.prepare(
+      'INSERT OR IGNORE INTO photo_access_permissions (owner_id, authorized_id) VALUES (?, ?)'
+    ).run(user.id_user, authorizedId);
 
-		return json({
-			success: true,
-			message: `${targetUser.name} peut maintenant voir vos photos`,
-			user: targetUser
-		});
-	} catch (e) {
-		const err = e as Error;
-		log.error('POST /api/users/me/photo-access error', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    return json({
+      success: true,
+      message: `${targetUser.name} peut maintenant voir vos photos`,
+      user: targetUser,
+    });
+  } catch (e) {
+    const err = e as Error;
+    log.error('POST /api/users/me/photo-access error', err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };
 
 /**
@@ -125,30 +123,30 @@ export const POST: RequestHandler = async (event) => {
  * - user_id: string (the identifier of the user to revoke)
  */
 export const DELETE: RequestHandler = async (event) => {
-	const user = await requireSession(event);
+  const user = await requireSession(event);
 
-	try {
-		const db = getDatabase();
-		const body = (await event.request.json()) as { user_id?: string };
+  try {
+    const db = getDatabase();
+    const body = (await event.request.json()) as { user_id?: string };
 
-		if (!body.user_id || typeof body.user_id !== 'string') {
-			return json({ error: 'user_id is required' }, { status: 400 });
-		}
+    if (!body.user_id || typeof body.user_id !== 'string') {
+      return json({ error: 'user_id is required' }, { status: 400 });
+    }
 
-		const authorizedId = body.user_id.trim();
+    const authorizedId = body.user_id.trim();
 
-		const result = db
-			.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ? AND authorized_id = ?')
-			.run(user.id_user, authorizedId);
+    const result = db
+      .prepare('DELETE FROM photo_access_permissions WHERE owner_id = ? AND authorized_id = ?')
+      .run(user.id_user, authorizedId);
 
-		if (result.changes === 0) {
-			return json({ error: 'Grant not found' }, { status: 404 });
-		}
+    if (result.changes === 0) {
+      return json({ error: 'Grant not found' }, { status: 404 });
+    }
 
-		return json({ success: true, message: 'Permission revoked' });
-	} catch (e) {
-		const err = e as Error;
-		log.error('DELETE /api/users/me/photo-access error', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    return json({ success: true, message: 'Permission revoked' });
+  } catch (e) {
+    const err = e as Error;
+    log.error('DELETE /api/users/me/photo-access error', err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };

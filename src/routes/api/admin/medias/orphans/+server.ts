@@ -15,13 +15,13 @@ import { getOrphanPage } from '$lib/server/media-anomalies';
  * also lets it show progress.
  */
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const raw = event.url.searchParams.get('page') ?? '1';
-	const page = Number.parseInt(raw, 10);
-	if (!Number.isInteger(page) || page < 1) {
-		throw error(400, 'page must be a positive integer');
-	}
+  const raw = event.url.searchParams.get('page') ?? '1';
+  const page = Number.parseInt(raw, 10);
+  if (!Number.isInteger(page) || page < 1) {
+    throw error(400, 'page must be a positive integer');
+  }
 
-	return json(await getOrphanPage(event.fetch, page));
+  return json(await getOrphanPage(event.fetch, page));
 };

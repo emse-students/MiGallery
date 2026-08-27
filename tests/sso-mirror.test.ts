@@ -26,78 +26,78 @@ let dbDir: string;
 const SUB = 'sso-mirror-test-subject';
 
 beforeAll(async () => {
-	// DB_PATH is read once at module load, so the env has to be set BEFORE the first import -
-	// which is why these are dynamic. A temp file rather than ':memory:' because ensureSchema and
-	// every query go through the same better-sqlite3 handle either way, and a file is inspectable
-	// when one of these fails.
-	dbDir = mkdtempSync(join(tmpdir(), 'migallery-sso-'));
-	process.env.DATABASE_PATH = join(dbDir, 'sso-mirror.db');
+  // DB_PATH is read once at module load, so the env has to be set BEFORE the first import -
+  // which is why these are dynamic. A temp file rather than ':memory:' because ensureSchema and
+  // every query go through the same better-sqlite3 handle either way, and a file is inspectable
+  // when one of these fails.
+  dbDir = mkdtempSync(join(tmpdir(), 'migallery-sso-'));
+  process.env.DATABASE_PATH = join(dbDir, 'sso-mirror.db');
 
-	auth = await import('$lib/auth');
-	users = await import('$lib/db/users');
-	database = await import('$lib/db/database');
+  auth = await import('$lib/auth');
+  users = await import('$lib/db/users');
+  database = await import('$lib/db/database');
 });
 
 afterAll(() => {
-	database.resetDatabase();
-	rmSync(dbDir, { recursive: true, force: true });
+  database.resetDatabase();
+  rmSync(dbDir, { recursive: true, force: true });
 });
 
 /** One login, with whatever claims Authentik chose to send this time. */
 function login(claims: Record<string, unknown>) {
-	return auth.handleUserInDatabase({ sub: SUB, ...claims }, {});
+  return auth.handleUserInDatabase({ sub: SUB, ...claims }, {});
 }
 
 describe('the local row mirrors Authentik', () => {
-	it('creates the row from the claims on a first login', () => {
-		login({
-			name: 'Amelie Durand',
-			given_name: 'Amelie',
-			family_name: 'Durand',
-			promo: '2024',
-			formation: 'InfoCom'
-		});
+  it('creates the row from the claims on a first login', () => {
+    login({
+      name: 'Amelie Durand',
+      given_name: 'Amelie',
+      family_name: 'Durand',
+      promo: '2024',
+      formation: 'InfoCom',
+    });
 
-		const row = users.getUserByCasId(SUB);
-		expect(row?.first_name).toBe('Amelie');
-		expect(row?.last_name).toBe('Durand');
-		expect(row?.promo).toBe(2024);
-		expect(row?.formation).toBe('InfoCom');
-	});
+    const row = users.getUserByCasId(SUB);
+    expect(row?.first_name).toBe('Amelie');
+    expect(row?.last_name).toBe('Durand');
+    expect(row?.promo).toBe(2024);
+    expect(row?.formation).toBe('InfoCom');
+  });
 
-	it('overwrites a value Authentik changed', () => {
-		login({
-			name: 'Amelie Durand',
-			given_name: 'Amelie',
-			family_name: 'Durand',
-			promo: '2025',
-			formation: 'DevOps'
-		});
+  it('overwrites a value Authentik changed', () => {
+    login({
+      name: 'Amelie Durand',
+      given_name: 'Amelie',
+      family_name: 'Durand',
+      promo: '2025',
+      formation: 'DevOps',
+    });
 
-		const row = users.getUserByCasId(SUB);
-		expect(row?.promo).toBe(2025);
-		expect(row?.formation).toBe('DevOps');
-	});
+    const row = users.getUserByCasId(SUB);
+    expect(row?.promo).toBe(2025);
+    expect(row?.formation).toBe('DevOps');
+  });
 
-	it('clears a value Authentik stopped sending', () => {
-		// The regression this file exists for. Answering with no `promo` is what the IdP does for
-		// school staff, and for anyone whose promo has been removed - the two are indistinguishable
-		// here, and both mean the same thing: MiGallery must not keep one.
-		login({ name: 'Amelie Durand', given_name: 'Amelie', family_name: 'Durand' });
+  it('clears a value Authentik stopped sending', () => {
+    // The regression this file exists for. Answering with no `promo` is what the IdP does for
+    // school staff, and for anyone whose promo has been removed - the two are indistinguishable
+    // here, and both mean the same thing: MiGallery must not keep one.
+    login({ name: 'Amelie Durand', given_name: 'Amelie', family_name: 'Durand' });
 
-		const row = users.getUserByCasId(SUB);
-		expect(row?.promo).toBeNull();
-		expect(row?.formation).toBeNull();
-		expect(row?.first_name).toBe('Amelie');
-	});
+    const row = users.getUserByCasId(SUB);
+    expect(row?.promo).toBeNull();
+    expect(row?.formation).toBeNull();
+    expect(row?.first_name).toBe('Amelie');
+  });
 
-	it('leaves MiGallery-owned fields alone', () => {
-		// `role` is the app's own - granted in /admin, never claimed by the IdP. A login that reset
-		// it would silently demote every mitviste, so the payload must not name the column at all.
-		users.updateUser({ id_user: SUB, role: 'mitviste' });
+  it('leaves MiGallery-owned fields alone', () => {
+    // `role` is the app's own - granted in /admin, never claimed by the IdP. A login that reset
+    // it would silently demote every mitviste, so the payload must not name the column at all.
+    users.updateUser({ id_user: SUB, role: 'mitviste' });
 
-		login({ name: 'Amelie Durand', given_name: 'Amelie', family_name: 'Durand', promo: '2025' });
+    login({ name: 'Amelie Durand', given_name: 'Amelie', family_name: 'Durand', promo: '2025' });
 
-		expect(users.getUserByCasId(SUB)?.role).toBe('mitviste');
-	});
+    expect(users.getUserByCasId(SUB)?.role).toBe('mitviste');
+  });
 });

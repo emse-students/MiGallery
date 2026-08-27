@@ -1,9 +1,9 @@
 {
-	"recommendations": [
-		"oxc.oxc-vscode",
-		"editorconfig.editorconfig",
-		"svelte.svelte-vscode",
-		"eamodio.gitlens"
-	],
-	"unwantedRecommendations": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+  "recommendations": [
+    "oxc.oxc-vscode",
+    "editorconfig.editorconfig",
+    "svelte.svelte-vscode",
+    "eamodio.gitlens"
+  ],
+  "unwantedRecommendations": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
 }

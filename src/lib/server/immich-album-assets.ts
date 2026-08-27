@@ -11,9 +11,9 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /** Immich answers both mutations with one entry per id it was handed. */
 export interface ImmichBulkIdResponse {
-	id: string;
-	success: boolean;
-	error?: string;
+  id: string;
+  success: boolean;
+  error?: string;
 }
 
 /**
@@ -30,45 +30,47 @@ export interface ImmichBulkIdResponse {
  * to [200, 400, 401, 404, 500].
  */
 async function mutateAlbumAssets(
-	fetchFn: typeof fetch,
-	method: 'PUT' | 'DELETE',
-	albumId: string,
-	ids: string[]
+  fetchFn: typeof fetch,
+  method: 'PUT' | 'DELETE',
+  albumId: string,
+  ids: string[]
 ): Promise<ImmichBulkIdResponse[]> {
-	if (!IMMICH_BASE_URL) {
-		throw error(500, 'IMMICH_BASE_URL not configured');
-	}
-	if (!Array.isArray(ids) || ids.length === 0) {
-		throw error(400, 'ids required');
-	}
+  if (!IMMICH_BASE_URL) {
+    throw error(500, 'IMMICH_BASE_URL not configured');
+  }
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw error(400, 'ids required');
+  }
 
-	const verb = method === 'PUT' ? 'add' : 'remove';
+  const verb = method === 'PUT' ? 'add' : 'remove';
 
-	try {
-		const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			method,
-			headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ids })
-		});
+  try {
+    const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums/${albumId}/assets`, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      method,
+      headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
 
-		if (!res.ok) {
-			const txt = await res.text().catch(() => res.statusText);
-			log.error(`failed to ${verb} ${ids.length} asset(s) on album ${albumId}: ${res.status} ${txt}`);
-			throw error(
-				res.status >= 400 && res.status < 500 ? res.status : 500,
-				`Failed to ${verb} assets: ${txt}`
-			);
-		}
+    if (!res.ok) {
+      const txt = await res.text().catch(() => res.statusText);
+      log.error(
+        `failed to ${verb} ${ids.length} asset(s) on album ${albumId}: ${res.status} ${txt}`
+      );
+      throw error(
+        res.status >= 400 && res.status < 500 ? res.status : 500,
+        `Failed to ${verb} assets: ${txt}`
+      );
+    }
 
-		return (await res.json()) as ImmichBulkIdResponse[];
-	} catch (e: unknown) {
-		if (isHttpError(e)) {
-			throw e;
-		}
-		log.error(`failed to ${verb} ${ids.length} asset(s) on album ${albumId}:`, e);
-		throw error(500, e instanceof Error ? e.message : `Failed to ${verb} assets`);
-	}
+    return (await res.json()) as ImmichBulkIdResponse[];
+  } catch (e: unknown) {
+    if (isHttpError(e)) {
+      throw e;
+    }
+    log.error(`failed to ${verb} ${ids.length} asset(s) on album ${albumId}:`, e);
+    throw error(500, e instanceof Error ? e.message : `Failed to ${verb} assets`);
+  }
 }
 
 /**
@@ -83,18 +85,18 @@ async function mutateAlbumAssets(
  * forget: there is nowhere else to add an asset from.
  */
 export async function addAlbumAssets(
-	fetchFn: typeof fetch,
-	albumId: string,
-	ids: string[]
+  fetchFn: typeof fetch,
+  albumId: string,
+  ids: string[]
 ): Promise<ImmichBulkIdResponse[]> {
-	await restoreAssetsFromTrash(fetchFn, ids);
-	return mutateAlbumAssets(fetchFn, 'PUT', albumId, ids);
+  await restoreAssetsFromTrash(fetchFn, ids);
+  return mutateAlbumAssets(fetchFn, 'PUT', albumId, ids);
 }
 
 export async function removeAlbumAssets(
-	fetchFn: typeof fetch,
-	albumId: string,
-	ids: string[]
+  fetchFn: typeof fetch,
+  albumId: string,
+  ids: string[]
 ): Promise<ImmichBulkIdResponse[]> {
-	return mutateAlbumAssets(fetchFn, 'DELETE', albumId, ids);
+  return mutateAlbumAssets(fetchFn, 'DELETE', albumId, ids);
 }

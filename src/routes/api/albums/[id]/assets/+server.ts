@@ -6,9 +6,9 @@ import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-asse
 
 /** Both callers in the app send `{ ids }`; anything else is an empty add. */
 async function readIds(request: Request): Promise<string[]> {
-	const body = (await request.json()) as { ids?: unknown } | null;
-	const ids = body?.ids;
-	return Array.isArray(ids) ? (ids as string[]) : [];
+  const body = (await request.json()) as { ids?: unknown } | null;
+  const ids = body?.ids;
+  return Array.isArray(ids) ? (ids as string[]) : [];
 }
 
 /**
@@ -18,9 +18,9 @@ async function readIds(request: Request): Promise<string[]> {
  * Body: { ids: string[] }
  */
 export const PUT: RequestHandler = async (event) => {
-	await requireScope(event, 'write');
-	const ids = await readIds(event.request);
-	return json(await addAlbumAssets(event.fetch, event.params.id, ids));
+  await requireScope(event, 'write');
+  const ids = await readIds(event.request);
+  return json(await addAlbumAssets(event.fetch, event.params.id, ids));
 };
 
 /**
@@ -30,7 +30,7 @@ export const PUT: RequestHandler = async (event) => {
  * Body: { ids: string[] }
  */
 export const DELETE: RequestHandler = async (event) => {
-	await requireScope(event, 'write');
-	const ids = await readIds(event.request);
-	return json(await removeAlbumAssets(event.fetch, event.params.id, ids));
+  await requireScope(event, 'write');
+  const ids = await readIds(event.request);
+  return json(await removeAlbumAssets(event.fetch, event.params.id, ids));
 };

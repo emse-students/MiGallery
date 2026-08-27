@@ -27,32 +27,32 @@ import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '$lib/server/outboun
  * Characters outside the range (like special apostrophes) crash fetch.
  */
 function sanitizeHeaderValue(value: string | null | undefined): string | undefined {
-	if (!value) {
-		return undefined;
-	}
-	// Replaces non-Latin1 characters with their encoded equivalent or removes them
-	// eslint-disable-next-line no-control-regex
-	return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
+  if (!value) {
+    return undefined;
+  }
+  // Replaces non-Latin1 characters with their encoded equivalent or removes them
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[^\x00-\xFF]/g, (m) => encodeURIComponent(m));
 }
 
 interface ImmichAlbumResponse {
-	id: string;
-	albumName?: string;
-	assets?: Array<{ id: string }>;
-	[key: string]: unknown;
+  id: string;
+  albumName?: string;
+  assets?: Array<{ id: string }>;
+  [key: string]: unknown;
 }
 
 interface ImmichAssetResponse {
-	id: string;
-	albums?: ImmichAlbumResponse[];
-	albumId?: string;
-	// Upload responses only: 'created' | 'replaced' | 'duplicate'.
-	status?: string;
-	[key: string]: unknown;
+  id: string;
+  albums?: ImmichAlbumResponse[];
+  albumId?: string;
+  // Upload responses only: 'created' | 'replaced' | 'duplicate'.
+  status?: string;
+  [key: string]: unknown;
 }
 
 interface BulkDeleteRequest {
-	ids: string[];
+  ids: string[];
 }
 
 /**
@@ -67,27 +67,27 @@ const PUBLIC_META_MAX = 200;
 const publicMetaStore = new Map<string, { data: unknown; expires: number }>();
 
 const publicMetaCache = {
-	get(key: string): unknown {
-		const entry = publicMetaStore.get(key);
-		if (!entry) {
-			return null;
-		}
-		if (Date.now() > entry.expires) {
-			publicMetaStore.delete(key);
-			return null;
-		}
-		return entry.data;
-	},
-	set(key: string, data: unknown): void {
-		if (publicMetaStore.size >= PUBLIC_META_MAX && !publicMetaStore.has(key)) {
-			// Map preserves insertion order: drop the oldest entry to cap growth.
-			const oldest = publicMetaStore.keys().next().value;
-			if (oldest !== undefined) {
-				publicMetaStore.delete(oldest);
-			}
-		}
-		publicMetaStore.set(key, { data, expires: Date.now() + PUBLIC_META_TTL });
-	}
+  get(key: string): unknown {
+    const entry = publicMetaStore.get(key);
+    if (!entry) {
+      return null;
+    }
+    if (Date.now() > entry.expires) {
+      publicMetaStore.delete(key);
+      return null;
+    }
+    return entry.data;
+  },
+  set(key: string, data: unknown): void {
+    if (publicMetaStore.size >= PUBLIC_META_MAX && !publicMetaStore.has(key)) {
+      // Map preserves insertion order: drop the oldest entry to cap growth.
+      const oldest = publicMetaStore.keys().next().value;
+      if (oldest !== undefined) {
+        publicMetaStore.delete(oldest);
+      }
+    }
+    publicMetaStore.set(key, { data, expires: Date.now() + PUBLIC_META_TTL });
+  },
 };
 
 /**
@@ -95,131 +95,131 @@ const publicMetaCache = {
  * If so, access is allowed even without authentication.
  */
 async function checkPublicAssetAccess(
-	assetId: string,
-	baseUrl: string,
-	apiKey: string,
-	referer?: string | null
+  assetId: string,
+  baseUrl: string,
+  apiKey: string,
+  referer?: string | null
 ): Promise<boolean> {
-	if (!baseUrl || !apiKey) {
-		log.warn('public check: missing baseUrl or apiKey');
-		return false;
-	}
+  if (!baseUrl || !apiKey) {
+    log.warn('public check: missing baseUrl or apiKey');
+    return false;
+  }
 
-	const assetUrl = `${baseUrl.replace(/\/$/, '')}/api/assets/${assetId}`;
+  const assetUrl = `${baseUrl.replace(/\/$/, '')}/api/assets/${assetId}`;
 
-	let assetData = publicMetaCache.get(assetUrl) as ImmichAssetResponse | null;
+  let assetData = publicMetaCache.get(assetUrl) as ImmichAssetResponse | null;
 
-	if (assetData && (!assetData.albums || !Array.isArray(assetData.albums))) {
-		assetData = null; // stale/partial entry, force a refresh
-	}
+  if (assetData && (!assetData.albums || !Array.isArray(assetData.albums))) {
+    assetData = null; // stale/partial entry, force a refresh
+  }
 
-	if (!assetData) {
-		try {
-			const res = await fetch(assetUrl, {
-				signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-				headers: { 'x-api-key': apiKey, accept: 'application/json' }
-			});
-			if (!res.ok) {
-				log.warn(`public check fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
-				return false;
-			}
-			assetData = (await res.json()) as ImmichAssetResponse;
-			publicMetaCache.set(assetUrl, assetData);
-		} catch (e) {
-			log.error('error fetching asset details for public check', e);
-			return false;
-		}
-	}
+  if (!assetData) {
+    try {
+      const res = await fetch(assetUrl, {
+        signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+        headers: { 'x-api-key': apiKey, accept: 'application/json' },
+      });
+      if (!res.ok) {
+        log.warn(`public check fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
+        return false;
+      }
+      assetData = (await res.json()) as ImmichAssetResponse;
+      publicMetaCache.set(assetUrl, assetData);
+    } catch (e) {
+      log.error('error fetching asset details for public check', e);
+      return false;
+    }
+  }
 
-	const albums = (assetData?.albums as ImmichAlbumResponse[]) || [];
+  const albums = (assetData?.albums as ImmichAlbumResponse[]) || [];
 
-	if (assetData.albumId && !albums.find((a) => a.id === assetData?.albumId)) {
-		albums.push({ id: String(assetData.albumId) });
-	}
+  if (assetData.albumId && !albums.find((a) => a.id === assetData?.albumId)) {
+    albums.push({ id: String(assetData.albumId) });
+  }
 
-	if ((!Array.isArray(albums) || albums.length === 0) && referer) {
-		const match = referer.match(/\/albums\/([a-f0-9-]{36})/);
-		if (match) {
-			const albumId = match[1];
-			const albumUrl = `${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`;
+  if ((!Array.isArray(albums) || albums.length === 0) && referer) {
+    const match = referer.match(/\/albums\/([a-f0-9-]{36})/);
+    if (match) {
+      const albumId = match[1];
+      const albumUrl = `${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`;
 
-			let albumData = publicMetaCache.get(albumUrl) as ImmichAlbumResponse | null;
-			if (!albumData) {
-				try {
-					const res = await fetch(albumUrl, {
-						signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-						headers: { 'x-api-key': apiKey, accept: 'application/json' }
-					});
-					if (res.ok) {
-						albumData = (await res.json()) as ImmichAlbumResponse;
-						publicMetaCache.set(albumUrl, albumData);
-					}
-				} catch (e) {
-					log.error('error fetching album details for referer check', e);
-				}
-			}
+      let albumData = publicMetaCache.get(albumUrl) as ImmichAlbumResponse | null;
+      if (!albumData) {
+        try {
+          const res = await fetch(albumUrl, {
+            signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+            headers: { 'x-api-key': apiKey, accept: 'application/json' },
+          });
+          if (res.ok) {
+            albumData = (await res.json()) as ImmichAlbumResponse;
+            publicMetaCache.set(albumUrl, albumData);
+          }
+        } catch (e) {
+          log.error('error fetching album details for referer check', e);
+        }
+      }
 
-			const assets = albumData?.assets;
-			if (Array.isArray(assets)) {
-				if (assets.some((a) => a.id === assetId)) {
-					albums.push({ id: albumId });
-				}
-			}
-		}
-	}
+      const assets = albumData?.assets;
+      if (Array.isArray(assets)) {
+        if (assets.some((a) => a.id === assetId)) {
+          albums.push({ id: albumId });
+        }
+      }
+    }
+  }
 
-	if (!Array.isArray(albums) || albums.length === 0) {
-		log.debug(`public check: asset ${assetId} has no albums linked in Immich response`);
-		return false;
-	}
+  if (!Array.isArray(albums) || albums.length === 0) {
+    log.debug(`public check: asset ${assetId} has no albums linked in Immich response`);
+    return false;
+  }
 
-	try {
-		const db = getDatabase();
-		const albumIds = albums.map((a) => a.id).filter((id) => !!id);
-		if (albumIds.length === 0) {
-			return false;
-		}
+  try {
+    const db = getDatabase();
+    const albumIds = albums.map((a) => a.id).filter((id) => !!id);
+    if (albumIds.length === 0) {
+      return false;
+    }
 
-		const placeholders = albumIds.map(() => '?').join(',');
+    const placeholders = albumIds.map(() => '?').join(',');
 
-		const stmt = db.prepare(
-			`SELECT id FROM albums WHERE id IN (${placeholders}) AND visibility = 'unlisted' LIMIT 1`
-		);
-		const result = stmt.get(...albumIds) as { id: string } | undefined;
+    const stmt = db.prepare(
+      `SELECT id FROM albums WHERE id IN (${placeholders}) AND visibility = 'unlisted' LIMIT 1`
+    );
+    const result = stmt.get(...albumIds) as { id: string } | undefined;
 
-		if (!result) {
-			log.debug(
-				`public check: asset ${assetId} belongs to albums [${albumIds.join(', ')}] but none are unlisted in local DB`
-			);
-		}
+    if (!result) {
+      log.debug(
+        `public check: asset ${assetId} belongs to albums [${albumIds.join(', ')}] but none are unlisted in local DB`
+      );
+    }
 
-		return !!result;
-	} catch (e) {
-		log.error('error checking album visibility in DB', e);
-		return false;
-	}
+    return !!result;
+  } catch (e) {
+    log.error('error checking album visibility in DB', e);
+    return false;
+  }
 }
 
 /**
  * Checks if a list of assets is publicly accessible (all must be in unlisted albums).
  */
 async function checkPublicAssetsAccess(
-	assetIds: string[],
-	baseUrl: string,
-	apiKey: string,
-	referer?: string | null
+  assetIds: string[],
+  baseUrl: string,
+  apiKey: string,
+  referer?: string | null
 ): Promise<boolean> {
-	if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
-		return false;
-	}
+  if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
+    return false;
+  }
 
-	for (const id of assetIds) {
-		const allowed = await checkPublicAssetAccess(id, baseUrl, apiKey, referer);
-		if (!allowed) {
-			return false;
-		}
-	}
-	return true;
+  for (const id of assetIds) {
+    const allowed = await checkPublicAssetAccess(id, baseUrl, apiKey, referer);
+    if (!allowed) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -227,661 +227,666 @@ async function checkPublicAssetsAccess(
  * Stores chunks on disk and transfers the complete file to Immich at the end.
  */
 async function handleChunkedUpload(
-	event: RequestEvent,
-	outgoingHeaders: Record<string, string>,
-	baseUrl: string
+  event: RequestEvent,
+  outgoingHeaders: Record<string, string>,
+  baseUrl: string
 ) {
-	const request = event.request;
-	const chunkIndex = parseInt(request.headers.get('x-chunk-index') || '0');
-	const totalChunks = parseInt(request.headers.get('x-chunk-total') || '1');
-	const fileId = request.headers.get('x-file-id');
+  const request = event.request;
+  const chunkIndex = parseInt(request.headers.get('x-chunk-index') || '0');
+  const totalChunks = parseInt(request.headers.get('x-chunk-total') || '1');
+  const fileId = request.headers.get('x-file-id');
 
-	if (!fileId) {
-		return new Response(JSON.stringify({ error: 'Missing x-file-id header for chunked upload' }), {
-			status: 400
-		});
-	}
+  if (!fileId) {
+    return new Response(JSON.stringify({ error: 'Missing x-file-id header for chunked upload' }), {
+      status: 400,
+    });
+  }
 
-	if (!/^[a-zA-Z0-9._-]+$/.test(fileId)) {
-		return new Response(JSON.stringify({ error: 'Invalid x-file-id header: must be alphanumeric' }), {
-			status: 400
-		});
-	}
+  if (!/^[a-zA-Z0-9._-]+$/.test(fileId)) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid x-file-id header: must be alphanumeric' }),
+      {
+        status: 400,
+      }
+    );
+  }
 
-	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
-	if (!fs.existsSync(uploadDir)) {
-		fs.mkdirSync(uploadDir, { recursive: true });
-	}
+  const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
 
-	const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
-	const lockPath = `${tempFilePath}.lock`;
-	const completePath = `${tempFilePath}.complete`;
+  const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
+  const lockPath = `${tempFilePath}.lock`;
+  const completePath = `${tempFilePath}.complete`;
 
-	try {
-		// obtain a quick advisory lock per fileId to avoid concurrent writers
-		try {
-			const fd = fs.openSync(lockPath, 'wx');
-			fs.closeSync(fd);
-		} catch {
-			return new Response(JSON.stringify({ error: 'File currently locked, retry' }), {
-				status: 409,
-				headers: { 'content-type': 'application/json' }
-			});
-		}
+  try {
+    // obtain a quick advisory lock per fileId to avoid concurrent writers
+    try {
+      const fd = fs.openSync(lockPath, 'wx');
+      fs.closeSync(fd);
+    } catch {
+      return new Response(JSON.stringify({ error: 'File currently locked, retry' }), {
+        status: 409,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
 
-		// Read the chunk (<= 5MB) and append it to the part file. We buffer with
-		// arrayBuffer() rather than streaming request.body: for this raw-blob request
-		// shape adapter-node exposes a null body stream getter, while arrayBuffer()
-		// reliably returns the bytes. Reading it also drains the client's upload so
-		// the connection is not reset mid-transfer.
-		const chunkBuf = Buffer.from(await request.arrayBuffer());
-		if (chunkBuf.length === 0) {
-			throw new Error('Empty chunk body');
-		}
+    // Read the chunk (<= 5MB) and append it to the part file. We buffer with
+    // arrayBuffer() rather than streaming request.body: for this raw-blob request
+    // shape adapter-node exposes a null body stream getter, while arrayBuffer()
+    // reliably returns the bytes. Reading it also drains the client's upload so
+    // the connection is not reset mid-transfer.
+    const chunkBuf = Buffer.from(await request.arrayBuffer());
+    if (chunkBuf.length === 0) {
+      throw new Error('Empty chunk body');
+    }
 
-		const chunkSha = request.headers.get('x-chunk-sha256');
-		const computedSha = chunkSha ? crypto.createHash('sha256').update(chunkBuf).digest('hex') : null;
+    const chunkSha = request.headers.get('x-chunk-sha256');
+    const computedSha = chunkSha
+      ? crypto.createHash('sha256').update(chunkBuf).digest('hex')
+      : null;
 
-		await fs.promises.writeFile(tempFilePath, chunkBuf, {
-			flag: chunkIndex === 0 ? 'w' : 'a'
-		});
+    await fs.promises.writeFile(tempFilePath, chunkBuf, {
+      flag: chunkIndex === 0 ? 'w' : 'a',
+    });
 
-		// verify per-chunk sha256
-		if (chunkSha && computedSha !== chunkSha) {
-			try {
-				if (fs.existsSync(lockPath)) {
-					fs.unlinkSync(lockPath);
-				}
-			} catch {
-				/* ignore */
-			}
-			return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
-				status: 400,
-				headers: { 'content-type': 'application/json' }
-			});
-		}
+    // verify per-chunk sha256
+    if (chunkSha && computedSha !== chunkSha) {
+      try {
+        if (fs.existsSync(lockPath)) {
+          fs.unlinkSync(lockPath);
+        }
+      } catch {
+        /* ignore */
+      }
+      return new Response(JSON.stringify({ error: 'Chunk hash mismatch' }), {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
 
-		try {
-			if (fs.existsSync(lockPath)) {
-				fs.unlinkSync(lockPath);
-			}
-		} catch {
-			/* ignore */
-		}
+    try {
+      if (fs.existsSync(lockPath)) {
+        fs.unlinkSync(lockPath);
+      }
+    } catch {
+      /* ignore */
+    }
 
-		if (chunkIndex < totalChunks - 1) {
-			return new Response(JSON.stringify({ status: 'chunk_received', index: chunkIndex }), {
-				status: 200,
-				headers: { 'content-type': 'application/json' }
-			});
-		}
+    if (chunkIndex < totalChunks - 1) {
+      return new Response(JSON.stringify({ status: 'chunk_received', index: chunkIndex }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
 
-		let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
-		try {
-			// The client encodes the name in URI to support non-ASCII characters (e.g., special apostrophes)
-			originalName = decodeURIComponent(originalName);
-		} catch {
-			/* ignore decoding errors, use raw */
-		}
-		// Sanitize filename to prevent breaking Content-Disposition
-		originalName = originalName.replace(/["\r\n]/g, '_');
+    let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
+    try {
+      // The client encodes the name in URI to support non-ASCII characters (e.g., special apostrophes)
+      originalName = decodeURIComponent(originalName);
+    } catch {
+      /* ignore decoding errors, use raw */
+    }
+    // Sanitize filename to prevent breaking Content-Disposition
+    originalName = originalName.replace(/["\r\n]/g, '_');
 
-		// compute checksum (sha256) of the complete file
-		// Refactor to use stream not to buffer anything?
-		// But we need the hash for x-proxy-sha256 header BEFORE starting the upload request?
-		// Immich ignores the header if we don't send it, but let's compute it efficiently.
-		const hash = crypto.createHash('sha256');
-		await new Promise<void>((resolve, reject) => {
-			const rs = fs.createReadStream(tempFilePath);
-			rs.on('data', (chunk) => hash.update(chunk));
-			rs.on('end', () => resolve());
-			rs.on('error', (err) => reject(err));
-		});
-		const sha256 = hash.digest('hex');
+    // compute checksum (sha256) of the complete file
+    // Refactor to use stream not to buffer anything?
+    // But we need the hash for x-proxy-sha256 header BEFORE starting the upload request?
+    // Immich ignores the header if we don't send it, but let's compute it efficiently.
+    const hash = crypto.createHash('sha256');
+    await new Promise<void>((resolve, reject) => {
+      const rs = fs.createReadStream(tempFilePath);
+      rs.on('data', (chunk) => hash.update(chunk));
+      rs.on('end', () => resolve());
+      rs.on('error', (err) => reject(err));
+    });
+    const sha256 = hash.digest('hex');
 
-		let finalFilePath = tempFilePath;
-		try {
-			if (fs.existsSync(completePath)) {
-				fs.unlinkSync(completePath);
-			}
-			fs.renameSync(tempFilePath, completePath);
-			finalFilePath = completePath;
-		} catch (e) {
-			log.warn('failed to rename temp file to complete', e);
-		}
+    let finalFilePath = tempFilePath;
+    try {
+      if (fs.existsSync(completePath)) {
+        fs.unlinkSync(completePath);
+      }
+      fs.renameSync(tempFilePath, completePath);
+      finalFilePath = completePath;
+    } catch (e) {
+      log.warn('failed to rename temp file to complete', e);
+    }
 
-		/* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
-		const formData: any = new NodeFormData();
-		const stats = fs.statSync(finalFilePath);
+    /* eslint-disable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+    const formData: any = new NodeFormData();
+    const stats = fs.statSync(finalFilePath);
 
-		const fileCreatedAt = request.headers.get('x-immich-created-at');
-		const fileModifiedAt = request.headers.get('x-immich-modified-at');
-		const isFavorite = request.headers.get('x-immich-is-favorite');
+    const fileCreatedAt = request.headers.get('x-immich-created-at');
+    const fileModifiedAt = request.headers.get('x-immich-modified-at');
+    const isFavorite = request.headers.get('x-immich-is-favorite');
 
-		if (fileCreatedAt) {
-			formData.append('fileCreatedAt', fileCreatedAt);
-		}
-		if (fileModifiedAt) {
-			formData.append('fileModifiedAt', fileModifiedAt);
-		}
-		if (isFavorite) {
-			formData.append('isFavorite', isFavorite);
-		}
+    if (fileCreatedAt) {
+      formData.append('fileCreatedAt', fileCreatedAt);
+    }
+    if (fileModifiedAt) {
+      formData.append('fileModifiedAt', fileModifiedAt);
+    }
+    if (isFavorite) {
+      formData.append('isFavorite', isFavorite);
+    }
 
-		formData.append('assetData', fs.createReadStream(finalFilePath), {
-			filename: originalName,
-			knownLength: stats.size
-		});
+    formData.append('assetData', fs.createReadStream(finalFilePath), {
+      filename: originalName,
+      knownLength: stats.size,
+    });
 
-		const immichUrl = `${baseUrl}/api/assets`;
-		const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
+    const immichUrl = `${baseUrl}/api/assets`;
+    const fetchHeaders: Record<string, string> = { ...outgoingHeaders };
 
-		delete fetchHeaders['transfer-encoding'];
-		delete fetchHeaders['content-length'];
-		delete fetchHeaders['content-type'];
-		delete fetchHeaders['connection'];
+    delete fetchHeaders['transfer-encoding'];
+    delete fetchHeaders['content-length'];
+    delete fetchHeaders['content-type'];
+    delete fetchHeaders['connection'];
 
-		fetchHeaders['x-proxy-sha256'] = sha256;
+    fetchHeaders['x-proxy-sha256'] = sha256;
 
-		// Use formData.submit but Wrap in a Promise that returns a Readable Stream for the response
-		// avoiding buffering the response body.
-		const response = await new Promise<Response>((resolve, reject) => {
-			const url = new URL(immichUrl);
-			const isHttps = url.protocol === 'https:';
+    // Use formData.submit but Wrap in a Promise that returns a Readable Stream for the response
+    // avoiding buffering the response body.
+    const response = await new Promise<Response>((resolve, reject) => {
+      const url = new URL(immichUrl);
+      const isHttps = url.protocol === 'https:';
 
-			const req = formData.submit(
-				{
-					protocol: url.protocol,
-					host: url.hostname,
-					port: url.port || (isHttps ? '443' : '80'),
-					path: url.pathname + url.search,
-					headers: fetchHeaders,
-					timeout: 600000 // 10 minutes
-				},
-				(err: Error | null, res: http.IncomingMessage) => {
-					if (err) {
-						log.error('formData.submit failed', { fileId, err });
-						reject(err);
-						return;
-					}
+      const req = formData.submit(
+        {
+          protocol: url.protocol,
+          host: url.hostname,
+          port: url.port || (isHttps ? '443' : '80'),
+          path: url.pathname + url.search,
+          headers: fetchHeaders,
+          timeout: 600000, // 10 minutes
+        },
+        (err: Error | null, res: http.IncomingMessage) => {
+          if (err) {
+            log.error('formData.submit failed', { fileId, err });
+            reject(err);
+            return;
+          }
 
-					// Convert Node IncomingMessage to Web ReadableStream
-					const bodyStream = new ReadableStream({
-						start(controller) {
-							res.on('data', (chunk) => controller.enqueue(chunk));
-							res.on('end', () => controller.close());
-							res.on('error', (err) => controller.error(err));
-						}
-					});
+          // Convert Node IncomingMessage to Web ReadableStream
+          const bodyStream = new ReadableStream({
+            start(controller) {
+              res.on('data', (chunk) => controller.enqueue(chunk));
+              res.on('end', () => controller.close());
+              res.on('error', (err) => controller.error(err));
+            },
+          });
 
-					const headers = new Headers();
-					for (const [key, value] of Object.entries(res.headers)) {
-						if (value) {
-							if (Array.isArray(value)) {
-								value.forEach((v) => headers.append(key, v));
-							} else {
-								headers.set(key, value);
-							}
-						}
-					}
-					resolve(
-						new Response(bodyStream, {
-							status: res.statusCode,
-							headers
-						})
-					);
-				}
-			);
+          const headers = new Headers();
+          for (const [key, value] of Object.entries(res.headers)) {
+            if (value) {
+              if (Array.isArray(value)) {
+                value.forEach((v) => headers.append(key, v));
+              } else {
+                headers.set(key, value);
+              }
+            }
+          }
+          resolve(
+            new Response(bodyStream, {
+              status: res.statusCode,
+              headers,
+            })
+          );
+        }
+      );
 
-			if (req) {
-				req.on('error', (err: Error) => {
-					log.error('request error to Immich', { fileId, err });
-					reject(err);
-				});
-			}
-		});
-		/* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+      if (req) {
+        req.on('error', (err: Error) => {
+          log.error('request error to Immich', { fileId, err });
+          reject(err);
+        });
+      }
+    });
+    /* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access,@typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
 
-		// The on-disk part file can only go once Immich has finished reading it, so
-		// the cleanup is handed to finishImmichUpload rather than run here:
-		// formData.submit's callback fires when the response HEADERS arrive, which
-		// is not the same instant as the request body being done with the file.
-		return finishImmichUpload(event, response, originalName, () => {
-			try {
-				if (fs.existsSync(finalFilePath)) {
-					fs.unlinkSync(finalFilePath);
-				}
-				if (fs.existsSync(tempFilePath)) {
-					fs.unlinkSync(tempFilePath);
-				}
-			} catch {
-				/* ignore */
-			}
-		});
-	} catch (err: unknown) {
-		const _err = ensureError(err);
-		log.error('error processing chunk', _err);
-		try {
-			if (fs.existsSync(tempFilePath)) {
-				fs.unlinkSync(tempFilePath);
-			}
-		} catch {
-			/* ignore */
-		}
+    // The on-disk part file can only go once Immich has finished reading it, so
+    // the cleanup is handed to finishImmichUpload rather than run here:
+    // formData.submit's callback fires when the response HEADERS arrive, which
+    // is not the same instant as the request body being done with the file.
+    return finishImmichUpload(event, response, originalName, () => {
+      try {
+        if (fs.existsSync(finalFilePath)) {
+          fs.unlinkSync(finalFilePath);
+        }
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+        }
+      } catch {
+        /* ignore */
+      }
+    });
+  } catch (err: unknown) {
+    const _err = ensureError(err);
+    log.error('error processing chunk', _err);
+    try {
+      if (fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
+      }
+    } catch {
+      /* ignore */
+    }
 
-		return new Response(
-			JSON.stringify({ error: _err.message || 'Internal Server Error processing chunk' }),
-			{
-				status: 500,
-				headers: { 'content-type': 'application/json' }
-			}
-		);
-	}
+    return new Response(
+      JSON.stringify({ error: _err.message || 'Internal Server Error processing chunk' }),
+      {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
+  }
 }
 
 const handle: RequestHandler = async function (event) {
-	const request = event.request;
-	const pathParam = (event.params.path as string) || '';
-	const search = event.url.search || '';
+  const request = event.request;
+  const pathParam = (event.params.path as string) || '';
+  const search = event.url.search || '';
 
-	if (['GET', 'HEAD'].includes(request.method)) {
-		const internalKey = request.headers.get('x-internal-immich-key') || undefined;
-		if (internalKey && internalKey === apiKey) {
-			void 0;
-		} else {
-			try {
-				await requireScope(event, 'read');
-			} catch (err) {
-				const assetMatch = pathParam.match(
-					/^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
-				);
+  if (['GET', 'HEAD'].includes(request.method)) {
+    const internalKey = request.headers.get('x-internal-immich-key') || undefined;
+    if (internalKey && internalKey === apiKey) {
+      void 0;
+    } else {
+      try {
+        await requireScope(event, 'read');
+      } catch (err) {
+        const assetMatch = pathParam.match(
+          /^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
+        );
 
-				if (assetMatch) {
-					const assetId = assetMatch[1];
-					const isPublic = await checkPublicAssetAccess(
-						assetId,
-						baseUrlFromEnv || '',
-						apiKey,
-						request.headers.get('referer')
-					);
-					if (isPublic) {
-						void 0;
-					} else {
-						log.warn(`access denied for asset ${assetId} (not public)`);
-						return new Response(
-							JSON.stringify({
-								error: 'Access denied to private asset',
-								assetId,
-								reason: 'Asset not found in any unlisted album',
-								debug: { checked: true }
-							}),
-							{
-								status: 403,
-								headers: {
-									'content-type': 'application/json',
-									'x-immich-proxy-reason': 'not-public-asset'
-								}
-							}
-						);
-					}
-				} else {
-					throw err;
-				}
-			}
-		}
-	}
+        if (assetMatch) {
+          const assetId = assetMatch[1];
+          const isPublic = await checkPublicAssetAccess(
+            assetId,
+            baseUrlFromEnv || '',
+            apiKey,
+            request.headers.get('referer')
+          );
+          if (isPublic) {
+            void 0;
+          } else {
+            log.warn(`access denied for asset ${assetId} (not public)`);
+            return new Response(
+              JSON.stringify({
+                error: 'Access denied to private asset',
+                assetId,
+                reason: 'Asset not found in any unlisted album',
+                debug: { checked: true },
+              }),
+              {
+                status: 403,
+                headers: {
+                  'content-type': 'application/json',
+                  'x-immich-proxy-reason': 'not-public-asset',
+                },
+              }
+            );
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
 
-	if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
-		try {
-			await requireScope(event, 'write');
-		} catch (err) {
-			const isDownload =
-				pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
+  if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
+    try {
+      await requireScope(event, 'write');
+    } catch (err) {
+      const isDownload =
+        pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
 
-			if (request.method === 'POST' && isDownload) {
-				try {
-					const clone = request.clone();
-					const body = (await clone.json()) as { assetIds?: string[]; ids?: string[] };
-					const assetIds = body.assetIds || body.ids || [];
+      if (request.method === 'POST' && isDownload) {
+        try {
+          const clone = request.clone();
+          const body = (await clone.json()) as { assetIds?: string[]; ids?: string[] };
+          const assetIds = body.assetIds || body.ids || [];
 
-					if (
-						Array.isArray(assetIds) &&
-						assetIds.length > 0 &&
-						(await checkPublicAssetsAccess(
-							assetIds,
-							baseUrlFromEnv || '',
-							apiKey,
-							request.headers.get('referer')
-						))
-					) {
-						void 0;
-					} else {
-						log.warn('access denied for download (not all assets public)');
-						throw err;
-					}
-				} catch (e) {
-					log.error('error checking public download access', e);
-					throw err;
-				}
-			} else {
-				throw err;
-			}
-		}
-	}
+          if (
+            Array.isArray(assetIds) &&
+            assetIds.length > 0 &&
+            (await checkPublicAssetsAccess(
+              assetIds,
+              baseUrlFromEnv || '',
+              apiKey,
+              request.headers.get('referer')
+            ))
+          ) {
+            void 0;
+          } else {
+            log.warn('access denied for download (not all assets public)');
+            throw err;
+          }
+        } catch (e) {
+          log.error('error checking public download access', e);
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
 
-	let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
-	if (base && !/^https?:\/\//i.test(base)) {
-		base = `http://${base}`;
-	}
+  let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
+  if (base && !/^https?:\/\//i.test(base)) {
+    base = `http://${base}`;
+  }
 
-	// Prevent path traversal
-	if (pathParam.includes('..') || pathParam.includes('\0')) {
-		return new Response(JSON.stringify({ error: 'Invalid path' }), {
-			status: 400,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+  // Prevent path traversal
+  if (pathParam.includes('..') || pathParam.includes('\0')) {
+    return new Response(JSON.stringify({ error: 'Invalid path' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
-	const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
+  const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
 
-	if (!baseUrlFromEnv) {
-		return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
-			status: 500,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+  if (!baseUrlFromEnv) {
+    return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
-	if (
-		request.method === 'POST' &&
-		request.headers.has('x-chunk-index') &&
-		request.headers.has('x-file-id')
-	) {
-		const chunkHeaders: Record<string, string> = {
-			accept: request.headers.get('accept') || '*/*'
-		};
-		if (apiKey) {
-			chunkHeaders['x-api-key'] = apiKey;
-		}
+  if (
+    request.method === 'POST' &&
+    request.headers.has('x-chunk-index') &&
+    request.headers.has('x-file-id')
+  ) {
+    const chunkHeaders: Record<string, string> = {
+      accept: request.headers.get('accept') || '*/*',
+    };
+    if (apiKey) {
+      chunkHeaders['x-api-key'] = apiKey;
+    }
 
-		return handleChunkedUpload(event, chunkHeaders, base);
-	}
+    return handleChunkedUpload(event, chunkHeaders, base);
+  }
 
-	// Small "simple" uploads (< 10MB, single multipart request) are handled by
-	// buffering the body and replaying it to Immich (handleSimpleUpload), rather
-	// than forwarding the request stream to fetch().
-	if (
-		request.method === 'POST' &&
-		pathParam === 'assets' &&
-		(request.headers.get('content-type') || '').includes('multipart/form-data')
-	) {
-		return handleSimpleUpload(event, base);
-	}
+  // Small "simple" uploads (< 10MB, single multipart request) are handled by
+  // buffering the body and replaying it to Immich (handleSimpleUpload), rather
+  // than forwarding the request stream to fetch().
+  if (
+    request.method === 'POST' &&
+    pathParam === 'assets' &&
+    (request.headers.get('content-type') || '').includes('multipart/form-data')
+  ) {
+    return handleSimpleUpload(event, base);
+  }
 
-	if (request.method === 'GET' && event.url.searchParams.has('chunk-status')) {
-		return handleChunkStatus(event);
-	}
+  if (request.method === 'GET' && event.url.searchParams.has('chunk-status')) {
+    return handleChunkStatus(event);
+  }
 
-	const outgoingHeaders: Record<string, string> = {
-		accept: request.headers.get('accept') || '*/*'
-	};
-	if (apiKey) {
-		outgoingHeaders['x-api-key'] = apiKey;
-	}
+  const outgoingHeaders: Record<string, string> = {
+    accept: request.headers.get('accept') || '*/*',
+  };
+  if (apiKey) {
+    outgoingHeaders['x-api-key'] = apiKey;
+  }
 
-	const userAgent = request.headers.get('user-agent');
-	if (userAgent) {
-		outgoingHeaders['user-agent'] = sanitizeHeaderValue(userAgent) || '';
-	}
+  const userAgent = request.headers.get('user-agent');
+  if (userAgent) {
+    outgoingHeaders['user-agent'] = sanitizeHeaderValue(userAgent) || '';
+  }
 
-	// Forward range headers for video streaming
-	const range = request.headers.get('range');
-	if (range) {
-		outgoingHeaders['range'] = range;
-	}
-	const ifRange = request.headers.get('if-range');
-	if (ifRange) {
-		outgoingHeaders['if-range'] = sanitizeHeaderValue(ifRange) || '';
-	}
+  // Forward range headers for video streaming
+  const range = request.headers.get('range');
+  if (range) {
+    outgoingHeaders['range'] = range;
+  }
+  const ifRange = request.headers.get('if-range');
+  if (ifRange) {
+    outgoingHeaders['if-range'] = sanitizeHeaderValue(ifRange) || '';
+  }
 
-	// Forward cache validation headers
-	const ifNoneMatch = request.headers.get('if-none-match');
-	if (ifNoneMatch) {
-		outgoingHeaders['if-none-match'] = sanitizeHeaderValue(ifNoneMatch) || '';
-	}
-	const ifModifiedSince = request.headers.get('if-modified-since');
-	if (ifModifiedSince) {
-		outgoingHeaders['if-modified-since'] = sanitizeHeaderValue(ifModifiedSince) || '';
-	}
+  // Forward cache validation headers
+  const ifNoneMatch = request.headers.get('if-none-match');
+  if (ifNoneMatch) {
+    outgoingHeaders['if-none-match'] = sanitizeHeaderValue(ifNoneMatch) || '';
+  }
+  const ifModifiedSince = request.headers.get('if-modified-since');
+  if (ifModifiedSince) {
+    outgoingHeaders['if-modified-since'] = sanitizeHeaderValue(ifModifiedSince) || '';
+  }
 
-	const contentType = request.headers.get('content-type');
+  const contentType = request.headers.get('content-type');
 
-	let bodyToForward: BodyInit | undefined = undefined;
-	if (!['GET', 'HEAD'].includes(request.method)) {
-		try {
-			if (contentType) {
-				outgoingHeaders['content-type'] = contentType;
-			}
-			bodyToForward = request.body ?? undefined;
-		} catch (e: unknown) {
-			const _err = ensureError(e);
-			log.error('error processing request body for immich proxy', _err.message || _err);
-		}
-	}
+  let bodyToForward: BodyInit | undefined = undefined;
+  if (!['GET', 'HEAD'].includes(request.method)) {
+    try {
+      if (contentType) {
+        outgoingHeaders['content-type'] = contentType;
+      }
+      bodyToForward = request.body ?? undefined;
+    } catch (e: unknown) {
+      const _err = ensureError(e);
+      log.error('error processing request body for immich proxy', _err.message || _err);
+    }
+  }
 
-	const init: RequestInit & { duplex?: 'half' } = {
-		method: request.method,
-		headers: outgoingHeaders,
-		body: bodyToForward,
-		duplex: 'half'
-	};
+  const init: RequestInit & { duplex?: 'half' } = {
+    method: request.method,
+    headers: outgoingHeaders,
+    body: bodyToForward,
+    duplex: 'half',
+  };
 
-	try {
-		// A body being forwarded means this is an upload, and a clock started here would measure how
-		// big the file is rather than whether Immich is answering. Everything else - which is every
-		// asset, thumbnail and metadata read the gallery makes - gets the answer budget, and streams
-		// its body afterwards for as long as it keeps moving.
-		const res = bodyToForward
-			? await fetch(resolvedRemoteUrl, init)
-			: await fetchWithAnswerDeadline(resolvedRemoteUrl, init);
+  try {
+    // A body being forwarded means this is an upload, and a clock started here would measure how
+    // big the file is rather than whether Immich is answering. Everything else - which is every
+    // asset, thumbnail and metadata read the gallery makes - gets the answer budget, and streams
+    // its body afterwards for as long as it keeps moving.
+    const res = bodyToForward
+      ? await fetch(resolvedRemoteUrl, init)
+      : await fetchWithAnswerDeadline(resolvedRemoteUrl, init);
 
-		// Log upstream errors (only real errors >= 400). Treat 304 Not Modified as cache hit.
-		if (!res.ok && res.status >= 400) {
-			try {
-				const clone = res.clone();
-				const snippet = await clone.text();
-				log.error(`upstream error for ${resolvedRemoteUrl}`, {
-					status: res.status,
-					statusText: res.statusText,
-					bodySnippet: snippet && snippet.slice ? snippet.slice(0, 200) : snippet
-				});
-			} catch {
-				log.error('upstream error but failed to read body snippet');
-			}
-		}
+    // Log upstream errors (only real errors >= 400). Treat 304 Not Modified as cache hit.
+    if (!res.ok && res.status >= 400) {
+      try {
+        const clone = res.clone();
+        const snippet = await clone.text();
+        log.error(`upstream error for ${resolvedRemoteUrl}`, {
+          status: res.status,
+          statusText: res.statusText,
+          bodySnippet: snippet && snippet.slice ? snippet.slice(0, 200) : snippet,
+        });
+      } catch {
+        log.error('upstream error but failed to read body snippet');
+      }
+    }
 
-		const resContentType = res.headers.get('content-type') || 'application/json';
+    const resContentType = res.headers.get('content-type') || 'application/json';
 
-		const isBinary =
-			pathParam.includes('download') ||
-			resContentType.startsWith('image/') ||
-			resContentType.startsWith('video/') ||
-			resContentType.startsWith('application/octet-stream') ||
-			resContentType.includes('zip') ||
-			resContentType.includes('octet-stream') ||
-			res.status === 206;
+    const isBinary =
+      pathParam.includes('download') ||
+      resContentType.startsWith('image/') ||
+      resContentType.startsWith('video/') ||
+      resContentType.startsWith('application/octet-stream') ||
+      resContentType.includes('zip') ||
+      resContentType.includes('octet-stream') ||
+      res.status === 206;
 
-		if (isBinary || request.method === 'HEAD') {
-			const headers = new Headers();
-			headers.set('content-type', resContentType);
-			const safeForward = [
-				'etag',
-				'cache-control',
-				'expires',
-				'x-immich-cid',
-				'content-range',
-				'accept-ranges',
-				'content-length',
-				'last-modified'
-			];
-			for (const h of safeForward) {
-				const v = res.headers.get(h);
-				if (v) {
-					headers.set(h, v);
-				}
-			}
-			if (res.status === 204 || request.method === 'HEAD') {
-				return new Response(null, { status: res.status, headers });
-			}
-			return new Response(res.body, { status: res.status, headers });
-		}
+    if (isBinary || request.method === 'HEAD') {
+      const headers = new Headers();
+      headers.set('content-type', resContentType);
+      const safeForward = [
+        'etag',
+        'cache-control',
+        'expires',
+        'x-immich-cid',
+        'content-range',
+        'accept-ranges',
+        'content-length',
+        'last-modified',
+      ];
+      for (const h of safeForward) {
+        const v = res.headers.get(h);
+        if (v) {
+          headers.set(h, v);
+        }
+      }
+      if (res.status === 204 || request.method === 'HEAD') {
+        return new Response(null, { status: res.status, headers });
+      }
+      return new Response(res.body, { status: res.status, headers });
+    }
 
-		// Search responses (search/*): potentially large (v3 metadata),
-		// never cached, and whose body we don't inspect here. We stream them
-		// directly instead of materializing all JSON via res.text(), which
-		// avoids a native `external` spike proportional to the response size.
-		if (res.ok && pathParam.startsWith('search/') && resContentType.includes('application/json')) {
-			const headers = new Headers();
-			headers.set('content-type', resContentType);
-			const safeForward = [
-				'etag',
-				'cache-control',
-				'expires',
-				'x-immich-cid',
-				'content-length',
-				'last-modified'
-			];
-			for (const h of safeForward) {
-				const v = res.headers.get(h);
-				if (v) {
-					headers.set(h, v);
-				}
-			}
-			return new Response(res.body, { status: res.status, headers });
-		}
+    // Search responses (search/*): potentially large (v3 metadata),
+    // never cached, and whose body we don't inspect here. We stream them
+    // directly instead of materializing all JSON via res.text(), which
+    // avoids a native `external` spike proportional to the response size.
+    if (res.ok && pathParam.startsWith('search/') && resContentType.includes('application/json')) {
+      const headers = new Headers();
+      headers.set('content-type', resContentType);
+      const safeForward = [
+        'etag',
+        'cache-control',
+        'expires',
+        'x-immich-cid',
+        'content-length',
+        'last-modified',
+      ];
+      for (const h of safeForward) {
+        const v = res.headers.get(h);
+        if (v) {
+          headers.set(h, v);
+        }
+      }
+      return new Response(res.body, { status: res.status, headers });
+    }
 
-		const textBody = await res.text();
-		const headers = new Headers();
+    const textBody = await res.text();
+    const headers = new Headers();
 
-		if (!res.ok) {
-			if (request.method === 'DELETE') {
-				const assetMatch = pathParam.match(/assets\/([^/]+)/);
-				const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
-				if (isFacePairingCleanup) {
-					log.error('face-pairing: failed to delete Immich photo', {
-						asset: assetMatch ? assetMatch[1] : pathParam,
-						status: res.status
-					});
-				}
-			}
-			if (resContentType.includes('text/html')) {
-				headers.set('content-type', 'application/json');
-				return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), {
-					status: res.status,
-					headers
-				});
-			}
-			if (!resContentType.includes('application/json')) {
-				const snippet = textBody && textBody.slice ? textBody.slice(0, 200) : textBody;
-				headers.set('content-type', 'application/json');
-				return new Response(JSON.stringify({ error: snippet || `Upstream ${res.status}` }), {
-					status: res.status,
-					headers
-				});
-			}
-		}
+    if (!res.ok) {
+      if (request.method === 'DELETE') {
+        const assetMatch = pathParam.match(/assets\/([^/]+)/);
+        const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
+        if (isFacePairingCleanup) {
+          log.error('face-pairing: failed to delete Immich photo', {
+            asset: assetMatch ? assetMatch[1] : pathParam,
+            status: res.status,
+          });
+        }
+      }
+      if (resContentType.includes('text/html')) {
+        headers.set('content-type', 'application/json');
+        return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), {
+          status: res.status,
+          headers,
+        });
+      }
+      if (!resContentType.includes('application/json')) {
+        const snippet = textBody && textBody.slice ? textBody.slice(0, 200) : textBody;
+        headers.set('content-type', 'application/json');
+        return new Response(JSON.stringify({ error: snippet || `Upstream ${res.status}` }), {
+          status: res.status,
+          headers,
+        });
+      }
+    }
 
-		if (res.ok) {
-			try {
-				const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
-				const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
-				const personIdMatch = pathParam.match(/people\/([^/]+)/);
+    if (res.ok) {
+      try {
+        const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
+        const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
+        const personIdMatch = pathParam.match(/people\/([^/]+)/);
 
-				if (request.method === 'DELETE') {
-					if (pathParam === 'assets') {
-						try {
-							if (bodyToForward && typeof bodyToForward === 'string') {
-								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
-								if (parsed.ids && Array.isArray(parsed.ids)) {
-									await logEvent(event, 'delete', 'asset', 'bulk', {
-										count: parsed.ids.length,
-										ids: parsed.ids
-									});
-								}
-							}
-						} catch {
-							/* ignore */
-						}
-					} else if (assetIdMatch) {
-						await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
-					} else if (albumIdMatch) {
-						await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
-					} else if (personIdMatch) {
-						await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
-					}
-				} else if (request.method === 'POST') {
-					if (pathParam === 'albums') {
-						try {
-							const respData = JSON.parse(textBody) as ImmichAlbumResponse;
-							if (respData.id) {
-								await logEvent(event, 'create', 'album', respData.id, { name: respData.albumName });
-							}
-						} catch {
-							/* ignore */
-						}
-					} else if (albumIdMatch && pathParam.endsWith('/assets')) {
-						try {
-							if (bodyToForward && typeof bodyToForward === 'string') {
-								const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
-								if (parsed.ids) {
-									await logEvent(event, 'update', 'album', albumIdMatch[1], {
-										action: 'add_assets',
-										count: parsed.ids.length
-									});
-								}
-							}
-						} catch {
-							/* ignore */
-						}
-					}
-				} else if (request.method === 'PUT' || request.method === 'PATCH') {
-					if (albumIdMatch) {
-						await logEvent(event, 'update', 'album', albumIdMatch[1], { method: request.method });
-					}
-				}
-			} catch (e) {
-				log.warn('audit logging failed in proxy', e);
-			}
-		}
+        if (request.method === 'DELETE') {
+          if (pathParam === 'assets') {
+            try {
+              if (bodyToForward && typeof bodyToForward === 'string') {
+                const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
+                if (parsed.ids && Array.isArray(parsed.ids)) {
+                  await logEvent(event, 'delete', 'asset', 'bulk', {
+                    count: parsed.ids.length,
+                    ids: parsed.ids,
+                  });
+                }
+              }
+            } catch {
+              /* ignore */
+            }
+          } else if (assetIdMatch) {
+            await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
+          } else if (albumIdMatch) {
+            await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
+          } else if (personIdMatch) {
+            await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
+          }
+        } else if (request.method === 'POST') {
+          if (pathParam === 'albums') {
+            try {
+              const respData = JSON.parse(textBody) as ImmichAlbumResponse;
+              if (respData.id) {
+                await logEvent(event, 'create', 'album', respData.id, { name: respData.albumName });
+              }
+            } catch {
+              /* ignore */
+            }
+          } else if (albumIdMatch && pathParam.endsWith('/assets')) {
+            try {
+              if (bodyToForward && typeof bodyToForward === 'string') {
+                const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
+                if (parsed.ids) {
+                  await logEvent(event, 'update', 'album', albumIdMatch[1], {
+                    action: 'add_assets',
+                    count: parsed.ids.length,
+                  });
+                }
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+        } else if (request.method === 'PUT' || request.method === 'PATCH') {
+          if (albumIdMatch) {
+            await logEvent(event, 'update', 'album', albumIdMatch[1], { method: request.method });
+          }
+        }
+      } catch (e) {
+        log.warn('audit logging failed in proxy', e);
+      }
+    }
 
-		headers.set('content-type', resContentType);
-		const safeForward = [
-			'etag',
-			'cache-control',
-			'expires',
-			'x-immich-cid',
-			'content-range',
-			'accept-ranges',
-			'content-length',
-			'last-modified'
-		];
-		for (const h of safeForward) {
-			const v = res.headers.get(h);
-			if (v) {
-				headers.set(h, v);
-			}
-		}
+    headers.set('content-type', resContentType);
+    const safeForward = [
+      'etag',
+      'cache-control',
+      'expires',
+      'x-immich-cid',
+      'content-range',
+      'accept-ranges',
+      'content-length',
+      'last-modified',
+    ];
+    for (const h of safeForward) {
+      const v = res.headers.get(h);
+      if (v) {
+        headers.set(h, v);
+      }
+    }
 
-		if (res.status === 204) {
-			return new Response(null, { status: 204, headers });
-		}
-		return new Response(textBody, { status: res.status, headers });
-	} catch (err: unknown) {
-		const _err = ensureError(err);
-		return new Response(JSON.stringify({ error: _err.message }), {
-			status: 502,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+    if (res.status === 204) {
+      return new Response(null, { status: 204, headers });
+    }
+    return new Response(textBody, { status: res.status, headers });
+  } catch (err: unknown) {
+    const _err = ensureError(err);
+    return new Response(JSON.stringify({ error: _err.message }), {
+      status: 502,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 };
 
 export const GET = handle;
@@ -892,31 +897,31 @@ export const PATCH = handle;
 export const HEAD = handle;
 
 function handleChunkStatus(event: RequestEvent) {
-	const req = event.request;
-	const fileId =
-		req.headers.get('x-file-id') || (event.url.searchParams.get('fileId') as string | null);
-	if (!fileId) {
-		return new Response(JSON.stringify({ error: 'Missing x-file-id' }), {
-			status: 400,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+  const req = event.request;
+  const fileId =
+    req.headers.get('x-file-id') || (event.url.searchParams.get('fileId') as string | null);
+  if (!fileId) {
+    return new Response(JSON.stringify({ error: 'Missing x-file-id' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
-	const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
-	const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
-	const completePath = `${tempFilePath}.complete`;
+  const uploadDir = path.join(process.cwd(), 'data', 'chunk-uploads');
+  const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
+  const completePath = `${tempFilePath}.complete`;
 
-	let size = 0;
-	if (fs.existsSync(tempFilePath)) {
-		size = fs.statSync(tempFilePath).size;
-	} else if (fs.existsSync(completePath)) {
-		size = fs.statSync(completePath).size;
-	}
+  let size = 0;
+  if (fs.existsSync(tempFilePath)) {
+    size = fs.statSync(tempFilePath).size;
+  } else if (fs.existsSync(completePath)) {
+    size = fs.statSync(completePath).size;
+  }
 
-	return new Response(JSON.stringify({ exists: size > 0, receivedBytes: size }), {
-		status: 200,
-		headers: { 'content-type': 'application/json' }
-	});
+  return new Response(JSON.stringify({ exists: size > 0, receivedBytes: size }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 }
 
 /**
@@ -933,82 +938,82 @@ function handleChunkStatus(event: RequestEvent) {
  * path end up in this function.
  */
 async function finishImmichUpload(
-	event: RequestEvent,
-	response: Response,
-	originalName: string,
-	cleanup: () => void
+  event: RequestEvent,
+  response: Response,
+  originalName: string,
+  cleanup: () => void
 ): Promise<Response> {
-	if (!response.ok) {
-		const errorBody = await response.text();
-		log.error(
-			`upload failed for ${originalName}: ${response.status} ${response.statusText}`,
-			errorBody
-		);
-		cleanup();
-		return new Response(errorBody, { status: response.status, headers: response.headers });
-	}
+  if (!response.ok) {
+    const errorBody = await response.text();
+    log.error(
+      `upload failed for ${originalName}: ${response.status} ${response.statusText}`,
+      errorBody
+    );
+    cleanup();
+    return new Response(errorBody, { status: response.status, headers: response.headers });
+  }
 
-	try {
-		const [logBranch, clientBranch] = response.body ? response.body.tee() : [null, null];
+  try {
+    const [logBranch, clientBranch] = response.body ? response.body.tee() : [null, null];
 
-		if (logBranch) {
-			// Drain the log branch out of band; do not block the client response.
-			(async () => {
-				try {
-					const reader = logBranch.getReader();
-					const chunks: Uint8Array[] = [];
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) {
-							break;
-						}
-						if (value) {
-							chunks.push(value);
-						}
-					}
-					const text = new TextDecoder().decode(Buffer.concat(chunks));
-					const respData = JSON.parse(text) as ImmichAssetResponse;
-					const assetId = respData.id;
-					if (assetId && respData.status === 'duplicate') {
-						const restored = await restoreAssetsFromTrash(event.fetch, [assetId]);
-						if (restored > 0) {
-							await logEvent(event, 'update', 'asset', assetId, {
-								action: 'restore_duplicate_from_trash',
-								originalName
-							});
-						}
-					}
-					if (assetId) {
-						await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
-					}
-				} catch (e) {
-					log.warn('failed to log upload', e);
-				} finally {
-					cleanup();
-				}
-			})();
-		} else {
-			cleanup();
-		}
+    if (logBranch) {
+      // Drain the log branch out of band; do not block the client response.
+      (async () => {
+        try {
+          const reader = logBranch.getReader();
+          const chunks: Uint8Array[] = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              break;
+            }
+            if (value) {
+              chunks.push(value);
+            }
+          }
+          const text = new TextDecoder().decode(Buffer.concat(chunks));
+          const respData = JSON.parse(text) as ImmichAssetResponse;
+          const assetId = respData.id;
+          if (assetId && respData.status === 'duplicate') {
+            const restored = await restoreAssetsFromTrash(event.fetch, [assetId]);
+            if (restored > 0) {
+              await logEvent(event, 'update', 'asset', assetId, {
+                action: 'restore_duplicate_from_trash',
+                originalName,
+              });
+            }
+          }
+          if (assetId) {
+            await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+          }
+        } catch (e) {
+          log.warn('failed to log upload', e);
+        } finally {
+          cleanup();
+        }
+      })();
+    } else {
+      cleanup();
+    }
 
-		const forwardedHeaders = new Headers();
-		const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
-		for (const h of safeRespForward) {
-			const v = response.headers.get(h);
-			if (v !== null && v !== undefined) {
-				forwardedHeaders.set(h, v);
-			}
-		}
+    const forwardedHeaders = new Headers();
+    const safeRespForward = ['content-type', 'etag', 'cache-control', 'expires', 'x-immich-cid'];
+    for (const h of safeRespForward) {
+      const v = response.headers.get(h);
+      if (v !== null && v !== undefined) {
+        forwardedHeaders.set(h, v);
+      }
+    }
 
-		return new Response(clientBranch, {
-			status: response.status,
-			headers: forwardedHeaders
-		});
-	} catch (e) {
-		log.warn('error teeing response', e);
-		cleanup();
-		return response;
-	}
+    return new Response(clientBranch, {
+      status: response.status,
+      headers: forwardedHeaders,
+    });
+  } catch (e) {
+    log.warn('error teeing response', e);
+    cleanup();
+    return response;
+  }
 }
 
 /**
@@ -1018,79 +1023,79 @@ async function finishImmichUpload(
  * receives the exact same body without us re-parsing the form.
  */
 async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise<Response> {
-	const request = event.request;
-	if (!request.body) {
-		return new Response(JSON.stringify({ error: 'No body in request' }), {
-			status: 400,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+  const request = event.request;
+  if (!request.body) {
+    return new Response(JSON.stringify({ error: 'No body in request' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
-	const contentType = request.headers.get('content-type') || 'application/octet-stream';
+  const contentType = request.headers.get('content-type') || 'application/octet-stream';
 
-	try {
-		// Read the whole (< 10MB, size-capped by BODY_SIZE_LIMIT) body into a
-		// buffer and send it straight to Immich; no temp file. Node streams the
-		// incoming body and releases it after the request, so buffering a small
-		// upload stays flat.
-		const buf = Buffer.from(await request.arrayBuffer());
+  try {
+    // Read the whole (< 10MB, size-capped by BODY_SIZE_LIMIT) body into a
+    // buffer and send it straight to Immich; no temp file. Node streams the
+    // incoming body and releases it after the request, so buffering a small
+    // upload stays flat.
+    const buf = Buffer.from(await request.arrayBuffer());
 
-		const url = new URL(`${baseUrl}/api/assets`);
-		const isHttps = url.protocol === 'https:';
+    const url = new URL(`${baseUrl}/api/assets`);
+    const isHttps = url.protocol === 'https:';
 
-		const options: http.RequestOptions = {
-			protocol: url.protocol,
-			hostname: url.hostname,
-			port: url.port || (isHttps ? '443' : '80'),
-			path: url.pathname + url.search,
-			method: 'POST',
-			headers: {
-				'x-api-key': apiKey,
-				accept: request.headers.get('accept') || 'application/json',
-				'content-type': contentType,
-				'content-length': String(buf.length)
-			},
-			timeout: 600000 // 10 minutes
-		};
+    const options: http.RequestOptions = {
+      protocol: url.protocol,
+      hostname: url.hostname,
+      port: url.port || (isHttps ? '443' : '80'),
+      path: url.pathname + url.search,
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        accept: request.headers.get('accept') || 'application/json',
+        'content-type': contentType,
+        'content-length': String(buf.length),
+      },
+      timeout: 600000, // 10 minutes
+    };
 
-		const response = await new Promise<Response>((resolve, reject) => {
-			const onResponse = (res: http.IncomingMessage) => {
-				const bodyStream = new ReadableStream({
-					start(controller) {
-						res.on('data', (chunk) => controller.enqueue(chunk));
-						res.on('end', () => controller.close());
-						res.on('error', (err) => controller.error(err));
-					}
-				});
-				const headers = new Headers();
-				for (const [key, value] of Object.entries(res.headers)) {
-					if (value) {
-						if (Array.isArray(value)) {
-							value.forEach((v) => headers.append(key, v));
-						} else {
-							headers.set(key, value);
-						}
-					}
-				}
-				resolve(new Response(bodyStream, { status: res.statusCode ?? 502, headers }));
-			};
+    const response = await new Promise<Response>((resolve, reject) => {
+      const onResponse = (res: http.IncomingMessage) => {
+        const bodyStream = new ReadableStream({
+          start(controller) {
+            res.on('data', (chunk) => controller.enqueue(chunk));
+            res.on('end', () => controller.close());
+            res.on('error', (err) => controller.error(err));
+          },
+        });
+        const headers = new Headers();
+        for (const [key, value] of Object.entries(res.headers)) {
+          if (value) {
+            if (Array.isArray(value)) {
+              value.forEach((v) => headers.append(key, v));
+            } else {
+              headers.set(key, value);
+            }
+          }
+        }
+        resolve(new Response(bodyStream, { status: res.statusCode ?? 502, headers }));
+      };
 
-			const req = isHttps ? https.request(options, onResponse) : http.request(options, onResponse);
-			req.on('error', reject);
-			req.on('timeout', () => req.destroy(new Error('Immich upload timeout')));
-			req.end(buf);
-		});
+      const req = isHttps ? https.request(options, onResponse) : http.request(options, onResponse);
+      req.on('error', reject);
+      req.on('timeout', () => req.destroy(new Error('Immich upload timeout')));
+      req.end(buf);
+    });
 
-		return await finishImmichUpload(event, response, 'simple-upload', () => {});
-	} catch (err: unknown) {
-		const _err = ensureError(err);
-		log.error('simple upload failed', _err);
-		return new Response(
-			JSON.stringify({ error: _err.message || 'Internal Server Error during upload' }),
-			{
-				status: 500,
-				headers: { 'content-type': 'application/json' }
-			}
-		);
-	}
+    return await finishImmichUpload(event, response, 'simple-upload', () => {});
+  } catch (err: unknown) {
+    const _err = ensureError(err);
+    log.error('simple upload failed', _err);
+    return new Response(
+      JSON.stringify({ error: _err.message || 'Internal Server Error during upload' }),
+      {
+        status: 500,
+        headers: { 'content-type': 'application/json' },
+      }
+    );
+  }
 }

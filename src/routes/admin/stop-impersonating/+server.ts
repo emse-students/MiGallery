@@ -13,14 +13,14 @@ import { redirect } from '@sveltejs/kit';
  * impersonation had to live in the session row rather than in a cookie.
  */
 export const GET: RequestHandler = ({ cookies, locals }) => {
-	if (!canStopImpersonating({ locals, cookies })) {
-		return new Response('Forbidden: no admin session to restore', { status: 403 });
-	}
+  if (!canStopImpersonating({ locals, cookies })) {
+    return new Response('Forbidden: no admin session to restore', { status: 403 });
+  }
 
-	const token = getSessionToken(cookies);
-	if (token) {
-		setSessionImpersonation(token, null);
-	}
+  const token = getSessionToken(cookies);
+  if (token) {
+    setSessionImpersonation(token, null);
+  }
 
-	throw redirect(303, '/admin');
+  throw redirect(303, '/admin');
 };

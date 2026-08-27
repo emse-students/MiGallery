@@ -16,14 +16,14 @@ const log = createLogger('admin-covers-prune');
  * look like an orphan and be thrown away (and rebuilt on the next visit).
  */
 export const POST: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const resolved = await resolveMissingCovers(event.fetch);
-	const result = pruneOrphanCovers();
+  const resolved = await resolveMissingCovers(event.fetch);
+  const result = pruneOrphanCovers();
 
-	log.info(
-		`Cover prune: resolved ${resolved} album(s), deleted ${result.deleted} file(s) (${result.bytes} bytes), kept ${result.kept}`
-	);
+  log.info(
+    `Cover prune: resolved ${resolved} album(s), deleted ${result.deleted} file(s) (${result.bytes} bytes), kept ${result.kept}`
+  );
 
-	return json({ success: true, resolved, ...result });
+  return json({ success: true, resolved, ...result });
 };

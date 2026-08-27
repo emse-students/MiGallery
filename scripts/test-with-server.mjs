@@ -15,16 +15,16 @@ import { join } from 'path';
  * breaks the next test run; taskkill /T tears down the whole tree.
  */
 function killServer(server) {
-	if (!server || server.killed) return;
-	if (process.platform === 'win32') {
-		try {
-			spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
-		} catch {
-			server.kill();
-		}
-	} else {
-		server.kill();
-	}
+  if (!server || server.killed) return;
+  if (process.platform === 'win32') {
+    try {
+      spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {
+      server.kill();
+    }
+  } else {
+    server.kill();
+  }
 }
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -36,177 +36,179 @@ const READINESS_POLL_INTERVAL = 500; // 0.5s
  * Charge les variables d'environnement depuis .env
  */
 function loadEnv() {
-	try {
-		const envPath = join(process.cwd(), '.env');
-		const content = readFileSync(envPath, 'utf-8');
-		const env = {};
-		content.split('\n').forEach((line) => {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith('#')) return;
-			const [key, ...rest] = trimmed.split('=');
-			if (key && rest.length > 0) {
-				env[key.trim()] = rest.join('=').trim();
-			}
-		});
-		return env;
-	} catch (error) {
-		console.warn('⚠️  Impossible de charger .env:', error.message);
-		return {};
-	}
+  try {
+    const envPath = join(process.cwd(), '.env');
+    const content = readFileSync(envPath, 'utf-8');
+    const env = {};
+    content.split('\n').forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const [key, ...rest] = trimmed.split('=');
+      if (key && rest.length > 0) {
+        env[key.trim()] = rest.join('=').trim();
+      }
+    });
+    return env;
+  } catch (error) {
+    console.warn('⚠️  Impossible de charger .env:', error.message);
+    return {};
+  }
 }
 
 /**
  * Build le serveur SvelteKit
  */
 async function buildServer() {
-	console.log('🔨 Building SvelteKit...\n');
+  console.log('🔨 Building SvelteKit...\n');
 
-	const env = { ...process.env, NODE_ENV: 'test' };
+  const env = { ...process.env, NODE_ENV: 'test' };
 
-	return new Promise((resolve, reject) => {
-		const build = spawn('bun', ['run', 'build'], {
-			stdio: 'inherit',
-			shell: process.platform === 'win32',
-			env
-		});
+  return new Promise((resolve, reject) => {
+    const build = spawn('bun', ['run', 'build'], {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      env,
+    });
 
-		build.on('close', (code) => {
-			if (code === 0) {
-				console.log('\n✅ Build terminé avec succès\n');
-				resolve(true);
-			} else {
-				console.error(`\n❌ Build échoué avec le code ${code}\n`);
-				reject(new Error(`Build process exited with code ${code}`));
-			}
-		});
+    build.on('close', (code) => {
+      if (code === 0) {
+        console.log('\n✅ Build terminé avec succès\n');
+        resolve(true);
+      } else {
+        console.error(`\n❌ Build échoué avec le code ${code}\n`);
+        reject(new Error(`Build process exited with code ${code}`));
+      }
+    });
 
-		build.on('error', (error) => {
-			console.error('\n❌ Erreur lors du build:', error);
-			reject(error);
-		});
-	});
+    build.on('error', (error) => {
+      console.error('\n❌ Erreur lors du build:', error);
+      reject(error);
+    });
+  });
 }
 
 async function waitForReadiness(url, timeout = READINESS_TIMEOUT) {
-	const start = Date.now();
-	while (Date.now() - start < timeout) {
-		try {
-			const res = await fetch(url, { method: 'GET' });
-			// Si on obtient une réponse HTTP (quel que soit le code), considérer le service prêt
-			// Certaines routes peuvent retourner 404 si non configurées; l'important est que le serveur réponde.
-			return res;
-		} catch (e) {
-			// connexion refusée => serveur pas encore prêt
-			await setTimeout(READINESS_POLL_INTERVAL);
-		}
-	}
-	throw new Error(`Timeout waiting for readiness at ${url}`);
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      // Si on obtient une réponse HTTP (quel que soit le code), considérer le service prêt
+      // Certaines routes peuvent retourner 404 si non configurées; l'important est que le serveur réponde.
+      return res;
+    } catch (e) {
+      // connexion refusée => serveur pas encore prêt
+      await setTimeout(READINESS_POLL_INTERVAL);
+    }
+  }
+  throw new Error(`Timeout waiting for readiness at ${url}`);
 }
 
 async function main() {
-	let server = null;
+  let server = null;
 
-	try {
-		// 0. Charger le .env
-		const envVars = loadEnv();
-		console.log('📄 Variables .env chargées:', Object.keys(envVars).join(', '));
+  try {
+    // 0. Charger le .env
+    const envVars = loadEnv();
+    console.log('📄 Variables .env chargées:', Object.keys(envVars).join(', '));
 
-		// Guard: the integration suite creates real "[TEST] ..." albums in Immich.
-		// Refuse to run against a non-local Immich so a dev .env pointing at prod
-		// does not pollute it. Override with ALLOW_REMOTE_IMMICH_TESTS=true.
-		const immichUrl = (envVars.IMMICH_BASE_URL ?? process.env.IMMICH_BASE_URL ?? '').trim();
-		if (immichUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(immichUrl)) {
-			if (process.env.ALLOW_REMOTE_IMMICH_TESTS !== 'true') {
-				console.error(
-					`\n⛔ IMMICH_BASE_URL points to a non-local Immich (${immichUrl}).\n` +
-						`   The test suite creates real "[TEST] ..." albums and would pollute it.\n` +
-						`   Use an empty IMMICH_BASE_URL or a local mock, or set` +
-						` ALLOW_REMOTE_IMMICH_TESTS=true to override.\n`
-				);
-				process.exit(1);
-			}
-			console.warn(`\n⚠️  Running tests against remote Immich (${immichUrl}) - override in effect.\n`);
-		}
+    // Guard: the integration suite creates real "[TEST] ..." albums in Immich.
+    // Refuse to run against a non-local Immich so a dev .env pointing at prod
+    // does not pollute it. Override with ALLOW_REMOTE_IMMICH_TESTS=true.
+    const immichUrl = (envVars.IMMICH_BASE_URL ?? process.env.IMMICH_BASE_URL ?? '').trim();
+    if (immichUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(immichUrl)) {
+      if (process.env.ALLOW_REMOTE_IMMICH_TESTS !== 'true') {
+        console.error(
+          `\n⛔ IMMICH_BASE_URL points to a non-local Immich (${immichUrl}).\n` +
+            `   The test suite creates real "[TEST] ..." albums and would pollute it.\n` +
+            `   Use an empty IMMICH_BASE_URL or a local mock, or set` +
+            ` ALLOW_REMOTE_IMMICH_TESTS=true to override.\n`
+        );
+        process.exit(1);
+      }
+      console.warn(
+        `\n⚠️  Running tests against remote Immich (${immichUrl}) - override in effect.\n`
+      );
+    }
 
-		// Définir NODE_ENV=test pour activer les routes de dev pendant les tests
-		process.env.NODE_ENV = 'test';
-		console.log('✅ NODE_ENV défini à "test"');
+    // Définir NODE_ENV=test pour activer les routes de dev pendant les tests
+    process.env.NODE_ENV = 'test';
+    console.log('✅ NODE_ENV défini à "test"');
 
-		// 1. Build le serveur
-		await buildServer();
+    // 1. Build le serveur
+    await buildServer();
 
-		console.log('🚀 Démarrage du serveur de test...\n');
+    console.log('🚀 Démarrage du serveur de test...\n');
 
-		// 2. Démarrer le serveur
-		server = spawn('node', ['./build/index.js'], {
-			stdio: 'inherit',
-			detached: false,
-			env: { ...process.env, ...envVars, NODE_ENV: 'test' }
-		});
+    // 2. Démarrer le serveur
+    server = spawn('node', ['./build/index.js'], {
+      stdio: 'inherit',
+      detached: false,
+      env: { ...process.env, ...envVars, NODE_ENV: 'test' },
+    });
 
-		// 3. Attendre que le serveur démarre
-		await setTimeout(SERVER_STARTUP_DELAY);
+    // 3. Attendre que le serveur démarre
+    await setTimeout(SERVER_STARTUP_DELAY);
 
-		console.log(`\n✅ Serveur démarré sur ${API_BASE_URL} (en attente de disponibilité)`);
-		try {
-			const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
-			await waitForReadiness(healthUrl);
-			console.log('✅ Endpoint /api/health répond - démarrage OK');
-		} catch (err) {
-			console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
-			console.log("⚠️  Poursuite des tests malgré l'échec de la probe (timeout)");
-		}
+    console.log(`\n✅ Serveur démarré sur ${API_BASE_URL} (en attente de disponibilité)`);
+    try {
+      const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
+      await waitForReadiness(healthUrl);
+      console.log('✅ Endpoint /api/health répond - démarrage OK');
+    } catch (err) {
+      console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
+      console.log("⚠️  Poursuite des tests malgré l'échec de la probe (timeout)");
+    }
 
-		console.log('🧪 Lancement des tests...\n');
+    console.log('🧪 Lancement des tests...\n');
 
-		// 4. Lancer les tests
-		const tests = spawn('bun', ['run', 'test:unit'], {
-			stdio: 'inherit',
-			shell: process.platform === 'win32',
-			env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' }
-		});
+    // 4. Lancer les tests
+    const tests = spawn('bun', ['run', 'test:unit'], {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' },
+    });
 
-		// 5. Attendre la fin des tests
-		tests.on('close', async (code) => {
-			console.log('\n🛑 Arrêt du serveur...');
-			killServer(server);
+    // 5. Attendre la fin des tests
+    tests.on('close', async (code) => {
+      console.log('\n🛑 Arrêt du serveur...');
+      killServer(server);
 
-			// 6. Nettoyer les artefacts de test
-			console.log('\n🧹 Nettoyage des artefacts de test...');
-			const cleanup = spawn('node', ['./scripts/cleanup-test-artifacts.cjs'], {
-				stdio: 'inherit'
-			});
+      // 6. Nettoyer les artefacts de test
+      console.log('\n🧹 Nettoyage des artefacts de test...');
+      const cleanup = spawn('node', ['./scripts/cleanup-test-artifacts.cjs'], {
+        stdio: 'inherit',
+      });
 
-			cleanup.on('close', () => {
-				process.exit(code);
-			});
+      cleanup.on('close', () => {
+        process.exit(code);
+      });
 
-			cleanup.on('error', () => {
-				// Ignorer les erreurs de cleanup et quitter avec le code des tests
-				process.exit(code);
-			});
-		});
-	} catch (error) {
-		console.error('\n💥 Erreur:', error.message);
+      cleanup.on('error', () => {
+        // Ignorer les erreurs de cleanup et quitter avec le code des tests
+        process.exit(code);
+      });
+    });
+  } catch (error) {
+    console.error('\n💥 Erreur:', error.message);
 
-		if (server) {
-			console.log('🛑 Arrêt du serveur...');
-			killServer(server);
-		}
+    if (server) {
+      console.log('🛑 Arrêt du serveur...');
+      killServer(server);
+    }
 
-		process.exit(1);
-	}
+    process.exit(1);
+  }
 }
 
 // Cleanup en cas d'interruption
 process.on('SIGINT', () => {
-	console.log('\n⚠️  Interruption détectée, arrêt du serveur...');
-	process.exit(1);
+  console.log('\n⚠️  Interruption détectée, arrêt du serveur...');
+  process.exit(1);
 });
 
 process.on('SIGTERM', () => {
-	console.log('\n⚠️  Terminaison demandée, arrêt du serveur...');
-	process.exit(1);
+  console.log('\n⚠️  Terminaison demandée, arrêt du serveur...');
+  process.exit(1);
 });
 
 main();

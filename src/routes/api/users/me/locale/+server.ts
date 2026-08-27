@@ -14,31 +14,31 @@ const log = createLogger('users-me-locale');
  * written client-side by setLocale(); this only records the durable preference.
  */
 export const PATCH: RequestHandler = async (event) => {
-	const { request } = event;
+  const { request } = event;
 
-	// "me" is whoever the session says it is - there is no other answer to look for.
-	const userId = (await requireSession(event)).id_user;
+  // "me" is whoever the session says it is - there is no other answer to look for.
+  const userId = (await requireSession(event)).id_user;
 
-	try {
-		const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-		const body = (await request.json()) as { locale?: string };
-		const locale = body.locale;
+    const body = (await request.json()) as { locale?: string };
+    const locale = body.locale;
 
-		if (!locale || !isLocale(locale)) {
-			return json({ error: 'Invalid locale' }, { status: 400 });
-		}
+    if (!locale || !isLocale(locale)) {
+      return json({ error: 'Invalid locale' }, { status: 400 });
+    }
 
-		const result = db.prepare('UPDATE users SET locale = ? WHERE id_user = ?').run(locale, userId);
+    const result = db.prepare('UPDATE users SET locale = ? WHERE id_user = ?').run(locale, userId);
 
-		if (result.changes === 0) {
-			return json({ error: 'User not found' }, { status: 404 });
-		}
+    if (result.changes === 0) {
+      return json({ error: 'User not found' }, { status: 404 });
+    }
 
-		return json({ success: true, locale });
-	} catch (e) {
-		const err = e as Error;
-		log.error('PATCH /api/users/me/locale error', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    return json({ success: true, locale });
+  } catch (e) {
+    const err = e as Error;
+    log.error('PATCH /api/users/me/locale error', err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };

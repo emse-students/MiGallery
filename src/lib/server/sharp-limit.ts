@@ -18,24 +18,24 @@ const sharpQueue: Array<() => void> = [];
  * in a finally block once processing is done.
  */
 export function acquireSharp(): Promise<(() => void) | null> {
-	if (sharpQueue.length >= MAX_QUEUE_SIZE) {
-		return Promise.resolve(null);
-	}
-	return new Promise((resolve) => {
-		const tryAcquire = () => {
-			if (runningSharp < MAX_CONCURRENT_SHARP) {
-				runningSharp++;
-				resolve(() => {
-					runningSharp--;
-					const next = sharpQueue.shift();
-					if (next) {
-						next();
-					}
-				});
-			} else {
-				sharpQueue.push(tryAcquire);
-			}
-		};
-		tryAcquire();
-	});
+  if (sharpQueue.length >= MAX_QUEUE_SIZE) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const tryAcquire = () => {
+      if (runningSharp < MAX_CONCURRENT_SHARP) {
+        runningSharp++;
+        resolve(() => {
+          runningSharp--;
+          const next = sharpQueue.shift();
+          if (next) {
+            next();
+          }
+        });
+      } else {
+        sharpQueue.push(tryAcquire);
+      }
+    };
+    tryAcquire();
+  });
 }

@@ -20,12 +20,12 @@ import { logEvent } from '$lib/server/logs';
 export type Scope = 'public' | 'read' | 'write' | 'admin';
 
 export interface AuthResult {
-	/** The authenticated user (null if authenticated via API key) */
-	user: UserRow | null;
-	/** The effective granted scope */
-	grantedScope: Scope;
-	/** True if authenticated via API key */
-	viaApiKey: boolean;
+  /** The authenticated user (null if authenticated via API key) */
+  user: UserRow | null;
+  /** The effective granted scope */
+  grantedScope: Scope;
+  /** True if authenticated via API key */
+  viaApiKey: boolean;
 }
 
 /**
@@ -39,112 +39,112 @@ export interface AuthResult {
  * @throws Error 401/403 if not authorized
  */
 export async function requireScope(
-	event: RequestEvent,
-	requiredScope: Scope,
-	options?: {
-		allowSelf?: boolean;
-		targetUserId?: string;
-	}
+  event: RequestEvent,
+  requiredScope: Scope,
+  options?: {
+    allowSelf?: boolean;
+    targetUserId?: string;
+  }
 ): Promise<AuthResult> {
-	const { request, locals, cookies } = event;
-	const { allowSelf = false, targetUserId } = options || {};
+  const { request, locals, cookies } = event;
+  const { allowSelf = false, targetUserId } = options || {};
 
-	if (requiredScope === 'public') {
-		return {
-			user: null,
-			grantedScope: 'public',
-			viaApiKey: false
-		};
-	}
+  if (requiredScope === 'public') {
+    return {
+      user: null,
+      grantedScope: 'public',
+      viaApiKey: false,
+    };
+  }
 
-	const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-	if (apiKeyHeader) {
-		if (requiredScope === 'admin') {
-			if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {
-				throw error(403, 'Admin scope required');
-			}
-			return {
-				user: null,
-				grantedScope: 'admin',
-				viaApiKey: true
-			};
-		}
+  const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
+  if (apiKeyHeader) {
+    if (requiredScope === 'admin') {
+      if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {
+        throw error(403, 'Admin scope required');
+      }
+      return {
+        user: null,
+        grantedScope: 'admin',
+        viaApiKey: true,
+      };
+    }
 
-		if (requiredScope === 'write') {
-			if (
-				!verifyRawKeyWithScope(apiKeyHeader, 'write') &&
-				!verifyRawKeyWithScope(apiKeyHeader, 'admin')
-			) {
-				throw error(403, 'Write or Admin scope required');
-			}
-			return {
-				user: null,
-				grantedScope: verifyRawKeyWithScope(apiKeyHeader, 'admin') ? 'admin' : 'write',
-				viaApiKey: true
-			};
-		}
+    if (requiredScope === 'write') {
+      if (
+        !verifyRawKeyWithScope(apiKeyHeader, 'write') &&
+        !verifyRawKeyWithScope(apiKeyHeader, 'admin')
+      ) {
+        throw error(403, 'Write or Admin scope required');
+      }
+      return {
+        user: null,
+        grantedScope: verifyRawKeyWithScope(apiKeyHeader, 'admin') ? 'admin' : 'write',
+        viaApiKey: true,
+      };
+    }
 
-		if (requiredScope === 'read') {
-			if (
-				!verifyRawKeyWithScope(apiKeyHeader, 'read') &&
-				!verifyRawKeyWithScope(apiKeyHeader, 'write') &&
-				!verifyRawKeyWithScope(apiKeyHeader, 'admin')
-			) {
-				throw error(403, 'Read, Write or Admin scope required');
-			}
-			const grantedScope = verifyRawKeyWithScope(apiKeyHeader, 'admin')
-				? 'admin'
-				: verifyRawKeyWithScope(apiKeyHeader, 'write')
-					? 'write'
-					: 'read';
+    if (requiredScope === 'read') {
+      if (
+        !verifyRawKeyWithScope(apiKeyHeader, 'read') &&
+        !verifyRawKeyWithScope(apiKeyHeader, 'write') &&
+        !verifyRawKeyWithScope(apiKeyHeader, 'admin')
+      ) {
+        throw error(403, 'Read, Write or Admin scope required');
+      }
+      const grantedScope = verifyRawKeyWithScope(apiKeyHeader, 'admin')
+        ? 'admin'
+        : verifyRawKeyWithScope(apiKeyHeader, 'write')
+          ? 'write'
+          : 'read';
 
-			// Log API key usage (only for mutating methods or admin scope to avoid flooding)
-			if (request.method !== 'GET' || grantedScope === 'admin') {
-				void logEvent(event, 'api_usage', 'api_key', `${apiKeyHeader.slice(0, 8)}...`, {
-					method: request.method,
-					path: event.url.pathname,
-					scope: grantedScope
-				});
-			}
+      // Log API key usage (only for mutating methods or admin scope to avoid flooding)
+      if (request.method !== 'GET' || grantedScope === 'admin') {
+        void logEvent(event, 'api_usage', 'api_key', `${apiKeyHeader.slice(0, 8)}...`, {
+          method: request.method,
+          path: event.url.pathname,
+          scope: grantedScope,
+        });
+      }
 
-			return {
-				user: null,
-				grantedScope: grantedScope as Scope,
-				viaApiKey: true
-			};
-		}
-	}
+      return {
+        user: null,
+        grantedScope: grantedScope as Scope,
+        viaApiKey: true,
+      };
+    }
+  }
 
-	const user = await getCurrentUser({ locals, cookies });
-	if (!user) {
-		throw error(401, 'Authentication required');
-	}
+  const user = await getCurrentUser({ locals, cookies });
+  if (!user) {
+    throw error(401, 'Authentication required');
+  }
 
-	if (requiredScope === 'admin') {
-		const adminUser = await ensureAdmin({ locals, cookies });
-		if (!adminUser) {
-			throw error(403, 'Admin role required');
-		}
-		return {
-			user: adminUser,
-			grantedScope: 'admin',
-			viaApiKey: false
-		};
-	}
+  if (requiredScope === 'admin') {
+    const adminUser = await ensureAdmin({ locals, cookies });
+    if (!adminUser) {
+      throw error(403, 'Admin role required');
+    }
+    return {
+      user: adminUser,
+      grantedScope: 'admin',
+      viaApiKey: false,
+    };
+  }
 
-	if (allowSelf && targetUserId && user.id_user === targetUserId) {
-		return {
-			user,
-			grantedScope: 'write',
-			viaApiKey: false
-		};
-	}
+  if (allowSelf && targetUserId && user.id_user === targetUserId) {
+    return {
+      user,
+      grantedScope: 'write',
+      viaApiKey: false,
+    };
+  }
 
-	return {
-		user,
-		grantedScope: requiredScope,
-		viaApiKey: false
-	};
+  return {
+    user,
+    grantedScope: requiredScope,
+    viaApiKey: false,
+  };
 }
 
 /**
@@ -152,20 +152,20 @@ export async function requireScope(
  * (no API key supported)
  */
 export async function requireSession(event: RequestEvent): Promise<UserRow> {
-	const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
-	if (!user) {
-		throw error(401, 'Session required');
-	}
-	return user;
+  const user = await getCurrentUser({ locals: event.locals, cookies: event.cookies });
+  if (!user) {
+    throw error(401, 'Session required');
+  }
+  return user;
 }
 
 /**
  * Simplified version for admin endpoints (admin session only)
  */
 export async function requireAdminSession(event: RequestEvent): Promise<UserRow> {
-	const adminUser = await ensureAdmin({ locals: event.locals, cookies: event.cookies });
-	if (!adminUser) {
-		throw error(403, 'Admin session required');
-	}
-	return adminUser;
+  const adminUser = await ensureAdmin({ locals: event.locals, cookies: event.cookies });
+  if (!adminUser) {
+    throw error(403, 'Admin session required');
+  }
+  return adminUser;
 }

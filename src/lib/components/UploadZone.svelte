@@ -1,706 +1,705 @@
 <script lang="ts">
-	import {
-		CircleCheckBig,
-		CircleX,
-		CircleAlert,
-		Check,
-		X,
-		TriangleAlert,
-		RefreshCw,
-		Upload,
-		WifiOff,
-		Clock
-	} from 'lucide-svelte';
-	import Spinner from './Spinner.svelte';
-	import { m } from '$lib/paraglide/messages';
+  import {
+    CircleCheckBig,
+    CircleX,
+    CircleAlert,
+    Check,
+    X,
+    TriangleAlert,
+    RefreshCw,
+    Upload,
+    WifiOff,
+    Clock,
+  } from 'lucide-svelte';
+  import Spinner from './Spinner.svelte';
+  import { m } from '$lib/paraglide/messages';
 
-	interface FileResult {
-		file: File;
-		isDuplicate: boolean;
-		assetId?: string;
-	}
+  interface FileResult {
+    file: File;
+    isDuplicate: boolean;
+    assetId?: string;
+  }
 
-	interface Props {
-		onUpload: (
-			files: File[],
-			onProgress?: (current: number, total: number) => void,
-			onFileResult?: (result: FileResult) => void,
-			onFileStart?: (file: File) => void
-		) => Promise<Array<{ file: File; isDuplicate: boolean; assetId?: string }>>;
-		accept?: string;
-		multiple?: boolean;
-		disabled?: boolean;
-	}
+  interface Props {
+    onUpload: (
+      files: File[],
+      onProgress?: (current: number, total: number) => void,
+      onFileResult?: (result: FileResult) => void,
+      onFileStart?: (file: File) => void
+    ) => Promise<Array<{ file: File; isDuplicate: boolean; assetId?: string }>>;
+    accept?: string;
+    multiple?: boolean;
+    disabled?: boolean;
+  }
 
-	interface UploadFileStatus {
-		file: File;
-		status: 'pending' | 'uploading' | 'success' | 'error' | 'duplicate';
-		error?: string;
-		progress: number;
-	}
+  interface UploadFileStatus {
+    file: File;
+    status: 'pending' | 'uploading' | 'success' | 'error' | 'duplicate';
+    error?: string;
+    progress: number;
+  }
 
-	let { onUpload, accept = 'image/*,video/*', multiple = true, disabled = false }: Props = $props();
+  let { onUpload, accept = 'image/*,video/*', multiple = true, disabled = false }: Props = $props();
 
-	let isDragging = $state(false);
-	let isUploading = $state(false);
-	let fileStatuses = $state<UploadFileStatus[]>([]);
-	let fileInputRef: HTMLInputElement;
-	let globalProgress = $state(0); // Global upload percentage
-	let uploadedCount = $state(0);
-	let duplicateCountPersist = $state(0); // Total duplicates (persistent)
-	let errorCountPersist = $state(0); // Total errors (persistent)
-	let isOffline = $state(false);
+  let isDragging = $state(false);
+  let isUploading = $state(false);
+  let fileStatuses = $state<UploadFileStatus[]>([]);
+  let fileInputRef: HTMLInputElement;
+  let globalProgress = $state(0); // Global upload percentage
+  let uploadedCount = $state(0);
+  let duplicateCountPersist = $state(0); // Total duplicates (persistent)
+  let errorCountPersist = $state(0); // Total errors (persistent)
+  let isOffline = $state(false);
 
-	$effect(() => {
-		if (typeof window === 'undefined') {
-			return;
-		}
-		isOffline = navigator.onLine === false;
-		const onOnline = () => (isOffline = false);
-		const onOffline = () => (isOffline = true);
-		window.addEventListener('online', onOnline);
-		window.addEventListener('offline', onOffline);
-		return () => {
-			window.removeEventListener('online', onOnline);
-			window.removeEventListener('offline', onOffline);
-		};
-	});
+  $effect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    isOffline = navigator.onLine === false;
+    const onOnline = () => (isOffline = false);
+    const onOffline = () => (isOffline = true);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  });
 
-	function handleDragOver(e: DragEvent) {
-		try {
-			e.preventDefault();
-			e.stopPropagation();
-			if (!disabled) {
-				isDragging = true;
-			}
-		} catch (err: unknown) {
-			console.error('Error in handleDragOver:', err);
-		}
-	}
+  function handleDragOver(e: DragEvent) {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!disabled) {
+        isDragging = true;
+      }
+    } catch (err: unknown) {
+      console.error('Error in handleDragOver:', err);
+    }
+  }
 
-	function handleDragLeave(e: DragEvent) {
-		try {
-			e.preventDefault();
-			e.stopPropagation();
-			isDragging = false;
-		} catch (err: unknown) {
-			console.error('Error in handleDragLeave:', err);
-		}
-	}
+  function handleDragLeave(e: DragEvent) {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
+      isDragging = false;
+    } catch (err: unknown) {
+      console.error('Error in handleDragLeave:', err);
+    }
+  }
 
-	async function handleDrop(e: DragEvent) {
-		try {
-			e.preventDefault();
-			e.stopPropagation();
+  async function handleDrop(e: DragEvent) {
+    try {
+      e.preventDefault();
+      e.stopPropagation();
 
-			const items = e.dataTransfer?.items;
-			if (!items) {
-				Promise.resolve().then(() => {
-					isDragging = false;
-				});
-				return;
-			}
+      const items = e.dataTransfer?.items;
+      if (!items) {
+        Promise.resolve().then(() => {
+          isDragging = false;
+        });
+        return;
+      }
 
-			const files: File[] = [];
-			const promises: Promise<void>[] = [];
+      const files: File[] = [];
+      const promises: Promise<void>[] = [];
 
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				if (item.kind === 'file') {
-					const entry = items[i].webkitGetAsEntry();
-					if (entry) {
-						promises.push(processEntry(entry as unknown as FileSystemEntry, files));
-					}
-				}
-			}
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const entry = items[i].webkitGetAsEntry();
+          if (entry) {
+            promises.push(processEntry(entry as unknown as FileSystemEntry, files));
+          }
+        }
+      }
 
-			Promise.resolve().then(async () => {
-				isDragging = false;
+      Promise.resolve().then(async () => {
+        isDragging = false;
 
-				if (disabled) return;
+        if (disabled) return;
 
-				if (promises.length > 0) {
-					await Promise.all(promises);
-				}
+        if (promises.length > 0) {
+          await Promise.all(promises);
+        }
 
-				enqueue(files);
-			});
-		} catch (err: unknown) {
-			console.error('Error in handleDrop:', err);
-			Promise.resolve().then(() => {
-				isDragging = false;
-			});
-		}
-	}
+        enqueue(files);
+      });
+    } catch (err: unknown) {
+      console.error('Error in handleDrop:', err);
+      Promise.resolve().then(() => {
+        isDragging = false;
+      });
+    }
+  }
 
-	interface FileSystemEntry {
-		isFile: boolean;
-		isDirectory: boolean;
-		file: (callback: (file: File) => void) => void;
-		createReader: () => FileSystemDirectoryReader;
-	}
+  interface FileSystemEntry {
+    isFile: boolean;
+    isDirectory: boolean;
+    file: (callback: (file: File) => void) => void;
+    createReader: () => FileSystemDirectoryReader;
+  }
 
-	interface FileSystemDirectoryReader {
-		readEntries: (callback: (entries: FileSystemEntry[]) => void) => void;
-	}
+  interface FileSystemDirectoryReader {
+    readEntries: (callback: (entries: FileSystemEntry[]) => void) => void;
+  }
 
-	async function processEntry(entry: FileSystemEntry, files: File[]): Promise<void> {
-		if (entry.isFile) {
-			return new Promise((resolve) => {
-				entry.file((file: File) => {
-					if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
-						files.push(file);
-					}
-					resolve();
-				});
-			});
-		} else if (entry.isDirectory) {
-			const dirReader = entry.createReader();
-			return new Promise((resolve) => {
-				dirReader.readEntries(async (entries: FileSystemEntry[]) => {
-					for (const entry of entries) {
-						await processEntry(entry, files);
-					}
-					resolve();
-				});
-			});
-		}
-	}
+  async function processEntry(entry: FileSystemEntry, files: File[]): Promise<void> {
+    if (entry.isFile) {
+      return new Promise((resolve) => {
+        entry.file((file: File) => {
+          if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+            files.push(file);
+          }
+          resolve();
+        });
+      });
+    } else if (entry.isDirectory) {
+      const dirReader = entry.createReader();
+      return new Promise((resolve) => {
+        dirReader.readEntries(async (entries: FileSystemEntry[]) => {
+          for (const entry of entries) {
+            await processEntry(entry, files);
+          }
+          resolve();
+        });
+      });
+    }
+  }
 
-	function handleFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const files = Array.from(input.files || []);
+  function handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = Array.from(input.files || []);
 
-		enqueue(files);
+    enqueue(files);
 
-		input.value = '';
-	}
+    input.value = '';
+  }
 
-	function fileKey(f: File): string {
-		return `${f.name}-${f.size}-${f.lastModified}`;
-	}
+  function fileKey(f: File): string {
+    return `${f.name}-${f.size}-${f.lastModified}`;
+  }
 
-	// Files awaiting a batch. Appended to while an upload is already running so a
-	// drop/selection made mid-upload is enqueued instead of dropped. Not reactive:
-	// the UI reads fileStatuses; this is only the drain queue.
-	let pendingFiles: File[] = [];
+  // Files awaiting a batch. Appended to while an upload is already running so a
+  // drop/selection made mid-upload is enqueued instead of dropped. Not reactive:
+  // the UI reads fileStatuses; this is only the drain queue.
+  let pendingFiles: File[] = [];
 
-	function enqueue(incoming: File[]) {
-		if (disabled || incoming.length === 0) return;
+  function enqueue(incoming: File[]) {
+    if (disabled || incoming.length === 0) return;
 
-		// Skip files already tracked: avoids duplicate #each keys and re-uploads
-		// of items still shown from the current batch.
-		const known = new Set(fileStatuses.map((s) => fileKey(s.file)));
-		const fresh = incoming.filter((f) => !known.has(fileKey(f)));
-		if (fresh.length === 0) return;
+    // Skip files already tracked: avoids duplicate #each keys and re-uploads
+    // of items still shown from the current batch.
+    const known = new Set(fileStatuses.map((s) => fileKey(s.file)));
+    const fresh = incoming.filter((f) => !known.has(fileKey(f)));
+    if (fresh.length === 0) return;
 
-		fileStatuses = [
-			...fileStatuses,
-			...fresh.map((file) => ({ file, status: 'pending' as const, progress: 0 }))
-		];
-		pendingFiles.push(...fresh);
+    fileStatuses = [
+      ...fileStatuses,
+      ...fresh.map((file) => ({ file, status: 'pending' as const, progress: 0 })),
+    ];
+    pendingFiles.push(...fresh);
 
-		if (!isUploading) {
-			drainQueue();
-		}
-	}
+    if (!isUploading) {
+      drainQueue();
+    }
+  }
 
-	async function drainQueue() {
-		isUploading = true;
-		try {
-			// Files enqueued during a batch are picked up on the next iteration.
-			while (pendingFiles.length > 0) {
-				const batch = pendingFiles;
-				pendingFiles = [];
-				await runBatch(batch);
-			}
-		} finally {
-			isUploading = false;
-			globalProgress = 0;
+  async function drainQueue() {
+    isUploading = true;
+    try {
+      // Files enqueued during a batch are picked up on the next iteration.
+      while (pendingFiles.length > 0) {
+        const batch = pendingFiles;
+        pendingFiles = [];
+        await runBatch(batch);
+      }
+    } finally {
+      isUploading = false;
+      globalProgress = 0;
 
-			setTimeout(() => {
-				const hasErrors = fileStatuses.some((s) => s.status === 'error');
-				if (!hasErrors) {
-					fileStatuses = [];
-				}
-			}, 3000);
-		}
-	}
+      setTimeout(() => {
+        const hasErrors = fileStatuses.some((s) => s.status === 'error');
+        if (!hasErrors) {
+          fileStatuses = [];
+        }
+      }, 3000);
+    }
+  }
 
-	async function runBatch(files: File[]) {
-		try {
-			const onProgressCallback = (current: number, total: number) => {
-				globalProgress = Math.round((current / total) * 100);
-			};
+  async function runBatch(files: File[]) {
+    try {
+      const onProgressCallback = (current: number, total: number) => {
+        globalProgress = Math.round((current / total) * 100);
+      };
 
-			const onFileStartCallback = (file: File) => {
-				const idx = fileStatuses.findIndex((s) => s.file === file);
-				if (idx >= 0) {
-					fileStatuses[idx].status = 'uploading';
-					fileStatuses = [...fileStatuses];
-				}
-			};
+      const onFileStartCallback = (file: File) => {
+        const idx = fileStatuses.findIndex((s) => s.file === file);
+        if (idx >= 0) {
+          fileStatuses[idx].status = 'uploading';
+          fileStatuses = [...fileStatuses];
+        }
+      };
 
-			const onFileResultCallback = (result: FileResult) => {
-				const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
-				if (statusIndex >= 0) {
-					if (result.isDuplicate) {
-						fileStatuses[statusIndex].status = 'duplicate';
-						fileStatuses[statusIndex].error = m.uz_duplicate();
-						duplicateCountPersist = duplicateCountPersist + 1;
-						setTimeout(() => {
-							fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
-						}, 3000);
-					} else {
-						fileStatuses[statusIndex].status = 'success';
-						fileStatuses[statusIndex].progress = 100;
-						uploadedCount = uploadedCount + 1;
-						setTimeout(() => {
-							fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
-						}, 1000);
-					}
-					fileStatuses = [...fileStatuses];
-				}
-			};
+      const onFileResultCallback = (result: FileResult) => {
+        const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
+        if (statusIndex >= 0) {
+          if (result.isDuplicate) {
+            fileStatuses[statusIndex].status = 'duplicate';
+            fileStatuses[statusIndex].error = m.uz_duplicate();
+            duplicateCountPersist = duplicateCountPersist + 1;
+            setTimeout(() => {
+              fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
+            }, 3000);
+          } else {
+            fileStatuses[statusIndex].status = 'success';
+            fileStatuses[statusIndex].progress = 100;
+            uploadedCount = uploadedCount + 1;
+            setTimeout(() => {
+              fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
+            }, 1000);
+          }
+          fileStatuses = [...fileStatuses];
+        }
+      };
 
-			const results = await onUpload(
-				files,
-				onProgressCallback,
-				onFileResultCallback,
-				onFileStartCallback
-			);
+      const results = await onUpload(
+        files,
+        onProgressCallback,
+        onFileResultCallback,
+        onFileStartCallback
+      );
 
-			const uploadResults = Array.isArray(results) ? results : [];
+      const uploadResults = Array.isArray(results) ? results : [];
 
-			// Fallback for onUpload implementations that return results without
-			// firing onFileResult per file. Skip files the callback already
-			// finalized, otherwise duplicates get counted twice.
-			for (const result of uploadResults) {
-				if (result.isDuplicate) {
-					const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
-					if (
-						statusIndex >= 0 &&
-						fileStatuses[statusIndex].status !== 'duplicate' &&
-						fileStatuses[statusIndex].status !== 'success'
-					) {
-						fileStatuses[statusIndex].status = 'duplicate';
-						fileStatuses[statusIndex].error = m.uz_duplicate();
-						duplicateCountPersist = duplicateCountPersist + 1;
+      // Fallback for onUpload implementations that return results without
+      // firing onFileResult per file. Skip files the callback already
+      // finalized, otherwise duplicates get counted twice.
+      for (const result of uploadResults) {
+        if (result.isDuplicate) {
+          const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
+          if (
+            statusIndex >= 0 &&
+            fileStatuses[statusIndex].status !== 'duplicate' &&
+            fileStatuses[statusIndex].status !== 'success'
+          ) {
+            fileStatuses[statusIndex].status = 'duplicate';
+            fileStatuses[statusIndex].error = m.uz_duplicate();
+            duplicateCountPersist = duplicateCountPersist + 1;
 
-						setTimeout(() => {
-							fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
-						}, 3000);
-					}
-				}
-			}
-		} catch (e: unknown) {
-			console.error('Upload error:', e);
-			// Only fail files from THIS batch; queued-but-unstarted files stay pending.
-			const batch = new Set(files.map(fileKey));
-			for (let i = 0; i < fileStatuses.length; i++) {
-				if (
-					batch.has(fileKey(fileStatuses[i].file)) &&
-					(fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending')
-				) {
-					fileStatuses[i].status = 'error';
-					fileStatuses[i].error = (e as Error).message;
-					errorCountPersist = errorCountPersist + 1;
-				}
-			}
-		}
-	}
+            setTimeout(() => {
+              fileStatuses = fileStatuses.filter((s) => s.file !== result.file);
+            }, 3000);
+          }
+        }
+      }
+    } catch (e: unknown) {
+      console.error('Upload error:', e);
+      // Only fail files from THIS batch; queued-but-unstarted files stay pending.
+      const batch = new Set(files.map(fileKey));
+      for (let i = 0; i < fileStatuses.length; i++) {
+        if (
+          batch.has(fileKey(fileStatuses[i].file)) &&
+          (fileStatuses[i].status === 'uploading' || fileStatuses[i].status === 'pending')
+        ) {
+          fileStatuses[i].status = 'error';
+          fileStatuses[i].error = (e as Error).message;
+          errorCountPersist = errorCountPersist + 1;
+        }
+      }
+    }
+  }
 
-	function retryUpload(failedFiles: File[]) {
-		if (isUploading || failedFiles.length === 0) return;
-		fileStatuses = fileStatuses.map((s) =>
-			failedFiles.includes(s.file) ? { ...s, status: 'pending' as const, error: undefined } : s
-		);
-		pendingFiles.push(...failedFiles);
-		drainQueue();
-	}
+  function retryUpload(failedFiles: File[]) {
+    if (isUploading || failedFiles.length === 0) return;
+    fileStatuses = fileStatuses.map((s) =>
+      failedFiles.includes(s.file) ? { ...s, status: 'pending' as const, error: undefined } : s
+    );
+    pendingFiles.push(...failedFiles);
+    drainQueue();
+  }
 
-	function clearStatuses() {
-		fileStatuses = [];
-	}
+  function clearStatuses() {
+    fileStatuses = [];
+  }
 
-	function openFileSelector() {
-		if (!disabled) {
-			fileInputRef?.click();
-		}
-	}
+  function openFileSelector() {
+    if (!disabled) {
+      fileInputRef?.click();
+    }
+  }
 
-	const successCount = $derived(uploadedCount);
-	const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
-	const pendingCount = $derived(fileStatuses.filter((s) => s.status === 'pending').length);
+  const successCount = $derived(uploadedCount);
+  const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
+  const pendingCount = $derived(fileStatuses.filter((s) => s.status === 'pending').length);
 </script>
 
 <div
-	class="upload-zone {isDragging ? 'dragging' : ''} {isUploading ? 'uploading' : ''} {disabled
-		? 'disabled'
-		: ''}"
-	ondragover={handleDragOver}
-	ondragleave={handleDragLeave}
-	ondrop={handleDrop}
-	role="button"
-	tabindex={disabled ? -1 : 0}
-	onclick={openFileSelector}
-	onkeydown={(e) => {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			openFileSelector();
-		}
-	}}
+  class="upload-zone {isDragging ? 'dragging' : ''} {isUploading ? 'uploading' : ''} {disabled
+    ? 'disabled'
+    : ''}"
+  ondragover={handleDragOver}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
+  role="button"
+  tabindex={disabled ? -1 : 0}
+  onclick={openFileSelector}
+  onkeydown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openFileSelector();
+    }
+  }}
 >
-	<input
-		bind:this={fileInputRef}
-		type="file"
-		{accept}
-		{multiple}
-		onchange={handleFileSelect}
-		style="display: none;"
-		webkitdirectory={false}
-	/>
+  <input
+    bind:this={fileInputRef}
+    type="file"
+    {accept}
+    {multiple}
+    onchange={handleFileSelect}
+    style="display: none;"
+    webkitdirectory={false}
+  />
 
-	<div class="upload-content">
-		{#if fileStatuses.length > 0}
-			<div class="upload-summary">
-				{#if isUploading}
-					{#if isOffline}
-						<div class="summary-item offline">
-							<WifiOff size={24} />
-							<span>{m.uz_connection_lost()}</span>
-						</div>
-					{:else}
-						<div class="summary-item uploading">
-							<Spinner size={24} />
-							<span>{m.uz_uploading()}</span>
-						</div>
-					{/if}
-					<div class="progress-bar global">
-						<div class="progress-fill" style="width: {globalProgress}%"></div>
-					</div>
-					<p class="progress-text">{globalProgress}%</p>
-					{#if pendingCount > 0}
-						<div class="summary-item pending">
-							<Clock size={20} />
-							<span>{m.uz_pending_count({ count: pendingCount })}</span>
-						</div>
-					{/if}
-				{/if}
-				{#if successCount > 0}
-					<div class="summary-item success">
-						<CircleCheckBig size={24} />
-						<span>{m.uz_uploaded_count({ count: successCount })}</span>
-					</div>
-				{/if}
-				{#if errorCountPersist > 0}
-					<div class="summary-item error">
-						<CircleX size={24} />
-						<span>{m.uz_error_count({ count: errorCountPersist })}</span>
-					</div>
-				{/if}
-				{#if duplicateCountPersist > 0}
-					<div class="summary-item duplicate">
-						<CircleAlert size={24} />
-						<span>{m.uz_duplicate_count({ count: duplicateCountPersist })}</span>
-					</div>
-				{/if}
+  <div class="upload-content">
+    {#if fileStatuses.length > 0}
+      <div class="upload-summary">
+        {#if isUploading}
+          {#if isOffline}
+            <div class="summary-item offline">
+              <WifiOff size={24} />
+              <span>{m.uz_connection_lost()}</span>
+            </div>
+          {:else}
+            <div class="summary-item uploading">
+              <Spinner size={24} />
+              <span>{m.uz_uploading()}</span>
+            </div>
+          {/if}
+          <div class="progress-bar global">
+            <div class="progress-fill" style="width: {globalProgress}%"></div>
+          </div>
+          <p class="progress-text">{globalProgress}%</p>
+          {#if pendingCount > 0}
+            <div class="summary-item pending">
+              <Clock size={20} />
+              <span>{m.uz_pending_count({ count: pendingCount })}</span>
+            </div>
+          {/if}
+        {/if}
+        {#if successCount > 0}
+          <div class="summary-item success">
+            <CircleCheckBig size={24} />
+            <span>{m.uz_uploaded_count({ count: successCount })}</span>
+          </div>
+        {/if}
+        {#if errorCountPersist > 0}
+          <div class="summary-item error">
+            <CircleX size={24} />
+            <span>{m.uz_error_count({ count: errorCountPersist })}</span>
+          </div>
+        {/if}
+        {#if duplicateCountPersist > 0}
+          <div class="summary-item duplicate">
+            <CircleAlert size={24} />
+            <span>{m.uz_duplicate_count({ count: duplicateCountPersist })}</span>
+          </div>
+        {/if}
 
-				<div class="file-list">
-					{#each fileStatuses as item (item.file.name + '-' + item.file.size + '-' + item.file.lastModified)}
-						<div class="file-item {item.status}">
-							<div class="file-header">
-								<div class="file-info">
-									<span class="file-name">{item.file.name}</span>
-									<span class="file-size">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
-								</div>
-								<div class="file-status">
-									{#if item.status === 'success'}
-										<Check size={16} />
-									{:else if item.status === 'error'}
-										<X size={16} />
-									{:else if item.status === 'duplicate'}
-										<TriangleAlert size={16} />
-									{:else if item.status === 'uploading'}
-										<Spinner size={16} />
-									{:else if item.status === 'pending'}
-										<Clock size={16} />
-									{/if}
-								</div>
-							</div>
-							{#if item.error}
-								<p class="error-message">{item.error}</p>
-							{/if}
-						</div>
-					{/each}
-				</div>
+        <div class="file-list">
+          {#each fileStatuses as item (item.file.name + '-' + item.file.size + '-' + item.file.lastModified)}
+            <div class="file-item {item.status}">
+              <div class="file-header">
+                <div class="file-info">
+                  <span class="file-name">{item.file.name}</span>
+                  <span class="file-size">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                </div>
+                <div class="file-status">
+                  {#if item.status === 'success'}
+                    <Check size={16} />
+                  {:else if item.status === 'error'}
+                    <X size={16} />
+                  {:else if item.status === 'duplicate'}
+                    <TriangleAlert size={16} />
+                  {:else if item.status === 'uploading'}
+                    <Spinner size={16} />
+                  {:else if item.status === 'pending'}
+                    <Clock size={16} />
+                  {/if}
+                </div>
+              </div>
+              {#if item.error}
+                <p class="error-message">{item.error}</p>
+              {/if}
+            </div>
+          {/each}
+        </div>
 
-				{#if errorCountPersist > 0}
-					<button
-						type="button"
-						class="btn-glass primary"
-						disabled={isUploading}
-						onclick={(e) => {
-							e.stopPropagation();
-							retryUpload(failedFiles);
-						}}
-					>
-						<RefreshCw size={16} />
-						{m.uz_retry_failed()}
-					</button>
-				{/if}
+        {#if errorCountPersist > 0}
+          <button
+            type="button"
+            class="btn-glass primary"
+            disabled={isUploading}
+            onclick={(e) => {
+              e.stopPropagation();
+              retryUpload(failedFiles);
+            }}
+          >
+            <RefreshCw size={16} />
+            {m.uz_retry_failed()}
+          </button>
+        {/if}
 
-				{#if !isUploading}
-					<button
-						type="button"
-						class="btn-glass"
-						onclick={(e) => {
-							e.stopPropagation();
-							clearStatuses();
-						}}
-					>
-						{m.common_close()}
-					</button>
-				{/if}
-			</div>
-		{:else}
-			<div class="upload-icon">
-				<Upload size={48} />
-			</div>
-			<p class="upload-text">
-				{#if isDragging}
-					{m.uz_drop_active()}
-				{:else}
-					{m.uz_drop_idle()}
-				{/if}
-			</p>
-			<p class="upload-subtext">{m.uz_or_click()}</p>
-			<p class="upload-hint">{m.uz_accepted()}</p>
-		{/if}
-	</div>
+        {#if !isUploading}
+          <button
+            type="button"
+            class="btn-glass"
+            onclick={(e) => {
+              e.stopPropagation();
+              clearStatuses();
+            }}
+          >
+            {m.common_close()}
+          </button>
+        {/if}
+      </div>
+    {:else}
+      <div class="upload-icon">
+        <Upload size={48} />
+      </div>
+      <p class="upload-text">
+        {#if isDragging}
+          {m.uz_drop_active()}
+        {:else}
+          {m.uz_drop_idle()}
+        {/if}
+      </p>
+      <p class="upload-subtext">{m.uz_or_click()}</p>
+      <p class="upload-hint">{m.uz_accepted()}</p>
+    {/if}
+  </div>
 </div>
 
 <style>
-	.upload-zone {
-		border: 1px solid var(--border);
-		border-radius: var(--radius-md);
-		padding: 2.25rem 1.5rem;
-		text-align: center;
-		cursor: pointer;
-		transition: all 0.22s ease;
-		background: var(--bg-secondary);
-		backdrop-filter: blur(8px) saturate(120%);
-		-webkit-backdrop-filter: blur(8px) saturate(120%);
-		min-height: 180px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: var(--text-primary);
-	}
+  .upload-zone {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2.25rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    background: var(--bg-secondary);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+  }
 
-	.upload-zone:hover:not(.disabled):not(.uploading) {
-		border-color: var(--accent);
-		background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
-	}
+  .upload-zone:hover:not(.disabled):not(.uploading) {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, var(--bg-elevated));
+  }
 
-	.upload-zone.dragging {
-		border-color: var(--accent);
-		background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
-		transform: scale(1.02);
-	}
+  .upload-zone.dragging {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+    transform: scale(1.02);
+  }
 
-	.upload-zone.uploading {
-		/* Still interactive: dropping/clicking mid-upload enqueues more files. */
-		cursor: copy;
-		border-color: var(--success);
-		background: color-mix(in srgb, var(--success) 6%, var(--bg-secondary));
-	}
+  .upload-zone.uploading {
+    /* Still interactive: dropping/clicking mid-upload enqueues more files. */
+    cursor: copy;
+    border-color: var(--success);
+    background: color-mix(in srgb, var(--success) 6%, var(--bg-secondary));
+  }
 
-	.upload-zone.disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-		border-color: var(--border);
-	}
+  .upload-zone.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    border-color: var(--border);
+  }
 
-	.upload-content {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.75rem;
-		width: 100%;
-	}
+  .upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+  }
 
-	.upload-icon {
-		color: var(--text-secondary);
-		transition: color 0.3s ease;
-	}
+  .upload-icon {
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+  }
 
-	.upload-zone:hover:not(.disabled):not(.uploading) .upload-icon {
-		color: var(--accent);
-		opacity: 0.8;
-	}
+  .upload-zone:hover:not(.disabled):not(.uploading) .upload-icon {
+    color: var(--accent);
+    opacity: 0.8;
+  }
 
-	.upload-zone.dragging .upload-icon {
-		color: var(--accent);
-		opacity: 1;
-	}
+  .upload-zone.dragging .upload-icon {
+    color: var(--accent);
+    opacity: 1;
+  }
 
-	.upload-text {
-		font-size: 1.125rem;
-		font-weight: 500;
-		color: var(--text-primary);
-		margin: 0;
-	}
+  .upload-text {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+  }
 
-	.upload-subtext {
-		font-size: 0.9375rem;
-		color: var(--text-secondary);
-		margin: 0;
-	}
+  .upload-subtext {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    margin: 0;
+  }
 
-	.upload-hint {
-		font-size: 0.875rem;
-		color: var(--text-muted);
-		margin: 0;
-	}
+  .upload-hint {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
 
-	.upload-summary {
-		width: 100%;
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		align-items: center;
-	}
+  .upload-summary {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
 
-	.summary-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1rem;
-		border-radius: var(--radius-xs);
-		font-weight: 500;
-	}
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-xs);
+    font-weight: 500;
+  }
 
-	.summary-item.success {
-		background: color-mix(in srgb, var(--success) 10%, transparent);
-		color: var(--success);
-	}
+  .summary-item.success {
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    color: var(--success);
+  }
 
-	.summary-item.error {
-		background: color-mix(in srgb, var(--error) 10%, transparent);
-		color: var(--error);
-	}
+  .summary-item.error {
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    color: var(--error);
+  }
 
-	.summary-item.duplicate {
-		background: color-mix(in srgb, var(--warning) 10%, transparent);
-		color: var(--warning);
-	}
+  .summary-item.duplicate {
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    color: var(--warning);
+  }
 
-	.summary-item.offline {
-		background: color-mix(in srgb, var(--warning) 12%, transparent);
-		color: var(--warning);
-	}
+  .summary-item.offline {
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: var(--warning);
+  }
 
-	.summary-item.pending {
-		background: color-mix(in srgb, var(--accent) 8%, transparent);
-		color: var(--text-secondary);
-	}
+  .summary-item.pending {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    color: var(--text-secondary);
+  }
 
-	.file-list {
-		width: 100%;
-		max-height: 400px;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
+  .file-list {
+    width: 100%;
+    max-height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 
-	.file-item {
-		padding: 1rem;
-		border-radius: var(--radius-xs);
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-	}
+  .file-item {
+    padding: 1rem;
+    border-radius: var(--radius-xs);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+  }
 
-	.file-item.success {
-		border-color: color-mix(in srgb, var(--success) 30%, transparent);
-		background: color-mix(in srgb, var(--success) 5%, transparent);
-	}
+  .file-item.success {
+    border-color: color-mix(in srgb, var(--success) 30%, transparent);
+    background: color-mix(in srgb, var(--success) 5%, transparent);
+  }
 
-	.file-item.error {
-		border-color: color-mix(in srgb, var(--error) 30%, transparent);
-		background: color-mix(in srgb, var(--error) 5%, transparent);
-	}
+  .file-item.error {
+    border-color: color-mix(in srgb, var(--error) 30%, transparent);
+    background: color-mix(in srgb, var(--error) 5%, transparent);
+  }
 
-	.file-item.duplicate {
-		border-color: color-mix(in srgb, var(--warning) 30%, transparent);
-		background: color-mix(in srgb, var(--warning) 5%, transparent);
-	}
+  .file-item.duplicate {
+    border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+    background: color-mix(in srgb, var(--warning) 5%, transparent);
+  }
 
-	.file-item.uploading {
-		border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-		background: color-mix(in srgb, var(--accent) 6%, transparent);
-	}
+  .file-item.uploading {
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
 
-	.file-item.pending {
-		opacity: 0.6;
-	}
+  .file-item.pending {
+    opacity: 0.6;
+  }
 
-	.file-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 0.5rem;
-	}
+  .file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
 
-	.file-info {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.25rem;
-	}
+  .file-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
 
-	.file-name {
-		font-weight: 500;
-		color: var(--text-primary);
-		word-break: break-all;
-	}
+  .file-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    word-break: break-all;
+  }
 
-	.file-size {
-		font-size: 0.875rem;
-		color: var(--text-secondary);
-	}
+  .file-size {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+  }
 
-	.file-status {
-		display: flex;
-		align-items: center;
-	}
+  .file-status {
+    display: flex;
+    align-items: center;
+  }
 
-	.progress-bar {
-		width: 100%;
-		height: 6px;
-		background: var(--bg-quaternary);
-		border-radius: 3px;
-		overflow: hidden;
-		margin-bottom: 0.5rem;
-	}
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-quaternary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
 
-	.progress-fill {
-		height: 100%;
-		background: linear-gradient(90deg, var(--accent), var(--success));
-		transition: width 0.3s ease;
-	}
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--success));
+    transition: width 0.3s ease;
+  }
 
-	.progress-text {
-		font-size: 0.75rem;
-		color: var(--text-secondary);
-		margin: 0;
-	}
+  .progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+  }
 
-	.error-message {
-		font-size: 0.875rem;
-		color: var(--error);
-		margin: 0;
-	}
-
+  .error-message {
+    font-size: 0.875rem;
+    color: var(--error);
+    margin: 0;
+  }
 </style>

@@ -42,9 +42,9 @@ tests/
 
 ```typescript
 describe('Albums API - GET /api/albums', () => {
-	it('should list all albums', async () => {
-		// Test here
-	});
+  it('should list all albums', async () => {
+    // Test here
+  });
 });
 ```
 
@@ -62,26 +62,26 @@ const API_BASE_URL = TEST_CONFIG.API_BASE_URL;
 let API_KEY = '';
 
 beforeAll(async () => {
-	// Setup: create necessary resources
+  // Setup: create necessary resources
 });
 
 afterAll(async () => {
-	// Cleanup: delete created resources
+  // Cleanup: delete created resources
 });
 
 describe('My Domain API - GET /api/my-endpoint', () => {
-	it('should do something', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/my-endpoint`, {
-			headers: getAuthHeaders(API_KEY)
-		});
+  it('should do something', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/my-endpoint`, {
+      headers: getAuthHeaders(API_KEY),
+    });
 
-		expect([200, 401]).toContain(response.status);
+    expect([200, 401]).toContain(response.status);
 
-		if (response.status === 200) {
-			const data = await response.json();
-			expect(data).toBeDefined();
-		}
-	});
+    if (response.status === 200) {
+      const data = await response.json();
+      expect(data).toBeDefined();
+    }
+  });
 });
 ```
 
@@ -106,7 +106,7 @@ describe('My Domain API - GET /api/my-endpoint', () => {
 
 ```typescript
 describe('My Domain API - {Method} {Endpoint}', () => {
-	// Tests here
+  // Tests here
 });
 ```
 
@@ -114,25 +114,25 @@ describe('My Domain API - {Method} {Endpoint}', () => {
 
 ```typescript
 it('should {expected action}', async () => {
-	// 1. Prepare data
-	const requestData = {/* ... */};
+  // 1. Prepare data
+  const requestData = {/* ... */};
 
-	// 2. Make the request
-	const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
-		method: 'POST',
-		headers: getAuthHeaders(API_KEY),
-		body: JSON.stringify(requestData)
-	});
+  // 2. Make the request
+  const response = await fetch(`${API_BASE_URL}/api/endpoint`, {
+    method: 'POST',
+    headers: getAuthHeaders(API_KEY),
+    body: JSON.stringify(requestData),
+  });
 
-	// 3. Check the response
-	expect([200, 201, 400, 401]).toContain(response.status);
+  // 3. Check the response
+  expect([200, 201, 400, 401]).toContain(response.status);
 
-	// 4. Check data (if success)
-	if (response.status === 200 || response.status === 201) {
-		const data = await response.json();
-		expect(data).toHaveProperty('id');
-		expect(data.name).toBe('test');
-	}
+  // 4. Check data (if success)
+  if (response.status === 200 || response.status === 201) {
+    const data = await response.json();
+    expect(data).toHaveProperty('id');
+    expect(data.name).toBe('test');
+  }
 });
 ```
 
@@ -140,13 +140,13 @@ it('should {expected action}', async () => {
 
 ```typescript
 afterAll(async () => {
-	// Delete resources created during tests
-	if (createdResourceId) {
-		await fetch(`${API_BASE_URL}/api/resource/${createdResourceId}`, {
-			method: 'DELETE',
-			headers: getAuthHeaders(API_KEY)
-		});
-	}
+  // Delete resources created during tests
+  if (createdResourceId) {
+    await fetch(`${API_BASE_URL}/api/resource/${createdResourceId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(API_KEY),
+    });
+  }
 });
 ```
 
@@ -158,11 +158,11 @@ afterAll(async () => {
 
 ```typescript
 import {
-	getAuthHeaders,
-	generateTestUser,
-	handleImmichError,
-	cleanupResource,
-	TEST_CONFIG
+  getAuthHeaders,
+  generateTestUser,
+  handleImmichError,
+  cleanupResource,
+  TEST_CONFIG,
 } from './test-helpers';
 
 // Authentication headers
@@ -174,13 +174,13 @@ const user = generateTestUser('mytest');
 
 // Handle Immich errors
 try {
-	const response = await fetch('...');
+  const response = await fetch('...');
 } catch (error) {
-	if (handleImmichError(error)) {
-		// Immich unavailable, test still passes
-		return;
-	}
-	throw error;
+  if (handleImmichError(error)) {
+    // Immich unavailable, test still passes
+    return;
+  }
+  throw error;
 }
 
 // Clean up a resource
@@ -196,20 +196,20 @@ If you need a reusable helper, add it to `test-helpers.ts`:
  * Helper to create a test album
  */
 export async function createTestAlbum(apiKey: string, name?: string): Promise<string> {
-	const albumName = name || `Test Album ${Date.now()}`;
+  const albumName = name || `Test Album ${Date.now()}`;
 
-	const response = await fetch(`${TEST_CONFIG.API_BASE_URL}/api/albums`, {
-		method: 'POST',
-		headers: getAuthHeaders(apiKey),
-		body: JSON.stringify({ albumName })
-	});
+  const response = await fetch(`${TEST_CONFIG.API_BASE_URL}/api/albums`, {
+    method: 'POST',
+    headers: getAuthHeaders(apiKey),
+    body: JSON.stringify({ albumName }),
+  });
 
-	if (!response.ok) {
-		throw new Error('Failed to create test album');
-	}
+  if (!response.ok) {
+    throw new Error('Failed to create test album');
+  }
 
-	const album = await response.json();
-	return album.id;
+  const album = await response.json();
+  return album.id;
 }
 ```
 
@@ -238,49 +238,49 @@ export async function createTestAlbum(apiKey: string, name?: string): Promise<st
 
 ```typescript
 describe('Albums API - POST /api/albums', () => {
-	let createdAlbumId: string | null = null;
+  let createdAlbumId: string | null = null;
 
-	afterAll(async () => {
-		// ✅ Automatic cleanup
-		if (createdAlbumId) {
-			await cleanupResource(`${API_BASE_URL}/api/albums`, API_KEY, createdAlbumId);
-		}
-	});
+  afterAll(async () => {
+    // ✅ Automatic cleanup
+    if (createdAlbumId) {
+      await cleanupResource(`${API_BASE_URL}/api/albums`, API_KEY, createdAlbumId);
+    }
+  });
 
-	it('should create an album', async () => {
-		// ✅ Unique data
-		const albumData = {
-			albumName: `Test Album ${Date.now()}`,
-			description: 'Created by tests'
-		};
+  it('should create an album', async () => {
+    // ✅ Unique data
+    const albumData = {
+      albumName: `Test Album ${Date.now()}`,
+      description: 'Created by tests',
+    };
 
-		const response = await fetch(`${API_BASE_URL}/api/albums`, {
-			method: 'POST',
-			headers: getAuthHeaders(API_KEY), // ✅ Helper
-			body: JSON.stringify(albumData)
-		});
+    const response = await fetch(`${API_BASE_URL}/api/albums`, {
+      method: 'POST',
+      headers: getAuthHeaders(API_KEY), // ✅ Helper
+      body: JSON.stringify(albumData),
+    });
 
-		// ✅ Check multiple possible statuses
-		expect([200, 201, 400, 401]).toContain(response.status);
+    // ✅ Check multiple possible statuses
+    expect([200, 201, 400, 401]).toContain(response.status);
 
-		// ✅ Save ID for cleanup
-		if (response.ok) {
-			const album = await response.json();
-			createdAlbumId = album.id;
-			expect(album.albumName).toBe(albumData.albumName);
-		}
-	});
+    // ✅ Save ID for cleanup
+    if (response.ok) {
+      const album = await response.json();
+      createdAlbumId = album.id;
+      expect(album.albumName).toBe(albumData.albumName);
+    }
+  });
 
-	it('should reject an album without a name', async () => {
-		const response = await fetch(`${API_BASE_URL}/api/albums`, {
-			method: 'POST',
-			headers: getAuthHeaders(API_KEY),
-			body: JSON.stringify({ description: 'No name' })
-		});
+  it('should reject an album without a name', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/albums`, {
+      method: 'POST',
+      headers: getAuthHeaders(API_KEY),
+      body: JSON.stringify({ description: 'No name' }),
+    });
 
-		// ✅ Test error cases
-		expect([400, 401]).toContain(response.status);
-	});
+    // ✅ Test error cases
+    expect([400, 401]).toContain(response.status);
+  });
 });
 ```
 
@@ -305,16 +305,16 @@ it.only('should do something', async () => { /* ... */ });
 
 ```typescript
 it('should return data', async () => {
-	const response = await fetch(`${API_BASE_URL}/api/endpoint`);
+  const response = await fetch(`${API_BASE_URL}/api/endpoint`);
 
-	// Display response for debugging
-	console.log('Status:', response.status);
-	console.log('Headers:', Object.fromEntries(response.headers));
+  // Display response for debugging
+  console.log('Status:', response.status);
+  console.log('Headers:', Object.fromEntries(response.headers));
 
-	const data = await response.json();
-	console.log('Data:', JSON.stringify(data, null, 2));
+  const data = await response.json();
+  console.log('Data:', JSON.stringify(data, null, 2));
 
-	expect(response.status).toBe(200);
+  expect(response.status).toBe(200);
 });
 ```
 
@@ -329,19 +329,19 @@ it('should return data', async () => {
 ```typescript
 // Increase test timeout
 it('should do something', async () => {
-	// ...
+  // ...
 }, 30000); // 30 seconds
 
 // Or handle Immich error
 try {
-	const response = await fetch(url, {
-		signal: AbortSignal.timeout(10000)
-	});
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(10000),
+  });
 } catch (error) {
-	if (handleImmichError(error)) {
-		return; // Test still passes
-	}
-	throw error;
+  if (handleImmichError(error)) {
+    return; // Test still passes
+  }
+  throw error;
 }
 ```
 
@@ -357,16 +357,16 @@ const userId = `test.user.${Date.now()}.${Math.random()}`;
 
 // 2. Clean before AND after
 beforeAll(async () => {
-	// Clean old resources
+  // Clean old resources
 });
 
 afterAll(async () => {
-	// Clean new resources
+  // Clean new resources
 });
 
 // 3. Configure retry in vitest.config.ts
 test: {
-	retry: 1; // Retry once on failure
+  retry: 1; // Retry once on failure
 }
 ```
 
@@ -378,19 +378,19 @@ test: {
 
 ```typescript
 afterAll(async () => {
-	// Robust cleanup
-	if (createdUserId) {
-		try {
-			await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
-				method: 'DELETE',
-				headers: getAuthHeaders(API_KEY)
-			});
-		} catch (error) {
-			console.warn('Cleanup failed:', error);
-			// Don't throw, continue cleanup
-		}
-		createdUserId = null;
-	}
+  // Robust cleanup
+  if (createdUserId) {
+    try {
+      await fetch(`${API_BASE_URL}/api/users/${createdUserId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(API_KEY),
+      });
+    } catch (error) {
+      console.warn('Cleanup failed:', error);
+      // Don't throw, continue cleanup
+    }
+    createdUserId = null;
+  }
 });
 ```
 
@@ -402,16 +402,16 @@ afterAll(async () => {
 
 ```typescript
 it('should list albums', async () => {
-	const response = await fetch(`${API_BASE_URL}/api/albums`, {
-		headers: getAuthHeaders(API_KEY)
-	});
+  const response = await fetch(`${API_BASE_URL}/api/albums`, {
+    headers: getAuthHeaders(API_KEY),
+  });
 
-	expect([200, 401]).toContain(response.status);
+  expect([200, 401]).toContain(response.status);
 
-	if (response.status === 200) {
-		const albums = await response.json();
-		expect(Array.isArray(albums)).toBe(true);
-	}
+  if (response.status === 200) {
+    const albums = await response.json();
+    expect(Array.isArray(albums)).toBe(true);
+  }
 });
 ```
 
@@ -421,27 +421,27 @@ it('should list albums', async () => {
 let createdAlbumId: string | null = null;
 
 afterAll(async () => {
-	if (createdAlbumId) {
-		await cleanupResource(`${API_BASE_URL}/api/albums`, API_KEY, createdAlbumId);
-	}
+  if (createdAlbumId) {
+    await cleanupResource(`${API_BASE_URL}/api/albums`, API_KEY, createdAlbumId);
+  }
 });
 
 it('should create an album', async () => {
-	const response = await fetch(`${API_BASE_URL}/api/albums`, {
-		method: 'POST',
-		headers: getAuthHeaders(API_KEY),
-		body: JSON.stringify({
-			albumName: `Test ${Date.now()}`
-		})
-	});
+  const response = await fetch(`${API_BASE_URL}/api/albums`, {
+    method: 'POST',
+    headers: getAuthHeaders(API_KEY),
+    body: JSON.stringify({
+      albumName: `Test ${Date.now()}`,
+    }),
+  });
 
-	expect([200, 201]).toContain(response.status);
+  expect([200, 201]).toContain(response.status);
 
-	if (response.ok) {
-		const album = await response.json();
-		createdAlbumId = album.id;
-		expect(album.id).toBeDefined();
-	}
+  if (response.ok) {
+    const album = await response.json();
+    createdAlbumId = album.id;
+    expect(album.id).toBeDefined();
+  }
 });
 ```
 
@@ -449,19 +449,19 @@ it('should create an album', async () => {
 
 ```typescript
 it('should handle Immich unavailable', async () => {
-	try {
-		const response = await fetch(`${API_BASE_URL}/api/people/people`, {
-			headers: getAuthHeaders(API_KEY),
-			signal: AbortSignal.timeout(10000)
-		});
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/people/people`, {
+      headers: getAuthHeaders(API_KEY),
+      signal: AbortSignal.timeout(10000),
+    });
 
-		expect([200, 404, 500, 502]).toContain(response.status);
-	} catch (error) {
-		if (handleImmichError(error)) {
-			return; // OK, Immich down
-		}
-		throw error;
-	}
+    expect([200, 404, 500, 502]).toContain(response.status);
+  } catch (error) {
+    if (handleImmichError(error)) {
+      return; // OK, Immich down
+    }
+    throw error;
+  }
 }, 15000);
 ```
 

@@ -29,8 +29,8 @@
     type="confirm"
     confirmText={state.confirmText}
     cancelText={state.cancelText}
-    onConfirm={onConfirm}
-    onCancel={onCancel}
+    {onConfirm}
+    {onCancel}
   >
     <p style="white-space: pre-wrap;">{state.message}</p>
   </Modal>

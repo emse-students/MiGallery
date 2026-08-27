@@ -44,20 +44,22 @@ export const OUTBOUND_BUDGET_MS = 4000;
  * @returns the response, with its body still streaming
  */
 export async function fetchWithAnswerDeadline(
-	input: Parameters<typeof fetch>[0],
-	init: RequestInit = {},
-	budgetMs: number = OUTBOUND_BUDGET_MS
+  input: Parameters<typeof fetch>[0],
+  init: RequestInit = {},
+  budgetMs: number = OUTBOUND_BUDGET_MS
 ): Promise<Response> {
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), budgetMs);
-	// A caller's own signal is composed with the budget, never replaced by it: dropping it would
-	// silently un-cancel a request the caller asked to be able to cancel.
-	const signal = init.signal ? AbortSignal.any([init.signal, controller.signal]) : controller.signal;
-	try {
-		return await fetch(input, { ...init, signal });
-	} finally {
-		// Clearing the timer is what makes this "answer only": once the headers are in, nothing is
-		// left to fire, so the body streams on the connection's own terms.
-		clearTimeout(timer);
-	}
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), budgetMs);
+  // A caller's own signal is composed with the budget, never replaced by it: dropping it would
+  // silently un-cancel a request the caller asked to be able to cancel.
+  const signal = init.signal
+    ? AbortSignal.any([init.signal, controller.signal])
+    : controller.signal;
+  try {
+    return await fetch(input, { ...init, signal });
+  } finally {
+    // Clearing the timer is what makes this "answer only": once the headers are in, nothing is
+    // left to fire, so the body streams on the connection's own terms.
+    clearTimeout(timer);
+  }
 }

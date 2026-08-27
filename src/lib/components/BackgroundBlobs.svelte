@@ -10,9 +10,7 @@
 
   let blobs = $state<BlobData[]>([]);
 
-  const colors = [
-    '#FF3F3F', '#FF44EC', '#AC52FF', '#5B6CFF', '#2DD4BF', '#F59E0B'
-  ];
+  const colors = ['#FF3F3F', '#FF44EC', '#AC52FF', '#5B6CFF', '#2DD4BF', '#F59E0B'];
 
   function getRandom(min: number, max: number) {
     return Math.random() * (max - min) + min;

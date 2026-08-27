@@ -7,18 +7,18 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('admin-db-backup');
 export const POST: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const result = performBackup();
+  const result = performBackup();
 
-	if (!result.success) {
-		log.error('Manual backup failed:', result.message);
-		throw error(500, result.message);
-	}
+  if (!result.success) {
+    log.error('Manual backup failed:', result.message);
+    throw error(500, result.message);
+  }
 
-	return json({
-		success: true,
-		message: result.message,
-		backupPath: result.backupPath
-	});
+  return json({
+    success: true,
+    message: result.message,
+    backupPath: result.backupPath,
+  });
 };

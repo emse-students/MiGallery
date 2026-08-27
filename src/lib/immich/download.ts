@@ -11,30 +11,30 @@ const BATCH_SIZE = 200;
  * relay - no RAM limit, no SW lifetime issues, no 750 MB cutoff.
  */
 async function fetchAndSave(
-	assetIds: string[],
-	filename: string,
-	opts?: { signal?: AbortSignal }
+  assetIds: string[],
+  filename: string,
+  opts?: { signal?: AbortSignal }
 ): Promise<void> {
-	const res = await fetch('/api/download', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ assetIds, filename }),
-		signal: opts?.signal
-	});
+  const res = await fetch('/api/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ assetIds, filename }),
+    signal: opts?.signal,
+  });
 
-	if (!res.ok) {
-		const text = await res.text().catch(() => '');
-		throw new Error(`Download preparation failed: ${res.status} - ${text.slice(0, 200)}`);
-	}
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Download preparation failed: ${res.status} - ${text.slice(0, 200)}`);
+  }
 
-	const { token } = (await res.json()) as { token: string };
+  const { token } = (await res.json()) as { token: string };
 
-	const a = document.createElement('a');
-	a.href = `/api/download/${token}`;
-	a.download = `${filename}.zip`;
-	document.body.appendChild(a);
-	a.click();
-	a.remove();
+  const a = document.createElement('a');
+  a.href = `/api/download/${token}`;
+  a.download = `${filename}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 /**
@@ -47,59 +47,59 @@ async function fetchAndSave(
  * is handed off to the browser's native download manager.
  */
 export async function downloadInBatches(
-	assetIds: string[],
-	albumName: string,
-	opts?: {
-		onProgress?: (overallProgress: number, batchIndex: number, batchCount: number) => void;
-		signal?: AbortSignal;
-		batchSize?: number;
-	}
+  assetIds: string[],
+  albumName: string,
+  opts?: {
+    onProgress?: (overallProgress: number, batchIndex: number, batchCount: number) => void;
+    signal?: AbortSignal;
+    batchSize?: number;
+  }
 ): Promise<void> {
-	if (!Array.isArray(assetIds) || assetIds.length === 0) {
-		throw new Error('assetIds must be a non-empty array');
-	}
+  if (!Array.isArray(assetIds) || assetIds.length === 0) {
+    throw new Error('assetIds must be a non-empty array');
+  }
 
-	const batchSize = opts?.batchSize ?? BATCH_SIZE;
-	const batches: string[][] = [];
-	for (let i = 0; i < assetIds.length; i += batchSize) {
-		batches.push(assetIds.slice(i, i + batchSize));
-	}
+  const batchSize = opts?.batchSize ?? BATCH_SIZE;
+  const batches: string[][] = [];
+  for (let i = 0; i < assetIds.length; i += batchSize) {
+    batches.push(assetIds.slice(i, i + batchSize));
+  }
 
-	const multi = batches.length > 1;
+  const multi = batches.length > 1;
 
-	try {
-		for (let i = 0; i < batches.length; i++) {
-			if (opts?.signal?.aborted) {
-				throw new DOMException('Aborted', 'AbortError');
-			}
+  try {
+    for (let i = 0; i < batches.length; i++) {
+      if (opts?.signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
 
-			const filename = multi ? `${albumName}-${i + 1}` : albumName;
-			opts?.onProgress?.(i / batches.length, i, batches.length);
+      const filename = multi ? `${albumName}-${i + 1}` : albumName;
+      opts?.onProgress?.(i / batches.length, i, batches.length);
 
-			await fetchAndSave(batches[i], filename, { signal: opts?.signal });
+      await fetchAndSave(batches[i], filename, { signal: opts?.signal });
 
-			// Progress advances as soon as the token is obtained and download is initiated
-			opts?.onProgress?.((i + 1) / batches.length, i, batches.length);
+      // Progress advances as soon as the token is obtained and download is initiated
+      opts?.onProgress?.((i + 1) / batches.length, i, batches.length);
 
-			if (i < batches.length - 1) {
-				// Small pause so the browser's download manager can handle each file
-				await new Promise((r) => setTimeout(r, 300));
-			}
-		}
+      if (i < batches.length - 1) {
+        // Small pause so the browser's download manager can handle each file
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
 
-		opts?.onProgress?.(1, batches.length - 1, batches.length);
-	} catch (e) {
-		throw ensureError(e);
-	}
+    opts?.onProgress?.(1, batches.length - 1, batches.length);
+  } catch (e) {
+    throw ensureError(e);
+  }
 }
 
 export function saveBlobAs(blob: Blob, filename: string): void {
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = filename;
-	document.body.appendChild(a);
-	a.click();
-	a.remove();
-	setTimeout(() => URL.revokeObjectURL(url), 2000);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }

@@ -5,40 +5,42 @@ import { mdToHtml } from '$lib/docs/render-md';
 import { requireAdminPage } from '$lib/server/auth';
 
 export const load: PageServerLoad = ({ locals, cookies, url }) => {
-	requireAdminPage({ locals, cookies }, url);
+  requireAdminPage({ locals, cookies }, url);
 
-	const docsDir = join(process.cwd(), 'docs', 'wiki');
-	let files: { name: string; filename: string; html: string }[] = [];
-	try {
-		const entries = readdirSync(docsDir).filter((f) => f.endsWith('.md'));
-		for (const fn of entries) {
-			try {
-				const raw = readFileSync(join(docsDir, fn), 'utf-8');
-				const titleMatch = raw.match(/^#\s*(.+)$/m);
-				const title = titleMatch ? titleMatch[1].trim() : fn.replace(/[-_]/g, ' ').replace(/\.md$/, '');
-				const html = mdToHtml(raw);
-				files.push({ name: title, filename: fn, html });
-			} catch (_e) {
-				void _e;
-			}
-		}
-	} catch (_e) {
-		void _e;
-		files = [];
-	}
+  const docsDir = join(process.cwd(), 'docs', 'wiki');
+  let files: { name: string; filename: string; html: string }[] = [];
+  try {
+    const entries = readdirSync(docsDir).filter((f) => f.endsWith('.md'));
+    for (const fn of entries) {
+      try {
+        const raw = readFileSync(join(docsDir, fn), 'utf-8');
+        const titleMatch = raw.match(/^#\s*(.+)$/m);
+        const title = titleMatch
+          ? titleMatch[1].trim()
+          : fn.replace(/[-_]/g, ' ').replace(/\.md$/, '');
+        const html = mdToHtml(raw);
+        files.push({ name: title, filename: fn, html });
+      } catch (_e) {
+        void _e;
+      }
+    }
+  } catch (_e) {
+    void _e;
+    files = [];
+  }
 
-	// Deterministic order: index first, then the API reference, then alphabetical.
-	const rank = (fn: string) => {
-		const f = fn.toLowerCase();
-		if (f === 'index.md') {
-			return 0;
-		}
-		if (f === 'api-reference.md') {
-			return 1;
-		}
-		return 2;
-	};
-	files.sort((a, b) => rank(a.filename) - rank(b.filename) || a.name.localeCompare(b.name));
+  // Deterministic order: index first, then the API reference, then alphabetical.
+  const rank = (fn: string) => {
+    const f = fn.toLowerCase();
+    if (f === 'index.md') {
+      return 0;
+    }
+    if (f === 'api-reference.md') {
+      return 1;
+    }
+    return 2;
+  };
+  files.sort((a, b) => rank(a.filename) - rank(b.filename) || a.name.localeCompare(b.name));
 
-	return { docs: files };
+  return { docs: files };
 };

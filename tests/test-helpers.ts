@@ -3,213 +3,216 @@
  */
 
 export const TEST_CONFIG = {
-	API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000',
-	DEFAULT_TIMEOUT: 10000,
-	LONG_TIMEOUT: 30000,
-	IMMICH_TIMEOUT: 15000,
-	SYSTEM_USER_ID: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+  API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000',
+  DEFAULT_TIMEOUT: 10000,
+  LONG_TIMEOUT: 30000,
+  IMMICH_TIMEOUT: 15000,
+  SYSTEM_USER_ID: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
 
-	// Scope configuration
-	SCOPES: {
-		READ: 'read',
-		WRITE: 'write',
-		DELETE: 'delete',
-		ADMIN: 'admin'
-	},
+  // Scope configuration
+  SCOPES: {
+    READ: 'read',
+    WRITE: 'write',
+    DELETE: 'delete',
+    ADMIN: 'admin',
+  },
 
-	// Role configuration
-	ROLES: {
-		USER: 'user',
-		ADMIN: 'admin',
-		MODERATOR: 'moderator'
-	},
+  // Role configuration
+  ROLES: {
+    USER: 'user',
+    ADMIN: 'admin',
+    MODERATOR: 'moderator',
+  },
 
-	// Test users
-	TEST_USERS: {
-		SYSTEM: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
-		PREFIX: 'test.user.'
-	}
+  // Test users
+  TEST_USERS: {
+    SYSTEM: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+    PREFIX: 'test.user.',
+  },
 };
 
 /**
  * Helper to create authentication headers
  */
 export function getAuthHeaders(apiKey?: string): Record<string, string> {
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json'
-	};
-	if (apiKey) {
-		headers['x-api-key'] = apiKey;
-	}
-	return headers;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) {
+    headers['x-api-key'] = apiKey;
+  }
+  return headers;
 }
 
 /**
  * Helper to create a unique test user
  */
 export function generateTestUser(prefix = 'test') {
-	const timestamp = Date.now();
-	return {
-		id_user: `${prefix}.user.${timestamp}`,
-		name: `Test User ${timestamp}`,
-		first_name: 'Test',
-		last_name: `User ${timestamp}`,
-		role: 'user' as const,
-		promo: 2025
-	};
+  const timestamp = Date.now();
+  return {
+    id_user: `${prefix}.user.${timestamp}`,
+    name: `Test User ${timestamp}`,
+    first_name: 'Test',
+    last_name: `User ${timestamp}`,
+    role: 'user' as const,
+    promo: 2025,
+  };
 }
 
 /**
  * Helper to handle Immich timeouts
  */
 export function handleImmichError(error: unknown): boolean {
-	const err = error as { name?: string; code?: string };
-	return err.name === 'TimeoutError' || err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT';
+  const err = error as { name?: string; code?: string };
+  return err.name === 'TimeoutError' || err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT';
 }
 
 /**
  * Helper to wait for a service to be ready
  */
 export async function waitForService(
-	url: string,
-	maxRetries = 30,
-	retryDelay = 1000
+  url: string,
+  maxRetries = 30,
+  retryDelay = 1000
 ): Promise<boolean> {
-	for (let i = 0; i < maxRetries; i++) {
-		try {
-			const response = await fetch(url);
-			if (response.ok) {
-				return true;
-			}
-		} catch {
-			// Service not ready yet
-		}
-		await new Promise((resolve) => setTimeout(resolve, retryDelay));
-	}
-	return false;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // Service not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, retryDelay));
+  }
+  return false;
 }
 
 /**
  * Helper to clean up resources after tests
  */
 export async function cleanupResource(
-	url: string,
-	apiKey: string,
-	resourceId: string | null
+  url: string,
+  apiKey: string,
+  resourceId: string | null
 ): Promise<void> {
-	if (!resourceId) {
-		return;
-	}
+  if (!resourceId) {
+    return;
+  }
 
-	try {
-		await fetch(`${url}/${resourceId}`, {
-			method: 'DELETE',
-			headers: { 'x-api-key': apiKey }
-		});
-	} catch {
-		// Ignore cleanup errors
-	}
+  try {
+    await fetch(`${url}/${resourceId}`, {
+      method: 'DELETE',
+      headers: { 'x-api-key': apiKey },
+    });
+  } catch {
+    // Ignore cleanup errors
+  }
 }
 
 /**
  * Useful types for tests
  */
 export interface TestContext {
-	adminApiKey: string;
-	writeApiKey: string;
-	readApiKey: string;
-	sessionCookie: string;
-	testUserId: string;
-	createdResources: {
-		users: string[];
-		albums: string[];
-		apiKeys: string[];
-	};
+  adminApiKey: string;
+  writeApiKey: string;
+  readApiKey: string;
+  sessionCookie: string;
+  testUserId: string;
+  createdResources: {
+    users: string[];
+    albums: string[];
+    apiKeys: string[];
+  };
 }
 
 /**
  * Shared global test context
  */
 export const globalTestContext: Partial<TestContext> = {
-	adminApiKey: '',
-	writeApiKey: '',
-	readApiKey: '',
-	sessionCookie: '',
-	testUserId: '',
-	createdResources: {
-		users: [],
-		albums: [],
-		apiKeys: []
-	}
+  adminApiKey: '',
+  writeApiKey: '',
+  readApiKey: '',
+  sessionCookie: '',
+  testUserId: '',
+  createdResources: {
+    users: [],
+    albums: [],
+    apiKeys: [],
+  },
 };
 
 /**
  * Helper to initialize a test context
  */
 export function createTestContext(): TestContext {
-	return {
-		adminApiKey: '',
-		writeApiKey: '',
-		readApiKey: '',
-		sessionCookie: '',
-		testUserId: '',
-		createdResources: {
-			users: [],
-			albums: [],
-			apiKeys: []
-		}
-	};
+  return {
+    adminApiKey: '',
+    writeApiKey: '',
+    readApiKey: '',
+    sessionCookie: '',
+    testUserId: '',
+    createdResources: {
+      users: [],
+      albums: [],
+      apiKeys: [],
+    },
+  };
 }
 
 /**
  * Verify that the system user exists in the database
  */
 async function _ensureSystemUserExists(): Promise<boolean> {
-	try {
-		const fs = await import('fs');
-		const path = await import('path');
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
 
-		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+    const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
-		if (!fs.existsSync(DB_PATH)) {
-			console.warn('⚠️  Database not found');
-			return false;
-		}
+    if (!fs.existsSync(DB_PATH)) {
+      console.warn('⚠️  Database not found');
+      return false;
+    }
 
-		interface SqliteDatabase {
-			prepare: (sql: string) => {
-				get: (param: string) => { id_user: string; role: string } | undefined;
-			};
-			close: () => void;
-		}
+    interface SqliteDatabase {
+      prepare: (sql: string) => {
+        get: (param: string) => { id_user: string; role: string } | undefined;
+      };
+      close: () => void;
+    }
 
-		type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => SqliteDatabase;
+    type DatabaseConstructor = new (
+      path: string,
+      options?: { readonly?: boolean }
+    ) => SqliteDatabase;
 
-		const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
+    const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
 
-		const db = new Database(DB_PATH, { readonly: true });
+    const db = new Database(DB_PATH, { readonly: true });
 
-		try {
-			const user = db
-				.prepare('SELECT id_user, role FROM users WHERE id_user = ?')
-				.get(TEST_CONFIG.SYSTEM_USER_ID);
-			db.close();
+    try {
+      const user = db
+        .prepare('SELECT id_user, role FROM users WHERE id_user = ?')
+        .get(TEST_CONFIG.SYSTEM_USER_ID);
+      db.close();
 
-			if (user) {
-				console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} exists (role: ${user.role})`);
-				return true;
-			} else {
-				console.warn(`⚠️  System user ${TEST_CONFIG.SYSTEM_USER_ID} not found`);
-				return false;
-			}
-		} catch (dbError) {
-			db.close();
-			throw dbError;
-		}
-	} catch (error) {
-		console.error(`❌ Error during verification: ${(error as Error).message}`);
-		return false;
-	}
+      if (user) {
+        console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} exists (role: ${user.role})`);
+        return true;
+      } else {
+        console.warn(`⚠️  System user ${TEST_CONFIG.SYSTEM_USER_ID} not found`);
+        return false;
+      }
+    } catch (dbError) {
+      db.close();
+      throw dbError;
+    }
+  } catch (error) {
+    console.error(`❌ Error during verification: ${(error as Error).message}`);
+    return false;
+  }
 }
 
 /**
@@ -217,316 +220,317 @@ async function _ensureSystemUserExists(): Promise<boolean> {
  * Useful for tests before calling /dev/login-as
  */
 async function ensureSystemUserExists(): Promise<boolean> {
-	try {
-		const fs = await import('fs');
-		const path = await import('path');
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
 
-		const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+    const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 
-		if (!fs.existsSync(DB_PATH)) {
-			console.warn('⚠️  Database not found');
-			return false;
-		}
+    if (!fs.existsSync(DB_PATH)) {
+      console.warn('⚠️  Database not found');
+      return false;
+    }
 
-		interface SqliteDatabase {
-			prepare: (sql: string) => {
-				get: (param?: unknown) => unknown;
-				run: (...params: unknown[]) => { changes: number };
-			};
-			close: () => void;
-		}
+    interface SqliteDatabase {
+      prepare: (sql: string) => {
+        get: (param?: unknown) => unknown;
+        run: (...params: unknown[]) => { changes: number };
+      };
+      close: () => void;
+    }
 
-		type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => SqliteDatabase;
+    type DatabaseConstructor = new (
+      path: string,
+      options?: { readonly?: boolean }
+    ) => SqliteDatabase;
 
-		const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
+    const Database = (await import('better-sqlite3')).default as DatabaseConstructor;
 
-		const db = new Database(DB_PATH);
+    const db = new Database(DB_PATH);
 
-		try {
-			// Check if user exists
-			const existingUser = db
-				.prepare('SELECT id_user FROM users WHERE id_user = ?')
-				.get(TEST_CONFIG.SYSTEM_USER_ID);
+    try {
+      // Check if user exists
+      const existingUser = db
+        .prepare('SELECT id_user FROM users WHERE id_user = ?')
+        .get(TEST_CONFIG.SYSTEM_USER_ID);
 
-			if (existingUser) {
-				console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} already exists`);
-				db.close();
-				return true;
-			}
+      if (existingUser) {
+        console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} already exists`);
+        db.close();
+        return true;
+      }
 
-			// Create the system user
-			db
-				.prepare(
-					'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-				)
-				.run(TEST_CONFIG.SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', 'admin', null, null);
+      // Create the system user
+      db.prepare(
+        'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(TEST_CONFIG.SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', 'admin', null, null);
 
-			console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} created in the DB`);
-			db.close();
-			return true;
-		} catch (dbError) {
-			try {
-				db.close();
-			} catch {
-				void 0;
-			}
-			throw dbError;
-		}
-	} catch (error) {
-		console.error(`❌ Error creating system user: ${(error as Error).message}`);
-		return false;
-	}
+      console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} created in the DB`);
+      db.close();
+      return true;
+    } catch (dbError) {
+      try {
+        db.close();
+      } catch {
+        void 0;
+      }
+      throw dbError;
+    }
+  } catch (error) {
+    console.error(`❌ Error creating system user: ${(error as Error).message}`);
+    return false;
+  }
 }
 
 /**
  * Log in with the system user
  */
 async function loginAsSystemUser(): Promise<string> {
-	const { API_BASE_URL } = TEST_CONFIG;
+  const { API_BASE_URL } = TEST_CONFIG;
 
-	// First ensure the user exists in the DB
-	const userExists = await ensureSystemUserExists();
-	if (!userExists) {
-		console.warn('⚠️ Unable to create/verify system user locally, trying via endpoint');
-	}
+  // First ensure the user exists in the DB
+  const userExists = await ensureSystemUserExists();
+  if (!userExists) {
+    console.warn('⚠️ Unable to create/verify system user locally, trying via endpoint');
+  }
 
-	try {
-		const response = await fetch(`${API_BASE_URL}/dev/login-as?u=${TEST_CONFIG.SYSTEM_USER_ID}`, {
-			redirect: 'manual'
-		});
+  try {
+    const response = await fetch(`${API_BASE_URL}/dev/login-as?u=${TEST_CONFIG.SYSTEM_USER_ID}`, {
+      redirect: 'manual',
+    });
 
-		// Accept 302/303 (redirect) or 200 (HTML with cookie) depending on SvelteKit version
-		if (response.status === 303 || response.status === 302 || response.status === 200) {
-			const cookies = response.headers.get('set-cookie');
-			if (cookies) {
-				const match = cookies.match(/migallery_session=([^;]+)/);
-				if (match) {
-					const sessionCookie = `migallery_session=${match[1]}`;
-					return sessionCookie;
-				}
-			}
-			// No set-cookie - log for diagnostics
-			console.error(
-				`❌ Login failed (status: ${response.status}), no cookie returned, body=${await response.text()}`
-			);
-		} else {
-			console.error(
-				`❌ Login failed (status: ${response.status}), responseBody=${await response.text()}`
-			);
-		}
-		return '';
-	} catch (error) {
-		console.error(`❌ Error during login: ${(error as Error).message}`);
-		return '';
-	}
+    // Accept 302/303 (redirect) or 200 (HTML with cookie) depending on SvelteKit version
+    if (response.status === 303 || response.status === 302 || response.status === 200) {
+      const cookies = response.headers.get('set-cookie');
+      if (cookies) {
+        const match = cookies.match(/migallery_session=([^;]+)/);
+        if (match) {
+          const sessionCookie = `migallery_session=${match[1]}`;
+          return sessionCookie;
+        }
+      }
+      // No set-cookie - log for diagnostics
+      console.error(
+        `❌ Login failed (status: ${response.status}), no cookie returned, body=${await response.text()}`
+      );
+    } else {
+      console.error(
+        `❌ Login failed (status: ${response.status}), responseBody=${await response.text()}`
+      );
+    }
+    return '';
+  } catch (error) {
+    console.error(`❌ Error during login: ${(error as Error).message}`);
+    return '';
+  }
 }
 
 /**
  * Create an API key API
  */
 async function createApiKey(
-	sessionCookie: string,
-	scopes: string[],
-	label: string
+  sessionCookie: string,
+  scopes: string[],
+  label: string
 ): Promise<{ id: string; rawKey: string } | null> {
-	const { API_BASE_URL } = TEST_CONFIG;
+  const { API_BASE_URL } = TEST_CONFIG;
 
-	try {
-		const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Cookie: sessionCookie
-			},
-			body: JSON.stringify({ label, scopes })
-		});
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: sessionCookie,
+      },
+      body: JSON.stringify({ label, scopes }),
+    });
 
-		if (response.status === 200 || response.status === 201) {
-			const data = (await response.json()) as { rawKey?: string; id?: string };
-			if (data.rawKey && data.id) {
-				console.debug(`✅ API key created (${label}): ${data.rawKey.substring(0, 20)}...`);
-				return { id: data.id, rawKey: data.rawKey };
-			}
-		}
+    if (response.status === 200 || response.status === 201) {
+      const data = (await response.json()) as { rawKey?: string; id?: string };
+      if (data.rawKey && data.id) {
+        console.debug(`✅ API key created (${label}): ${data.rawKey.substring(0, 20)}...`);
+        return { id: data.id, rawKey: data.rawKey };
+      }
+    }
 
-		console.error(`❌ Failed to create API key (status: ${response.status})`);
-		return null;
-	} catch (error) {
-		console.error(`❌ Error creating API key: ${(error as Error).message}`);
-		return null;
-	}
+    console.error(`❌ Failed to create API key (status: ${response.status})`);
+    return null;
+  } catch (error) {
+    console.error(`❌ Error creating API key: ${(error as Error).message}`);
+    return null;
+  }
 }
 
 /**
  * Create a test user and make them admin
  */
 async function createTestUser(
-	adminApiKey: string
+  adminApiKey: string
 ): Promise<{ id_user: string; name: string } | null> {
-	const { API_BASE_URL } = TEST_CONFIG;
-	const timestamp = Date.now();
-	const testUser = {
-		id_user: `test.user.${timestamp}`,
-		name: `Test User ${timestamp}`,
-		first_name: 'Test',
-		last_name: 'User',
-		role: 'user' as const,
-		promo: 2025
-	};
+  const { API_BASE_URL } = TEST_CONFIG;
+  const timestamp = Date.now();
+  const testUser = {
+    id_user: `test.user.${timestamp}`,
+    name: `Test User ${timestamp}`,
+    first_name: 'Test',
+    last_name: 'User',
+    role: 'user' as const,
+    promo: 2025,
+  };
 
-	try {
-		// Create the user
-		const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': adminApiKey
-			},
-			body: JSON.stringify(testUser)
-		});
+  try {
+    // Create the user
+    const createResponse = await fetch(`${API_BASE_URL}/api/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': adminApiKey,
+      },
+      body: JSON.stringify(testUser),
+    });
 
-		if (!createResponse.ok) {
-			console.error(`❌ Failed to create user (status: ${createResponse.status})`);
-			return null;
-		}
+    if (!createResponse.ok) {
+      console.error(`❌ Failed to create user (status: ${createResponse.status})`);
+      return null;
+    }
 
-		// Promote the user to admin
-		const updateResponse = await fetch(`${API_BASE_URL}/api/users/${testUser.id_user}`, {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': adminApiKey
-			},
-			body: JSON.stringify({ ...testUser, role: 'admin' })
-		});
+    // Promote the user to admin
+    const updateResponse = await fetch(`${API_BASE_URL}/api/users/${testUser.id_user}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': adminApiKey,
+      },
+      body: JSON.stringify({ ...testUser, role: 'admin' }),
+    });
 
-		if (!updateResponse.ok) {
-			console.warn(`⚠️  Unable to promote user to admin (status: ${updateResponse.status})`);
-		}
+    if (!updateResponse.ok) {
+      console.warn(`⚠️  Unable to promote user to admin (status: ${updateResponse.status})`);
+    }
 
-		console.debug(`✅ Test user created and promoted to admin: ${testUser.id_user}`);
-		return { id_user: testUser.id_user, name: testUser.name };
-	} catch (error) {
-		console.error(`❌ Error creating user: ${(error as Error).message}`);
-		return null;
-	}
+    console.debug(`✅ Test user created and promoted to admin: ${testUser.id_user}`);
+    return { id_user: testUser.id_user, name: testUser.name };
+  } catch (error) {
+    console.error(`❌ Error creating user: ${(error as Error).message}`);
+    return null;
+  }
 }
 
 /**
  * Complete authentication setup for tests
  */
 export async function setupTestAuth(): Promise<TestContext> {
-	const { API_BASE_URL } = TEST_CONFIG;
-	console.debug('\n🚀 Authentication setup for tests');
-	console.debug(`📍 Base URL: ${API_BASE_URL}\n`);
+  const { API_BASE_URL } = TEST_CONFIG;
+  console.debug('\n🚀 Authentication setup for tests');
+  console.debug(`📍 Base URL: ${API_BASE_URL}\n`);
 
-	const context = createTestContext();
+  const context = createTestContext();
 
-	// 1. Log in with the system user
-	const sessionCookie = await loginAsSystemUser();
-	if (!sessionCookie) {
-		throw new Error('Login failed');
-	}
-	context.sessionCookie = sessionCookie;
+  // 1. Log in with the system user
+  const sessionCookie = await loginAsSystemUser();
+  if (!sessionCookie) {
+    throw new Error('Login failed');
+  }
+  context.sessionCookie = sessionCookie;
 
-	// 2. Create the API keys (admin, write, read)
-	const adminKey = await createApiKey(sessionCookie, ['admin'], '[TEST] Admin Key');
-	if (!adminKey) {
-		throw new Error('Unable to create admin key');
-	}
-	context.adminApiKey = adminKey.rawKey;
-	context.createdResources.apiKeys.push(adminKey.id);
+  // 2. Create the API keys (admin, write, read)
+  const adminKey = await createApiKey(sessionCookie, ['admin'], '[TEST] Admin Key');
+  if (!adminKey) {
+    throw new Error('Unable to create admin key');
+  }
+  context.adminApiKey = adminKey.rawKey;
+  context.createdResources.apiKeys.push(adminKey.id);
 
-	// Write key must include read to have access to read endpoints
-	const writeKey = await createApiKey(sessionCookie, ['read', 'write'], '[TEST] Write Key');
-	if (writeKey) {
-		context.writeApiKey = writeKey.rawKey;
-		context.createdResources.apiKeys.push(writeKey.id);
-	}
+  // Write key must include read to have access to read endpoints
+  const writeKey = await createApiKey(sessionCookie, ['read', 'write'], '[TEST] Write Key');
+  if (writeKey) {
+    context.writeApiKey = writeKey.rawKey;
+    context.createdResources.apiKeys.push(writeKey.id);
+  }
 
-	const readKey = await createApiKey(sessionCookie, ['read'], '[TEST] Read Key');
-	if (readKey) {
-		context.readApiKey = readKey.rawKey;
-		context.createdResources.apiKeys.push(readKey.id);
-	}
+  const readKey = await createApiKey(sessionCookie, ['read'], '[TEST] Read Key');
+  if (readKey) {
+    context.readApiKey = readKey.rawKey;
+    context.createdResources.apiKeys.push(readKey.id);
+  }
 
-	// 4. Create a test user and make them admin
-	const testUser = await createTestUser(context.adminApiKey);
-	if (testUser) {
-		context.testUserId = testUser.id_user;
-		context.createdResources.users.push(testUser.id_user);
-	}
+  // 4. Create a test user and make them admin
+  const testUser = await createTestUser(context.adminApiKey);
+  if (testUser) {
+    context.testUserId = testUser.id_user;
+    context.createdResources.users.push(testUser.id_user);
+  }
 
-	// Update the global context
-	Object.assign(globalTestContext, context);
+  // Update the global context
+  Object.assign(globalTestContext, context);
 
-	console.debug('✅ Authentication setup complete\n');
-	return context;
+  console.debug('✅ Authentication setup complete\n');
+  return context;
 }
 
 /**
  * Full cleanup after tests
  */
 export async function teardownTestAuth(context: TestContext): Promise<void> {
-	const { API_BASE_URL } = TEST_CONFIG;
-	console.debug('\n🧹 Cleanup after tests');
+  const { API_BASE_URL } = TEST_CONFIG;
+  console.debug('\n🧹 Cleanup after tests');
 
-	// Delete the test user
-	if (context.testUserId) {
-		try {
-			await fetch(`${API_BASE_URL}/api/users/${context.testUserId}`, {
-				method: 'DELETE',
-				headers: { 'x-api-key': context.adminApiKey }
-			});
-			console.debug(`✅ Test user deleted: ${context.testUserId}`);
-		} catch {
-			console.warn('⚠️  Unable to delete test user');
-		}
-	}
+  // Delete the test user
+  if (context.testUserId) {
+    try {
+      await fetch(`${API_BASE_URL}/api/users/${context.testUserId}`, {
+        method: 'DELETE',
+        headers: { 'x-api-key': context.adminApiKey },
+      });
+      console.debug(`✅ Test user deleted: ${context.testUserId}`);
+    } catch {
+      console.warn('⚠️  Unable to delete test user');
+    }
+  }
 
-	// Delete the API keys
-	for (const keyId of context.createdResources.apiKeys) {
-		try {
-			await fetch(`${API_BASE_URL}/api/admin/api-keys/${keyId}`, {
-				method: 'DELETE',
-				headers: { Cookie: context.sessionCookie }
-			});
-			console.debug('✅ API key deleted');
-		} catch {
-			console.warn('⚠️  Unable to delete an API key');
-		}
-	}
+  // Delete the API keys
+  for (const keyId of context.createdResources.apiKeys) {
+    try {
+      await fetch(`${API_BASE_URL}/api/admin/api-keys/${keyId}`, {
+        method: 'DELETE',
+        headers: { Cookie: context.sessionCookie },
+      });
+      console.debug('✅ API key deleted');
+    } catch {
+      console.warn('⚠️  Unable to delete an API key');
+    }
+  }
 
-	// Clean up other resources
-	for (const userId of context.createdResources.users) {
-		if (userId !== context.testUserId) {
-			await cleanupResource(`${API_BASE_URL}/api/users`, context.adminApiKey, userId);
-		}
-	}
+  // Clean up other resources
+  for (const userId of context.createdResources.users) {
+    if (userId !== context.testUserId) {
+      await cleanupResource(`${API_BASE_URL}/api/users`, context.adminApiKey, userId);
+    }
+  }
 
-	for (const albumId of context.createdResources.albums) {
-		await cleanupResource(`${API_BASE_URL}/api/albums`, context.adminApiKey, albumId);
-	}
+  for (const albumId of context.createdResources.albums) {
+    await cleanupResource(`${API_BASE_URL}/api/albums`, context.adminApiKey, albumId);
+  }
 
-	console.debug('✅ Cleanup complete\n');
+  console.debug('✅ Cleanup complete\n');
 }
 
 /**
  * Types for permission tests
  */
 export interface PermissionTestConfig {
-	endpoint: string;
-	method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-	body?: Record<string, unknown> | string;
-	requiredScope: 'public' | 'read' | 'write' | 'admin';
-	description?: string;
+  endpoint: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  body?: Record<string, unknown> | string;
+  requiredScope: 'public' | 'read' | 'write' | 'admin';
+  description?: string;
 }
 
 export interface PermissionTestResult {
-	noAuth: { status: number; passed: boolean };
-	read: { status: number; passed: boolean };
-	write: { status: number; passed: boolean };
-	admin: { status: number; passed: boolean };
+  noAuth: { status: number; passed: boolean };
+  read: { status: number; passed: boolean };
+  write: { status: number; passed: boolean };
+  admin: { status: number; passed: boolean };
 }
 
 /**
@@ -538,124 +542,124 @@ export interface PermissionTestResult {
  * - With admin key -> always accepts
  */
 export async function testPermissions(config: PermissionTestConfig): Promise<PermissionTestResult> {
-	const { API_BASE_URL } = TEST_CONFIG;
-	const { endpoint, method = 'GET', body, requiredScope } = config;
-	const url = `${API_BASE_URL}${endpoint}`;
+  const { API_BASE_URL } = TEST_CONFIG;
+  const { endpoint, method = 'GET', body, requiredScope } = config;
+  const url = `${API_BASE_URL}${endpoint}`;
 
-	const result: PermissionTestResult = {
-		noAuth: { status: 0, passed: false },
-		read: { status: 0, passed: false },
-		write: { status: 0, passed: false },
-		admin: { status: 0, passed: false }
-	};
+  const result: PermissionTestResult = {
+    noAuth: { status: 0, passed: false },
+    read: { status: 0, passed: false },
+    write: { status: 0, passed: false },
+    admin: { status: 0, passed: false },
+  };
 
-	// Test 1: Without authentication
-	try {
-		const response = await fetch(url, {
-			method,
-			headers: { 'Content-Type': 'application/json' },
-			body: body ? JSON.stringify(body) : undefined
-		});
-		result.noAuth.status = response.status;
-		// Public -> should accept (200-299), otherwise should reject (401/403)
-		result.noAuth.passed =
-			requiredScope === 'public'
-				? response.status >= 200 && response.status < 300
-				: response.status === 401 || response.status === 403;
-	} catch {
-		result.noAuth.status = 0;
-		result.noAuth.passed = false;
-	}
+  // Test 1: Without authentication
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    result.noAuth.status = response.status;
+    // Public -> should accept (200-299), otherwise should reject (401/403)
+    result.noAuth.passed =
+      requiredScope === 'public'
+        ? response.status >= 200 && response.status < 300
+        : response.status === 401 || response.status === 403;
+  } catch {
+    result.noAuth.status = 0;
+    result.noAuth.passed = false;
+  }
 
-	// Test 2: With READ key
-	try {
-		const response = await fetch(url, {
-			method,
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': globalTestContext.readApiKey || ''
-			},
-			body: body ? JSON.stringify(body) : undefined
-		});
-		result.read.status = response.status;
-		// Read should accept if requiredScope = 'public' or 'read'
-		const shouldAccept = requiredScope === 'public' || requiredScope === 'read';
-		result.read.passed = shouldAccept
-			? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
-			: response.status === 401 || response.status === 403;
-	} catch {
-		result.read.status = 0;
-		result.read.passed = false;
-	}
+  // Test 2: With READ key
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': globalTestContext.readApiKey || '',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    result.read.status = response.status;
+    // Read should accept if requiredScope = 'public' or 'read'
+    const shouldAccept = requiredScope === 'public' || requiredScope === 'read';
+    result.read.passed = shouldAccept
+      ? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
+      : response.status === 401 || response.status === 403;
+  } catch {
+    result.read.status = 0;
+    result.read.passed = false;
+  }
 
-	// Test 3: With WRITE key
-	try {
-		const response = await fetch(url, {
-			method,
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': globalTestContext.writeApiKey || ''
-			},
-			body: body ? JSON.stringify(body) : undefined
-		});
-		result.write.status = response.status;
-		// Write should accept if requiredScope <= 'write'
-		const shouldAccept =
-			requiredScope === 'public' || requiredScope === 'read' || requiredScope === 'write';
-		result.write.passed = shouldAccept
-			? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
-			: response.status === 401 || response.status === 403;
-	} catch {
-		result.write.status = 0;
-		result.write.passed = false;
-	}
+  // Test 3: With WRITE key
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': globalTestContext.writeApiKey || '',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    result.write.status = response.status;
+    // Write should accept if requiredScope <= 'write'
+    const shouldAccept =
+      requiredScope === 'public' || requiredScope === 'read' || requiredScope === 'write';
+    result.write.passed = shouldAccept
+      ? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
+      : response.status === 401 || response.status === 403;
+  } catch {
+    result.write.status = 0;
+    result.write.passed = false;
+  }
 
-	// Test 4: With ADMIN key
-	try {
-		const response = await fetch(url, {
-			method,
-			headers: {
-				'Content-Type': 'application/json',
-				'x-api-key': globalTestContext.adminApiKey || ''
-			},
-			body: body ? JSON.stringify(body) : undefined
-		});
-		result.admin.status = response.status;
-		// Admin should always accept (unless the endpoint doesn't exist = 404)
-		result.admin.passed =
-			(response.status >= 200 && response.status < 300) || response.status === 500; // Tolerate 500 in CI
-	} catch {
-		result.admin.status = 0;
-		result.admin.passed = false;
-	}
+  // Test 4: With ADMIN key
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': globalTestContext.adminApiKey || '',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    result.admin.status = response.status;
+    // Admin should always accept (unless the endpoint doesn't exist = 404)
+    result.admin.passed =
+      (response.status >= 200 && response.status < 300) || response.status === 500; // Tolerate 500 in CI
+  } catch {
+    result.admin.status = 0;
+    result.admin.passed = false;
+  }
 
-	return result;
+  return result;
 }
 
 /**
  * Helper to format permission test results
  */
 export function formatPermissionResults(
-	config: PermissionTestConfig,
-	result: PermissionTestResult
+  config: PermissionTestConfig,
+  result: PermissionTestResult
 ): string {
-	const { endpoint, method = 'GET', requiredScope } = config;
-	const lines: string[] = [];
+  const { endpoint, method = 'GET', requiredScope } = config;
+  const lines: string[] = [];
 
-	lines.push(`\n📋 Permission test: ${method} ${endpoint}`);
-	lines.push(`   Required scope: ${requiredScope}`);
-	lines.push('');
-	lines.push(`   No auth:   ${result.noAuth.status} ${result.noAuth.passed ? '✅' : '❌'}`);
-	lines.push(`   Read key:  ${result.read.status} ${result.read.passed ? '✅' : '❌'}`);
-	lines.push(`   Write key: ${result.write.status} ${result.write.passed ? '✅' : '❌'}`);
-	lines.push(`   Admin key: ${result.admin.status} ${result.admin.passed ? '✅' : '❌'}`);
+  lines.push(`\n📋 Permission test: ${method} ${endpoint}`);
+  lines.push(`   Required scope: ${requiredScope}`);
+  lines.push('');
+  lines.push(`   No auth:   ${result.noAuth.status} ${result.noAuth.passed ? '✅' : '❌'}`);
+  lines.push(`   Read key:  ${result.read.status} ${result.read.passed ? '✅' : '❌'}`);
+  lines.push(`   Write key: ${result.write.status} ${result.write.passed ? '✅' : '❌'}`);
+  lines.push(`   Admin key: ${result.admin.status} ${result.admin.passed ? '✅' : '❌'}`);
 
-	return lines.join('\n');
+  return lines.join('\n');
 }
 
 /**
  * Helper to clean up a full test context (legacy, kept for compatibility)
  */
 export async function cleanupTestContext(context: TestContext): Promise<void> {
-	await teardownTestAuth(context);
+  await teardownTestAuth(context);
 }

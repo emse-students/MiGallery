@@ -1,27 +1,27 @@
 import type { SessionUser } from '$lib/auth';
 
 declare global {
-	namespace App {
-		interface Locals {
-			user?: SessionUser | null;
-			[key: string]: unknown;
-		}
-		interface PageData {
-			session?: {
-				user?: {
-					id_user: string;
-					name: string;
-					first_name?: string | null;
-					last_name?: string | null;
-					formation?: string | null;
-					photos_id: string | null;
-					photos_asset_id?: string | null;
-					role?: 'admin' | 'mitviste' | 'user';
-					promo?: number | null;
-				} | null;
-			} | null;
-		}
-	}
+  namespace App {
+    interface Locals {
+      user?: SessionUser | null;
+      [key: string]: unknown;
+    }
+    interface PageData {
+      session?: {
+        user?: {
+          id_user: string;
+          name: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          formation?: string | null;
+          photos_id: string | null;
+          photos_asset_id?: string | null;
+          role?: 'admin' | 'mitviste' | 'user';
+          promo?: number | null;
+        } | null;
+      } | null;
+    }
+  }
 }
 
 export {};

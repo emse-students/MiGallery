@@ -17,13 +17,13 @@ const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d
  * because it identifies the user via their login session.
  */
 export const GET: RequestHandler = async (event) => {
-	try {
-		const user = await requireSession(event);
-		const db = getDatabase();
+  try {
+    const user = await requireSession(event);
+    const db = getDatabase();
 
-		const userData = db
-			.prepare(
-				`SELECT
+    const userData = db
+      .prepare(
+        `SELECT
 					id_user,
 					name,
 					first_name,
@@ -32,22 +32,22 @@ export const GET: RequestHandler = async (event) => {
 					role,
 					promo
 				FROM users WHERE id_user = ?`
-			)
-			.get(user.id_user);
+      )
+      .get(user.id_user);
 
-		if (!userData) {
-			return json({ error: 'User not found' }, { status: 404 });
-		}
+    if (!userData) {
+      return json({ error: 'User not found' }, { status: 404 });
+    }
 
-		return json({ success: true, user: userData });
-	} catch (e) {
-		if (isHttpError(e)) {
-			throw e;
-		}
-		const err = e as Error;
-		log.error('GET /api/users/me error', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    return json({ success: true, user: userData });
+  } catch (e) {
+    if (isHttpError(e)) {
+      throw e;
+    }
+    const err = e as Error;
+    log.error('GET /api/users/me error', err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };
 
 /**
@@ -58,33 +58,33 @@ export const GET: RequestHandler = async (event) => {
  * Note: This endpoint requires an active session (not API key) for security reasons.
  */
 export const DELETE: RequestHandler = async (event) => {
-	const { cookies } = event;
+  const { cookies } = event;
 
-	try {
-		const user = await requireSession(event);
-		const db = getDatabase();
+  try {
+    const user = await requireSession(event);
+    const db = getDatabase();
 
-		if (user.id_user === SYSTEM_USER_ID) {
-			return json({ error: 'Cannot delete system user' }, { status: 403 });
-		}
+    if (user.id_user === SYSTEM_USER_ID) {
+      return json({ error: 'Cannot delete system user' }, { status: 403 });
+    }
 
-		const result = db.prepare('DELETE FROM users WHERE id_user = ?').run(user.id_user);
+    const result = db.prepare('DELETE FROM users WHERE id_user = ?').run(user.id_user);
 
-		if (result.changes === 0) {
-			return json({ error: 'Failed to delete user' }, { status: 500 });
-		}
+    if (result.changes === 0) {
+      return json({ error: 'Failed to delete user' }, { status: 500 });
+    }
 
-		// The sessions of a deleted account go with it through the FK cascade;
-		// only this browser's now-dangling cookie is left to clear.
-		clearSessionCookie(cookies);
+    // The sessions of a deleted account go with it through the FK cascade;
+    // only this browser's now-dangling cookie is left to clear.
+    clearSessionCookie(cookies);
 
-		return json({ success: true, message: 'Account deleted successfully' });
-	} catch (e) {
-		if (isHttpError(e)) {
-			throw e;
-		}
-		const err = e as Error;
-		log.error('DELETE /api/users/me error', err);
-		return json({ error: err.message }, { status: 500 });
-	}
+    return json({ success: true, message: 'Account deleted successfully' });
+  } catch (e) {
+    if (isHttpError(e)) {
+      throw e;
+    }
+    const err = e as Error;
+    log.error('DELETE /api/users/me error', err);
+    return json({ error: err.message }, { status: 500 });
+  }
 };

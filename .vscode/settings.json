@@ -1,23 +1,23 @@
 {
-	// No `editor.defaultFormatter` and no format-on-save. This file used to name
-	// esbenp.prettier-vscode, and prettier is gone: the extension would have found no config,
-	// silently applied ITS OWN defaults, and rewritten whole files on save. Formatting is
-	// explicit here - `bun run format` - and `format:check` in CI is what makes it stick.
-	"editor.formatOnSave": false,
-	"editor.formatOnPaste": false,
+  // No `editor.defaultFormatter` and no format-on-save. This file used to name
+  // esbenp.prettier-vscode, and prettier is gone: the extension would have found no config,
+  // silently applied ITS OWN defaults, and rewritten whole files on save. Formatting is
+  // explicit here - `bun run format` - and `format:check` in CI is what makes it stick.
+  "editor.formatOnSave": false,
+  "editor.formatOnPaste": false,
 
-	"svelte.enable-ts-plugin": true,
+  "svelte.enable-ts-plugin": true,
 
-	"typescript.tsdk": "node_modules/typescript/lib",
-	"typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
 
-	"files.trimTrailingWhitespace": true,
-	"files.insertFinalNewline": true,
-	"files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
 
-	"search.exclude": {
-		"**/.svelte-kit": true,
-		"**/build": true,
-		"**/dist": true
-	}
+  "search.exclude": {
+    "**/.svelte-kit": true,
+    "**/build": true,
+    "**/dist": true
+  }
 }

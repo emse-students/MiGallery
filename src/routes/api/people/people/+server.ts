@@ -17,33 +17,33 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Lists all people recognized by Immich
  */
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'read');
-	try {
-		if (!IMMICH_BASE_URL) {
-			throw error(500, 'IMMICH_BASE_URL not configured');
-		}
+  await requireScope(event, 'read');
+  try {
+    if (!IMMICH_BASE_URL) {
+      throw error(500, 'IMMICH_BASE_URL not configured');
+    }
 
-		const res = await event.fetch(`${IMMICH_BASE_URL}/api/people`, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			headers: {
-				'x-api-key': IMMICH_API_KEY || '',
-				Accept: 'application/json'
-			}
-		});
+    const res = await event.fetch(`${IMMICH_BASE_URL}/api/people`, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      headers: {
+        'x-api-key': IMMICH_API_KEY || '',
+        Accept: 'application/json',
+      },
+    });
 
-		if (!res.ok) {
-			const errorText = await res.text();
-			throw error(res.status, `Failed to fetch people: ${errorText}`);
-		}
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw error(res.status, `Failed to fetch people: ${errorText}`);
+    }
 
-		const people = (await res.json()) as { id: string; name: string }[];
-		return json({ people, total: people.length });
-	} catch (e: unknown) {
-		const err = ensureError(e);
-		log.error('Error in /api/people/people GET:', err);
-		if (e && typeof e === 'object' && 'status' in e) {
-			throw e;
-		}
-		throw error(500, err.message);
-	}
+    const people = (await res.json()) as { id: string; name: string }[];
+    return json({ people, total: people.length });
+  } catch (e: unknown) {
+    const err = ensureError(e);
+    log.error('Error in /api/people/people GET:', err);
+    if (e && typeof e === 'object' && 'status' in e) {
+      throw e;
+    }
+    throw error(500, err.message);
+  }
 };

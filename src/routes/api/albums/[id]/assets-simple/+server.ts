@@ -17,39 +17,39 @@ const log = createLogger('albums-id-assets-simple');
  * Avoids Proxy issues with Svelte 5
  */
 export const GET: RequestHandler = async (event) => {
-	try {
-		await requireScope(event, 'read');
-		const { id } = event.params;
-		const { fetch } = event;
+  try {
+    await requireScope(event, 'read');
+    const { id } = event.params;
+    const { fetch } = event;
 
-		if (!IMMICH_BASE_URL) {
-			throw svelteError(500, 'IMMICH_BASE_URL not configured');
-		}
+    if (!IMMICH_BASE_URL) {
+      throw svelteError(500, 'IMMICH_BASE_URL not configured');
+    }
 
-		const rawAssets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
+    const rawAssets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
 
-		const assets = rawAssets.map((asset: ImmichAsset) => ({
-			id: asset.id,
-			originalFileName: asset.originalFileName,
-			type: asset.type,
-			width: asset.exifInfo?.exifImageWidth || null,
-			height: asset.exifInfo?.exifImageHeight || null,
-			fileCreatedAt: asset.fileCreatedAt || null,
-			createdAt: asset.createdAt || null,
-			updatedAt: asset.updatedAt || null,
-			fileModifiedAt: asset.fileModifiedAt || null,
-			albumName: null
-		}));
+    const assets = rawAssets.map((asset: ImmichAsset) => ({
+      id: asset.id,
+      originalFileName: asset.originalFileName,
+      type: asset.type,
+      width: asset.exifInfo?.exifImageWidth || null,
+      height: asset.exifInfo?.exifImageHeight || null,
+      fileCreatedAt: asset.fileCreatedAt || null,
+      createdAt: asset.createdAt || null,
+      updatedAt: asset.updatedAt || null,
+      fileModifiedAt: asset.fileModifiedAt || null,
+      albumName: null,
+    }));
 
-		return new Response(JSON.stringify({ assets }), {
-			status: 200,
-			headers: {
-				'Content-Type': 'application/json'
-			}
-		});
-	} catch (e: unknown) {
-		log.error(`Error in /api/albums/${event.params.id}/assets-simple GET:`, e);
-		const errorMessage = e instanceof Error ? e.message : 'Internal server error';
-		throw svelteError(500, `Internal server error: ${errorMessage}`);
-	}
+    return new Response(JSON.stringify({ assets }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (e: unknown) {
+    log.error(`Error in /api/albums/${event.params.id}/assets-simple GET:`, e);
+    const errorMessage = e instanceof Error ? e.message : 'Internal server error';
+    throw svelteError(500, `Internal server error: ${errorMessage}`);
+  }
 };

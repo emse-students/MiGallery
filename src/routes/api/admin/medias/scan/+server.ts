@@ -13,18 +13,18 @@ import { logEvent } from '$lib/server/logs';
  * albums, because no Immich query answers "assets in N albums".
  */
 export const POST: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const before = getScanState().status;
-	const state = startDeepScan();
+  const before = getScanState().status;
+  const state = startDeepScan();
 
-	// Worth an audit line: this is an admin deliberately spending a few hundred
-	// upstream requests. A second click that joins a running scan is not one.
-	if (before !== 'running') {
-		void logEvent(event, 'read', 'media_scan', 'multi-album', { albums: state.albumsTotal });
-	}
+  // Worth an audit line: this is an admin deliberately spending a few hundred
+  // upstream requests. A second click that joins a running scan is not one.
+  if (before !== 'running') {
+    void logEvent(event, 'read', 'media_scan', 'multi-album', { albums: state.albumsTotal });
+  }
 
-	return json({ started: before !== 'running', status: state.status });
+  return json({ started: before !== 'running', status: state.status });
 };
 
 /**
@@ -35,18 +35,18 @@ export const POST: RequestHandler = async (event) => {
  * deciding what to drop is a separate job from noticing it.
  */
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const state = getScanState();
-	const result = state.result ?? loadScanSnapshot();
+  const state = getScanState();
+  const result = state.result ?? loadScanSnapshot();
 
-	return json({
-		status: state.status,
-		startedAt: state.startedAt,
-		albumsTotal: state.albumsTotal,
-		albumsDone: state.albumsDone,
-		requests: state.requests,
-		error: state.error,
-		result
-	});
+  return json({
+    status: state.status,
+    startedAt: state.startedAt,
+    albumsTotal: state.albumsTotal,
+    albumsDone: state.albumsDone,
+    requests: state.requests,
+    error: state.error,
+    result,
+  });
 };

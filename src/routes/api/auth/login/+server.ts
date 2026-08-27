@@ -11,57 +11,57 @@ const STATE_COOKIE_NAME = '__oidc_state';
 const NONCE_COOKIE_NAME = '__oidc_nonce';
 
 function generateRandomString(length: number): string {
-	return randomBytes(length).toString('base64url');
+  return randomBytes(length).toString('base64url');
 }
 
 export const GET: RequestHandler = ({ cookies, url }) => {
-	let authUrl: string;
+  let authUrl: string;
 
-	try {
-		// Generate state and nonce
-		const state = generateRandomString(32);
-		const nonce = generateRandomString(32);
+  try {
+    // Generate state and nonce
+    const state = generateRandomString(32);
+    const nonce = generateRandomString(32);
 
-		// Store in cookies for validation on callback
-		cookies.set(STATE_COOKIE_NAME, state, {
-			path: '/',
-			maxAge: 600, // 10 minutes
-			sameSite: 'lax',
-			secure: true,
-			httpOnly: true
-		});
+    // Store in cookies for validation on callback
+    cookies.set(STATE_COOKIE_NAME, state, {
+      path: '/',
+      maxAge: 600, // 10 minutes
+      sameSite: 'lax',
+      secure: true,
+      httpOnly: true,
+    });
 
-		cookies.set(NONCE_COOKIE_NAME, nonce, {
-			path: '/',
-			maxAge: 600,
-			sameSite: 'lax',
-			secure: true,
-			httpOnly: true
-		});
+    cookies.set(NONCE_COOKIE_NAME, nonce, {
+      path: '/',
+      maxAge: 600,
+      sameSite: 'lax',
+      secure: true,
+      httpOnly: true,
+    });
 
-		// Park the page the visitor was after for the length of the round trip.
-		// Nothing to park means DELETING it: a leftover from an abandoned attempt
-		// would otherwise decide where this login lands.
-		const returnTo = safeRedirectTarget(url.searchParams.get(REDIRECT_PARAM));
-		if (returnTo) {
-			cookies.set(RETURN_COOKIE_NAME, returnTo, {
-				path: '/',
-				maxAge: 600,
-				sameSite: 'lax',
-				secure: true,
-				httpOnly: true
-			});
-		} else {
-			cookies.delete(RETURN_COOKIE_NAME, { path: '/' });
-		}
+    // Park the page the visitor was after for the length of the round trip.
+    // Nothing to park means DELETING it: a leftover from an abandoned attempt
+    // would otherwise decide where this login lands.
+    const returnTo = safeRedirectTarget(url.searchParams.get(REDIRECT_PARAM));
+    if (returnTo) {
+      cookies.set(RETURN_COOKIE_NAME, returnTo, {
+        path: '/',
+        maxAge: 600,
+        sameSite: 'lax',
+        secure: true,
+        httpOnly: true,
+      });
+    } else {
+      cookies.delete(RETURN_COOKIE_NAME, { path: '/' });
+    }
 
-		// Determine redirect URI
-		const callbackUrl = new URL('/api/auth/callback', url.origin);
-		authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
-	} catch (e) {
-		log.error('Error:', e);
-		throw error(500, 'Login failed');
-	}
+    // Determine redirect URI
+    const callbackUrl = new URL('/api/auth/callback', url.origin);
+    authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
+  } catch (e) {
+    log.error('Error:', e);
+    throw error(500, 'Login failed');
+  }
 
-	throw redirect(302, authUrl);
+  throw redirect(302, authUrl);
 };

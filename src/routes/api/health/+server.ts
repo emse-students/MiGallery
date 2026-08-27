@@ -10,26 +10,26 @@ import { requireScope } from '$lib/server/permissions';
  * Health check endpoint - verifies the API and DB are operational
  */
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'public');
-	try {
-		const db = getDatabase();
-		db.prepare('SELECT 1').get();
+  await requireScope(event, 'public');
+  try {
+    const db = getDatabase();
+    db.prepare('SELECT 1').get();
 
-		return json({
-			status: 'ok',
-			timestamp: new Date().toISOString(),
-			database: 'connected'
-		});
-	} catch (e: unknown) {
-		const err = ensureError(e);
-		return json(
-			{
-				status: 'error',
-				timestamp: new Date().toISOString(),
-				database: 'disconnected',
-				error: err.message
-			},
-			{ status: 503 }
-		);
-	}
+    return json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+    });
+  } catch (e: unknown) {
+    const err = ensureError(e);
+    return json(
+      {
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        database: 'disconnected',
+        error: err.message,
+      },
+      { status: 503 }
+    );
+  }
 };

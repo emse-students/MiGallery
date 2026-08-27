@@ -1,8 +1,8 @@
 export interface ImmichUploadPayload {
-	file: File;
-	createdAt?: string;
-	modifiedAt?: string;
-	isFavorite?: string;
+  file: File;
+  createdAt?: string;
+  modifiedAt?: string;
+  isFavorite?: string;
 }
 
 /**
@@ -17,20 +17,20 @@ export interface ImmichUploadPayload {
  * metadata first). Immich's own SDK appends the file last for the same reason.
  */
 export function buildImmichUploadFormData(
-	formData: FormData,
-	{ file, createdAt, modifiedAt, isFavorite }: ImmichUploadPayload
+  formData: FormData,
+  { file, createdAt, modifiedAt, isFavorite }: ImmichUploadPayload
 ): FormData {
-	if (createdAt) {
-		formData.append('fileCreatedAt', createdAt);
-	}
-	if (modifiedAt) {
-		formData.append('fileModifiedAt', modifiedAt);
-	}
-	if (isFavorite !== undefined) {
-		formData.append('isFavorite', isFavorite);
-	}
+  if (createdAt) {
+    formData.append('fileCreatedAt', createdAt);
+  }
+  if (modifiedAt) {
+    formData.append('fileModifiedAt', modifiedAt);
+  }
+  if (isFavorite !== undefined) {
+    formData.append('isFavorite', isFavorite);
+  }
 
-	formData.append('assetData', file);
+  formData.append('assetData', file);
 
-	return formData;
+  return formData;
 }

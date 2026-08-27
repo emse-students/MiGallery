@@ -21,36 +21,36 @@ import type { ScanResult } from '$lib/server/media-anomalies';
  * answer to both.
  */
 function summarize(result: ScanResult | null) {
-	if (!result) {
-		return null;
-	}
-	return {
-		scannedAt: result.scannedAt,
-		albumsScanned: result.albumsScanned,
-		albumsFailed: result.albumsFailed.length,
-		assetsSeen: result.assetsSeen,
-		multiAlbumCount: result.multiAlbum.length,
-		truncated: result.truncated
-	};
+  if (!result) {
+    return null;
+  }
+  return {
+    scannedAt: result.scannedAt,
+    albumsScanned: result.albumsScanned,
+    albumsFailed: result.albumsFailed.length,
+    assetsSeen: result.assetsSeen,
+    multiAlbumCount: result.multiAlbum.length,
+    truncated: result.truncated,
+  };
 }
 
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'admin');
+  await requireScope(event, 'admin');
 
-	const inventory = await getAlbumInventory(event.fetch);
-	const scan = getScanState();
-	const lastResult = scan.result ?? loadScanSnapshot();
+  const inventory = await getAlbumInventory(event.fetch);
+  const scan = getScanState();
+  const lastResult = scan.result ?? loadScanSnapshot();
 
-	return json({
-		inventory,
-		scan: {
-			status: scan.status,
-			startedAt: scan.startedAt,
-			albumsTotal: scan.albumsTotal,
-			albumsDone: scan.albumsDone,
-			requests: scan.requests,
-			error: scan.error,
-			lastScan: summarize(lastResult)
-		}
-	});
+  return json({
+    inventory,
+    scan: {
+      status: scan.status,
+      startedAt: scan.startedAt,
+      albumsTotal: scan.albumsTotal,
+      albumsDone: scan.albumsDone,
+      requests: scan.requests,
+      error: scan.error,
+      lastScan: summarize(lastResult),
+    },
+  });
 };

@@ -1,623 +1,629 @@
 <script lang="ts">
-	import { Heart, Download, Trash2, SquareCheck } from 'lucide-svelte';
-	import LazyImage from './LazyImage.svelte';
-	import Skeleton from './Skeleton.svelte';
-	import type { Asset } from '$lib/photos.svelte';
-	import { m } from '$lib/paraglide/messages';
+  import { Heart, Download, Trash2, SquareCheck } from 'lucide-svelte';
+  import LazyImage from './LazyImage.svelte';
+  import Skeleton from './Skeleton.svelte';
+  import type { Asset } from '$lib/photos.svelte';
+  import { m } from '$lib/paraglide/messages';
 
-	interface Props {
-		asset: Asset;
-		isSelected?: boolean;
-		isSelecting?: boolean;
-		canDelete?: boolean;
-		showFavorite?: boolean;
-		onCardClick?: (assetId: string, event: MouseEvent) => void;
-		onDownload?: (assetId: string, event: Event) => void;
-		onDelete?: (assetId: string, event: Event) => void;
-		onSelectionToggle?: (assetId: string, selected: boolean) => void;
-		onFavoriteToggle?: (assetId: string, event: Event) => void;
-		albumVisibility?: string;
-		albumId?: string;
-	}
+  interface Props {
+    asset: Asset;
+    isSelected?: boolean;
+    isSelecting?: boolean;
+    canDelete?: boolean;
+    showFavorite?: boolean;
+    onCardClick?: (assetId: string, event: MouseEvent) => void;
+    onDownload?: (assetId: string, event: Event) => void;
+    onDelete?: (assetId: string, event: Event) => void;
+    onSelectionToggle?: (assetId: string, selected: boolean) => void;
+    onFavoriteToggle?: (assetId: string, event: Event) => void;
+    albumVisibility?: string;
+    albumId?: string;
+  }
 
-	let {
-		asset,
-		isSelected = false,
-		isSelecting = false,
-		canDelete = false,
-		showFavorite = false,
-		onCardClick,
-		onDownload,
-		onDelete,
-		onSelectionToggle,
-		onFavoriteToggle,
-		albumVisibility,
-		albumId
-	}: Props = $props();
+  let {
+    asset,
+    isSelected = false,
+    isSelecting = false,
+    canDelete = false,
+    showFavorite = false,
+    onCardClick,
+    onDownload,
+    onDelete,
+    onSelectionToggle,
+    onFavoriteToggle,
+    albumVisibility,
+    albumId,
+  }: Props = $props();
 
-	function getAspectRatio(): number {
-		if (asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight) {
-			return asset.exifInfo.exifImageWidth / asset.exifInfo.exifImageHeight;
-		}
+  function getAspectRatio(): number {
+    if (asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight) {
+      return asset.exifInfo.exifImageWidth / asset.exifInfo.exifImageHeight;
+    }
 
-		if (asset._raw?.exifInfo?.exifImageWidth && asset._raw?.exifInfo?.exifImageHeight) {
-			return asset._raw.exifInfo.exifImageWidth / asset._raw.exifInfo.exifImageHeight;
-		}
+    if (asset._raw?.exifInfo?.exifImageWidth && asset._raw?.exifInfo?.exifImageHeight) {
+      return asset._raw.exifInfo.exifImageWidth / asset._raw.exifInfo.exifImageHeight;
+    }
 
-		if (asset._raw?.width && asset._raw?.height) {
-			return asset._raw.width / asset._raw.height;
-		}
+    if (asset._raw?.width && asset._raw?.height) {
+      return asset._raw.width / asset._raw.height;
+    }
 
-		return 3 / 2;
-	}
+    return 3 / 2;
+  }
 
-	function getAspectRatioString(): string {
-		const ratio = getAspectRatio();
-		const width = Math.round(ratio * 100);
-		const height = 100;
-		return `${width}/${height}`;
-	}
+  function getAspectRatioString(): string {
+    const ratio = getAspectRatio();
+    const width = Math.round(ratio * 100);
+    const height = 100;
+    return `${width}/${height}`;
+  }
 
-	let aspectRatio = $derived(getAspectRatio());
-	let aspectRatioString = $derived(getAspectRatioString());
+  let aspectRatio = $derived(getAspectRatio());
+  let aspectRatioString = $derived(getAspectRatioString());
 
-	let flexBasis = $derived(aspectRatio * 220);
-	let flexGrow = $derived(aspectRatio * 100);
+  let flexBasis = $derived(aspectRatio * 220);
+  let flexGrow = $derived(aspectRatio * 100);
 
-	let isFullyLoaded = $derived(
-		asset.originalFileName !== undefined && asset.originalFileName !== null
-	);
+  let isFullyLoaded = $derived(
+    asset.originalFileName !== undefined && asset.originalFileName !== null
+  );
 
-	let showMobileActions = $state(false);
-	let sheetOpenedAt = 0;
-	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-	const LONG_PRESS_DURATION = 500; // ms
+  let showMobileActions = $state(false);
+  let sheetOpenedAt = 0;
+  let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  const LONG_PRESS_DURATION = 500; // ms
 
-	function handleTouchStart(e: TouchEvent) {
-		if ((e.target as HTMLElement).closest('button')) return;
+  function handleTouchStart(e: TouchEvent) {
+    if ((e.target as HTMLElement).closest('button')) return;
 
-		longPressTimer = setTimeout(() => {
-			showMobileActions = true;
-			sheetOpenedAt = Date.now();
-			if (navigator.vibrate) {
-				navigator.vibrate(50);
-			}
-		}, LONG_PRESS_DURATION);
-	}
+    longPressTimer = setTimeout(() => {
+      showMobileActions = true;
+      sheetOpenedAt = Date.now();
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, LONG_PRESS_DURATION);
+  }
 
-	function handleTouchEnd() {
-		if (longPressTimer) {
-			clearTimeout(longPressTimer);
-			longPressTimer = null;
-		}
-	}
+  function handleTouchEnd() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
 
-	function handleTouchMove() {
-		if (longPressTimer) {
-			clearTimeout(longPressTimer);
-			longPressTimer = null;
-		}
-	}
+  function handleTouchMove() {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  }
 
-	function closeMobileActions() {
-		showMobileActions = false;
-	}
+  function closeMobileActions() {
+    showMobileActions = false;
+  }
 
-	function handleCardClick(e: Event) {
-		if (onCardClick) {
-			onCardClick(asset.id, e as unknown as MouseEvent);
-		}
-	}
+  function handleCardClick(e: Event) {
+    if (onCardClick) {
+      onCardClick(asset.id, e as unknown as MouseEvent);
+    }
+  }
 
-	function handleDownloadClick(e: Event) {
-		e.stopPropagation();
-		if (onDownload) {
-			onDownload(asset.id, e);
-		}
-	}
+  function handleDownloadClick(e: Event) {
+    e.stopPropagation();
+    if (onDownload) {
+      onDownload(asset.id, e);
+    }
+  }
 
-	function handleDeleteClick(e: Event) {
-		e.stopPropagation();
-		if (onDelete) {
-			onDelete(asset.id, e);
-		}
-	}
+  function handleDeleteClick(e: Event) {
+    e.stopPropagation();
+    if (onDelete) {
+      onDelete(asset.id, e);
+    }
+  }
 
-	function handleCheckboxChange(e: Event) {
-		e.stopPropagation();
-		const checked = (e.target as HTMLInputElement).checked;
-		if (onSelectionToggle) {
-			onSelectionToggle(asset.id, checked);
-		}
-	}
+  function handleCheckboxChange(e: Event) {
+    e.stopPropagation();
+    const checked = (e.target as HTMLInputElement).checked;
+    if (onSelectionToggle) {
+      onSelectionToggle(asset.id, checked);
+    }
+  }
 
-	function handleFavoriteClick(e: Event) {
-		e.stopPropagation();
-		if (onFavoriteToggle) {
-			onFavoriteToggle(asset.id, e);
-		}
-	}
+  function handleFavoriteClick(e: Event) {
+    e.stopPropagation();
+    if (onFavoriteToggle) {
+      onFavoriteToggle(asset.id, e);
+    }
+  }
 
-	// --- Mobile bottom-sheet actions ---
-	function sheetSelect(e: Event) {
-		e.stopPropagation();
-		closeMobileActions();
-		if (onSelectionToggle) onSelectionToggle(asset.id, true);
-	}
+  // --- Mobile bottom-sheet actions ---
+  function sheetSelect(e: Event) {
+    e.stopPropagation();
+    closeMobileActions();
+    if (onSelectionToggle) onSelectionToggle(asset.id, true);
+  }
 
-	function sheetFavorite(e: Event) {
-		e.stopPropagation();
-		closeMobileActions();
-		if (onFavoriteToggle) onFavoriteToggle(asset.id, e);
-	}
+  function sheetFavorite(e: Event) {
+    e.stopPropagation();
+    closeMobileActions();
+    if (onFavoriteToggle) onFavoriteToggle(asset.id, e);
+  }
 
-	function sheetDownload(e: Event) {
-		e.stopPropagation();
-		closeMobileActions();
-		if (onDownload) onDownload(asset.id, e);
-	}
+  function sheetDownload(e: Event) {
+    e.stopPropagation();
+    closeMobileActions();
+    if (onDownload) onDownload(asset.id, e);
+  }
 
-	function sheetDelete(e: Event) {
-		e.stopPropagation();
-		closeMobileActions();
-		if (onDelete) onDelete(asset.id, e);
-	}
+  function sheetDelete(e: Event) {
+    e.stopPropagation();
+    closeMobileActions();
+    if (onDelete) onDelete(asset.id, e);
+  }
 
-	function handleOverlayClick(e: Event) {
-		e.stopPropagation();
-		// Ignore the synthetic click that fires right after a long-press release,
-		// which would otherwise close the sheet the instant it opens.
-		if (Date.now() - sheetOpenedAt < 400) return;
-		closeMobileActions();
-	}
+  function handleOverlayClick(e: Event) {
+    e.stopPropagation();
+    // Ignore the synthetic click that fires right after a long-press release,
+    // which would otherwise close the sheet the instant it opens.
+    if (Date.now() - sheetOpenedAt < 400) return;
+    closeMobileActions();
+  }
 
-	let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
-	let isFavorite = $derived(asset.isFavorite ?? false);
-	let thumbnailUrl = $derived(
-		albumVisibility === 'unlisted' && albumId
-			? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
-			: `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`
-	);
+  let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
+  let isFavorite = $derived(asset.isFavorite ?? false);
+  let thumbnailUrl = $derived(
+    albumVisibility === 'unlisted' && albumId
+      ? `/api/albums/${albumId}/asset-thumbnail/${asset.id}/thumbnail?size=thumbnail`
+      : `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`
+  );
 
-	let highResUrl = $derived(
-		albumVisibility === 'unlisted' && albumId
-			? undefined
-			: `/api/immich/assets/${asset.id}/thumbnail?size=preview`
-	);
-	let isVideo = $derived(asset.type === 'VIDEO');
+  let highResUrl = $derived(
+    albumVisibility === 'unlisted' && albumId
+      ? undefined
+      : `/api/immich/assets/${asset.id}/thumbnail?size=preview`
+  );
+  let isVideo = $derived(asset.type === 'VIDEO');
 </script>
 
 <!-- Photo Card Container -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="photo-card {isSelected ? 'selected' : ''}"
-	style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
-	role="button"
-	tabindex="0"
-	onclick={handleCardClick}
-	onkeydown={(e) => {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			handleCardClick(e);
-		}
-	}}
-	ontouchstart={handleTouchStart}
-	ontouchend={handleTouchEnd}
-	ontouchmove={handleTouchMove}
-	ontouchcancel={handleTouchEnd}
+  class="photo-card {isSelected ? 'selected' : ''}"
+  style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
+  role="button"
+  tabindex="0"
+  onclick={handleCardClick}
+  onkeydown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleCardClick(e);
+    }
+  }}
+  ontouchstart={handleTouchStart}
+  ontouchend={handleTouchEnd}
+  ontouchmove={handleTouchMove}
+  ontouchcancel={handleTouchEnd}
 >
-	<!-- Mobile long-press action sheet -->
-	{#if showMobileActions}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="mobile-actions-overlay" onclick={handleOverlayClick}></div>
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<div class="action-sheet" onclick={(e) => e.stopPropagation()}>
-			<button type="button" class="sheet-item" onclick={sheetSelect}>
-				<SquareCheck size={20} />
-				{m.pg_action_select()}
-			</button>
-			{#if showFavorite}
-				<button type="button" class="sheet-item" onclick={sheetFavorite}>
-					<Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-					{isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
-				</button>
-			{/if}
-			<button type="button" class="sheet-item" onclick={sheetDownload}>
-				<Download size={20} />
-				{m.common_download()}
-			</button>
-			{#if canDelete}
-				<button type="button" class="sheet-item danger" onclick={sheetDelete}>
-					<Trash2 size={20} />
-					{m.trash_to_bin()}
-				</button>
-			{/if}
-		</div>
-	{/if}
+  <!-- Mobile long-press action sheet -->
+  {#if showMobileActions}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="mobile-actions-overlay" onclick={handleOverlayClick}></div>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="action-sheet" onclick={(e) => e.stopPropagation()}>
+      <button type="button" class="sheet-item" onclick={sheetSelect}>
+        <SquareCheck size={20} />
+        {m.pg_action_select()}
+      </button>
+      {#if showFavorite}
+        <button type="button" class="sheet-item" onclick={sheetFavorite}>
+          <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
+          {isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
+        </button>
+      {/if}
+      <button type="button" class="sheet-item" onclick={sheetDownload}>
+        <Download size={20} />
+        {m.common_download()}
+      </button>
+      {#if canDelete}
+        <button type="button" class="sheet-item danger" onclick={sheetDelete}>
+          <Trash2 size={20} />
+          {m.trash_to_bin()}
+        </button>
+      {/if}
+    </div>
+  {/if}
 
-	<!-- Selection Checkbox -->
-	<div class="selection-checkbox {isSelected ? 'checked' : ''}">
-		<input
-			type="checkbox"
-			checked={isSelected}
-			onclick={(e) => e.stopPropagation()}
-			onchange={handleCheckboxChange}
-			aria-label={`Select ${fileName}`}
-		/>
-	</div>
+  <!-- Selection Checkbox -->
+  <div class="selection-checkbox {isSelected ? 'checked' : ''}">
+    <input
+      type="checkbox"
+      checked={isSelected}
+      onclick={(e) => e.stopPropagation()}
+      onchange={handleCheckboxChange}
+      aria-label={`Select ${fileName}`}
+    />
+  </div>
 
-	{#if isFullyLoaded}
-		<!-- Passive favorite badge: discreet indicator, always visible on mobile -->
-		{#if showFavorite && isFavorite && !isSelecting}
-			<div class="favorite-badge" aria-hidden="true">
-				<Heart size={13} fill="currentColor" />
-			</div>
-		{/if}
+  {#if isFullyLoaded}
+    <!-- Passive favorite badge: discreet indicator, always visible on mobile -->
+    {#if showFavorite && isFavorite && !isSelecting}
+      <div class="favorite-badge" aria-hidden="true">
+        <Heart size={13} fill="currentColor" />
+      </div>
+    {/if}
 
-		<!-- Favorite Button (bottom left) -->
-		{#if showFavorite && !isSelecting}
-			<button
-				type="button"
-				class="favorite-btn {isFavorite ? 'active' : ''}"
-				title={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
-				onclick={handleFavoriteClick}
-				aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-			>
-				<Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-			</button>
-		{/if}
+    <!-- Favorite Button (bottom left) -->
+    {#if showFavorite && !isSelecting}
+      <button
+        type="button"
+        class="favorite-btn {isFavorite ? 'active' : ''}"
+        title={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
+        onclick={handleFavoriteClick}
+        aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+      >
+        <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+      </button>
+    {/if}
 
-		<!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
-		{#if !isSelecting}
-			<button
-				type="button"
-				class="download-btn"
-				title={m.common_download()}
-				onclick={handleDownloadClick}
-				aria-label="Download {fileName}"
-			>
-				<Download size={18} />
-			</button>
+    <!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
+    {#if !isSelecting}
+      <button
+        type="button"
+        class="download-btn"
+        title={m.common_download()}
+        onclick={handleDownloadClick}
+        aria-label="Download {fileName}"
+      >
+        <Download size={18} />
+      </button>
 
-			<!-- Delete Button (only if user can delete) -->
-			{#if canDelete}
-				<button
-					type="button"
-					class="delete-btn"
-					title={m.trash_to_bin()}
-					onclick={handleDeleteClick}
-					aria-label="Delete {fileName}"
-				>
-					<Trash2 size={18} />
-				</button>
-			{/if}
-		{/if}
+      <!-- Delete Button (only if user can delete) -->
+      {#if canDelete}
+        <button
+          type="button"
+          class="delete-btn"
+          title={m.trash_to_bin()}
+          onclick={handleDeleteClick}
+          aria-label="Delete {fileName}"
+        >
+          <Trash2 size={18} />
+        </button>
+      {/if}
+    {/if}
 
-		<!-- Image/Video Thumbnail -->
-		<LazyImage
-			src={thumbnailUrl}
-			highRes={highResUrl}
-			alt={fileName}
-			class="photo-img-wrapper"
-			aspectRatio={aspectRatioString}
-			{isVideo}
-		/>
-	{:else}
-		<!-- Skeleton while details load -->
-		<Skeleton aspectRatio={aspectRatioString}>
-			<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-				<path
-					d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
-					fill="currentColor"
-					opacity="0.3"
-				/>
-			</svg>
-		</Skeleton>
-	{/if}
+    <!-- Image/Video Thumbnail -->
+    <LazyImage
+      src={thumbnailUrl}
+      highRes={highResUrl}
+      alt={fileName}
+      class="photo-img-wrapper"
+      aspectRatio={aspectRatioString}
+      {isVideo}
+    />
+  {:else}
+    <!-- Skeleton while details load -->
+    <Skeleton aspectRatio={aspectRatioString}>
+      <svg
+        width="32"
+        height="32"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"
+          fill="currentColor"
+          opacity="0.3"
+        />
+      </svg>
+    </Skeleton>
+  {/if}
 </div>
 
 <style>
-	.photo-card {
-		position: relative;
-		height: 220px;
-		background: var(--bg-elevated);
-		border-radius: 6px;
-		overflow: hidden;
-		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		cursor: pointer;
-		user-select: none;
-		will-change: transform;
-		opacity: 0;
-		animation: photoFadeIn 0.5s ease-out forwards;
-		max-width: 400px;
-	}
+  .photo-card {
+    position: relative;
+    height: 220px;
+    background: var(--bg-elevated);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    user-select: none;
+    will-change: transform;
+    opacity: 0;
+    animation: photoFadeIn 0.5s ease-out forwards;
+    max-width: 400px;
+  }
 
-	@keyframes photoFadeIn {
-		from {
-			opacity: 0;
-			transform: scale(0.95) translateY(10px);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1) translateY(0);
-		}
-	}
+  @keyframes photoFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
 
-	.photo-card:hover {
-		transform: translateY(-2px);
-		box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-		z-index: 10;
-	}
+  .photo-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    z-index: 10;
+  }
 
-	.photo-card.selected {
-		/* Make selection persistent and clearly visible */
-		outline: none;
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 95%, transparent);
-		/* Keep the selected card above siblings so the frame is visible */
-		z-index: 20;
-		transform: translateY(-2px);
-	}
+  .photo-card.selected {
+    /* Make selection persistent and clearly visible */
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 95%, transparent);
+    /* Keep the selected card above siblings so the frame is visible */
+    z-index: 20;
+    transform: translateY(-2px);
+  }
 
-	/* Ensure checkbox is visible when selected even without hover */
-	.photo-card.selected .selection-checkbox {
-		opacity: 1;
-	}
+  /* Ensure checkbox is visible when selected even without hover */
+  .photo-card.selected .selection-checkbox {
+    opacity: 1;
+  }
 
-	.photo-card :global(.lazy-image-container) {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-	}
+  .photo-card :global(.lazy-image-container) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
 
-	.photo-card :global(.lazy-image) {
-		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-		/* cover fills the card while respecting ratio; avoid letterbox */
-		object-fit: cover;
-	}
+  .photo-card :global(.lazy-image) {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* cover fills the card while respecting ratio; avoid letterbox */
+    object-fit: cover;
+  }
 
-	.photo-card:hover :global(.lazy-image) {
-		transform: scale(1.05);
-	}
+  .photo-card:hover :global(.lazy-image) {
+    transform: scale(1.05);
+  }
 
-	.selection-checkbox {
-		position: absolute;
-		top: 0.625rem;
-		left: 0.625rem;
-		z-index: 5;
-		opacity: 0;
-		transition: opacity 0.2s ease;
-	}
+  .selection-checkbox {
+    position: absolute;
+    top: 0.625rem;
+    left: 0.625rem;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
 
-	/* Visible on hover OR in selection mode */
-	.photo-card:hover .selection-checkbox {
-		opacity: 1;
-	}
+  /* Visible on hover OR in selection mode */
+  .photo-card:hover .selection-checkbox {
+    opacity: 1;
+  }
 
-	.selection-checkbox.checked {
-		opacity: 1;
-	}
+  .selection-checkbox.checked {
+    opacity: 1;
+  }
 
-	.selection-checkbox input {
-		width: 1.25rem;
-		height: 1.25rem;
-		cursor: pointer;
-		accent-color: var(--accent);
-	}
+  .selection-checkbox input {
+    width: 1.25rem;
+    height: 1.25rem;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
 
-	.favorite-btn {
-		position: absolute;
-		bottom: 0.625rem;
-		left: 0.625rem;
-		z-index: 5;
-		padding: 0.5rem;
-		width: 36px;
-		height: 36px;
-		background: rgba(0, 0, 0, 0.7);
-		backdrop-filter: blur(8px);
-		border: none;
-		border-radius: var(--radius-sm);
-		color: white;
-		cursor: pointer;
-		opacity: 0;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
+  .favorite-btn {
+    position: absolute;
+    bottom: 0.625rem;
+    left: 0.625rem;
+    z-index: 5;
+    padding: 0.5rem;
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-	.favorite-btn.active {
-		color: white;
-		background: var(--error);
-	}
+  .favorite-btn.active {
+    color: white;
+    background: var(--error);
+  }
 
-	/* Passive favorite indicator: a small heart with no chrome, cheap on space */
-	.favorite-badge {
-		position: absolute;
-		bottom: 0.5rem;
-		left: 0.5rem;
-		z-index: 5;
-		display: flex;
-		color: var(--error);
-		filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
-		pointer-events: none;
-		transition: opacity 0.2s ease;
-	}
+  /* Passive favorite indicator: a small heart with no chrome, cheap on space */
+  .favorite-badge {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0.5rem;
+    z-index: 5;
+    display: flex;
+    color: var(--error);
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
 
-	/* On hover-capable devices, yield to the interactive favorite button */
-	@media (hover: hover) {
-		.photo-card:hover .favorite-badge {
-			opacity: 0;
-		}
-	}
+  /* On hover-capable devices, yield to the interactive favorite button */
+  @media (hover: hover) {
+    .photo-card:hover .favorite-badge {
+      opacity: 0;
+    }
+  }
 
-	.photo-card:hover .favorite-btn {
-		opacity: 1;
-	}
+  .photo-card:hover .favorite-btn {
+    opacity: 1;
+  }
 
-	.favorite-btn:hover {
-		background: color-mix(in srgb, var(--error) 30%, transparent);
-		color: var(--error);
-		transform: scale(1.1);
-	}
+  .favorite-btn:hover {
+    background: color-mix(in srgb, var(--error) 30%, transparent);
+    color: var(--error);
+    transform: scale(1.1);
+  }
 
-	.download-btn {
-		position: absolute;
-		top: 0.625rem;
-		right: 0.625rem;
-		z-index: 5;
-		padding: 0.5rem;
-		width: 36px;
-		height: 36px;
-		background: rgba(0, 0, 0, 0.7);
-		backdrop-filter: blur(8px);
-		border: none;
-		border-radius: var(--radius-sm);
-		color: white;
-		cursor: pointer;
-		opacity: 0;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
+  .download-btn {
+    position: absolute;
+    top: 0.625rem;
+    right: 0.625rem;
+    z-index: 5;
+    padding: 0.5rem;
+    width: 36px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-	.photo-card:hover .download-btn {
-		opacity: 1;
-	}
+  .photo-card:hover .download-btn {
+    opacity: 1;
+  }
 
-	.download-btn:hover {
-		background: rgba(0, 0, 0, 0.9);
-		transform: scale(1.1);
-	}
+  .download-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+  }
 
-	.delete-btn {
-		position: absolute;
-		bottom: 0.625rem;
-		right: 0.625rem;
-		z-index: 5;
-		padding: 0.5rem;
-		width: 36px;
-		height: 36px;
-		background: color-mix(in srgb, var(--error-hover) 80%, transparent);
-		backdrop-filter: blur(8px);
-		border: none;
-		border-radius: var(--radius-sm);
-		color: white;
-		cursor: pointer;
-		opacity: 0;
-		transition: all 0.2s ease;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
+  .delete-btn {
+    position: absolute;
+    bottom: 0.625rem;
+    right: 0.625rem;
+    z-index: 5;
+    padding: 0.5rem;
+    width: 36px;
+    height: 36px;
+    background: color-mix(in srgb, var(--error-hover) 80%, transparent);
+    backdrop-filter: blur(8px);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-	.photo-card:hover .delete-btn {
-		opacity: 1;
-	}
+  .photo-card:hover .delete-btn {
+    opacity: 1;
+  }
 
-	.delete-btn:hover {
-		background: var(--error-hover);
-		transform: scale(1.1);
-	}
+  .delete-btn:hover {
+    background: var(--error-hover);
+    transform: scale(1.1);
+  }
 
-	@media (max-width: 768px) {
-		.photo-card {
-			height: auto;
-			aspect-ratio: 1;
-			/* 4 photos per row on mobile: 100% / 4 = 25%, minus gaps */
-			flex-basis: calc(25% - 3px) !important;
-			flex-grow: 0 !important;
-			max-width: calc(25% - 3px);
-		}
+  @media (max-width: 768px) {
+    .photo-card {
+      height: auto;
+      aspect-ratio: 1;
+      /* 4 photos per row on mobile: 100% / 4 = 25%, minus gaps */
+      flex-basis: calc(25% - 3px) !important;
+      flex-grow: 0 !important;
+      max-width: calc(25% - 3px);
+    }
 
-		/* Corner buttons are unused on mobile: actions live in the long-press sheet */
-		.download-btn,
-		.delete-btn,
-		.favorite-btn {
-			opacity: 0;
-			pointer-events: none;
-		}
-	}
+    /* Corner buttons are unused on mobile: actions live in the long-press sheet */
+    .download-btn,
+    .delete-btn,
+    .favorite-btn {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
 
-	/* Dimmed overlay behind the long-press action sheet */
-	.mobile-actions-overlay {
-		position: fixed;
-		inset: 0;
-		z-index: 1000;
-		background: rgba(0, 0, 0, 0.5);
-		animation: overlayFadeIn 0.2s ease-out;
-	}
+  /* Dimmed overlay behind the long-press action sheet */
+  .mobile-actions-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.5);
+    animation: overlayFadeIn 0.2s ease-out;
+  }
 
-	@keyframes overlayFadeIn {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
-	}
+  @keyframes overlayFadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
-	/* Long-press bottom sheet: finger-friendly action list */
-	.action-sheet {
-		position: fixed;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 1001;
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-		padding: 0.5rem;
-		padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-		background: var(--bg-elevated);
-		border-top: 1px solid var(--border);
-		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
-		animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-	}
+  /* Long-press bottom sheet: finger-friendly action list */
+  .action-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    padding: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+    animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
 
-	@keyframes sheetUp {
-		from {
-			transform: translateY(100%);
-		}
-		to {
-			transform: translateY(0);
-		}
-	}
+  @keyframes sheetUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
 
-	.sheet-item {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		width: 100%;
-		padding: 0.875rem 1rem;
-		border: none;
-		background: transparent;
-		color: var(--text-primary);
-		font-size: 0.9375rem;
-		font-weight: 500;
-		text-align: left;
-		border-radius: var(--radius-sm);
-		cursor: pointer;
-	}
+  .sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-align: left;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
 
-	.sheet-item:active {
-		background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-	}
+  .sheet-item:active {
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+  }
 
-	.sheet-item.danger {
-		color: var(--error);
-	}
+  .sheet-item.danger {
+    color: var(--error);
+  }
 
-	@media (max-width: 480px) {
-		.photo-card {
-			/* 4 photos per row: more compact */
-			flex-basis: calc(25% - 2px) !important;
-			max-width: calc(25% - 2px);
-		}
-	}
+  @media (max-width: 480px) {
+    .photo-card {
+      /* 4 photos per row: more compact */
+      flex-basis: calc(25% - 2px) !important;
+      max-width: calc(25% - 2px);
+    }
+  }
 </style>

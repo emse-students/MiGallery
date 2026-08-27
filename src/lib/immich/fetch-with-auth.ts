@@ -4,18 +4,18 @@
  */
 
 export function createImmichHeaders(
-	apiKey: string | undefined,
-	additionalHeaders?: Record<string, string>
+  apiKey: string | undefined,
+  additionalHeaders?: Record<string, string>
 ): Record<string, string> {
-	const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {};
 
-	if (apiKey) {
-		headers['x-api-key'] = apiKey;
-	}
+  if (apiKey) {
+    headers['x-api-key'] = apiKey;
+  }
 
-	if (additionalHeaders) {
-		Object.assign(headers, additionalHeaders);
-	}
+  if (additionalHeaders) {
+    Object.assign(headers, additionalHeaders);
+  }
 
-	return headers;
+  return headers;
 }

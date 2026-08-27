@@ -11,9 +11,9 @@ const MAX_BACKUPS = 10;
 const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface BackupResult {
-	success: boolean;
-	backupPath?: string;
-	message: string;
+  success: boolean;
+  backupPath?: string;
+  message: string;
 }
 
 /**
@@ -21,45 +21,45 @@ export interface BackupResult {
  * Copies the DB file to data/backups/ and keeps the last MAX_BACKUPS backups.
  */
 export function performBackup(): BackupResult {
-	if (!fs.existsSync(DB_PATH)) {
-		return { success: false, message: `Database not found: ${DB_PATH}` };
-	}
+  if (!fs.existsSync(DB_PATH)) {
+    return { success: false, message: `Database not found: ${DB_PATH}` };
+  }
 
-	try {
-		fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
-		const now = new Date();
-		const date = now.toISOString().split('T')[0];
-		const time = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-		const backupFileName = `migallery_backup_${date}_${time}.db`;
-		const backupPath = path.join(BACKUP_DIR, backupFileName);
+    const now = new Date();
+    const date = now.toISOString().split('T')[0];
+    const time = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const backupFileName = `migallery_backup_${date}_${time}.db`;
+    const backupPath = path.join(BACKUP_DIR, backupFileName);
 
-		fs.copyFileSync(DB_PATH, backupPath);
+    fs.copyFileSync(DB_PATH, backupPath);
 
-		// Rotation: delete the excess backups
-		const backups = fs
-			.readdirSync(BACKUP_DIR)
-			.filter((f) => f.startsWith('migallery_backup_') && f.endsWith('.db'))
-			.map((f) => ({
-				name: f,
-				filePath: path.join(BACKUP_DIR, f),
-				mtimeMs: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs
-			}))
-			.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    // Rotation: delete the excess backups
+    const backups = fs
+      .readdirSync(BACKUP_DIR)
+      .filter((f) => f.startsWith('migallery_backup_') && f.endsWith('.db'))
+      .map((f) => ({
+        name: f,
+        filePath: path.join(BACKUP_DIR, f),
+        mtimeMs: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs,
+      }))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
 
-		backups.slice(MAX_BACKUPS).forEach((b) => {
-			try {
-				fs.unlinkSync(b.filePath);
-			} catch {
-				// Ignore errors when deleting old backups
-			}
-		});
+    backups.slice(MAX_BACKUPS).forEach((b) => {
+      try {
+        fs.unlinkSync(b.filePath);
+      } catch {
+        // Ignore errors when deleting old backups
+      }
+    });
 
-		return { success: true, backupPath, message: `Backup created: ${backupFileName}` };
-	} catch (e) {
-		const msg = e instanceof Error ? e.message : String(e);
-		return { success: false, message: `Backup error: ${msg}` };
-	}
+    return { success: true, backupPath, message: `Backup created: ${backupFileName}` };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { success: false, message: `Backup error: ${msg}` };
+  }
 }
 
 let schedulerStarted = false;
@@ -70,31 +70,31 @@ let schedulerStarted = false;
  * Idempotent: registers only a single scheduler instance.
  */
 export function startBackupScheduler(): void {
-	if (schedulerStarted) {
-		return;
-	}
-	schedulerStarted = true;
+  if (schedulerStarted) {
+    return;
+  }
+  schedulerStarted = true;
 
-	const now = new Date();
-	const nextMidnight = new Date(now);
-	nextMidnight.setDate(nextMidnight.getDate() + 1);
-	nextMidnight.setHours(0, 0, 0, 0);
-	const msUntilMidnight = nextMidnight.getTime() - now.getTime();
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setDate(nextMidnight.getDate() + 1);
+  nextMidnight.setHours(0, 0, 0, 0);
+  const msUntilMidnight = nextMidnight.getTime() - now.getTime();
 
-	const runAndSchedule = () => {
-		const result = performBackup();
-		if (result.success) {
-			log.info(result.message);
-		} else {
-			log.error(result.message);
-		}
-	};
+  const runAndSchedule = () => {
+    const result = performBackup();
+    if (result.success) {
+      log.info(result.message);
+    } else {
+      log.error(result.message);
+    }
+  };
 
-	setTimeout(() => {
-		runAndSchedule();
-		setInterval(runAndSchedule, BACKUP_INTERVAL_MS);
-	}, msUntilMidnight);
+  setTimeout(() => {
+    runAndSchedule();
+    setInterval(runAndSchedule, BACKUP_INTERVAL_MS);
+  }, msUntilMidnight);
 
-	const hUntil = Math.round(msUntilMidnight / 3_600_000);
-	log.info(`scheduler started - next backup in ~${hUntil}h (midnight)`);
+  const hUntil = Math.round(msUntilMidnight / 3_600_000);
+  log.info(`scheduler started - next backup in ~${hUntil}h (midnight)`);
 }

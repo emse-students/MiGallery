@@ -14,26 +14,26 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 
 ```css
 :root {
-	/* Backgrounds */
-	--bg-primary: #0f0f0f; /* Main background (deep black) */
-	--bg-secondary: #1a1a1a; /* Secondary background */
-	--bg-tertiary: #242424; /* Tertiary background */
-	--bg-elevated: #1f1f1f; /* Elevated background (cards, modals) */
+  /* Backgrounds */
+  --bg-primary: #0f0f0f; /* Main background (deep black) */
+  --bg-secondary: #1a1a1a; /* Secondary background */
+  --bg-tertiary: #242424; /* Tertiary background */
+  --bg-elevated: #1f1f1f; /* Elevated background (cards, modals) */
 
-	/* Text */
-	--text-primary: #ffffff; /* Primary text (white) */
-	--text-secondary: #a0a0a0; /* Secondary text (light gray) */
-	--text-muted: #6b7280; /* Disabled text */
-	--text-tertiary: #808080; /* Tertiary text */
+  /* Text */
+  --text-primary: #ffffff; /* Primary text (white) */
+  --text-secondary: #a0a0a0; /* Secondary text (light gray) */
+  --text-muted: #6b7280; /* Disabled text */
+  --text-tertiary: #808080; /* Tertiary text */
 
-	/* Accent */
-	--accent: #3b82f6; /* Primary blue */
-	--accent-hover: #2563eb; /* Blue on hover */
-	--accent-subtle: rgba(59, 130, 246, 0.1); /* Subtle blue */
+  /* Accent */
+  --accent: #3b82f6; /* Primary blue */
+  --accent-hover: #2563eb; /* Blue on hover */
+  --accent-subtle: rgba(59, 130, 246, 0.1); /* Subtle blue */
 
-	/* Borders */
-	--border: #333333; /* Main border */
-	--border-color: #333333; /* Alias */
+  /* Borders */
+  --border: #333333; /* Main border */
+  --border-color: #333333; /* Alias */
 }
 ```
 
@@ -41,11 +41,11 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 
 ```css
 :root {
-	--radius-xs: 4px; /* Small elements (badges) */
-	--radius-sm: 8px; /* Medium elements (buttons, inputs) */
-	--radius-md: 12px; /* Cards, containers */
-	--radius-lg: 16px; /* Large cards */
-	--radius-xl: 24px; /* Rounded elements */
+  --radius-xs: 4px; /* Small elements (badges) */
+  --radius-sm: 8px; /* Medium elements (buttons, inputs) */
+  --radius-md: 12px; /* Cards, containers */
+  --radius-lg: 16px; /* Large cards */
+  --radius-xl: 24px; /* Rounded elements */
 }
 ```
 
@@ -53,7 +53,7 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 
 ```css
 :root {
-	--mobile-nav-height: 72px; /* Mobile bar height */
+  --mobile-nav-height: 72px; /* Mobile bar height */
 }
 ```
 
@@ -74,13 +74,13 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 ```css
 /* Mobile first - Desktop enhancement */
 .element {
-	padding: 1rem; /* Mobile default */
+  padding: 1rem; /* Mobile default */
 }
 
 @media (min-width: 768px) {
-	.element {
-		padding: 2rem; /* Tablet and up */
-	}
+  .element {
+    padding: 2rem; /* Tablet and up */
+  }
 }
 ```
 
@@ -93,23 +93,23 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 ```css
 /* Primary button (accent) */
 .btn-primary {
-	background: var(--accent);
-	color: white;
-	padding: 0.625rem 1rem;
-	border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-sm);
 }
 
 /* Secondary button */
 .btn-secondary {
-	background: var(--bg-elevated);
-	color: var(--text-primary);
-	border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
 /* Danger button */
 .btn-delete-selection {
-	background: #dc2626;
-	color: white;
+  background: #dc2626;
+  color: white;
 }
 ```
 
@@ -117,10 +117,10 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 
 ```css
 .card {
-	background: var(--bg-tertiary);
-	border: 1px solid var(--border);
-	padding: 2rem;
-	border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  padding: 2rem;
+  border-radius: var(--radius-sm);
 }
 ```
 
@@ -136,22 +136,22 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 
 ```css
 .gradient-blob {
-	position: absolute;
-	border-radius: 50%;
-	background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
-	opacity: 0.22; /* 0.16 in dark */
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--blob-color) 0%, transparent 70%);
+  opacity: 0.22; /* 0.16 in dark */
 }
 
 .blob-1 {
-	background: radial-gradient(circle, rgba(14, 165, 233, 0.6) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.6) 0%, transparent 70%);
 }
 
 .blob-2 {
-	background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.5) 0%, transparent 70%);
 }
 
 .blob-3 {
-	background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
 }
 ```
 
@@ -159,9 +159,9 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 
 ```css
 .photo-card:hover {
-	transform: translateY(-6px) scale(1.02);
-	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-	border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 ```
 
@@ -169,8 +169,8 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 
 ```css
 .modal-overlay {
-	background: rgba(0, 0, 0, 0.8);
-	backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
 }
 ```
 
@@ -182,21 +182,21 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 
 ```css
 .photos-grid {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .photo-card {
-	flex-basis: calc(220px * aspect-ratio);
-	flex-grow: calc(100 * aspect-ratio);
-	height: 220px;
+  flex-basis: calc(220px * aspect-ratio);
+  flex-grow: calc(100 * aspect-ratio);
+  height: 220px;
 }
 
 /* Ghost element for last row */
 .photos-grid::after {
-	content: '';
-	flex-grow: 999999;
+  content: '';
+  flex-grow: 999999;
 }
 ```
 
@@ -204,11 +204,11 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 
 ```css
 @media (max-width: 768px) {
-	.photos-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-		gap: 0.75rem;
-	}
+  .photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
 }
 ```
 
@@ -218,19 +218,19 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 
 ```css
 .topbar {
-	position: sticky;
-	top: 0;
-	z-index: 100;
-	background: rgba(15, 15, 15, 0.8);
-	backdrop-filter: blur(12px);
-	border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15, 15, 15, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 
 /* Navigation hidden on mobile (uses MobileNav) */
 @media (max-width: 768px) {
-	.topbar-links {
-		display: none;
-	}
+  .topbar-links {
+    display: none;
+  }
 }
 ```
 
@@ -251,13 +251,13 @@ The mobile navigation bar (`MobileNav.svelte`) is a global component that appear
 
 ```css
 main {
-	padding-bottom: calc(var(--mobile-nav-height) + 1rem);
+  padding-bottom: calc(var(--mobile-nav-height) + 1rem);
 }
 
 @media (min-width: 769px) {
-	main {
-		padding-bottom: 2rem;
-	}
+  main {
+    padding-bottom: 2rem;
+  }
 }
 ```
 
@@ -270,14 +270,14 @@ main {
 ```css
 /* ✅ Good */
 .element {
-	background: var(--bg-secondary);
-	color: var(--text-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 /* ❌ Avoid */
 .element {
-	background: #1a1a1a;
-	color: white;
+  background: #1a1a1a;
+  color: white;
 }
 ```
 
@@ -290,9 +290,7 @@ Write mobile styles first, then add media queries for larger screens.
 For quick modifications, use Tailwind:
 
 ```svelte
-<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg">
-  Action
-</button>
+<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"> Action </button>
 ```
 
 ### 4. Scoped styles in components

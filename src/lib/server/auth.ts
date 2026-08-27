@@ -17,13 +17,13 @@ const log = createLogger('auth');
 
 /** Kept as an object so the many call sites read the same on both sides. */
 export interface AuthContext {
-	locals: App.Locals;
-	cookies: Cookies;
+  locals: App.Locals;
+  cookies: Cookies;
 }
 
 /** The live session of the request, or null. */
 export function getRequestSession({ cookies }: AuthContext): ResolvedSession | null {
-	return getSession(cookies);
+  return getSession(cookies);
 }
 
 /**
@@ -31,7 +31,7 @@ export function getRequestSession({ cookies }: AuthContext): ResolvedSession | n
  * impersonates, the account itself otherwise.
  */
 export function getCurrentUser(context: AuthContext): UserRow | null {
-	return getRequestSession(context)?.user ?? null;
+  return getRequestSession(context)?.user ?? null;
 }
 
 /**
@@ -39,11 +39,11 @@ export function getCurrentUser(context: AuthContext): UserRow | null {
  * Only authorisation decisions ABOUT an impersonation may use this.
  */
 export function getRealUser(context: AuthContext): UserRow | null {
-	return getRequestSession(context)?.realUser ?? null;
+  return getRequestSession(context)?.realUser ?? null;
 }
 
 function isAdmin(user: UserRow | null): boolean {
-	return (user?.role || 'user') === 'admin';
+  return (user?.role || 'user') === 'admin';
 }
 
 /**
@@ -53,12 +53,12 @@ function isAdmin(user: UserRow | null): boolean {
  * regular user must not keep admin rights while doing so.
  */
 export function ensureAdmin(context: AuthContext): UserRow | null {
-	const user = getCurrentUser(context);
-	if (!isAdmin(user)) {
-		return null;
-	}
+  const user = getCurrentUser(context);
+  if (!isAdmin(user)) {
+    return null;
+  }
 
-	return user;
+  return user;
 }
 
 /**
@@ -74,30 +74,30 @@ export function ensureAdmin(context: AuthContext): UserRow | null {
  * a redirect.
  */
 export function requireAdminPage(context: AuthContext, url: URL): UserRow {
-	const user = getCurrentUser(context);
-	if (!user) {
-		throw redirect(303, loginBounceTarget(url.pathname + url.search));
-	}
+  const user = getCurrentUser(context);
+  if (!user) {
+    throw redirect(303, loginBounceTarget(url.pathname + url.search));
+  }
 
-	if (!isAdmin(user)) {
-		throw redirect(303, '/');
-	}
+  if (!isAdmin(user)) {
+    throw redirect(303, '/');
+  }
 
-	return user;
+  return user;
 }
 
 /** True when the real account may end an impersonation on its own session. */
 export function canStopImpersonating(context: AuthContext): boolean {
-	const session = getRequestSession(context);
-	if (!session) {
-		return false;
-	}
+  const session = getRequestSession(context);
+  if (!session) {
+    return false;
+  }
 
-	if (!isAdmin(session.realUser)) {
-		log.warn('non-admin session tried to stop an impersonation', { id: session.realUser.id_user });
+  if (!isAdmin(session.realUser)) {
+    log.warn('non-admin session tried to stop an impersonation', { id: session.realUser.id_user });
 
-		return false;
-	}
+    return false;
+  }
 
-	return true;
+  return true;
 }

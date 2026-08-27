@@ -8,60 +8,60 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 export const GET: RequestHandler = async (event) => {
-	await requireScope(event, 'read');
-	const id = event.params.id;
-	if (!IMMICH_BASE_URL) {
-		throw error(500, 'IMMICH_BASE_URL not configured');
-	}
+  await requireScope(event, 'read');
+  const id = event.params.id;
+  if (!IMMICH_BASE_URL) {
+    throw error(500, 'IMMICH_BASE_URL not configured');
+  }
 
-	// Streamed straight to the caller below, so the budget covers the answer only.
-	const res = await fetchWithAnswerDeadline(`${IMMICH_BASE_URL}/api/assets/${id}/thumbnail`, {
-		headers: { 'x-api-key': IMMICH_API_KEY }
-	});
-	if (!res.ok) {
-		const txt = await res.text().catch(() => res.statusText);
-		return new Response(JSON.stringify({ error: `Upstream error: ${txt}` }), {
-			status: res.status,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+  // Streamed straight to the caller below, so the budget covers the answer only.
+  const res = await fetchWithAnswerDeadline(`${IMMICH_BASE_URL}/api/assets/${id}/thumbnail`, {
+    headers: { 'x-api-key': IMMICH_API_KEY },
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => res.statusText);
+    return new Response(JSON.stringify({ error: `Upstream error: ${txt}` }), {
+      status: res.status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
-	const headersOut = new Headers();
-	const ct = res.headers.get('content-type') || 'application/octet-stream';
-	headersOut.set('content-type', ct);
-	const safe = ['etag', 'cache-control', 'expires', 'content-length'];
-	for (const h of safe) {
-		const v = res.headers.get(h);
-		if (v) {
-			headersOut.set(h, v);
-		}
-	}
+  const headersOut = new Headers();
+  const ct = res.headers.get('content-type') || 'application/octet-stream';
+  headersOut.set('content-type', ct);
+  const safe = ['etag', 'cache-control', 'expires', 'content-length'];
+  for (const h of safe) {
+    const v = res.headers.get(h);
+    if (v) {
+      headersOut.set(h, v);
+    }
+  }
 
-	return new Response(res.body, { status: res.status, headers: headersOut });
+  return new Response(res.body, { status: res.status, headers: headersOut });
 };
 
 export const DELETE: RequestHandler = async (event) => {
-	await requireScope(event, 'write');
-	const id = event.params.id;
-	if (!IMMICH_BASE_URL) {
-		throw error(500, 'IMMICH_BASE_URL not configured');
-	}
+  await requireScope(event, 'write');
+  const id = event.params.id;
+  if (!IMMICH_BASE_URL) {
+    throw error(500, 'IMMICH_BASE_URL not configured');
+  }
 
-	const res = await fetch(`${IMMICH_BASE_URL}/api/assets/${id}`, {
-		signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-		method: 'DELETE',
-		headers: { 'x-api-key': IMMICH_API_KEY }
-	});
-	if (!res.ok) {
-		const txt = await res.text().catch(() => res.statusText);
-		return new Response(JSON.stringify({ error: `Delete failed: ${txt}` }), {
-			status: res.status,
-			headers: { 'content-type': 'application/json' }
-		});
-	}
+  const res = await fetch(`${IMMICH_BASE_URL}/api/assets/${id}`, {
+    signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+    method: 'DELETE',
+    headers: { 'x-api-key': IMMICH_API_KEY },
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => res.statusText);
+    return new Response(JSON.stringify({ error: `Delete failed: ${txt}` }), {
+      status: res.status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
 
-	return new Response(JSON.stringify({ success: true }), {
-		status: 200,
-		headers: { 'content-type': 'application/json' }
-	});
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
 };

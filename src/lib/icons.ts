@@ -26,41 +26,41 @@
  * All re-exports are tree-shaken by Vite, so this costs nothing at runtime.
  */
 export {
-	// Navigation / layout
-	BookOpen,
-	ChevronLeft,
-	ChevronRight,
-	List,
-	// Admin domains (sidebar + page headers)
-	Activity, // server health / metrics
-	Database, // database maintenance
-	Images, // media anomalies
-	Key, // API keys
-	ScrollText, // logs
-	ShieldCheck, // admin brand
-	Users, // users management
-	UsersRound, // trombinoscope (people grid)
-	Webhook, // external API reference
-	// Actions
-	Book,
-	Check,
-	CirclePlus,
-	CloudUpload,
-	FileText,
-	FolderPlus,
-	RefreshCw,
-	RotateCcw,
-	ScanSearch,
-	Trash2,
-	Wrench,
-	// Status / feedback
-	ChartColumn,
-	CircleAlert,
-	Code,
-	Film,
-	ImageOff,
-	Info,
-	Layers,
-	Lock,
-	Terminal
+  // Navigation / layout
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  List,
+  // Admin domains (sidebar + page headers)
+  Activity, // server health / metrics
+  Database, // database maintenance
+  Images, // media anomalies
+  Key, // API keys
+  ScrollText, // logs
+  ShieldCheck, // admin brand
+  Users, // users management
+  UsersRound, // trombinoscope (people grid)
+  Webhook, // external API reference
+  // Actions
+  Book,
+  Check,
+  CirclePlus,
+  CloudUpload,
+  FileText,
+  FolderPlus,
+  RefreshCw,
+  RotateCcw,
+  ScanSearch,
+  Trash2,
+  Wrench,
+  // Status / feedback
+  ChartColumn,
+  CircleAlert,
+  Code,
+  Film,
+  ImageOff,
+  Info,
+  Layers,
+  Lock,
+  Terminal,
 } from 'lucide-svelte';

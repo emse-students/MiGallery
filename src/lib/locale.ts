@@ -8,14 +8,14 @@ import { setLocale, type Locale } from '$lib/paraglide/runtime';
  * visitor, or a network error), the cookie-based switch below still applies.
  */
 export async function switchLocale(value: Locale): Promise<void> {
-	try {
-		await fetch('/api/users/me/locale', {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ locale: value })
-		});
-	} catch {
-		// Ignore: the cookie-based switch below still works for logged-out users.
-	}
-	setLocale(value);
+  try {
+    await fetch('/api/users/me/locale', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale: value }),
+    });
+  } catch {
+    // Ignore: the cookie-based switch below still works for logged-out users.
+  }
+  setLocale(value);
 }

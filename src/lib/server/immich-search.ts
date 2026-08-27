@@ -26,65 +26,68 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * a number.
  */
 export interface AssetSearchPage {
-	items: ImmichAsset[];
-	/** The next page to ask for, or null when this was the last one. */
-	nextPage: number | null;
+  items: ImmichAsset[];
+  /** The next page to ask for, or null when this was the last one. */
+  nextPage: number | null;
 }
 
 interface SearchMetadataResponse {
-	assets?: {
-		items?: ImmichAsset[];
-		nextPage?: string | number | null;
-	};
+  assets?: {
+    items?: ImmichAsset[];
+    nextPage?: string | number | null;
+  };
 }
 
 /** Fetch exactly one page of results. */
 export async function searchAssetPage(
-	fetchFn: typeof fetch,
-	filter: Record<string, unknown>,
-	page: number,
-	size: number
+  fetchFn: typeof fetch,
+  filter: Record<string, unknown>,
+  page: number,
+  size: number
 ): Promise<AssetSearchPage> {
-	if (!IMMICH_BASE_URL) {
-		throw error(500, 'IMMICH_BASE_URL not configured');
-	}
+  if (!IMMICH_BASE_URL) {
+    throw error(500, 'IMMICH_BASE_URL not configured');
+  }
 
-	try {
-		const res = await fetchFn(`${IMMICH_BASE_URL}/api/search/metadata`, {
-			signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-			method: 'POST',
-			headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-			body: JSON.stringify({ ...filter, page, size })
-		});
+  try {
+    const res = await fetchFn(`${IMMICH_BASE_URL}/api/search/metadata`, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      method: 'POST',
+      headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...filter, page, size }),
+    });
 
-		if (!res.ok) {
-			const txt = await res.text().catch(() => res.statusText);
-			log.error(`search failed (page ${page}, size ${size}): ${res.status} ${txt}`);
-			// Same status contract as the album mutations: a 4xx is the caller's
-			// problem and travels as-is, anything else is ours and answers 500.
-			throw error(res.status >= 400 && res.status < 500 ? res.status : 500, `Search failed: ${txt}`);
-		}
+    if (!res.ok) {
+      const txt = await res.text().catch(() => res.statusText);
+      log.error(`search failed (page ${page}, size ${size}): ${res.status} ${txt}`);
+      // Same status contract as the album mutations: a 4xx is the caller's
+      // problem and travels as-is, anything else is ours and answers 500.
+      throw error(
+        res.status >= 400 && res.status < 500 ? res.status : 500,
+        `Search failed: ${txt}`
+      );
+    }
 
-		const data = (await res.json()) as SearchMetadataResponse;
-		const items = data.assets?.items ?? [];
-		const raw = data.assets?.nextPage;
-		const next = raw === null || raw === undefined ? null : Number(raw);
+    const data = (await res.json()) as SearchMetadataResponse;
+    const items = data.assets?.items ?? [];
+    const raw = data.assets?.nextPage;
+    const next = raw === null || raw === undefined ? null : Number(raw);
 
-		return { items, nextPage: Number.isFinite(next) && next !== null ? next : null };
-	} catch (e: unknown) {
-		if (isHttpError(e)) {
-			throw e;
-		}
-		log.error(`search failed (page ${page}, size ${size}):`, e);
-		throw error(500, e instanceof Error ? e.message : 'Search failed');
-	}
+    return { items, nextPage: Number.isFinite(next) && next !== null ? next : null };
+  } catch (e: unknown) {
+    if (isHttpError(e)) {
+      throw e;
+    }
+    log.error(`search failed (page ${page}, size ${size}):`, e);
+    throw error(500, e instanceof Error ? e.message : 'Search failed');
+  }
 }
 
 export interface SearchAllOptions {
-	/** Results per request. */
-	size?: number;
-	/** Hard stop, so a pagination bug upstream cannot loop forever. */
-	maxPages?: number;
+  /** Results per request. */
+  size?: number;
+  /** Hard stop, so a pagination bug upstream cannot loop forever. */
+  maxPages?: number;
 }
 
 /**
@@ -97,27 +100,27 @@ export interface SearchAllOptions {
  * result set it means to discard.
  */
 export async function searchAllAssets(
-	fetchFn: typeof fetch,
-	filter: Record<string, unknown>,
-	{ size = 1000, maxPages = 100 }: SearchAllOptions = {}
+  fetchFn: typeof fetch,
+  filter: Record<string, unknown>,
+  { size = 1000, maxPages = 100 }: SearchAllOptions = {}
 ): Promise<ImmichAsset[]> {
-	const all: ImmichAsset[] = [];
-	let page: number | null = 1;
-	let fetched = 0;
+  const all: ImmichAsset[] = [];
+  let page: number | null = 1;
+  let fetched = 0;
 
-	while (page !== null && fetched < maxPages) {
-		const result: AssetSearchPage = await searchAssetPage(fetchFn, filter, page, size);
-		fetched++;
-		if (result.items.length === 0) {
-			break;
-		}
-		all.push(...result.items);
-		page = result.nextPage;
-	}
+  while (page !== null && fetched < maxPages) {
+    const result: AssetSearchPage = await searchAssetPage(fetchFn, filter, page, size);
+    fetched++;
+    if (result.items.length === 0) {
+      break;
+    }
+    all.push(...result.items);
+    page = result.nextPage;
+  }
 
-	if (page !== null && fetched >= maxPages) {
-		log.warn(`search hit the ${maxPages}-page cap with more results pending`, { filter });
-	}
+  if (page !== null && fetched >= maxPages) {
+    log.warn(`search hit the ${maxPages}-page cap with more results pending`, { filter });
+  }
 
-	return all;
+  return all;
 }

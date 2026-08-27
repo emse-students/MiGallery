@@ -1,793 +1,790 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { CircleAlert, Search, X, Plus } from 'lucide-svelte';
-	import Spinner from './Spinner.svelte';
-	import Modal from './Modal.svelte';
-	import { m } from '$lib/paraglide/messages';
-	import { fuzzySearch } from '$lib/fuzzy';
+  import { onMount } from 'svelte';
+  import { CircleAlert, Search, X, Plus } from 'lucide-svelte';
+  import Spinner from './Spinner.svelte';
+  import Modal from './Modal.svelte';
+  import { m } from '$lib/paraglide/messages';
+  import { fuzzySearch } from '$lib/fuzzy';
 
-	interface Props {
-		albumId?: string;
-		onClose: () => void;
-		onSuccess?: (albumId?: string) => void;
-	}
+  interface Props {
+    albumId?: string;
+    onClose: () => void;
+    onSuccess?: (albumId?: string) => void;
+  }
 
-	type UserOption = {
-		id_user: string;
-		name: string;
-		first_name?: string | null;
-		last_name?: string | null;
-		formation?: string | null;
-		promo?: number | null;
-	};
+  type UserOption = {
+    id_user: string;
+    name: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    formation?: string | null;
+    promo?: number | null;
+  };
 
-	let { albumId, onClose, onSuccess }: Props = $props();
+  let { albumId, onClose, onSuccess }: Props = $props();
 
-	const isEditMode = $derived(!!albumId);
-	const safeAlbumId = $derived(albumId ? String(albumId) : '');
+  const isEditMode = $derived(!!albumId);
+  const safeAlbumId = $derived(albumId ? String(albumId) : '');
 
-	let show = $state(true);
-	let albumName = $state('');
-	let albumDate = $state(getDefaultDate());
-	let albumLocation = $state('');
-	let albumVisibility = $state<'private' | 'authenticated' | 'unlisted'>('private');
-	let albumVisible = $state(true);
+  let show = $state(true);
+  let albumName = $state('');
+  let albumDate = $state(getDefaultDate());
+  let albumLocation = $state('');
+  let albumVisibility = $state<'private' | 'authenticated' | 'unlisted'>('private');
+  let albumVisible = $state(true);
 
-	let availableUsers = $state<UserOption[]>([]);
-	let availableFormations = $state<string[]>([]);
+  let availableUsers = $state<UserOption[]>([]);
+  let availableFormations = $state<string[]>([]);
 
-	let selectedUserIds = $state<string[]>([]);
-	let selectedFormations = $state<string[]>([]);
-	let selectedPromos = $state<number[]>([]);
-	let promosManuallyEdited = $state(false);
-	let formationsManuallyEdited = $state(false);
+  let selectedUserIds = $state<string[]>([]);
+  let selectedFormations = $state<string[]>([]);
+  let selectedPromos = $state<number[]>([]);
+  let promosManuallyEdited = $state(false);
+  let formationsManuallyEdited = $state(false);
 
-	const CURRENT_SCHOOL_YEAR = getCurrentSchoolYear();
-	const promoYears: number[] = Array.from(
-		{ length: CURRENT_SCHOOL_YEAR - 1816 + 1 },
-		(_, i) => CURRENT_SCHOOL_YEAR - i
-	);
-	let promoSelectorYear = $state(CURRENT_SCHOOL_YEAR);
+  const CURRENT_SCHOOL_YEAR = getCurrentSchoolYear();
+  const promoYears: number[] = Array.from(
+    { length: CURRENT_SCHOOL_YEAR - 1816 + 1 },
+    (_, i) => CURRENT_SCHOOL_YEAR - i
+  );
+  let promoSelectorYear = $state(CURRENT_SCHOOL_YEAR);
 
-	let userSearch = $state('');
-	let showUserSuggestions = $state(false);
+  let userSearch = $state('');
+  let showUserSuggestions = $state(false);
 
-	let loading = $state(false);
-	let loadingData = $state(false);
-	let loadingOptions = $state(false);
-	let error = $state<string | null>(null);
+  let loading = $state(false);
+  let loadingData = $state(false);
+  let loadingOptions = $state(false);
+  let error = $state<string | null>(null);
 
-	function getDefaultDate() {
-		const today = new Date();
-		const year = today.getFullYear();
-		const month = String(today.getMonth() + 1).padStart(2, '0');
-		const day = String(today.getDate()).padStart(2, '0');
-		return `${year}-${month}-${day}`;
-	}
+  function getDefaultDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 
-	function getCurrentSchoolYear(referenceDate: Date = new Date()): number {
-		const year = referenceDate.getFullYear();
-		const month = referenceDate.getMonth() + 1;
-		return month >= 9 ? year + 1 : year;
-	}
+  function getCurrentSchoolYear(referenceDate: Date = new Date()): number {
+    const year = referenceDate.getFullYear();
+    const month = referenceDate.getMonth() + 1;
+    return month >= 9 ? year + 1 : year;
+  }
 
-	function getDefaultPromosFromDate(dateValue: string): number[] {
-		const parsed = new Date(`${dateValue}T00:00:00`);
-		const baseDate = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-		const currentSchoolYear = getCurrentSchoolYear(baseDate);
-		return [
-			currentSchoolYear - 3,
-			currentSchoolYear - 2,
-			currentSchoolYear - 1,
-			currentSchoolYear
-		];
-	}
+  function getDefaultPromosFromDate(dateValue: string): number[] {
+    const parsed = new Date(`${dateValue}T00:00:00`);
+    const baseDate = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+    const currentSchoolYear = getCurrentSchoolYear(baseDate);
+    return [currentSchoolYear - 3, currentSchoolYear - 2, currentSchoolYear - 1, currentSchoolYear];
+  }
 
-	function applyDefaultPromosFromDate() {
-		if (isEditMode || promosManuallyEdited) return;
-		selectedPromos = [...getDefaultPromosFromDate(albumDate)];
-	}
+  function applyDefaultPromosFromDate() {
+    if (isEditMode || promosManuallyEdited) return;
+    selectedPromos = [...getDefaultPromosFromDate(albumDate)];
+  }
 
-	function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
-		const out = new Set<number>();
-		for (const rawTag of tags) {
-			const match = String(rawTag).trim().match(/^promo\s+(\d{4})$/i);
-			if (match) {
-				out.add(Number.parseInt(match[1], 10));
-			}
-		}
-		return [...out].sort((a, b) => a - b);
-	}
+  function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
+    const out = new Set<number>();
+    for (const rawTag of tags) {
+      const match = String(rawTag)
+        .trim()
+        .match(/^promo\s+(\d{4})$/i);
+      if (match) {
+        out.add(Number.parseInt(match[1], 10));
+      }
+    }
+    return [...out].sort((a, b) => a - b);
+  }
 
-	function userLabel(user: UserOption): string {
-		const fullName = user.name?.trim();
-		if (fullName) return fullName;
-		return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.id_user;
-	}
+  function userLabel(user: UserOption): string {
+    const fullName = user.name?.trim();
+    if (fullName) return fullName;
+    return [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.id_user;
+  }
 
-	const selectedUsers = $derived(
-		selectedUserIds
-			.map((id) => availableUsers.find((u) => u.id_user === id))
-			.filter((u): u is UserOption => !!u)
-	);
+  const selectedUsers = $derived(
+    selectedUserIds
+      .map((id) => availableUsers.find((u) => u.id_user === id))
+      .filter((u): u is UserOption => !!u)
+  );
 
-	// The last search box in MiGallery still on plain substring matching, and the one where it hurt
-	// most: it shows EIGHT suggestions, so a name spelled slightly differently from what was typed
-	// was not merely ranked low, it was unreachable. Scored and sorted, then truncated - truncating
-	// an unordered filter throws the best match away as readily as the worst.
-	const userSuggestions = $derived.by(() => {
-		if (!userSearch.trim()) return [];
-		const candidates = availableUsers.filter((u) => !selectedUserIds.includes(u.id_user));
-		return fuzzySearch(
-			candidates,
-			userSearch,
-			(u) => `${u.id_user} ${u.name || ''} ${u.first_name || ''} ${u.last_name || ''}`
-		).slice(0, 8);
-	});
+  // The last search box in MiGallery still on plain substring matching, and the one where it hurt
+  // most: it shows EIGHT suggestions, so a name spelled slightly differently from what was typed
+  // was not merely ranked low, it was unreachable. Scored and sorted, then truncated - truncating
+  // an unordered filter throws the best match away as readily as the worst.
+  const userSuggestions = $derived.by(() => {
+    if (!userSearch.trim()) return [];
+    const candidates = availableUsers.filter((u) => !selectedUserIds.includes(u.id_user));
+    return fuzzySearch(
+      candidates,
+      userSearch,
+      (u) => `${u.id_user} ${u.name || ''} ${u.first_name || ''} ${u.last_name || ''}`
+    ).slice(0, 8);
+  });
 
-	function addFormation(formation: string) {
-		formationsManuallyEdited = true;
-		if (!selectedFormations.includes(formation)) {
-			selectedFormations = [...selectedFormations, formation];
-		}
-	}
+  function addFormation(formation: string) {
+    formationsManuallyEdited = true;
+    if (!selectedFormations.includes(formation)) {
+      selectedFormations = [...selectedFormations, formation];
+    }
+  }
 
-	function removeFormation(formation: string) {
-		formationsManuallyEdited = true;
-		selectedFormations = selectedFormations.filter((f) => f !== formation);
-	}
+  function removeFormation(formation: string) {
+    formationsManuallyEdited = true;
+    selectedFormations = selectedFormations.filter((f) => f !== formation);
+  }
 
-	function addPromo(promo: number) {
-		promosManuallyEdited = true;
-		if (!selectedPromos.includes(promo)) {
-			selectedPromos = [...selectedPromos, promo].sort((a, b) => a - b);
-		}
-	}
+  function addPromo(promo: number) {
+    promosManuallyEdited = true;
+    if (!selectedPromos.includes(promo)) {
+      selectedPromos = [...selectedPromos, promo].sort((a, b) => a - b);
+    }
+  }
 
-	function removePromo(promo: number) {
-		promosManuallyEdited = true;
-		selectedPromos = selectedPromos.filter((p) => p !== promo);
-	}
+  function removePromo(promo: number) {
+    promosManuallyEdited = true;
+    selectedPromos = selectedPromos.filter((p) => p !== promo);
+  }
 
-	function addPromoFromSelector() {
-		addPromo(promoSelectorYear);
-	}
+  function addPromoFromSelector() {
+    addPromo(promoSelectorYear);
+  }
 
-	function addUser(user: UserOption) {
-		if (!selectedUserIds.includes(user.id_user)) {
-			selectedUserIds = [...selectedUserIds, user.id_user];
-		}
-		userSearch = '';
-		showUserSuggestions = false;
-	}
+  function addUser(user: UserOption) {
+    if (!selectedUserIds.includes(user.id_user)) {
+      selectedUserIds = [...selectedUserIds, user.id_user];
+    }
+    userSearch = '';
+    showUserSuggestions = false;
+  }
 
-	function removeUser(userId: string) {
-		selectedUserIds = selectedUserIds.filter((id) => id !== userId);
-	}
+  function removeUser(userId: string) {
+    selectedUserIds = selectedUserIds.filter((id) => id !== userId);
+  }
 
-	async function loadSharingOptions() {
-		loadingOptions = true;
-		try {
-			const res = await fetch('/api/albums/permissions/options');
-			if (!res.ok) {
-				const err = await res.text().catch(() => res.statusText);
-				throw new Error(err || 'Error loading sharing options');
-			}
+  async function loadSharingOptions() {
+    loadingOptions = true;
+    try {
+      const res = await fetch('/api/albums/permissions/options');
+      if (!res.ok) {
+        const err = await res.text().catch(() => res.statusText);
+        throw new Error(err || 'Error loading sharing options');
+      }
 
-			const data = (await res.json()) as {
-				success?: boolean;
-				users?: UserOption[];
-				formations?: string[];
-				promos?: number[];
-			};
-			availableUsers = data.users || [];
-			availableFormations = data.formations || [];
+      const data = (await res.json()) as {
+        success?: boolean;
+        users?: UserOption[];
+        formations?: string[];
+        promos?: number[];
+      };
+      availableUsers = data.users || [];
+      availableFormations = data.formations || [];
 
-			if (!isEditMode) {
-				if (!formationsManuallyEdited && selectedFormations.length === 0) {
-					selectedFormations = ['ICM'];
-				}
+      if (!isEditMode) {
+        if (!formationsManuallyEdited && selectedFormations.length === 0) {
+          selectedFormations = ['ICM'];
+        }
 
-				if (!promosManuallyEdited && selectedPromos.length === 0) {
-					applyDefaultPromosFromDate();
-				}
-			}
-		} catch (e: unknown) {
-			error = (e as Error).message;
-		} finally {
-			loadingOptions = false;
-		}
-	}
+        if (!promosManuallyEdited && selectedPromos.length === 0) {
+          applyDefaultPromosFromDate();
+        }
+      }
+    } catch (e: unknown) {
+      error = (e as Error).message;
+    } finally {
+      loadingOptions = false;
+    }
+  }
 
-	async function loadAlbumData() {
-		if (!safeAlbumId) return;
-		loadingData = true;
-		error = null;
+  async function loadAlbumData() {
+    if (!safeAlbumId) return;
+    loadingData = true;
+    error = null;
 
-		try {
-			const res = await fetch(`/api/albums/${safeAlbumId}/info`);
+    try {
+      const res = await fetch(`/api/albums/${safeAlbumId}/info`);
 
-			if (!res.ok) {
-				const errorData = (await res.json().catch(() => ({}))) as { error?: string };
-				throw new Error(errorData.error || 'Error loading album');
-			}
+      if (!res.ok) {
+        const errorData = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(errorData.error || 'Error loading album');
+      }
 
-			const result = (await res.json()) as {
-				success?: boolean;
-				album?: {
-					id: string;
-					name: string;
-					date?: string;
-					location?: string;
-					visibility?: string;
-					visible?: number;
-				};
-				tags?: string[];
-				users?: string[];
-				formations?: string[];
-				promos?: number[];
-			};
+      const result = (await res.json()) as {
+        success?: boolean;
+        album?: {
+          id: string;
+          name: string;
+          date?: string;
+          location?: string;
+          visibility?: string;
+          visible?: number;
+        };
+        tags?: string[];
+        users?: string[];
+        formations?: string[];
+        promos?: number[];
+      };
 
-			if (!result.success || !result.album) {
-				throw new Error(m.am_not_found());
-			}
+      if (!result.success || !result.album) {
+        throw new Error(m.am_not_found());
+      }
 
-			const album = result.album;
-			albumName = album.name || '';
-			albumDate = album.date || '';
-			albumLocation = album.location || '';
-			albumVisibility = (album.visibility as 'private' | 'authenticated' | 'unlisted') || 'private';
-			albumVisible = album.visible === 1;
-			selectedUserIds = result.users || [];
-			selectedFormations = result.formations || [];
-			selectedPromos = result.promos || extractPromoYearsFromLegacyTags(result.tags || []);
-		} catch (e: unknown) {
-			error = (e as Error).message;
-		} finally {
-			loadingData = false;
-		}
-	}
+      const album = result.album;
+      albumName = album.name || '';
+      albumDate = album.date || '';
+      albumLocation = album.location || '';
+      albumVisibility = (album.visibility as 'private' | 'authenticated' | 'unlisted') || 'private';
+      albumVisible = album.visible === 1;
+      selectedUserIds = result.users || [];
+      selectedFormations = result.formations || [];
+      selectedPromos = result.promos || extractPromoYearsFromLegacyTags(result.tags || []);
+    } catch (e: unknown) {
+      error = (e as Error).message;
+    } finally {
+      loadingData = false;
+    }
+  }
 
-	async function handleSubmit() {
-		// Guard against double-fire: Modal onConfirm + form onsubmit (Enter) can both call this.
-		if (loading) return;
-		if (!albumName.trim()) {
-			error = "Le nom de l'album est requis";
-			return;
-		}
+  async function handleSubmit() {
+    // Guard against double-fire: Modal onConfirm + form onsubmit (Enter) can both call this.
+    if (loading) return;
+    if (!albumName.trim()) {
+      error = "Le nom de l'album est requis";
+      return;
+    }
 
-		loading = true;
-		error = null;
+    loading = true;
+    error = null;
 
-		const payload = {
-			date: albumDate || null,
-			location: albumLocation.trim() || null,
-			visibility: albumVisibility,
-			visible: albumVisible,
-			formations: selectedFormations,
-			promos: selectedPromos,
-			allowedUsers: selectedUserIds
-		};
+    const payload = {
+      date: albumDate || null,
+      location: albumLocation.trim() || null,
+      visibility: albumVisibility,
+      visible: albumVisible,
+      formations: selectedFormations,
+      promos: selectedPromos,
+      allowedUsers: selectedUserIds,
+    };
 
-		try {
-			if (isEditMode) {
-				const res = await fetch(`/api/albums/${safeAlbumId}`, {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						name: albumName.trim(),
-						...payload
-					})
-				});
+    try {
+      if (isEditMode) {
+        const res = await fetch(`/api/albums/${safeAlbumId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: albumName.trim(),
+            ...payload,
+          }),
+        });
 
-				if (!res.ok) {
-					const errData = (await res.json().catch(() => ({}))) as { error?: string };
-					throw new Error(errData.error || m.am_update_error());
-				}
-			} else {
-				const res = await fetch('/api/albums', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						albumName: albumName.trim(),
-						...payload
-					})
-				});
+        if (!res.ok) {
+          const errData = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(errData.error || m.am_update_error());
+        }
+      } else {
+        const res = await fetch('/api/albums', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            albumName: albumName.trim(),
+            ...payload,
+          }),
+        });
 
-				if (!res.ok) {
-					const errText = await res.text().catch(() => res.statusText);
-					throw new Error(errText || m.am_create_error());
-				}
+        if (!res.ok) {
+          const errText = await res.text().catch(() => res.statusText);
+          throw new Error(errText || m.am_create_error());
+        }
 
-				const createdAlbum = (await res.json()) as { id?: string };
-				if (onSuccess) await onSuccess(createdAlbum.id);
-				onClose();
-				return;
-			}
+        const createdAlbum = (await res.json()) as { id?: string };
+        if (onSuccess) await onSuccess(createdAlbum.id);
+        onClose();
+        return;
+      }
 
-			if (onSuccess) await onSuccess();
-			onClose();
-		} catch (e: unknown) {
-			error = (e as Error).message;
-		} finally {
-			loading = false;
-		}
-	}
+      if (onSuccess) await onSuccess();
+      onClose();
+    } catch (e: unknown) {
+      error = (e as Error).message;
+    } finally {
+      loading = false;
+    }
+  }
 
-	onMount(async () => {
-		await loadSharingOptions();
-		if (isEditMode) {
-			await loadAlbumData();
-		}
-	});
+  onMount(async () => {
+    await loadSharingOptions();
+    if (isEditMode) {
+      await loadAlbumData();
+    }
+  });
 </script>
 
 <Modal
-	bind:show
-	title={isEditMode ? m.am_edit_title() : m.am_create_title()}
-	icon={isEditMode ? 'edit' : 'folder-plus'}
-	confirmText={isEditMode ? m.common_save() : m.am_create_confirm()}
-	confirmDisabled={loading || loadingData || loadingOptions}
-	showCloseButton={true}
-	onConfirm={handleSubmit}
-	onCancel={onClose}
+  bind:show
+  title={isEditMode ? m.am_edit_title() : m.am_create_title()}
+  icon={isEditMode ? 'edit' : 'folder-plus'}
+  confirmText={isEditMode ? m.common_save() : m.am_create_confirm()}
+  confirmDisabled={loading || loadingData || loadingOptions}
+  showCloseButton={true}
+  onConfirm={handleSubmit}
+  onCancel={onClose}
 >
-	{#if error}
-		<div class="error-message">
-			<CircleAlert size={20} />
-			<p>{error}</p>
-		</div>
-	{/if}
+  {#if error}
+    <div class="error-message">
+      <CircleAlert size={20} />
+      <p>{error}</p>
+    </div>
+  {/if}
 
-	{#if loadingData || loadingOptions}
-		<div class="loading-state">
-			<Spinner size={40} />
-			<p>{m.am_loading()}</p>
-		</div>
-	{:else}
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				handleSubmit();
-			}}
-		>
-			<div class="form-group">
-				<label for="albumName">{m.am_name_label()}</label>
-				<input
-					id="albumName"
-					type="text"
-					bind:value={albumName}
-					placeholder={m.am_name_placeholder()}
-					required
-					disabled={loading}
-				/>
-			</div>
+  {#if loadingData || loadingOptions}
+    <div class="loading-state">
+      <Spinner size={40} />
+      <p>{m.am_loading()}</p>
+    </div>
+  {:else}
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+    >
+      <div class="form-group">
+        <label for="albumName">{m.am_name_label()}</label>
+        <input
+          id="albumName"
+          type="text"
+          bind:value={albumName}
+          placeholder={m.am_name_placeholder()}
+          required
+          disabled={loading}
+        />
+      </div>
 
-			<div class="meta-grid">
-				<div class="form-group">
-					<label for="albumDate">{m.am_date_label()}</label>
-					<input
-						id="albumDate"
-						type="date"
-						bind:value={albumDate}
-						onchange={applyDefaultPromosFromDate}
-						disabled={loading}
-					/>
-				</div>
+      <div class="meta-grid">
+        <div class="form-group">
+          <label for="albumDate">{m.am_date_label()}</label>
+          <input
+            id="albumDate"
+            type="date"
+            bind:value={albumDate}
+            onchange={applyDefaultPromosFromDate}
+            disabled={loading}
+          />
+        </div>
 
-				<div class="form-group">
-					<label for="albumLocation">{m.am_location_label()}</label>
-					<input
-						id="albumLocation"
-						type="text"
-						bind:value={albumLocation}
-						placeholder={m.am_location_placeholder()}
-						disabled={loading}
-					/>
-				</div>
-			</div>
+        <div class="form-group">
+          <label for="albumLocation">{m.am_location_label()}</label>
+          <input
+            id="albumLocation"
+            type="text"
+            bind:value={albumLocation}
+            placeholder={m.am_location_placeholder()}
+            disabled={loading}
+          />
+        </div>
+      </div>
 
-			<div class="form-group">
-				<label for="albumVisibility">{m.am_visibility_label()}</label>
-				<select id="albumVisibility" bind:value={albumVisibility} disabled={loading}>
-					<option value="private">{m.am_vis_private()}</option>
-					<option value="authenticated">{m.am_vis_authenticated()}</option>
-					<option value="unlisted">{m.am_vis_unlisted()}</option>
-				</select>
-			</div>
+      <div class="form-group">
+        <label for="albumVisibility">{m.am_visibility_label()}</label>
+        <select id="albumVisibility" bind:value={albumVisibility} disabled={loading}>
+          <option value="private">{m.am_vis_private()}</option>
+          <option value="authenticated">{m.am_vis_authenticated()}</option>
+          <option value="unlisted">{m.am_vis_unlisted()}</option>
+        </select>
+      </div>
 
-			<div class="form-group-checkbox">
-				<label>
-					<input type="checkbox" bind:checked={albumVisible} disabled={loading} />
-					<span>{m.am_visible_toggle()}</span>
-				</label>
-			</div>
+      <div class="form-group-checkbox">
+        <label>
+          <input type="checkbox" bind:checked={albumVisible} disabled={loading} />
+          <span>{m.am_visible_toggle()}</span>
+        </label>
+      </div>
 
-			{#if albumVisibility === 'private'}
-				<div class="share-panel">
-					<h4>{m.am_share_title()}</h4>
-					<p class="share-hint">
-						{m.am_share_desc()}
-					</p>
+      {#if albumVisibility === 'private'}
+        <div class="share-panel">
+          <h4>{m.am_share_title()}</h4>
+          <p class="share-hint">
+            {m.am_share_desc()}
+          </p>
 
-					<div class="share-section">
-						<div class="share-title">{m.am_formations()}</div>
-						<div class="choice-row">
-							{#each availableFormations as formation}
-								<button
-									type="button"
-									class="chip {selectedFormations.includes(formation) ? 'active' : ''}"
-									onclick={() =>
-										selectedFormations.includes(formation)
-											? removeFormation(formation)
-											: addFormation(formation)}
-								>
-									{formation}
-								</button>
-							{/each}
-						</div>
-					</div>
+          <div class="share-section">
+            <div class="share-title">{m.am_formations()}</div>
+            <div class="choice-row">
+              {#each availableFormations as formation}
+                <button
+                  type="button"
+                  class="chip {selectedFormations.includes(formation) ? 'active' : ''}"
+                  onclick={() =>
+                    selectedFormations.includes(formation)
+                      ? removeFormation(formation)
+                      : addFormation(formation)}
+                >
+                  {formation}
+                </button>
+              {/each}
+            </div>
+          </div>
 
-					<div class="share-section">
-						<div class="share-title">{m.am_promotions()}</div>
-						{#if selectedPromos.length > 0}
-							<div class="choice-row">
-								{#each selectedPromos as promo}
-									<button
-										type="button"
-										class="selected-chip"
-										onclick={() => removePromo(promo)}
-										title={m.am_remove_promo({ promo })}
-									>
-										<span>{promo}</span>
-										<X size={12} />
-									</button>
-								{/each}
-							</div>
-						{:else}
-							<p class="no-promos">{m.am_no_promos()}</p>
-						{/if}
-						<div class="promo-add-row">
-							<select
-								bind:value={promoSelectorYear}
-								class="promo-select"
-								disabled={loading}
-							>
-								{#each promoYears as year}
-									<option value={year}>{year}</option>
-								{/each}
-							</select>
-							<button
-								type="button"
-								class="promo-add-btn"
-								onclick={addPromoFromSelector}
-								disabled={loading || selectedPromos.includes(promoSelectorYear)}
-								aria-label={m.am_add_promo_aria()}
-								title={selectedPromos.includes(promoSelectorYear)
-									? m.am_already_added()
-									: m.am_add_promo_title()}
-							>
-								<Plus size={18} strokeWidth={2.5} />
-							</button>
-						</div>
-					</div>
+          <div class="share-section">
+            <div class="share-title">{m.am_promotions()}</div>
+            {#if selectedPromos.length > 0}
+              <div class="choice-row">
+                {#each selectedPromos as promo}
+                  <button
+                    type="button"
+                    class="selected-chip"
+                    onclick={() => removePromo(promo)}
+                    title={m.am_remove_promo({ promo })}
+                  >
+                    <span>{promo}</span>
+                    <X size={12} />
+                  </button>
+                {/each}
+              </div>
+            {:else}
+              <p class="no-promos">{m.am_no_promos()}</p>
+            {/if}
+            <div class="promo-add-row">
+              <select bind:value={promoSelectorYear} class="promo-select" disabled={loading}>
+                {#each promoYears as year}
+                  <option value={year}>{year}</option>
+                {/each}
+              </select>
+              <button
+                type="button"
+                class="promo-add-btn"
+                onclick={addPromoFromSelector}
+                disabled={loading || selectedPromos.includes(promoSelectorYear)}
+                aria-label={m.am_add_promo_aria()}
+                title={selectedPromos.includes(promoSelectorYear)
+                  ? m.am_already_added()
+                  : m.am_add_promo_title()}
+              >
+                <Plus size={18} strokeWidth={2.5} />
+              </button>
+            </div>
+          </div>
 
-					<div class="share-section">
-						<label for="userSearch" class="share-title">{m.am_users_label()}</label>
-						<div class="search-box">
-							<Search size={16} />
-							<input
-								id="userSearch"
-								type="text"
-								bind:value={userSearch}
-								onfocus={() => (showUserSuggestions = true)}
-								onblur={() => {
-									setTimeout(() => {
-										showUserSuggestions = false;
-									}, 120);
-								}}
-								placeholder={m.am_user_search_placeholder()}
-								disabled={loading}
-							/>
-						</div>
+          <div class="share-section">
+            <label for="userSearch" class="share-title">{m.am_users_label()}</label>
+            <div class="search-box">
+              <Search size={16} />
+              <input
+                id="userSearch"
+                type="text"
+                bind:value={userSearch}
+                onfocus={() => (showUserSuggestions = true)}
+                onblur={() => {
+                  setTimeout(() => {
+                    showUserSuggestions = false;
+                  }, 120);
+                }}
+                placeholder={m.am_user_search_placeholder()}
+                disabled={loading}
+              />
+            </div>
 
-						{#if showUserSuggestions && userSuggestions.length > 0}
-							<div class="suggestions">
-								{#each userSuggestions as user}
-									<button type="button" class="suggestion" onclick={() => addUser(user)}>
-										<span class="s-main">{userLabel(user)}</span>
-										<span class="suggestion-add" aria-hidden="true">
-											<Plus size={16} strokeWidth={2.6} />
-										</span>
-									</button>
-								{/each}
-							</div>
-						{/if}
+            {#if showUserSuggestions && userSuggestions.length > 0}
+              <div class="suggestions">
+                {#each userSuggestions as user}
+                  <button type="button" class="suggestion" onclick={() => addUser(user)}>
+                    <span class="s-main">{userLabel(user)}</span>
+                    <span class="suggestion-add" aria-hidden="true">
+                      <Plus size={16} strokeWidth={2.6} />
+                    </span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
 
-						{#if selectedUsers.length > 0}
-							<div class="selected-list">
-								{#each selectedUsers as user}
-									<button type="button" class="selected-chip" onclick={() => removeUser(user.id_user)}>
-										<span>{userLabel(user)}</span>
-										<X size={14} />
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				</div>
-			{/if}
+            {#if selectedUsers.length > 0}
+              <div class="selected-list">
+                {#each selectedUsers as user}
+                  <button
+                    type="button"
+                    class="selected-chip"
+                    onclick={() => removeUser(user.id_user)}
+                  >
+                    <span>{userLabel(user)}</span>
+                    <X size={14} />
+                  </button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
 
-			<button type="submit" style="display: none;" tabindex="-1" aria-hidden="true"></button>
-		</form>
-	{/if}
+      <button type="submit" style="display: none;" tabindex="-1" aria-hidden="true"></button>
+    </form>
+  {/if}
 </Modal>
 
 <style>
-	.loading-state {
-		text-align: center;
-		padding: 3rem 1rem;
-		color: var(--text-primary);
-	}
+  .loading-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-primary);
+  }
 
-	.loading-state p {
-		margin-top: 1rem;
-		color: var(--text-secondary);
-	}
+  .loading-state p {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+  }
 
-	.error-message {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 1rem;
-		background: color-mix(in srgb, var(--error) 10%, transparent);
-		border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
-		border-radius: var(--radius-xs);
-		color: var(--error);
-		margin-bottom: 1.5rem;
-	}
+  .error-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
+    border-radius: var(--radius-xs);
+    color: var(--error);
+    margin-bottom: 1.5rem;
+  }
 
-	.error-message p {
-		margin: 0;
-		font-size: 0.875rem;
-	}
+  .error-message p {
+    margin: 0;
+    font-size: 0.875rem;
+  }
 
-	form {
-		display: flex;
-		flex-direction: column;
-		gap: 1.25rem;
-	}
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
 
-	.meta-grid {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 0.8rem;
-	}
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+  }
 
-	.form-group {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-	.form-group label,
-	.share-title {
-		color: var(--text-primary);
-		font-weight: 600;
-		font-size: 0.875rem;
-	}
+  .form-group label,
+  .share-title {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
 
-	.form-group input,
-	.form-group select,
-	.search-box input {
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		color: var(--text-primary);
-		padding: 0.75rem;
-		border-radius: var(--radius-sm);
-		font-size: 0.9rem;
-		transition: all 0.2s ease;
-	}
+  .form-group input,
+  .form-group select,
+  .search-box input {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
 
-	.search-box {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0 0.6rem;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: var(--bg-tertiary);
-	}
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+  }
 
-	.search-box input {
-		border: 0;
-		padding: 0.65rem 0;
-		background: transparent;
-		width: 100%;
-	}
+  .search-box input {
+    border: 0;
+    padding: 0.65rem 0;
+    background: transparent;
+    width: 100%;
+  }
 
-	.form-group input:focus,
-	.form-group select:focus,
-	.search-box:focus-within {
-		outline: none;
-		border-color: var(--accent);
-	}
+  .form-group input:focus,
+  .form-group select:focus,
+  .search-box:focus-within {
+    outline: none;
+    border-color: var(--accent);
+  }
 
-	.form-group-checkbox label {
-		display: flex;
-		align-items: center;
-		gap: 0.65rem;
-		font-size: 0.9rem;
-	}
+  .form-group-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 0.9rem;
+  }
 
-	.share-panel {
-		border: 1px solid var(--border);
-		background: color-mix(in oklab, var(--bg-tertiary) 90%, transparent);
-		border-radius: var(--radius-md);
-		padding: 0.9rem;
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
+  .share-panel {
+    border: 1px solid var(--border);
+    background: color-mix(in oklab, var(--bg-tertiary) 90%, transparent);
+    border-radius: var(--radius-md);
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
 
-	.share-panel h4 {
-		margin: 0;
-		font-size: 1rem;
-	}
+  .share-panel h4 {
+    margin: 0;
+    font-size: 1rem;
+  }
 
-	.share-hint {
-		margin: 0;
-		font-size: 0.82rem;
-		color: var(--text-secondary);
-	}
+  .share-hint {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
 
-	.share-section {
-		display: flex;
-		flex-direction: column;
-		gap: 0.55rem;
-		position: relative;
-	}
+  .share-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    position: relative;
+  }
 
-	.choice-row,
-	.selected-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.45rem;
-	}
+  .choice-row,
+  .selected-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
 
-	.promo-add-row {
-		display: flex;
-		gap: 0.5rem;
-		align-items: center;
-	}
+  .promo-add-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
 
-	.promo-select {
-		flex: 1;
-		background: var(--bg-tertiary);
-		border: 1px solid var(--border);
-		color: var(--text-primary);
-		padding: 0.55rem 0.65rem;
-		border-radius: var(--radius-sm);
-		font-size: 0.9rem;
-		cursor: pointer;
-		transition: border-color 0.2s;
-	}
+  .promo-select {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 0.55rem 0.65rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
 
-	.promo-select:focus {
-		outline: none;
-		border-color: var(--accent);
-	}
+  .promo-select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
 
-	.promo-add-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2.35rem;
-		height: 2.35rem;
-		padding: 0;
-		border-radius: 50%;
-		border: none;
-		background: var(--accent);
-		color: #fff;
-		cursor: pointer;
-		flex-shrink: 0;
-		transition: opacity 0.15s;
-	}
+  .promo-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    padding: 0;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
 
-	.promo-add-btn :global(svg) {
-		display: block;
-	}
+  .promo-add-btn :global(svg) {
+    display: block;
+  }
 
-	.promo-add-btn:not(:disabled):hover {
-		opacity: 0.82;
-	}
+  .promo-add-btn:not(:disabled):hover {
+    opacity: 0.82;
+  }
 
-	.promo-add-btn:disabled {
-		opacity: 0.35;
-		cursor: not-allowed;
-	}
+  .promo-add-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
 
-	.no-promos {
-		margin: 0;
-		font-size: 0.82rem;
-		color: var(--text-secondary);
-		font-style: italic;
-	}
+  .no-promos {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
 
-	.chip,
-	.selected-chip {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.4rem 0.65rem;
-		border-radius: 999px;
-		border: 1px solid var(--border);
-		background: var(--bg-secondary);
-		color: var(--text-primary);
-		font-size: 0.82rem;
-		cursor: pointer;
-	}
+  .chip,
+  .selected-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
 
-	.chip.active {
-		border-color: var(--accent);
-		background: color-mix(in oklab, var(--accent) 20%, var(--bg-secondary));
-	}
+  .chip.active {
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 20%, var(--bg-secondary));
+  }
 
-	.selected-chip {
-		border-color: color-mix(in oklab, var(--accent) 50%, var(--border));
-	}
+  .selected-chip {
+    border-color: color-mix(in oklab, var(--accent) 50%, var(--border));
+  }
 
-	.suggestions {
-		max-height: 240px;
-		overflow: auto;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: var(--bg-secondary);
-	}
+  .suggestions {
+    max-height: 240px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+  }
 
-	.suggestion {
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.6rem;
-		padding: 0.55rem 0.7rem;
-		border: 0;
-		background: transparent;
-		text-align: left;
-		color: var(--text-primary);
-		cursor: pointer;
-	}
+  .suggestion {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
 
-	.suggestion:hover {
-		background: color-mix(in oklab, var(--accent) 12%, transparent);
-	}
+  .suggestion:hover {
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+  }
 
-	.s-main {
-		font-size: 0.86rem;
-	}
+  .s-main {
+    font-size: 0.86rem;
+  }
 
-	.suggestion-add {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.4rem;
-		height: 1.4rem;
-		border-radius: 50%;
-		background: var(--accent);
-		color: #fff;
-		flex-shrink: 0;
-	}
+  .suggestion-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    flex-shrink: 0;
+  }
 
-	.suggestion-add :global(svg) {
-		display: block;
-		width: 0.95rem;
-		height: 0.95rem;
-	}
+  .suggestion-add :global(svg) {
+    display: block;
+    width: 0.95rem;
+    height: 0.95rem;
+  }
 
-	@media (max-width: 640px) {
-		.meta-grid {
-			grid-template-columns: 1fr;
-		}
-	}
+  @media (max-width: 640px) {
+    .meta-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
