@@ -38,8 +38,24 @@ jobs:
       - name: Type check
         run: bun run check
 
-      # `bun run lint` is oxlint + oxvelte. The oxvelte half is a Rust binary the shim
-      # cargo-installs when missing, so this step also proves the shim works on a clean runner.
+      # oxvelte is a Rust binary published on no registry, built from the revision
+      # scripts/install-oxvelte.sh pins. Without this cache the shim rebuilt it on EVERY run - a
+      # couple of minutes of every pipeline, spent silently inside a step named "Lint". The key
+      # names the revision, so it must move when OXVELTE_REV does.
+      - name: Cache oxvelte build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/oxvelte
+            ~/.cargo/.crates2.json
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: oxvelte-7196779a-${{ runner.os }}
+
+      # `bun run lint` is oxlint + oxvelte. The oxvelte half goes through the shim, which installs
+      # the pinned revision when the cache did not restore it - so this step also proves the shim
+      # works on a clean runner.
       - name: Lint
         run: bun run lint
 
