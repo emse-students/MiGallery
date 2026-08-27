@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { Lock, ArrowLeft, Camera, Eye } from 'lucide-svelte';
+  import { Lock, ArrowLeft, Camera, Eye } from '@lucide/svelte';
   import LoadingState from '$lib/components/LoadingState.svelte';
   import ErrorState from '$lib/components/ErrorState.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';

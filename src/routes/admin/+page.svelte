@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { BookOpen, List, FileText } from 'lucide-svelte';
+  import { BookOpen, List, FileText } from '@lucide/svelte';
   import { m } from '$lib/paraglide/messages';
   import AdminPage from '$lib/components/AdminPage.svelte';
 

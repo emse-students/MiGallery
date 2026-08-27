@@ -11,7 +11,7 @@
     CircleCheckBig,
     CloudUpload,
     Check,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import { fade, fly } from 'svelte/transition';
   import { invalidateAll } from '$app/navigation';
   import Avatar from '$lib/components/Avatar.svelte';

@@ -14,7 +14,7 @@
     MapPin,
     CircleAlert,
     Image as ImageIcon,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import Spinner from '$lib/components/Spinner.svelte';

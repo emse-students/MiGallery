@@ -11,7 +11,7 @@
     X,
     ChevronLeft,
     ChevronRight,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import Modal from './Modal.svelte';
   import { page } from '$app/state';
   import type { ImmichAsset, User } from '$lib/types/api';

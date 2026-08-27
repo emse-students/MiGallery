@@ -26,7 +26,7 @@
 - English only for code, comments, docs, dev-facing strings.
 - I18N: user-visible strings via Paraglide (`messages/fr.json`, `en.json`). No inline literals.
 - ASCII punctuation everywhere; French accents only inside localized strings/French comments.
-- UI: single source of truth is `src/app.css` (tokens, `--radius-*`). `.btn-glass` with modifiers, dark-first glassmorphism, no raw hex/px, `lucide-svelte` only.
+- UI: single source of truth is `src/app.css` (tokens, `--radius-*`). `.btn-glass` with modifiers, dark-first glassmorphism, no raw hex/px, `@lucide/svelte` only - NEVER `lucide-svelte`, which is the deprecated name that still resolves and still renders (CI greps for it).
 - Husky pre-commit runs `bun run lint && bun run check` - oxlint, oxvelte, then svelte-check. Fix errors, do not bypass.
 
 ## KEY PATHS & COMMANDS

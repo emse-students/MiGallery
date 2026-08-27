@@ -11,7 +11,7 @@
     Link as LinkIcon,
     Eye,
     ChevronRight,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';

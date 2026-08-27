@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   import type { User } from '$lib/types/api';
-  import { LogIn, UserPlus } from 'lucide-svelte';
+  import { LogIn, UserPlus } from '@lucide/svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import { fade, fly } from 'svelte/transition';
   import { m } from '$lib/paraglide/messages';

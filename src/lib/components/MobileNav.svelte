@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { Folder, User as UserIcon, Camera, Settings } from 'lucide-svelte';
+  import { Folder, User as UserIcon, Camera, Settings } from '@lucide/svelte';
   import type { User } from '$lib/types/api';
   import { m } from '$lib/paraglide/messages';
 

@@ -54,6 +54,8 @@ the page is a bug.
 - Text is ASCII (straight `'` and `"`, hyphen `-`); the ellipsis `…` is the one
   intentional exception.
 - Svelte 5 runes only (`$state`, `$derived`, `$effect`), never the legacy `$:`.
-- Icons: `lucide-svelte` only, and only names that exist in the installed version.
+- Icons: `@lucide/svelte` only (`lucide-svelte` is the deprecated name and is grepped
+  for in CI), and only canonical names - `dist/icons/`, never `dist/aliases/`, which
+  still re-exports 254 legacy names that render fine until a major drops them.
 - No memory buffering for large media: uploads stream to disk, downloads use a
   native token flow. Never accumulate multi-MB buffers.

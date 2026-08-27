@@ -10,7 +10,7 @@
     X,
     UserX,
     Camera,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
 
   interface Props {
     show: boolean;

@@ -19,7 +19,7 @@
     TriangleAlert,
     Languages,
     Shield,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import CameraInput from '$lib/components/CameraInput.svelte';

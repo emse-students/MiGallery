@@ -9,7 +9,7 @@
     CircleAlert,
     RefreshCw,
     Trash2,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import AdminPage from '$lib/components/AdminPage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import LoadingState from '$lib/components/LoadingState.svelte';

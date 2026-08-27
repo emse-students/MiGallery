@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-svelte';
+  import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from '@lucide/svelte';
   import { goto } from '$app/navigation';
   import { m } from '$lib/paraglide/messages';
   import AdminPage from '$lib/components/AdminPage.svelte';

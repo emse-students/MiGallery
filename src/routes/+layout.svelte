@@ -5,7 +5,7 @@
   import { navigationModalStore } from '$lib/navigation-store';
   import { theme } from '$lib/theme';
   import type { User } from '$lib/types/api';
-  import { Folder, User as UserIcon, Camera, Settings, LogIn } from 'lucide-svelte';
+  import { Folder, User as UserIcon, Camera, Settings, LogIn } from '@lucide/svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import ConfirmHost from '$lib/components/ConfirmHost.svelte';

@@ -7,7 +7,7 @@
     Image as ImageIcon,
     CircleMinus,
     Heart,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import PhotoCard from '$lib/components/PhotoCard.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';

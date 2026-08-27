@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Image as ImageIcon, CircleAlert, CircleCheckBig } from 'lucide-svelte';
+  import { Image as ImageIcon, CircleAlert, CircleCheckBig } from '@lucide/svelte';
   import FaceCropThumb from './FaceCropThumb.svelte';
   import Spinner from './Spinner.svelte';
   import EmptyState from './EmptyState.svelte';

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CircleAlert, Search, X, Plus } from 'lucide-svelte';
+  import { CircleAlert, Search, X, Plus } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
   import Modal from './Modal.svelte';
   import { m } from '$lib/paraglide/messages';

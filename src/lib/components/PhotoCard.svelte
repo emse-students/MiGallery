@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Heart, Download, Trash2, SquareCheck } from 'lucide-svelte';
+  import { Heart, Download, Trash2, SquareCheck } from '@lucide/svelte';
   import LazyImage from './LazyImage.svelte';
   import Skeleton from './Skeleton.svelte';
   import type { Asset } from '$lib/photos.svelte';

@@ -17,7 +17,7 @@
     RotateCcw,
     Box,
     Images,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import AdminPage from '$lib/components/AdminPage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import { page } from '$app/state';

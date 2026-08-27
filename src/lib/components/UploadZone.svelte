@@ -10,7 +10,7 @@
     Upload,
     WifiOff,
     Clock,
-  } from 'lucide-svelte';
+  } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
   import { m } from '$lib/paraglide/messages';
 

@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
-  import { Trash2, X, SquareCheck, Square, ArrowLeft } from 'lucide-svelte';
+  import { Trash2, X, SquareCheck, Square, ArrowLeft } from '@lucide/svelte';
   import AdminPage from '$lib/components/AdminPage.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import LoadingState from '$lib/components/LoadingState.svelte';

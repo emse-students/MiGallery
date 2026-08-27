@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Book, Server, ScanEye, Database, Copyright, Info } from 'lucide-svelte';
+  import { Book, Server, ScanEye, Database, Copyright, Info } from '@lucide/svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import { m } from '$lib/paraglide/messages';
   import { getLocale } from '$lib/paraglide/runtime';

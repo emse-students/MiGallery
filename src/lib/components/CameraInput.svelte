@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { CircleAlert, Camera, X, Upload } from 'lucide-svelte';
+  import { CircleAlert, Camera, X, Upload } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
   import { m } from '$lib/paraglide/messages';
 

@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type { ComponentType, SvelteComponent, Snippet } from 'svelte';
-  import { Inbox } from 'lucide-svelte';
+  import type { Snippet } from 'svelte';
+  import type { IconComponent } from '$lib/icons';
+  import { Inbox } from '@lucide/svelte';
 
   interface Props {
     /** Lucide icon component (defaults to Inbox). */
-    icon?: ComponentType<SvelteComponent>;
+    icon?: IconComponent;
     title: string;
     description?: string | null;
     /** Visual size of the block. */

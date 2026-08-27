@@ -1,11 +1,12 @@
 <script lang="ts">
-  import type { ComponentType, SvelteComponent, Snippet } from 'svelte';
+  import type { Snippet } from 'svelte';
+  import type { IconComponent } from '$lib/icons';
 
   interface Props {
     title: string;
     subtitle?: string | null;
     /** Lucide icon component shown in the header badge. */
-    icon?: ComponentType<SvelteComponent>;
+    icon?: IconComponent;
     /** Right-aligned header actions (buttons, links). */
     actions?: Snippet;
     children: Snippet;

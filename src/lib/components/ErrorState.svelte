@@ -1,11 +1,12 @@
 <script lang="ts">
-  import type { ComponentType, SvelteComponent, Snippet } from 'svelte';
-  import { CircleX, RotateCcw } from 'lucide-svelte';
+  import type { Snippet } from 'svelte';
+  import type { IconComponent } from '$lib/icons';
+  import { CircleX, RotateCcw } from '@lucide/svelte';
   import { m } from '$lib/paraglide/messages';
 
   interface Props {
     /** Lucide icon component (defaults to CircleX). */
-    icon?: ComponentType<SvelteComponent>;
+    icon?: IconComponent;
     /** Primary message (usually the error text). */
     title: string;
     description?: string | null;
