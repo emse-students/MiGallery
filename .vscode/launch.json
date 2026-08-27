@@ -5,7 +5,7 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Run Tests (Vitest)",
-			"runtimeExecutable": "npm",
+			"runtimeExecutable": "bun",
 			"runtimeArgs": ["run", "test:watch"],
 			"console": "integratedTerminal",
 			"internalConsoleOptions": "neverOpen"
@@ -14,7 +14,7 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Dev Server",
-			"runtimeExecutable": "npm",
+			"runtimeExecutable": "bun",
 			"runtimeArgs": ["run", "dev"],
 			"console": "integratedTerminal",
 			"internalConsoleOptions": "neverOpen"

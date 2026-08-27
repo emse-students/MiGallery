@@ -67,9 +67,10 @@ if (category === 'full') {
 
 args.push(...testFiles);
 
-const vitest = spawn('npx', args, {
+const vitest = spawn('bunx', args, {
 	cwd: projectRoot,
 	stdio: 'inherit',
+	shell: process.platform === 'win32',
 	env: {
 		...process.env,
 		API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000'

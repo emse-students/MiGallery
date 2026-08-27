@@ -55,9 +55,9 @@ does not manage Immich's data.
 bun run dev          # dev server with HMR
 bun run build        # production build -> build/
 bun run check        # svelte-kit sync + svelte-check
-bun run lint         # ESLint
+bun run lint         # oxlint + oxvelte
 bun run test         # integration suite; bun run test:unit for Vitest only
 ```
 
-The Husky pre-commit hook runs ESLint + Prettier + svelte-check; keep all three
-green rather than bypassing the hook.
+The Husky pre-commit hook runs `bun run lint && bun run check` - oxlint, oxvelte and
+svelte-check; keep all three green rather than bypassing the hook.

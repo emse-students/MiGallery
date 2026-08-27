@@ -32,13 +32,13 @@ repos:
       description: Detect the presence of private keys
       stages: [pre-commit]
 
- # TypeScript/JavaScript linting with ESLint
+ # TypeScript/JavaScript/Svelte linting with oxlint + oxvelte
  - repo: local
    hooks:
-    - id: eslint
-      name: ESLint
-      description: Run ESLint static code analysis
-      entry: npm run lint --
+    - id: lint
+      name: oxlint + oxvelte
+      description: Run static analysis over TS/JS/Svelte
+      entry: bun run lint --
       language: system
       files: \.(js|jsx|ts|tsx|svelte)$
       stages: [pre-commit]

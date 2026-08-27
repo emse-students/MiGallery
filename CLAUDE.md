@@ -27,7 +27,7 @@
 - I18N: user-visible strings via Paraglide (`messages/fr.json`, `en.json`). No inline literals.
 - ASCII punctuation everywhere; French accents only inside localized strings/French comments.
 - UI: single source of truth is `src/app.css` (tokens, `--radius-*`). `.btn-glass` with modifiers, dark-first glassmorphism, no raw hex/px, `lucide-svelte` only.
-- Husky pre-commit runs ESLint + Prettier + svelte-check. Fix errors, do not bypass.
+- Husky pre-commit runs `bun run lint && bun run check` - oxlint, oxvelte, then svelte-check. Fix errors, do not bypass.
 
 ## KEY PATHS & COMMANDS
 
@@ -81,8 +81,7 @@
 - **bun is the PACKAGE MANAGER, node is the RUNTIME**, and two independent measurements fix that split: `better-sqlite3` (a V8-ABI addon) segfaults the bun runtime outright on 1.4.0, and bun as a runtime inflated every request-body read ~80x and retained the memory, which OOM-killed prod. So `bun install`, `bun run <script>`, and `node build/index.js`. Do not collapse the two halves without re-running both.
 - The npm-on-Windows hazard is GONE, and it was verified gone rather than assumed: npm rewrote `package-lock.json` against the Windows optional-dependency tree, dropping Linux-only entries (`@emnapi/*`) and breaking `npm ci` on the runner. `bun.lock` records every platform's optional dependencies, and the lockfile generated on Windows drove a Linux `bun install --frozen-lockfile` all the way through a production image build that serves 200. Still install only when deliberately changing `package.json`.
 - **`bun.lock` MUST stay `lockfileVersion: 1`.** Dependabot bundles bun 1.3.14 with `MAX_SUPPORTED_LOCKFILE_VERSION = 1` and answers `DependencyFileNotSupported` to v2+, so a v2 lockfile silently stops EVERY dependency update and the symptom is an absence of pull requests. bun >= 1.4 writes v2 for a lockfile it creates from nothing: regenerate with `bunx --bun bun@1.3.14 install`. `code-analysis.yml` guards it.
-- Repo-wide `bun run format` rewrites ~190 files (prettier drift + CRLF churn). Format your own files, then `git checkout -- . ':!<your files>'`.
-- Prettier has no `plugins` entry, so `.svelte` is skipped by lint-staged. Use `bun run format`, not a bare `bunx prettier --write "src/**/*.svelte"`.
+- **The formatter is oxfmt, and `format:check` is a CI gate**, so a repo-wide `bun run format` must be a NO-OP on a clean tree. If it rewrites files, the tree drifted and THAT is the bug - do not bury the sweep inside unrelated work. The old prettier drift (~190 files plus CRLF churn) left with prettier, and lint-staged left with it, so nothing silently rewrites what you stage any more.
 - `bun run test` refuses to run while `IMMICH_BASE_URL` points at prod. Do not set `ALLOW_REMOTE_IMMICH_TESTS=true`. Server-free suites: `tests/disk-cache.test.ts`, `tests/auth-redirect.test.ts`.
 - Tests: no assertions inside a guard that repeats them (`expect(true).toBe(true)`, `expect(body).toBeDefined()` on parsed JSON). The accepted status sets in `tests/people-photoscv.test.ts` ARE pinned on purpose - do not narrow them.
 - Do not reintroduce `const _err = ensureError(e)` followed by logging the raw `e`. If you normalize an error, use the result.

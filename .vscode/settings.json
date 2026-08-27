@@ -1,20 +1,12 @@
 {
-	"editor.defaultFormatter": "esbenp.prettier-vscode",
-	"editor.formatOnSave": true,
-	"editor.formatOnPaste": true,
-
-	"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact", "svelte"],
-	"eslint.format.enable": true,
-	"editor.codeActionsOnSave": {
-		"source.fixAll.eslint": "explicit",
-		"source.fixAll": "explicit"
-	},
+	// No `editor.defaultFormatter` and no format-on-save. This file used to name
+	// esbenp.prettier-vscode, and prettier is gone: the extension would have found no config,
+	// silently applied ITS OWN defaults, and rewritten whole files on save. Formatting is
+	// explicit here - `bun run format` - and `format:check` in CI is what makes it stick.
+	"editor.formatOnSave": false,
+	"editor.formatOnPaste": false,
 
 	"svelte.enable-ts-plugin": true,
-	"[svelte]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode",
-		"editor.formatOnSave": true
-	},
 
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"typescript.enablePromptUseWorkspaceTsdk": true,

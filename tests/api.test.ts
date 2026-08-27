@@ -1,6 +1,6 @@
 /**
  * API Tests for MiGallery
- * These tests run in CI and can also be run locally with: npm run test
+ * These tests run in CI and can also be run locally with: bun run test
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';

@@ -34,10 +34,10 @@
 		"paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
 		"check": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"lint": "eslint src/lib --ext .ts,.tsx,.js,.jsx --cache && eslint src/routes --ext .ts,.tsx,.js,.jsx --cache",
-		"lint:fix": "eslint . --ext .ts,.tsx,.js,.jsx --ignore-pattern 'scripts/**' --fix",
-		"format": "prettier --write .",
-		"format:check": "prettier --check .",
+		"lint": "oxlint -c .oxlintrc.json src scripts && bash ./scripts/run-oxvelte.sh lint --config oxvelte.config.json src",
+		"lint:fix": "oxlint -c .oxlintrc.json --fix src scripts && bash ./scripts/run-oxvelte.sh lint --config oxvelte.config.json --fix src",
+		"format": "oxfmt -c ./oxfmt.json --write .",
+		"format:check": "oxfmt -c ./oxfmt.json --check .",
 		"deps:install": "bun install",
 		"ci:install": "bun install --frozen-lockfile",
 		"ci:build": "bun install --frozen-lockfile && bun run build",
@@ -73,28 +73,21 @@
 		"@tailwindcss/postcss": "^4.3.3",
 		"@types/better-sqlite3": "^9.6.0",
 		"@types/form-data": "^2.5.2",
-		"@typescript-eslint/eslint-plugin": "^8.67.0",
-		"@typescript-eslint/parser": "^8.67.0",
 		"@vitest/coverage-v8": "^4.1.11",
 		"autoprefixer": "^10.5.4",
-		"eslint": "^10.8.1",
-		"eslint-config-prettier": "^10.1.8",
-		"eslint-plugin-svelte": "^3.23.0",
 		"husky": "^9.1.7",
-		"lint-staged": "^17.3.0",
+		"oxfmt": "^0.59.0",
+		"oxlint": "^1.80.0",
 		"postcss": "^8.5.26",
-		"prettier": "^3.9.6",
-		"prettier-plugin-svelte": "^4.1.1",
 		"svelte": "^5.56.10",
 		"svelte-check": "^4.7.6",
-		"svelte-eslint-parser": "^1.8.1",
 		"tailwindcss": "^4.3.1",
 		"tar": "^7.5.22",
 		"typescript": "~6.0.3",
+		"vitest": "^4.1.11",
 		"vite": "^8.2.2"
 	},
 	"dependencies": {
-		"@eslint/js": "^10.0.1",
 		"better-sqlite3": "^13.0.3",
 		"dotenv": "^17.4.2",
 		"form-data": "^4.0.6",
@@ -102,20 +95,9 @@
 		"jspdf-autotable": "^5.0.8",
 		"lucide-svelte": "^1.0.1",
 		"sharp": "^0.35.3",
-		"typescript-eslint": "^8.67.0",
-		"undici": "^8.10.0",
-		"vitest": "^4.1.11"
+		"undici": "^8.10.0"
 	},
 	"overrides": {
 		"cookie": "^0.7.0"
-	},
-	"lint-staged": {
-		"*.{js,ts,jsx,tsx,svelte}": [
-			"eslint --fix",
-			"prettier --write --ignore-unknown"
-		],
-		"*.{json,md,yml,yaml,css,html}": [
-			"prettier --write --ignore-unknown"
-		]
 	}
 }

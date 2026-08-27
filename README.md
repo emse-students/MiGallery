@@ -400,8 +400,9 @@ The project uses a centralized and rigorous type system:
 
 Code quality is ensured by a comprehensive tool chain:
 
-- **ESLint**: Static code analysis (strict configuration)
-- **Prettier**: Automatic code formatting
+- **oxlint**: Static code analysis over TS/JS
+- **oxvelte**: Static analysis of Svelte templates
+- **oxfmt**: Automatic code formatting
 - **Husky**: Git hooks to check code before each commit
 - **CI/CD**: Verification scripts (`bun run check`, `bun run lint`)
 
@@ -497,8 +498,9 @@ git commit -m "message"   # Hooks run automatically!
 
 Important configuration files:
 
-- `eslint.config.js` - ESLint configuration
-- `.prettierrc` - Prettier
+- `.oxlintrc.json` - oxlint configuration
+- `oxvelte.config.json` - oxvelte configuration
+- `oxfmt.json` - oxfmt configuration
 - `.pre-commit-config.yaml` - pre-commit hooks
 - `.editorconfig` - editor configuration
 
@@ -525,7 +527,7 @@ pre-commit uninstall
 pre-commit install
 ```
 
-- ESLint errors during linting:
+- Lint errors:
 
 ```powershell
 bun run lint:fix
@@ -538,6 +540,6 @@ bun run format
 pip install --upgrade pre-commit identify
 ```
 
-If a commit fails, fix the errors reported by ESLint/Prettier then try again.
+If a commit fails, fix the errors reported by oxlint/oxvelte then try again.
 
 </details>

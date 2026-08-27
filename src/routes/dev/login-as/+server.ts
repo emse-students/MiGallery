@@ -15,7 +15,7 @@ const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d
  * exercised in dev and in tests is the same code path production uses.
  *
  * SECURITY:
- * - In development (npm run dev): Always enabled
+ * - In development (bun run dev): Always enabled
  * - In production: Disabled by default, returns 404
  * - To enable in prod: Add ENABLE_DEV_ROUTES=true in .env (DANGEROUS)
  *

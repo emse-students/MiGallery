@@ -1,7 +1,7 @@
 /**
  * Post-login destination sanitizing (`src/lib/auth-redirect.ts`).
  *
- * Pure functions, no server needed: this runs under `npm run test:unit`. What
+ * Pure functions, no server needed: this runs under `bun run test:unit`. What
  * it pins is the refusal list - every entry here is a value a browser can hand
  * us, and each one leaves the site or loops the login if it is trusted.
  */

@@ -38,13 +38,13 @@ jobs:
    - name: Type check
      run: bun run check
 
+   # `bun run lint` is oxlint + oxvelte. The oxvelte half is a Rust binary the shim
+   # cargo-installs when missing, so this step also proves the shim works on a clean runner.
    - name: Lint
-     env:
-      NODE_OPTIONS: '--max-old-space-size=16384'
      run: bun run lint
 
    # A husky pre-commit hook is not a gate: `--no-verify` skips it, and it never runs on a pull
-   # request at all. Prettier only counts once something red says so.
+   # request at all. The formatter only counts once something red says so.
    - name: Check formatting
      run: bun run format:check
 
