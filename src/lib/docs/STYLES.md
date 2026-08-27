@@ -312,4 +312,9 @@ Component-specific styles should be in the Svelte component's `<style>` block:
 - `src/app.css` - Global variables and base styles
 - `src/lib/components/MobileNav.svelte` - Mobile navigation
 - `src/routes/+layout.svelte` - Main layout
-- `tailwind.config.cjs` - Tailwind configuration
+- `vite.config.ts` - Tailwind (Vite plugin) and the Lightning CSS vendor-prefix targets
+
+There is no `tailwind.config.cjs` and no `postcss.config.cjs`. Tailwind 4 is configured
+in CSS (`@import 'tailwindcss'` plus `@theme`), discovers its own source files, and runs
+as a Vite plugin; the JS config that used to sit here was never loaded, because nothing
+declared `@config`.
