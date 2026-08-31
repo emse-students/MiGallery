@@ -12,14 +12,14 @@ database, via Immich's own procedure).
 
 ## Topology
 
-| Element       | Detail                                                                                |
-| ------------- | ------------------------------------------------------------------------------------- |
-| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                            |
-| Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches            |
-| Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                                |
-| CD            | `.github/workflows/cd.yml`: run-ci -> build-image -> deploy (self-hosted runner)      |
-| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)             |
-| Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                                |
+| Element       | Detail                                                                           |
+| ------------- | -------------------------------------------------------------------------------- |
+| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                       |
+| Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches       |
+| Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                           |
+| CD            | `.github/workflows/cd.yml`: run-ci -> build-image -> deploy (self-hosted runner) |
+| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)        |
+| Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                           |
 
 ## Configuration
 
@@ -46,11 +46,22 @@ decision itself, shared by both of that workflow's triggers.
 
 **Three things make it converge rather than merely fire.**
 
-- **An hourly sweep, not only a `workflow_run`.** A pull request whose checks completed days ago
-  never receives another event, so an event-only automation can act on what it happened to catch
-  and on nothing else. The sweep enumerates every open Dependabot pull request, so the right state
-  is reached from any starting state. The clock decides how fast the queue drains, never whether the
-  outcome is right.
+- **A full sweep on every push to `main`, not only a `workflow_run` from one pull request.** A pull
+  request whose checks completed days ago never receives another event, so an event-only automation
+  can act on what it happened to catch and on nothing else. The sweep enumerates every open
+  Dependabot pull request, so the right state is reached from any starting state.
+
+  **This was an hourly cron until 2026-08-31, and a measurement took the job away from it.** Three
+  hours after the cron landed, `event=schedule` had produced ZERO runs of that workflow here or in
+  the three repositories beside it - none a fork, none archived, every workflow `active`, and
+  schedules demonstrably working for other workflows. Scheduled delivery on a public repository is
+  best-effort and **GitHub drops the slots an hourly cron misses rather than queueing them**
+  (Canari's `code-analysis.yml` asks for `0 2 * * *` and ran at 03:01, 08:24, 12:37 and 14:10 UTC on
+  consecutive days). The justification the cron was written with - a clock is fine when a wrong
+  clock costs only latency - does not survive a clock whose failure mode is NOT RUNNING. So the
+  sweep is bound to the workflow this repository executes on a push to `main`, which is an event
+  tied to somebody actually working, and the cron keeps its slot as a bonus.
+
 - **A staleness gate.** A green check is evidence about the workflow that PRODUCED it, not about the
   one `main` carries today, and an absent check is indistinguishable from an inapplicable one. A
   head not built on current `main` is not merged on its old verdict; its branch is updated instead
