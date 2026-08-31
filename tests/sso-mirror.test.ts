@@ -14,9 +14,10 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { removeTempDir } from './test-helpers';
 
 let auth: typeof import('$lib/auth');
 let users: typeof import('$lib/db/users');
@@ -40,7 +41,7 @@ beforeAll(async () => {
 
 afterAll(() => {
   database.resetDatabase();
-  rmSync(dbDir, { recursive: true, force: true });
+  removeTempDir(dbDir);
 });
 
 /** One login, with whatever claims Authentik chose to send this time. */

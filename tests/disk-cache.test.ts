@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
+import { removeTempDir } from './test-helpers';
 
 /**
  * Unit coverage for the race-free disk-cache primitives that back the on-disk
@@ -18,7 +19,7 @@ describe('disk-cache', () => {
   });
 
   afterEach(() => {
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTempDir(dir);
   });
 
   it('ensureCacheDir creates the directory and is idempotent', () => {

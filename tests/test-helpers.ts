@@ -2,6 +2,8 @@
  * Shared configuration for all tests
  */
 
+import { rmSync } from 'node:fs';
+
 export const TEST_CONFIG = {
   API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000',
   DEFAULT_TIMEOUT: 10000,
@@ -34,6 +36,36 @@ export const TEST_CONFIG = {
 /**
  * Helper to create authentication headers
  */
+/**
+ * Remove a temporary directory a test created, and report rather than fail if the OS will not.
+ *
+ * A teardown is not an assertion. `tests/sso-mirror.test.ts` opens a SQLite file and closes its
+ * handle with `close(true)` before deleting the directory, which is correct - and on Windows the
+ * lock on the file and its `-wal`/`-shm` siblings is still not released by the time `rmSync` runs,
+ * so the whole suite reported a failure for a defect that does not exist. The tests had all passed.
+ *
+ * So a removal that the platform refuses is LOGGED and the run continues: nothing was asserted
+ * about the directory, and `%TEMP%` is reclaimed by the OS. A removal that fails for any other
+ * reason is re-thrown, because that is a fact about the test rather than about the filesystem.
+ *
+ * The warning goes to `console.warn`, which `vitest.config.ts` currently mutes for every test via
+ * `onConsoleLog`. That is a repository-wide choice about test noise and not this helper's to make:
+ * the line is written on the standard channel, and it appears the moment that setting changes.
+ */
+export function removeTempDir(dir: string): void {
+  try {
+    rmSync(dir, { recursive: true, force: true });
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') {
+      throw e;
+    }
+    console.warn(
+      `[test-helpers] the platform is still holding ${dir} (${code}); leaving it to TEMP.`
+    );
+  }
+}
+
 export function getAuthHeaders(apiKey?: string): Record<string, string> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
