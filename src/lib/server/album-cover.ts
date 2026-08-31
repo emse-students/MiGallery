@@ -31,12 +31,6 @@ export const OG_COVER_DIR = path.resolve('data/cache/og-covers');
 const COVER_SIZE = 400;
 const COVER_QUALITY = 50;
 
-try {
-  ensureCacheDir(COVER_DIR);
-} catch (e) {
-  log.error('Failed to create cover cache dir', e);
-}
-
 export interface AlbumCover {
   assetId: string;
   type: string;
@@ -199,6 +193,14 @@ export async function getCoverImage(
       .toBuffer();
 
     try {
+      // `ensureCacheDir` HERE, not once at import. `mkdir -p` is a no-op when the directory is
+      // already there, so the cost is nothing, and it is the only version that survives the
+      // directory going away under a running process - a volume remount, a cleanup job, a
+      // `data/` wiped by hand. Doing it at import instead means the write throws for the rest of
+      // the process's life and every request re-downloads and re-processes an image that was
+      // already computed, with nothing but a log line to say so. `media-anomalies.ts` was already
+      // written this way; these three were not. Found while writing `tests/face-crop.test.ts`.
+      ensureCacheDir(COVER_DIR);
       writeCacheFileAtomic(cacheFile, processed);
     } catch (e) {
       log.error('Cover cache write failed', e);

@@ -18,13 +18,6 @@ export const OUTPUT_SIZE = 320;
 const FACE_TARGET = 0.62;
 const WEBP_QUALITY = 68;
 
-// Cache initialization
-try {
-  ensureCacheDir(CACHE_DIR);
-} catch (e) {
-  log.error('Failed to create face cache directory', e);
-}
-
 interface ImmichFace {
   boundingBoxX1?: number;
   boundingBoxY1?: number;
@@ -139,6 +132,14 @@ export async function generateFaceCrop(
       .toBuffer();
 
     try {
+      // `ensureCacheDir` HERE, not once at import. `mkdir -p` is a no-op when the directory is
+      // already there, so the cost is nothing, and it is the only version that survives the
+      // directory going away under a running process - a volume remount, a cleanup job, a
+      // `data/` wiped by hand. Doing it at import instead means the write throws for the rest of
+      // the process's life and every request re-downloads and re-processes an image that was
+      // already computed, with nothing but a log line to say so. `media-anomalies.ts` was already
+      // written this way; these three were not. Found while writing `tests/face-crop.test.ts`.
+      ensureCacheDir(CACHE_DIR);
       writeCacheFileAtomic(cacheFile, processed);
     } catch (e) {
       log.error('Face cache write failed', e);

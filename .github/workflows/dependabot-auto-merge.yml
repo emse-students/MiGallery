@@ -1,68 +1,183 @@
 name: Dependabot auto-merge
 
-# Automatically squash-merges Dependabot pull requests once the full check
-# suite on the PR head commit is green. Triggered when a PR-gating workflow
-# completes, then independently verifies EVERY check-run on the head SHA so it
-# is robust to path-filtered matrix jobs and to repos with several CI
-# workflows: the merge only fires on the completion that leaves nothing
-# pending and nothing failed. No branch protection required.
+# Squash-merges Dependabot pull requests once the full check suite on the PR head commit is green,
+# and only for updates whose failure mode this repository can actually SEE.
+#
+# The decision itself lives in `.github/scripts/dependabot-auto-merge.sh`, one implementation for
+# both entry points below. The header there explains the ceiling; this file explains WHEN it runs.
+#
+# ---------------------------------------------------------------------------------------------
+# WHY THERE ARE TWO TRIGGERS, AND WHY THE SECOND IS THE IMPORTANT ONE
+# ---------------------------------------------------------------------------------------------
+# `workflow_run` is the fast path: a PR-gating workflow finishes, and the pull request it belongs to
+# is evaluated seconds later. It is also, on its own, NOT ENOUGH - and until 2026-08-31 it was the
+# only trigger this workflow had. A pull request whose checks completed days ago will never receive
+# another `workflow_run`, so an event-only automation acts on what it happened to catch and on
+# nothing else; it cannot recover from being disabled, from a runner outage, or from being written
+# after the queue it is meant to drain. Canari measured exactly that: seven mergeable green pull
+# requests sat untouched with the workflow enabled and working.
+#
+# THE HOURLY SWEEP IS THE CONVERGENT PATH: it enumerates every open Dependabot pull request and
+# applies the same decision to each, so the correct state is reached from ANY starting state. The
+# clock is not load-bearing - it decides how quickly the queue drains, never whether the outcome is
+# right - and termination comes from durable state on GitHub: a pull request is merged, or it
+# carries a comment naming the test that would let it merge.
+#
+# ---------------------------------------------------------------------------------------------
+# WHY MERGING SEVERAL IN ONE SWEEP IS SAFE
+# ---------------------------------------------------------------------------------------------
+# Two pull requests green in isolation are not evidence that their COMBINATION is green - nothing
+# tests it before the merges. What makes that acceptable here is the shape of `cd.yml`: its first
+# job is `run-ci`, which CALLS `ci.yml` on the merged tree, and `build-image` `needs` it. So a
+# combination that breaks reddens `main` and stops before any image is built. `main` can go red;
+# production cannot follow it.
+#
+# The ceiling in `.github/scripts/dependabot-auto-merge.sh` currently holds two entries, `jspdf` and
+# `form-data`, each naming the test that retires it. Read the `case` block for why - and for why
+# `sharp`, which was the largest, no longer needs one.
 
 on:
   workflow_run:
     workflows: ['CI', 'Code Analysis']
     types: [completed]
+  schedule:
+    # Minute 23 rather than 0: the hour boundary is the busiest slot on shared runners, and this is
+    # offset from the sibling repositories' sweeps so they do not queue behind each other.
+    - cron: '23 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
+  # `gh workflow run cd.yml` after a merge. Without it the dispatch 403s and the deploy is skipped
+  # exactly as silently as the push that never triggered one.
+  actions: write
+
+# One sweep at a time. Two overlapping passes would each read a pre-merge mergeability and race on
+# the same branches; `cancel-in-progress: false` because a pass that is already merging must finish.
+concurrency:
+  group: dependabot-auto-merge
+  cancel-in-progress: false
 
 jobs:
   auto-merge:
+    name: Merge what this repository has a gate for
     runs-on: ubuntu-latest
-    # Only act on Dependabot PR runs. Fail-closed on everything else.
+    # The scheduled and manual paths carry no event to inspect; the author check that actually
+    # protects the merge is inside the script, which runs for every pull request either way. This
+    # condition only keeps the `workflow_run` path from waking on unrelated CI, and keeps a fork
+    # from sweeping its own queue with this repository's rules.
     if: >-
-      github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.actor.login == 'dependabot[bot]'
+      github.repository == 'emse-students/MiGallery' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]'))
     steps:
-      - name: Merge when the whole check suite is green
+      # PINNED TO `main`, NOT TO THE EVENT: on the `workflow_run` path the pull request under
+      # evaluation is Dependabot's, and this job holds write permissions. The decision script must
+      # come from the trunk, never from the branch it is judging.
+      - name: Check out the decision script from main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          sparse-checkout: .github/scripts
+
+      - name: Collect the pull requests to evaluate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
+          list="$RUNNER_TEMP/prs.txt"
+          : > "$list"
 
-          # Resolve the open Dependabot PR whose head is this commit.
-          pr=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
-                 --jq '.[] | select(.state=="open") | .number' | head -n1)
-          if [ -z "${pr:-}" ]; then
-            echo "No open PR for $HEAD_SHA; nothing to do."
-            exit 0
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            # Exactly the pull request whose checks just finished.
+            gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
+              --jq '.[] | select(.state=="open") | .number' | head -n1 >> "$list"
+          else
+            # The sweep. `--state open` and the author filter are what make this convergent rather
+            # than a re-run of whatever the last event happened to be.
+            gh pr list --repo "$REPO" --author app/dependabot --state open \
+              --limit 100 --json number --jq '.[].number' >> "$list"
           fi
-          echo "Evaluating checks for PR #$pr ($HEAD_SHA)"
 
-          # Inspect every check-run on the head commit. Merge only if at least
-          # one exists, all are completed, and none reported a bad conclusion.
-          runs=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" --paginate \
-                   --jq '.check_runs[] | "\(.name)|\(.status)|\(.conclusion // "")"')
+          echo "PR_LIST=$list" >> "$GITHUB_ENV"
+          echo "$(wc -l < "$list") pull request(s) to evaluate:"
+          cat "$list"
 
-          total=0; pending=0; bad=0
-          while IFS='|' read -r name status conclusion; do
-            [ -z "$name" ] && continue
-            # Ignore this workflow's own run if it ever surfaces as a check.
-            case "$name" in "Dependabot auto-merge"*) continue ;; esac
-            total=$((total + 1))
-            [ "$status" != "completed" ] && pending=$((pending + 1))
-            case "$conclusion" in
-              success|skipped|neutral|"") ;;
-              *) bad=$((bad + 1)); echo "  FAIL: $name -> $conclusion" ;;
-            esac
-          done <<< "$runs"
+      - name: Apply the ceiling to each
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          merged=0
+          while IFS= read -r pr; do
+            [ -z "$pr" ] && continue
+            echo "::group::PR #$pr"
+            # The script never fails a pull request it merely declines, so a single unmergeable
+            # branch cannot stop the sweep.
+            if .github/scripts/dependabot-auto-merge.sh "$pr" | tee "$RUNNER_TEMP/out-$pr.txt"; then :; fi
+            if grep -q "^MERGED $pr\$" "$RUNNER_TEMP/out-$pr.txt"; then
+              merged=$((merged + 1))
+            fi
+            if grep -q "^STALE $pr\$" "$RUNNER_TEMP/out-$pr.txt"; then
+              echo "$pr" >> "$RUNNER_TEMP/stale.txt"
+            fi
+            echo "::endgroup::"
+          done < "$PR_LIST"
 
-          echo "checks: total=$total pending=$pending bad=$bad"
-          if [ "$total" -eq 0 ]; then echo "No checks yet; skip."; exit 0; fi
-          if [ "$bad" -ne 0 ]; then echo "A check failed; not merging."; exit 0; fi
-          if [ "$pending" -ne 0 ]; then echo "Checks still running; will re-evaluate on next completion."; exit 0; fi
+          echo "merged=$merged" >> "$GITHUB_ENV"
+          echo "merged $merged pull request(s) this pass"
 
-          echo "All checks green -> merging PR #$pr"
-          gh pr merge "$pr" --repo "$REPO" --squash --delete-branch
+      # THE BUDGET FOR RE-TESTING WHAT MAIN NOW GATES ON. The script marks a pull request STALE when
+      # its head is not built on current `main`, because its green checks were then produced by
+      # workflow definitions `main` no longer carries. Updating the branch re-runs CI under today's
+      # definitions and the next pass reads a verdict that means something.
+      #
+      # CAPPED, because each update is a full CI run and every merge makes every other branch stale
+      # at once: without a ceiling one sweep would launch one run per open pull request. Three an
+      # hour drains a deep queue in a day, unattended, and bounds what a bad day can cost. The cap is
+      # a budget, not a correctness argument - nothing here is wrong if it never fires, only slower.
+      - name: Re-test at most three branches whose checks predate what main gates on
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          list="$RUNNER_TEMP/stale.txt"
+          if [ ! -s "$list" ]; then echo "nothing stale."; exit 0; fi
+
+          echo "$(wc -l < "$list") stale; updating at most 3."
+          head -n 3 "$list" | while IFS= read -r pr; do
+            [ -z "$pr" ] && continue
+            # 422 here is normal and not an error: GitHub answers it when the branch is already up
+            # to date or cannot be updated cleanly. Dependabot rebases the conflicting ones itself.
+            if gh api --method PUT "repos/$REPO/pulls/$pr/update-branch" --silent 2>&1; then
+              echo "  #$pr: branch updated, CI will re-run under current main"
+            else
+              echo "  #$pr: could not be updated; Dependabot will rebase it"
+            fi
+          done
+
+      # A squash merge made with GITHUB_TOKEN produces a push that triggers NOTHING - github's
+      # anti-recursion rule - so `cd.yml`, whose only automatic trigger is `push`, never saw a single
+      # one of these merges and main drifted from production silently. `workflow_dispatch` is the
+      # documented exception to that rule, so this is the one call that closes the gap. ONE dispatch
+      # for the whole pass, not one per merge: the deploy builds `main` as it now stands, and that is
+      # the same artefact either way.
+      - name: Dispatch one deploy if anything merged
+        # Both halves are load-bearing. The step above runs without `set -e` so one unmergeable
+        # branch cannot stop a sweep, which means it can also end early and leave `merged` never
+        # written - and an UNSET value is not equal to '0', so testing only that would dispatch a
+        # deploy on the one path where nothing is known to have merged.
+        if: env.merged != '' && env.merged != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "Dispatching CD for $merged merge(s)"
+          gh workflow run cd.yml --repo "$REPO" --ref main

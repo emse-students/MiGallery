@@ -13,12 +13,6 @@ import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 const log = createLogger('albums-id-og-cover');
 const CACHE_DIR = path.resolve('data/cache/og-covers');
 
-try {
-  ensureCacheDir(CACHE_DIR);
-} catch (e) {
-  log.error('Failed to create cache dir', e);
-}
-
 /**
  * GET /api/albums/[id]/og-cover
  *
@@ -87,6 +81,14 @@ export const GET: RequestHandler = async ({ params, fetch }) => {
       .toBuffer();
 
     try {
+      // `ensureCacheDir` HERE, not once at import. `mkdir -p` is a no-op when the directory is
+      // already there, so the cost is nothing, and it is the only version that survives the
+      // directory going away under a running process - a volume remount, a cleanup job, a
+      // `data/` wiped by hand. Doing it at import instead means the write throws for the rest of
+      // the process's life and every request re-downloads and re-processes an image that was
+      // already computed, with nothing but a log line to say so. `media-anomalies.ts` was already
+      // written this way; these three were not. Found while writing `tests/face-crop.test.ts`.
+      ensureCacheDir(CACHE_DIR);
       writeCacheFileAtomic(cacheFile, processed);
     } catch (e) {
       log.error('Cache write failed', e);
