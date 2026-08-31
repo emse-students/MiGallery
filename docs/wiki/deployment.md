@@ -62,11 +62,16 @@ decision itself, shared by both of that workflow's triggers.
   sweep is bound to the workflow this repository executes on a push to `main`, which is an event
   tied to somebody actually working, and the cron keeps its slot as a bonus.
 
-- **A staleness gate.** A green check is evidence about the workflow that PRODUCED it, not about the
-  one `main` carries today, and an absent check is indistinguishable from an inapplicable one. A
-  head not built on current `main` is not merged on its old verdict; its branch is updated instead
-  (at most three per pass, because each is a full CI run), and the next pass reads a verdict that
-  means something.
+- **A staleness gate, and a rebuild Dependabot performs itself.** A green check is evidence about
+  the workflow that PRODUCED it, not about the one `main` carries today, and an absent check is
+  indistinguishable from an inapplicable one. A head not built on current `main` is not merged on
+  its old verdict; the sweep asks Dependabot to rebuild the branch instead (`@dependabot recreate`,
+  at most three per pass, because each is a full CI run). **It must be Dependabot that pushes.**
+  Refreshing the branch with `PUT /pulls/{n}/update-branch` writes a merge commit authored by
+  `github-actions[bot]`, which parks the re-triggered run in `action_required` until a human clicks
+  Approve and makes Dependabot refuse the branch for good - so the step meant to drain the queue
+  filled it instead. The sweep therefore also marks any head Dependabot did not write, whoever wrote
+  it, and detecting the state rather than its cause is what heals a branch already trapped.
 - **A dispatch, because a merge made with `GITHUB_TOKEN` raises no `push` event.** GitHub's
   anti-recursion rule means `cd.yml` never saw any of these merges, so `main` drifted from
   production silently. `workflow_dispatch` is the documented exception, and the sweep issues exactly
