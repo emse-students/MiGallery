@@ -76,7 +76,9 @@ decision itself, shared by both of that workflow's triggers.
   mergeable, and when the gates really did move the sweep says so on the pull request instead of
   pretending to fix it. The predicate is in `.github/scripts/lib/gate-moves.sh`, fails closed on a
   compare it cannot read or one the API truncated at 300, and its self-tests run in the same
-  workflow run that uses it. The sweep still marks any head Dependabot did not write, whoever wrote
+  workflow run that uses it. The scripts are also LINTED before a merge, by a `shellcheck` pinned to
+  a version and a digest rather than taken from the runner image - it was run, and made to fail on a
+  spliced defect, before the gate was turned on. The sweep still marks any head Dependabot did not write, whoever wrote
   it: detecting the state rather than its cause is what heals a branch already trapped.
 - **A dispatch, because a merge made with `GITHUB_TOKEN` raises no `push` event.** GitHub's
   anti-recursion rule means `cd.yml` never saw any of these merges, so `main` drifted from

@@ -24,6 +24,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # `.github/scripts/` is the only code in this repository that MERGES things, so it is linted
+      # rather than merely parsed, and before a merge rather than after one. The linter was run
+      # against all four repositories carrying these scripts before this step existed - a gate
+      # nobody ran is how a pipeline goes red for a reason nobody changed - and it named exactly
+      # one thing, SC1091, the sourced file it cannot resolve through `$(dirname "$0")`; the
+      # `source-path=SCRIPTDIR` directives beside each `.` answer it. `-x` makes it follow the
+      # source. It was also proved able to fail: an unquoted `rm $f` spliced into the library came
+      # back as SC2086.
+      #
+      # THE VERSION IS PINNED AND THE RUNNER'S OWN COPY IS IGNORED. `ubuntu-latest` ships a
+      # shellcheck, but which one is the image's business and it moves without this repository
+      # changing - a floating linter is the same defect as an unverified one, arriving later. The
+      # digest is of the archive that produced the run described above, so CI lints with the binary
+      # whose verdict was actually read.
+      - name: Lint the CI scripts
+        env:
+          SHELLCHECK_VERSION: v0.10.0
+          SHELLCHECK_SHA256: 6c881ab0698e4e6ea235245f22832860544f17ba386442fe7e9d629f8cbedf87
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/shellcheck.tar.xz"
+          curl -sSLf -o "$archive" \
+            "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          echo "${SHELLCHECK_SHA256}  ${archive}" | sha256sum -c -
+          tar -xJf "$archive" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" --version
+          "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" -x \
+            .github/scripts/*.sh .github/scripts/lib/*.sh .github/scripts/tests/*.sh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
