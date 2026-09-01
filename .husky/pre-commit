@@ -1,1 +1,11 @@
-bun run lint && bun run check
+# Pre-commit: measure, never rewrite.
+#
+# `format:check` IS PART OF THIS, and until 2026-09-01 it was not. `ci.yml` gates the formatter
+# ("Check formatting", `bun run format:check`), so a hook running only `lint && check` ran a SUBSET
+# of CI and handed back a commit that fails after it is pushed - which is exactly what happened to
+# the auto-merge change of that day, where the same edit passed here and was refused in the two
+# repositories beside this one. A hook that gates less than CI is a hook that lies.
+#
+# Checking, never writing: a hook that rewrites staged files hands you a commit you have not read.
+# `bun run format` is a thing you type.
+bun run lint && bun run check && bun run format:check
