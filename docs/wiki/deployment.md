@@ -51,27 +51,33 @@ decision itself, shared by both of that workflow's triggers.
   can act on what it happened to catch and on nothing else. The sweep enumerates every open
   Dependabot pull request, so the right state is reached from any starting state.
 
-  **This was an hourly cron until 2026-08-31, and a measurement took the job away from it.** Three
-  hours after the cron landed, `event=schedule` had produced ZERO runs of that workflow here or in
-  the three repositories beside it - none a fork, none archived, every workflow `active`, and
-  schedules demonstrably working for other workflows. Scheduled delivery on a public repository is
-  best-effort and **GitHub drops the slots an hourly cron misses rather than queueing them**
-  (Canari's `code-analysis.yml` asks for `0 2 * * *` and ran at 03:01, 08:24, 12:37 and 14:10 UTC on
-  consecutive days). The justification the cron was written with - a clock is fine when a wrong
-  clock costs only latency - does not survive a clock whose failure mode is NOT RUNNING. So the
-  sweep is bound to the workflow this repository executes on a push to `main`, which is an event
-  tied to somebody actually working, and the cron keeps its slot as a bonus.
+  **This was an hourly cron until 2026-08-31, and the measurement that demoted it was itself
+  wrong.** It said `event=schedule` had produced ZERO runs, counted three hours after the cron
+  landed. Counted again on 2026-09-01, all four repositories had delivered a scheduled sweep. **A
+  three-hour window is not enough to call a trigger dead**, and a mechanism built on the first quiet
+  interval anybody looked at is built on nothing. What survives is the shape of the delivery,
+  measured over seven days rather than one afternoon: scheduled delivery on a public repository is
+  best-effort and **GitHub drops the slots an hourly cron misses rather than queueing them**, so the
+  clock is a floor and never a mechanism. The sweep stays bound to the workflow this repository runs
+  on a push to `main`, and the cron keeps its slot as that floor.
 
-- **A staleness gate, and a rebuild Dependabot performs itself.** A green check is evidence about
-  the workflow that PRODUCED it, not about the one `main` carries today, and an absent check is
-  indistinguishable from an inapplicable one. A head not built on current `main` is not merged on
-  its old verdict; the sweep asks Dependabot to rebuild the branch instead (`@dependabot recreate`,
-  at most three per pass, because each is a full CI run). **It must be Dependabot that pushes.**
-  Refreshing the branch with `PUT /pulls/{n}/update-branch` writes a merge commit authored by
-  `github-actions[bot]`, which parks the re-triggered run in `action_required` until a human clicks
-  Approve and makes Dependabot refuse the branch for good - so the step meant to drain the queue
-  filled it instead. The sweep therefore also marks any head Dependabot did not write, whoever wrote
-  it, and detecting the state rather than its cause is what heals a branch already trapped.
+- **A staleness gate narrow enough to be satisfiable.** A green check is evidence about the workflow
+  that PRODUCED it, not about the one `main` carries today, and an absent check is indistinguishable
+  from an inapplicable one. **But asking whether the head is built on current `main` is far wider
+  than that**, and until 2026-09-01 it made the queue undrainable: every merge moves `main`, so
+  every merge invalidated every remaining pull request at once, and the only exit was a rebuild no
+  workflow holding `GITHUB_TOKEN` may perform. `PUT /pulls/{n}/update-branch` writes a merge commit
+  authored by `github-actions[bot]`, which parks the re-triggered run in `action_required` and makes
+  Dependabot refuse the branch for good; and `@dependabot recreate` is answered _"Sorry, only users
+  with push access can use that command"_ when the caller is `github-actions[bot]`, measured on
+  emse-students/canari#303. A gate whose only remedy is unavailable is a stop, not a gate. The
+  question is now whether `.github/workflows/` or `.github/scripts/` moved between the branch's base
+  and `main` - what decides which jobs run and what each asserts - so one sweep merges everything
+  mergeable, and when the gates really did move the sweep says so on the pull request instead of
+  pretending to fix it. The predicate is in `.github/scripts/lib/gate-moves.sh`, fails closed on a
+  compare it cannot read or one the API truncated at 300, and its self-tests run in the same
+  workflow run that uses it. The sweep still marks any head Dependabot did not write, whoever wrote
+  it: detecting the state rather than its cause is what heals a branch already trapped.
 - **A dispatch, because a merge made with `GITHUB_TOKEN` raises no `push` event.** GitHub's
   anti-recursion rule means `cd.yml` never saw any of these merges, so `main` drifted from
   production silently. `workflow_dispatch` is the documented exception, and the sweep issues exactly

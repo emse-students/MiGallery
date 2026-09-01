@@ -23,6 +23,10 @@ pr="${1:?usage: dependabot-auto-merge.sh <pr-number>}"
 : "${REPO:?REPO must be set}"
 : "${GH_TOKEN:?GH_TOKEN must be set}"
 
+# The staleness predicate lives beside this script so it can be exercised on inputs GitHub will
+# not produce on demand; see `lib/gate-moves.sh` and its self-tests.
+. "$(dirname "$0")/lib/gate-moves.sh"
+
 MARKER='<!-- migallery-auto-merge-ceiling -->'
 
 meta=$(gh pr view "$pr" --repo "$REPO" --json author,state,headRefOid,mergeable \
@@ -157,10 +161,18 @@ fi
 # has a green suite that ran under definitions where `tests/face-crop.test.ts` did not exist, and
 # merging a `sharp` bump on that verdict would walk straight past the test just written for it.
 #
-# So a head that is not built on current `main` is not merged on its old checks. Its branch is
-# updated instead, which re-runs CI under the definitions `main` carries now, and the next pass
-# reads a verdict that means something. The caller decides HOW MANY to update per sweep, because
-# each one costs a full CI run; this only says which.
+# WHAT INVALIDATES THAT SUITE IS A CHANGE TO WHAT PRODUCES IT, NOT ANY MOVEMENT OF `main`, and
+# `lib/gate-moves.sh` carries the predicate along with the reasoning. What belongs HERE is the
+# consequence for a caller that merges:
+#
+# Until 2026-09-01 this asked `base_sha != main_sha`, and that made the queue undrainable rather
+# than careful. Every merge moves `main`, so every remaining pull request went stale in the same
+# instant, and the only exit was a rebuild NOTHING HERE CAN PERFORM: `PUT /update-branch` poisons
+# the branch (see the section below), and `@dependabot recreate` is refused when the caller is
+# `github-actions[bot]` - measured on emse-students/canari#303, three seconds after the ask,
+# "Sorry, only users with push access can use that command." A gate whose only remedy is
+# unavailable is not a gate, it is a stop, and across these repositories it stopped every pull
+# request that was ready to merge.
 main_sha=$(gh api "repos/$REPO/commits/main" --jq '.sha') || {
   echo "#$pr: could not read main; skipping rather than merging on an unknown base."
   exit 0
@@ -168,9 +180,27 @@ main_sha=$(gh api "repos/$REPO/commits/main" --jq '.sha') || {
 base_sha=$(gh pr view "$pr" --repo "$REPO" --json baseRefOid --jq '.baseRefOid')
 
 if [ "$base_sha" != "$main_sha" ]; then
-  echo "#$pr: built on ${base_sha:0:8}, main is ${main_sha:0:8} - its checks predate what main gates on now."
-  echo "STALE $pr"
-  exit 0
+  # One call: the changed-file count on the first line, then one filename per line - which is
+  # exactly the payload `classify_gate_moves` is specified and tested against.
+  compare=$(gh api "repos/$REPO/compare/$base_sha...$main_sha" \
+    --jq '((.files // []) | length), ((.files // []) | .[].filename)') || compare="gh: compare failed"
+
+  verdict=$(printf '%s\n' "$compare" | classify_gate_moves)
+  case "$verdict" in
+    settled\ *)
+      echo "#$pr: built on ${base_sha:0:8}, main is ${main_sha:0:8} - ${verdict#settled } file(s) changed, none of them a gate definition; its checks still describe today's gates."
+      ;;
+    moved\ *)
+      echo "#$pr: built on ${base_sha:0:8}, main is ${main_sha:0:8}, and the gate definitions moved between them: ${verdict#moved }"
+      echo "STALE $pr"
+      exit 0
+      ;;
+    *)
+      echo "#$pr: cannot compare ${base_sha:0:8}..${main_sha:0:8} - ${verdict#undecidable }. Treating the gates as moved."
+      echo "STALE $pr"
+      exit 0
+      ;;
+  esac
 fi
 
 # A HEAD DEPENDABOT DID NOT WRITE IS UNMERGEABLE BY EVERY PATH, AND NOTHING ELSE HERE WOULD SAY SO.
