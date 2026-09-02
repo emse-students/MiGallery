@@ -77,6 +77,7 @@
 - `/mes-photos`: favorites stay in chronological place (`.favorite-badge` in `PhotoCard` + a "Toutes/Favoris" chip in `PhotosGrid`). The lightbox navigates `displayedAssets`; never reintroduce a favorites-first reordering. Mobile `PhotoCard` actions live in the long-press `.action-sheet` (400ms `sheetOpenedAt` guard).
 - Album covers (`src/lib/server/album-cover.ts`): the asset lives in `albums.cover_asset_id`, the 400x400 WebP in `data/cache/covers/<assetId>.webp` (keyed by ASSET, so albums sharing a cover share one file). `pruneCoverAsset` deletes once nothing points at it; `resolveMissingCovers` MUST run before `pruneOrphanCovers`. Never resolve a cover client-side.
 - `/api/users/[username]/avatar`: unbusted URLs revalidate via ETag (`no-cache`); only `?v=assetId` is `immutable`.
+- PROMOS: a promo is its class's ARRIVAL year and the year flips on **15 August**. `src/lib/promo-utils.ts` is the only rule - never re-derive it inline, and never write `month >= 9 ? year + 1 : year` again (it invented a promo 2027 in September 2026, and in Jan-Aug it ran one year ahead the other way). The album defaults follow `albumDate` through an `$effect`, not a `change` handler on the input.
 
 **Tooling**
 
