@@ -2,19 +2,9 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
+import { getDefaultPromos } from '$lib/promo-utils';
 
 const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FSSS', 'Master'];
-
-function getCurrentSchoolYear(referenceDate: Date = new Date()): number {
-  const year = referenceDate.getFullYear();
-  const month = referenceDate.getMonth() + 1;
-  return month >= 9 ? year + 1 : year;
-}
-
-function getDefaultPromos(referenceDate: Date = new Date()): number[] {
-  const currentSchoolYear = getCurrentSchoolYear(referenceDate);
-  return [currentSchoolYear - 3, currentSchoolYear - 2, currentSchoolYear - 1, currentSchoolYear];
-}
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'write');
@@ -46,7 +36,9 @@ export const GET: RequestHandler = async (event) => {
   const promosFromUsers = userRows
     .map((u) => u.promo)
     .filter((p): p is number => typeof p === 'number' && Number.isFinite(p));
-  const promos = [...new Set([...getDefaultPromos(), ...promosFromUsers])].sort((a, b) => a - b);
+  const promos = [...new Set([...getDefaultPromos(new Date()), ...promosFromUsers])].sort(
+    (a, b) => a - b
+  );
 
   const users = userRows.map((u) => ({
     id_user: u.id_user,

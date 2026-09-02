@@ -5,6 +5,7 @@
   import Modal from './Modal.svelte';
   import { m } from '$lib/paraglide/messages';
   import { fuzzySearch } from '$lib/fuzzy';
+  import { getDefaultPromos, getSchoolYear, parseAlbumDate } from '$lib/promo-utils';
 
   interface Props {
     albumId?: string;
@@ -42,7 +43,7 @@
   let promosManuallyEdited = $state(false);
   let formationsManuallyEdited = $state(false);
 
-  const CURRENT_SCHOOL_YEAR = getCurrentSchoolYear();
+  const CURRENT_SCHOOL_YEAR = getSchoolYear(new Date());
   const promoYears: number[] = Array.from(
     { length: CURRENT_SCHOOL_YEAR - 1816 + 1 },
     (_, i) => CURRENT_SCHOOL_YEAR - i
@@ -65,23 +66,14 @@
     return `${year}-${month}-${day}`;
   }
 
-  function getCurrentSchoolYear(referenceDate: Date = new Date()): number {
-    const year = referenceDate.getFullYear();
-    const month = referenceDate.getMonth() + 1;
-    return month >= 9 ? year + 1 : year;
-  }
-
-  function getDefaultPromosFromDate(dateValue: string): number[] {
-    const parsed = new Date(`${dateValue}T00:00:00`);
-    const baseDate = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
-    const currentSchoolYear = getCurrentSchoolYear(baseDate);
-    return [currentSchoolYear - 3, currentSchoolYear - 2, currentSchoolYear - 1, currentSchoolYear];
-  }
-
-  function applyDefaultPromosFromDate() {
+  // The default follows the album DATE, not the day the album is created: a
+  // `change` handler on the date input missed every path that fills the field
+  // without one, and left the mount-time default (today) on the album.
+  $effect(() => {
+    const dateValue = albumDate;
     if (isEditMode || promosManuallyEdited) return;
-    selectedPromos = [...getDefaultPromosFromDate(albumDate)];
-  }
+    selectedPromos = getDefaultPromos(parseAlbumDate(dateValue));
+  });
 
   function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
     const out = new Set<number>();
@@ -183,10 +175,6 @@
       if (!isEditMode) {
         if (!formationsManuallyEdited && selectedFormations.length === 0) {
           selectedFormations = ['ICM'];
-        }
-
-        if (!promosManuallyEdited && selectedPromos.length === 0) {
-          applyDefaultPromosFromDate();
         }
       }
     } catch (e: unknown) {
@@ -363,13 +351,7 @@
       <div class="meta-grid">
         <div class="form-group">
           <label for="albumDate">{m.am_date_label()}</label>
-          <input
-            id="albumDate"
-            type="date"
-            bind:value={albumDate}
-            onchange={applyDefaultPromosFromDate}
-            disabled={loading}
-          />
+          <input id="albumDate" type="date" bind:value={albumDate} disabled={loading} />
         </div>
 
         <div class="form-group">
