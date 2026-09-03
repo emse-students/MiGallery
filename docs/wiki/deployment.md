@@ -40,61 +40,43 @@ IMMICH_BASE_URL, MICONNECT_ISSUER, ports) have defaults in
 
 ## Dependency updates, and the merge that reaches production
 
-Dependabot opens the pull requests; `.github/workflows/dependabot-auto-merge.yml` decides which of
-them this repository has EVIDENCE about, and `.github/scripts/dependabot-auto-merge.sh` is the
-decision itself, shared by both of that workflow's triggers.
+Dependabot opens the pull requests (`.github/dependabot.yml`); **from there they are the same as
+anybody's**. `arm-auto-merge.yml` arms GitHub's own auto-merge on every pull request in the
+repository, and GitHub squash-merges each one the moment `CI passed` goes green.
 
-**Three things make it converge rather than merely fire.**
+**There is no sweep any more (deleted 2026-09-04).** `dependabot-auto-merge.yml` was ~300 lines on
+an hourly cron: it enumerated the open Dependabot pull requests, decided for ITSELF whether each was
+green, and merged them with its own `gh pr merge`. It existed because a `pull_request` run raised by
+Dependabot **gets no secrets** - GitHub runs it as if it came from a fork - so no App token can be
+minted in that context, and an arming made with `GITHUB_TOKEN` produces a merge that raises no
+`push` event. `pull_request_target` runs in the base repository's context, WITH its secrets, for
+every pull request, which is what makes one file enough. It is safe on that trigger for one specific
+reason: **it never checks the pull request out.**
 
-- **A full sweep on every push to `main`, not only a `workflow_run` from one pull request.** A pull
-  request whose checks completed days ago never receives another event, so an event-only automation
-  can act on what it happened to catch and on nothing else. The sweep enumerates every open
-  Dependabot pull request, so the right state is reached from any starting state.
+**What went with the sweep that DID NOT work.** Its staleness gate refused to merge a head whose
+check suite described gates `main` no longer carried, and the only way to lift that refusal was to
+rebuild the branch - which no identity a workflow can mint may do. `PUT /pulls/{n}/update-branch`
+writes a merge commit authored by `github-actions[bot]`, which parks the re-triggered run in
+`action_required` and makes Dependabot refuse the branch for good; and `@dependabot recreate` is
+answered _"Sorry, only users with push access can use that command"_ - **including when the caller
+is a GitHub App**, measured ten times out of ten on emse-students/canari. An App INSTALLATION is not
+an account with push access. _A gate whose only remedy is unavailable is a stop, not a gate._
 
-  **This was an hourly cron until 2026-08-31, and the measurement that demoted it was itself
-  wrong.** It said `event=schedule` had produced ZERO runs, counted three hours after the cron
-  landed. Counted again on 2026-09-01, all four repositories had delivered a scheduled sweep. **A
-  three-hour window is not enough to call a trigger dead**, and a mechanism built on the first quiet
-  interval anybody looked at is built on nothing. What survives is the shape of the delivery,
-  measured over seven days rather than one afternoon: scheduled delivery on a public repository is
-  best-effort and **GitHub drops the slots an hourly cron misses rather than queueing them**, so the
-  clock is a floor and never a mechanism. The sweep stays bound to the workflow this repository runs
-  on a push to `main`, and the cron keeps its slot as that floor.
+The question it was trying to answer is answered elsewhere and better: `cd.yml` runs the CI on every
+push to `main`, so a merge that breaks the trunk is red where somebody looking at the repository
+sees it, rather than being predicted per branch.
 
-- **A staleness gate narrow enough to be satisfiable.** A green check is evidence about the workflow
-  that PRODUCED it, not about the one `main` carries today, and an absent check is indistinguishable
-  from an inapplicable one. **But asking whether the head is built on current `main` is far wider
-  than that**, and until 2026-09-01 it made the queue undrainable: every merge moves `main`, so
-  every merge invalidated every remaining pull request at once, and the only exit was a rebuild no
-  workflow holding `GITHUB_TOKEN` may perform. `PUT /pulls/{n}/update-branch` writes a merge commit
-  authored by `github-actions[bot]`, which parks the re-triggered run in `action_required` and makes
-  Dependabot refuse the branch for good; and `@dependabot recreate` is answered _"Sorry, only users
-  with push access can use that command"_ when the caller is `github-actions[bot]`, measured on
-  emse-students/canari#303. A gate whose only remedy is unavailable is a stop, not a gate. The
-  question is now whether `.github/workflows/` or `.github/scripts/` moved between the branch's base
-  and `main` - what decides which jobs run and what each asserts - so one sweep merges everything
-  mergeable, and when the gates really did move the sweep says so on the pull request instead of
-  pretending to fix it. The predicate is in `.github/scripts/lib/gate-moves.sh`, fails closed on a
-  compare it cannot read or one the API truncated at 300, and its self-tests run in the same
-  workflow run that uses it. The scripts are also LINTED before a merge, by a `shellcheck` pinned to
-  a version and a digest rather than taken from the runner image - it was run, and made to fail on a
-  spliced defect, before the gate was turned on. The sweep still marks any head Dependabot did not write, whoever wrote
-  it: detecting the state rather than its cause is what heals a branch already trapped.
-- **A dispatch, because a merge made with `GITHUB_TOKEN` raises no `push` event.** GitHub's
-  anti-recursion rule means `cd.yml` never saw any of these merges, so `main` drifted from
-  production silently. `workflow_dispatch` is the documented exception, and the sweep issues exactly
-  one for the whole pass.
+### The security pass can now block a merge
 
-Merging several in one sweep is safe because of the shape of `cd.yml`: `run-ci` calls `ci.yml` on
-the merged tree and `build-image` needs it, so a combination that only breaks together reddens
-`main` and stops before any image is built. `main` can go red; production cannot follow it.
+`code-analysis.yml` is a `workflow_call` library with no triggers of its own. CodeQL, the TruffleHog
+secret scan, the oxlint/SonarCloud pass and the vulnerability audit ran on every pull request and
+**could not block one**, because nothing required them - _a red tick nothing enforces is worse than
+no tick, because it looks enforced._ `ci.yml` calls it as its `security` job and aggregates
+everything into `CI passed`; `scheduled.yml` calls the same file nightly, which is the half a pull
+request cannot see: a new advisory landing against code nobody touched.
 
-**The ceiling is what this repository declares itself unable to see.** It is not a semver judgement:
-a break that stops the tree compiling is caught by `bun run check`, and a break in a route is caught
-by a suite that boots a REAL server. An entry is a dependency whose failure would be INVISIBLE to
-that, and every entry names the test that retires it - a refusal nobody can lift is the queue this
-mechanism exists to avoid. Two are open, `jspdf` and `form-data`; `sharp` was the largest and is
-closed, by `tests/face-crop.test.ts` asserting the output bytes of a real crop.
+**The lockfile stays at `lockfileVersion: 1`** - Dependabot cannot read v2, and the symptom of a v2
+lockfile is an ABSENCE of pull requests, which nobody notices.
 
 ## Backups
 

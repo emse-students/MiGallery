@@ -1,22 +1,33 @@
 name: Code Analysis
 
+# =================================================================================================
+# THE SECURITY PASS - A LIBRARY, CALLED FROM BOTH MOMENTS IT IS WANTED
+#
+# CALLED BY `ci.yml` AND BY `scheduled.yml`, AND BY NOTHING ELSE. It used to carry its own
+# `pull_request` and `schedule` triggers, which made it a separate row in the Actions list and,
+# worse, put its verdict OUTSIDE the check a merge waits on: CodeQL, the secret scan, the quality
+# gate and the vulnerability audit all ran on every pull request and **could not block a single
+# merge**. A red tick nothing enforces is worse than no tick, because it looks enforced.
+#
+# Since 2026-09-04 it is `workflow_call` only. `ci.yml` calls it as a job feeding `CI passed`, so a
+# live secret or a HIGH advisory now stops the merge; `scheduled.yml` calls the same file nightly,
+# which is the half a pull request cannot see - a new advisory lands against code nobody touched.
+#
+# ITS PERMISSIONS ARE PER JOB, and the caller must grant at least as much: a called workflow cannot
+# be given more than its caller grants it, and exceeding that is a STARTUP FAILURE - no job runs, no
+# log, no annotation.
+# =================================================================================================
 on:
-  pull_request:
-    branches: [main]
-  schedule:
-    # Analyse de securite quotidienne a 2h UTC.
-    - cron: '0 2 * * *'
-  workflow_dispatch:
-
-permissions:
-  actions: read
-  contents: read
-  security-events: write
+  workflow_call:
 
 jobs:
   codeql:
     name: CodeQL Security Analysis
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -40,6 +51,8 @@ jobs:
   secret-scan:
     name: Scan for Secrets
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -56,6 +69,8 @@ jobs:
   code-quality:
     name: Code Quality (oxlint + SonarCloud)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
@@ -93,6 +108,8 @@ jobs:
   dependencies:
     name: Check Dependencies Vulnerabilities
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v7

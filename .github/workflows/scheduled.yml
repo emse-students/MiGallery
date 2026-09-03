@@ -1,0 +1,43 @@
+# =================================================================================================
+# EVERYTHING THIS REPOSITORY DOES ON A CLOCK, IN ONE PLACE
+#
+# Today that is one thing: the nightly security pass. It has a file of its own anyway, because the
+# alternative was leaving a `schedule:` trigger on `code-analysis.yml` - which is what kept that
+# workflow OUTSIDE the check a merge waits on, and gave it a row of its own in the Actions list for
+# a job nobody watches.
+#
+# WHAT A CLOCK IS ALLOWED TO BE HERE. *Termination comes from a proof, never from a clock*, so a
+# schedule is only ever a FLOOR UNDER THE WORST CASE: arriving late, or not at all, must cost a late
+# REPORT and never a wrong outcome. That holds here - every one of these jobs also runs on every
+# pull request, and this pass exists for the one case a pull request cannot cover: **a new advisory
+# landing against code nobody touched.** GitHub delivers a cron with hours of jitter and DROPS the
+# slots it misses rather than queueing them, measured across these four repositories.
+#
+# HOW A RUN KNOWS WHICH JOB IT IS: `github.event.schedule` carries the cron string that fired,
+# verbatim, so each job names its own. A second job goes here rather than in a second file.
+# =================================================================================================
+name: Scheduled
+
+on:
+  schedule:
+    # Daily. A new advisory can land against code nobody touched, which is the half the
+    # pull-request path cannot see.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: Security
+    if: >
+      github.event.schedule == '0 2 * * *' ||
+      github.event_name == 'workflow_dispatch'
+    # Derived from what the callee declares, not chosen here: a caller CAPS a called workflow, and
+    # exceeding that cap is a startup failure with no log and no annotation.
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/code-analysis.yml

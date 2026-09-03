@@ -8,8 +8,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  # A CALLED WORKFLOW CANNOT BE GRANTED MORE THAN ITS CALLER GRANTS IT, and exceeding that is a
+  # STARTUP FAILURE - no job runs, no log is produced, and the API returns neither an annotation nor
+  # an error message. `ci.yml` now calls `code-analysis.yml`, whose CodeQL job asks for
+  # `security-events: write`, so this job must grant it or the deploy dies before its first line.
+  # Derived from what the callees declare, not chosen here.
   run-ci:
     name: Run CI Checks
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: ./.github/workflows/ci.yml
 
   build-image:

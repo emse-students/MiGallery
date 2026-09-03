@@ -38,7 +38,7 @@ updates:
     # arrives through `@typescript/native` (npm:typescript@^7), a DISTINCT package, because
     # svelte-check needs both majors present: 6 for its own API, 7 behind `--tsgo`. A major on
     # `typescript` itself would replace the stable compiler svelte-check is using, and
-    # `dependabot-auto-merge.yml` squash-merges a green PR with nobody looking.
+    # l'auto-merge fusionne une PR verte sans que personne regarde.
     ignore:
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']

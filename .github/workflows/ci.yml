@@ -24,14 +24,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # `.github/scripts/` is the only code in this repository that MERGES things, so it is linted
-      # rather than merely parsed, and before a merge rather than after one. The linter was run
-      # against all four repositories carrying these scripts before this step existed - a gate
-      # nobody ran is how a pipeline goes red for a reason nobody changed - and it named exactly
-      # one thing, SC1091, the sourced file it cannot resolve through `$(dirname "$0")`; the
-      # `source-path=SCRIPTDIR` directives beside each `.` answer it. `-x` makes it follow the
-      # source. It was also proved able to fail: an unquoted `rm $f` spliced into the library came
-      # back as SC2086.
+      # WHAT IS LINTED MOVED ON 2026-09-04, AND THE STEP STAYED. It read `.github/scripts/`, which
+      # held the auto-merge sweep and nothing else; that whole mechanism is deleted, and `scripts/`
+      # is what is left - the offsite backup and restore, which touch real data on a real box and
+      # are the shell in this repository most worth a linter. A gate pointed at a directory that no
+      # longer exists fails on the directory rather than on the code, which reads like a broken
+      # pipeline instead of a missing check.
       #
       # THE VERSION IS PINNED AND THE RUNNER'S OWN COPY IS IGNORED. `ubuntu-latest` ships a
       # shellcheck, but which one is the image's business and it moves without this repository
@@ -50,8 +48,7 @@ jobs:
           echo "${SHELLCHECK_SHA256}  ${archive}" | sha256sum -c -
           tar -xJf "$archive" -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" --version
-          "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" -x \
-            .github/scripts/*.sh .github/scripts/lib/*.sh .github/scripts/tests/*.sh
+          "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" -x scripts/*.sh
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -112,3 +109,52 @@ jobs:
         env:
           API_BASE_URL: http://localhost:3000
         run: bun run test
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  # THE SECURITY PASS, AND IT CAN NOW STOP A MERGE
+  #
+  # CodeQL, the TruffleHog secret scan and the rest ran on every pull request from their own
+  # workflow until 2026-09-04 - and could not block one, because nothing required them. They are now
+  # a called job of this workflow, so they reach `CI passed` below, which is the check the branch
+  # ruleset requires. THE PERMISSIONS ARE DERIVED FROM WHAT THE CALLEE DECLARES: a caller caps a
+  # called workflow, and exceeding that cap is a startup failure with no log and no annotation.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  security:
+    name: Security
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/code-analysis.yml
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  # THE ONE CHECK A RULESET CAN REQUIRE
+  #
+  # A rule naming an individual job would name one whose presence can change; this one exists on
+  # every run of this workflow and reads the others' results. `success` AND `skipped` both pass - a
+  # skipped job is one with nothing to do, and treating that as a failure is how a required check
+  # becomes a wall.
+  #
+  # IT MUST HAVE `if: always()`. Without it a failed dependency SKIPS this job, and a skipped
+  # required check never reports at all: the pull request waits for ever on a green tick that is not
+  # coming, which reads exactly like a slow runner.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [validate, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Did everything pass?
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS"
+          failed="$(echo "$RESULTS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key): \(.value.result)"')"
+          if [ -n "$failed" ]; then
+            echo "::error::CI did not pass:"
+            echo "$failed"
+            exit 1
+          fi
+          echo "every CI job passed or was skipped as having nothing to do"
