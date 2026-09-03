@@ -62,7 +62,7 @@
     "db:reset-users": "bun ./scripts/reset-users-for-authentik.cjs"
   },
   "dependencies": {
-    "@lucide/svelte": "^1.34.0",
+    "@lucide/svelte": "^1.38.0",
     "dotenv": "^17.4.2",
     "form-data": "^4.0.6",
     "jspdf": "^4.2.1",
