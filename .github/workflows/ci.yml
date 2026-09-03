@@ -48,7 +48,17 @@ jobs:
           echo "${SHELLCHECK_SHA256}  ${archive}" | sha256sum -c -
           tar -xJf "$archive" -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" --version
-          "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" -x scripts/*.sh
+          "$RUNNER_TEMP/shellcheck-${SHELLCHECK_VERSION}/shellcheck" -x \
+            scripts/*.sh .github/scripts/*.sh .github/scripts/tests/*.sh
+
+      # AND THE ONE SHELL SCRIPT WITH A DECISION IN IT IS RUN, not merely parsed.
+      # `audit-dependencies.sh` classifies an npm 503 as "no verdict" and a real advisory as a
+      # finding, from the SAME exit code - a distinction that is either asserted on both sides
+      # or is a comment. The test needs no network: it runs the real script against a fake
+      # `bun` on `PATH`, which is what makes the outage case reproducible when the incident
+      # itself was not.
+      - name: Test the audit classifier
+        run: bash .github/scripts/tests/audit-dependencies.test.sh
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2

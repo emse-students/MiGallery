@@ -19,6 +19,18 @@ name: Code Analysis
 # =================================================================================================
 on:
   workflow_call:
+    inputs:
+      # WHAT AN UNREACHABLE npm ADVISORY ENDPOINT COSTS, AND IT IS NOT THE SAME IN BOTH CALLERS.
+      # `bun audit` exits 1 for a 503 exactly as it does for a real advisory, and on 2026-09-03 that
+      # walled every merge in Canari behind a five-minute npm outage - the same defect lives in every
+      # repository that runs this job. A pull request must not be stopped by an incident nobody here
+      # can fix; the nightly pass must, because that failure IS the report that a tree has gone a day
+      # unaudited. `audit-dependencies.sh` carries the classification, this input carries the policy.
+      registry_outage_is_failure:
+        description: 'Fail when the npm advisory endpoint never answers. `true` for the nightly pass, `false` for a pull request.'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   codeql:
@@ -157,7 +169,15 @@ jobs:
 
       # No `continue-on-error`: a gate that cannot go red reports nothing. A new advisory against a
       # dependency already shipped is exactly the event this job exists to announce.
+      # THROUGH `audit-dependencies.sh`, WHICH IS THE ONE PLACE THAT TELLS THE REGISTRY'S ANSWER
+      # APART FROM ITS SILENCE. `|| [ "$?" -eq 2 ]` is where this caller's policy lands: a 2 means
+      # npm never answered, which is not a verdict about this tree. The script turns that 2 into a 1
+      # by itself when the input above says an unaudited tree is a failure - which is what the
+      # nightly pass asks for, and a pull request does not.
       - name: Audit dependencies
+        env:
+          REGISTRY_OUTAGE_IS_FAILURE: ${{ inputs.registry_outage_is_failure }}
         run: |
+          set -uo pipefail
           bun install --frozen-lockfile
-          bun audit --audit-level=moderate
+          .github/scripts/audit-dependencies.sh . --audit-level=moderate || [ "$?" -eq 2 ]
