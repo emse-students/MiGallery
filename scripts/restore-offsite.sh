@@ -55,7 +55,14 @@ gunzip -c "$ARCHIVE" > "$STAGE/migallery.db"
 log "Arret du conteneur MiGallery..."
 $COMPOSE stop migallery || true
 
-[ -f "$DB_DEST" ] && cp "$DB_DEST" "$DB_DEST.before-restore-$(date '+%Y%m%d-%H%M%S')" || true
+# NOT `[ -f x ] && cp ... || true`, WHICH IS NOT AN IF-THEN-ELSE (SC2015 - the
+# CI pinned 0.10.0 named it where the workstation's 0.11.0 did not). In that form a FAILING
+# `cp` also lands in the `|| true`, so a restore that could not preserve the database it is
+# about to overwrite would continue silently. Losing the previous copy is exactly the thing
+# this line exists to prevent, so it must stop.
+if [ -f "$DB_DEST" ]; then
+  cp "$DB_DEST" "$DB_DEST.before-restore-$(date '+%Y%m%d-%H%M%S')"
+fi
 install -D "$STAGE/migallery.db" "$DB_DEST"
 log "Base restauree -> $DB_DEST"
 
