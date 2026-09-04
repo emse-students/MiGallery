@@ -22,10 +22,12 @@
 # required check passes and never before. The old sweep counted check-runs itself, which is a second
 # opinion about which jobs matter beside the one the branch ruleset requires.
 #
-# THE CREDENTIAL IS THE WHOLE DESIGN. Auto-merge merges as whoever armed it, and a merge made by
-# `GITHUB_TOKEN` raises NO `push` event - GitHub's anti-recursion rule - so nothing downstream that
-# listens for a push or for a CI run on `main` would ever hear about a dependency update again. An
-# App token raises it.
+# THE CREDENTIAL IS THE WHOLE DESIGN, AND `GITHUB_TOKEN` WOULD BREAK RELEASING. Auto-merge merges as
+# whoever armed it, and a merge made by `GITHUB_TOKEN` raises NO `push` event - GitHub's
+# anti-recursion rule. So `main` would get no run of `ci.yml`, its merge commit would carry no
+# `CI passed` check, and `release-preflight.sh`'s third gate - "the tests passed on the commit being
+# released" - would refuse EVERY release, on commits that had in fact been tested. An App token does
+# raise the event, so the `canari-auto-merge` installation arms this.
 # =================================================================================================
 name: Arm auto-merge
 
@@ -70,7 +72,12 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.AUTOMERGE_APP_ID }}
+          # `client-id`, NOT `app-id`. Version 3 of this action deprecated `app-id`, and every run
+          # that uses it prints `Input 'app-id' has been deprecated` as a warning annotation - on a
+          # file that fires for EVERY pull request, which is the definition of a line its reader
+          # learns to skip. The two inputs take DIFFERENT values, a numeric App id against an
+          # `Iv23li...` string, so this is a secret swap and not a rename.
+          client-id: ${{ secrets.AUTOMERGE_APP_CLIENT_ID }}
           private-key: ${{ secrets.AUTOMERGE_APP_PRIVATE_KEY }}
 
       - name: Ask GitHub to merge it when the checks pass
@@ -100,6 +107,6 @@ jobs:
             exit 0
           fi
           echo "::error::Could not arm auto-merge on #$PR, and it is not armed. Check that the"
-          echo "::error::auto-merge App is installed with Pull requests write, and that auto-merge"
-          echo "::error::is still allowed on the repository."
+          echo "::error::canari-auto-merge App is installed with Pull requests write, and that"
+          echo "::error::auto-merge is still allowed on the repository."
           exit 1
