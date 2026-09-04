@@ -155,6 +155,46 @@ jobs:
     uses: ./.github/workflows/code-analysis.yml
 
   # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  # THE IMAGE IS BUILT HERE TOO, BECAUSE OTHERWISE NOTHING BUILDS IT UNTIL A RELEASE
+  #
+  # A GREEN GATE IS NOT A WORKING SYSTEM. Until 2026-09-04 the `Dockerfile` was compiled by exactly
+  # one thing - the deploy - so a change that broke it was discovered while shipping, by the only
+  # run that could no longer fall back on anything. The suite above proves the SOURCE builds; it
+  # says nothing about the image that source is shipped in, and the two fail for entirely different
+  # reasons: a base tag that moved, a missing system package, a COPY path that changed.
+  #
+  # `push: false` AND `load: false` - this asks whether the image BUILDS and nothing else. Nothing
+  # is published from a pull request, and the registry credentials are not available here anyway.
+  # The gha cache is shared with the deploy's build, so the deploy pays less than this job does.
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
+  image:
+    name: Build the container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # THE SAME ONE FILE THE DEPLOY READS. `.bun-version` is the only place this repository names a
+      # bun version; if this job read it differently from `deploy.yml`, what is tested here would
+      # not be what ships.
+      - name: The bun version the image is built on, read from the one file that names it
+        id: bun
+        run: echo "version=$(cat .bun-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: false
+          build-args: |
+            BUN_VERSION=${{ steps.bun.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ═══════════════════════════════════════════════════════════════════════════════════════════════
   # THE ONE CHECK A RULESET CAN REQUIRE
   #
   # A rule naming an individual job would name one whose presence can change; this one exists on
@@ -169,7 +209,7 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [validate, security]
+    needs: [validate, image, security]
     runs-on: ubuntu-latest
     steps:
       - name: Did everything pass?
