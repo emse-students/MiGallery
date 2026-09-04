@@ -74,6 +74,15 @@ jobs:
             type=raw,value=v${{ inputs.version }}
             type=sha,prefix=main-
 
+      # `.bun-version` IS THE ONE PLACE THIS REPOSITORY NAMES A BUN VERSION, and until 2026-09-04
+      # the Dockerfile named it a second time. Two copies of a version drift in one direction only:
+      # `setup-bun` in CI reads the file, the image did not, so a tree could be tested on one bun
+      # and shipped on another with nothing anywhere reporting the difference. Read once here; the
+      # Dockerfile's ARG default is now only what a bare `docker build` falls back to.
+      - name: The bun version the image is built on, read from the one file that names it
+        id: bun
+        run: echo "version=$(cat .bun-version)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
@@ -81,6 +90,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUN_VERSION=${{ steps.bun.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
