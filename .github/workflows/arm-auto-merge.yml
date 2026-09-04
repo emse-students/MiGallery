@@ -22,10 +22,12 @@
 # required check passes and never before. The old sweep counted check-runs itself, which is a second
 # opinion about which jobs matter beside the one the branch ruleset requires.
 #
-# THE CREDENTIAL IS THE WHOLE DESIGN. Auto-merge merges as whoever armed it, and a merge made by
-# `GITHUB_TOKEN` raises NO `push` event - GitHub's anti-recursion rule - so nothing downstream that
-# listens for a push or for a CI run on `main` would ever hear about a dependency update again. An
-# App token raises it.
+# THE CREDENTIAL IS THE WHOLE DESIGN, AND `GITHUB_TOKEN` WOULD BREAK RELEASING. Auto-merge merges as
+# whoever armed it, and a merge made by `GITHUB_TOKEN` raises NO `push` event - GitHub's
+# anti-recursion rule. So `main` would get no run of `ci.yml`, its merge commit would carry no
+# `CI passed` check, and `release-preflight.sh`'s third gate - "the tests passed on the commit being
+# released" - would refuse EVERY release, on commits that had in fact been tested. An App token does
+# raise the event, so the `canari-auto-merge` installation arms this.
 # =================================================================================================
 name: Arm auto-merge
 
