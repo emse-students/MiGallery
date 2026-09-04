@@ -1,8 +1,7 @@
 name: CI
 
-# Validation (lint / type-check / build / tests) on PRs and, via workflow_call,
-# as the CD gate (cd.yml calls it before building/deploying the image).
-# No `push` trigger: on main, the CD runs this CI exactly once.
+# Validation (lint / type-check / build / tests) on every pull request AND on `main`, ending in the
+# one check a ruleset requires: `CI passed`.
 #
 # bun is BOTH the package manager and the runtime. It was package-manager-only for
 # two measured reasons, both re-measured on bun 1.4.0: the ~80x request-body read
@@ -14,7 +13,19 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  workflow_call:
+  # THE TRUNK IS TESTED TOO, and it was not until 2026-09-04. This file ran on pull requests only,
+  # and `cd.yml` re-called it on a push - so the verdict on `main` existed inside a DEPLOYMENT run
+  # rather than as a check on the commit. Nothing could then ask "is `main` green?" without knowing
+  # which deploy to look inside, and the release gate that now asks exactly that had nothing to
+  # read. Every sibling repository has run its suite on `push: main` for months.
+  push:
+    branches: [main]
+  # A HAND RE-RUN OF THE SUITE ON `main`, after an infrastructure fault.
+  #
+  # NO `workflow_call`, REMOVED WITH THE THING THAT CALLED IT: `cd.yml`'s `run-ci` job was the only
+  # caller, and it is gone with the push-deploy it gated. A trigger nothing uses is a claim a file
+  # makes about itself that is not true.
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -59,6 +70,12 @@ jobs:
       # itself was not.
       - name: Test the audit classifier
         run: bash .github/scripts/tests/audit-dependencies.test.sh
+
+      # AND THE GATES THAT DECIDE WHETHER A RELEASE MAY START. Three questions, asserted on BOTH
+      # sides of each - a gate known to pass is not a gate known to be able to refuse. No network:
+      # `gh` is a fake on `PATH` that answers from the environment.
+      - name: Test the release gates
+        run: bash .github/scripts/tests/release-preflight.test.sh
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
