@@ -37,9 +37,24 @@ updates:
     # `typescript` STAYS on 6, and that is not a refusal of TS 7 - `check` already runs it. TS 7
     # arrives through `@typescript/native` (npm:typescript@^7), a DISTINCT package, because
     # svelte-check needs both majors present: 6 for its own API, 7 behind `--tsgo`. A major on
-    # `typescript` itself would replace the stable compiler svelte-check is using, and
-    # l'auto-merge fusionne une PR verte sans que personne regarde.
+    # `typescript` itself would replace the stable compiler svelte-check is using, and auto-merge
+    # squash-merges a green pull request with nobody looking.
+    #
+    # AND `@typescript/native` IS IGNORED BECAUSE DEPENDABOT CANNOT SEE IT AT ALL - not because
+    # this repository declines the update. It is an npm ALIAS (`npm:typescript@^7.0.2`), and
+    # Dependabot resolves a dependency by the name it is DECLARED under: it asks
+    # `registry.npmjs.org/@typescript%2Fnative`, gets a 404 because no such package exists, and
+    # fails the WHOLE update job on it. Every `bun` job in this repository had been red on that one
+    # line since at least 2026-08-24, on every single run, and nobody was looking - which is exactly
+    # what a permanently red job buys you.
+    #
+    # NO COVERAGE IS LOST, and that is the whole reason this is an ignore rather than a fix. The 404
+    # means TS 7 behind the alias was NEVER being offered an update; ignoring it removes a failure,
+    # not a capability. What retires this entry is deleting the alias - the day `typescript` itself
+    # is the 7.x line and svelte-check no longer needs both majors present.
     ignore:
+      # See the paragraph above: an npm alias, 404 by name, never updatable.
+      - dependency-name: '@typescript/native'
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
     groups:
