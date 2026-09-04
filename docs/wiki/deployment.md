@@ -12,14 +12,14 @@ database, via Immich's own procedure).
 
 ## Topology
 
-| Element       | Detail                                                                           |
-| ------------- | -------------------------------------------------------------------------------- |
-| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                       |
-| Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches       |
-| Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                           |
-| CD            | `.github/workflows/cd.yml`: run-ci -> build-image -> deploy (self-hosted runner) |
-| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)        |
-| Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                           |
+| Element       | Detail                                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                                                 |
+| Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches                                 |
+| Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                                                     |
+| CD            | `release.yml`: preflight -> `deploy.yml` (build-image -> deploy, self-hosted). **A push deploys nothing.** |
+| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)                                  |
+| Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                                                     |
 
 ## Configuration
 
@@ -62,9 +62,36 @@ answered _"Sorry, only users with push access can use that command"_ - **includi
 is a GitHub App**, measured ten times out of ten on emse-students/canari. An App INSTALLATION is not
 an account with push access. _A gate whose only remedy is unavailable is a stop, not a gate._
 
-The question it was trying to answer is answered elsewhere and better: `cd.yml` runs the CI on every
-push to `main`, so a merge that breaks the trunk is red where somebody looking at the repository
-sees it, rather than being predicted per branch.
+The question it was trying to answer is answered elsewhere and better: `ci.yml` runs on `push: main`
+as well as on `pull_request`, so a merge that breaks the trunk turns `CI passed` red ON `main`, where
+somebody looking at the repository sees it. That verdict is also what the release gate reads.
+
+## Nothing deploys on a push - the release does
+
+**Since 2026-09-04, and in every repository of the ecosystem** (user: _"Pour tous les repos, le push
+sur main ne doit rien deployer, c'est la release qui le fait."_). A merge to `main` runs the CI and
+stops there. The human gesture that ships is publishing a GitHub release:
+
+```sh
+gh release create v1.2.3 --generate-notes
+```
+
+`release.yml` then asks three questions, all of them in `.github/scripts/release-preflight.sh` so
+they can be tested without a run - and they are, on both sides of every gate:
+
+1. **Is the version a version?** A typo becomes a deployed image tag nobody can find again.
+2. **Is the released commit on `main`?** Everything downstream reads the trunk.
+3. **Did `CI passed` go green ON that commit?** Not "run the tests again" - `cd.yml`'s `run-ci` job
+   did exactly that, and a second run is a second opinion about the same tree, the one that ships.
+   **An absent check is refused too**: that is not a failure, it means nothing ever asked.
+
+Only then does it call `deploy.yml` - which is `cd.yml`'s two jobs, now a **library with no trigger
+of its own**. The image carries a `v<version>` tag alongside `latest`, so a running container is
+traceable to a release rather than to a commit nobody remembers publishing. A second job packages
+the tarball and attaches it to the release; it neither gates the deploy nor is gated by it.
+
+**So a merged fix is not a shipped fix**, and that is the deliberate cost. Dependency updates merge
+themselves and then WAIT; what they wait for is somebody deciding this is the tree that ships.
 
 ### The security pass can now block a merge
 

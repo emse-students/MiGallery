@@ -9,13 +9,13 @@ a new server and data restoration.
 
 ## Deployment architecture
 
-| Element | Detail                                                                         |
-| ------- | ------------------------------------------------------------------------------ |
-| Runtime | `migallery` Docker container (SvelteKit + Node), port 3000                     |
-| Data    | `data/` mounted as volume (`/home/mitv/MiGallery/data`): SQLite + caches       |
-| Image   | `ghcr.io/emse-students/migallery:latest` (built by CD)                         |
-| CD      | `.github/workflows/ci-cd.yml`: validate -> build-image -> deploy (self-hosted) |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync to canari (root cron 05h)         |
+| Element | Detail                                                                                                      |
+| ------- | ----------------------------------------------------------------------------------------------------------- |
+| Runtime | `migallery` Docker container (SvelteKit + Node), port 3000                                                  |
+| Data    | `data/` mounted as volume (`/home/mitv/MiGallery/data`): SQLite + caches                                    |
+| Image   | `ghcr.io/emse-students/migallery:latest` (built by CD)                                                      |
+| CD      | `.github/workflows/release.yml`: preflight -> `deploy.yml` (build-image -> deploy). A push deploys nothing. |
+| Backups | `scripts/backup-offsite.sh` -> offsite rsync to canari (root cron 05h)                                      |
 
 ## 0. Prerequisites
 
