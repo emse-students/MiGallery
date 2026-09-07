@@ -174,7 +174,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # THE SAME ONE FILE THE DEPLOY READS. `.bun-version` is the only place this repository names a
       # bun version; if this job read it differently from `deploy.yml`, what is tested here would
