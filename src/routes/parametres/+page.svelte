@@ -373,7 +373,7 @@
           isProcessing = false;
           // Increase delay to give DB time to sync
           await new Promise((resolve) => setTimeout(resolve, 1500));
-          window.location.href = window.location.href;
+          window.location.reload();
         } else {
           uploadStatus = m.param_db_update_error({
             error: updateData.error || m.common_unknown_error(),
@@ -430,22 +430,17 @@
     if (!id) {
       return;
     }
-    try {
-      const response = await fetch(`/api/immich/assets`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Face-Pairing-Cleanup': 'true',
-        },
-        body: JSON.stringify({ ids: [id] }),
-      });
-      if (!response.ok) {
-        const errMsg = `Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`;
-        throw new Error(errMsg);
-      }
-    } catch (e) {
-      // Rethrow error so the caller can handle it
-      throw e;
+    const response = await fetch(`/api/immich/assets`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Face-Pairing-Cleanup': 'true',
+      },
+      body: JSON.stringify({ ids: [id] }),
+    });
+    if (!response.ok) {
+      const errMsg = `Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`;
+      throw new Error(errMsg);
     }
   }
 
@@ -873,7 +868,7 @@
               <div class="loading-state"><Spinner size={20} /> {m.common_loading()}</div>
             {:else if photoPermissions.length > 0}
               <div class="person-list">
-                {#each photoPermissions as perm}
+                {#each photoPermissions as perm (perm.authorized_id)}
                   <div class="person-row">
                     <Avatar
                       userId={perm.authorized_id}
@@ -928,7 +923,7 @@
           <div class="loading-state"><Spinner size={20} /> {m.common_loading()}</div>
         {:else if sharedWithMe.length > 0}
           <div class="person-list">
-            {#each sharedWithMe as shared}
+            {#each sharedWithMe as shared (shared.owner_id)}
               <a href="/mes-photos?userId={shared.owner_id}" class="person-row person-row-link">
                 <Avatar
                   userId={shared.owner_id}
@@ -1048,22 +1043,20 @@
     deleteConfirmText = '';
   }}
 >
-  {#snippet children()}
-    <div class="modal-content">
-      <p class="text-danger mb-4 font-bold">{m.param_delete_irreversible()}</p>
-      <p class="mb-4">
-        {m.param_type_confirm_prefix()} <strong>CONFIRMATION</strong>
-        {m.param_type_confirm_suffix()}
-      </p>
-      <input
-        type="text"
-        bind:value={deleteConfirmText}
-        placeholder={m.param_type_confirm_placeholder()}
-        class="settings-input w-full"
-        disabled={isDeletingAccount}
-      />
-    </div>
-  {/snippet}
+  <div class="modal-content">
+    <p class="text-danger mb-4 font-bold">{m.param_delete_irreversible()}</p>
+    <p class="mb-4">
+      {m.param_type_confirm_prefix()} <strong>CONFIRMATION</strong>
+      {m.param_type_confirm_suffix()}
+    </p>
+    <input
+      type="text"
+      bind:value={deleteConfirmText}
+      placeholder={m.param_type_confirm_placeholder()}
+      class="settings-input w-full"
+      disabled={isDeletingAccount}
+    />
+  </div>
 </Modal>
 
 <Modal
@@ -1079,9 +1072,7 @@
     showUnlinkFaceModal = false;
   }}
 >
-  {#snippet children()}
-    <p>{m.param_unlink_confirm()}</p>
-  {/snippet}
+  <p>{m.param_unlink_confirm()}</p>
 </Modal>
 
 <Modal
@@ -1094,9 +1085,7 @@
     showFaceAlreadyAssignedModal = false;
   }}
 >
-  {#snippet children()}
-    <p>{m.param_face_taken_body()}</p>
-  {/snippet}
+  <p>{m.param_face_taken_body()}</p>
 </Modal>
 
 {#if showChangePhotoModal}

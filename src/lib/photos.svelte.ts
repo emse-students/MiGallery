@@ -28,6 +28,7 @@ export function formatDayLabel(dateStr: string | null) {
   if (!dateStr) {
     return m.albums_no_date();
   }
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) {
     return m.albums_no_date();
@@ -37,12 +38,15 @@ export function formatDayLabel(dateStr: string | null) {
   const month = d.getMonth();
   const day = d.getDate();
 
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const today = new Date();
   const todayYear = today.getFullYear();
   const todayMonth = today.getMonth();
   const todayDay = today.getDate();
 
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const dMid = new Date(year, month, day);
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const tMid = new Date(todayYear, todayMonth, todayDay);
   const diff = Math.round((tMid.getTime() - dMid.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -219,6 +223,7 @@ export class PhotosState {
         `/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=false`
       );
 
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const assetsMap = new Map<string, Asset>();
 
       try {
@@ -253,7 +258,7 @@ export class PhotosState {
             });
           }
 
-          this.assets = [...Array.from(assetsMap.values())];
+          this.assets = Array.from(assetsMap.values());
         });
       } catch (streamErr) {
         // The stream can be cut mid-enrichment (e.g. a reverse-proxy idle
@@ -306,6 +311,7 @@ export class PhotosState {
         throw new Error(text || `HTTP ${res.status}`);
       }
 
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const assetsMap = new Map<string, Asset>();
       await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: ImmichAsset }>(
         res,
@@ -336,7 +342,7 @@ export class PhotosState {
               _raw: asset,
             });
           }
-          this.assets = [...Array.from(assetsMap.values())];
+          this.assets = Array.from(assetsMap.values());
         }
       );
 
@@ -592,6 +598,7 @@ export class PhotosState {
         throw new Error(`HTTP ${res.status}`);
       }
 
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const assetsMap = new Map<string, Asset>();
 
       await consumeNDJSONStream<{
@@ -625,7 +632,7 @@ export class PhotosState {
           });
         }
 
-        this.assets = [...Array.from(assetsMap.values())];
+        this.assets = Array.from(assetsMap.values());
       });
 
       this.loading = false;
@@ -679,13 +686,16 @@ export class PhotosState {
     try {
       const res = await fetch('/api/favorites');
       if (!res.ok) {
+        // eslint-disable-next-line svelte/prefer-svelte-reactivity
         return new Set();
       }
 
       const data = (await res.json()) as { favorites: string[] };
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       return new Set(data.favorites);
     } catch (e: unknown) {
       console.warn('Error loading favorites:', e);
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       return new Set();
     }
   }
@@ -701,6 +711,7 @@ export class PhotosState {
       }
 
       const data = (await res.json()) as { favorites: string[] };
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const favoriteSet = new Set(data.favorites);
 
       this.assets = this.assets.map((a) => ({

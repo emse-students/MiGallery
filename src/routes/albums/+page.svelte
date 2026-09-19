@@ -99,6 +99,7 @@
    * what keeps a 300-album gallery to one short page.
    */
   let schoolYearGroups = $derived.by<SchoolYearGroup[]>(() => {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const byYear = new Map<number | null, Album[]>();
     for (const a of filteredAlbums) {
       const year = schoolYearOf(a.date);
@@ -118,6 +119,7 @@
 
     return years.map((year) => {
       const list = byYear.get(year) as Album[];
+      // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const months = new Map<string, Album[]>();
       for (const a of list) {
         const label = monthLabelFor(a.date);

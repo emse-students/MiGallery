@@ -95,7 +95,7 @@ async function waitForReadiness(url, timeout = READINESS_TIMEOUT) {
       // Si on obtient une réponse HTTP (quel que soit le code), considérer le service prêt
       // Certaines routes peuvent retourner 404 si non configurées; l'important est que le serveur réponde.
       return res;
-    } catch (e) {
+    } catch {
       // connexion refusée => serveur pas encore prêt
       await setTimeout(READINESS_POLL_INTERVAL);
     }

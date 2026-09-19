@@ -351,10 +351,10 @@
   {/if}
 
   <!-- Photo grid grouped by day -->
-  {#each Object.entries(groupByDay(displayedAssets)) as [dayLabel, items]}
+  {#each Object.entries(groupByDay(displayedAssets)) as [dayLabel, items] (dayLabel)}
     <h3 class="day-label">{dayLabel}</h3>
     <div class="photos-grid">
-      {#each items as a}
+      {#each items as a (a.id)}
         <PhotoCard
           asset={a}
           isSelected={photosState.selectedAssets.includes(a.id)}
@@ -409,9 +409,7 @@
   cancelText={m.common_cancel()}
   onConfirm={confirmDelete}
 >
-  {#snippet children()}
-    <p>{m.photo_trash_confirm()}</p>
-  {/snippet}
+  <p>{m.photo_trash_confirm()}</p>
 </Modal>
 
 <!-- Bulk-delete modal -->
@@ -423,14 +421,12 @@
   cancelText={m.common_cancel()}
   onConfirm={confirmDeleteSelected}
 >
-  {#snippet children()}
-    <p>
-      {m.pg_delete_selected_body({ count: photosState.selectedAssets.length })}
-    </p>
-    <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-      {m.pg_delete_selected_warn()}
-    </p>
-  {/snippet}
+  <p>
+    {m.pg_delete_selected_body({ count: photosState.selectedAssets.length })}
+  </p>
+  <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+    {m.pg_delete_selected_warn()}
+  </p>
 </Modal>
 
 <!-- Remove-from-album modal -->
@@ -442,14 +438,12 @@
   cancelText={m.common_cancel()}
   onConfirm={confirmRemoveFromAlbum}
 >
-  {#snippet children()}
-    <p>
-      {m.pg_remove_body({ count: photosState.selectedAssets.length })}
-    </p>
-    <p class="text-muted text-sm" style="margin-top: 0.5rem;">
-      {m.pg_remove_warn()}
-    </p>
-  {/snippet}
+  <p>
+    {m.pg_remove_body({ count: photosState.selectedAssets.length })}
+  </p>
+  <p class="text-muted text-sm" style="margin-top: 0.5rem;">
+    {m.pg_remove_warn()}
+  </p>
 </Modal>
 
 <!-- Bulk download modal -->
@@ -461,11 +455,9 @@
   cancelText={m.common_cancel()}
   onConfirm={confirmDownloadSelected}
 >
-  {#snippet children()}
-    <p>
-      {m.pg_download_body({ count: photosState.selectedAssets.length })}
-    </p>
-  {/snippet}
+  <p>
+    {m.pg_download_body({ count: photosState.selectedAssets.length })}
+  </p>
 </Modal>
 
 <style>

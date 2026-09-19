@@ -103,7 +103,7 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
     response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
   } else if (/\/_app\//.test(pathname)) {
     response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
-  } else if (pathname === '/' || /\.html$/.test(pathname)) {
+  } else if (pathname === '/' || pathname.endsWith('.html')) {
     response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
   } else if (!pathname.startsWith('/api/')) {
     response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');

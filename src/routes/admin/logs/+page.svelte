@@ -14,6 +14,7 @@
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   function navigate(next: { q?: string; event?: string; page?: number }) {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const sp = new URLSearchParams();
     const q = next.q ?? data.filters.q;
     const ev = next.event ?? data.filters.eventType;
@@ -65,7 +66,7 @@
     </div>
     <select class="event-select" value={data.filters.eventType} onchange={onEventChange}>
       <option value="">{m.logs_all_types()}</option>
-      {#each data.eventTypes as et}
+      {#each data.eventTypes as et (et)}
         <option value={et}>{et}</option>
       {/each}
     </select>
@@ -87,7 +88,7 @@
     </div>
 
     <div class="table-body">
-      {#each logs as log}
+      {#each logs as log (log.timestamp)}
         <div class="table-row">
           <div class="cell col-date">{new Date(log.timestamp).toLocaleString()}</div>
           <div class="cell col-actor">

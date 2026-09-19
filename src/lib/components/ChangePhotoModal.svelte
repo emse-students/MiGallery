@@ -13,7 +13,6 @@
     onClose: () => void;
     onPhotoSelected?: (assetId: string) => void;
     peopleId?: string;
-    photosState?: unknown;
   }
 
   let { currentPhotoUrl, onClose, onPhotoSelected, peopleId }: Props = $props();
@@ -133,7 +132,7 @@
     </div>
   {:else if assets.length > 0}
     <div class="photos-grid">
-      {#each assets as asset}
+      {#each assets as asset (asset.id)}
         <button
           class="photo-item {selectedAssetId === asset.id ? 'selected' : ''}"
           onclick={() => handlePhotoSelect(asset.id)}

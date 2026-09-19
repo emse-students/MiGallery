@@ -192,14 +192,14 @@
             </tr>
           </thead>
           <tbody>
-            {#each keys as k}
+            {#each keys as k (k.id)}
               <tr>
                 <td class="id-cell">#{k.id}</td>
                 <td class="text-main font-medium">{k.label || '-'}</td>
                 <td>
                   {#if k.scopes}
                     <div class="scopes-list">
-                      {#each k.scopes.split(',') as scope}
+                      {#each k.scopes.split(',') as scope (scope)}
                         <span class="badge scope">{scope.trim()}</span>
                       {/each}
                     </div>

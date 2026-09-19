@@ -495,7 +495,7 @@
                 title={isSelf ? m.usr_no_self_role() : m.usr_change_role()}
                 onchange={(e) => changeRole(user, e.currentTarget.value)}
               >
-                {#each ROLES as r}
+                {#each ROLES as r (r)}
                   <option value={r}>{ROLE_LABELS[r]}</option>
                 {/each}
               </select>
@@ -577,7 +577,7 @@
               </div>
             </div>
             <div class="checkbox-list">
-              {#each availablePromos as promo}
+              {#each availablePromos as promo (promo)}
                 <label class="checkbox-item">
                   <input
                     type="checkbox"
@@ -606,7 +606,7 @@
               </div>
             </div>
             <div class="checkbox-list">
-              {#each availableFormations as formation}
+              {#each availableFormations as formation (formation)}
                 <label class="checkbox-item">
                   <input
                     type="checkbox"

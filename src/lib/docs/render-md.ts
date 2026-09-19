@@ -62,10 +62,10 @@ export function mdToHtml(md: string) {
     }
     if (
       /^<h[1-6]>/.test(line) ||
-      /^<ul>/.test(line) ||
-      /^<pre>/.test(line) ||
-      /^<blockquote>/.test(line) ||
-      /^<p>/.test(line)
+      line.startsWith('<ul>') ||
+      line.startsWith('<pre>') ||
+      line.startsWith('<blockquote>') ||
+      line.startsWith('<p>')
     ) {
       out.push(line);
     } else if (line.trim() === '') {

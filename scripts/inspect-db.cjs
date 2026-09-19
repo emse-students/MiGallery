@@ -146,7 +146,7 @@ try {
 } finally {
   try {
     db.close();
-  } catch (e) {}
+  } catch {}
 }
 
 // Résumé et actions

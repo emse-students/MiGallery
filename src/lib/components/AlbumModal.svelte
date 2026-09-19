@@ -76,6 +76,7 @@
   });
 
   function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
+    // eslint-disable-next-line svelte/prefer-svelte-reactivity
     const out = new Set<number>();
     for (const rawTag of tags) {
       const match = String(rawTag)
@@ -392,7 +393,7 @@
           <div class="share-section">
             <div class="share-title">{m.am_formations()}</div>
             <div class="choice-row">
-              {#each availableFormations as formation}
+              {#each availableFormations as formation (formation)}
                 <button
                   type="button"
                   class="chip {selectedFormations.includes(formation) ? 'active' : ''}"
@@ -411,7 +412,7 @@
             <div class="share-title">{m.am_promotions()}</div>
             {#if selectedPromos.length > 0}
               <div class="choice-row">
-                {#each selectedPromos as promo}
+                {#each selectedPromos as promo (promo)}
                   <button
                     type="button"
                     class="selected-chip"
@@ -428,7 +429,7 @@
             {/if}
             <div class="promo-add-row">
               <select bind:value={promoSelectorYear} class="promo-select" disabled={loading}>
-                {#each promoYears as year}
+                {#each promoYears as year (year)}
                   <option value={year}>{year}</option>
                 {/each}
               </select>
@@ -468,7 +469,7 @@
 
             {#if showUserSuggestions && userSuggestions.length > 0}
               <div class="suggestions">
-                {#each userSuggestions as user}
+                {#each userSuggestions as user (user.id_user)}
                   <button type="button" class="suggestion" onclick={() => addUser(user)}>
                     <span class="s-main">{userLabel(user)}</span>
                     <span class="suggestion-add" aria-hidden="true">
@@ -481,7 +482,7 @@
 
             {#if selectedUsers.length > 0}
               <div class="selected-list">
-                {#each selectedUsers as user}
+                {#each selectedUsers as user (user.id_user)}
                   <button
                     type="button"
                     class="selected-chip"

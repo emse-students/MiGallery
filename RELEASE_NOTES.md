@@ -1,3 +1,13 @@
+# MiGallery v2.1.1
+
+**Date**: September 19, 2026
+**Type**: Patch Release
+
+## Improvements
+
+- Avatar downloads now accept a scoped API key through the `api_key` query parameter.
+- Removed all lint warnings and kept the Svelte/TypeScript checks clean.
+
 # MiGallery v2.0.0
 
 **Date**: August 17, 2026

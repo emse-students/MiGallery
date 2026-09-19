@@ -27,7 +27,7 @@ dirsToClean.forEach((tmp) => {
           console.warn('Failed to remove', full, e);
         }
       }
-    } catch (e) {
+    } catch {
       /* ignore */
     }
   });

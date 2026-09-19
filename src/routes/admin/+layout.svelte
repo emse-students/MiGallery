@@ -35,7 +35,7 @@
   <aside class="sidebar">
     <div class="brand"><ShieldCheck size={22} /> {m.adm_brand()}</div>
     <nav>
-      {#each links as l}
+      {#each links as l (l.href)}
         {@const Icon = l.icon}
         <a class:active={page.url.pathname === l.href} href={l.href}>
           <span class="icon"><Icon size={20} /></span>

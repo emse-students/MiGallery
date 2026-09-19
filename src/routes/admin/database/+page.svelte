@@ -387,7 +387,7 @@
           </div>
 
           <div class="tables-grid">
-            {#each databaseStatus.tables || [] as table}
+            {#each databaseStatus.tables || [] as table (table.name)}
               <div class="table-check-item {table.exists ? 'valid' : 'invalid'}">
                 {#if table.exists}
                   <CircleCheckBig size={16} />
@@ -404,7 +404,7 @@
             <div class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3">
               <strong class="mb-1 block text-sm text-red-500">{m.db_missing_label()}</strong>
               <div class="flex flex-wrap gap-2">
-                {#each databaseStatus.missingTables as t}
+                {#each databaseStatus.missingTables as t (t)}
                   <span class="rounded bg-red-500/20 px-2 py-1 text-xs text-red-600">{t}</span>
                 {/each}
               </div>
@@ -423,7 +423,7 @@
           {#if backups.length === 0}
             <EmptyState icon={Inbox} title={m.db_no_backups()} />
           {:else}
-            {#each backups as backup}
+            {#each backups as backup (backup.filename)}
               <div class="backup-row">
                 <div class="backup-icon">
                   <FileText size={20} />

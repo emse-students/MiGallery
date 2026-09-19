@@ -1,3 +1,5 @@
+<!-- These localized legal messages intentionally contain trusted inline HTML. -->
+<!-- eslint-disable svelte/no-at-html-tags -->
 <script lang="ts">
   import { Book, Server, ScanEye, Database, Copyright, Info } from '@lucide/svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';

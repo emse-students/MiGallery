@@ -1,11 +1,12 @@
 <script module lang="ts">
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   export const imageUrlCache = new Map<string, string>();
   const MAX_CACHE_SIZE = 200;
 
   function revokeUrl(url: string | undefined) {
     try {
       if (url) URL.revokeObjectURL(url);
-    } catch (e) {}
+    } catch {}
   }
 
   export function getCached(src: string) {
@@ -74,7 +75,7 @@
   let highResLoaded = $state(false);
 
   $effect(() => {
-    src;
+    void src;
     srcOverride = undefined;
     highResLoaded = false;
   });

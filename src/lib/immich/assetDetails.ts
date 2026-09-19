@@ -74,7 +74,7 @@ export async function fetchAssetsDetails(
   if (!Array.isArray(ids)) {
     return [];
   }
-  const out: Array<ImmichAsset | null> = new Array<ImmichAsset | null>(ids.length).fill(null);
+  const out: Array<ImmichAsset | null> = Array.from({ length: ids.length }, () => null);
 
   let idx = 0;
 

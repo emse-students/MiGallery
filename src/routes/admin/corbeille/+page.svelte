@@ -329,10 +329,10 @@
       </div>
     {/if}
 
-    {#each Object.entries(groupByDay(assets)) as [dayLabel, items]}
+    {#each Object.entries(groupByDay(assets)) as [dayLabel, items] (dayLabel)}
       <h3 class="day-label">{dayLabel}</h3>
       <div class="photos-flex {selecting ? 'selection-mode' : ''}">
-        {#each items as asset}
+        {#each items as asset (asset.id)}
           {@const aspectRatio = getAspectRatio(asset)}
           {@const flexBasis = aspectRatio * 220}
           {@const flexGrow = aspectRatio * 100}

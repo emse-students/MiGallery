@@ -1,3 +1,5 @@
+<!-- d.html is generated from trusted, versioned Markdown content. -->
+<!-- eslint-disable svelte/no-at-html-tags -->
 <script lang="ts">
   import { page } from '$app/state';
   import { BookOpen, List, FileText } from '@lucide/svelte';
@@ -41,7 +43,7 @@
         </div>
         <nav>
           <ul>
-            {#each docs as d}
+            {#each docs as d (d.filename)}
               <li>
                 <button onclick={() => scrollToDoc(d.filename)} class="toc-link">
                   <span class="doc-icon"><FileText size={14} /></span>
@@ -56,7 +58,7 @@
 
     <!-- CONTENT -->
     <div class="docs-content">
-      {#each docs as d}
+      {#each docs as d (d.filename)}
         <article id={d.filename} class="doc-card">
           <header class="doc-header">
             <div class="title-row">

@@ -185,11 +185,9 @@
   onConfirm={confirmNavigation}
   onCancel={cancelNavigation}
 >
-  {#snippet children()}
-    <p>{m.nav_op_body_running()}</p>
-    <p>{m.nav_op_body_cancelled()}</p>
-    <p><strong>{m.nav_op_body_confirm()}</strong></p>
-  {/snippet}
+  <p>{m.nav_op_body_running()}</p>
+  <p>{m.nav_op_body_cancelled()}</p>
+  <p><strong>{m.nav_op_body_confirm()}</strong></p>
 </Modal>
 
 <style>

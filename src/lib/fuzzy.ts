@@ -42,9 +42,9 @@ export function editDistance(a: string, b: string): number {
   }
 
   // Three rows rather than two: the transposition case reads the row BEFORE the previous one.
-  let prev2 = new Array<number>(b.length + 1);
+  let prev2 = Array.from({ length: b.length + 1 }, () => 0);
   let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
-  let curr = new Array<number>(b.length + 1);
+  let curr = Array.from({ length: b.length + 1 }, () => 0);
 
   for (let i = 1; i <= a.length; i++) {
     curr[0] = i;
