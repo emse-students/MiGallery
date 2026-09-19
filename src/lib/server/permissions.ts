@@ -44,10 +44,11 @@ export async function requireScope(
   options?: {
     allowSelf?: boolean;
     targetUserId?: string;
+    allowQueryApiKey?: boolean;
   }
 ): Promise<AuthResult> {
   const { request, locals, cookies } = event;
-  const { allowSelf = false, targetUserId } = options || {};
+  const { allowSelf = false, targetUserId, allowQueryApiKey = false } = options || {};
 
   if (requiredScope === 'public') {
     return {
@@ -58,9 +59,10 @@ export async function requireScope(
   }
 
   const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-  if (apiKeyHeader) {
+  const apiKey = apiKeyHeader || (allowQueryApiKey ? event.url.searchParams.get('api_key') : null);
+  if (apiKey) {
     if (requiredScope === 'admin') {
-      if (!verifyRawKeyWithScope(apiKeyHeader, 'admin')) {
+      if (!verifyRawKeyWithScope(apiKey, 'admin')) {
         throw error(403, 'Admin scope required');
       }
       return {
@@ -71,36 +73,33 @@ export async function requireScope(
     }
 
     if (requiredScope === 'write') {
-      if (
-        !verifyRawKeyWithScope(apiKeyHeader, 'write') &&
-        !verifyRawKeyWithScope(apiKeyHeader, 'admin')
-      ) {
+      if (!verifyRawKeyWithScope(apiKey, 'write') && !verifyRawKeyWithScope(apiKey, 'admin')) {
         throw error(403, 'Write or Admin scope required');
       }
       return {
         user: null,
-        grantedScope: verifyRawKeyWithScope(apiKeyHeader, 'admin') ? 'admin' : 'write',
+        grantedScope: verifyRawKeyWithScope(apiKey, 'admin') ? 'admin' : 'write',
         viaApiKey: true,
       };
     }
 
     if (requiredScope === 'read') {
       if (
-        !verifyRawKeyWithScope(apiKeyHeader, 'read') &&
-        !verifyRawKeyWithScope(apiKeyHeader, 'write') &&
-        !verifyRawKeyWithScope(apiKeyHeader, 'admin')
+        !verifyRawKeyWithScope(apiKey, 'read') &&
+        !verifyRawKeyWithScope(apiKey, 'write') &&
+        !verifyRawKeyWithScope(apiKey, 'admin')
       ) {
         throw error(403, 'Read, Write or Admin scope required');
       }
-      const grantedScope = verifyRawKeyWithScope(apiKeyHeader, 'admin')
+      const grantedScope = verifyRawKeyWithScope(apiKey, 'admin')
         ? 'admin'
-        : verifyRawKeyWithScope(apiKeyHeader, 'write')
+        : verifyRawKeyWithScope(apiKey, 'write')
           ? 'write'
           : 'read';
 
       // Log API key usage (only for mutating methods or admin scope to avoid flooding)
       if (request.method !== 'GET' || grantedScope === 'admin') {
-        void logEvent(event, 'api_usage', 'api_key', `${apiKeyHeader.slice(0, 8)}...`, {
+        void logEvent(event, 'api_usage', 'api_key', `${apiKey.slice(0, 8)}...`, {
           method: request.method,
           path: event.url.pathname,
           scope: grantedScope,

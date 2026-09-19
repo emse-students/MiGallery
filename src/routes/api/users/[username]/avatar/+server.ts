@@ -19,7 +19,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * Requires: authentication (session cookie, auth provider, or API key with 'read' scope)
  */
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read');
+  await requireScope(event, 'read', { allowQueryApiKey: true });
   try {
     const { username } = event.params;
     const { fetch } = event;
