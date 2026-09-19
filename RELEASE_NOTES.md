@@ -1,3 +1,13 @@
+# MiGallery v2.1.2
+
+**Date**: September 19, 2026
+**Type**: Patch Release
+
+## Fixes
+
+- Deleting an album now removes its Immich assets only when they are not referenced by another album.
+- Shared assets and assets whose membership cannot be verified are preserved.
+
 # MiGallery v2.1.1
 
 **Date**: September 19, 2026

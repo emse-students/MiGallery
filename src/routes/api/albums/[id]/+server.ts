@@ -7,6 +7,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { deleteOrphanedAlbumAssets } from '$lib/server/immich-album-delete';
 import { getStoredCover, pruneAlbumCovers } from '$lib/server/album-cover';
 
 import { createLogger } from '$lib/server/logger';
@@ -88,7 +89,7 @@ export const GET: RequestHandler = async (event) => {
  * DELETE /api/albums/[id]
  * Deletes an album robustly:
  * 1. ALWAYS deletes from the local database (source of truth for us)
- * 2. Attempts to delete from Immich (non-critical)
+ * 2. Attempts to delete the album and its unshared assets from Immich (non-critical)
  */
 export const DELETE: RequestHandler = async (event) => {
   await requireScope(event, 'write');
@@ -97,6 +98,21 @@ export const DELETE: RequestHandler = async (event) => {
     const { fetch } = event;
     let immichDeleteSuccess = true;
     let immichDeleteError: string | null = null;
+    let albumAssetIds: string[] = [];
+    let albumAssetsRead = false;
+    let immichAssetsDeleted = 0;
+    let immichAssetsSkipped = 0;
+    let immichAssetVerificationFailures = 0;
+
+    if (IMMICH_BASE_URL && id) {
+      try {
+        const albumAssets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
+        albumAssetIds = albumAssets.map((asset) => asset.id);
+        albumAssetsRead = true;
+      } catch (assetReadErr: unknown) {
+        log.warn('Could not read album assets before deletion:', assetReadErr);
+      }
+    }
 
     try {
       const db = getDatabase();
@@ -140,10 +156,29 @@ export const DELETE: RequestHandler = async (event) => {
       }
     }
 
+    if (immichDeleteSuccess && albumAssetsRead && id) {
+      const assetDeleteResult = await deleteOrphanedAlbumAssets(
+        fetch,
+        id,
+        albumAssetIds,
+        IMMICH_BASE_URL,
+        IMMICH_API_KEY
+      );
+      immichAssetsDeleted = assetDeleteResult.deleted;
+      immichAssetsSkipped = assetDeleteResult.skipped;
+      immichAssetVerificationFailures = assetDeleteResult.verificationFailures;
+      if (assetDeleteResult.deleteError) {
+        log.warn(assetDeleteResult.deleteError);
+      }
+    }
+
     try {
       await logEvent(event, 'delete', 'album', event.params.id, {
         immichDeleted: immichDeleteSuccess,
         immichError: immichDeleteError,
+        immichAssetsDeleted,
+        immichAssetsSkipped,
+        immichAssetVerificationFailures,
       });
     } catch (logErr) {
       log.warn('logEvent failed (albums DELETE):', logErr);
@@ -154,6 +189,9 @@ export const DELETE: RequestHandler = async (event) => {
       localDbDeleted: true,
       immichDeleted: immichDeleteSuccess,
       immichError: immichDeleteError,
+      immichAssetsDeleted,
+      immichAssetsSkipped,
+      immichAssetVerificationFailures,
     });
   } catch (e: unknown) {
     const err = ensureError(e);
