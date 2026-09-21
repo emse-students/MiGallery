@@ -5,7 +5,7 @@
     "": {
       "name": "migallery",
       "dependencies": {
-        "@lucide/svelte": "^1.44.0",
+        "@lucide/svelte": "^1.47.0",
         "dotenv": "^17.4.2",
         "form-data": "^4.0.6",
         "jspdf": "^4.2.1",
@@ -137,7 +137,7 @@
 
     "@lix-js/sdk-win32-x64": ["@lix-js/sdk-win32-x64@0.16.1", "", { "os": "win32", "cpu": "x64" }, "sha512-1H84YqSd6VhzyUl5hdW4106QCnhO0NE9xRfT6ci6JvU/opNC9JWiOyKLboqlJWkupSIW9VlfL5Cwza6fZs5mLw=="],
 
-    "@lucide/svelte": ["@lucide/svelte@1.44.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-67510ne/YowceSyN9BECQaWfp5Ed446X6xpUE5C0e4rRV0e1jRj1KzIlKJCXcGc21hgr/VBDkqQXY7v4VQDeBw=="],
+    "@lucide/svelte": ["@lucide/svelte@1.47.0", "", { "peerDependencies": { "svelte": "^5" } }, "sha512-tpuE7JIK9FzYDWsJx6PxHj9ROyCpnDxZfvHu5q5yHGKS2CFNjzSyf1o9/Ypu2A27GLvkPGqZcIMrF6idM+eQZQ=="],
 
     "@napi-rs/lzma-linux-x64-gnu": ["@napi-rs/lzma-linux-x64-gnu@1.5.1", "", { "os": "linux", "cpu": "x64" }, "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ=="],
 
