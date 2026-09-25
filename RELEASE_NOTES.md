@@ -1,3 +1,23 @@
+# MiGallery v2.9.0
+
+**Date**: September 26, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+The new logo everywhere, and the fixes from the desktop review.
+
+## Logo
+
+- The 2026 logo replaces the old one everywhere: tab icon, iPhone home screen, top bar, home page, README and link previews. The old 716 KB image used for every link preview is replaced by a 42 KB one.
+
+## Desktop
+
+- The top and bottom bars are translucent and blurred, like the album's action bar; more room between the album's actions and its title.
+- Dialogs such as "Modifier l'album" are opaque again, over a blurred page, and their scrollbar no longer runs over the fields.
+- The viewer has margins, and its "Informations" panel slides in with an icon per fact: the file with its size and resolution, the camera with its lens and settings, and the place.
+- Settings: the face recognition note has its icon beside the text, and "Importer une photo" stays on one line.
+
 # MiGallery v2.8.0
 
 **Date**: September 26, 2026
