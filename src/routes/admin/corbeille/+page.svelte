@@ -337,7 +337,7 @@
           {@const flexBasis = aspectRatio * 220}
           {@const flexGrow = aspectRatio * 100}
           <div
-            class="photo-card glass-card {selectedAssets.includes(asset.id) ? 'selected' : ''}"
+            class="photo-card surface {selectedAssets.includes(asset.id) ? 'selected' : ''}"
             style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
             role="button"
             tabindex="0"
@@ -529,10 +529,8 @@
   .photo-card {
     position: relative;
     margin: 2px;
-    /* glass-style background */
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(6px) saturate(120%);
     border-radius: var(--radius-xs);
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -546,7 +544,6 @@
   }
 
   .photo-card:hover {
-    transform: translateY(-6px) scale(1.02);
     box-shadow:
       0 12px 30px rgba(2, 6, 23, 0.45),
       0 6px 15px rgba(2, 6, 23, 0.25);
@@ -604,7 +601,6 @@
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   }
 
   .photo-card:hover .photo-info {
@@ -620,7 +616,6 @@
     width: 36px;
     height: 36px;
     background: color-mix(in srgb, var(--success) 90%, transparent);
-    backdrop-filter: blur(8px);
     border: none;
     border-radius: var(--radius-sm, 6px);
     color: white;
@@ -650,7 +645,6 @@
     width: 36px;
     height: 36px;
     background: color-mix(in srgb, var(--error-hover) 90%, transparent);
-    backdrop-filter: blur(8px);
     border: none;
     border-radius: var(--radius-sm, 6px);
     color: white;

@@ -71,14 +71,14 @@
       {/each}
     </select>
     {#if hasFilters}
-      <button type="button" class="btn-glass" onclick={resetFilters}>
+      <button type="button" class="btn" onclick={resetFilters}>
         <RotateCcw size={15} />
         {m.logs_reset()}
       </button>
     {/if}
   </div>
 
-  <div class="grid-table glass-card">
+  <div class="grid-table surface">
     <div class="table-header">
       <div class="cell col-date">{m.logs_col_date()}</div>
       <div class="cell col-actor">{m.logs_col_actor()}</div>
@@ -127,7 +127,7 @@
     <div class="pager-actions">
       <button
         type="button"
-        class="btn-glass icon"
+        class="btn icon"
         disabled={data.page <= 1}
         onclick={() => navigate({ page: data.page - 1 })}
         title={m.logs_prev_page()}
@@ -136,7 +136,7 @@
       </button>
       <button
         type="button"
-        class="btn-glass icon"
+        class="btn icon"
         disabled={data.page >= data.pageCount}
         onclick={() => navigate({ page: data.page + 1 })}
         title={m.logs_next_page()}
@@ -191,7 +191,7 @@
     cursor: pointer;
   }
 
-  .glass-card {
+  .surface {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius);

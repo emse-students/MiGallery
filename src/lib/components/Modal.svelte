@@ -193,14 +193,14 @@
     {#if showActions}
       <div class="modal-actions">
         {#if type === 'confirm'}
-          <button type="button" onclick={handleCancel} disabled={isProcessing} class="btn-glass">
+          <button type="button" onclick={handleCancel} disabled={isProcessing} class="btn">
             {cancelText}
           </button>
           <button
             type="button"
             onclick={handleConfirm}
             disabled={isProcessing || confirmDisabled}
-            class="btn-glass primary"
+            class="btn primary"
           >
             {isProcessing ? m.common_processing() : confirmText}
           </button>
@@ -209,7 +209,7 @@
             type="button"
             onclick={handleConfirm}
             disabled={isProcessing || confirmDisabled}
-            class="btn-glass primary"
+            class="btn primary"
           >
             {isProcessing ? m.common_processing() : confirmText}
           </button>
@@ -237,19 +237,18 @@
 
   .modal-dialog::backdrop {
     background: rgba(0, 0, 0, 0.65);
-    backdrop-filter: blur(8px) saturate(130%);
   }
 
   .modal-content {
-    /* Glassmorphism modal surface (more opaque for better legibility) */
-    background: rgba(255, 255, 255, 0.22);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    /* Opaque: a dialog floats over content, and without a blur a translucent
+       panel lets that content show through its text. */
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
     border-radius: 0.9rem;
     padding: 1.5rem;
     min-width: 400px;
     max-width: 600px;
-    box-shadow: 0 12px 40px rgba(2, 6, 23, 0.6);
-    backdrop-filter: blur(10px) saturate(130%);
+    box-shadow: var(--shadow-lg);
     transition:
       background-color 0.3s ease,
       border-color 0.3s ease,

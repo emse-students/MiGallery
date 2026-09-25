@@ -218,7 +218,6 @@
 
 .admin-shell .primary:hover:not(:disabled) {
   background: var(--accent-hover);
-  transform: translateY(-1px);
 }
 
 .admin-shell .success-button {

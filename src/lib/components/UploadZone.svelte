@@ -438,7 +438,7 @@
         {#if errorCountPersist > 0}
           <button
             type="button"
-            class="btn-glass primary"
+            class="btn primary"
             disabled={isUploading}
             onclick={(e) => {
               e.stopPropagation();
@@ -453,7 +453,7 @@
         {#if !isUploading}
           <button
             type="button"
-            class="btn-glass"
+            class="btn"
             onclick={(e) => {
               e.stopPropagation();
               clearStatuses();
@@ -489,8 +489,6 @@
     cursor: pointer;
     transition: all 0.22s ease;
     background: var(--bg-secondary);
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
     min-height: 180px;
     display: flex;
     align-items: center;
@@ -687,7 +685,7 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--success));
+    background: var(--accent);
     transition: width 0.3s ease;
   }
 

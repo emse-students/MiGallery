@@ -90,39 +90,20 @@ CSS variables are defined in `src/app.css` and form the foundation of the design
 
 ### Buttons
 
-```css
-/* Primary button (accent) */
-.btn-primary {
-  background: var(--accent);
-  color: white;
-  padding: 0.625rem 1rem;
-  border-radius: var(--radius-sm);
-}
+ONE button class, `.btn`, defined in `src/app.css` - a flat tonal fill whose hover is a state layer
+(8% of the text colour), no blur, no coloured shadow, no lift. Modifiers: `.primary` and `.success`
+are coloured by default; `.danger`, `.info`, `.edit` and `.warning` stay neutral and colour only on
+hover; `.icon` is square and compact; `.active` is the "on" state of a toggle.
 
-/* Secondary button */
-.btn-secondary {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-
-/* Danger button */
-.btn-delete-selection {
-  background: #dc2626;
-  color: white;
-}
+```svelte
+<button class="btn primary">...</button>
+<button class="btn danger icon" aria-label="...">...</button>
 ```
 
-### Cards
+### Surfaces
 
-```css
-.card {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  padding: 2rem;
-  border-radius: var(--radius-sm);
-}
-```
+`.surface` is a tonal panel (`--surface` fill, `--surface-border` edge, `--radius`), translucent so
+the background blobs still show, never blurred and never shadowed.
 
 ---
 
@@ -155,22 +136,19 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
 }
 ```
 
-### Hover animation
+### Flat surfaces - no glass, no glow, no lift
 
-```css
-.photo-card:hover {
-  transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-```
-
-### Backdrop blur
+Components are FLAT (`docs/wiki/ui-redesign.md` #25, measured against Google Photos, which carries
+no blur, no coloured shadow and no text-shadow): no `backdrop-filter`, no coloured or wide
+`box-shadow` on anything lying in the page flow, no `text-shadow`, no gradient fill or gradient text,
+no `translateY`/`scale` on hover. Elevation is a tonal step (`--bg-secondary` -> `--bg-tertiary` ->
+`--bg-elevated`); only what really floats (a dialog, a menu) keeps the neutral `--shadow-lg`. A panel
+floating over content is OPAQUE, since without a blur a translucent one shows the content through its
+text. The one exception is the page background: the blobs above stay, they are the app's identity.
 
 ```css
 .modal-overlay {
   background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
 }
 ```
 
@@ -222,7 +200,6 @@ crashes on Safari mobile). Near-zero cost, identical desktop/mobile. See `Backgr
   top: 0;
   z-index: 100;
   background: rgba(15, 15, 15, 0.8);
-  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
 
@@ -244,7 +221,7 @@ The mobile navigation bar (`MobileNav.svelte`) is a global component that appear
 
 - Fixed position at the bottom
 - Icons only (no text)
-- Background with blur
+- Opaque background
 - Hidden on desktop (`display: none` above 768px)
 
 ### Integration in main

@@ -101,14 +101,14 @@
 
 <AdminPage title={m.apik_title()} subtitle={m.apik_subtitle()} icon={Key} maxWidth="1000px">
   {#snippet actions()}
-    <a href="/admin" class="btn-glass">
+    <a href="/admin" class="btn">
       <Book size={16} />
       {m.adm_nav_docs()}
     </a>
   {/snippet}
 
   <!-- Create section -->
-  <section class="glass-card create-section">
+  <section class="surface create-section">
     <div class="card-header">
       <h3><CirclePlus size={20} /> {m.apik_new_key()}</h3>
     </div>
@@ -118,7 +118,7 @@
           <label for="key-label">{m.apik_label()}</label>
           <input
             id="key-label"
-            class="input-glass"
+            class="text-input"
             placeholder={m.apik_label_ph()}
             bind:value={newLabel}
           />
@@ -127,7 +127,7 @@
           <label for="key-scopes">{m.apik_scopes()}</label>
           <input
             id="key-scopes"
-            class="input-glass"
+            class="text-input"
             placeholder={m.apik_scopes_ph()}
             bind:value={newScopes}
           />
@@ -135,7 +135,7 @@
         <div class="input-group button-group">
           <button
             type="button"
-            class="btn-glass primary"
+            class="btn primary"
             onclick={createKey}
             disabled={creating || !newLabel}
           >
@@ -155,14 +155,14 @@
   </section>
 
   {#if error}
-    <div class="glass-card flex items-center gap-2 border-l-4 border-red-500 p-4 text-red-500">
+    <div class="surface flex items-center gap-2 border-l-4 border-red-500 p-4 text-red-500">
       <CircleAlert size={20} />
       {error}
     </div>
   {/if}
 
   <!-- Keys list -->
-  <section class="glass-card list-section">
+  <section class="surface list-section">
     <div class="card-header">
       <h3>{m.apik_existing({ count: keys.length })}</h3>
       <button
@@ -233,13 +233,10 @@
   /* Uses the global theme tokens directly (no per-page mirror variables). */
 
   /* --- CARDS --- */
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
     overflow: hidden;
     margin-bottom: 2rem;
   }
@@ -288,20 +285,19 @@
     min-width: 200px;
   }
 
-  .input-glass {
+  .text-input {
     padding: 0.75rem 1rem;
-    background: var(--glass-bg);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     font-size: 0.95rem;
     color: var(--text-primary);
     transition: all 0.2s;
   }
-  .input-glass:focus {
+  .text-input:focus {
     outline: none;
     border-color: var(--accent);
     background: var(--bg-tertiary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   .button-group {
@@ -439,7 +435,6 @@
   .btn-icon.danger:hover {
     background: var(--error);
     color: white;
-    transform: translateY(-2px);
   }
 
   @media (max-width: 640px) {

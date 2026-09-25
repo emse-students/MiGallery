@@ -159,6 +159,5 @@
     justify-content: center;
     color: white;
     pointer-events: none;
-    backdrop-filter: blur(4px);
   }
 </style>

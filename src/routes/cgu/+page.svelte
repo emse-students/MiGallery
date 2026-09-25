@@ -119,8 +119,8 @@
 
 <style>
   .cgu-main {
-    /* Accent glow (slightly stronger in dark for contrast). */
-    --cgu-accent-glow: color-mix(in srgb, var(--accent) 15%, transparent);
+    /* Accent tint (slightly stronger in dark for contrast). */
+    --cgu-accent-tint: color-mix(in srgb, var(--accent) 15%, transparent);
 
     position: relative;
     min-height: 100vh;
@@ -130,7 +130,7 @@
   }
 
   :global([data-theme='dark']) .cgu-main {
-    --cgu-accent-glow: color-mix(in srgb, var(--accent) 25%, transparent);
+    --cgu-accent-tint: color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
   /* --- LAYOUT --- */
@@ -151,10 +151,7 @@
     font-size: 2.5rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, var(--accent), var(--edit));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--text-primary);
   }
 
   .subtitle {
@@ -193,7 +190,7 @@
   .toc a:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: var(--cgu-accent-glow);
+    background: var(--cgu-accent-tint);
   }
 
   /* --- SECTIONS --- */

@@ -61,13 +61,12 @@
     width: 52px;
     height: 52px;
     flex-shrink: 0;
-    background: var(--gradient-brand);
+    background: var(--accent);
     color: #fff;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 16px color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
   .admin-page-heading {

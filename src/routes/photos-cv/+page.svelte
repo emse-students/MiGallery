@@ -119,7 +119,7 @@
     <!-- Navigation Tabs -->
     {#if hasIdPhotos && canManagePhotos}
       <div class="tabs-wrapper" in:fade={{ duration: 300, delay: 200 }}>
-        <div class="glass-tabs">
+        <div class="tabs">
           <button
             type="button"
             class="tab-item {currentView === 'my' ? 'active' : ''}"
@@ -168,7 +168,7 @@
           {/if}
 
           {#if !myPhotosState.loading && !myPhotosState.error}
-            <div class="grid-wrapper glass-card p-4">
+            <div class="grid-wrapper surface p-4">
               <PhotosGrid state={myPhotosState} />
             </div>
           {/if}
@@ -179,7 +179,7 @@
       {#if currentView === 'all' && canManagePhotos}
         <div class="view-container" in:fade={{ duration: 300 }}>
           <!-- Upload Card -->
-          <div class="glass-card upload-section mb-8">
+          <div class="surface upload-section mb-8">
             <div class="upload-header">
               <div class="icon-box">
                 <CloudUpload size={24} />
@@ -209,7 +209,7 @@
           {/if}
 
           {#if !allPhotosState.loading && !allPhotosState.error}
-            <div bind:this={photosGridContainer} class="grid-wrapper glass-card p-4">
+            <div bind:this={photosGridContainer} class="grid-wrapper surface p-4">
               <PhotosGrid state={allPhotosState} />
             </div>
 
@@ -293,15 +293,14 @@
     justify-content: center;
     margin-bottom: 3rem;
   }
-  .glass-tabs {
+  .tabs {
     position: relative;
     display: flex;
     gap: 0.5rem;
     padding: 0.4rem;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: 99px;
-    backdrop-filter: blur(12px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
   .tab-item {
@@ -335,7 +334,6 @@
     border-radius: 99px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     width: calc(50% - 0.4rem);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent);
   }
   .tab-indicator.left {
     left: 0.4rem;
@@ -347,15 +345,13 @@
   }
 
   /* --- CARDS & GRID --- */
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
     margin-bottom: 1.5em;
   }
-  .glass-card.p-4 {
+  .surface.p-4 {
     padding: 1.5rem;
   }
 
@@ -370,7 +366,7 @@
     align-items: center;
     gap: 1rem;
     /* Use theme-aware glass background for better contrast */
-    background: var(--glass-bg);
+    background: var(--surface);
   }
   .icon-box {
     width: 42px;
@@ -436,18 +432,17 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     cursor: pointer;
     transition: all 0.2s;
   }
   .btn-nav:hover:not(:disabled) {
-    background: var(--glass-bg);
+    background: var(--surface);
     border-color: var(--accent);
     color: var(--accent);
-    transform: translateY(-2px);
   }
   .btn-nav:disabled {
     opacity: 0.5;
@@ -469,7 +464,7 @@
     justify-content: center;
     align-items: center;
     gap: 0.75rem;
-    background: var(--glass-bg);
+    background: var(--surface);
     border-radius: var(--radius);
     border: 1px solid var(--border);
     margin-bottom: 2rem;
@@ -488,14 +483,12 @@
   /* Mobile: improve readability of upload areas and glass cards */
   @media (max-width: 768px) {
     .upload-section,
-    .glass-card.upload-section,
-    .glass-card.upload-section .upload-content {
+    .surface.upload-section,
+    .surface.upload-section .upload-content {
       /* Make background more opaque on mobile for better contrast */
       background: rgba(255, 255, 255, 0.96) !important;
       border-color: rgba(0, 0, 0, 0.06) !important;
       color: var(--text-primary) !important;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08) !important;
-      backdrop-filter: none !important;
     }
     .upload-section .upload-header h3,
     .upload-section .upload-header p {
@@ -513,13 +506,11 @@
 
   @media (max-width: 768px) and (prefers-color-scheme: dark) {
     .upload-section,
-    .glass-card.upload-section,
-    .glass-card.upload-section .upload-content {
+    .surface.upload-section,
+    .surface.upload-section .upload-content {
       background: rgba(10, 12, 16, 0.92) !important;
       border-color: rgba(255, 255, 255, 0.06) !important;
       color: var(--text-primary) !important;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
-      backdrop-filter: none !important;
     }
     .upload-section .upload-header h3,
     .upload-section .upload-header p {
@@ -530,14 +521,12 @@
   /* Mobile light-mode specific tweak for better contrast */
   @media (max-width: 768px) and (prefers-color-scheme: light) {
     .upload-section,
-    .glass-card.upload-section,
-    .glass-card.upload-section .upload-content {
+    .surface.upload-section,
+    .surface.upload-section .upload-content {
       background: rgba(255, 255, 255, 0.96) !important;
       border-color: rgba(0, 0, 0, 0.06) !important;
       /* Force explicit readable text color in light mode */
       color: var(--text-primary, #111827) !important;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06) !important;
-      backdrop-filter: none !important;
     }
     .upload-section .upload-header h3,
     .upload-section .upload-header p,

@@ -103,7 +103,6 @@
 
   .sidebar-content {
     background: var(--doc-card-bg);
-    backdrop-filter: blur(12px);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 1.5rem;
@@ -175,7 +174,6 @@
 
   .doc-card {
     background: var(--doc-card-bg);
-    backdrop-filter: blur(16px);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 2.5rem;
