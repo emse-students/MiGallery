@@ -121,13 +121,12 @@
   "albumd_share_error": "Erreur partage",
   "albumd_select_finish": "Terminer la sélection",
   "albumd_select": "Sélectionner",
-  "albumd_selection": "Sélection",
   "albumd_share": "Partager",
   "albumd_download_all": "Télécharger tout",
   "albumd_back": "Retour aux albums",
   "albumd_photo_count": "{count} photo(s)",
   "albumd_add_photos": "Ajouter des photos",
-  "albumd_drop_here": "Glissez-déposez vos fichiers ici",
+  "albumd_add": "Ajouter",
   "albumd_loading": "Chargement de l'album...",
   "albumd_empty": "Cet album est vide pour le moment.",
   "pm_cover_updated": "Couverture mise à jour",
@@ -612,5 +611,6 @@
   "pm_info_date": "Date",
   "pm_share": "Partager",
   "pm_share_error": "Partage impossible : {error}",
-  "pm_share_ready": "Photo prête : touchez Partager à nouveau"
+  "pm_share_ready": "Photo prête : touchez Partager à nouveau",
+  "pg_photo_count": "{count} photo(s)"
 }

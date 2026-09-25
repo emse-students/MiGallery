@@ -14,6 +14,7 @@
   import { EllipsisVertical } from '@lucide/svelte';
   import { m } from '$lib/paraglide/messages';
   import { nextMenuIndex, type OverflowMenuItem } from '$lib/overflow-menu';
+  import { portal } from '$lib/portal';
 
   interface Props {
     items: OverflowMenuItem[];
@@ -49,16 +50,6 @@
   let triggerElement = $state<HTMLButtonElement | null>(null);
   let menuElement = $state<HTMLDivElement | null>(null);
   let position = $state({ top: 0, right: 0 });
-
-  /** Moves the menu under `<body>` so no ancestor can clip it or stack above it. */
-  function portal(node: HTMLElement) {
-    document.body.appendChild(node);
-    return {
-      destroy() {
-        node.remove();
-      },
-    };
-  }
 
   function itemButtons(): HTMLButtonElement[] {
     return menuElement ? Array.from(menuElement.querySelectorAll('[role="menuitem"]')) : [];
