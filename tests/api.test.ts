@@ -402,25 +402,15 @@ describe('Users CRUD (Admin)', () => {
 
 describe('Photos-CV API', () => {
   it('should list people', async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/people/people`, {
-        headers: getAuthHeaders(),
-        signal: AbortSignal.timeout(10000), // 10s timeout
-      });
+    const response = await fetch(`${API_BASE_URL}/api/people/people`, {
+      headers: getAuthHeaders(),
+      signal: AbortSignal.timeout(10000),
+    });
 
-      // Protected endpoint (scope read): 401 possible if auth is unavailable
-      expect([200, 401, 404, 500]).toContain(response.status);
-    } catch (error: unknown) {
-      // If fetch fails (Immich down), that's acceptable
-      const err = error as { name?: string; code?: string };
-      if (err.name === 'TimeoutError' || err.code === 'ECONNRESET') {
-        console.warn('⚠️  Immich not reachable (timeout)');
-        expect(true).toBe(true);
-      } else {
-        throw error;
-      }
-    }
-  }, 15000); // 15s timeout
+    // No Immich in `bun run test`: the route's contract here is exactly this 500. The
+    // Immich v3 list shape is pinned by tests/immich-people.test.ts.
+    expect(response.status).toBe(500);
+  }, 15000);
 });
 
 // ========================================

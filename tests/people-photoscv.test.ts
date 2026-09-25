@@ -6,7 +6,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-let testPersonId = '';
+// No Immich in `bun run test`, so no real person id exists; the photo routes are reached with a
+// placeholder, as the my-photos tests below already do.
+const testPersonId = 'test-person-id';
 let testAlbumId = '';
 
 beforeAll(async () => {
@@ -36,26 +38,16 @@ describe('People API - GET /api/people/people', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
-
-    if (response.status === 200) {
-      // The route answers `{ people, total }`. This used to branch over three
-      // possible shapes and assert `Array.isArray(data)` inside `if
-      // (Array.isArray(data))`, which is an assertion that cannot fail - and the
-      // bare-array branch it guarded was unreachable.
-      const data = (await response.json()) as {
-        people: Array<{ id: string; name: string }>;
-        total: number;
-      };
-      expect(Array.isArray(data.people)).toBe(true);
-      expect(data.total).toBe(data.people.length);
-      if (data.people.length > 0) {
-        const person = data.people[0];
-        expect(person).toHaveProperty('id');
-        expect(person).toHaveProperty('name');
-        testPersonId = person.id;
-      }
-    }
+    // `bun run test` runs with no Immich (IMMICH_BASE_URL is empty, see
+    // tests/README.md), so the route's contract HERE is exactly this 500. It
+    // used to accept five statuses and assert the body only on a 200 that this
+    // run can never produce - which is how the route shipped answering
+    // `{ people: { people: [...] } }` against Immich v3 with this test green.
+    // Reading Immich's `PeopleResponseDto` (object, paginated) is pinned by
+    // tests/immich-people.test.ts against a mock of that shape.
+    expect(response.status).toBe(500);
+    const body = (await response.json()) as { message: string };
+    expect(body.message).toBe('IMMICH_BASE_URL not configured');
   }, 15000);
 
   it('should reject access without authentication', async () => {
@@ -71,10 +63,6 @@ describe('People API - GET /api/people/people', () => {
 
 describe('People API - GET /api/people/people/[personId]/photos', () => {
   it("should fetch a person's photos", async () => {
-    if (!testPersonId) {
-      return;
-    }
-
     const response = await fetch(`${API_BASE_URL}/api/people/people/${testPersonId}/photos`, {
       headers: getAuthHeaders(),
       signal: AbortSignal.timeout(10000),
@@ -90,10 +78,6 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
   }, 15000);
 
   it('should support pagination', async () => {
-    if (!testPersonId) {
-      return;
-    }
-
     const response = await fetch(
       `${API_BASE_URL}/api/people/people/${testPersonId}/photos?page=1&limit=20`,
       {
@@ -116,10 +100,6 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
 
 describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
   it("should stream a person's photos", async () => {
-    if (!testPersonId) {
-      return;
-    }
-
     const response = await fetch(
       `${API_BASE_URL}/api/people/people/${testPersonId}/photos-stream`,
       {
@@ -137,10 +117,6 @@ describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
   }, 15000);
 
   it('should support streaming with cursor', async () => {
-    if (!testPersonId) {
-      return;
-    }
-
     const response = await fetch(
       `${API_BASE_URL}/api/people/people/${testPersonId}/photos-stream?cursor=10&limit=30`,
       {
