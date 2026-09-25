@@ -39,16 +39,16 @@
 
     <div class="actions-container" in:fly={{ y: 20, duration: 800, delay: 200 }}>
       {#if !isAuthenticated}
-        <div class="card glass-card">
+        <div class="card surface">
           <h2>{m.home_welcome_title()}</h2>
           <p>{m.home_welcome_sub()}</p>
-          <button type="button" onclick={handleSignIn} class="btn-glass primary">
+          <button type="button" onclick={handleSignIn} class="btn primary">
             <LogIn size={20} />
             {m.home_signin()}
           </button>
         </div>
       {:else if !hasIdPhotos}
-        <div class="card glass-card warning">
+        <div class="card surface warning">
           <div class="icon-wrapper">
             <UserPlus size={32} />
           </div>
@@ -56,10 +56,10 @@
           <p>
             {m.home_finish_profile()}
           </p>
-          <a href="/parametres" class="btn-glass warning"> {m.home_configure_profile()} </a>
+          <a href="/parametres" class="btn warning"> {m.home_configure_profile()} </a>
         </div>
       {:else}
-        <div class="glass-card card">
+        <div class="surface card">
           <h2>{greeting} {user?.first_name || user?.name || ''} !</h2>
         </div>
       {/if}
@@ -102,21 +102,13 @@
   .logo {
     width: 120px;
     height: auto;
-    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
   }
 
   h1 {
     font-size: 3rem;
     font-weight: 800;
     margin: 0.5rem 0 0;
-    background: linear-gradient(
-      to right,
-      var(--text-primary, #fff),
-      var(--text-secondary, #cbd5e1)
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
   }
 
   .tagline {
@@ -127,7 +119,7 @@
     text-transform: uppercase;
   }
 
-  /* --- Glass Cards --- */
+  /* --- Cards --- */
   .card {
     padding: 2rem;
     border-radius: 1.5rem;
@@ -135,17 +127,13 @@
     transition: transform 0.3s ease;
   }
 
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
   }
 
-  .glass-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--glass-border-hover);
+  .surface:hover {
+    border-color: var(--surface-border-hover);
   }
 
   .card h2 {

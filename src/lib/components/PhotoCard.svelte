@@ -346,7 +346,6 @@
   }
 
   .photo-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
     z-index: 10;
   }
@@ -354,7 +353,6 @@
   .photo-card.selected {
     /* Make selection persistent and clearly visible */
     outline: none;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 95%, transparent);
     /* Keep the selected card above siblings so the frame is visible */
     z-index: 20;
     transform: translateY(-2px);
@@ -417,7 +415,6 @@
     width: 36px;
     height: 36px;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
     border: none;
     border-radius: var(--radius-sm);
     color: white;
@@ -473,7 +470,6 @@
     width: 36px;
     height: 36px;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
     border: none;
     border-radius: var(--radius-sm);
     color: white;
@@ -503,7 +499,6 @@
     width: 36px;
     height: 36px;
     background: color-mix(in srgb, var(--error-hover) 80%, transparent);
-    backdrop-filter: blur(8px);
     border: none;
     border-radius: var(--radius-sm);
     color: white;

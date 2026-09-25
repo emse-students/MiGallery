@@ -85,7 +85,7 @@
     </label>
     <button
       type="button"
-      class="btn-glass icon"
+      class="btn icon"
       onclick={load}
       disabled={loading}
       title={m.common_refresh()}
@@ -178,11 +178,10 @@
   }
 
   .card {
-    background: var(--glass-bg, var(--bg-secondary));
+    background: var(--surface, var(--bg-secondary));
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 1.5rem;
-    backdrop-filter: blur(12px);
   }
   .card-head {
     display: flex;

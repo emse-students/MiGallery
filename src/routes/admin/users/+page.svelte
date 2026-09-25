@@ -437,7 +437,7 @@
     </div>
     <button
       type="button"
-      class="btn-glass export-pdf-btn"
+      class="btn export-pdf-btn"
       onclick={openPdfModal}
       title={m.trombi_export_pdf()}
     >
@@ -548,7 +548,7 @@
     transition:fade={{ duration: 200 }}
   >
     <div
-      class="modal-glass pdf-modal"
+      class="dialog-card pdf-modal"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
@@ -653,7 +653,7 @@
     transition:fade={{ duration: 200 }}
   >
     <div
-      class="modal-glass"
+      class="dialog-card"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
@@ -762,13 +762,12 @@
     width: 52px;
     height: 52px;
     flex-shrink: 0;
-    background: var(--gradient-brand);
+    background: var(--accent);
     color: #fff;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 16px color-mix(in srgb, var(--accent) 25%, transparent);
   }
 
   .title-box h1 {
@@ -784,7 +783,7 @@
     margin: 0.25rem 0 0;
   }
 
-  /* Positioning only; visual style comes from .btn-glass. */
+  /* Positioning only; visual style comes from .btn. */
   .export-pdf-btn {
     margin-left: auto;
   }
@@ -806,7 +805,6 @@
 
   .search-bar:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
 
   .search-bar input {
@@ -825,7 +823,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden; /* Clips the row borders at the edges */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   }
 
   .data-list {
@@ -1052,29 +1049,27 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
     z-index: 100;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
   }
-  .modal-glass {
+  .dialog-card {
     background: var(--bg-secondary);
     width: 90%;
     max-width: 520px;
     border-radius: 18px;
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 20px 50px rgba(2, 6, 23, 0.6);
+    border: 1px solid var(--surface-border);
+    box-shadow: var(--shadow-lg);
     text-align: left;
     position: relative;
     overflow: hidden;
-    backdrop-filter: blur(8px) saturate(120%);
     max-height: 90vh;
     display: flex;
     flex-direction: column;
   }
-  .modal-glass.pdf-modal {
+  .dialog-card.pdf-modal {
     max-width: 560px;
   }
   .modal-header {
@@ -1121,10 +1116,6 @@
   .action-pill.primary {
     background: var(--accent);
     color: white;
-  }
-  .action-pill.primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--accent) 40%, transparent);
   }
   .action-pill:disabled {
     opacity: 0.7;

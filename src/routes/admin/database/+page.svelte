@@ -233,7 +233,7 @@
 <AdminPage title={m.db_title()} subtitle={m.db_subtitle()} icon={Database} maxWidth="1200px">
   {#if persistentMessage}
     <div
-      class="glass-card mb-6 border-l-4"
+      class="surface mb-6 border-l-4"
       class:border-red-500={(persistentMessageType as any) === 'error'}
       class:border-green-500={(persistentMessageType as any) !== 'error'}
     >
@@ -245,7 +245,7 @@
     <!-- Left column: Stats & Actions -->
     <div class="left-col">
       <!-- Statistiques -->
-      <section class="glass-card">
+      <section class="surface">
         <h2 class="section-title"><ChartColumn size={20} /> {m.db_stats()}</h2>
         <div class="stats-grid">
           <div class="stat-item">
@@ -268,7 +268,7 @@
       </section>
 
       <!-- Quick Actions -->
-      <section class="glass-card">
+      <section class="surface">
         <h2 class="section-title"><Zap size={20} /> {m.db_quick_actions()}</h2>
         <div class="actions-list">
           <button
@@ -343,7 +343,7 @@
       </section>
 
       <!-- Import (Danger Zone) -->
-      <section class="glass-card danger-zone">
+      <section class="surface danger-zone">
         <h2 class="section-title text-red-500"><TriangleAlert size={20} /> {m.db_danger_zone()}</h2>
         <p class="text-muted mb-4 text-sm">
           {m.db_danger_note()}
@@ -365,7 +365,7 @@
 
         <button
           type="button"
-          class="btn-glass danger btn-full-danger mt-4"
+          class="btn danger btn-full-danger mt-4"
           onclick={importDatabase}
           disabled={importing || !uploadFile}
         >
@@ -378,7 +378,7 @@
     <div class="right-col">
       <!-- Detailed status (displayed after inspection) -->
       {#if databaseStatus}
-        <section class="glass-card slide-in">
+        <section class="surface slide-in">
           <div class="mb-4 flex items-center justify-between">
             <h2 class="section-title m-0">{m.db_system_state()}</h2>
             <span class="status-badge {databaseStatus.status}">
@@ -414,7 +414,7 @@
       {/if}
 
       <!-- Backups -->
-      <section class="glass-card">
+      <section class="surface">
         <div class="mb-4 flex items-center justify-between">
           <h2 class="section-title m-0"><Archive size={20} /> {m.db_backups()}</h2>
         </div>
@@ -454,7 +454,7 @@
   {#if showRepairModal}
     <div class="modal-backdrop" onclick={() => (showRepairModal = false)} role="presentation">
       <div
-        class="modal-glass"
+        class="dialog-card"
         onclick={(e) => e.stopPropagation()}
         role="dialog"
         tabindex="0"
@@ -473,15 +473,10 @@
           {m.db_repair_modal_body()}
         </p>
         <div class="modal-actions">
-          <button type="button" class="btn-glass" onclick={() => (showRepairModal = false)}
+          <button type="button" class="btn" onclick={() => (showRepairModal = false)}
             >{m.common_cancel()}</button
           >
-          <button
-            type="button"
-            class="btn-glass primary"
-            onclick={repairDatabase}
-            disabled={repairing}
-          >
+          <button type="button" class="btn primary" onclick={repairDatabase} disabled={repairing}>
             {repairing ? m.db_repairing() : m.db_repair_confirm_btn()}
           </button>
         </div>
@@ -514,13 +509,10 @@
   }
 
   /* --- CARDS --- */
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
     padding: 2rem; /* Padding interne explicite */
   }
 
@@ -576,7 +568,7 @@
   }
 
   .stat-item {
-    background: var(--glass-bg);
+    background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 1.25rem 1rem;
@@ -584,8 +576,7 @@
     transition: transform 0.2s;
   }
   .stat-item:hover {
-    transform: translateY(-2px);
-    border-color: var(--glass-border);
+    border-color: var(--surface-border);
   }
   .stat-label {
     display: block;
@@ -602,7 +593,7 @@
     color: var(--text-primary);
   }
   .stat-value.highlight {
-    background: var(--gradient-brand);
+    background: var(--accent);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -623,16 +614,14 @@
     padding: 1.25rem;
     border-radius: var(--radius);
     border: 1px solid transparent;
-    background: var(--glass-bg);
+    background: var(--surface);
     text-align: left;
     cursor: pointer;
     transition: all 0.2s;
   }
   .action-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
     background: var(--bg-tertiary);
-    border-color: var(--glass-border);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    border-color: var(--surface-border);
   }
   .action-btn:disabled {
     opacity: 0.5;
@@ -653,16 +642,16 @@
   }
 
   .action-btn.primary .btn-icon-wrapper {
-    background: var(--gradient-blue);
+    background: var(--accent);
   }
   .action-btn.secondary .btn-icon-wrapper {
-    background: var(--gradient-green);
+    background: var(--success);
   }
   .action-btn.info .btn-icon-wrapper {
-    background: var(--gradient-edit);
+    background: var(--edit);
   }
   .action-btn.warning .btn-icon-wrapper {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: var(--warning);
   }
 
   .btn-content {
@@ -708,7 +697,7 @@
     padding: 2.5rem;
     border: 2px dashed var(--border);
     border-radius: var(--radius);
-    background: var(--glass-bg);
+    background: var(--surface);
     transition: all 0.2s;
   }
   .file-drop-area input:hover + label {
@@ -750,7 +739,7 @@
     padding: 0.75rem;
     border-radius: var(--radius-xs);
     border: 1px solid var(--border);
-    background: var(--glass-bg);
+    background: var(--surface);
     font-size: 0.85rem;
   }
   .table-check-item.valid {
@@ -778,14 +767,14 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: var(--glass-bg);
+    background: var(--surface);
     border-radius: var(--radius-md);
     border: 1px solid transparent;
     transition: all 0.2s;
   }
   .backup-row:hover {
     background: var(--bg-tertiary);
-    border-color: var(--glass-border);
+    border-color: var(--surface-border);
   }
 
   .backup-icon {
@@ -836,37 +825,23 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(8px) saturate(120%);
     z-index: 100;
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  .modal-glass {
-    background: rgba(255, 255, 255, 0.04);
+  .dialog-card {
+    background: var(--bg-elevated);
     width: 90%;
     max-width: 520px;
     padding: 1.75rem;
     border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 20px 50px rgba(2, 6, 23, 0.6);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
     text-align: center;
     position: relative;
     overflow: hidden;
-    backdrop-filter: blur(8px) saturate(120%);
   }
-  /* Small glow effect in modal */
-  .modal-glass::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 100px;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent);
-    pointer-events: none;
-  }
-
   .modal-icon.warning {
     width: 64px;
     height: 64px;
@@ -878,12 +853,12 @@
     justify-content: center;
     margin: 0 auto 1.5rem;
   }
-  .modal-glass h3 {
+  .dialog-card h3 {
     font-size: 1.5rem;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
   }
-  .modal-glass p {
+  .dialog-card p {
     color: var(--text-secondary);
     margin-bottom: 2rem;
     line-height: 1.6;

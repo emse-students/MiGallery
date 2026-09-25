@@ -689,7 +689,6 @@
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px) saturate(120%);
     z-index: 1000;
     display: flex;
     align-items: center;
@@ -713,11 +712,10 @@
     display: flex;
     flex-direction: column;
     animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    backdrop-filter: blur(10px) saturate(120%);
-    box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
+    box-shadow: var(--shadow-lg);
   }
   @keyframes slideUp {
     from {
@@ -735,10 +733,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 1rem;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     z-index: 10;
-    backdrop-filter: blur(6px);
   }
   .modal-title {
     display: flex;
@@ -846,8 +842,7 @@
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
+    background: rgba(0, 0, 0, 0.55);
     border: none;
     color: white;
     width: 48px;
@@ -861,7 +856,7 @@
     z-index: 10;
   }
   .nav-button:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.75);
     transform: translateY(-50%) scale(1.1);
   }
   .nav-left {
@@ -875,10 +870,8 @@
     padding: 1rem;
     text-align: center;
     color: rgba(255, 255, 255, 0.85);
-    background: linear-gradient(to top, rgba(255, 255, 255, 0.02), transparent);
     border-top: 1px solid rgba(255, 255, 255, 0.03);
     border-radius: 0 0 var(--radius-md) var(--radius-md);
-    backdrop-filter: blur(6px);
     z-index: 10;
     position: relative;
   }

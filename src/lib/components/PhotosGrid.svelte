@@ -268,11 +268,11 @@
         {m.pg_selected_count({ count: photosState.selectedAssets.length })}
       </div>
       <div class="selection-actions">
-        <button type="button" onclick={() => photosState.selectAll()} class="btn-glass">
+        <button type="button" onclick={() => photosState.selectAll()} class="btn">
           <SquareCheck size={16} />
           {m.pg_select_all()}
         </button>
-        <button type="button" onclick={() => photosState.deselectAll()} class="btn-glass">
+        <button type="button" onclick={() => photosState.deselectAll()} class="btn">
           <Square size={16} />
           {m.pg_deselect_all()}
         </button>
@@ -280,7 +280,7 @@
           type="button"
           onclick={handleDownloadSelectedClick}
           disabled={photosState.selectedAssets.length === 0}
-          class="btn-glass primary"
+          class="btn primary"
         >
           {#if photosState.isDownloading}
             {#if photosState.downloadProgress >= 0}
@@ -300,7 +300,7 @@
             type="button"
             onclick={() => handleRemoveFromAlbum()}
             disabled={photosState.selectedAssets.length === 0}
-            class="btn-glass"
+            class="btn"
             title={m.pg_remove_from_album_title()}
           >
             <CircleMinus size={16} />
@@ -312,7 +312,7 @@
             type="button"
             onclick={() => handleDeleteSelected()}
             disabled={photosState.selectedAssets.length === 0}
-            class="btn-glass danger"
+            class="btn danger"
           >
             <Trash2 size={16} />
             {m.pg_delete_count({ count: photosState.selectedAssets.length })}
@@ -588,7 +588,7 @@
       justify-content: center;
     }
 
-    .selection-actions .btn-glass {
+    .selection-actions .btn {
       padding: 0.5rem 0.75rem;
       font-size: 0.75rem;
     }

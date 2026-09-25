@@ -316,7 +316,7 @@
 
       {#if canCreateAlbum}
         <div class="header-actions">
-          <button type="button" class="btn-glass primary" onclick={() => (showAlbumModal = true)}>
+          <button type="button" class="btn primary" onclick={() => (showAlbumModal = true)}>
             <Plus size={18} />
             <span>{m.albums_create()}</span>
           </button>
@@ -591,7 +591,7 @@
     margin: 0;
   }
   .month-badge {
-    background: var(--glass-border);
+    background: var(--surface-border);
     color: var(--text-primary);
     opacity: 0.7;
     padding: 0.2rem 0.6rem;
@@ -613,7 +613,7 @@
     gap: 1.5rem;
   }
 
-  /* --- CARD (Glassmorphism / Borderless) --- */
+  /* --- CARD (flat: a tonal tile, no shadow, no lift) --- */
   .album-item {
     position: relative;
     border-radius: var(--radius);
@@ -621,21 +621,14 @@
     aspect-ratio: 1;
     -webkit-mask-image: -webkit-radial-gradient(white, black);
     mask-image: radial-gradient(white, black);
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition:
-      transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1),
-      box-shadow 0.3s ease,
-      border-color 0.3s;
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    transition: border-color 0.2s;
     z-index: 1;
     transform: translateZ(0);
   }
 
   .album-item:hover {
-    transform: scale(1.02);
-    box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.2);
-    z-index: 10;
     border-color: var(--accent);
   }
   /* Hidden albums are shown greyed-out to privileged users */
@@ -664,7 +657,7 @@
     width: 100%;
     height: 100%;
     display: block;
-    background-color: var(--glass-bg);
+    background-color: var(--surface);
     margin: 0;
     padding: 0;
   }
@@ -714,7 +707,6 @@
     font-size: 1.15rem;
     color: white;
     margin-bottom: 0.25rem;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -767,8 +759,7 @@
     justify-content: center;
     cursor: pointer;
     color: white;
-    background-color: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(8px);
+    background-color: rgba(0, 0, 0, 0.6);
     transition: all 0.2s;
   }
   .action-btn:hover {
@@ -793,7 +784,7 @@
       width: 100%;
       margin-top: 1rem;
     }
-    .btn-glass.primary {
+    .btn.primary {
       width: 100%;
       justify-content: center;
     }
@@ -824,13 +815,12 @@
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: var(--glass-bg);
+    background: var(--surface);
     color: var(--text-primary);
     font-size: 0.95rem;
   }
   .search-input:focus {
     outline: none;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 12%, transparent);
     border-color: var(--accent);
   }
 </style>

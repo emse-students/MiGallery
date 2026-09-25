@@ -257,7 +257,6 @@
     align-items: center;
     justify-content: center;
     color: #fff;
-    backdrop-filter: blur(2px);
   }
 
   .loading-state {

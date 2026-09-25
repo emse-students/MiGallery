@@ -598,7 +598,7 @@
       </div>
     </header>
 
-    <section class="settings-card glass-card">
+    <section class="settings-card surface">
       <div class="card-header">
         <div class="icon-wrapper blue">
           <UserIcon size={24} />
@@ -629,7 +629,7 @@
       </div>
     </section>
 
-    <section class="settings-card glass-card">
+    <section class="settings-card surface">
       <div class="card-header">
         <div class="icon-wrapper blue">
           <Palette size={24} />
@@ -680,7 +680,7 @@
       </div>
     </section>
 
-    <section id="face-recognition" class="settings-card glass-card">
+    <section id="face-recognition" class="settings-card surface">
       <div class="card-header">
         <div class="icon-wrapper purple">
           <ScanEye size={24} />
@@ -782,7 +782,7 @@
     </section>
 
     {#if currentUserHasFace}
-      <section class="settings-card glass-card">
+      <section class="settings-card surface">
         <div class="card-header">
           <div class="icon-wrapper green">
             <Share2 size={24} />
@@ -907,7 +907,7 @@
       </section>
     {/if}
 
-    <section class="settings-card glass-card">
+    <section class="settings-card surface">
       <div class="card-header">
         <div class="icon-wrapper indigo">
           <Users size={24} />
@@ -952,7 +952,7 @@
     </section>
 
     {#if isAdmin}
-      <section class="settings-card glass-card">
+      <section class="settings-card surface">
         <div class="card-header">
           <div class="icon-wrapper indigo">
             <Shield size={24} />
@@ -998,7 +998,7 @@
               onclick={() => {
                 showUnlinkFaceModal = true;
               }}
-              class="btn-glass danger"
+              class="btn danger"
             >
               {m.param_unlink()}
             </button>
@@ -1011,7 +1011,7 @@
             <strong>{m.param_delete_account()}</strong>
             <p>{m.param_delete_account_desc()}</p>
           </div>
-          <button type="button" onclick={openDeleteAccountModal} class="btn-glass danger">
+          <button type="button" onclick={openDeleteAccountModal} class="btn danger">
             {m.common_delete()}
           </button>
         </div>
@@ -1189,19 +1189,19 @@
     font-weight: bold;
   }
   .icon-wrapper.blue {
-    background: var(--gradient-blue);
+    background: var(--accent);
   }
   .icon-wrapper.purple {
-    background: var(--gradient-purple);
+    background: var(--purple);
   }
   .icon-wrapper.green {
-    background: var(--gradient-green);
+    background: var(--success);
   }
   .icon-wrapper.indigo {
-    background: var(--gradient-indigo);
+    background: var(--indigo);
   }
   .icon-wrapper.red {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
+    background: var(--error);
   }
 
   .card-body {

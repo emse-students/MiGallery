@@ -38,7 +38,7 @@
   {#if onRetry || children}
     <div class="error-action">
       {#if onRetry}
-        <button type="button" class="btn-glass" onclick={onRetry}>
+        <button type="button" class="btn" onclick={onRetry}>
           <RotateCcw size={16} />
           {m.common_retry()}
         </button>

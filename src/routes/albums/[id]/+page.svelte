@@ -193,7 +193,7 @@
       <button
         type="button"
         onclick={() => (photosState.selecting = !photosState.selecting)}
-        class="btn-glass {photosState.selecting ? 'active' : ''}"
+        class="btn {photosState.selecting ? 'active' : ''}"
         title={photosState.selecting ? m.albumd_select_finish() : m.albumd_select()}
       >
         {#if photosState.selecting}
@@ -212,7 +212,7 @@
       <button
         type="button"
         onclick={() => (showAlbumModal = true)}
-        class="btn-glass edit"
+        class="btn edit"
         title={m.common_edit()}
       >
         <Pencil size={18} />
@@ -221,7 +221,7 @@
       <button
         type="button"
         onclick={() => deleteAlbum()}
-        class="btn-glass danger"
+        class="btn danger"
         title={m.common_delete()}
       >
         <Trash2 size={18} />
@@ -232,7 +232,7 @@
     {#if canManagePhotos}<div class="divider"></div>{/if}
 
     <!-- Public actions -->
-    <button type="button" onclick={shareAlbum} class="btn-glass info" title={m.albumd_share()}>
+    <button type="button" onclick={shareAlbum} class="btn info" title={m.albumd_share()}>
       <Share2 size={18} />
       {#if !mobile}<span class="label">{m.albumd_share()}</span>{/if}
     </button>
@@ -241,7 +241,7 @@
       type="button"
       onclick={downloadAll}
       disabled={photosState.isDownloading || photosState.assets.length === 0}
-      class="btn-glass success"
+      class="btn success"
       title={m.albumd_download_all()}
     >
       {#if photosState.isDownloading}
@@ -293,7 +293,7 @@
     </header>
 
     {#if photosState.error}
-      <div class="glass-card error-card">
+      <div class="surface error-card">
         <CircleAlert size={24} />
         <p>{photosState.error}</p>
       </div>
@@ -301,7 +301,7 @@
 
     <!-- Upload zone (admin) -->
     {#if canManagePhotos}
-      <div class="upload-container glass-card" in:fade>
+      <div class="upload-container surface" in:fade>
         <div class="upload-header">
           <h3>{m.albumd_add_photos()}</h3>
           <p>{m.albumd_drop_here()}</p>
@@ -434,11 +434,10 @@
     display: flex;
     gap: 0.75rem;
     align-items: center;
-    background: var(--glass-bg);
+    background: var(--surface);
     padding: 0.5rem;
     border-radius: var(--radius);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(12px);
+    border: 1px solid var(--surface-border);
   }
   .divider {
     width: 1px;
@@ -447,17 +446,15 @@
     margin: 0 0.25rem;
   }
 
-  /* Buttons use the canonical .btn-glass system from app.css (base + primary/
+  /* Buttons use the canonical .btn system from app.css (base + primary/
 	   success/danger/info/edit/active/icon modifiers). Only the toolbar layout
 	   and the mobile bar overrides live here. */
 
   /* --- CARDS & CONTENT --- */
-  .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
   }
 
   .upload-container {
@@ -480,7 +477,7 @@
 
   /* Make upload header use theme glass background for consistency */
   .upload-header {
-    background: var(--glass-bg);
+    background: var(--surface);
     padding: 1rem;
     border-radius: var(--radius-md);
   }
@@ -515,7 +512,6 @@
       padding: 0.75rem 1rem;
       padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
       background: var(--bg-elevated);
-      backdrop-filter: blur(16px);
       border-top: 1px solid var(--border);
     }
     .actions-group.mobile {
@@ -525,7 +521,7 @@
       padding: 0;
       gap: 0.5rem;
     }
-    .actions-group.mobile .btn-glass {
+    .actions-group.mobile .btn {
       flex-direction: column;
       padding: 0.5rem;
       gap: 0.25rem;
@@ -536,23 +532,23 @@
       color: var(--text-secondary);
       box-shadow: none;
     }
-    .actions-group.mobile .btn-glass.active {
+    .actions-group.mobile .btn.active {
       color: var(--accent);
       background: var(--accent-light);
     }
 
     /* Mobile: flatten the semantic buttons to colored text on a transparent bar */
-    .actions-group.mobile .btn-glass.success {
+    .actions-group.mobile .btn.success {
       color: var(--success);
       background: transparent;
     }
-    .actions-group.mobile .btn-glass.danger {
+    .actions-group.mobile .btn.danger {
       color: var(--error);
     }
-    .actions-group.mobile .btn-glass.info {
+    .actions-group.mobile .btn.info {
       color: var(--info);
     }
-    .actions-group.mobile .btn-glass.edit {
+    .actions-group.mobile .btn.edit {
       color: var(--edit);
     }
 
@@ -585,12 +581,11 @@
   @media (max-width: 768px) {
     .upload-container,
     .upload-container .upload-header,
-    .glass-card.upload-container {
+    .surface.upload-container {
       background: var(--bg-elevated) !important;
       border-color: var(--border) !important;
       color: var(--text-primary) !important;
       box-shadow: var(--shadow-lg) !important;
-      backdrop-filter: none !important;
     }
 
     .upload-container .upload-header h3,

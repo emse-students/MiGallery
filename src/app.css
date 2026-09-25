@@ -38,35 +38,22 @@
   --error: #ef4444;
   --warning: #f59e0b;
   /* Semantic action accents (share / edit). Theme-agnostic, so declared once
-	   here and inherited by the light theme. Used by .btn-glass modifiers. */
+	   here and inherited by the light theme. Used by .btn modifiers. */
   --info: #0ea5e9;
   --info-hover: #0284c7;
   --edit: #8b5cf6;
   --edit-hover: #7c3aed;
 
-  /* Hover variants for semantic colors (needed by gradients / hover states). */
+  /* Hover variants for semantic colors. */
   --error-hover: #dc2626;
   --warning-hover: #d97706;
 
-  /* Decorative accent hues. Only used in gradients (avatars, icon badges,
-	   headers). Tokenized so the palette stays consistent and theme-tunable;
+  /* Decorative accent hues (avatars, icon badges), each used FLAT - no gradient
+	   (the flat-surface rule, docs/wiki/ui-redesign.md #25). Tokenized so the palette stays consistent and theme-tunable;
 	   #8b5cf6 / #7c3aed violet already live as --edit / --edit-hover. */
   --purple: #a855f7;
-  --pink: #ec4899;
   --indigo: #6366f1;
   --indigo-hover: #4f46e5;
-
-  /* Brand & decorative gradients - single source so every badge/avatar/header
-	   matches. Compose from the color tokens above. */
-  --gradient-brand: linear-gradient(135deg, var(--accent), var(--edit));
-  --gradient-blue: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  --gradient-green: linear-gradient(135deg, var(--success), var(--success-hover));
-  --gradient-amber: linear-gradient(135deg, var(--warning), var(--warning-hover));
-  --gradient-red: linear-gradient(135deg, var(--error), var(--error-hover));
-  --gradient-edit: linear-gradient(135deg, var(--edit), var(--edit-hover));
-  --gradient-purple: linear-gradient(135deg, var(--purple), var(--edit-hover));
-  --gradient-purple-pink: linear-gradient(135deg, var(--purple), var(--pink));
-  --gradient-indigo: linear-gradient(135deg, var(--indigo), var(--indigo-hover));
 
   --border: rgba(255, 255, 255, 0.08);
   --border-color: rgba(255, 255, 255, 0.08);
@@ -89,10 +76,10 @@
   --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.3);
 
-  /* Glass */
-  --glass-bg: rgba(255, 255, 255, 0.05);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-border-hover: rgba(255, 255, 255, 0.2);
+  /* Surfaces: translucent tonal panels, never blurred (see .surface) */
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-border: rgba(255, 255, 255, 0.1);
+  --surface-border-hover: rgba(255, 255, 255, 0.2);
 
   /* Transitions */
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -130,10 +117,10 @@
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
-  /* Glass */
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(0, 0, 0, 0.05);
-  --glass-border-hover: rgba(0, 0, 0, 0.1);
+  /* Surfaces: translucent tonal panels, never blurred (see .surface) */
+  --surface: rgba(255, 255, 255, 0.7);
+  --surface-border: rgba(0, 0, 0, 0.05);
+  --surface-border-hover: rgba(0, 0, 0, 0.1);
 }
 
 /* Reduce gradient blob opacity in light theme */
@@ -304,7 +291,6 @@
     padding: 0 var(--container-padding);
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(12px);
   }
 
   .topbar .brand {
@@ -497,9 +483,9 @@
   }
 
   /* =============================================
-	   SHARED PAGE / GLASS STYLES
+	   SHARED PAGE STYLES
 	   - Homogénise les titres h1/h2 entre pages (inspiré de /albums)
-	   - Boutons "glass" réutilisables
+	   - Boutons plats réutilisables
 	   - Background blobs communs
 	============================================= */
 
@@ -625,111 +611,100 @@
   }
 
   /* =====================================================================
-	   Canonical glass button - single source used across every page.
-	   Base = translucent "glass" pill; modifiers add semantic color.
-	   Solid variants (.primary/.success) are colored by default; the others
-	   (.danger/.info/.edit) stay neutral glass and color only on hover.
-	   Icon-only variant (.icon) is square/compact for action overlays.
+	   Canonical button - single source used across every page.
+	   FLAT: a tonal fill, no blur, no coloured shadow, no lift on hover
+	   (docs/wiki/ui-redesign.md #25 - Google Photos, measured, carries none).
+	   Hover is a state layer: 8% of the text colour over the fill, so it reads
+	   the same in both themes. Solid variants (.primary/.success) are coloured
+	   by default; the others (.danger/.info/.edit/.warning) stay neutral and
+	   colour only on hover. Icon-only variant (.icon) is square/compact.
 	   ===================================================================== */
-  .btn-glass {
+  .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     padding: 0.6rem 1.1rem;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-weight: 600;
     line-height: 1;
     white-space: nowrap;
-    transition: all 0.18s var(--ease);
+    transition:
+      background-color 0.15s var(--ease),
+      border-color 0.15s var(--ease),
+      color 0.15s var(--ease);
     cursor: pointer;
-    backdrop-filter: blur(6px) saturate(120%);
   }
 
-  .btn-glass:hover:not(:disabled) {
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(59, 130, 246, 0.14);
-    color: var(--accent);
+  .btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text-primary) 8%, var(--bg-tertiary));
   }
 
-  .btn-glass:disabled {
+  .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-    filter: grayscale(1);
   }
 
   /* Icon-only (square, compact) */
-  .btn-glass.icon {
+  .btn.icon {
     padding: 0.5rem;
   }
 
-  .btn-glass.primary {
+  .btn.primary {
     background: var(--accent);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.16);
   }
-  .btn-glass.primary:hover:not(:disabled) {
+  .btn.primary:hover:not(:disabled) {
     background: var(--accent-hover);
-    color: #fff;
   }
 
-  .btn-glass.success {
+  .btn.success {
     background: var(--success);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--success) 30%, transparent);
   }
-  .btn-glass.success:hover:not(:disabled) {
+  .btn.success:hover:not(:disabled) {
     background: var(--success-hover);
-    color: #fff;
   }
 
-  .btn-glass.danger:hover:not(:disabled) {
+  .btn.danger:hover:not(:disabled) {
     background: var(--error);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--error) 30%, transparent);
   }
-  .btn-glass.info:hover:not(:disabled) {
+  .btn.info:hover:not(:disabled) {
     background: var(--info);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--info) 30%, transparent);
   }
-  .btn-glass.edit:hover:not(:disabled) {
+  .btn.edit:hover:not(:disabled) {
     background: var(--edit);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--edit) 30%, transparent);
   }
-  .btn-glass.warning:hover:not(:disabled) {
+  .btn.warning:hover:not(:disabled) {
     background: var(--warning);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--warning) 30%, transparent);
   }
 
   /* Toggle "on" state (e.g. selection mode) */
-  .btn-glass.active {
+  .btn.active {
     background: var(--text-primary);
     color: var(--bg-primary);
     border-color: transparent;
   }
 
-  /* Reusable glass card modifier */
-  .glass-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+  /* Reusable surface: a tonal panel, no blur and no shadow. Translucent on
+	   purpose, so the page's background blobs still give it depth (D7). */
+  .surface {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
     border-radius: var(--radius);
-    backdrop-filter: blur(8px) saturate(120%);
-    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
   }
 
   /* Sur desktop large, pas besoin de padding pour la nav mobile */
@@ -768,7 +743,6 @@
   button.px-3:hover:not(:disabled),
   button.px-2:hover:not(:disabled) {
     background: var(--accent-hover);
-    transform: translateY(-1px);
     box-shadow: var(--shadow);
   }
 
@@ -781,7 +755,6 @@
   .btn-success:hover,
   button.bg-emerald-500:hover:not(:disabled) {
     background: var(--success-hover);
-    transform: translateY(-1px);
   }
 
   button:disabled {
@@ -860,7 +833,6 @@
   }
 
   .photo-card:hover {
-    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
   }
 
@@ -978,7 +950,6 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    backdrop-filter: blur(12px);
   }
 
   .selection-toolbar .selection-count {
@@ -1009,7 +980,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    backdrop-filter: blur(4px);
   }
 
   .photo-card:hover .download-btn {
@@ -1151,7 +1121,7 @@
   }
 
   .first-login-banner {
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    background: var(--accent);
     border-radius: var(--radius);
     padding: 2rem;
     text-align: center;
@@ -1177,7 +1147,6 @@
   }
 
   .banner-button:hover {
-    transform: translateY(-2px);
     box-shadow: var(--shadow);
   }
 
@@ -1584,7 +1553,7 @@
 
   /* Albums page */
   /* The albums page owns its full layout with scoped styles (BackgroundBlobs,
-	   timeline grid, glass cards). Only the container needs a global rule. */
+	   timeline grid, surfaces). Only the container needs a global rule. */
   .albums-main {
     position: relative;
     min-height: 100vh;

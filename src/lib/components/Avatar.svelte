@@ -58,7 +58,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--gradient-purple-pink);
+    background: var(--purple);
     color: #fff;
     font-weight: 700;
     line-height: 1;

@@ -188,7 +188,7 @@
       <p class="hint">
         {m.mp_access_denied_hint()}
       </p>
-      <button type="button" class="btn-glass primary" onclick={() => goto('/')}>
+      <button type="button" class="btn primary" onclick={() => goto('/')}>
         <ArrowLeft size={18} />
         {m.common_back_home()}
       </button>
@@ -198,7 +198,7 @@
       <div class="incite-icon"><Camera size={40} /></div>
       <h2>{m.mp_incite_title()}</h2>
       <p>{m.mp_incite_body()}</p>
-      <a href="/parametres#face-recognition" class="btn-glass primary">
+      <a href="/parametres#face-recognition" class="btn primary">
         <Camera size={18} />
         {m.mp_incite_cta()}
       </a>
@@ -319,7 +319,7 @@
     content: '';
     position: absolute;
     inset: -3px;
-    background: linear-gradient(135deg, var(--accent), var(--edit), var(--pink));
+    background: var(--accent);
     border-radius: 50%;
     z-index: -1;
     opacity: 0;
@@ -358,7 +358,6 @@
     gap: 0.5rem;
     border-radius: 50%;
     color: white;
-    backdrop-filter: blur(8px);
     opacity: 0; /* Hide the overlay by default */
     transition: opacity 0.3s ease; /* Smooth animation */
   }
