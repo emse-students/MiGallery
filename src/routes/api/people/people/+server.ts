@@ -4,9 +4,9 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
+import { fetchAllPeople, ImmichPeopleError } from '$lib/immich/people';
 
 import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-people');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -14,7 +14,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/people/people
- * Lists all people recognized by Immich
+ * Lists every person recognized by Immich, all pages, as `{ people, total }`.
  */
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'read');
@@ -23,24 +23,14 @@ export const GET: RequestHandler = async (event) => {
       throw error(500, 'IMMICH_BASE_URL not configured');
     }
 
-    const res = await event.fetch(`${IMMICH_BASE_URL}/api/people`, {
-      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-      headers: {
-        'x-api-key': IMMICH_API_KEY || '',
-        Accept: 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw error(res.status, `Failed to fetch people: ${errorText}`);
-    }
-
-    const people = (await res.json()) as { id: string; name: string }[];
+    const people = await fetchAllPeople(event.fetch, IMMICH_BASE_URL, IMMICH_API_KEY);
     return json({ people, total: people.length });
   } catch (e: unknown) {
     const err = ensureError(e);
     log.error('Error in /api/people/people GET:', err);
+    if (e instanceof ImmichPeopleError) {
+      throw error(e.status, e.message);
+    }
     if (e && typeof e === 'object' && 'status' in e) {
       throw e;
     }

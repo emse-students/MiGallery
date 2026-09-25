@@ -15,8 +15,6 @@ export default defineConfig({
     },
     // Exécuter les fichiers de test en série (pas en parallèle)
     fileParallelism: false,
-    // Retry pour les tests flaky (notamment ceux dépendant d'Immich)
-    retry: 1,
     // Reporter compact : affiche uniquement le résumé
     reporters: [['default', { summary: true }]],
     // Désactiver les logs stdout/stderr des tests
