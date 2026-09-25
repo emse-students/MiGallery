@@ -117,24 +117,9 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Setup test database
-        run: |
-          mkdir -p data
-          bun run db:init || true
-
-      - name: Create .env for tests
-        run: |
-          cat > .env << 'EOF'
-          ENABLE_DEV_ROUTES=true
-          DATABASE_PATH=./data/migallery.db
-          IMMICH_BASE_URL=
-          IMMICH_API_KEY=
-          AUTH_TRUSTED_HOST=true
-          EOF
-
+      # The runner writes the whole test environment itself (disposable database, no Immich, dev
+      # routes on) and never reads a `.env`, so there is nothing to set up here.
       - name: Run tests
-        env:
-          API_BASE_URL: http://localhost:3000
         run: bun run test
 
   # ═══════════════════════════════════════════════════════════════════════════════════════════════

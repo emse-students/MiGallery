@@ -1,6 +1,3 @@
-import { config } from 'dotenv';
-config({ override: true }); // Override existing vars to ensure .env takes precedence
-
 import { sequence } from '@sveltejs/kit/hooks';
 import type { Handle } from '@sveltejs/kit';
 import {

@@ -45,9 +45,8 @@
     "db:backup": "bun ./scripts/backup-db.cjs",
     "db:inspect": "bun ./scripts/inspect-db.cjs",
     "immich:cleanup-test-albums": "bun ./scripts/cleanup-immich-test-albums.mjs",
-    "test:cleanup": "bun ./scripts/cleanup-test-artifacts.cjs",
     "validate": "bun scripts/ci-local.mjs",
-    "test": "bun scripts/test-with-server.mjs",
+    "test": "bun --no-env-file scripts/test-with-server.mjs",
     "test:watch": "bun --bun vitest",
     "test:coverage": "bun --bun vitest run --coverage",
     "test:unit": "bun --bun vitest run",
@@ -63,7 +62,6 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.47.0",
-    "dotenv": "^18.0.0",
     "form-data": "^4.0.6",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

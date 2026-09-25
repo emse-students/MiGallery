@@ -55,7 +55,7 @@ This project includes a complete and comprehensive API test suite using Vitest.
 Modern tests with Vitest, executed in CI/CD.
 
 ```bash
-# Run all tests (requires a running server)
+# Build, start a server on a disposable database, run everything, delete the database
 bun run test
 
 # Run a specific test file
@@ -69,10 +69,31 @@ bun run test:watch
 
 # Tests with coverage
 bun run test:coverage
-
-# Tests with automatic server startup
-bun run test
 ```
+
+### How `bun run test` isolates itself
+
+`scripts/test-with-server.mjs` is the only supported way to run the server-backed suites, and the
+run is **hermetic whatever your `.env` says**:
+
+- It never reads `.env`. `package.json` starts it with `bun --no-env-file`, and it starts the build,
+  the server and vitest the same way, with an environment it writes itself. The server honours
+  that environment (it no longer force-loads `.env` over it).
+- **Database**: a fresh `migallery.db` in a per-run temp directory (`%TEMP%/migallery-test-*`),
+  created by the server on first open and deleted when the run ends - including on Ctrl-C. Your dev
+  database is never opened, so a run leaves nothing behind and the next run starts from the same
+  empty state.
+- **Immich**: `IMMICH_BASE_URL` is empty, as in CI. The suite's contract is "no Immich"; tests that
+  reach Immich accept the resulting 500. A dev `.env` pointing at a tunnel to the production Immich
+  used to make the suite create real `[TEST]` albums there, and fail the tests whose assertions only
+  run when Immich answers.
+- Dev routes on (`/dev/login-as`), `AUTH_TRUSTED_HOST=true`, port 3000. If something already
+  answers on port 3000 the run refuses to start, rather than testing that server and its database.
+
+`openTestDatabase()` in `test-helpers.ts` opens only the file named by `MIGALLERY_TEST_DATABASE`,
+which the runner sets, and throws when it is unset - so a bare `bunx vitest run tests/<file>` cannot
+write into the database your `.env` names. The server-free suites (e.g. `disk-cache.test.ts`,
+`auth-redirect.test.ts`, `sso-mirror.test.ts`, which makes its own temp database) run fine bare.
 
 ### 2. Tests by Domain
 
@@ -286,11 +307,7 @@ Tests are automatically executed in two workflows:
 
 #### 1. CI - `.github/workflows/ci.yml`
 
-- ✅ Project build
-- ✅ Test database initialization
-- ✅ Server startup in background
-- ✅ Vitest test suite execution
-- ✅ Server shutdown
+- ✅ `bun run test`, the same command as locally: build, disposable database, server, suite, shutdown
 
 #### 2. Deploy - `.github/workflows/deploy.yml`
 
@@ -300,15 +317,9 @@ Tests are automatically executed in two workflows:
 
 ## 🔧 Configuration
 
-### Environment variables
-
-```bash
-# API base URL (default: http://localhost:3000)
-API_BASE_URL=http://localhost:3000
-
-# Database path (default: ./data/migallery.db)
-DATABASE_PATH=./data/migallery.db
-```
+There is nothing to configure: `bun run test` writes the whole test environment itself (see
+[How `bun run test` isolates itself](#how-bun-run-test-isolates-itself)). No `db:init`, no running
+server, no `.env` entry is needed, and none is read.
 
 ### Vitest Configuration
 
@@ -318,67 +329,20 @@ See `vitest.config.ts`:
 - API tests with extended timeout: 15 seconds
 - Environment: Node.js
 
-## 📝 Prerequisites
-
-### For local tests:
-
-1. **Initialized database**
-
-   ```bash
-   bun run db:init
-   ```
-
-2. **System user created** (`les.roots`)
-
-   ```bash
-   node scripts/create-system-user.cjs
-   ```
-
-3. **Server running**
-
-   ```bash
-   # Development mode
-   bun run dev
-
-   # or production mode
-   bun run build
-   bun build/index.js
-   ```
-
-4. **Environment variables configured** (`.env`)
-   ```env
-   AUTH_URL=http://localhost:3000
-   AUTH_TRUST_HOST=true
-   IMMICH_BASE_URL=http://your-immich-server:2283
-   IMMICH_API_KEY=your_immich_api_key
-   ENABLE_DEV_ROUTES=true
-   ```
-
 ## 🐛 Troubleshooting
 
-### Error: "Database not found"
+### "Something already answers on http://localhost:3000"
 
-```bash
-bun run db:init
-```
+Another server (a previous `bun build/index.js`, a dev preview) holds the test port. Stop it and
+re-run; the suite refuses to test a server it did not start.
 
-### Error: "System user les.roots not found"
+### "MIGALLERY_TEST_DATABASE is not set"
 
-```bash
-node scripts/create-system-user.cjs
-```
+A server-backed test file was run bare with `bunx vitest run`. Run it through `bun run test`.
 
 ### Timeouts on Immich tests
 
-This is normal if Immich is down or unreachable. Tests still pass with a warning.
-
-### Error: "Connection refused"
-
-Check that the server is running on port 3000:
-
-```bash
-curl http://localhost:3000/api/health
-```
+The suite runs without Immich on purpose; tests that reach it accept the 500.
 
 ## 📊 Example Output
 
