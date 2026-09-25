@@ -71,7 +71,7 @@ per network chunk, not once per line.
   (loss), not a full pipe. `nstat -az TcpRetransSegs TcpOutSegs` before and
   after gives the retransmission ratio.
 - Through the tunnel: fetch a public static file with a random query string
-  (`/MiGallery.png?x=<random>`, 716 KB) FROM the host - `cf-cache-status: MISS`
+  (`/logo-512.png?x=<random>`, 25 KB - a small file measures latency more than throughput, so repeat it or pick an album cover) FROM the host - `cf-cache-status: MISS`
   forces an origin pull, and the host's fast downlink leaves the tunnel uplink as
   the only bottleneck.
 - `cloudflared` exposes per-connection counters on `127.0.0.1:20241/metrics`.

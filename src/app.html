@@ -7,7 +7,12 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <meta name="view-transition" content="same-origin" />
-    <link rel="icon" type="image/png" href="/icon.png" />
+    <!-- One set, generated from the 2026 logo (docs/wiki/logo.md): the .ico for the browsers that
+         still ask for it, the PNG for the rest, an opaque apple-touch-icon because iOS paints a
+         transparent one black. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Web fonts: Inter (body/UI) + Space Grotesk (headings). preconnect + display=swap
 		     so text stays visible while the font loads; only the used weights are fetched. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

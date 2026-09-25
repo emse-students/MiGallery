@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { canonicalUrl, defaultImage, type SeoMeta } from '$lib/seo';
+  import { canonicalUrl, DEFAULT_IMAGE, defaultImage, type SeoMeta } from '$lib/seo';
 
   let { meta }: { meta: SeoMeta } = $props();
 
@@ -10,6 +10,16 @@
   const origin = $derived(page.url.origin);
   const canonical = $derived(canonicalUrl(origin, page.url.pathname));
   const image = $derived(meta.image || defaultImage(origin));
+  // Declared only for an image whose size is known: the page's own, or the default card.
+  const size = $derived(
+    meta.image
+      ? meta.imageWidth && meta.imageHeight
+        ? { width: meta.imageWidth, height: meta.imageHeight, type: meta.imageType }
+        : meta.imageType
+          ? { type: meta.imageType }
+          : null
+      : DEFAULT_IMAGE
+  );
 </script>
 
 <svelte:head>
@@ -33,12 +43,12 @@
   {/if}
   <!-- Only when they describe THIS image. An unfurler that has them lays the card out before the
 	     image arrives; one given the wrong ones lays it out wrong. -->
-  {#if meta.image && meta.imageWidth && meta.imageHeight}
-    <meta property="og:image:width" content={String(meta.imageWidth)} />
-    <meta property="og:image:height" content={String(meta.imageHeight)} />
+  {#if size && 'width' in size && size.width && size.height}
+    <meta property="og:image:width" content={String(size.width)} />
+    <meta property="og:image:height" content={String(size.height)} />
   {/if}
-  {#if meta.image && meta.imageType}
-    <meta property="og:image:type" content={meta.imageType} />
+  {#if size?.type}
+    <meta property="og:image:type" content={size.type} />
   {/if}
 
   <!-- Without an explicit card type, X and the several clients that copy its vocabulary render a
