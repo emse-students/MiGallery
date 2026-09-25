@@ -1,3 +1,27 @@
+# MiGallery v2.7.0
+
+**Date**: September 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Fifth step of the redesign: an album opens on its cover, and selecting photos works as in Google Photos.
+
+## Album
+
+- On a phone, an album opens on its cover, full width, with the title, date and photo count over it; back and ⋮ float over the photo. On a computer the title comes first and the photos start above the fold. The album's own cover, heavily blurred, is the page background.
+- Three photos a row on a phone; pinch to switch between 2, 3 and 4. The choice is remembered.
+
+## Selection
+
+- A long-press (or "Sélectionner") starts selecting: a ring on every photo, "N sélectionnée(s)" at the top, and only the selection's actions at the bottom (share, download, remove from album, move to trash - the last two still confirmed).
+- Downloading a whole album now asks "Télécharger les N photos ?" in plain French.
+
+## Fixes
+
+- The ⋮ menus line their icons up on one edge.
+- The Immich people list is read in Immich v3's paged shape.
+
 # MiGallery v2.6.0
 
 **Date**: September 25, 2026
