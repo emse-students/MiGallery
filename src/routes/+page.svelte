@@ -6,13 +6,21 @@
   import { fade, fly } from 'svelte/transition';
   import { m } from '$lib/paraglide/messages';
   import { loginUrlWithRedirect, REDIRECT_PARAM } from '$lib/auth-redirect';
+  import { greetingAt } from '$lib/first-paint';
 
   let user = $derived(page.data.session?.user as User | undefined);
   let isAuthenticated = $derived(!!user);
   let hasIdPhotos = $derived(!!user?.photos_id);
 
-  const hour = new Date().getHours();
-  const greeting = hour < 18 ? m.greeting_day() : m.greeting_evening();
+  // Read from the layout's one draw, never from `new Date()`: the server's clock and the browser's
+  // used to disagree, and the greeting flipped once the page hydrated (see `$lib/first-paint`).
+  let greeting = $derived.by(() => {
+    const name = user?.first_name || user?.name || '';
+    const g = greetingAt(page.data.firstPaint.at);
+    if (g.kind === 'day') return m.greeting_day({ name });
+    if (g.kind === 'evening') return m.greeting_evening({ name });
+    return [m.greeting_night_0, m.greeting_night_1, m.greeting_night_2][g.variant]({ name });
+  });
 
   function handleSignIn() {
     // A guard that bounced someone here left the page they asked for in the
@@ -52,7 +60,7 @@
           <div class="icon-wrapper">
             <UserPlus size={32} />
           </div>
-          <h2>{greeting} {user?.first_name || user?.name || ''} !</h2>
+          <h2>{greeting}</h2>
           <p>
             {m.home_finish_profile()}
           </p>
@@ -60,7 +68,7 @@
         </div>
       {:else}
         <div class="surface card">
-          <h2>{greeting} {user?.first_name || user?.name || ''} !</h2>
+          <h2>{greeting}</h2>
         </div>
       {/if}
     </div>
