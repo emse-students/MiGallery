@@ -22,6 +22,10 @@ startBackupScheduler();
 const ALLOWED_ORIGINS = [
   'https://portail-etu.emse.fr',
   'https://gallery.mitv.fr',
+  // Both of Canari's public names. ADDITIVE on purpose: canari.emse.fr is the one it answers on
+  // since 2026-09-24, and canari-emse.fr keeps answering for apps already installed on a phone,
+  // which cannot be told to use the new one.
+  'https://canari.emse.fr',
   'https://canari-emse.fr',
   'https://canari.emse.fr',
   'http://localhost:5173',
