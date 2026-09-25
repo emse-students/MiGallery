@@ -58,6 +58,7 @@ Photo grid with selection mode and viewing modal.
   visibility="private"     <!-- Album visibility -->
   albumId="123"            <!-- Album ID (optional) -->
   onModalClose={(changed) => {}} <!-- Callback after photo modal close -->
+  showCount={true}         <!-- Count above the grid; false where the page header already says it -->
 />
 ```
 
@@ -111,16 +112,24 @@ Loading indicator.
 
 ### UploadZone.svelte
 
-Drag & drop zone for file upload.
+File upload with its queue and progress panel, in two variants.
 
 ```svelte
 <UploadZone
   onUpload={(files, onProgress) => Promise<UploadResult[]>}
   accept="image/*"           <!-- Accepted file types -->
   multiple={true}            <!-- Allow multiple files -->
-  maxSize={10485760}         <!-- Max size in bytes (10MB) -->
+  variant="zone"             <!-- "zone" (default): a clickable drop box in the flow -->
 />
+
+<!-- The album page: nothing on screen while idle (ui-redesign #2, D2) -->
+<UploadZone bind:this={uploadZone} variant="page" onUpload={...} />
+<button onclick={() => uploadZone?.openPicker()}>+</button>
 ```
+
+`variant="page"` shows a full-window drop overlay only while FILES are dragged over the window, and
+only on a fine pointer (a touch screen never arms it); the progress panel appears once files are
+queued.
 
 ---
 

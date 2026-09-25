@@ -12,6 +12,7 @@
     Download,
     ArrowLeft,
     MapPin,
+    Plus,
     CircleAlert,
     Image as ImageIcon,
   } from '@lucide/svelte';
@@ -50,6 +51,14 @@
 
   let userRole = $derived((page.data.session?.user as User)?.role || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
+
+  /** The page-level upload (no box in the flow): the "+" action opens its picker (D2). */
+  let uploadZone = $state<ReturnType<typeof UploadZone> | null>(null);
+
+  function openUploadPicker() {
+    console.debug('[album] "+" action: opening the upload picker');
+    uploadZone?.openPicker();
+  }
 
   let hasActiveOps = $state(false);
   const unsubOps = activeOperations.subscribe((ops) => {
@@ -113,8 +122,13 @@
     }
   }
 
-  /** Deleting the album sits in the overflow, never one tap from the thumb (decision D4). */
+  /**
+   * The album's secondary actions, behind the overflow (audit #12): the bar keeps only the
+   * labelled share / download / select. Deleting the album sits there too, never one tap from
+   * the thumb (decision D4).
+   */
   const albumMenuItems: OverflowMenuItem[] = [
+    { label: m.common_edit(), icon: Pencil, onSelect: () => (showAlbumModal = true) },
     { label: m.albumd_delete_album(), icon: Trash2, danger: true, onSelect: () => deleteAlbum() },
   ];
 
@@ -192,15 +206,56 @@
   <title>{title || albumName} - MiGallery</title>
 </svelte:head>
 
-<!-- Action buttons snippet (mobile & desktop) -->
+<!--
+  The album's action bar, the same on both layouts (audit #12): labelled actions in ONE colour -
+  add ("+", uploaders only, D2), share, download, select - and the rest in the overflow.
+-->
 {#snippet actionButtons(mobile = false)}
   <div class="actions-group {mobile ? 'mobile' : 'desktop'}">
-    <!-- Selection mode -->
+    {#if canManagePhotos}
+      <button
+        type="button"
+        onclick={openUploadPicker}
+        class="btn"
+        title={m.albumd_add_photos()}
+        aria-label={m.albumd_add_photos()}
+      >
+        <Plus size={18} />
+        <span class="label">{m.albumd_add()}</span>
+      </button>
+    {/if}
+
+    <button type="button" onclick={shareAlbum} class="btn" title={m.albumd_share()}>
+      <Share2 size={18} />
+      <span class="label">{m.albumd_share()}</span>
+    </button>
+
+    <button
+      type="button"
+      onclick={downloadAll}
+      disabled={photosState.isDownloading || photosState.assets.length === 0}
+      class="btn"
+      title={m.albumd_download_all()}
+    >
+      {#if photosState.isDownloading}
+        <Spinner size={18} />
+        <span class="label">
+          {photosState.downloadProgress >= 0
+            ? `${Math.round(photosState.downloadProgress * 100)}%`
+            : '...'}
+        </span>
+      {:else}
+        <Download size={18} />
+        <span class="label">{m.common_download()}</span>
+      {/if}
+    </button>
+
     {#if canManagePhotos && photosState.assets.length > 0}
       <button
         type="button"
         onclick={() => (photosState.selecting = !photosState.selecting)}
         class="btn {photosState.selecting ? 'active' : ''}"
+        aria-pressed={photosState.selecting}
         title={photosState.selecting ? m.albumd_select_finish() : m.albumd_select()}
       >
         {#if photosState.selecting}
@@ -208,56 +263,13 @@
         {:else}
           <CircleCheckBig size={18} />
         {/if}
-        {#if !mobile || photosState.selecting}
-          <span class="label">{photosState.selecting ? m.common_ok() : m.albumd_selection()}</span>
-        {/if}
+        <span class="label">{photosState.selecting ? m.common_ok() : m.albumd_select()}</span>
       </button>
     {/if}
 
-    <!-- Admin actions -->
     {#if canManagePhotos}
-      <button
-        type="button"
-        onclick={() => (showAlbumModal = true)}
-        class="btn edit"
-        title={m.common_edit()}
-      >
-        <Pencil size={18} />
-        {#if !mobile}<span class="label">{m.common_edit()}</span>{/if}
-      </button>
       <OverflowMenu items={albumMenuItems} variant="bar" triggerClass="btn" iconSize={18} />
     {/if}
-
-    <!-- Divider -->
-    {#if canManagePhotos}<div class="divider"></div>{/if}
-
-    <!-- Public actions -->
-    <button type="button" onclick={shareAlbum} class="btn info" title={m.albumd_share()}>
-      <Share2 size={18} />
-      {#if !mobile}<span class="label">{m.albumd_share()}</span>{/if}
-    </button>
-
-    <button
-      type="button"
-      onclick={downloadAll}
-      disabled={photosState.isDownloading || photosState.assets.length === 0}
-      class="btn success"
-      title={m.albumd_download_all()}
-    >
-      {#if photosState.isDownloading}
-        <Spinner size={18} />
-        {#if !mobile}
-          {#if photosState.downloadProgress >= 0}
-            <span class="label">{Math.round(photosState.downloadProgress * 100)}%</span>
-          {:else}
-            <span class="label">...</span>
-          {/if}
-        {/if}
-      {:else}
-        <Download size={18} />
-        {#if !mobile}<span class="label">{m.common_download()}</span>{/if}
-      {/if}
-    </button>
   </div>
 {/snippet}
 
@@ -299,15 +311,9 @@
       </div>
     {/if}
 
-    <!-- Upload zone (admin) -->
+    <!-- Upload (uploaders only): nothing in the flow until files are queued (audit #2, D2) -->
     {#if canManagePhotos}
-      <div class="upload-container surface" in:fade>
-        <div class="upload-header">
-          <h3>{m.albumd_add_photos()}</h3>
-          <p>{m.albumd_drop_here()}</p>
-        </div>
-        <UploadZone onUpload={onUploadFiles} />
-      </div>
+      <UploadZone bind:this={uploadZone} variant="page" onUpload={onUploadFiles} />
     {/if}
 
     <!-- Photos grid -->
@@ -321,6 +327,7 @@
         <PhotosGrid
           state={photosState}
           albumId={page.params.id}
+          showCount={false}
           onModalClose={(hasChanges) => {
             if (hasChanges && page.params.id)
               photosState.loadAlbumWithStreaming(page.params.id, title);
@@ -439,47 +446,15 @@
     border-radius: var(--radius);
     border: 1px solid var(--surface-border);
   }
-  .divider {
-    width: 1px;
-    height: 24px;
-    background: var(--border);
-    margin: 0 0.25rem;
-  }
 
-  /* Buttons use the canonical .btn system from app.css (base + primary/
-	   success/danger/info/edit/active/icon modifiers). Only the toolbar layout
-	   and the mobile bar overrides live here. */
+  /* Buttons use the neutral canonical .btn from app.css - one colour for every action
+     (audit #12); only the toolbar layout and the mobile bar overrides live here. */
 
   /* --- CARDS & CONTENT --- */
   .surface {
     background: var(--surface);
     border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
-  }
-
-  .upload-container {
-    padding: 1.5rem;
-    margin-bottom: 2.5rem;
-  }
-  .upload-header {
-    margin-bottom: 1.5rem;
-    text-align: center;
-  }
-  .upload-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-  }
-  .upload-header p {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-  }
-
-  /* Make upload header use theme glass background for consistency */
-  .upload-header {
-    background: var(--surface);
-    padding: 1rem;
-    border-radius: var(--radius-md);
   }
 
   .error-card {
@@ -509,8 +484,8 @@
       left: 0;
       right: 0;
       z-index: 100;
-      padding: 0.75rem 1rem;
-      padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+      padding: 0.5rem;
+      padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
       background: var(--bg-elevated);
       border-top: 1px solid var(--border);
     }
@@ -519,15 +494,16 @@
       background: transparent;
       border: none;
       padding: 0;
-      gap: 0.5rem;
+      gap: 0.25rem;
     }
     .actions-group.mobile .btn,
     .actions-group.mobile :global(.overflow-trigger) {
       flex-direction: column;
-      padding: 0.5rem;
+      padding: 0.5rem 0;
       gap: 0.25rem;
       font-size: 0.7rem;
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
       background: transparent;
       border: none;
       color: var(--text-secondary);
@@ -537,17 +513,15 @@
       color: var(--accent);
       background: var(--accent-light);
     }
-
-    /* Mobile: flatten the semantic buttons to colored text on a transparent bar */
-    .actions-group.mobile .btn.success {
-      color: var(--success);
-      background: transparent;
+    .actions-group.mobile .label {
+      white-space: nowrap;
+      font-weight: 500;
+      font-size: 0.7rem;
     }
-    .actions-group.mobile .btn.info {
-      color: var(--info);
-    }
-    .actions-group.mobile .btn.edit {
-      color: var(--edit);
+    /* The overflow has no label: it takes its icon's width, the labelled actions share the rest. */
+    .actions-group.mobile :global(.overflow-trigger) {
+      flex: 0 0 auto;
+      padding: 0.5rem;
     }
 
     .page-header {
@@ -563,32 +537,9 @@
     }
   }
 
-  /* Mobile: improve spacing and contrast for upload area */
   @media (max-width: 768px) {
-    .upload-container {
-      margin-bottom: 1rem !important;
-    }
-    /* Use padding-top to guarantee spacing even after the gallery grid renders */
     .gallery-wrapper {
-      margin-top: 0 !important;
-      padding-top: 1rem !important;
-    }
-  }
-
-  /* Mobile: improve readability of upload areas and glass cards */
-  @media (max-width: 768px) {
-    .upload-container,
-    .upload-container .upload-header,
-    .surface.upload-container {
-      background: var(--bg-elevated) !important;
-      border-color: var(--border) !important;
-      color: var(--text-primary) !important;
-      box-shadow: var(--shadow-lg) !important;
-    }
-
-    .upload-container .upload-header h3,
-    .upload-container .upload-header p {
-      color: var(--text-primary) !important;
+      padding-top: 1rem;
     }
   }
 </style>

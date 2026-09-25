@@ -12,6 +12,7 @@
     Clock,
   } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
+  import { portal } from '$lib/portal';
   import { m } from '$lib/paraglide/messages';
 
   interface FileResult {
@@ -30,6 +31,13 @@
     accept?: string;
     multiple?: boolean;
     disabled?: boolean;
+    /**
+     * `zone` renders the classic clickable drop box in the page flow. `page` renders NOTHING
+     * while idle (an album's first screen is photos, audit #2 / decision D2): the host opens the
+     * file picker through `openPicker()`, a drop overlay covers the window only while files are
+     * dragged over it on a pointer device, and the progress panel appears once files are queued.
+     */
+    variant?: 'zone' | 'page';
   }
 
   interface UploadFileStatus {
@@ -39,12 +47,18 @@
     progress: number;
   }
 
-  let { onUpload, accept = 'image/*,video/*', multiple = true, disabled = false }: Props = $props();
+  let {
+    onUpload,
+    accept = 'image/*,video/*',
+    multiple = true,
+    disabled = false,
+    variant = 'zone',
+  }: Props = $props();
 
   let isDragging = $state(false);
   let isUploading = $state(false);
   let fileStatuses = $state<UploadFileStatus[]>([]);
-  let fileInputRef: HTMLInputElement;
+  let fileInputRef = $state<HTMLInputElement | null>(null);
   let globalProgress = $state(0); // Global upload percentage
   let uploadedCount = $state(0);
   let duplicateCountPersist = $state(0); // Total duplicates (persistent)
@@ -88,50 +102,86 @@
     }
   }
 
+  /**
+   * The media files carried by a drop, folders walked recursively. The entries are taken from
+   * `items` synchronously - the list is emptied once the event handler returns - then awaited.
+   */
+  async function collectDroppedFiles(dataTransfer: DataTransfer | null): Promise<File[]> {
+    const items = dataTransfer?.items;
+    if (!items) return [];
+    const files: File[] = [];
+    const promises: Promise<void>[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind !== 'file') continue;
+      const entry = items[i].webkitGetAsEntry();
+      if (entry) promises.push(processEntry(entry as unknown as FileSystemEntry, files));
+    }
+    await Promise.all(promises);
+    return files;
+  }
+
   async function handleDrop(e: DragEvent) {
     try {
       e.preventDefault();
       e.stopPropagation();
-
-      const items = e.dataTransfer?.items;
-      if (!items) {
-        Promise.resolve().then(() => {
-          isDragging = false;
-        });
-        return;
-      }
-
-      const files: File[] = [];
-      const promises: Promise<void>[] = [];
-
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === 'file') {
-          const entry = items[i].webkitGetAsEntry();
-          if (entry) {
-            promises.push(processEntry(entry as unknown as FileSystemEntry, files));
-          }
-        }
-      }
-
-      Promise.resolve().then(async () => {
-        isDragging = false;
-
-        if (disabled) return;
-
-        if (promises.length > 0) {
-          await Promise.all(promises);
-        }
-
-        enqueue(files);
-      });
+      const pending = collectDroppedFiles(e.dataTransfer);
+      isDragging = false;
+      if (disabled) return;
+      enqueue(await pending);
     } catch (err: unknown) {
       console.error('Error in handleDrop:', err);
-      Promise.resolve().then(() => {
-        isDragging = false;
-      });
+      isDragging = false;
     }
   }
+
+  /** True when a drag carries files (text or an image dragged from the page does not). */
+  function isFileDrag(e: DragEvent): boolean {
+    return Array.from(e.dataTransfer?.types ?? []).includes('Files');
+  }
+
+  // `page` variant: the whole window is the drop target, on a pointer device only - a touch
+  // screen never drags files in, so it never arms the overlay. `dragenter` / `dragleave` fire
+  // for every child crossed, hence a depth counter rather than a boolean.
+  $effect(() => {
+    if (variant !== 'page' || disabled) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      console.debug('[UploadZone] no fine pointer: the window drop overlay is not armed');
+      return;
+    }
+    let depth = 0;
+    const onEnter = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      depth++;
+      isDragging = true;
+    };
+    const onOver = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) isDragging = false;
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!isFileDrag(e)) return;
+      depth = 0;
+      console.debug('[UploadZone] files dropped on the window');
+      void handleDrop(e);
+    };
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+    };
+  });
 
   interface FileSystemEntry {
     isFile: boolean;
@@ -329,28 +379,121 @@
     }
   }
 
+  /** Opens the system file picker; the album page's "+" action calls it (decision D2). */
+  export function openPicker() {
+    console.debug('[UploadZone] file picker opened by the host');
+    openFileSelector();
+  }
+
   const successCount = $derived(uploadedCount);
   const failedFiles = $derived(fileStatuses.filter((s) => s.status === 'error').map((s) => s.file));
   const pendingCount = $derived(fileStatuses.filter((s) => s.status === 'pending').length);
 </script>
 
-<div
-  class="upload-zone {isDragging ? 'dragging' : ''} {isUploading ? 'uploading' : ''} {disabled
-    ? 'disabled'
-    : ''}"
-  ondragover={handleDragOver}
-  ondragleave={handleDragLeave}
-  ondrop={handleDrop}
-  role="button"
-  tabindex={disabled ? -1 : 0}
-  onclick={openFileSelector}
-  onkeydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      openFileSelector();
-    }
-  }}
->
+{#snippet summaryPanel()}
+  <div class="upload-summary">
+    {#if isUploading}
+      {#if isOffline}
+        <div class="summary-item offline">
+          <WifiOff size={24} />
+          <span>{m.uz_connection_lost()}</span>
+        </div>
+      {:else}
+        <div class="summary-item uploading">
+          <Spinner size={24} />
+          <span>{m.uz_uploading()}</span>
+        </div>
+      {/if}
+      <div class="progress-bar global">
+        <div class="progress-fill" style="width: {globalProgress}%"></div>
+      </div>
+      <p class="progress-text">{globalProgress}%</p>
+      {#if pendingCount > 0}
+        <div class="summary-item pending">
+          <Clock size={20} />
+          <span>{m.uz_pending_count({ count: pendingCount })}</span>
+        </div>
+      {/if}
+    {/if}
+    {#if successCount > 0}
+      <div class="summary-item success">
+        <CircleCheckBig size={24} />
+        <span>{m.uz_uploaded_count({ count: successCount })}</span>
+      </div>
+    {/if}
+    {#if errorCountPersist > 0}
+      <div class="summary-item error">
+        <CircleX size={24} />
+        <span>{m.uz_error_count({ count: errorCountPersist })}</span>
+      </div>
+    {/if}
+    {#if duplicateCountPersist > 0}
+      <div class="summary-item duplicate">
+        <CircleAlert size={24} />
+        <span>{m.uz_duplicate_count({ count: duplicateCountPersist })}</span>
+      </div>
+    {/if}
+
+    <div class="file-list">
+      {#each fileStatuses as item (item.file.name + '-' + item.file.size + '-' + item.file.lastModified)}
+        <div class="file-item {item.status}">
+          <div class="file-header">
+            <div class="file-info">
+              <span class="file-name">{item.file.name}</span>
+              <span class="file-size">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
+            </div>
+            <div class="file-status">
+              {#if item.status === 'success'}
+                <Check size={16} />
+              {:else if item.status === 'error'}
+                <X size={16} />
+              {:else if item.status === 'duplicate'}
+                <TriangleAlert size={16} />
+              {:else if item.status === 'uploading'}
+                <Spinner size={16} />
+              {:else if item.status === 'pending'}
+                <Clock size={16} />
+              {/if}
+            </div>
+          </div>
+          {#if item.error}
+            <p class="error-message">{item.error}</p>
+          {/if}
+        </div>
+      {/each}
+    </div>
+
+    {#if errorCountPersist > 0}
+      <button
+        type="button"
+        class="btn primary"
+        disabled={isUploading}
+        onclick={(e) => {
+          e.stopPropagation();
+          retryUpload(failedFiles);
+        }}
+      >
+        <RefreshCw size={16} />
+        {m.uz_retry_failed()}
+      </button>
+    {/if}
+
+    {#if !isUploading}
+      <button
+        type="button"
+        class="btn"
+        onclick={(e) => {
+          e.stopPropagation();
+          clearStatuses();
+        }}
+      >
+        {m.common_close()}
+      </button>
+    {/if}
+  </div>
+{/snippet}
+
+{#if variant === 'page'}
   <input
     bind:this={fileInputRef}
     type="file"
@@ -361,126 +504,114 @@
     webkitdirectory={false}
   />
 
-  <div class="upload-content">
-    {#if fileStatuses.length > 0}
-      <div class="upload-summary">
-        {#if isUploading}
-          {#if isOffline}
-            <div class="summary-item offline">
-              <WifiOff size={24} />
-              <span>{m.uz_connection_lost()}</span>
-            </div>
-          {:else}
-            <div class="summary-item uploading">
-              <Spinner size={24} />
-              <span>{m.uz_uploading()}</span>
-            </div>
-          {/if}
-          <div class="progress-bar global">
-            <div class="progress-fill" style="width: {globalProgress}%"></div>
-          </div>
-          <p class="progress-text">{globalProgress}%</p>
-          {#if pendingCount > 0}
-            <div class="summary-item pending">
-              <Clock size={20} />
-              <span>{m.uz_pending_count({ count: pendingCount })}</span>
-            </div>
-          {/if}
-        {/if}
-        {#if successCount > 0}
-          <div class="summary-item success">
-            <CircleCheckBig size={24} />
-            <span>{m.uz_uploaded_count({ count: successCount })}</span>
-          </div>
-        {/if}
-        {#if errorCountPersist > 0}
-          <div class="summary-item error">
-            <CircleX size={24} />
-            <span>{m.uz_error_count({ count: errorCountPersist })}</span>
-          </div>
-        {/if}
-        {#if duplicateCountPersist > 0}
-          <div class="summary-item duplicate">
-            <CircleAlert size={24} />
-            <span>{m.uz_duplicate_count({ count: duplicateCountPersist })}</span>
-          </div>
-        {/if}
+  {#if isDragging}
+    <div class="drop-overlay" aria-hidden="true" use:portal>
+      <div class="drop-card">
+        <Upload size={40} />
+        <p>{m.uz_drop_active()}</p>
+      </div>
+    </div>
+  {/if}
 
-        <div class="file-list">
-          {#each fileStatuses as item (item.file.name + '-' + item.file.size + '-' + item.file.lastModified)}
-            <div class="file-item {item.status}">
-              <div class="file-header">
-                <div class="file-info">
-                  <span class="file-name">{item.file.name}</span>
-                  <span class="file-size">({(item.file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                </div>
-                <div class="file-status">
-                  {#if item.status === 'success'}
-                    <Check size={16} />
-                  {:else if item.status === 'error'}
-                    <X size={16} />
-                  {:else if item.status === 'duplicate'}
-                    <TriangleAlert size={16} />
-                  {:else if item.status === 'uploading'}
-                    <Spinner size={16} />
-                  {:else if item.status === 'pending'}
-                    <Clock size={16} />
-                  {/if}
-                </div>
-              </div>
-              {#if item.error}
-                <p class="error-message">{item.error}</p>
-              {/if}
-            </div>
-          {/each}
+  {#if fileStatuses.length > 0}
+    <div class="upload-panel">
+      {@render summaryPanel()}
+    </div>
+  {/if}
+{:else}
+  <div
+    class="upload-zone {isDragging ? 'dragging' : ''} {isUploading ? 'uploading' : ''} {disabled
+      ? 'disabled'
+      : ''}"
+    ondragover={handleDragOver}
+    ondragleave={handleDragLeave}
+    ondrop={handleDrop}
+    role="button"
+    tabindex={disabled ? -1 : 0}
+    onclick={openFileSelector}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openFileSelector();
+      }
+    }}
+  >
+    <input
+      bind:this={fileInputRef}
+      type="file"
+      {accept}
+      {multiple}
+      onchange={handleFileSelect}
+      style="display: none;"
+      webkitdirectory={false}
+    />
+
+    <div class="upload-content">
+      {#if fileStatuses.length > 0}
+        {@render summaryPanel()}
+      {:else}
+        <div class="upload-icon">
+          <Upload size={48} />
         </div>
-
-        {#if errorCountPersist > 0}
-          <button
-            type="button"
-            class="btn primary"
-            disabled={isUploading}
-            onclick={(e) => {
-              e.stopPropagation();
-              retryUpload(failedFiles);
-            }}
-          >
-            <RefreshCw size={16} />
-            {m.uz_retry_failed()}
-          </button>
-        {/if}
-
-        {#if !isUploading}
-          <button
-            type="button"
-            class="btn"
-            onclick={(e) => {
-              e.stopPropagation();
-              clearStatuses();
-            }}
-          >
-            {m.common_close()}
-          </button>
-        {/if}
-      </div>
-    {:else}
-      <div class="upload-icon">
-        <Upload size={48} />
-      </div>
-      <p class="upload-text">
-        {#if isDragging}
-          {m.uz_drop_active()}
-        {:else}
-          {m.uz_drop_idle()}
-        {/if}
-      </p>
-      <p class="upload-subtext">{m.uz_or_click()}</p>
-      <p class="upload-hint">{m.uz_accepted()}</p>
-    {/if}
+        <p class="upload-text">
+          {#if isDragging}
+            {m.uz_drop_active()}
+          {:else}
+            {m.uz_drop_idle()}
+          {/if}
+        </p>
+        <p class="upload-subtext">{m.uz_or_click()}</p>
+        <p class="upload-hint">{m.uz_accepted()}</p>
+      {/if}
+    </div>
   </div>
-</div>
+{/if}
 
 <style>
+  /* `page` variant: the full-window drop target, shown only while files are dragged over it. */
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+    pointer-events: none;
+  }
+
+  .drop-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    color: var(--accent);
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  .drop-card p {
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  /* `page` variant: the progress panel, in the flow only once files are queued. */
+  .upload-panel {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
   .upload-zone {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);

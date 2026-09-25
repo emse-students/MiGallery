@@ -26,6 +26,11 @@
     visibility?: string;
     albumId?: string;
     showFavorites?: boolean;
+    /**
+     * Shows the photo count above the grid. A host whose header already carries it (the album
+     * page) turns it off, so the count is said once (audit #13).
+     */
+    showCount?: boolean;
   }
 
   let {
@@ -34,6 +39,7 @@
     visibility,
     albumId,
     showFavorites = false,
+    showCount = true,
   }: Props = $props();
 
   let userRole = $derived((page.data.session?.user as User)?.role || 'user');
@@ -320,11 +326,11 @@
         {/if}
       </div>
     </div>
-  {:else}
+  {:else if showCount || (showFavorites && favoriteCount > 0)}
     <div class="photos-header">
-      <div class="photos-count">
-        <strong>{displayedAssets.length}</strong> photo{displayedAssets.length > 1 ? 's' : ''}
-      </div>
+      {#if showCount}
+        <div class="photos-count">{m.pg_photo_count({ count: displayedAssets.length })}</div>
+      {/if}
       {#if showFavorites && favoriteCount > 0}
         <div class="favorites-filter" role="group" aria-label={m.pg_filter_favorites()}>
           <button

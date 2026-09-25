@@ -121,13 +121,12 @@
   "albumd_share_error": "Sharing failed",
   "albumd_select_finish": "Finish selection",
   "albumd_select": "Select",
-  "albumd_selection": "Selection",
   "albumd_share": "Share",
   "albumd_download_all": "Download all",
   "albumd_back": "Back to albums",
   "albumd_photo_count": "{count} photo(s)",
   "albumd_add_photos": "Add photos",
-  "albumd_drop_here": "Drag and drop your files here",
+  "albumd_add": "Add",
   "albumd_loading": "Loading the album…",
   "albumd_empty": "This album is empty for now.",
   "pm_cover_updated": "Cover updated",
@@ -612,5 +611,6 @@
   "pm_info_date": "Date",
   "pm_share": "Share",
   "pm_share_error": "Could not share: {error}",
-  "pm_share_ready": "Photo ready: tap Share again"
+  "pm_share_ready": "Photo ready: tap Share again",
+  "pg_photo_count": "{count} photo(s)"
 }
