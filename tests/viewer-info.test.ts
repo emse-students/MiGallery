@@ -9,6 +9,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   cameraName,
+  dimensionsLine,
+  exposureLine,
+  placeLine,
   formatFileSize,
   formatViewerDateTitle,
   formatViewerFullDate,
@@ -115,5 +118,40 @@ describe('cameraName', () => {
     expect(cameraName('Sony', '')).toBe('Sony');
     expect(cameraName(undefined, undefined)).toBeNull();
     expect(cameraName('  ', ' ')).toBeNull();
+  });
+});
+
+describe('exposureLine', () => {
+  it('prints each part EXIF carries, in the Google Photos order', () => {
+    expect(
+      exposureLine({ fNumber: 1.8, exposureTime: '1/60', focalLength: 4.2, iso: 100 }, 'en')
+    ).toBe('ƒ/1.8 · 1/60 · 4.2 mm · ISO 100');
+  });
+
+  it('leaves out what is missing, and is null when nothing is there', () => {
+    expect(exposureLine({ iso: 400 }, 'en')).toBe('ISO 400');
+    expect(exposureLine({}, 'en')).toBeNull();
+  });
+
+  it('uses the locale decimal separator', () => {
+    expect(exposureLine({ fNumber: 2.8 }, 'fr')).toBe('ƒ/2,8');
+  });
+});
+
+describe('dimensionsLine', () => {
+  it('gives the pixel size and the megapixels', () => {
+    expect(dimensionsLine(4032, 3024, 'en')).toBe('4032 × 3024 · 12.2 MP');
+  });
+
+  it('is null when a side is unknown', () => {
+    expect(dimensionsLine(4032, undefined, 'en')).toBeNull();
+  });
+});
+
+describe('placeLine', () => {
+  it('joins the parts, skipping blanks and repeats', () => {
+    expect(placeLine('Saint-Étienne', ' ', 'France')).toBe('Saint-Étienne, France');
+    expect(placeLine('Monaco', 'Monaco', 'Monaco')).toBe('Monaco');
+    expect(placeLine()).toBeNull();
   });
 });

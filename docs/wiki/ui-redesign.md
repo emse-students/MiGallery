@@ -192,3 +192,21 @@ the album's own menu; a visibility mark shows only for the exceptions (private, 
 people who can set them. School years stay as small folding headings - with 300 albums they are what
 keeps the page short - but the month headings under them went: Google Photos puts none between tiles.
 Measured at 393px: 16px margins, 173px tiles, no horizontal scroll.
+
+## Desktop polish from the user's review (2026-09-26)
+
+- **Album header**: 2.5rem between the action pill and the title, which a long title used to crowd.
+- **Bars**: the top bar and the bottom bar take the action pill's material - the page colour at 70%
+  with a 20px blur. The blur is load-bearing, not decoration: both bars are sticky and photos scroll
+  under them.
+- **Dialogs** (`Modal.svelte`, so every one): the dark theme overrode the opaque surface with a
+  78%-opaque one and no blur, so the album showed through "Modifier l'album". It is opaque again; the
+  page behind is dimmed AND blurred; the scroll area reaches the dialog's edge so its scrollbar runs
+  along the border rather than over the fields; a short scale-in on open.
+- **Viewer**: 1rem side margins and a 4.5rem bar on a computer (the title hugged the corner). The
+  "Informations" panel slides in from its side (up on a phone) and is laid out like Google Photos': an
+  icon per fact, a main line and its detail - the file with its size and pixels, the camera with its
+  lens and exposure, the place when EXIF has one (`exposureLine`, `dimensionsLine`, `placeLine` in
+  `$lib/viewer-info`, tested).
+- **Face card**: the info icon sat on a line of its own above the note (a lucide svg is a block);
+  "Importer une photo" wrapped to two lines. The camera buttons' French literals became Paraglide.

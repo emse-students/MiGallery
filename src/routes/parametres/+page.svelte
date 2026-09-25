@@ -692,9 +692,11 @@
       </div>
 
       <div class="card-body">
+        <!-- The icon is the flex row's first child, not inside the <p>: lucide's svg is a block, so
+             in the text it took a line of its own above it (user, 2026-09-26). -->
         <div class="info-box">
+          <Info size={18} class="info-box-icon" />
           <p>
-            <Info size={18} class="flex-shrink-0" />
             {m.param_face_note_before()}
             <strong>{m.param_face_note_strong()}</strong>
             {m.param_face_note_after()}
@@ -1296,6 +1298,16 @@
     border-radius: var(--radius-md);
     font-size: 0.95rem;
     margin-bottom: 1.5rem;
+  }
+  .info-box p {
+    margin: 0;
+    line-height: 1.5;
+  }
+  /* Centred on the first line of text (0.95rem x 1.5 = ~23px line, 18px icon). */
+  .info-box :global(.info-box-icon) {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    color: var(--accent);
   }
 
   .camera-section {

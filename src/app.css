@@ -295,8 +295,13 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 var(--container-padding);
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
+    /* The album's action pill's own material (--surface over the page), so the bar and the pill read
+       as one family (user, 2026-09-26). A sticky bar has photos scrolling under it: the blur is what
+       keeps its labels legible over them, not decoration. */
+    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    backdrop-filter: blur(20px) saturate(1.3);
+    border-bottom: 1px solid var(--surface-border);
   }
 
   .topbar .brand {

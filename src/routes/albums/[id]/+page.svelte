@@ -507,7 +507,8 @@
     z-index: 1;
     display: flex;
     justify-content: center;
-    padding: 1rem 1.5rem 1.5rem;
+    /* The action pill sits above it: 2.5rem keeps a long title from crowding it (user, 2026-09-26). */
+    padding: 2.5rem 1.5rem 1.5rem;
     text-align: center;
   }
   .hero-text h1 {
