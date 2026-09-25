@@ -169,3 +169,14 @@ same recording on the fix: the edge stays at 2090-2093 throughout.
   `Up 17 minutes (healthy)`, so it had restarted around 12:03 UTC. The `cloudflared` journal for that
   minute was not read (the agent was not permitted to); it is what separates a tunnel reconnect from
   something else.
+
+## The home page no longer repaints itself on load (2026-09-26)
+
+The user saw the blobs "load twice" and the greeting flip from "Bonsoir" to "Bonjour" at night. Both were
+the server render and the hydration drawing their OWN value: `BackgroundBlobs` called `Math.random()`
+in each (a readyState-`interactive` snapshot of the server HTML against the hydrated DOM: `#AC52FF` at
+12.5% became `#FF3F3F` at -3.0%), and the greeting read the container's clock - UTC, so 22:47 and
+"Bonsoir" - then the browser's, 00:47 and `hour < 18` = "Bonjour". `$lib/first-paint` now derives both
+from ONE `{ seed, at }` the root layout picks and SvelteKit serializes into the page; the greeting reads
+it on the Paris clock, and midnight to 5 a.m. has its own lines ("Encore debout, X ?"), the variant
+chosen by the day. Same snapshot after: identical blobs, identical heading.

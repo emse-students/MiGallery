@@ -1,6 +1,7 @@
 import type { UserRow } from '$lib/types/api';
 import { getSession } from '$lib/session';
 import { createLogger } from '$lib/server/logger';
+import { newFirstPaint } from '$lib/first-paint';
 import type { LayoutServerLoad } from './$types';
 
 const log = createLogger('layout');
@@ -30,18 +31,22 @@ function toSessionUser(user: UserRow): SessionPageUser {
  * Expose the logged-in user to every page. The session already carries the
  * effective user (the impersonated one while an admin impersonates), so there
  * is nothing to resolve here beyond shaping it for the client.
+ *
+ * `firstPaint` is the ONE draw of chance and clock the page renders from, so the server render and
+ * the hydration agree (see `$lib/first-paint`).
  */
 export const load: LayoutServerLoad = (event) => {
+  const firstPaint = newFirstPaint();
   try {
     const session = getSession(event.cookies);
     if (!session) {
-      return { session: null };
+      return { session: null, firstPaint };
     }
 
-    return { session: { user: toSessionUser(session.user) } };
+    return { session: { user: toSessionUser(session.user) }, firstPaint };
   } catch (e) {
     log.warn('error while loading the session', e);
 
-    return { session: null };
+    return { session: null, firstPaint };
   }
 };

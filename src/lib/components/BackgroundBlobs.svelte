@@ -1,38 +1,10 @@
 <script lang="ts">
-  interface BlobData {
-    id: number;
-    top: string;
-    left: string;
-    width: string;
-    height: string;
-    color: string;
-  }
+  import { page } from '$app/state';
+  import { blobsFor } from '$lib/first-paint';
 
-  let blobs = $state<BlobData[]>([]);
-
-  const colors = ['#FF3F3F', '#FF44EC', '#AC52FF', '#5B6CFF', '#2DD4BF', '#F59E0B'];
-
-  function getRandom(min: number, max: number) {
-    return Math.random() * (max - min) + min;
-  }
-
-  {
-    const count = 6;
-    const newBlobs: BlobData[] = [];
-
-    for (let i = 0; i < count; i++) {
-      newBlobs.push({
-        id: i,
-        top: `${getRandom(-20, 80)}%`,
-        left: `${getRandom(-20, 80)}%`,
-        width: `${getRandom(60, 90)}vw`,
-        height: `${getRandom(60, 90)}vw`,
-        color: colors[Math.floor(Math.random() * colors.length)],
-      });
-    }
-
-    blobs = newBlobs;
-  }
+  // Drawn from the layout's seed, not from `Math.random()` here: the server render and the hydration
+  // each drew their own set, and the background visibly jumped to the second one on load.
+  const blobs = $derived(blobsFor(page.data.firstPaint.seed));
 </script>
 
 <div class="page-background">
