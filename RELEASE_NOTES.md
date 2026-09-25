@@ -1,3 +1,22 @@
+# MiGallery v2.4.0
+
+**Date**: September 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Second step of the redesign: the photo viewer answers the gestures a phone gallery owes.
+
+## Viewer
+
+- Swipe left or right to change photo, swipe down to close, tap to hide or show the bars, double-tap to zoom on the tapped point, pinch to zoom from 0.5x to 5x. While zoomed, one finger pans instead of changing photo. Checked on a Mi 9T.
+- The two neighbouring photos are preloaded, so a swipe lands on an image that is already there (at most two extra previews per photo shown).
+
+## Interface
+
+- Delete moved behind a ⋮ menu in the viewer, on the album page, on photo tiles and on album cards; every delete keeps its confirmation.
+- On a touch screen, the hover overlay no longer sticks on photo tiles; their actions stay in the long-press sheet.
+
 # MiGallery v2.3.0
 
 **Date**: September 25, 2026
