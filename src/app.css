@@ -190,11 +190,17 @@
     height: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* No overscroll stretch: Chrome Android stretches the WHOLE page from the top when a scroll
+       overshoots it, fixed bars included - the bottom bar was pushed 13 device px off-screen and
+       the header 3 px, in proportion to their distance from the top (Mi 9T, 15 fps recording).
+       It also removes Chrome's pull-to-refresh, which an app with a bottom bar does not offer. */
+    overscroll-behavior-y: none;
   }
 
   body {
     height: 100%;
     margin: 0;
+    overscroll-behavior-y: none; /* whichever of html/body is the root scroller: see html above */
     font-family: var(--font-sans);
     background: var(--bg-primary);
     color: var(--text-primary);
