@@ -172,7 +172,7 @@ This component is automatically included in the layout and only shows on mobile 
 
 ### PhotoModal.svelte
 
-Full-screen modal for viewing a photo with navigation.
+Full-screen black photo viewer: date/time title, info panel, overflow, swipe and pinch. See `docs/wiki/viewer.md`.
 
 ### ChangePhotoModal.svelte
 

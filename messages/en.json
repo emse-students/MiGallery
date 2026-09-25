@@ -604,5 +604,13 @@
   "albumd_delete_album": "Delete album",
   "pm_zoom_in": "Zoom in",
   "pm_zoom_out": "Zoom out",
-  "pm_zoom_reset": "Reset zoom (100%)"
+  "pm_back": "Back",
+  "pm_info": "Info",
+  "pm_info_file": "File",
+  "pm_info_size": "Size",
+  "pm_info_camera": "Camera",
+  "pm_info_date": "Date",
+  "pm_share": "Share",
+  "pm_share_error": "Could not share: {error}",
+  "pm_share_ready": "Photo ready: tap Share again"
 }

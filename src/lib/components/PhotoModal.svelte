@@ -3,13 +3,15 @@
   import { SvelteSet } from 'svelte/reactivity';
   import {
     Image as ImageIcon,
-    Minus,
-    Plus,
-    RefreshCw,
+    ArrowLeft,
     Heart,
     Download,
+    Info,
+    Share2,
     Trash2,
     X,
+    ZoomIn,
+    ZoomOut,
     ChevronLeft,
     ChevronRight,
   } from '@lucide/svelte';
@@ -22,6 +24,14 @@
   import { toast } from '$lib/toast';
   import { setAlbumCover } from '$lib/immich/albums';
   import { m } from '$lib/paraglide/messages';
+  import { getLocale } from '$lib/paraglide/runtime';
+  import {
+    cameraName,
+    formatFileSize,
+    formatViewerDateTitle,
+    formatViewerFullDate,
+    viewerDateOf,
+  } from '$lib/viewer-info';
   import {
     GESTURE,
     clamp,
@@ -206,6 +216,8 @@
         id: rawAsset.id,
         originalFileName: rawAsset.originalFileName,
         type: rawAsset.type,
+        fileCreatedAt: rawAsset.fileCreatedAt,
+        createdAt: rawAsset.createdAt,
         isFavorite: rawAsset.isFavorite,
         _raw: rawAsset,
       };
@@ -503,7 +515,7 @@
       const kind = classifyMove({ dx, dy, zoomed: isZoomed(scale), touches: 1 });
       if (kind === 'pending') return;
       phase = kind;
-      // An upward swipe is reserved for an info panel: nothing follows the finger yet.
+      // An upward swipe opens the info panel on release; nothing follows the finger.
       if (kind === 'swipe-up') return;
       gestureActive = true;
       if (kind === 'swipe-down') dismissing = true;
@@ -546,6 +558,9 @@
       void finishSwipe(last.x - start.x);
     } else if (ended === 'swipe-down') {
       void finishDismiss();
+    } else if (ended === 'swipe-up') {
+      console.debug('Viewer: swipe up opens the info panel');
+      infoOpen = true;
     }
   }
 
@@ -577,6 +592,11 @@
     };
   });
 
+  /** The one desktop zoom icon: 2.5x on the centre, or back to 1x (the double-tap maths). */
+  function toggleZoom() {
+    applyZoom(doubleTapZoom({ scale, translate }, { x: 0, y: 0 }));
+  }
+
   function resetZoom() {
     scale = 1;
     translate = { x: 0, y: 0 };
@@ -591,31 +611,140 @@
   let isDownloading = $state(false);
   let isSettingCover = $state(false);
 
+  /** The original's URL: an unlisted album's visitor goes through the album's own route. */
+  function originalUrl(id: string): string {
+    return albumVisibility === 'unlisted' && albumId
+      ? `/api/albums/${albumId}/asset-original/${id}`
+      : `/api/immich/assets/${id}/original`;
+  }
+
+  function fileNameOf(target: Asset): string {
+    return target.originalFileName || `photo-${target.id}.jpg`;
+  }
+
+  /** Fetches the original as a blob; throws with the HTTP status on a refusal. */
+  async function fetchOriginal(id: string): Promise<Blob> {
+    const res = await fetch(originalUrl(id));
+    if (!res.ok) throw new Error(res.statusText || String(res.status));
+    return res.blob();
+  }
+
   async function downloadAsset() {
-    if (!assetId || !asset || isDownloading) return;
+    if (!asset || isDownloading) return;
+    const target = asset;
     isDownloading = true;
     try {
-      let downloadUrl = `/api/immich/assets/${assetId}/original`;
-      if (albumVisibility === 'unlisted' && albumId) {
-        downloadUrl = `/api/albums/${albumId}/asset-original/${assetId}`;
-      }
-      const res = await fetch(downloadUrl);
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = asset.originalFileName || `photo-${assetId}.jpg`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        toast.error(m.common_error_detail({ error: res.statusText || String(res.status) }));
-      }
+      const blob = await fetchOriginal(target.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileNameOf(target);
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
+      console.error(`Viewer download failed for ${target.id}:`, e);
       toast.error(m.common_error_detail({ error: (e as Error).message }));
     } finally {
       isDownloading = false;
     }
+  }
+
+  /**
+   * Whether this browser can hand a photo FILE to the system share sheet (Web Share level 2).
+   * Probed once with an empty JPEG: when it cannot, the share action is not drawn at all.
+   */
+  let canShareFiles = $state(false);
+  let isSharing = $state(false);
+  /** The original already fetched for a share whose user activation lapsed (see shareAsset). */
+  let preparedShare: { id: string; file: File } | null = null;
+
+  /**
+   * Shares the ORIGINAL file, as Google Photos does. `navigator.share` needs a live user
+   * activation, and a large original on a lossy uplink can outlast it; the browser then
+   * refuses with `NotAllowedError`. The fetched file is kept, so the second tap the toast asks
+   * for shares it at once instead of downloading it again.
+   */
+  async function shareAsset() {
+    if (!asset || isSharing) return;
+    const target = asset;
+    isSharing = true;
+    try {
+      let file = preparedShare?.id === target.id ? preparedShare.file : null;
+      if (!file) {
+        const blob = await fetchOriginal(target.id);
+        file = new File([blob], fileNameOf(target), { type: blob.type });
+        preparedShare = { id: target.id, file };
+      }
+      await navigator.share({ files: [file] });
+      preparedShare = null;
+    } catch (e) {
+      const name = e instanceof DOMException ? e.name : '';
+      if (name === 'AbortError') {
+        console.debug('Viewer share dismissed by the user');
+      } else if (name === 'NotAllowedError' && preparedShare?.id === target.id) {
+        console.warn(`Viewer share of ${target.id}: user activation lapsed during the fetch`);
+        toast.info(m.pm_share_ready());
+      } else {
+        console.error(`Viewer share failed for ${target.id}:`, e);
+        toast.error(m.pm_share_error({ error: (e as Error).message }));
+      }
+    } finally {
+      isSharing = false;
+    }
+  }
+
+  // -- The title and the info panel --
+  let dateTitle = $derived(
+    formatViewerDateTitle(viewerDateOf(asset), {
+      locale: getLocale(),
+      labels: { today: m.photos_today(), yesterday: m.photos_yesterday() },
+    })
+  );
+  let infoOpen = $state(false);
+  /** Full metadata (EXIF) of the asset the panel shows; the grid streams carry none. */
+  let infoDetails = $state<{ id: string; raw: ImmichAsset | null } | null>(null);
+  let infoRaw = $derived(infoDetails?.id === assetId ? infoDetails.raw : null);
+  let infoLines = $derived.by(() => {
+    const lines: { label: string; value: string }[] = [];
+    if (!asset) return lines;
+    const date = formatViewerFullDate(viewerDateOf(asset), getLocale());
+    if (date) lines.push({ label: m.pm_info_date(), value: date });
+    lines.push({ label: m.pm_info_file(), value: fileNameOf(asset) });
+    const size = formatFileSize(infoRaw?.exifInfo?.fileSizeInByte, getLocale());
+    if (size) lines.push({ label: m.pm_info_size(), value: size });
+    const camera = cameraName(infoRaw?.exifInfo?.make, infoRaw?.exifInfo?.model);
+    if (camera) lines.push({ label: m.pm_info_camera(), value: camera });
+    return lines;
+  });
+
+  // The panel follows the photo on screen: each asset's EXIF is fetched once, when shown.
+  $effect(() => {
+    const id = assetId;
+    if (!infoOpen || !id) return;
+    untrack(() => {
+      if (infoDetails?.id !== id) void fetchInfo(id);
+    });
+  });
+
+  async function fetchInfo(id: string) {
+    infoDetails = { id, raw: null };
+    try {
+      const res = await fetch(`/api/immich/assets/${id}`);
+      if (!res.ok) {
+        // An unlisted album's visitor has no route to the metadata: the panel keeps the
+        // date and the file name it already knows.
+        console.warn(`Viewer info load failed for ${id}: HTTP ${res.status}`);
+        return;
+      }
+      const raw = (await res.json()) as ImmichAsset;
+      if (infoDetails?.id === id) infoDetails = { id, raw };
+    } catch (e) {
+      console.error(`Viewer info load error for ${id}:`, e);
+    }
+  }
+
+  function toggleInfo() {
+    infoOpen = !infoOpen;
   }
 
   async function handleSetCover() {
@@ -670,47 +799,46 @@
     }
   }
 
-  /** Delete lives in the overflow, never one tap away (decision D4). */
-  let overflowItems = $derived<OverflowMenuItem[]>(
-    canManagePhotos
-      ? [
-          {
-            label: m.trash_to_bin(),
-            icon: Trash2,
-            danger: true,
-            disabled: !asset,
-            onSelect: () => deleteCurrentAsset(false),
-          },
-        ]
-      : []
-  );
-
-  // A click whose press started inside the modal (a text selection dragged out,
-  // for instance) still reports the backdrop as its target: that is the common
-  // ancestor of press and release. Only a press AND a release on the backdrop close.
-  let pressedOnBackdrop = false;
-
-  function handleBackdropPointerDown(e: PointerEvent) {
-    pressedOnBackdrop = e.target === e.currentTarget;
-  }
-
-  function handleBackdropPointerUp(e: PointerEvent) {
-    if (e.target !== e.currentTarget) {
-      pressedOnBackdrop = false;
+  /**
+   * The overflow: info, download, cover, and delete - which lives here, never one tap away
+   * (decision D4).
+   */
+  let overflowItems = $derived.by<OverflowMenuItem[]>(() => {
+    const items: OverflowMenuItem[] = [
+      { label: m.pm_info(), icon: Info, disabled: !asset, onSelect: toggleInfo },
+      {
+        label: m.common_download(),
+        icon: Download,
+        disabled: !asset || isDownloading,
+        onSelect: () => void downloadAsset(),
+      },
+    ];
+    if (canManagePhotos && albumId) {
+      items.push({
+        label: m.pm_set_cover(),
+        icon: ImageIcon,
+        disabled: !asset || isSettingCover,
+        onSelect: () => void handleSetCover(),
+      });
     }
-  }
-
-  function handleBackdropClick(e: MouseEvent) {
-    const fromBackdrop = pressedOnBackdrop;
-    pressedOnBackdrop = false;
-
-    if (fromBackdrop && e.target === e.currentTarget) onClose();
-  }
+    if (canManagePhotos) {
+      items.push({
+        label: m.trash_to_bin(),
+        icon: Trash2,
+        danger: true,
+        disabled: !asset,
+        onSelect: () => deleteCurrentAsset(false),
+      });
+    }
+    return items;
+  });
 
   function handleKeydown(e: KeyboardEvent) {
     // A key an open overflow menu consumed (Escape, the arrows) is not the viewer's.
     if (e.defaultPrevented) return;
-    if (e.key === 'Escape') onClose();
+    // Escape closes the info panel first, then the viewer.
+    if (e.key === 'Escape' && infoOpen) infoOpen = false;
+    else if (e.key === 'Escape') onClose();
     else if (e.key === 'ArrowLeft') goToPrevious();
     else if (e.key === 'ArrowRight') goToNext();
     else if (e.key === '+' || e.key === '=') stepZoom(0.5);
@@ -721,6 +849,10 @@
   }
 
   onMount(() => {
+    canShareFiles =
+      typeof navigator.canShare === 'function' &&
+      navigator.canShare({ files: [new File([''], 'probe.jpg', { type: 'image/jpeg' })] });
+    console.debug(`Viewer: file sharing ${canShareFiles ? 'available' : 'unavailable'}`);
     if (portalRoot && portalRoot.parentNode !== document.body)
       document.body.appendChild(portalRoot);
     window.addEventListener('keydown', handleKeydown);
@@ -745,185 +877,197 @@
 
 <div
   bind:this={portalRoot}
-  class="modal-backdrop"
+  class="viewer"
   class:immersive={chromeHidden}
   class:gesture-active={gestureActive}
+  class:video={isVideo}
   style="--dismiss: {dismissAmount};"
-  onpointerdown={handleBackdropPointerDown}
-  onpointerup={handleBackdropPointerUp}
-  onclick={handleBackdropClick}
-  role="button"
+  role="dialog"
+  aria-modal="true"
+  aria-label={asset?.originalFileName || m.common_photo()}
   tabindex="-1"
-  onkeydown={(e) => e.key === 'Escape' && onClose()}
 >
-  <div class="modal-content">
-    <div class="modal-header chrome" inert={chromeHidden}>
-      <div class="modal-title">
-        {#if asset?.originalFileName}
-          <ImageIcon size={20} />
-          <span>{asset.originalFileName}</span>
-        {:else}
-          <span>{m.common_loading()}</span>
-        {/if}
-      </div>
-      <div class="modal-actions">
-        {#if canManagePhotos && albumId}
-          <button
-            type="button"
-            class="btn-icon"
-            onclick={handleSetCover}
-            title={m.pm_set_cover()}
-            disabled={isSettingCover}
-          >
-            <ImageIcon size={20} />
-          </button>
-        {/if}
-        {#if !isVideo && mediaUrl}
-          <button
-            type="button"
-            class="btn-icon"
-            onclick={() => stepZoom(-0.5)}
-            title={m.pm_zoom_out()}
-            disabled={scale <= GESTURE.MIN_SCALE}
-          >
-            <Minus size={20} />
-          </button>
-          <span class="zoom-level">{Math.round(scale * 100)}%</span>
-          <button
-            type="button"
-            class="btn-icon"
-            onclick={() => stepZoom(0.5)}
-            title={m.pm_zoom_in()}
-            disabled={scale >= GESTURE.MAX_SCALE}
-          >
-            <Plus size={20} />
-          </button>
-          <button
-            type="button"
-            class="btn-icon"
-            onclick={resetZoom}
-            title={m.pm_zoom_reset()}
-            disabled={scale === 1}
-          >
-            <RefreshCw size={20} />
-          </button>
-        {/if}
-        {#if showFavorite && asset && onFavoriteToggle}
-          <button
-            type="button"
-            class="btn-icon btn-favorite"
-            class:active={asset.isFavorite}
-            onclick={async () => {
-              try {
-                await onFavoriteToggle!(asset!.id);
-              } catch {
-                toast.error(m.pm_favorite_error());
-              }
-            }}
-            title={asset.isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
-          >
-            <Heart size={20} fill={asset.isFavorite ? 'currentColor' : 'none'} />
-          </button>
-        {/if}
-        <button
-          type="button"
-          class="btn-icon"
-          onclick={downloadAsset}
-          title={m.common_download()}
-          disabled={!asset || isDownloading}
+  <div
+    class="media-container"
+    onwheel={handleWheel}
+    role="img"
+    aria-label={asset?.originalFileName || m.common_photo()}
+    tabindex="-1"
+    bind:this={containerElement}
+  >
+    <div class="track" bind:this={trackElement} style="transform: {trackTransform(swipeX)};">
+      {#each slides as slide (slide.id)}
+        {@const current = slide.offset === 0}
+        {@const src = current && mediaUrl ? mediaUrl : previewUrl(slide.id)}
+        <div
+          class="slide"
+          class:current
+          class:hidden={dismissing && !current}
+          style={slideStyle(slide.offset)}
         >
-          <Download size={20} />
-        </button>
-        {#if overflowItems.length > 0}
-          <OverflowMenu items={overflowItems} variant="toolbar" />
-        {/if}
-        <button type="button" class="btn-icon" onclick={onClose} title={m.common_close()}>
-          <X size={20} />
-        </button>
-      </div>
-    </div>
-
-    <div class="modal-body">
-      {#if hasPrevious}
-        <button
-          type="button"
-          class="nav-button nav-left chrome"
-          inert={chromeHidden}
-          onclick={goToPrevious}
-          title={m.photo_previous()}
-        >
-          <ChevronLeft size={32} />
-        </button>
-      {/if}
-
-      <div
-        class="media-container"
-        onwheel={handleWheel}
-        role="img"
-        aria-label={asset?.originalFileName || m.common_photo()}
-        tabindex="-1"
-        bind:this={containerElement}
-      >
-        <div class="track" bind:this={trackElement} style="transform: {trackTransform(swipeX)};">
-          {#each slides as slide (slide.id)}
-            {@const current = slide.offset === 0}
-            {@const src = current && mediaUrl ? mediaUrl : previewUrl(slide.id)}
-            <div
-              class="slide"
-              class:current
-              class:hidden={dismissing && !current}
-              style={slideStyle(slide.offset)}
-            >
-              {#if current && isVideo}
-                {#if mediaUrl}
-                  <video src={mediaUrl} controls class="media loaded"
-                    ><track kind="captions" /></video
-                  >
-                {/if}
-              {:else}
-                <!-- The same element serves as neighbour then as current photo (keyed by id),
-                     so a swipe never reloads what is already on screen. -->
-                <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-                <img
-                  {src}
-                  alt={current ? asset?.originalFileName || m.common_photo() : ''}
-                  aria-hidden={current ? undefined : 'true'}
-                  class="media"
-                  class:loaded={loadedSrcs.has(src) || loadedSrcs.has(previewUrl(slide.id))}
-                  class:zoomed={current && scale > 1}
-                  class:no-transition={isDragging || gestureActive}
-                  style={current
-                    ? `transform: scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px); cursor: ${scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}`
-                    : undefined}
-                  onload={() => loadedSrcs.add(src)}
-                  onmousedown={current ? handleMouseDown : undefined}
-                  ondblclick={current ? handleDoubleClick : undefined}
-                  draggable="false"
-                  decoding="async"
-                />
-              {/if}
-            </div>
-          {/each}
+          {#if current && isVideo}
+            {#if mediaUrl}
+              <video src={mediaUrl} controls class="media loaded"><track kind="captions" /></video>
+            {/if}
+          {:else}
+            <!-- The same element serves as neighbour then as current photo (keyed by id),
+                 so a swipe never reloads what is already on screen. -->
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <img
+              {src}
+              alt={current ? asset?.originalFileName || m.common_photo() : ''}
+              aria-hidden={current ? undefined : 'true'}
+              class="media"
+              class:loaded={loadedSrcs.has(src) || loadedSrcs.has(previewUrl(slide.id))}
+              class:zoomed={current && scale > 1}
+              class:no-transition={isDragging || gestureActive}
+              style={current
+                ? `transform: scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px); cursor: ${scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'}`
+                : undefined}
+              onload={() => loadedSrcs.add(src)}
+              onmousedown={current ? handleMouseDown : undefined}
+              ondblclick={current ? handleDoubleClick : undefined}
+              draggable="false"
+              decoding="async"
+            />
+          {/if}
         </div>
-      </div>
-
-      {#if hasNext}
-        <button
-          type="button"
-          class="nav-button nav-right chrome"
-          inert={chromeHidden}
-          onclick={goToNext}
-          title={m.photo_next()}
-        >
-          <ChevronRight size={32} />
-        </button>
-      {/if}
-    </div>
-
-    <div class="modal-footer chrome" inert={chromeHidden}>
-      <span class="counter">{Math.max(currentIndex, 0) + 1} / {assets.length}</span>
+      {/each}
     </div>
   </div>
+
+  {#if hasPrevious}
+    <button
+      type="button"
+      class="nav-button nav-left chrome"
+      inert={chromeHidden}
+      onclick={goToPrevious}
+      title={m.photo_previous()}
+      aria-label={m.photo_previous()}
+    >
+      <ChevronLeft size={28} />
+    </button>
+  {/if}
+  {#if hasNext}
+    <button
+      type="button"
+      class="nav-button nav-right chrome"
+      inert={chromeHidden}
+      onclick={goToNext}
+      title={m.photo_next()}
+      aria-label={m.photo_next()}
+    >
+      <ChevronRight size={28} />
+    </button>
+  {/if}
+
+  <div class="top-bar chrome" inert={chromeHidden}>
+    <button
+      type="button"
+      class="bar-icon"
+      onclick={onClose}
+      title={m.pm_back()}
+      aria-label={m.pm_back()}
+    >
+      <ArrowLeft size={24} />
+    </button>
+    <button
+      type="button"
+      class="title"
+      onclick={toggleInfo}
+      disabled={!asset}
+      aria-expanded={infoOpen}
+      title={m.pm_info()}
+    >
+      {#if !asset}
+        <span class="title-date">{m.common_loading()}</span>
+      {:else if dateTitle}
+        <span class="title-date">{dateTitle.date}</span>
+        <span class="title-time">{dateTitle.time}</span>
+      {:else}
+        <span class="title-date">{m.albums_no_date()}</span>
+      {/if}
+    </button>
+    <div class="bar-actions">
+      {#if !isVideo && mediaUrl}
+        <button
+          type="button"
+          class="bar-icon zoom-toggle"
+          onclick={toggleZoom}
+          title={isZoomed(scale) ? m.pm_zoom_out() : m.pm_zoom_in()}
+          aria-label={isZoomed(scale) ? m.pm_zoom_out() : m.pm_zoom_in()}
+        >
+          {#if isZoomed(scale)}
+            <ZoomOut size={22} />
+          {:else}
+            <ZoomIn size={22} />
+          {/if}
+        </button>
+      {/if}
+      {#if showFavorite && asset && onFavoriteToggle}
+        <button
+          type="button"
+          class="bar-icon"
+          class:favorite={asset.isFavorite}
+          onclick={async () => {
+            try {
+              await onFavoriteToggle!(asset!.id);
+            } catch (e) {
+              console.error('Viewer favourite toggle failed:', e);
+              toast.error(m.pm_favorite_error());
+            }
+          }}
+          title={asset.isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
+          aria-label={asset.isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
+          aria-pressed={asset.isFavorite}
+        >
+          <Heart size={22} fill={asset.isFavorite ? 'currentColor' : 'none'} />
+        </button>
+      {/if}
+      <OverflowMenu items={overflowItems} variant="toolbar" iconSize={22} />
+    </div>
+  </div>
+
+  <div class="bottom-bar chrome" inert={chromeHidden}>
+    {#if canShareFiles}
+      <button type="button" class="bar-action" onclick={shareAsset} disabled={!asset || isSharing}>
+        <Share2 size={22} />
+        <span>{m.pm_share()}</span>
+      </button>
+    {/if}
+    <button
+      type="button"
+      class="bar-action"
+      onclick={downloadAsset}
+      disabled={!asset || isDownloading}
+    >
+      <Download size={22} />
+      <span>{m.common_download()}</span>
+    </button>
+  </div>
+
+  {#if infoOpen && asset}
+    <aside class="info-panel" aria-label={m.pm_info()}>
+      <div class="info-header">
+        <h2>{m.pm_info()}</h2>
+        <button
+          type="button"
+          class="bar-icon"
+          onclick={toggleInfo}
+          title={m.common_close()}
+          aria-label={m.common_close()}
+        >
+          <X size={22} />
+        </button>
+      </div>
+      <dl>
+        {#each infoLines as line (line.label)}
+          <dt>{line.label}</dt>
+          <dd>{line.value}</dd>
+        {/each}
+      </dl>
+    </aside>
+  {/if}
 </div>
 
 {#if showConfirmModal && confirmModalConfig}
@@ -940,18 +1084,17 @@
 {/if}
 
 <style>
-  /* `--dismiss` (0..1) is how far a swipe-down has gone: the backdrop, the frame and the
-     toolbars fade with it, revealing the grid underneath. */
-  .modal-backdrop {
+  /* Full-screen black, edge to edge, no frame (Google Photos). `--dismiss` (0..1) is how far a
+     swipe-down has gone: the black and the bars fade with it, revealing the grid underneath. */
+  .viewer {
+    --bar-height: 3.5rem;
+    --bottom-bar-height: 4.25rem;
     position: fixed;
     inset: 0;
-    background: rgb(0 0 0 / calc(0.6 * (1 - var(--dismiss, 0))));
-    transition: background-color 0.2s ease;
     z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
+    background: rgb(0 0 0 / calc(1 - var(--dismiss, 0)));
+    color: white;
+    overflow: hidden;
     animation: fadeIn 0.2s ease-out;
   }
   @keyframes fadeIn {
@@ -963,36 +1106,7 @@
     }
   }
 
-  .modal-content {
-    width: 100%;
-    max-width: 1400px;
-    height: 90vh;
-    display: flex;
-    flex-direction: column;
-    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    isolation: isolate;
-  }
-  /* The frame's surface is its own layer so it can fade (swipe-down) and turn black
-     (immersive) without touching the photo. */
-  .modal-content::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    opacity: calc(1 - var(--dismiss, 0));
-    transition:
-      opacity 0.2s ease,
-      background-color 0.2s ease;
-  }
-  .immersive .modal-content::before {
-    background: black;
-    border-color: transparent;
-  }
+  /* The bars float over the photo and fade in and out with the tap. */
   .chrome {
     opacity: calc(1 - var(--dismiss, 0));
     transition: opacity 0.2s ease;
@@ -1003,102 +1117,117 @@
   }
   /* A finger drives the fade: no easing lag behind it. */
   .gesture-active,
-  .gesture-active .modal-content::before,
   .gesture-active .chrome {
     transition: none;
   }
-  @keyframes slideUp {
-    from {
-      transform: translateY(20px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
 
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  .top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 10;
-  }
-  .modal-title {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    color: white;
-    font-weight: 600;
-    overflow: hidden;
+    gap: 0.25rem;
+    min-height: var(--bar-height);
+    padding: env(safe-area-inset-top) 0.25rem 0;
+    background: rgb(0 0 0 / 0.4);
   }
-  .modal-title span {
+  .title {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .title:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.08);
+  }
+  .title-date,
+  .title-time {
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .modal-actions {
+  .title-date {
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  /* "dim. 13 sept." starts the title: only its first letter is raised, not every word's. */
+  .title-date::first-letter {
+    text-transform: uppercase;
+  }
+  .title-time {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    color: rgb(255 255 255 / 0.75);
+  }
+  .bar-actions {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    gap: 0.125rem;
   }
-  .zoom-level {
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 600;
-    min-width: 50px;
-    text-align: center;
-  }
-
-  .btn-icon {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    padding: 0.5rem;
-    border-radius: var(--radius-xs);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
+  .bar-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
   }
-  .btn-icon:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.2);
-    transform: scale(1.05);
+  .bar-icon:hover {
+    background: rgb(255 255 255 / 0.1);
   }
-  .btn-icon:disabled {
+  .bar-icon.favorite {
+    color: var(--error);
+  }
+
+  .bottom-bar {
+    display: none;
+  }
+  .bar-action {
+    flex: 1;
+    max-width: 7rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .bar-action:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  .btn-favorite {
-    color: var(--error);
-  }
-  .btn-favorite:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--error) 20%, transparent);
-  }
-  .btn-favorite.active {
-    background: color-mix(in srgb, var(--error) 90%, transparent);
-    color: white;
-  }
 
-  .modal-body {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    min-height: 0;
-    overflow: hidden;
-  }
   .media-container {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
     overflow: hidden;
     user-select: none;
     touch-action: none;
@@ -1123,7 +1252,6 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    border-radius: var(--radius-md);
     opacity: 0;
     transition:
       opacity 0.3s ease,
@@ -1141,23 +1269,24 @@
   .nav-button {
     position: absolute;
     top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.55);
-    border: none;
-    color: white;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    z-index: 10;
+    width: 3rem;
+    height: 3rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
+    border: none;
+    border-radius: 50%;
+    background: rgb(0 0 0 / 0.5);
+    color: white;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition:
+      opacity 0.2s ease,
+      background-color 0.15s ease;
   }
   .nav-button:hover {
-    background: rgba(0, 0, 0, 0.75);
-    transform: translateY(-50%) scale(1.1);
+    background: rgb(0 0 0 / 0.75);
   }
   .nav-left {
     left: 1rem;
@@ -1166,55 +1295,80 @@
     right: 1rem;
   }
 
-  .modal-footer {
-    padding: 1rem;
-    text-align: center;
-    color: rgba(255, 255, 255, 0.85);
-    border-top: 1px solid rgba(255, 255, 255, 0.03);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
-    z-index: 10;
-    position: relative;
+  .info-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    width: min(22rem, 100%);
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    overflow-y: auto;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-left: 1px solid var(--border);
   }
-  .counter {
+  .info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--bar-height);
+    padding: 0 0.25rem 0 1rem;
+  }
+  .info-header h2 {
+    margin: 0;
+    font-size: 1rem;
     font-weight: 600;
+  }
+  .info-panel dl {
+    margin: 0;
+    padding: 0 1rem 1rem;
+  }
+  .info-panel dt {
+    margin-top: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .info-panel dd {
+    margin: 0.125rem 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* A touch screen swipes between photos: no arrows, and no zoom icon (pinch, double-tap). */
+  @media (hover: none) {
+    .nav-button,
+    .zoom-toggle {
+      display: none;
+    }
   }
 
   @media (max-width: 768px) {
-    .modal-backdrop {
-      padding: 0;
+    .bottom-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-around;
+      min-height: var(--bottom-bar-height);
+      padding: 0.25rem 0.5rem env(safe-area-inset-bottom);
+      background: rgb(0 0 0 / 0.4);
     }
-    .modal-content {
-      height: 100dvh;
-      max-width: 100%;
+    /* A video's native controls sit at its bottom edge: keep them clear of the bar. */
+    .video .media-container {
+      bottom: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom));
     }
-    .modal-header,
-    .modal-footer {
-      border-radius: 0;
-      padding: 0.75rem;
-    }
-    .modal-title span {
-      font-size: 0.8125rem;
-      max-width: 200px;
-    }
-    .modal-actions {
-      gap: 0.25rem;
-    }
-    .zoom-level {
-      font-size: 0.75rem;
-      min-width: 40px;
-    }
-    .media {
-      border-radius: 0;
-    }
-    .nav-button {
-      width: 40px;
-      height: 40px;
-    }
-    .nav-left {
-      left: 0.5rem;
-    }
-    .nav-right {
-      right: 0.5rem;
+    /* The info panel is a bottom sheet on a phone, over the lower part of the photo. */
+    .info-panel {
+      top: auto;
+      left: 0;
+      width: 100%;
+      max-height: 60%;
+      padding-top: 0;
+      border-left: none;
+      border-top: 1px solid var(--border);
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     }
   }
 </style>
