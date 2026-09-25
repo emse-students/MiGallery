@@ -1744,8 +1744,10 @@
 
 /* Lucide icons: honor the size set via the `size` prop (width/height attributes)
    and never let a flex/grid parent crush them. Without flex-shrink:0 an icon
-   inside a flex button collapses to the min-* floor and renders tiny. */
-:global(.lucide) {
+   inside a flex button collapses to the min-* floor and renders tiny. A plain
+   `.lucide`: this is a global stylesheet, where the `:global()` it used to be
+   wrapped in is not CSS, so browsers dropped the rule and the icons WERE tiny. */
+.lucide {
   flex-shrink: 0;
   min-width: 0.9em;
   min-height: 0.9em;
