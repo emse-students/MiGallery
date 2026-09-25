@@ -168,7 +168,7 @@
         <!-- Mobile: button that opens the native camera via input capture -->
         <button class="btn-camera" onclick={openCameraCapture} {disabled}>
           <Camera size={18} />
-          Prendre une photo
+          {m.camera_take_photo()}
         </button>
 
         <!-- Hidden input with capture="user" for the native mobile camera -->
@@ -188,14 +188,14 @@
           {:else}
             <Camera size={18} />
           {/if}
-          Utiliser la webcam
+          {m.camera_use_webcam()}
         </button>
       {/if}
 
       <!-- File import button (always available) -->
       <button class="btn-file" onclick={openFileSelector} {disabled}>
         <Upload size={18} />
-        {isMobile ? 'Choisir depuis la galerie' : 'Importer une photo'}
+        {isMobile ? m.camera_from_gallery() : m.camera_import_photo()}
       </button>
     </div>
 
@@ -254,6 +254,9 @@
     flex: 1;
     min-width: 150px;
     padding: 0.75rem 1rem;
+    /* One line: "Importer une photo" wrapped to two in a 150px button and sat off-centre from
+       its icon (user, 2026-09-26). The row wraps instead - the group is flex-wrap. */
+    white-space: nowrap;
     border: 2px solid var(--border, rgba(0, 0, 0, 0.1));
     border-radius: 0.5rem;
     background: var(--bg-tertiary, #f3f4f6);

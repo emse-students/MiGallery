@@ -143,3 +143,43 @@ export function cameraName(make?: string | null, model?: string | null): string 
   if (!md) return mk;
   return md.toLowerCase().startsWith(mk.toLowerCase()) ? md : `${mk} ${md}`;
 }
+
+/**
+ * The exposure the way Google Photos prints it under the camera: "ƒ/1.8 · 1/60 · 4.2 mm · ISO 100",
+ * each part only when EXIF carries it. `null` when it carries none, so the line is left out.
+ */
+export function exposureLine(
+  exif: { fNumber?: number; exposureTime?: string; focalLength?: number; iso?: number },
+  locale: string
+): string | null {
+  const num = (n: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(n);
+  const parts: string[] = [];
+  if (exif.fNumber) parts.push(`ƒ/${num(exif.fNumber)}`);
+  if (exif.exposureTime?.trim()) parts.push(exif.exposureTime.trim());
+  if (exif.focalLength) parts.push(`${num(exif.focalLength)} mm`);
+  if (exif.iso) parts.push(`ISO ${exif.iso}`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+/** "4032 × 3024 · 12.2 MP" from EXIF pixel sizes; `null` when either is missing. */
+export function dimensionsLine(
+  width: number | undefined,
+  height: number | undefined,
+  locale: string
+): string | null {
+  if (!width || !height) return null;
+  const mp = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(
+    (width * height) / 1e6
+  );
+  return `${width} × ${height} · ${mp} MP`;
+}
+
+/** "Saint-Étienne, Auvergne-Rhône-Alpes, France" without repeats or blanks; `null` when empty. */
+export function placeLine(city?: string, state?: string, country?: string): string | null {
+  const parts: string[] = [];
+  for (const p of [city, state, country]) {
+    const t = p?.trim();
+    if (t && !parts.includes(t)) parts.push(t);
+  }
+  return parts.length ? parts.join(', ') : null;
+}

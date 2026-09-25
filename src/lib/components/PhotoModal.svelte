@@ -14,7 +14,11 @@
     ZoomOut,
     ChevronLeft,
     ChevronRight,
+    Calendar,
+    Aperture,
+    MapPin,
   } from '@lucide/svelte';
+  import type { IconComponent } from '$lib/icons';
   import Modal from './Modal.svelte';
   import OverflowMenu from './OverflowMenu.svelte';
   import { page } from '$app/state';
@@ -28,6 +32,9 @@
   import { getLocale } from '$lib/paraglide/runtime';
   import {
     cameraName,
+    dimensionsLine,
+    exposureLine,
+    placeLine,
     formatFileSize,
     formatViewerDateTitle,
     formatViewerFullDate,
@@ -666,16 +673,44 @@
   /** Full metadata (EXIF) of the asset the panel shows; the grid streams carry none. */
   let infoDetails = $state<{ id: string; raw: ImmichAsset | null } | null>(null);
   let infoRaw = $derived(infoDetails?.id === assetId ? infoDetails.raw : null);
+  /**
+   * One row per fact, an icon and a main line with its detail under it - the Google Photos panel:
+   * the file carries its size and pixels, the camera its exposure. A row EXIF cannot fill is left
+   * out rather than printed empty.
+   */
   let infoLines = $derived.by(() => {
-    const lines: { label: string; value: string }[] = [];
+    const lines: { label: string; icon: IconComponent; value: string; detail?: string }[] = [];
     if (!asset) return lines;
-    const date = formatViewerFullDate(viewerDateOf(asset), getLocale());
-    if (date) lines.push({ label: m.pm_info_date(), value: date });
-    lines.push({ label: m.pm_info_file(), value: originalFileName(asset) });
-    const size = formatFileSize(infoRaw?.exifInfo?.fileSizeInByte, getLocale());
-    if (size) lines.push({ label: m.pm_info_size(), value: size });
-    const camera = cameraName(infoRaw?.exifInfo?.make, infoRaw?.exifInfo?.model);
-    if (camera) lines.push({ label: m.pm_info_camera(), value: camera });
+    const locale = getLocale();
+    const exif = infoRaw?.exifInfo ?? {};
+    const date = formatViewerFullDate(viewerDateOf(asset), locale);
+    if (date) lines.push({ label: m.pm_info_date(), icon: Calendar, value: date });
+    const fileDetail = [
+      formatFileSize(exif.fileSizeInByte, locale),
+      dimensionsLine(exif.exifImageWidth, exif.exifImageHeight, locale),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    lines.push({
+      label: m.pm_info_file(),
+      icon: ImageIcon,
+      value: originalFileName(asset),
+      detail: fileDetail || undefined,
+    });
+    const camera = cameraName(exif.make, exif.model);
+    const exposure = exposureLine(exif, locale);
+    if (camera || exposure) {
+      lines.push({
+        label: m.pm_info_camera(),
+        icon: Aperture,
+        value: camera ?? exposure ?? '',
+        detail: camera
+          ? [exif.lensModel?.trim(), exposure].filter(Boolean).join(' · ') || undefined
+          : undefined,
+      });
+    }
+    const place = placeLine(exif.city, exif.state, exif.country);
+    if (place) lines.push({ label: m.pm_info_place(), icon: MapPin, value: place });
     return lines;
   });
 
@@ -1020,12 +1055,17 @@
           <X size={22} />
         </button>
       </div>
-      <dl>
+      <ul class="info-rows">
         {#each infoLines as line (line.label)}
-          <dt>{line.label}</dt>
-          <dd>{line.value}</dd>
+          <li aria-label={line.label}>
+            <line.icon size={22} />
+            <div>
+              <p class="info-value">{line.value}</p>
+              {#if line.detail}<p class="info-detail">{line.detail}</p>{/if}
+            </div>
+          </li>
         {/each}
-      </dl>
+      </ul>
     </aside>
   {/if}
 </div>
@@ -1079,6 +1119,19 @@
   .gesture-active,
   .gesture-active .chrome {
     transition: none;
+  }
+
+  /* On a computer the bar breathes: its title used to hug the screen's corner (user, 2026-09-26). */
+  @media (min-width: 769px) {
+    .viewer {
+      --bar-height: 4.5rem;
+    }
+    /* `.viewer .top-bar`: the base rule below sets the padding shorthand and would win a tie. */
+    .viewer .top-bar {
+      padding-left: 1rem;
+      padding-right: 1rem;
+      gap: 0.75rem;
+    }
   }
 
   .top-bar {
@@ -1267,6 +1320,23 @@
     background: var(--bg-elevated);
     color: var(--text-primary);
     border-left: 1px solid var(--border);
+    /* It slides in from the side it lives on (a bottom sheet on a phone, below). */
+    animation: info-in-side 0.22s cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes info-in-side {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes info-in-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .info-panel {
+      animation: none !important;
+    }
   }
   .info-header {
     display: flex;
@@ -1280,17 +1350,33 @@
     font-size: 1rem;
     font-weight: 600;
   }
-  .info-panel dl {
+  .info-rows {
+    list-style: none;
     margin: 0;
-    padding: 0 1rem 1rem;
+    padding: 0.5rem 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
   }
-  .info-panel dt {
-    margin-top: 1rem;
-    font-size: 0.75rem;
+  .info-rows li {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
     color: var(--text-secondary);
   }
-  .info-panel dd {
+  .info-rows li > div {
+    min-width: 0;
+  }
+  .info-value {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    overflow-wrap: anywhere;
+  }
+  .info-detail {
     margin: 0.125rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
     overflow-wrap: anywhere;
   }
 
@@ -1329,6 +1415,7 @@
       border-left: none;
       border-top: 1px solid var(--border);
       border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      animation-name: info-in-up;
     }
   }
 </style>

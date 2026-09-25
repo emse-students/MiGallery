@@ -235,8 +235,11 @@
     z-index: 10050;
   }
 
+  /* The page behind is dimmed AND blurred, so nothing behind the dialog competes with it. */
   .modal-dialog::backdrop {
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 
   .modal-content {
@@ -258,14 +261,22 @@
     max-height: 90vh;
   }
 
-  /* Adjust modal surface per color scheme for legibility */
-  :global([data-theme='dark']) .modal-content {
-    background: rgba(6, 12, 18, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+  /* No per-theme override: one used to set a 78%-opaque background in the dark theme, which let
+     the album show through "Modifier l'album" - exactly what the comment above rules out. */
+
+  .modal-content {
+    animation: modal-in 0.18s ease-out;
   }
-  :global([data-theme='light']) .modal-content {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .modal-content {
+      animation: none;
+    }
   }
 
   .modal-content-wide {
@@ -309,10 +320,15 @@
     color: var(--text-primary);
   }
 
+  /* The scroll area reaches the dialog's edge (negative margin, same padding back), so its
+     scrollbar runs along the border instead of over the fields and dropdowns inside. */
   .modal-body {
-    margin-bottom: 1.5rem;
+    margin: 0 -1.5rem 1.5rem;
+    padding: 0.25rem 1.5rem;
     color: var(--text-secondary);
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
     flex: 1;
     min-height: 0;
   }

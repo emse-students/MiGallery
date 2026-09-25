@@ -83,8 +83,11 @@
     left: 0;
     right: 0;
     width: 100%;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
+    /* Same material as the top bar (app.css `.topbar`): photos scroll under both. */
+    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(1.3);
+    backdrop-filter: blur(20px) saturate(1.3);
+    border-top: 1px solid var(--surface-border);
     padding: 0.5rem 0;
     padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); /* iPhone notch support */
     z-index: 1000;
