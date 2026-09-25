@@ -25,11 +25,14 @@ per network chunk, not once per line.
 
 ## Not in code
 
-- Public, immutable responses (`/api/albums/*/cover`, `/api/users/*/avatar?v=`)
-  are `cf-cache-status: DYNAMIC`: Cloudflare does not cache extension-less
-  `/api/` paths by default. A Cache Rule ("eligible for cache", respect origin
-  headers) on those paths takes them off the uplink entirely. Everything under
-  `/api/immich/*` is `private` and must stay uncached at the edge.
+- `/api/albums/*/cover` is public and immutable by design, yet Cloudflare
+  does not cache extension-less `/api/` paths by default. A Cache Rule
+  ("eligible for cache", respect origin headers) on
+  `starts_with(path, "/api/albums/") and ends_with(path, "/cover")` takes covers
+  off the uplink entirely. NOTHING session-gated belongs in that rule: avatars
+  and face crops answer `private` for that reason, since an edge copy of a
+  gated image is served to anyone holding the URL. `/api/immich/*` is
+  `private` too.
 - Measuring: the host has no `tcpdump`. Sample
   `/sys/class/net/eno1/statistics/tx_bytes` every few seconds; a flat line near
   1000 KB/s is the cap. Who is browsing is visible in Cloudflare Analytics, not

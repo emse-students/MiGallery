@@ -414,7 +414,7 @@
   "adm_nav_database": "Base de données",
   "adm_nav_trash": "Corbeille",
   "adm_back_site": "Retour au site",
-  "adm_version": "v1.0 • Panneau Admin",
+  "adm_version": "v{version} • Panneau Admin",
   "doc_page_title": "Admin - Documentation",
   "doc_title": "Documentation interne",
   "doc_subtitle": "Référence technique et guides développeur",

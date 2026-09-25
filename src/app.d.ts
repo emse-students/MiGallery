@@ -1,6 +1,9 @@
 import type { SessionUser } from '$lib/auth';
 
 declare global {
+  /** package.json version, injected by vite.config.ts `define`. */
+  const __APP_VERSION__: string;
+
   namespace App {
     interface Locals {
       user?: SessionUser | null;

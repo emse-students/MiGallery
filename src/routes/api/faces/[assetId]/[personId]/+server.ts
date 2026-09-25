@@ -22,7 +22,8 @@ export const GET: RequestHandler = async (event) => {
 
   if (result.ok) {
     return new Response(new Uint8Array(result.buffer), {
-      headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'public, max-age=15552000' },
+      // Private: session-gated face crop, never for a shared (edge) cache.
+      headers: { 'Content-Type': 'image/webp', 'Cache-Control': 'private, max-age=15552000' },
     });
   }
 

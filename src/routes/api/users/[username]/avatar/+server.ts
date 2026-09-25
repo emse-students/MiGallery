@@ -55,6 +55,8 @@ export const GET: RequestHandler = async (event) => {
       // natural ETag. Busted URLs (?v=assetId) are immutable; unbusted URLs (e.g.
       // the shared Avatar component) are stable, so they must revalidate to avoid
       // serving a stale crop after a photo change.
+      // PRIVATE, never public: the route is session-gated, and a shared cache
+      // (the Cloudflare edge) would hand a face to anyone holding the URL.
       const etag = `"${assetId}"`;
       if (!busted && event.request.headers.get('if-none-match') === etag) {
         return new Response(null, {
@@ -68,7 +70,7 @@ export const GET: RequestHandler = async (event) => {
           headers: {
             'Content-Type': 'image/webp',
             ETag: etag,
-            'Cache-Control': busted ? 'public, max-age=15552000, immutable' : 'no-cache',
+            'Cache-Control': busted ? 'private, max-age=15552000, immutable' : 'no-cache',
           },
         });
       }
@@ -94,7 +96,7 @@ export const GET: RequestHandler = async (event) => {
     return new Response(blob, {
       headers: {
         'Content-Type': res.headers.get('content-type') || 'image/jpeg',
-        'Cache-Control': 'public, max-age=3600',
+        'Cache-Control': 'private, max-age=3600',
       },
     });
   } catch (err: unknown) {

@@ -78,7 +78,7 @@
 - SEARCH: every box goes through `src/lib/fuzzy.ts`. Truncating lists use `fuzzySearch` (filters + ranks); `/albums` uses `fuzzyMatch` to preserve chronology. Never write a `.includes()` filter in a surface. `editDistance` is Damerau-Levenshtein on purpose. The admin LOG search stays exact `LIKE`. See `docs/wiki/search.md`.
 - `/mes-photos`: favorites stay in chronological place (`.favorite-badge` in `PhotoCard` + a "Toutes/Favoris" chip in `PhotosGrid`). The lightbox navigates `displayedAssets`; never reintroduce a favorites-first reordering. Mobile `PhotoCard` actions live in the long-press `.action-sheet` (400ms `sheetOpenedAt` guard).
 - Album covers (`src/lib/server/album-cover.ts`): the asset lives in `albums.cover_asset_id`, the 400x400 WebP in `data/cache/covers/<assetId>.webp` (keyed by ASSET, so albums sharing a cover share one file). `pruneCoverAsset` deletes once nothing points at it; `resolveMissingCovers` MUST run before `pruneOrphanCovers`. Never resolve a cover client-side.
-- `/api/users/[username]/avatar`: unbusted URLs revalidate via ETag (`no-cache`); only `?v=assetId` is `immutable`.
+- `/api/users/[username]/avatar`: unbusted URLs revalidate via ETag (`no-cache`); only `?v=assetId` is `immutable`. Avatars and `/api/faces` are session-gated, so they answer `private`, NEVER `public`: a Cloudflare Cache Rule would otherwise serve a face to anyone holding the URL.
 - PROMOS: a promo is its class's ARRIVAL year and the year flips on **15 August**. `src/lib/promo-utils.ts` is the only rule - never re-derive it inline, and never write `month >= 9 ? year + 1 : year` again (it invented a promo 2027 in September 2026, and in Jan-Aug it ran one year ahead the other way). The album defaults follow `albumDate` through an `$effect`, not a `change` handler on the input.
 
 **Tooling**
@@ -92,4 +92,4 @@
 - `bun run test` refuses to run while `IMMICH_BASE_URL` points at prod. Do not set `ALLOW_REMOTE_IMMICH_TESTS=true`. Server-free suites: `tests/disk-cache.test.ts`, `tests/auth-redirect.test.ts`.
 - Tests: no assertions inside a guard that repeats them (`expect(true).toBe(true)`, `expect(body).toBeDefined()` on parsed JSON). The accepted status sets in `tests/people-photoscv.test.ts` ARE pinned on purpose - do not narrow them.
 - Do not reintroduce `const _err = ensureError(e)` followed by logging the raw `e`. If you normalize an error, use the result.
-- Releases: the tag MUST be `vX.Y.Z` (`release.yml` triggers on `v*.*.*`). Bump `package.json` + `RELEASE_NOTES.md`, commit, push, THEN tag.
+- Releases: bump `package.json` + `RELEASE_NOTES.md`, merge to `main`, wait for `CI passed` to go green on that commit, THEN publish a GitHub Release `vX.Y.Z` targeting it. `release.yml` triggers on `release: published`, NOT on a pushed tag, and `release-preflight.sh` refuses a commit off `main` or without a green check. The admin panel shows the `package.json` version (`__APP_VERSION__`, vite `define`).
