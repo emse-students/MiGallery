@@ -3,7 +3,7 @@
  *
  * Pure, no server needed: this runs under `bun run test:unit`. What it pins is
  * the weight of a line - the owner/EXIF/path of a search result must never
- * leak back into the stream, since every byte crosses a ~1 MB/s uplink - and
+ * leak back into the stream, since every byte crosses a lossy uplink - and
  * the gzip negotiation.
  */
 

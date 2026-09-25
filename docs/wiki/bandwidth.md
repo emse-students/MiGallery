@@ -1,15 +1,44 @@
-# Bandwidth: the uplink is the bottleneck
+# Bandwidth: a lossy path, not a small pipe
 
-Production sits behind a `cloudflared` tunnel on a host whose **uplink is capped
-around 1 MB/s** (~8 Mbit/s, measured 2026-09-25; the downlink does 30 MB/s).
-Every byte MiGallery serves shares that one pipe. While anyone browses, the
-host's TX flattens at ~1000 KB/s and every other visitor waits: an album list of
-39 KB took 14 s to arrive, a 450 KB preview 27 s. CPU is idle meanwhile.
+Production leaves through EMSE onto RENATER (AS2200, ~10 ms to Cloudflare Paris)
+behind a Stormshield gateway (`10.0.0.1`), and reaches the internet through a
+`cloudflared` tunnel. The path is symmetric and has capacity to spare, but it
+**drops ~4% of outbound packets at random** (measured 2026-09-25: 4.4% TCP
+retransmissions, 3.7% QUIC loss over 12 days; zero drops and zero NIC errors on
+the host, so the loss is beyond it - ICMP is filtered from the gateway on, so no
+hop could be blamed).
 
-So page weight, not server time, is what users feel. The rules below exist for
-that reason.
+A loss-based congestion controller reads that as congestion and collapses. With
+`cubic` and the tunnel on QUIC, each flow held ~0.5 MB/s, the tunnel's 4
+connections flattened at ~1 MB/s for the whole site, and a 39 KB album list took
+14 s while the CPU sat idle.
+
+## The host fix (2026-09-25)
+
+| Setting                                                                          | Where                                                                                     |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `net.ipv4.tcp_congestion_control = bbr` (model-based, shrugs off random loss)    | `/etc/sysctl.d/90-bbr.conf`, module in `/etc/modules-load.d/bbr.conf`                     |
+| Tunnel on TCP so BBR applies to it: `TUNNEL_TRANSPORT_PROTOCOL=http2` (not QUIC) | drop-in `/etc/systemd/system/cloudflared.service.d/protocol.conf` - the unit is untouched |
+
+| Measured                          | cubic + QUIC   | BBR + http2  |
+| --------------------------------- | -------------- | ------------ |
+| Direct upload, 1 flow             | ~0.5 MB/s      | 17-28 MB/s   |
+| Direct upload, 4 flows            | ~2 MB/s        | ~55 MB/s     |
+| Through the tunnel, per request   | 0.45-0.85 MB/s | 2.5-4.3 MB/s |
+| Through the tunnel, 8 in parallel | 1.2 MB/s       | 12 MB/s      |
+
+Rollback: delete the drop-in, `systemctl daemon-reload && systemctl restart
+cloudflared`; delete the two BBR files and `sysctl -w
+net.ipv4.tcp_congestion_control=cubic`.
+
+**Restarting `cloudflared` cuts `ssh mitv`**: SSH goes through the same tunnel.
+The restart itself completes (systemd runs it), and the session comes back in
+~30 s - but if the tunnel does not, the only way in is the machine's console.
 
 ## What goes over the wire
+
+Bytes still cost, the loss is still there, and the fix lives on one host. Keep
+the page light:
 
 | Surface           | Loads                                                           | Never loads                                                            |
 | ----------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -23,7 +52,7 @@ layout needs; `tests/asset-ndjson.test.ts` pins the line shape. On the client,
 `consumeNDJSONStream`'s `onChunk` is where reactive state is published - once
 per network chunk, not once per line.
 
-## Not in code
+## Cloudflare
 
 - `/api/albums/*/cover` is public and immutable by design, yet Cloudflare
   does not cache extension-less `/api/` paths by default. A Cache Rule
@@ -33,7 +62,18 @@ per network chunk, not once per line.
   and face crops answer `private` for that reason, since an edge copy of a
   gated image is served to anyone holding the URL. `/api/immich/*` is
   `private` too.
-- Measuring: the host has no `tcpdump`. Sample
-  `/sys/class/net/eno1/statistics/tx_bytes` every few seconds; a flat line near
-  1000 KB/s is the cap. Who is browsing is visible in Cloudflare Analytics, not
-  in the app logs (MiGallery does not log requests).
+
+## Measuring
+
+- The host has no `tcpdump` or `iperf3`. Upload to
+  `https://speed.cloudflare.com/__up` with `curl --data-binary`, one flow then
+  several: throughput that grows with the flow count means per-flow limiting
+  (loss), not a full pipe. `nstat -az TcpRetransSegs TcpOutSegs` before and
+  after gives the retransmission ratio.
+- Through the tunnel: fetch a public static file with a random query string
+  (`/MiGallery.png?x=<random>`, 716 KB) FROM the host - `cf-cache-status: MISS`
+  forces an origin pull, and the host's fast downlink leaves the tunnel uplink as
+  the only bottleneck.
+- `cloudflared` exposes per-connection counters on `127.0.0.1:20241/metrics`.
+- Who is browsing is visible in Cloudflare Analytics, not in the app logs
+  (MiGallery does not log requests).

@@ -147,8 +147,8 @@
         mediaUrl = `/api/immich/assets/${id}/video/playback`;
         imageLoaded = true;
       } else {
-        // Always open on the preview (~0.5 MB): an original weighs ~8 MB on an
-        // uplink capped around 1 MB/s. Zooming past 130% upgrades through
+        // Always open on the preview (~0.5 MB): an original weighs ~8 MB on a
+        // lossy uplink (docs/wiki/bandwidth.md). Zooming past 130% upgrades through
         // ensureHighRes().
         mediaUrl =
           albumVisibility === 'unlisted' && albumId
