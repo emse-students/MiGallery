@@ -105,7 +105,9 @@
   <title>{m.pcv_page_title()}</title>
 </svelte:head>
 
-<main class="page-main">
+<!-- A div, not a <main>: the layout's <main> is the page's landmark, and the global `main {}`
+     rule would pad this one a second time (ui-redesign #10). -->
+<div class="page-main">
   <BackgroundBlobs />
 
   <div class="page-container">
@@ -168,9 +170,8 @@
           {/if}
 
           {#if !myPhotosState.loading && !myPhotosState.error}
-            <div class="grid-wrapper surface p-4">
-              <PhotosGrid state={myPhotosState} />
-            </div>
+            <!-- No card around the grid: it runs edge to edge, as on the album page (#17) -->
+            <PhotosGrid state={myPhotosState} />
           {/if}
         </div>
       {/if}
@@ -209,7 +210,7 @@
           {/if}
 
           {#if !allPhotosState.loading && !allPhotosState.error}
-            <div bind:this={photosGridContainer} class="grid-wrapper surface p-4">
+            <div bind:this={photosGridContainer} class="grid-anchor">
               <PhotosGrid state={allPhotosState} />
             </div>
 
@@ -250,7 +251,7 @@
       {/if}
     </div>
   </div>
-</main>
+</div>
 
 <style>
   /* Uses the global theme tokens directly (no per-page mirror variables). */
@@ -259,16 +260,18 @@
     min-height: 100vh;
     padding: 4rem 0 6rem;
     color: var(--text-primary);
-    overflow-x: hidden;
+    /* No `overflow-x: hidden`: it would clip the phone grid's edge-to-edge breakout to this
+       element's inset (photo-grid.md, Traps). The blobs are fixed and clip themselves. */
   }
 
   .page-container {
     position: relative;
     z-index: 1;
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem 1.5rem 6rem;
-    border-radius: 1.5rem;
+    /* The layout's <main> already pads the page: the gutter is its padding alone, as on the
+       album page, so the grid starts at the same left edge on every page. */
+    padding: 2rem 0 6rem;
   }
 
   /* --- HEADER --- */
@@ -350,9 +353,6 @@
     border: 1px solid var(--surface-border);
     border-radius: var(--radius-lg);
     margin-bottom: 1.5em;
-  }
-  .surface.p-4 {
-    padding: 1.5rem;
   }
 
   /* Upload Section */
@@ -494,13 +494,8 @@
     .upload-section .upload-header p {
       color: var(--text-primary) !important;
     }
-    /* Add spacing between upload card and grid content on mobile. Use padding-top to avoid margin collapse when grid content renders */
     .upload-section {
       margin-bottom: 1rem !important;
-    }
-    .grid-wrapper {
-      margin-top: 0 !important;
-      padding-top: 1rem !important;
     }
   }
 

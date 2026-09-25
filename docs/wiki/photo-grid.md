@@ -159,5 +159,7 @@ Drag-to-select across tiles (Google Photos' long-press-and-slide) is not built.
   them explicitly; renaming the classes would also drop the global round selection checkbox.
 - The phone bleed (`width: 100vw; margin-left: calc(50% - 50vw)`) is clipped by any ancestor with
   `overflow: hidden`. The album page's root had `overflow-x: hidden` for no remaining reason (the
-  blobs are `position: fixed` and clip themselves) and lost it. Photos CV still nests the grid in a
-  card (#17), so it is clipped there until that card goes.
+  blobs are `position: fixed` and clip themselves) and lost it. Photos CV nested the grid in a card
+  (#17) and overflowed it on the phone once the grid went edge to edge (v2.7.0); the card is gone
+  and, like Mes photos, its root is a `div` rather than a second `<main>`, so every page that shows
+  the grid starts it at the same left edge.
