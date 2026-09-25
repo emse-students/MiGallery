@@ -24,9 +24,9 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "bun --bun vite dev",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "bun --bun vite preview",
     "prepare": "husky",
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
     "check": "bun run paraglide:compile && svelte-kit sync && svelte-check --tsgo --tsconfig ./tsconfig.json",

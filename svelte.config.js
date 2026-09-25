@@ -5,7 +5,11 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
   // Consult https://svelte.dev/docs/kit/integrations
   // for more information about preprocessors
-  preprocess: vitePreprocess({ script: true }),
+  // `style: false`: no component style uses a preprocessor language, and preprocessing them
+  // handed each raw <style> block to lightningcss BEFORE Svelte compiled it, so every
+  // `:global(...)` was reported as an unknown pseudo-class on every dev start. Svelte's
+  // compiled CSS still goes through vite's lightningcss afterwards, targets included.
+  preprocess: vitePreprocess({ script: true, style: false }),
 
   kit: {
     // adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
