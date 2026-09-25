@@ -64,7 +64,7 @@
           <p>
             {m.home_finish_profile()}
           </p>
-          <a href="/parametres" class="btn warning"> {m.home_configure_profile()} </a>
+          <a href="/parametres" class="btn primary">{m.home_configure_profile()}</a>
         </div>
       {:else}
         <div class="surface card">
@@ -145,7 +145,7 @@
   }
 
   .card h2 {
-    margin-top: 0;
+    margin: 0 0 0.5rem;
     font-size: 1.5rem;
     color: var(--text-primary);
   }
@@ -156,8 +156,17 @@
     line-height: 1.6;
   }
 
+  /* A flex box, not inline content: lucide's svg is a block, so `text-align: center` left it on the
+     card's left edge under a centred heading. */
   .icon-wrapper {
-    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--warning) 15%, transparent);
     color: var(--warning);
   }
 </style>
