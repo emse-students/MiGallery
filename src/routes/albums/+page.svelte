@@ -18,6 +18,8 @@
   import LazyImage from '$lib/components/LazyImage.svelte';
   import AlbumModal from '$lib/components/AlbumModal.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
+  import type { OverflowMenuItem } from '$lib/overflow-menu';
   import { showConfirm } from '$lib/confirm';
   import { m } from '$lib/paraglide/messages';
   import { getLocale } from '$lib/paraglide/runtime';
@@ -269,6 +271,27 @@
     showConfirmModal = true;
   }
 
+  /** A card's overflow menu: delete is never a one-tap icon on a card (decision D4). */
+  function albumMenuItems(a: Album): OverflowMenuItem[] {
+    const items: OverflowMenuItem[] = [
+      {
+        label: m.albums_download_zip(),
+        icon: Download,
+        disabled: downloadingAlbumId === a.id,
+        onSelect: () => downloadAlbumAssets(a.id, a.name),
+      },
+    ];
+    if (canCreateAlbum) {
+      items.push({
+        label: m.common_delete(),
+        icon: Trash2,
+        danger: true,
+        onSelect: () => deleteAlbum(a.id, a.name),
+      });
+    }
+    return items;
+  }
+
   onDestroy(() => {
     if (currentDownloadController) {
       try {
@@ -412,36 +435,12 @@
 
                           <!-- Actions -->
                           <div class="album-actions">
-                            <button
-                              type="button"
-                              class="action-btn"
-                              onclick={(e) => {
-                                e.preventDefault();
-                                downloadAlbumAssets(a.id, a.name);
-                              }}
-                              disabled={downloadingAlbumId === a.id}
-                              title={m.albums_download_zip()}
-                            >
-                              {#if downloadingAlbumId === a.id}
+                            {#if downloadingAlbumId === a.id}
+                              <span class="action-busy" title={m.albums_download_zip()}>
                                 <Spinner size={14} />
-                              {:else}
-                                <Download size={20} />
-                              {/if}
-                            </button>
-
-                            {#if canCreateAlbum}
-                              <button
-                                type="button"
-                                class="action-btn delete"
-                                onclick={(e) => {
-                                  e.preventDefault();
-                                  deleteAlbum(a.id, a.name);
-                                }}
-                                title={m.common_delete()}
-                              >
-                                <Trash2 size={20} />
-                              </button>
+                              </span>
                             {/if}
+                            <OverflowMenu items={albumMenuItems(a)} variant="overlay" />
                           </div>
                         </div>
                       {/each}
@@ -733,41 +732,37 @@
   }
 
   /* --- ACTIONS --- */
+  /* Always shown on touch (no hover to reveal it); on a mouse, revealed by hover or focus
+     and kept while its menu is open. */
   .album-actions {
     position: absolute;
     top: 12px;
     right: 12px;
     display: flex;
     gap: 8px;
-    opacity: 0;
     transition: opacity 0.2s ease;
-    pointer-events: none;
   }
-  .album-item:hover .album-actions {
-    opacity: 1;
-    pointer-events: auto;
+  @media (hover: hover) and (pointer: fine) {
+    .album-actions {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .album-item:hover .album-actions,
+    .album-actions:focus-within,
+    .album-actions:has(:global([aria-expanded='true'])) {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
-
-  .action-btn {
+  .action-busy {
     width: 36px;
     height: 36px;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
+    border-radius: var(--radius-sm);
     color: white;
     background-color: rgba(0, 0, 0, 0.6);
-    transition: all 0.2s;
-  }
-  .action-btn:hover {
-    background-color: var(--accent);
-    transform: scale(1.1);
-  }
-  .action-btn.delete:hover {
-    background-color: var(--error, #ef4444);
   }
 
   .confirm-message {
@@ -795,10 +790,6 @@
     .album-grid {
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 1rem;
-    }
-    .album-actions {
-      opacity: 1;
-      pointer-events: auto;
     }
     .album-info-overlay {
       padding-top: 2rem;

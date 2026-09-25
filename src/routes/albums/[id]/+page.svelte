@@ -23,6 +23,8 @@
   import UploadZone from '$lib/components/UploadZone.svelte';
   import AlbumModal from '$lib/components/AlbumModal.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
+  import type { OverflowMenuItem } from '$lib/overflow-menu';
   import { PhotosState } from '$lib/photos.svelte';
   import { toast } from '$lib/toast';
   import { showConfirm } from '$lib/confirm';
@@ -110,6 +112,11 @@
       photosState.currentDownloadController = null;
     }
   }
+
+  /** Deleting the album sits in the overflow, never one tap from the thumb (decision D4). */
+  const albumMenuItems: OverflowMenuItem[] = [
+    { label: m.albumd_delete_album(), icon: Trash2, danger: true, onSelect: () => deleteAlbum() },
+  ];
 
   async function deleteAlbum() {
     const albumId = page.params.id;
@@ -218,14 +225,7 @@
         <Pencil size={18} />
         {#if !mobile}<span class="label">{m.common_edit()}</span>{/if}
       </button>
-      <button
-        type="button"
-        onclick={() => deleteAlbum()}
-        class="btn danger"
-        title={m.common_delete()}
-      >
-        <Trash2 size={18} />
-      </button>
+      <OverflowMenu items={albumMenuItems} variant="bar" triggerClass="btn" iconSize={18} />
     {/if}
 
     <!-- Divider -->
@@ -521,7 +521,8 @@
       padding: 0;
       gap: 0.5rem;
     }
-    .actions-group.mobile .btn {
+    .actions-group.mobile .btn,
+    .actions-group.mobile :global(.overflow-trigger) {
       flex-direction: column;
       padding: 0.5rem;
       gap: 0.25rem;
@@ -541,9 +542,6 @@
     .actions-group.mobile .btn.success {
       color: var(--success);
       background: transparent;
-    }
-    .actions-group.mobile .btn.danger {
-      color: var(--error);
     }
     .actions-group.mobile .btn.info {
       color: var(--info);

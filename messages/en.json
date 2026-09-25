@@ -132,7 +132,6 @@
   "albumd_empty": "This album is empty for now.",
   "pm_cover_updated": "Cover updated",
   "pm_favorite_error": "Favorite error",
-  "pm_delete_key": "Delete (Del)",
   "pg_photo_downloaded": "Photo downloaded!",
   "pg_removed_count": "{count} photo(s) removed from the album!",
   "pg_remove_error": "Failed to remove from the album: {error}",
@@ -600,5 +599,10 @@
   "med_col_file": "File",
   "med_col_albums": "Albums",
   "med_scan_shown": "Showing the first {shown} of {total}",
-  "med_load_fail": "Cannot load: {error}"
+  "med_load_fail": "Cannot load: {error}",
+  "common_more_actions": "More options",
+  "albumd_delete_album": "Delete album",
+  "pm_zoom_in": "Zoom in",
+  "pm_zoom_out": "Zoom out",
+  "pm_zoom_reset": "Reset zoom (100%)"
 }
