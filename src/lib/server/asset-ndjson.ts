@@ -4,8 +4,8 @@ import type { ImmichAsset } from '$lib/types/api';
  * The fields a grid actually reads. Immich v3 search results carry `width` and
  * `height` at the top level, so the layout needs no per-asset
  * `GET /assets/{id}`: that N+1 enrichment round (one Immich call and ~2.5 KB of
- * owner/EXIF/path per photo) used to be most of an album page's weight, on an
- * uplink capped around 1 MB/s.
+ * owner/EXIF/path per photo) used to be most of an album page's weight, on a
+ * lossy uplink (docs/wiki/bandwidth.md).
  */
 export function slimAsset(asset: ImmichAsset) {
   return {
