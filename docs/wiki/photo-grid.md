@@ -76,7 +76,46 @@ animation (it would replay on every scroll), and `LazyImage` loads it through th
 Each day header carries a check: shown while selecting or once part of that day is selected, and on
 hover on a pointer device. `daySelectionState` reads `none` / `some` / `all`; a tap runs
 `toggleDaySelection` - a fully selected day is cleared, any other is completed, other days are left
-alone. Clearing the last selected photo leaves selection mode, as `toggleSelect` does.
+alone. A tap outside selection mode enters it; clearing a day never leaves it (see below).
+
+## Selection mode (D9)
+
+Google Photos' selection, for every host of the grid (album, Mes photos, Photos CV). The
+transitions are pure, in `src/lib/selection.ts` (pinned by `tests/selection.test.ts`);
+`PhotosState` keeps `selecting` + `selectedAssets` and delegates to them.
+
+| Step        | How                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enter       | the album's "Sélectionner" (empty), a **long-press on a tile** (touch, 500 ms, that tile picked), the hover check of a tile (pointer devices), a day header's check       |
+| While in it | every tile draws a ring; a tap toggles the tile and never opens the viewer; a picked tile shows a filled check and shrinks to an 8 % inset on an accent tint              |
+| Top bar     | fixed over the site header, same height: close cross, "N sélectionnée(s)", "Tout sélectionner" (every SHOWN photo; "Tout désélectionner" once they all are)               |
+| Actions     | Partager (where `navigator.canShare({ files })`), Télécharger, and a ⋮ with Retirer de l'album (managers, in an album) / Mettre à la corbeille (managers), each confirmed |
+| Where       | on a phone (<= 768 px) in a bottom bar that covers the page's own bar and the tab bar; on a desktop at the right of the top bar                                           |
+| Leave       | the cross, Escape (unless a dialog or a menu took it), or an action that consumed the selection (download, remove, delete). Leaving clears the selection                  |
+
+**Deselecting the last photo does not leave the mode**: the button enters it empty, and the
+actions are drawn DISABLED at 0 selected, never hidden. Rights are unchanged: remove and delete
+keep the grid's `mitviste` / `admin` test exactly, and "Sélectionner" is offered to every
+viewer, since the long-press and the day check already let anyone select and share / download
+are open to anyone who sees the photo.
+
+**Share** goes through `src/lib/share-files.ts`, the viewer's implementation (originals, the
+kept-files second tap after a lapsed user activation), capped at `MAX_SHARE_FILES` = 25:
+every original is fetched into memory before the sheet opens, so beyond that the toast points
+at Télécharger.
+
+**The bars are portalled to `<body>`**: the album page's container is `z-index: 1` and would
+stack them under the site header (z 50). Nothing of the old panel survives: it was a sticky
+card in the flow (224 px tall on a phone), deleted with its global class left only to the
+bin page. The bars exist only while selecting (`{#if}`), the album's own bottom bar is not
+rendered then, and its desktop toolbar is `inert` + `visibility: hidden` (it keeps its room, so
+the grid does not jump).
+
+**The long-press sheet is deleted.** Its four entries were: select (now the long-press itself),
+download and delete (the selection's actions, or the viewer's), favourite (the viewer's heart on
+Mes photos). The release of a long-press is `preventDefault`ed on `touchend`, else its click
+would un-pick the tile at once; Chrome's image context menu is suppressed for that press only.
+Drag-to-select across tiles (Google Photos' long-press-and-slide) is not built.
 
 ## Traps
 

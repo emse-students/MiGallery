@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Heart, Download, Trash2, SquareCheck } from '@lucide/svelte';
+  import { Heart, Download, Trash2, Check } from '@lucide/svelte';
   import LazyImage from './LazyImage.svelte';
   import Skeleton from './Skeleton.svelte';
   import OverflowMenu from './OverflowMenu.svelte';
@@ -18,6 +18,8 @@
     onDownload?: (assetId: string) => void;
     onDelete?: (assetId: string) => void;
     onSelectionToggle?: (assetId: string, selected: boolean) => void;
+    /** A long-press on a touch screen: enters selection mode with this tile picked (D9). */
+    onLongPress?: (assetId: string) => void;
     onFavoriteToggle?: (assetId: string, event: Event) => void;
     albumVisibility?: string;
     albumId?: string;
@@ -40,6 +42,7 @@
     onDownload,
     onDelete,
     onSelectionToggle,
+    onLongPress,
     onFavoriteToggle,
     albumVisibility,
     albumId,
@@ -55,39 +58,52 @@
     asset.originalFileName !== undefined && asset.originalFileName !== null
   );
 
-  let showMobileActions = $state(false);
-  let sheetOpenedAt = 0;
+  /**
+   * Long-press (touch only) enters selection mode with this tile picked, as Google Photos does
+   * (D9 in `docs/wiki/ui-redesign.md`). 500 ms matches Android's long-press timeout; a move
+   * past the browser's slop fires `touchmove` and cancels it, so a scroll never selects.
+   */
+  const LONG_PRESS_DURATION = 500;
   let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-  const LONG_PRESS_DURATION = 500; // ms
+  /** Set once the long-press fired, until its finger lifts: that release must not also tap. */
+  let longPressFired = false;
 
   function handleTouchStart(e: TouchEvent) {
     if ((e.target as HTMLElement).closest('button')) return;
-
+    longPressFired = false;
     longPressTimer = setTimeout(() => {
-      showMobileActions = true;
-      sheetOpenedAt = Date.now();
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+      longPressTimer = null;
+      longPressFired = true;
+      console.debug(`[PhotoCard] long-press on ${asset.id}: entering selection`);
+      if (navigator.vibrate) navigator.vibrate(50);
+      onLongPress?.(asset.id);
     }, LONG_PRESS_DURATION);
   }
 
-  function handleTouchEnd() {
+  function cancelLongPress() {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       longPressTimer = null;
     }
   }
 
-  function handleTouchMove() {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
+  function handleTouchEnd(e: TouchEvent) {
+    cancelLongPress();
+    if (longPressFired) {
+      // The release of a long-press would also be a click, which toggles the tile back off.
+      e.preventDefault();
+      longPressFired = false;
     }
   }
 
-  function closeMobileActions() {
-    showMobileActions = false;
+  function handleTouchCancel() {
+    cancelLongPress();
+    longPressFired = false;
+  }
+
+  /** Chrome Android opens the image's context menu on a long-press; ours already answered. */
+  function handleContextMenu(e: MouseEvent) {
+    if (longPressTimer || longPressFired) e.preventDefault();
   }
 
   function handleCardClick(e: Event) {
@@ -96,12 +112,10 @@
     }
   }
 
-  function handleCheckboxChange(e: Event) {
+  /** The desktop hover check: picks this tile and enters selection mode. */
+  function handleCheckClick(e: Event) {
     e.stopPropagation();
-    const checked = (e.target as HTMLInputElement).checked;
-    if (onSelectionToggle) {
-      onSelectionToggle(asset.id, checked);
-    }
+    onSelectionToggle?.(asset.id, true);
   }
 
   function handleFavoriteClick(e: Event) {
@@ -109,39 +123,6 @@
     if (onFavoriteToggle) {
       onFavoriteToggle(asset.id, e);
     }
-  }
-
-  // --- Mobile bottom-sheet actions ---
-  function sheetSelect(e: Event) {
-    e.stopPropagation();
-    closeMobileActions();
-    if (onSelectionToggle) onSelectionToggle(asset.id, true);
-  }
-
-  function sheetFavorite(e: Event) {
-    e.stopPropagation();
-    closeMobileActions();
-    if (onFavoriteToggle) onFavoriteToggle(asset.id, e);
-  }
-
-  function sheetDownload(e: Event) {
-    e.stopPropagation();
-    closeMobileActions();
-    if (onDownload) onDownload(asset.id);
-  }
-
-  function sheetDelete(e: Event) {
-    e.stopPropagation();
-    closeMobileActions();
-    if (onDelete) onDelete(asset.id);
-  }
-
-  function handleOverlayClick(e: Event) {
-    e.stopPropagation();
-    // Ignore the synthetic click that fires right after a long-press release,
-    // which would otherwise close the sheet the instant it opens.
-    if (Date.now() - sheetOpenedAt < 400) return;
-    closeMobileActions();
   }
 
   let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
@@ -155,7 +136,7 @@
   let isVideo = $derived(asset.type === 'VIDEO');
 
   /**
-   * The tile's overflow menu (pointer devices; touch uses the long-press sheet). Delete is
+   * The tile's overflow menu (pointer devices; touch long-presses into selection). Delete is
    * never a one-tap corner button (decision D4).
    */
   let menuItems = $derived<OverflowMenuItem[]>([
@@ -180,6 +161,7 @@
   style="left: {x}px; width: {width}px; height: {height}px;"
   role="button"
   tabindex="0"
+  aria-pressed={isSelecting ? isSelected : undefined}
   onclick={handleCardClick}
   onkeydown={(e) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -189,50 +171,29 @@
   }}
   ontouchstart={handleTouchStart}
   ontouchend={handleTouchEnd}
-  ontouchmove={handleTouchMove}
-  ontouchcancel={handleTouchEnd}
+  ontouchmove={cancelLongPress}
+  ontouchcancel={handleTouchCancel}
+  oncontextmenu={handleContextMenu}
 >
-  <!-- Mobile long-press action sheet -->
-  {#if showMobileActions}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="mobile-actions-overlay" onclick={handleOverlayClick}></div>
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <div class="action-sheet" onclick={(e) => e.stopPropagation()}>
-      <button type="button" class="sheet-item" onclick={sheetSelect}>
-        <SquareCheck size={20} />
-        {m.pg_action_select()}
-      </button>
-      {#if showFavorite}
-        <button type="button" class="sheet-item" onclick={sheetFavorite}>
-          <Heart size={20} fill={isFavorite ? 'currentColor' : 'none'} />
-          {isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
-        </button>
-      {/if}
-      <button type="button" class="sheet-item" onclick={sheetDownload}>
-        <Download size={20} />
-        {m.common_download()}
-      </button>
-      {#if canDelete}
-        <button type="button" class="sheet-item danger" onclick={sheetDelete}>
-          <Trash2 size={20} />
-          {m.trash_to_bin()}
-        </button>
-      {/if}
-    </div>
+  <!--
+    The selection circle (D9): on every tile while selecting, filled with a check once picked;
+    the tile itself carries `aria-pressed`, so the circle is decoration. Outside selection mode
+    a pointer device reveals it on hover as a real button that picks the tile; a touch screen
+    never draws it (`display: none` keeps it out of the accessibility tree) and long-presses.
+  -->
+  {#if isSelecting}
+    <span class="select-circle {isSelected ? 'checked' : ''}" aria-hidden="true">
+      {#if isSelected}<Check size={14} strokeWidth={3} />{/if}
+    </span>
+  {:else}
+    <button
+      type="button"
+      class="select-circle hover-check"
+      aria-label={m.pg_select_photo({ name: fileName })}
+      title={m.pg_select_photo({ name: fileName })}
+      onclick={handleCheckClick}
+    ></button>
   {/if}
-
-  <!-- Selection Checkbox -->
-  <div class="selection-checkbox {isSelected ? 'checked' : ''}">
-    <input
-      type="checkbox"
-      checked={isSelected}
-      onclick={(e) => e.stopPropagation()}
-      onchange={handleCheckboxChange}
-      aria-label={`Select ${fileName}`}
-    />
-  </div>
 
   {#if isFullyLoaded}
     <!-- Passive favorite badge: discreet indicator, always visible on mobile -->
@@ -303,6 +264,8 @@
     overflow: hidden;
     cursor: pointer;
     user-select: none;
+    /* iOS's own long-press callout would compete with the selection long-press. */
+    -webkit-touch-callout: none;
     /* The global `.photo-card` in app.css (a square, rounded, hover-shadowed card) does not apply. */
     border-radius: 0;
     box-shadow: none;
@@ -316,16 +279,11 @@
   }
 
   .photo-card.selected :global(.lazy-image-container) {
-    inset: 10%;
-    width: 80%;
-    height: 80%;
+    inset: 8%;
+    width: 84%;
+    height: 84%;
     border-radius: var(--radius-xs);
     overflow: hidden;
-  }
-
-  /* Ensure checkbox is visible when selected even without hover */
-  .photo-card.selected .selection-checkbox {
-    opacity: 1;
   }
 
   .photo-card :global(.lazy-image-container) {
@@ -342,24 +300,40 @@
     object-fit: cover;
   }
 
-  .selection-checkbox {
+  /* The selection circle: an empty ring over the photo, filled with the accent once picked. */
+  .select-circle {
     position: absolute;
-    top: 0.625rem;
-    left: 0.625rem;
+    top: 0.375rem;
+    left: 0.375rem;
     z-index: 5;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 2px solid white;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.25);
+    color: white;
+    pointer-events: none;
   }
 
-  .selection-checkbox.checked {
-    opacity: 1;
+  .select-circle.checked {
+    border-color: var(--accent);
+    background: var(--accent);
   }
 
-  .selection-checkbox input {
-    width: 1.25rem;
-    height: 1.25rem;
+  /* Outside selection mode the ring is a hover control of pointer devices only (below). */
+  .select-circle.hover-check {
+    display: none;
     cursor: pointer;
-    accent-color: var(--accent);
+    pointer-events: auto;
+  }
+
+  .photo-card:focus-visible .select-circle.hover-check,
+  .select-circle.hover-check:focus-visible {
+    display: flex;
   }
 
   .favorite-btn {
@@ -425,7 +399,7 @@
   /*
    * Hover reveals ONLY where a hover is real: a mouse or a trackpad. A touch screen reports a
    * sticky `:hover` on the last tile tapped (the overlay stayed painted after closing the
-   * viewer, audit #4), whatever its width - touch actions live in the long-press sheet.
+   * viewer, audit #4), whatever its width - touch long-presses into selection mode instead.
    */
   @media (hover: hover) and (pointer: fine) {
     /* Flat: no lift on hover (the global `.photo-card:hover` adds a shadow). */
@@ -433,8 +407,8 @@
       box-shadow: none;
     }
 
-    .photo-card:hover .selection-checkbox {
-      opacity: 1;
+    .photo-card:hover .select-circle.hover-check {
+      display: flex;
     }
 
     /* Yield the passive badge to the interactive favorite button */
@@ -453,75 +427,5 @@
       color: var(--error);
       transform: scale(1.1);
     }
-  }
-
-  /* Dimmed overlay behind the long-press action sheet */
-  .mobile-actions-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 1000;
-    background: rgba(0, 0, 0, 0.5);
-    animation: overlayFadeIn 0.2s ease-out;
-  }
-
-  @keyframes overlayFadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  /* Long-press bottom sheet: finger-friendly action list */
-  .action-sheet {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1001;
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-    padding: 0.5rem;
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-    background: var(--bg-elevated);
-    border-top: 1px solid var(--border);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
-    animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  @keyframes sheetUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  .sheet-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    padding: 0.875rem 1rem;
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.9375rem;
-    font-weight: 500;
-    text-align: left;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-  }
-
-  .sheet-item:active {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  }
-
-  .sheet-item.danger {
-    color: var(--error);
   }
 </style>

@@ -1,6 +1,12 @@
 import { ensureError } from '$lib/ts-utils';
 
-const BATCH_SIZE = 200;
+/** Photos per ZIP archive: a larger download arrives as several archives. */
+export const DOWNLOAD_BATCH_SIZE = 200;
+
+/** How many ZIP archives a download of `count` photos arrives in (the album confirmation says it). */
+export function archiveCount(count: number, batchSize = DOWNLOAD_BATCH_SIZE): number {
+  return count <= 0 ? 0 : Math.ceil(count / batchSize);
+}
 
 /**
  * Prepare a one-time download token on the server, then trigger a native
@@ -38,7 +44,7 @@ async function fetchAndSave(
 }
 
 /**
- * Download all assets split into ZIP batches of BATCH_SIZE.
+ * Download all assets split into ZIP batches of DOWNLOAD_BATCH_SIZE.
  *
  * - 1 batch  → `album.zip`
  * - N batches → `album-1.zip`, `album-2.zip`, …
@@ -59,7 +65,7 @@ export async function downloadInBatches(
     throw new Error('assetIds must be a non-empty array');
   }
 
-  const batchSize = opts?.batchSize ?? BATCH_SIZE;
+  const batchSize = opts?.batchSize ?? DOWNLOAD_BATCH_SIZE;
   const batches: string[][] = [];
   for (let i = 0; i < assetIds.length; i += batchSize) {
     batches.push(assetIds.slice(i, i + batchSize));

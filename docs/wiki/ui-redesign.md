@@ -70,10 +70,10 @@ None open: #2, the last one, shipped with theme (2).
 - **D4 - delete lives in the overflow menu everywhere**: none on album cards, the overflow in the
   album page and the viewer, with the existing confirmation (#3).
   **PR 1 shipped it** as one component, `OverflowMenu.svelte`, in the viewer toolbar, the album
-  page's action bar, the photo tiles (pointer devices; touch keeps the long-press sheet) and the
-  album cards. On the cards the menu still holds delete, next to "Download (ZIP)", until PR 5
-  redraws them; D4's "none on album cards" is met then. The selection bar's bulk delete stays: it
-  is labelled and needs a selection first.
+  page's action bar, the photo tiles (pointer devices; touch long-presses into selection, D9) and
+  the album cards. On the cards the menu still holds delete, next to "Download (ZIP)", until PR 5
+  redraws them; D4's "none on album cards" is met then. The selection's bulk delete sits in the
+  selection bar's own overflow (D9) and needs a selection first.
 - **D5 - album cards put the title BELOW the cover**, 2 lines max, then "N photos - Partagé" (#5, #6).
 - **D6 - one pull request per theme**, each checked on the Mi 9T before it merges, **flat surfaces
   FIRST** so no component is restyled twice: (0) flat surfaces #25, (1) touch safety #1 #3 #4,
@@ -103,6 +103,25 @@ None open: #2, the last one, shipped with theme (2).
   l'identité de l'app evidemment, les blobs en fond par exemple donnent de la profondeur"_.
   Components lose their glass, glow and text-shadow; the soft blobs in the page BACKGROUND stay,
   and so do the dark-first palette and the logo.
+- **D8 - every MiGallery page copies Google Photos, on the phone AND on the computer.** The user,
+  verbatim: _"Il faudra aussi modifier toutes les interfaces web pour copier Google photo
+  aussi"_. That is the albums list, Mes photos, Photos CV, Paramètres, the admin pages and the
+  desktop shell (photos.google.com: a ~256 px left sidebar, search at the top, the bottom bar only
+  <= 768 px). The work-list rows still open above are the plan for it.
+- **D9 - selection mode is Google Photos', and a long-press ENTERS it.** Tapping "Sélectionner",
+  long-pressing a tile (touch), the hover check of a tile (pointer) or a day header's check
+  enters it; a tap then toggles a tile instead of opening it; a top bar replaces the site header
+  (close, "N sélectionnée(s)", "Tout sélectionner") and the bottom bar swaps to the SELECTION's
+  actions (Partager, Télécharger, ⋮ Retirer de l'album / Mettre à la corbeille), disabled at 0,
+  never hidden. The long-press used to open an action sheet (#326: select, favourite, download,
+  delete); that sheet is DELETED rather than kept beside the new mode, because a long-press
+  cannot mean two things and Google Photos, the reference, uses it to select. Its other
+  entries were already reachable: download / delete from the selection or the viewer, favourite
+  from the viewer's heart. The old floating selection panel is deleted too. Mechanism, rights
+  and traps: [photo-grid](photo-grid.md#selection-mode-d9). The album-level "Télécharger" keeps
+  its ZIP of every photo, and its confirmation now reads "Télécharger les 707 photos ?" with the
+  number of archives (200 photos each); it cannot state a size, which the grid stream does not
+  carry.
 - **Order**: the student sites Sky, Le Cercle and Canari are audited FIRST against the same bar
   (plus Material 3 / Apple HIG / WCAG 2.2), then the code starts.
 
