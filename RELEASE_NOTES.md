@@ -17,6 +17,7 @@ The new logo everywhere, and the fixes from the desktop review.
 - Dialogs such as "Modifier l'album" are opaque again, over a blurred page, and their scrollbar no longer runs over the fields.
 - The viewer has margins, and its "Informations" panel slides in with an icon per fact: the file with its size and resolution, the camera with its lens and settings, and the place.
 - Settings: the face recognition note has its icon beside the text, and "Importer une photo" stays on one line.
+- Photos CV looks like the albums list: the upload panel no longer fills the first screen (a + next to the title, or drop files anywhere), chips instead of tabs, and no photo overflows the screen.
 
 # MiGallery v2.8.0
 
