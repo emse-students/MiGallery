@@ -2,7 +2,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { fade, fly } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
+  import { MediaQuery } from 'svelte/reactivity';
   import {
     CircleCheckBig,
     Pencil,
@@ -35,6 +36,9 @@
   import { albumsView } from '$lib/albums-view-state.svelte';
   import type { User, Album } from '$lib/types/api';
   import { m } from '$lib/paraglide/messages';
+  import { getLocale } from '$lib/paraglide/runtime';
+  import { albumHeroSources, formatAlbumDate } from '$lib/album-hero';
+  import { PHONE_MAX_WIDTH } from '$lib/photo-grid-layout';
 
   const photosState = new PhotosState();
   let title = $state('');
@@ -210,6 +214,25 @@
   const albumName = $derived(
     (page.data as { album?: Album }).album?.name || m.albumd_default_title()
   );
+
+  // --- The header (ui-redesign D10) and the blurred cover background (D11) ---
+  const pageAlbum = $derived((page.data as { album?: Album }).album);
+  const heroSources = $derived(
+    albumHeroSources({
+      albumId: pageAlbum?.id ?? '',
+      coverAssetId: pageAlbum?.coverAssetId,
+      visibility: pageAlbum?.visibility,
+    })
+  );
+  const dateLabel = $derived(formatAlbumDate(pageAlbum?.date, getLocale()));
+
+  /**
+   * The cover photo is drawn only on a phone: Google Photos' web album is title-first, with no
+   * hero. Rendered conditionally, not hidden, so a desktop never downloads the preview. The
+   * hero's box has its height from CSS alone, so the image arriving after hydration shifts
+   * nothing.
+   */
+  const phoneQuery = new MediaQuery(`max-width: ${PHONE_MAX_WIDTH}px`);
 </script>
 
 <svelte:head>
@@ -273,49 +296,69 @@
       </button>
     {/if}
 
-    {#if canManagePhotos}
+    <!-- On a phone the overflow floats over the hero instead (D10). -->
+    {#if canManagePhotos && !mobile}
       <OverflowMenu items={albumMenuItems} variant="bar" triggerClass="btn" iconSize={18} />
     {/if}
   </div>
 {/snippet}
 
-<main class="page-main">
-  <BackgroundBlobs />
+<!-- A div, not a <main>: the layout's <main> is the page's landmark, and the global `main {}`
+     rule would pad this one a second time (ui-redesign #10). -->
+<div class="page-main">
+  <!-- The album's cover, heavily blurred and darkened, is the page's background (D11); an
+       album without a cover keeps the site's blobs. -->
+  {#if heroSources.backdrop}
+    <div class="cover-backdrop" aria-hidden="true">
+      <img src={heroSources.backdrop} alt="" decoding="async" />
+    </div>
+  {:else}
+    <BackgroundBlobs />
+  {/if}
+
+  <!--
+    Back, and on a phone the overflow: round buttons floating over the hero and, once scrolled,
+    over the photos. On a desktop the row also carries the labelled actions. While selecting,
+    the selection bar owns the top: the row is inert and invisible (it keeps its room).
+  -->
+  <div class="float-bar" class:selecting={photosState.selecting} inert={photosState.selecting}>
+    <button
+      type="button"
+      class="round-btn"
+      onclick={handleBackClick}
+      aria-label={m.albumd_back()}
+      title={m.albumd_back()}
+    >
+      <ArrowLeft size={22} />
+    </button>
+    <div class="header-toolbar">
+      {@render actionButtons(false)}
+    </div>
+    {#if canManagePhotos}
+      <div class="phone-menu">
+        <OverflowMenu items={albumMenuItems} variant="bar" iconSize={22} />
+      </div>
+    {/if}
+  </div>
+
+  <!-- The header: the cover hero on a phone, the title alone on a desktop (D10) -->
+  <header class="album-hero" class:has-cover={!!heroSources.hero}>
+    {#if heroSources.hero && phoneQuery.current}
+      <img class="hero-img" src={heroSources.hero} alt="" fetchpriority="high" />
+    {/if}
+    <div class="hero-text">
+      <h1>{title}</h1>
+      <p class="hero-meta">
+        {#if dateLabel}<span>{dateLabel}</span><span aria-hidden="true"> · </span>{/if}
+        <span>{m.albumd_photo_count({ count: photosState.assets.length })}</span>
+      </p>
+      {#if locationInfo}
+        <p class="hero-meta"><MapPin size={14} /> {locationInfo}</p>
+      {/if}
+    </div>
+  </header>
 
   <div class="page-container">
-    <!-- Back navigation -->
-    <nav class="top-nav" in:fade={{ duration: 200 }}>
-      <button type="button" class="back-btn" onclick={handleBackClick}>
-        <ArrowLeft size={20} />
-        <span>{m.albumd_back()}</span>
-      </button>
-    </nav>
-
-    <!-- Album header -->
-    <header class="page-header" in:fly={{ y: 20, duration: 400 }}>
-      <div class="header-main">
-        <div class="title-wrapper">
-          <h1>{title}</h1>
-          {#if locationInfo}
-            <p class="meta"><MapPin size={14} /> {locationInfo}</p>
-          {/if}
-          <p class="count">
-            {m.albumd_photo_count({ count: photosState.assets.length })}
-          </p>
-        </div>
-      </div>
-
-      <!-- While selecting, the selection's bars own the actions: the album's are inert and
-           invisible, but keep their room so the grid does not jump. -->
-      <div
-        class="header-toolbar"
-        class:selecting={photosState.selecting}
-        inert={photosState.selecting}
-      >
-        {@render actionButtons(false)}
-      </div>
-    </header>
-
     {#if photosState.error}
       <div class="surface error-card">
         <CircleAlert size={24} />
@@ -377,7 +420,7 @@
       <p style="white-space: pre-wrap;">{confirmModalConfig.message}</p>
     </Modal>
   {/if}
-</main>
+</div>
 
 <style>
   /* Uses the global theme tokens directly (no per-page mirror variables). */
@@ -386,8 +429,33 @@
     min-height: 100vh;
     color: var(--text-primary);
     /* No `overflow-x: hidden`: it clipped the phone grid's edge-to-edge breakout to this
-       element's inset (ui-redesign #7). The blobs are fixed and clip themselves. */
+       element's inset (ui-redesign #7). The blobs and the backdrop are fixed and clip themselves. */
     padding-bottom: 100px; /* Room for the mobile action bar */
+  }
+
+  /*
+   * The blurred cover (D11): one 400 px WebP on a fixed layer, oversized so the blur's soft
+   * edges stay off screen, then darkened towards the page colour so text keeps its contrast in
+   * both themes. Fixed and static: scrolling repaints nothing. A page background, like the
+   * blobs - no component is glass.
+   */
+  .cover-backdrop {
+    position: fixed;
+    inset: -10vmax;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .cover-backdrop img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(48px) saturate(1.2);
+  }
+  .cover-backdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
   }
 
   .page-container {
@@ -395,63 +463,70 @@
     z-index: 1;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem 1.5rem;
+    /* The layout's <main> already pads the page: the gutter is its padding alone. */
+    padding: 0 0 2rem;
   }
 
-  /* --- NAV --- */
-  .top-nav {
-    margin-bottom: 2rem;
-  }
-  .back-btn {
+  /* --- The row of back / actions (desktop), floating buttons (phone) --- */
+  .float-bar {
+    position: relative;
+    z-index: 2;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-weight: 600;
-    cursor: pointer;
-    transition: color 0.2s;
-    padding: 0;
-    font-size: 0.95rem;
-  }
-  .back-btn:hover {
-    color: var(--accent);
-  }
-
-  /* --- HEADER --- */
-  .header-toolbar {
-    display: flex;
     justify-content: space-between;
-    align-items: flex-start;
     gap: 1rem;
-    margin-bottom: 2rem;
-    position: relative;
-    z-index: 1;
   }
-  .header-toolbar.selecting {
+  .float-bar.selecting {
     visibility: hidden;
   }
-  .title-wrapper h1 {
-    margin: 0;
-    font-size: 2.5rem;
-    font-weight: 800;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
+
+  .round-btn,
+  .phone-menu :global(.overflow-trigger) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
   }
-  .title-wrapper .meta {
-    margin: 0.25rem 0 0;
-    color: var(--text-secondary);
-    font-size: 1rem;
+  .phone-menu {
+    display: none;
+  }
+
+  /* --- The header: title first, centred (Google Photos web) --- */
+  .album-hero {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    padding: 1rem 1.5rem 1.5rem;
+    text-align: center;
+  }
+  .hero-text h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+  .hero-meta {
+    margin: 0.5rem 0 0;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-  }
-  .title-wrapper .count {
-    font-size: 0.85rem;
+    justify-content: center;
+    gap: 0.25rem;
     color: var(--text-secondary);
-    opacity: 0.7;
-    margin: 0.2rem 0 0;
+    font-size: 0.875rem;
   }
 
   /* --- ACTIONS TOOLBAR --- */
@@ -495,6 +570,81 @@
       display: none;
     } /* Hide desktop actions */
 
+    /* The buttons float over the hero, and stay reachable over the photos once scrolled. */
+    .float-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 60;
+      padding: calc(0.5rem + env(safe-area-inset-top)) 0.75rem 0;
+      pointer-events: none;
+    }
+    .float-bar > :global(*) {
+      pointer-events: auto;
+    }
+    .phone-menu {
+      display: block;
+    }
+    /* Over imagery: a flat translucent black, no blur (the viewer's bars use the same). */
+    .round-btn,
+    .phone-menu :global(.overflow-trigger) {
+      background: rgba(0, 0, 0, 0.45);
+      color: white;
+    }
+
+    /*
+     * The cover hero (D10), measured on Google Photos on the same Mi 9T: full bleed from the
+     * very top (no site bar on this page), ~54 % of the screen, the title centred on its lower
+     * half over a scrim. Without a cover it is a plain header of the same shape.
+     */
+    .album-hero {
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-top: calc(-1 * var(--container-padding));
+      height: clamp(320px, 54svh, 600px);
+      padding: 0 1.25rem 1.5rem;
+      align-items: flex-end;
+      overflow: hidden;
+    }
+    .album-hero.has-cover {
+      color: white;
+    }
+    .hero-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    /* The one gradient the flat bar allows: a scrim under text over a photo. */
+    .album-hero.has-cover::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 35%, rgba(0, 0, 0, 0.72));
+    }
+    .hero-text {
+      position: relative;
+      z-index: 1;
+      max-width: 100%;
+    }
+    .hero-text h1 {
+      font-size: clamp(2.25rem, 12vw, 3.5rem);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .album-hero.has-cover .hero-meta {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .page-container {
+      padding: 0;
+    }
+
     .mobile-bar {
       display: block;
       position: fixed;
@@ -514,8 +664,7 @@
       padding: 0;
       gap: 0.25rem;
     }
-    .actions-group.mobile .btn,
-    .actions-group.mobile :global(.overflow-trigger) {
+    .actions-group.mobile .btn {
       flex-direction: column;
       padding: 0.5rem 0;
       gap: 0.25rem;
@@ -531,29 +680,6 @@
       white-space: nowrap;
       font-weight: 500;
       font-size: 0.7rem;
-    }
-    /* The overflow has no label: it takes its icon's width, the labelled actions share the rest. */
-    .actions-group.mobile :global(.overflow-trigger) {
-      flex: 0 0 auto;
-      padding: 0.5rem;
-    }
-
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-    .header-main {
-      gap: 1rem;
-    }
-    .title-wrapper h1 {
-      font-size: 1.8rem;
-    }
-  }
-
-  @media (max-width: 768px) {
-    .gallery-wrapper {
-      padding-top: 1rem;
     }
   }
 </style>
