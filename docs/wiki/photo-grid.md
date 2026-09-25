@@ -26,14 +26,48 @@ The ratio comes from `assetAspectRatio`: EXIF, then the raw EXIF, then the slim 
 | Metrics (`GRID_METRICS`) | Target row | Gap  | Day header | Where                                                |
 | ------------------------ | ---------- | ---- | ---------- | ---------------------------------------------------- |
 | `desktop`                | 300 px     | 4 px | 56 px      | viewport > 768 px, inside the page's container       |
-| `phone`                  | 140 px     | 2 px | 48 px      | viewport <= 768 px, **edge to edge** (`100vw` bleed) |
+| `phone`                  | 90 px      | 2 px | 48 px      | viewport <= 768 px, **edge to edge** (`100vw` bleed) |
 
-Google Photos measures 304-373 px rows on desktop. The phone target keeps two 3:2 photos per row on
-a 393 px screen, and keeps a tile inside the `thumbnail` (below).
+Google Photos measures 304-373 px rows on desktop. On the phone the target is the DEFAULT step of
+the pinch density (below): 90 px puts three 3:2 photos in a row on a 393 px screen, where Google
+Photos' phone app shows three to four; every step keeps a tile inside the `thumbnail` (below).
 
 Measured on Gala (707 photos, all 3:2) on 2026-09-25: rows are **277 px** at 1440x900 (grid 1254
-px wide: three per row gives 277, two would give 417 - the target picks the closer), and **130 px**
-on a 393x851 phone viewport, tiles 195.5 x 130 CSS px with 2 px gaps and no side gutter.
+px wide: three per row gives 277, two would give 417 - the target picks the closer), and **86.4 px**
+on a 393x851 phone viewport at the default density, tiles 129.7 x 86.4 CSS px, three a row, 2 px
+gaps and no side gutter (it was 130 px, two a row, before the density change).
+
+## Density and the pinch
+
+The phone target is one of three steps, `PHONE_DENSITY_STEPS` in `src/lib/grid-density.ts`
+(pinned by `tests/grid-density.test.ts`, which also asserts the photo count each step gives):
+
+| Step      | Target | Row of 3:2 at 393 px | Per row |
+| --------- | ------ | -------------------- | ------- |
+| `large`   | 140 px | 130.3 px             | 2       |
+| `default` | 90 px  | 86.4 px              | 3       |
+| `dense`   | 62 px  | 64.5 px              | 4       |
+
+Each target sits where the row maths (a row closes on the height NEAREST the target) land on that
+count; a target half-way between two counts would flip on a tie. Spreading two fingers over the
+grid zooms in one step (fewer, bigger tiles), pinching zooms out, once the finger distance has
+changed by `PINCH_STEP_RATIO` = 1.25; the baseline resets after each step, so a long spread walks
+the whole scale. The row under the fingers stays under them: its first photo is found before the
+re-layout and the window is scrolled back onto it after (measured: 347.7 px before, 347.6 after).
+
+- **The step is remembered per browser**, in `localStorage` (`migallery.grid.phoneDensity`),
+  through two helpers that wrap every access in try/catch: a private window or a refused storage
+  only loses the memory, and the grid renders at the default.
+- **Phone metrics only.** Above 768 px the grid keeps the desktop target (300 px) and has no
+  pinch: a trackpad pinch arrives as `ctrl`+wheel, which is the browser's page zoom.
+- **The listeners are passive.** The phone grid carries `touch-action: pan-y`, so the browser
+  neither zooms the page nor pans sideways there and nothing has to be `preventDefault`ed: a
+  scroll is never delayed by the pinch handler. Page zoom still works everywhere outside the grid.
+- **The viewer's pinch is untouched**: the viewer is portalled to `<body>` with its own
+  listeners, so a touch there never reaches the grid's. A second finger on a tile cancels that
+  tile's long-press (`PhotoCard`), so a pinch never enters selection mode.
+- A density change is a re-layout of the same virtualised blocks: nothing is fetched, and the
+  tiles already decoded keep their HTTP-cached thumbnails.
 
 ## Tile source - `thumbnail`, never `preview` (D1)
 
@@ -42,12 +76,13 @@ needs is its CSS height x DPR (for a landscape photo, the short side is the heig
 
 | Screen                          | Tile (CSS px) | Device px needed | `thumbnail` enough?                                 |
 | ------------------------------- | ------------- | ---------------- | --------------------------------------------------- |
-| Mi 9T, DPR 2.75, phone rows     | 195.5 x 130   | 538 x 358        | yes (600 x 400)                                     |
+| Mi 9T, DPR 2.75, `large` step   | 195.5 x 130   | 538 x 358        | yes (600 x 400)                                     |
+| Mi 9T, DPR 2.75, default step   | 129.7 x 86.4  | 357 x 238        | yes, with room                                      |
 | Desktop DPR 1, 277-300 px rows  | ~415 x 277    | ~415 x 277       | yes                                                 |
 | Desktop DPR 1.5 (Windows 150 %) | ~415 x 277    | ~623 x 416       | just short: ~1.04x upscale                          |
 | Desktop DPR 2 (Retina)          | ~415 x 277    | ~830 x 554       | no: ~1.4x upscale - where `preview` would be needed |
 
-The phone target was chosen so the phone case holds up to DPR 2.75: 140 x 2.75 = 385 < 400. The
+The largest phone step was chosen so the phone case holds up to DPR 2.75: 140 x 2.75 = 385 < 400. The
 grid was **not** switched to `preview` for high-DPR desktops: that is D1's rule
 ([bandwidth](bandwidth.md)), and the cost is a ~30x byte multiplier per tile. If Retina desktops
 look soft, the lever is the `thumbnail` size again (Immich admin), not `preview`.

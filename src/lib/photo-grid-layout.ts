@@ -16,16 +16,23 @@ export const FALLBACK_ASPECT_RATIO = 3 / 2;
 export const GRID_METRICS = {
   desktop: { targetRowHeight: 300, gap: 4, dayHeaderHeight: 56 },
   /**
-   * Phone: 140 px keeps a Google-like two landscape photos per row on a 393 px screen, and keeps
-   * a 3:2 tile inside Immich's 400 px `thumbnail` at DPR 2.75 (140 x 2.75 = 385 device px).
+   * Phone: 90 px puts three landscape photos in a row on a 393 px screen (86 px rows), Google
+   * Photos' phone default. It is the DEFAULT step of `PHONE_DENSITY_STEPS` (`grid-density.ts`),
+   * which a pinch moves between 2 and 4 a row; every step keeps a tile inside Immich's 400 px
+   * `thumbnail` at DPR 2.75 (the largest, 140 x 2.75 = 385 device px).
    */
-  phone: { targetRowHeight: 140, gap: 2, dayHeaderHeight: 48 },
+  phone: { targetRowHeight: 90, gap: 2, dayHeaderHeight: 48 },
 } as const;
 
 /** The layout switches to the phone metrics at or below this container width. */
 export const PHONE_MAX_WIDTH = 768;
 
-export type GridMetrics = (typeof GRID_METRICS)[keyof typeof GRID_METRICS];
+/** One set of grid metrics: a `GRID_METRICS` entry, or the phone one at another density step. */
+export interface GridMetrics {
+  targetRowHeight: number;
+  gap: number;
+  dayHeaderHeight: number;
+}
 
 /** One photo placed in a row: `index` into the input list, `x` from the row's left edge. */
 export interface JustifiedTile {
