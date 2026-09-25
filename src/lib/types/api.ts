@@ -158,6 +158,7 @@ export interface ImmichAsset {
   height?: number;
   exifInfo?: {
     dateTimeOriginal?: string;
+    fileSizeInByte?: number;
     timeZone?: string;
     city?: string;
     state?: string;

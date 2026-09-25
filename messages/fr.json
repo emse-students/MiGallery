@@ -604,5 +604,13 @@
   "albumd_delete_album": "Supprimer l'album",
   "pm_zoom_in": "Zoom avant",
   "pm_zoom_out": "Zoom arrière",
-  "pm_zoom_reset": "Réinitialiser le zoom (100 %)"
+  "pm_back": "Retour",
+  "pm_info": "Informations",
+  "pm_info_file": "Fichier",
+  "pm_info_size": "Taille",
+  "pm_info_camera": "Appareil",
+  "pm_info_date": "Date",
+  "pm_share": "Partager",
+  "pm_share_error": "Partage impossible : {error}",
+  "pm_share_ready": "Photo prête : touchez Partager à nouveau"
 }

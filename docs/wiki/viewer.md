@@ -1,7 +1,51 @@
-# The photo viewer - gestures and the overflow menu
+# The photo viewer - the frame, the gestures and the overflow menu
 
-The viewer is `src/lib/components/PhotoModal.svelte`. Its gestures copy Google Photos on the
-same phone (decided by the user on 2026-09-25, see [ui-redesign](ui-redesign.md)). The maths
+The viewer is `src/lib/components/PhotoModal.svelte`. Its frame and its gestures copy Google
+Photos on the same phone (decided by the user on 2026-09-25, see [ui-redesign](ui-redesign.md)).
+
+## The frame (theme 6, 2026-09-25)
+
+Full-screen black, edge to edge, no border, no card and no rounded corner, at every width. The
+bars float OVER the photo on a flat translucent black (no blur, no gradient: the flat rule) and
+fade with the single tap; they respect the safe-area insets.
+
+| Where                   | What                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| Top bar, left           | Back (closes; Escape does too)                                                                   |
+| Top bar, title          | The photo's date on line 1, its time on line 2. Tapping it opens the info panel                  |
+| Top bar, right          | One zoom icon (pointer devices only), favourite (where the host passes `showFavorite`), overflow |
+| Overflow                | Info, download, set as cover (managers, inside an album), move to the bin (managers, confirmed)  |
+| Bottom bar (<= 768 px)  | Labelled Share (only where the browser can share a FILE) and Download                            |
+| Sides (pointer devices) | Previous / next arrows. Hidden under `(hover: none)`: a touch screen swipes                      |
+
+**The title** comes from `formatViewerDateTitle` in `src/lib/viewer-info.ts`, pinned in French by
+`tests/viewer-info.test.ts`: "Aujourd'hui" / "Hier", then "ven. 18 sept.", with the year only
+when it is not the current one, and the time on its own line. It reads `fileCreatedAt`, the field
+`groupByDay` groups the grid by, in the browser's zone - so a photo never sits under one day in the
+grid and shows another in the viewer. The file name left the bar; it is in the info panel.
+
+**The info panel** (title tap, overflow "Info", or a swipe UP) shows the full date, the file
+name, the size and the camera. Size and camera come from EXIF, which the grid streams do not carry
+([bandwidth](bandwidth.md)), so the panel fetches `GET /api/immich/assets/{id}` once per asset it
+shows, and follows the photo while it stays open. An unlisted album's visitor has no route to that
+metadata: the panel then shows the date and the file name only. A right-hand side panel on
+desktop, a bottom sheet on a phone. Escape closes it before it closes the viewer.
+
+**Favourites exist only on `/mes-photos`** (`PhotosGrid`'s `showFavorites`): the heart is drawn
+there and nowhere else, as before - nothing was invented for albums.
+
+**Zoom** is pinch, double-tap, wheel, double-click and the `+` / `-` / `0` keys. The four toolbar
+buttons (zoom -, 100 %, zoom +, reset) are gone; the one remaining icon toggles 1x / 2.5x on the
+centre through the double-tap maths and is hidden on touch screens.
+
+**Share** hands the ORIGINAL file to the system share sheet (Web Share level 2), probed once with
+`navigator.canShare({ files })`; where that answers false the action is not drawn. `navigator.share`
+needs a live user activation (about 5 s in Chrome), and an 8 MB original on the lossy uplink can
+outlast it: the browser then refuses with `NotAllowedError`. The fetched file is kept and a toast
+asks for a second tap, which shares it at once. Download and share fetch the original through the
+same `originalUrl`, so an unlisted album's visitor goes through the album's own route for both.
+
+A video lifts above the bottom bar on a phone, so its native controls stay reachable. The maths
 live in a pure module, `src/lib/viewer-gestures.ts`, pinned by `tests/viewer-gestures.test.ts`;
 the component only feeds it coordinates and applies the answer.
 
@@ -15,8 +59,8 @@ the component only feeds it coordinates and applies the answer.
 | Double tap                        | any                    | zooms to 2.5x on the tapped point; a second one resets to 1x                        |
 | Pinch                             | any                    | multiplicative zoom anchored at the finger midpoint; a two-finger drag pans with it |
 | One-finger drag                   | photo zoomed (> 1.01x) | pans, clamped so the photo keeps covering the frame; never navigates nor closes     |
-| Swipe up                          | photo not zoomed       | nothing yet (reserved for an info panel, #11)                                       |
-| Wheel / double-click / arrow keys | desktop                | unchanged: zoom at the pointer, toggle zoom, previous / next                        |
+| Swipe up                          | photo not zoomed       | opens the info panel on release (nothing follows the finger)                        |
+| Wheel / double-click / arrow keys | desktop                | zoom at the pointer, toggle zoom, previous / next                                   |
 
 A touch sequence stays `pending` inside a 10 px slop, then is classified ONCE by
 `classifyMove` and keeps that class until every finger lifts, so a swipe that curves does not
@@ -54,7 +98,9 @@ fire then.
 
 ## Constraints kept
 
-- **Outside click** still needs `pointerdown` AND `pointerup` on the backdrop (see CLAUDE.md).
+- **There is no outside any more.** The full-screen frame left no backdrop to click, so the
+  viewer's pointerdown / pointerup outside-click logic was deleted with it; back, Escape and the
+  swipe down close it. `Modal.svelte` keeps that rule.
 - **Touch listeners are attached by hand with `passive: false`**: Svelte registers
   `ontouchstart` / `ontouchmove` as passive, where `preventDefault()` is ignored. A tap's
   `touchend` is `preventDefault`ed so a double tap is not also a `dblclick`.
@@ -77,6 +123,10 @@ under `@media (hover: hover) and (pointer: fine)`: a touch screen keeps a sticky
 last tile tapped. Touch devices use the long-press sheet instead, whatever their width.
 
 ## Owed a device check
+
+- Theme 6 on the Mi 9T: the title and the bars over a bright photo, the bars' fade on a tap, the
+  info panel as a bottom sheet (and its swipe up), Share opening the Android share sheet with the
+  ORIGINAL (and the second-tap path on a slow link), a video's controls above the bottom bar.
 
 - The swipe, dismiss and double-tap feel on the Mi 9T (thresholds are tuned on paper).
 - A swipe on a VIDEO's scrubber: the container has `touch-action: none` and a horizontal drag

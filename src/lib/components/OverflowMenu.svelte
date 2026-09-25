@@ -228,16 +228,19 @@
   .overflow-trigger.overlay[aria-expanded='true'] {
     background: rgba(0, 0, 0, 0.85);
   }
+  /* The viewer's top bar: a transparent round icon, like its neighbours (Google Photos). */
   .overflow-trigger.toolbar {
-    padding: 0.5rem;
-    border-radius: var(--radius-xs);
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border-radius: 50%;
     color: white;
-    background: rgba(255, 255, 255, 0.1);
-    transition: background-color 0.2s;
+    background: transparent;
+    transition: background-color 0.15s;
   }
   .overflow-trigger.toolbar:hover,
   .overflow-trigger.toolbar[aria-expanded='true'] {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .overflow-menu {
