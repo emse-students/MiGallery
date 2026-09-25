@@ -41,6 +41,7 @@ the page is a bug.
 | [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked             |
 | [seo.md](seo.md)                                       | Link previews, why there is no SEO, and why the head still matters                    |
 | [outbound.md](outbound.md)                             | The 4 s deadline on every call to Immich and Authentik, and the three shapes it takes |
+| [bandwidth.md](bandwidth.md)                           | The ~1 MB/s uplink cap, and what each surface may load because of it                  |
 | [data-model.md](data-model.md)                         | The local SQLite schema                                                               |
 | [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                                       |
 | [deployment.md](deployment.md)                         | Docker, CD, secrets, backups                                                          |

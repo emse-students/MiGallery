@@ -4,6 +4,7 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import browserslist from 'browserslist';
 import { browserslistToTargets } from 'lightningcss';
+import pkg from './package.json' with { type: 'json' };
 
 export default defineConfig({
   plugins: [
@@ -38,6 +39,9 @@ export default defineConfig({
     },
   },
   build: { cssMinify: 'lightningcss' },
+  // The RELEASE version shown in the admin panel. Not kit.version.name: that one
+  // must change on every build so clients notice a deploy.
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
 
   preview: {
     host: '0.0.0.0',

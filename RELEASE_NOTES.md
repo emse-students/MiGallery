@@ -1,3 +1,25 @@
+# MiGallery v2.2.0
+
+**Date**: September 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Make the gallery fast again on a production uplink capped around 1 MB/s. The server was idle; every visitor was waiting on bytes. This release sends far fewer of them.
+
+## Performance
+
+- Album and person grids no longer make one Immich call per photo: a single slim, gzipped line per asset replaces ~2.5 KB of owner/EXIF/path data (an album of 479 photos went from ~800 KB to a few tens of KB).
+- Grid tiles load the thumbnail only. High-density screens (phones, Retina) used to download the ~450 KB preview for every tile as well.
+- The lightbox opens on the preview; the original (up to ~8 MB) now loads only when zooming in.
+- The grid re-renders once per received chunk instead of once per photo.
+- Album covers are now cached at the Cloudflare edge.
+
+## Fixes
+
+- Avatars and face crops are sent as `private`: they require a session and must never be kept by a shared cache.
+- The admin panel shows the real version instead of `v1.0`.
+
 # MiGallery v2.1.2
 
 **Date**: September 19, 2026

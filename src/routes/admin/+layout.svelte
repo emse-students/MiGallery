@@ -45,7 +45,7 @@
     </nav>
     <div class="meta">
       <a href="/" class="back-home">← {m.adm_back_site()}</a>
-      <small>{m.adm_version()}</small>
+      <small>{m.adm_version({ version: __APP_VERSION__ })}</small>
     </div>
   </aside>
 

@@ -1,11 +1,14 @@
 /**
  * Helper to consume an NDJSON (Newline Delimited JSON) stream
- * and call a callback for each parsed line
+ * and call a callback for each parsed line.
+ * `onChunk` runs once per network chunk, after its lines: publish reactive
+ * state there, not in `onItem`, or a 500-line album re-renders 500 times.
  */
 export async function consumeNDJSONStream<T>(
   response: Response,
   onItem: (item: T) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  onChunk?: () => void
 ): Promise<void> {
   if (!response.ok || !response.body) {
     throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
@@ -39,6 +42,7 @@ export async function consumeNDJSONStream<T>(
           }
         }
       }
+      onChunk?.();
     }
   } catch (e: unknown) {
     console.error('Error reading stream:', e);
