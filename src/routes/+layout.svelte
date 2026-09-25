@@ -27,6 +27,11 @@
   let seo = $derived((page.data as { seo?: SeoMeta }).seo ?? siteSeo());
   let isAuthenticated = $derived(!!u);
   let isHomePage = $derived(page.url.pathname === '/');
+  /**
+   * An album page draws its own full-bleed cover hero on a phone, with floating back and menu
+   * buttons, so the site bar steps aside there (<= 768 px only; ui-redesign D10).
+   */
+  let isAlbumPage = $derived(/^\/albums\/[^/]+\/?$/.test(page.url.pathname));
 
   let { children } = $props();
 
@@ -95,7 +100,7 @@
 -->
 <Seo meta={seo} />
 
-<nav class="topbar">
+<nav class="topbar" class:album-page={isAlbumPage}>
   <div class="brand">
     <img src="/icon.png" alt="MiGallery" class="logo" fetchpriority="high" />
     <a href="/">MiGallery</a>

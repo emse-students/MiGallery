@@ -6,6 +6,7 @@ import { checkAlbumAccess } from '$lib/albums';
 import type { User, Album } from '$lib/types/api';
 import { redirect } from '@sveltejs/kit';
 import { loginBounceTarget } from '$lib/auth-redirect';
+import { resolveCover } from '$lib/server/album-cover';
 
 /** Formate la date et le lieu en description OG lisible (ex. "15 mai 2024 · Paris"). */
 function buildOgDescription(date?: string | null, location?: string | null): string {
@@ -24,7 +25,7 @@ function buildOgDescription(date?: string | null, location?: string | null): str
   return parts.join(' · ') || 'Album photo · MiGallery';
 }
 
-export const load: PageServerLoad = async ({ params, parent, url }) => {
+export const load: PageServerLoad = async ({ params, parent, url, fetch }) => {
   const paramId = params.id;
   if (!paramId) {
     throw redirect(303, '/');
@@ -54,6 +55,14 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
     date: albumRow.date,
     location: albumRow.location,
     visibility: albumRow.visibility,
+    // The page's hero and blurred background (ui-redesign D10, D11). The persisted cover is the
+    // answer; an album with none gets one from `resolveCover`, which asks Immich for the album's
+    // own thumbnail or its first photo and PERSISTS the answer - a data default, the same one
+    // the album list shows, not a second code path.
+    coverAssetId:
+      (albumRow as { cover_asset_id?: string | null }).cover_asset_id ??
+      (await resolveCover(String(albumRow.id), fetch))?.assetId ??
+      null,
   };
 
   // The link-preview card for this album, rendered by the root layout.
