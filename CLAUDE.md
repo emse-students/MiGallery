@@ -26,7 +26,7 @@
 - English only for code, comments, docs, dev-facing strings.
 - I18N: user-visible strings via Paraglide (`messages/fr.json`, `en.json`). No inline literals.
 - ASCII punctuation everywhere; French accents only inside localized strings/French comments.
-- UI: single source of truth is `src/app.css` (tokens, `--radius-*`). `.btn-glass` with modifiers, dark-first glassmorphism, no raw hex/px, `@lucide/svelte` only - NEVER `lucide-svelte`, which is the deprecated name that still resolves and still renders (CI greps for it).
+- UI: single source of truth is `src/app.css` (tokens, `--radius-*`). dark-first, **flat**: no glow, no glassmorphism (`backdrop-filter`), no text-shadow - the user, 2026-09-25: _"les effets glow ... c'est pas du tout l'esprit des app de 2026"_, measured at 0 on Google Photos against 30 glass surfaces here ([ui-redesign](docs/wiki/ui-redesign.md)); `.btn-glass` is being retired, not extended; the soft blobs in the page BACKGROUND stay - they are the identity (user, same day); no raw hex/px, `@lucide/svelte` only - NEVER `lucide-svelte`, which is the deprecated name that still resolves and still renders (CI greps for it).
 - Husky pre-commit runs `bun run lint && bun run check` - oxlint, oxvelte, then svelte-check. Fix errors, do not bypass.
 - **`check` runs TypeScript 7** via `svelte-check --tsgo`, and BOTH majors are installed on purpose: `typescript` at `~6.0.3` for svelte-check's own API, `@typescript/native` (`npm:typescript@^7.0.2`) for the Go compiler behind the flag. Do not "clean up" either one, and do not let a `typescript` major land - `dependabot.yml` holds it and says why.
 - **`--tsgo` reports ~121 FILES where TS 6 reported ~5396. That is a COUNTER difference, not a coverage gap** - TS 6 counts every `.d.ts` in node_modules and the 606 generated Paraglide files. Verified by planting a type error in a route `.svelte` and in `tests/`: `--tsgo` reports both, at the same positions as TS 6. Do not read the smaller number as a regression and do not revert it.
@@ -38,7 +38,7 @@
 
 ## SESSION STATE
 
-**Current WIP:** (none)
+**Current WIP:** the Google Photos-shaped UI redesign (user, 2026-09-25). The work list, the measured reference and the two decisions owed are ONLY in [ui-redesign](docs/wiki/ui-redesign.md) - work from it, delete each row as it ships.
 
 ## MEMORY GOTCHAS (do not repeat)
 
