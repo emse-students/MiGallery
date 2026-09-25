@@ -1,3 +1,23 @@
+# MiGallery v2.8.0
+
+**Date**: September 26, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Sixth step of the redesign: the albums list copies Google Photos, and the pages stop moving on their own.
+
+## Albums
+
+- The albums list: a magnifier and a + next to the title instead of a search field and a big button; square covers with the full title underneath on up to two lines; no menu on each card (download and delete are inside the album); year headings kept, month headings gone.
+
+## Fixes
+
+- The home page no longer redraws its background on load, and the greeting no longer says "Bonjour" in the middle of the night - after midnight it asks "Encore debout ?" instead.
+- The home page's profile card centres its icon, and its button is the filled accent.
+- The navigation bars no longer stretch when a scroll overshoots the top of a page.
+- Photos CV and Mes photos show the grid edge to edge, with no photo overflowing the screen.
+
 # MiGallery v2.7.0
 
 **Date**: September 25, 2026
