@@ -132,7 +132,6 @@
   "albumd_empty": "Cet album est vide pour le moment.",
   "pm_cover_updated": "Couverture mise à jour",
   "pm_favorite_error": "Erreur favori",
-  "pm_delete_key": "Supprimer (Suppr)",
   "pg_photo_downloaded": "Photo téléchargée !",
   "pg_removed_count": "{count} photo(s) retirée(s) de l'album !",
   "pg_remove_error": "Erreur lors du retrait de l'album: {error}",
@@ -600,5 +599,10 @@
   "med_col_file": "Fichier",
   "med_col_albums": "Albums",
   "med_scan_shown": "{shown} premiers affichés sur {total}",
-  "med_load_fail": "Chargement impossible : {error}"
+  "med_load_fail": "Chargement impossible : {error}",
+  "common_more_actions": "Plus d'options",
+  "albumd_delete_album": "Supprimer l'album",
+  "pm_zoom_in": "Zoom avant",
+  "pm_zoom_out": "Zoom arrière",
+  "pm_zoom_reset": "Réinitialiser le zoom (100 %)"
 }

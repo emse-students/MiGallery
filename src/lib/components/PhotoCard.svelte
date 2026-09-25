@@ -2,7 +2,9 @@
   import { Heart, Download, Trash2, SquareCheck } from '@lucide/svelte';
   import LazyImage from './LazyImage.svelte';
   import Skeleton from './Skeleton.svelte';
+  import OverflowMenu from './OverflowMenu.svelte';
   import type { Asset } from '$lib/photos.svelte';
+  import type { OverflowMenuItem } from '$lib/overflow-menu';
   import { m } from '$lib/paraglide/messages';
 
   interface Props {
@@ -12,8 +14,8 @@
     canDelete?: boolean;
     showFavorite?: boolean;
     onCardClick?: (assetId: string, event: MouseEvent) => void;
-    onDownload?: (assetId: string, event: Event) => void;
-    onDelete?: (assetId: string, event: Event) => void;
+    onDownload?: (assetId: string) => void;
+    onDelete?: (assetId: string) => void;
     onSelectionToggle?: (assetId: string, selected: boolean) => void;
     onFavoriteToggle?: (assetId: string, event: Event) => void;
     albumVisibility?: string;
@@ -109,20 +111,6 @@
     }
   }
 
-  function handleDownloadClick(e: Event) {
-    e.stopPropagation();
-    if (onDownload) {
-      onDownload(asset.id, e);
-    }
-  }
-
-  function handleDeleteClick(e: Event) {
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete(asset.id, e);
-    }
-  }
-
   function handleCheckboxChange(e: Event) {
     e.stopPropagation();
     const checked = (e.target as HTMLInputElement).checked;
@@ -154,13 +142,13 @@
   function sheetDownload(e: Event) {
     e.stopPropagation();
     closeMobileActions();
-    if (onDownload) onDownload(asset.id, e);
+    if (onDownload) onDownload(asset.id);
   }
 
   function sheetDelete(e: Event) {
     e.stopPropagation();
     closeMobileActions();
-    if (onDelete) onDelete(asset.id, e);
+    if (onDelete) onDelete(asset.id);
   }
 
   function handleOverlayClick(e: Event) {
@@ -180,6 +168,24 @@
   );
 
   let isVideo = $derived(asset.type === 'VIDEO');
+
+  /**
+   * The tile's overflow menu (pointer devices; touch uses the long-press sheet). Delete is
+   * never a one-tap corner button (decision D4).
+   */
+  let menuItems = $derived<OverflowMenuItem[]>([
+    { label: m.common_download(), icon: Download, onSelect: () => onDownload?.(asset.id) },
+    ...(canDelete
+      ? [
+          {
+            label: m.trash_to_bin(),
+            icon: Trash2,
+            danger: true,
+            onSelect: () => onDelete?.(asset.id),
+          },
+        ]
+      : []),
+  ]);
 </script>
 
 <!-- Photo Card Container -->
@@ -264,30 +270,11 @@
       </button>
     {/if}
 
-    <!-- Download Button (visible when not selecting and not hovered unless in selection mode) -->
+    <!-- Overflow menu: download, and delete for managers (hidden while selecting) -->
     {#if !isSelecting}
-      <button
-        type="button"
-        class="download-btn"
-        title={m.common_download()}
-        onclick={handleDownloadClick}
-        aria-label="Download {fileName}"
-      >
-        <Download size={18} />
-      </button>
-
-      <!-- Delete Button (only if user can delete) -->
-      {#if canDelete}
-        <button
-          type="button"
-          class="delete-btn"
-          title={m.trash_to_bin()}
-          onclick={handleDeleteClick}
-          aria-label="Delete {fileName}"
-        >
-          <Trash2 size={18} />
-        </button>
-      {/if}
+      <div class="tile-menu">
+        <OverflowMenu items={menuItems} variant="overlay" iconSize={18} />
+      </div>
     {/if}
 
     <!-- Image/Video Thumbnail -->
@@ -345,11 +332,6 @@
     }
   }
 
-  .photo-card:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-    z-index: 10;
-  }
-
   .photo-card.selected {
     /* Make selection persistent and clearly visible */
     outline: none;
@@ -377,10 +359,6 @@
     object-fit: cover;
   }
 
-  .photo-card:hover :global(.lazy-image) {
-    transform: scale(1.05);
-  }
-
   .selection-checkbox {
     position: absolute;
     top: 0.625rem;
@@ -388,11 +366,6 @@
     z-index: 5;
     opacity: 0;
     transition: opacity 0.2s ease;
-  }
-
-  /* Visible on hover OR in selection mode */
-  .photo-card:hover .selection-checkbox {
-    opacity: 1;
   }
 
   .selection-checkbox.checked {
@@ -444,79 +417,63 @@
     transition: opacity 0.2s ease;
   }
 
-  /* On hover-capable devices, yield to the interactive favorite button */
-  @media (hover: hover) {
-    .photo-card:hover .favorite-badge {
-      opacity: 0;
-    }
+  .favorite-btn {
+    pointer-events: none;
   }
 
-  .photo-card:hover .favorite-btn {
-    opacity: 1;
-  }
-
-  .favorite-btn:hover {
-    background: color-mix(in srgb, var(--error) 30%, transparent);
-    color: var(--error);
-    transform: scale(1.1);
-  }
-
-  .download-btn {
+  .tile-menu {
     position: absolute;
     top: 0.625rem;
     right: 0.625rem;
     z-index: 5;
-    padding: 0.5rem;
-    width: 36px;
-    height: 36px;
-    background: rgba(0, 0, 0, 0.7);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: white;
-    cursor: pointer;
     opacity: 0;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
   }
 
-  .photo-card:hover .download-btn {
+  /* Keyboard focus reveals the menu on any device; an open menu keeps its trigger shown. */
+  .photo-card:focus-visible .tile-menu,
+  .tile-menu:has(:global(:focus-visible)),
+  .tile-menu:has(:global([aria-expanded='true'])) {
     opacity: 1;
+    pointer-events: auto;
   }
 
-  .download-btn:hover {
-    background: rgba(0, 0, 0, 0.9);
-    transform: scale(1.1);
-  }
+  /*
+   * Hover reveals ONLY where a hover is real: a mouse or a trackpad. A touch screen reports a
+   * sticky `:hover` on the last tile tapped (the overlay stayed painted after closing the
+   * viewer, audit #4), whatever its width - touch actions live in the long-press sheet.
+   */
+  @media (hover: hover) and (pointer: fine) {
+    .photo-card:hover {
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+    }
 
-  .delete-btn {
-    position: absolute;
-    bottom: 0.625rem;
-    right: 0.625rem;
-    z-index: 5;
-    padding: 0.5rem;
-    width: 36px;
-    height: 36px;
-    background: color-mix(in srgb, var(--error-hover) 80%, transparent);
-    border: none;
-    border-radius: var(--radius-sm);
-    color: white;
-    cursor: pointer;
-    opacity: 0;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+    .photo-card:hover :global(.lazy-image) {
+      transform: scale(1.05);
+    }
 
-  .photo-card:hover .delete-btn {
-    opacity: 1;
-  }
+    .photo-card:hover .selection-checkbox {
+      opacity: 1;
+    }
 
-  .delete-btn:hover {
-    background: var(--error-hover);
-    transform: scale(1.1);
+    /* Yield the passive badge to the interactive favorite button */
+    .photo-card:hover .favorite-badge {
+      opacity: 0;
+    }
+
+    .photo-card:hover .favorite-btn,
+    .photo-card:hover .tile-menu {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .favorite-btn:hover {
+      background: color-mix(in srgb, var(--error) 30%, transparent);
+      color: var(--error);
+      transform: scale(1.1);
+    }
   }
 
   @media (max-width: 768px) {
@@ -527,14 +484,6 @@
       flex-basis: calc(25% - 3px) !important;
       flex-grow: 0 !important;
       max-width: calc(25% - 3px);
-    }
-
-    /* Corner buttons are unused on mobile: actions live in the long-press sheet */
-    .download-btn,
-    .delete-btn,
-    .favorite-btn {
-      opacity: 0;
-      pointer-events: none;
     }
   }
 
