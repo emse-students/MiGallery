@@ -249,6 +249,9 @@
   .menu-item {
     display: flex;
     align-items: center;
+    /* Stated, not inherited: the global `button` rule in app.css centres every button's
+       content, which put each icon at a different x - a menu reads as one left edge. */
+    justify-content: flex-start;
     gap: 0.75rem;
     width: 100%;
     padding: 0.75rem 0.875rem;
