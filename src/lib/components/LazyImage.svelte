@@ -1,49 +1,9 @@
-<script module lang="ts">
-  // eslint-disable-next-line svelte/prefer-svelte-reactivity
-  export const imageUrlCache = new Map<string, string>();
-  const MAX_CACHE_SIZE = 200;
-
-  function revokeUrl(url: string | undefined) {
-    try {
-      if (url) URL.revokeObjectURL(url);
-    } catch {}
-  }
-
-  export function getCached(src: string) {
-    const v = imageUrlCache.get(src);
-    if (!v) return undefined;
-    imageUrlCache.delete(src);
-    imageUrlCache.set(src, v);
-    return v;
-  }
-
-  export function setCached(src: string, objectUrl: string) {
-    imageUrlCache.set(src, objectUrl);
-    while (imageUrlCache.size > MAX_CACHE_SIZE) {
-      const firstKey = imageUrlCache.keys().next().value as string | undefined;
-      if (!firstKey) break;
-      const val = imageUrlCache.get(firstKey);
-      imageUrlCache.delete(firstKey);
-      revokeUrl(val);
-    }
-  }
-
-  if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', () => {
-      for (const v of imageUrlCache.values()) revokeUrl(v);
-      imageUrlCache.clear();
-    });
-  }
-</script>
-
 <script lang="ts">
   import { onMount } from 'svelte';
   import Skeleton from './Skeleton.svelte';
 
   interface Props {
     src: string;
-    highRes?: string;
-    highResDprThreshold?: number;
     alt: string;
     class?: string;
     aspectRatio?: string;
@@ -55,8 +15,6 @@
 
   let {
     src,
-    highRes = undefined,
-    highResDprThreshold = 1.25,
     alt,
     class: className = '',
     aspectRatio = '1',
@@ -70,15 +28,6 @@
   let hasStartedLoading = $state(false);
   let imgElement: HTMLImageElement | null = $state(null);
   let containerElement: HTMLDivElement | null = $state(null);
-  let srcOverride = $state<string | undefined>(undefined);
-  let displaySrc = $derived(srcOverride ?? src);
-  let highResLoaded = $state(false);
-
-  $effect(() => {
-    void src;
-    srcOverride = undefined;
-    highResLoaded = false;
-  });
 
   onMount(() => {
     if (!containerElement) return;
@@ -103,58 +52,6 @@
       isLoaded = true;
     });
   }
-
-  $effect(() => {
-    if (isInView && hasStartedLoading) {
-      srcOverride = undefined;
-      if (highRes && !highResLoaded) {
-        const dpr =
-          typeof window !== 'undefined' && window.devicePixelRatio ? window.devicePixelRatio : 1;
-        if (dpr < (highResDprThreshold || 1)) {
-          return;
-        }
-        try {
-          const cachedHigh = getCached(highRes);
-          if (cachedHigh) {
-            srcOverride = cachedHigh;
-            highResLoaded = true;
-          } else {
-            fetch(highRes)
-              .then((r) => (r.ok ? r.blob() : Promise.reject()))
-              .then((b) => {
-                const url = URL.createObjectURL(b);
-                setCached(highRes, url);
-                srcOverride = url;
-                highResLoaded = true;
-              })
-              .catch(() => {});
-          }
-        } catch (e) {}
-      } else {
-        try {
-          if (typeof src === 'string' && src.includes('/api/immich') && src.includes('thumbnail')) {
-            const cached = getCached(src);
-            if (cached) {
-              srcOverride = cached;
-            } else {
-              fetch(src)
-                .then((r) => (r.ok ? r.blob() : Promise.reject()))
-                .then((b) => {
-                  const url = URL.createObjectURL(b);
-                  setCached(src, url);
-                  srcOverride = url;
-                })
-                .catch(() => {
-                  srcOverride = undefined;
-                });
-            }
-          }
-        } catch (e) {
-          srcOverride = undefined;
-        }
-      }
-    }
-  });
 </script>
 
 <div
@@ -167,7 +64,7 @@
   {#if isInView}
     <img
       bind:this={imgElement}
-      src={displaySrc}
+      {src}
       {alt}
       class="lazy-image"
       class:loaded={isLoaded}

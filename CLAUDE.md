@@ -69,6 +69,8 @@
 
 **Frontend**
 
+- BANDWIDTH: the prod uplink caps at ~1 MB/s, so bytes are the latency (`docs/wiki/bandwidth.md`). Grids load `thumbnail` only (never `preview`, at any DPR), the lightbox opens on `preview` (original only on zoom), and the grid streams go through `src/lib/server/asset-ndjson.ts` - never reintroduce a per-asset `GET /assets/{id}` enrichment: Immich v3 search results already carry `width`/`height`.
+
 - A Svelte 5 `$effect` stops tracking at its first `await`, but everything read synchronously before it IS tracked. Reading your own cache at the top of an async effect re-fires it on every write.
 - Outside-click close can never be judged from `click` alone (its target is the common ancestor of press and release). `Modal.svelte` and `PhotoModal.svelte` require pointerdown AND pointerup on the backdrop. Do not simplify back.
 - Lucide: never re-declare `width`/`height` on an svg inside a component - size the BUTTON, not the icon. Avoid the deprecated aliases from `dist/aliases` (`AlertCircle`, `CheckCircle`, ...); `dist/icons/index.js` is the list that counts, and `CheckCircle` maps to `circle-check-big`, not `circle-check`.

@@ -24,6 +24,16 @@ export type Asset = {
   _raw?: ImmichAsset;
 };
 
+/** A grid entry from an asset-ndjson line; the layout reads `_raw.width/height`. */
+function streamedAsset(asset: ImmichAsset): Asset {
+  return {
+    ...asset,
+    date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
+    isFavorite: false,
+    _raw: asset,
+  };
+}
+
 export function formatDayLabel(dateStr: string | null) {
   if (!dateStr) {
     return m.albums_no_date();
@@ -227,43 +237,23 @@ export class PhotosState {
       const assetsMap = new Map<string, Asset>();
 
       try {
-        await consumeNDJSONStream<{
-          phase: 'minimal' | 'full';
-          asset: ImmichAsset;
-        }>(res, ({ phase, asset }) => {
-          if (phase === 'minimal') {
-            assetsMap.set(asset.id, {
-              ...asset,
-              date: null,
-              isFavorite: false,
-              exifInfo:
-                asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
-                  ? {
-                      exifImageWidth: asset.exifInfo.exifImageWidth,
-                      exifImageHeight: asset.exifInfo.exifImageHeight,
-                    }
-                  : null,
-              _raw: asset,
-            });
-            if (assetsMap.size === 1) {
+        await consumeNDJSONStream<{ asset: ImmichAsset }>(
+          res,
+          ({ asset }) => {
+            assetsMap.set(asset.id, streamedAsset(asset));
+          },
+          undefined,
+          () => {
+            this.assets = Array.from(assetsMap.values());
+            if (assetsMap.size > 0) {
               this.loading = false;
             }
-          } else if (phase === 'full') {
-            const existing = assetsMap.get(asset.id);
-            assetsMap.set(asset.id, {
-              ...asset,
-              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-              isFavorite: existing?.isFavorite ?? false,
-              _raw: asset,
-            });
           }
-
-          this.assets = Array.from(assetsMap.values());
-        });
+        );
       } catch (streamErr) {
-        // The stream can be cut mid-enrichment (e.g. a reverse-proxy idle
-        // timeout during the per-asset detail phase). Photos already received
-        // must not be discarded: only surface the error when nothing loaded.
+        // The stream can be cut mid-way (e.g. a reverse-proxy idle timeout on
+        // a saturated uplink). Photos already received must not be discarded:
+        // only surface the error when nothing loaded.
         if (assetsMap.size === 0) {
           throw streamErr;
         }
@@ -313,36 +303,17 @@ export class PhotosState {
 
       // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const assetsMap = new Map<string, Asset>();
-      await consumeNDJSONStream<{ phase: 'minimal' | 'full'; asset: ImmichAsset }>(
+      await consumeNDJSONStream<{ asset: ImmichAsset }>(
         res,
-        ({ phase, asset }) => {
-          if (phase === 'minimal') {
-            assetsMap.set(asset.id, {
-              ...asset,
-              date: null,
-              isFavorite: false,
-              exifInfo:
-                asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
-                  ? {
-                      exifImageWidth: asset.exifInfo.exifImageWidth,
-                      exifImageHeight: asset.exifInfo.exifImageHeight,
-                    }
-                  : null,
-              _raw: asset,
-            });
-            if (assetsMap.size === 1) {
-              this.loading = false;
-            }
-          } else if (phase === 'full') {
-            const existing = assetsMap.get(asset.id);
-            assetsMap.set(asset.id, {
-              ...asset,
-              date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-              isFavorite: existing?.isFavorite ?? false,
-              _raw: asset,
-            });
-          }
+        ({ asset }) => {
+          assetsMap.set(asset.id, streamedAsset(asset));
+        },
+        undefined,
+        () => {
           this.assets = Array.from(assetsMap.values());
+          if (assetsMap.size > 0) {
+            this.loading = false;
+          }
         }
       );
 
@@ -601,39 +572,19 @@ export class PhotosState {
       // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const assetsMap = new Map<string, Asset>();
 
-      await consumeNDJSONStream<{
-        phase: 'minimal' | 'full';
-        asset: ImmichAsset;
-      }>(res, ({ phase, asset }) => {
-        if (phase === 'minimal') {
-          assetsMap.set(asset.id, {
-            ...asset,
-            date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-            isFavorite: false,
-            exifInfo:
-              asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight
-                ? {
-                    exifImageWidth: asset.exifInfo.exifImageWidth,
-                    exifImageHeight: asset.exifInfo.exifImageHeight,
-                  }
-                : null,
-            _raw: asset,
-          });
-          if (assetsMap.size === 1) {
+      await consumeNDJSONStream<{ asset: ImmichAsset }>(
+        res,
+        ({ asset }) => {
+          assetsMap.set(asset.id, streamedAsset(asset));
+        },
+        undefined,
+        () => {
+          this.assets = Array.from(assetsMap.values());
+          if (assetsMap.size > 0) {
             this.loading = false;
           }
-        } else if (phase === 'full') {
-          const existing = assetsMap.get(asset.id);
-          assetsMap.set(asset.id, {
-            ...asset,
-            date: asset.fileCreatedAt || asset.createdAt || asset.updatedAt || null,
-            isFavorite: existing?.isFavorite ?? false,
-            _raw: asset,
-          });
         }
-
-        this.assets = Array.from(assetsMap.values());
-      });
+      );
 
       this.loading = false;
     } catch (e: unknown) {

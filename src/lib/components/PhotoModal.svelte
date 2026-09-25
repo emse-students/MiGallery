@@ -147,22 +147,13 @@
         mediaUrl = `/api/immich/assets/${id}/video/playback`;
         imageLoaded = true;
       } else {
-        let size = 'preview';
-        if (typeof window !== 'undefined') {
-          const isMobileViewport = window.innerWidth <= 768;
-          const highDPR = (window.devicePixelRatio || 1) > 1.5;
-          if (isMobileViewport || highDPR) size = 'original';
-        }
-
-        if (albumVisibility === 'unlisted' && albumId) {
-          const proxySize = size === 'original' ? 'preview' : size;
-          mediaUrl = `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=${proxySize}`;
-        } else {
-          mediaUrl =
-            size === 'original'
-              ? `/api/immich/assets/${id}/original`
-              : `/api/immich/assets/${id}/thumbnail?size=${size}`;
-        }
+        // Always open on the preview (~0.5 MB): an original weighs ~8 MB on an
+        // uplink capped around 1 MB/s. Zooming past 130% upgrades through
+        // ensureHighRes().
+        mediaUrl =
+          albumVisibility === 'unlisted' && albumId
+            ? `/api/albums/${albumId}/asset-thumbnail/${id}/thumbnail?size=preview`
+            : `/api/immich/assets/${id}/thumbnail?size=preview`;
       }
     } catch (e) {
       console.error('Asset load error:', e);

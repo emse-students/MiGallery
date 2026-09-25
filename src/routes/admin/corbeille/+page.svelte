@@ -385,7 +385,6 @@
 
             <LazyImage
               src={`/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`}
-              highRes={`/api/immich/assets/${asset.id}/thumbnail?size=preview`}
               alt={asset.originalFileName || m.common_photo()}
               isVideo={asset.type === 'VIDEO'}
             />

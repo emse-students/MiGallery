@@ -179,11 +179,6 @@
       : `/api/immich/assets/${asset.id}/thumbnail?size=thumbnail`
   );
 
-  let highResUrl = $derived(
-    albumVisibility === 'unlisted' && albumId
-      ? undefined
-      : `/api/immich/assets/${asset.id}/thumbnail?size=preview`
-  );
   let isVideo = $derived(asset.type === 'VIDEO');
 </script>
 
@@ -298,7 +293,6 @@
     <!-- Image/Video Thumbnail -->
     <LazyImage
       src={thumbnailUrl}
-      highRes={highResUrl}
       alt={fileName}
       class="photo-img-wrapper"
       aspectRatio={aspectRatioString}
