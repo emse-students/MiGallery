@@ -1,3 +1,19 @@
+# MiGallery v2.5.0
+
+**Date**: September 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Third step of the redesign: the viewer takes the whole screen, as a phone gallery does.
+
+## Viewer
+
+- Full-screen black frame, edge to edge. The bars float over the photo and fade on a tap.
+- The title is the date and time the photo was taken; the file name moved to an info panel (date, file, size, camera), opened from the title, the ⋮ menu or a swipe up. On a phone it is a bottom sheet.
+- On a phone, labelled Share and Download buttons at the bottom; Share hands the original file to the phone's share sheet. Checked on a Mi 9T.
+- The zoom buttons and the "1 / N" counter are gone; one zoom toggle stays on desktop.
+
 # MiGallery v2.4.0
 
 **Date**: September 25, 2026
