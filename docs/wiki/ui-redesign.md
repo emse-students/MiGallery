@@ -152,6 +152,16 @@ None open: #2, the last one, shipped with theme (2).
 - **Order**: the student sites Sky, Le Cercle and Canari are audited FIRST against the same bar
   (plus Material 3 / Apple HIG / WCAG 2.2), then the code starts.
 
+## The bars no longer stretch at the top of a page (2026-09-26)
+
+The user saw the bottom bar "change size" when scrolling back to the top. A 15 fps screen recording on
+the Mi 9T measured it: when a scroll overshot the top, the bar's top edge went from 2091 to 2104 device
+px and the header's from 379 to 382 - both displaced in proportion to their distance from the top.
+That is Chrome Android's overscroll STRETCH, which scales the whole page from the top, fixed bars
+included; nothing in the bars depends on the viewport. `overscroll-behavior-y: none` on `html` and
+`body` removes it (and Chrome's pull-to-refresh, which an app with a bottom bar does not offer). The
+same recording on the fix: the edge stays at 2090-2093 throughout.
+
 ## Open question from the same session
 
 - **`gallery.mitv.fr` answered Cloudflare error 1033 once, at 12:19:46 UTC (Ray `a409faa66e68078b`)**,
