@@ -23,6 +23,7 @@
   import type { OverflowMenuItem } from '$lib/overflow-menu';
   import { toast } from '$lib/toast';
   import { setAlbumCover } from '$lib/immich/albums';
+  import { FileSharer, fetchOriginal, originalFileName, probeFileSharing } from '$lib/share-files';
   import { m } from '$lib/paraglide/messages';
   import { getLocale } from '$lib/paraglide/runtime';
   import {
@@ -611,34 +612,19 @@
   let isDownloading = $state(false);
   let isSettingCover = $state(false);
 
-  /** The original's URL: an unlisted album's visitor goes through the album's own route. */
-  function originalUrl(id: string): string {
-    return albumVisibility === 'unlisted' && albumId
-      ? `/api/albums/${albumId}/asset-original/${id}`
-      : `/api/immich/assets/${id}/original`;
-  }
-
-  function fileNameOf(target: Asset): string {
-    return target.originalFileName || `photo-${target.id}.jpg`;
-  }
-
-  /** Fetches the original as a blob; throws with the HTTP status on a refusal. */
-  async function fetchOriginal(id: string): Promise<Blob> {
-    const res = await fetch(originalUrl(id));
-    if (!res.ok) throw new Error(res.statusText || String(res.status));
-    return res.blob();
-  }
+  /** Where the originals come from (`$lib/share-files`, shared with the grid's selection). */
+  let originalSource = $derived({ albumVisibility, albumId });
 
   async function downloadAsset() {
     if (!asset || isDownloading) return;
     const target = asset;
     isDownloading = true;
     try {
-      const blob = await fetchOriginal(target.id);
+      const blob = await fetchOriginal(target.id, originalSource);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileNameOf(target);
+      a.download = originalFileName(target);
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -650,44 +636,20 @@
   }
 
   /**
-   * Whether this browser can hand a photo FILE to the system share sheet (Web Share level 2).
-   * Probed once with an empty JPEG: when it cannot, the share action is not drawn at all.
+   * Whether this browser can hand a photo FILE to the system share sheet (Web Share level 2):
+   * when it cannot, the share action is not drawn at all.
    */
   let canShareFiles = $state(false);
   let isSharing = $state(false);
-  /** The original already fetched for a share whose user activation lapsed (see shareAsset). */
-  let preparedShare: { id: string; file: File } | null = null;
+  /** The ONE share implementation, which keeps a fetched file across a lapsed activation. */
+  const sharer = new FileSharer();
 
-  /**
-   * Shares the ORIGINAL file, as Google Photos does. `navigator.share` needs a live user
-   * activation, and a large original on a lossy uplink can outlast it; the browser then
-   * refuses with `NotAllowedError`. The fetched file is kept, so the second tap the toast asks
-   * for shares it at once instead of downloading it again.
-   */
+  /** Shares the ORIGINAL file, as Google Photos does (`$lib/share-files`). */
   async function shareAsset() {
     if (!asset || isSharing) return;
-    const target = asset;
     isSharing = true;
     try {
-      let file = preparedShare?.id === target.id ? preparedShare.file : null;
-      if (!file) {
-        const blob = await fetchOriginal(target.id);
-        file = new File([blob], fileNameOf(target), { type: blob.type });
-        preparedShare = { id: target.id, file };
-      }
-      await navigator.share({ files: [file] });
-      preparedShare = null;
-    } catch (e) {
-      const name = e instanceof DOMException ? e.name : '';
-      if (name === 'AbortError') {
-        console.debug('Viewer share dismissed by the user');
-      } else if (name === 'NotAllowedError' && preparedShare?.id === target.id) {
-        console.warn(`Viewer share of ${target.id}: user activation lapsed during the fetch`);
-        toast.info(m.pm_share_ready());
-      } else {
-        console.error(`Viewer share failed for ${target.id}:`, e);
-        toast.error(m.pm_share_error({ error: (e as Error).message }));
-      }
+      await sharer.share([asset], originalSource, 'Viewer');
     } finally {
       isSharing = false;
     }
@@ -709,7 +671,7 @@
     if (!asset) return lines;
     const date = formatViewerFullDate(viewerDateOf(asset), getLocale());
     if (date) lines.push({ label: m.pm_info_date(), value: date });
-    lines.push({ label: m.pm_info_file(), value: fileNameOf(asset) });
+    lines.push({ label: m.pm_info_file(), value: originalFileName(asset) });
     const size = formatFileSize(infoRaw?.exifInfo?.fileSizeInByte, getLocale());
     if (size) lines.push({ label: m.pm_info_size(), value: size });
     const camera = cameraName(infoRaw?.exifInfo?.make, infoRaw?.exifInfo?.model);
@@ -849,9 +811,7 @@
   }
 
   onMount(() => {
-    canShareFiles =
-      typeof navigator.canShare === 'function' &&
-      navigator.canShare({ files: [new File([''], 'probe.jpg', { type: 'image/jpeg' })] });
+    canShareFiles = probeFileSharing();
     console.debug(`Viewer: file sharing ${canShareFiles ? 'available' : 'unavailable'}`);
     if (portalRoot && portalRoot.parentNode !== document.body)
       document.body.appendChild(portalRoot);

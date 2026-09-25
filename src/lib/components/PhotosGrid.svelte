@@ -1,20 +1,26 @@
 <script lang="ts">
   import {
-    SquareCheck,
-    Square,
     Download,
     Trash2,
     Image as ImageIcon,
     CircleMinus,
     CircleCheck,
     Heart,
+    Share2,
+    X,
   } from '@lucide/svelte';
+  import { onMount } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
   import PhotoCard from '$lib/components/PhotoCard.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
+  import type { OverflowMenuItem } from '$lib/overflow-menu';
+  import { portal } from '$lib/portal';
+  import { FileSharer, probeFileSharing } from '$lib/share-files';
+  import { isAllSelected, selectionActions, shareTooLarge, MAX_SHARE_FILES } from '$lib/selection';
   import type { PhotosState } from '$lib/photos.svelte';
   import { groupByDay } from '$lib/photos.svelte';
   import type { User } from '$lib/types/api';
@@ -124,8 +130,7 @@
       // Local update: remove assets from view
       photosState.assets = photosState.assets.filter((a) => !ids.includes(a.id));
       photosState.assets = [...photosState.assets];
-      photosState.selectedAssets = [];
-      photosState.selecting = false;
+      photosState.exitSelection();
       toast.success(m.pg_removed_count({ count }));
     } catch (e: unknown) {
       toast.error(m.pg_remove_error({ error: (e as Error).message }));
@@ -157,8 +162,7 @@
 
       photosState.assets = photosState.assets.filter((a) => !ids.includes(a.id));
       photosState.assets = [...photosState.assets];
-      photosState.selectedAssets = [];
-      photosState.selecting = false;
+      photosState.exitSelection();
       toast.success(m.pg_trashed_count({ count }));
     } catch (e: unknown) {
       toast.error(m.delete_error_long({ error: (e as Error).message }));
@@ -234,7 +238,7 @@
 
   function handlePhotoCardClick(id: string) {
     if (photosState.selecting) {
-      photosState.handlePhotoClick(id, new Event('click'));
+      photosState.toggleInSelection(id);
     } else {
       modalAssetId = id;
       hasChanges = false;
@@ -350,74 +354,170 @@
     console.debug(
       `[PhotosGrid] day "${day.label}": ${day.ids.length} photo(s), selection ${photosState.selectedAssets.length} -> ${next.length}`
     );
-    photosState.selectedAssets = next;
-    photosState.selecting = next.length > 0;
+    photosState.selection = { active: photosState.selecting || next.length > 0, ids: next };
   }
+
+  // --- Selection mode, Google Photos style (D9 in docs/wiki/ui-redesign.md) ---
+  // The bars are drawn here, once, for every host of the grid (album, Mes photos, Photos CV):
+  // a top bar over the site header (close, count, select all) and, on a phone, a bottom bar
+  // with the SELECTION's actions. Both exist only while selecting.
+
+  let canShareFiles = $state(false);
+  let isSharing = $state(false);
+  const sharer = new FileSharer();
+
+  onMount(() => {
+    canShareFiles = probeFileSharing();
+    console.debug(`[PhotosGrid] file sharing ${canShareFiles ? 'available' : 'unavailable'}`);
+  });
+
+  let shownIds = $derived(displayedAssets.map((a) => a.id));
+  let allShownSelected = $derived(isAllSelected(photosState.selectedAssets, shownIds));
+  let actions = $derived(
+    selectionActions({
+      count: photosState.selectedAssets.length,
+      canManagePhotos,
+      inAlbum: !!albumId,
+      canShareFiles,
+      busy: photosState.isDownloading || isSharing,
+    })
+  );
+
+  /** The selection's overflow: the destructive actions, each behind its existing confirmation. */
+  let selectionMenuItems = $derived<OverflowMenuItem[]>([
+    ...(actions.remove.shown
+      ? [
+          {
+            label: m.pg_remove_from_album(),
+            icon: CircleMinus,
+            disabled: !actions.remove.enabled,
+            onSelect: () => handleRemoveFromAlbum(),
+          },
+        ]
+      : []),
+    ...(actions.delete.shown
+      ? [
+          {
+            label: m.trash_to_bin(),
+            icon: Trash2,
+            danger: true,
+            disabled: !actions.delete.enabled,
+            onSelect: () => handleDeleteSelected(),
+          },
+        ]
+      : []),
+  ]);
+
+  function exitSelection() {
+    console.debug(
+      `[PhotosGrid] leaving selection mode (${photosState.selectedAssets.length} selected)`
+    );
+    photosState.exitSelection();
+  }
+
+  /** Shares the selected originals through the viewer's own implementation. */
+  async function shareSelected() {
+    const ids = new Set(photosState.selectedAssets);
+    const chosen = displayedAssets.filter((a) => ids.has(a.id));
+    if (chosen.length === 0 || isSharing) return;
+    if (shareTooLarge(chosen.length)) {
+      console.debug(`[PhotosGrid] share refused: ${chosen.length} > ${MAX_SHARE_FILES} files`);
+      toast.info(m.pg_share_too_many({ max: MAX_SHARE_FILES }));
+      return;
+    }
+    isSharing = true;
+    try {
+      await sharer.share(chosen, { albumVisibility: visibility, albumId }, 'PhotosGrid');
+    } finally {
+      isSharing = false;
+    }
+  }
+
+  /** Escape leaves selection mode, unless a dialog or a menu consumed it first. */
+  $effect(() => {
+    if (!photosState.selecting) return;
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (document.querySelector('dialog[open]')) return;
+      exitSelection();
+    };
+    window.addEventListener('keydown', onKeydown);
+    return () => window.removeEventListener('keydown', onKeydown);
+  });
 </script>
+
+<!-- The selection's actions: the top bar's right side on a desktop, the bottom bar on a phone. -->
+{#snippet selectionActionButtons()}
+  {#if actions.share.shown}
+    <button
+      type="button"
+      class="sel-action"
+      onclick={shareSelected}
+      disabled={!actions.share.enabled}
+      title={m.pm_share()}
+    >
+      {#if isSharing}<Spinner size={20} />{:else}<Share2 size={20} />{/if}
+      <span class="label">{m.pm_share()}</span>
+    </button>
+  {/if}
+  <button
+    type="button"
+    class="sel-action"
+    onclick={handleDownloadSelectedClick}
+    disabled={!actions.download.enabled}
+    title={m.common_download()}
+  >
+    {#if photosState.isDownloading}
+      <Spinner size={20} />
+      <span class="label">
+        {photosState.downloadProgress > 0
+          ? `${Math.round(photosState.downloadProgress * 100)}%`
+          : m.pg_downloading()}
+      </span>
+    {:else}
+      <Download size={20} />
+      <span class="label">{m.common_download()}</span>
+    {/if}
+  </button>
+  {#if selectionMenuItems.length > 0}
+    <OverflowMenu items={selectionMenuItems} variant="bar" triggerClass="sel-action" />
+  {/if}
+{/snippet}
 
 <!-- Main view -->
 {#if photosState.assets.length > 0}
-  <!-- Selection toolbar -->
+  <!-- Selection mode: two bars portalled to <body>, so no page container can stack them low -->
   {#if photosState.selecting}
-    <div class="selection-toolbar">
-      <div class="selection-count">
-        <SquareCheck size={18} />
+    <div class="selection-bar" use:portal role="toolbar" aria-label={m.pg_selection_toolbar()}>
+      <button
+        type="button"
+        class="sel-close"
+        onclick={exitSelection}
+        aria-label={m.pg_selection_exit()}
+        title={m.pg_selection_exit()}
+      >
+        <X size={22} />
+      </button>
+      <span class="sel-count" aria-live="polite">
         {m.pg_selected_count({ count: photosState.selectedAssets.length })}
-      </div>
-      <div class="selection-actions">
-        <button type="button" onclick={() => photosState.selectAll()} class="btn">
-          <SquareCheck size={16} />
-          {m.pg_select_all()}
-        </button>
-        <button type="button" onclick={() => photosState.deselectAll()} class="btn">
-          <Square size={16} />
-          {m.pg_deselect_all()}
-        </button>
-        <button
-          type="button"
-          onclick={handleDownloadSelectedClick}
-          disabled={photosState.selectedAssets.length === 0}
-          class="btn primary"
-        >
-          {#if photosState.isDownloading}
-            {#if photosState.downloadProgress >= 0}
-              <Download size={16} />
-              {Math.round(photosState.downloadProgress * 100)}%
-            {:else}
-              <Spinner size={16} />
-              {m.pg_downloading()}
-            {/if}
-          {:else}
-            <Download size={16} />
-            {m.pg_download_count({ count: photosState.selectedAssets.length })}
-          {/if}
-        </button>
-        {#if canManagePhotos && albumId}
-          <button
-            type="button"
-            onclick={() => handleRemoveFromAlbum()}
-            disabled={photosState.selectedAssets.length === 0}
-            class="btn"
-            title={m.pg_remove_from_album_title()}
-          >
-            <CircleMinus size={16} />
-            {m.pg_remove_count({ count: photosState.selectedAssets.length })}
-          </button>
-        {/if}
-        {#if canManagePhotos}
-          <button
-            type="button"
-            onclick={() => handleDeleteSelected()}
-            disabled={photosState.selectedAssets.length === 0}
-            class="btn danger"
-          >
-            <Trash2 size={16} />
-            {m.pg_delete_count({ count: photosState.selectedAssets.length })}
-          </button>
-        {/if}
+      </span>
+      <button type="button" class="sel-text" onclick={() => photosState.toggleAll(shownIds)}>
+        {allShownSelected ? m.pg_deselect_all() : m.pg_select_all()}
+      </button>
+      <div class="sel-actions-top">
+        {@render selectionActionButtons()}
       </div>
     </div>
-  {:else if showCount || (showFavorites && favoriteCount > 0)}
+    <div
+      class="selection-bottom-bar"
+      use:portal
+      role="toolbar"
+      aria-label={m.pg_selection_actions()}
+    >
+      {@render selectionActionButtons()}
+    </div>
+  {/if}
+  {#if showCount || (showFavorites && favoriteCount > 0)}
     <div class="photos-header">
       {#if showCount}
         <div class="photos-count">{m.pg_photo_count({ count: displayedAssets.length })}</div>
@@ -498,6 +598,7 @@
               onDownload={() => handleDownloadSingle(a.id)}
               onDelete={() => handleDeleteAsset(a.id)}
               onSelectionToggle={(id, selected) => photosState.toggleSelect(id, selected)}
+              onLongPress={(id) => photosState.enterSelection(id)}
             />
           {/each}
         </div>
@@ -593,30 +694,99 @@
 </Modal>
 
 <style>
-  .selection-toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    margin-bottom: 2rem;
-    background: var(--bg-elevated);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border);
-  }
-
-  .selection-count {
+  /*
+   * The selection's top bar covers the site header exactly (same height, above its z-index and
+   * the mobile nav's), as Google Photos swaps its top bar. Flat: one tonal surface, no blur.
+   */
+  .selection-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1100;
+    height: var(--topbar-height);
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-weight: 600;
+    padding: 0 0.5rem;
+    padding-top: env(safe-area-inset-top);
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
     color: var(--text-primary);
   }
 
-  .selection-actions {
+  .sel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .sel-count {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .sel-text {
+    margin-left: auto;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .sel-actions-top {
     display: flex;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .selection-bar :global(.sel-action) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .selection-bar :global(.sel-action:disabled),
+  .selection-bottom-bar :global(.sel-action:disabled) {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .sel-close:hover,
+    .sel-text:hover,
+    .selection-bar :global(.sel-action:not(:disabled):hover) {
+      background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    }
+  }
+
+  /* The phone's bottom bar: the selection's labelled actions, in place of the page's own bar. */
+  .selection-bottom-bar {
+    display: none;
   }
 
   .photos-header {
@@ -761,20 +931,50 @@
       padding: 0 1rem;
     }
 
-    .selection-toolbar {
+    /* On a phone the actions leave the top bar for the bottom one (display: none drops the
+       duplicate from the accessibility tree too). */
+    .sel-actions-top {
+      display: none;
+    }
+
+    .selection-bottom-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1100;
+      display: flex;
+      justify-content: space-around;
+      gap: 0.25rem;
+      padding: 0.5rem;
+      padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+      background: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+    }
+
+    .selection-bottom-bar :global(.sel-action) {
+      flex: 1 1 0;
+      min-width: 0;
+      display: inline-flex;
       flex-direction: column;
-      gap: 0.75rem;
-      padding: 0.75rem;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 0;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-secondary);
+      font: inherit;
+      font-size: 0.7rem;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
     }
 
-    .selection-actions {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .selection-actions .btn {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.75rem;
+    /* The overflow has no label: it takes its icon's width, the labelled actions share the rest. */
+    .selection-bottom-bar :global(.overflow-trigger.sel-action) {
+      flex: 0 0 auto;
+      padding: 0.5rem 1rem;
     }
 
     .day-label {

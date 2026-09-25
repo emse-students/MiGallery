@@ -5,6 +5,14 @@ import { consumeNDJSONStream } from '$lib/streaming';
 import { showConfirm } from '$lib/confirm';
 import { toast } from '$lib/toast';
 import { m } from '$lib/paraglide/messages';
+import {
+  enterSelection,
+  exitSelection,
+  setInSelection,
+  toggleAllInSelection,
+  toggleInSelection,
+  type Selection,
+} from '$lib/selection';
 
 export type Asset = {
   id: string;
@@ -451,39 +459,38 @@ export class PhotosState {
     }
   }
 
+  /** The selection as one value, for the pure transitions of `$lib/selection`. */
+  get selection(): Selection {
+    return { active: this.#selecting, ids: this.#selectedAssets };
+  }
+  set selection(value: Selection) {
+    this.#selecting = value.active;
+    this.#selectedAssets = value.ids;
+  }
+
+  /** Enters selection mode, with `id` already picked when a long-press started it. */
+  enterSelection(id?: string) {
+    this.selection = enterSelection(this.selection, id);
+  }
+
+  /** Leaves selection mode; the selection is cleared with it. */
+  exitSelection() {
+    this.selection = exitSelection();
+  }
+
+  /** Sets one tile's state explicitly (the desktop hover check). */
   toggleSelect(id: string, checked: boolean) {
-    if (checked) {
-      if (!this.selectedAssets.includes(id)) {
-        this.selectedAssets = [...this.selectedAssets, id];
-        this.selecting = true;
-      }
-    } else {
-      this.selectedAssets = this.selectedAssets.filter((x) => x !== id);
-      if (this.selectedAssets.length === 0) {
-        this.selecting = false;
-      }
-    }
+    this.selection = setInSelection(this.selection, id, checked);
   }
 
-  handlePhotoClick(id: string, event: Event) {
-    if (this.selecting) {
-      event.preventDefault();
-      const isSelected = this.selectedAssets.includes(id);
-      this.toggleSelect(id, !isSelected);
-    } else {
-      import('$app/navigation').then(({ goto }) => {
-        goto(`/asset/${id}`);
-      });
-    }
+  /** A tap on a tile while selecting: picks it or un-picks it; the mode stays on. */
+  toggleInSelection(id: string) {
+    this.selection = toggleInSelection(this.selection, id);
   }
 
-  selectAll() {
-    this.selectedAssets = [...this.assets].map((a) => a.id);
-  }
-
-  deselectAll() {
-    this.selectedAssets = [];
-    this.selecting = false;
+  /** "Tout sélectionner": every id SHOWN, or none of them when all already are. */
+  toggleAll(shownIds: readonly string[]) {
+    this.selection = toggleAllInSelection(this.selection, shownIds);
   }
 
   async downloadSingle(id: string) {
@@ -533,8 +540,7 @@ export class PhotosState {
         },
         signal: controller.signal,
       });
-      this.selectedAssets = [];
-      this.selecting = false;
+      this.exitSelection();
     } catch (e: unknown) {
       const err = e as { name?: string; message?: string };
       if (err.name !== 'AbortError') {

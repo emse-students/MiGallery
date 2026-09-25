@@ -4,7 +4,6 @@
   import { goto } from '$app/navigation';
   import { fade, fly } from 'svelte/transition';
   import {
-    Check,
     CircleCheckBig,
     Pencil,
     Trash2,
@@ -30,7 +29,7 @@
   import { toast } from '$lib/toast';
   import { showConfirm } from '$lib/confirm';
   import { handleAlbumUpload } from '$lib/album-operations';
-  import { downloadInBatches } from '$lib/immich/download';
+  import { archiveCount, downloadInBatches } from '$lib/immich/download';
   import { activeOperations } from '$lib/operations';
   import { navigationModalStore } from '$lib/navigation-store';
   import { albumsView } from '$lib/albums-view-state.svelte';
@@ -90,10 +89,21 @@
     }
   });
 
+  /**
+   * The album-level download: every photo, as ZIP archives of 200. The confirmation says how
+   * many photos and how many archives in plain words; it cannot say the size, which the grid
+   * stream does not carry (one metadata request per photo would be the price, see bandwidth).
+   */
   async function downloadAll() {
+    const count = photosState.assets.length;
+    const archives = archiveCount(count);
+    console.debug(`[album] download all: ${count} photo(s) in ${archives} archive(s)`);
     const ok = await showConfirm(
-      m.albumd_download_confirm({ count: photosState.assets.length }),
-      m.albumd_download_zip()
+      archives > 1
+        ? m.albumd_download_body_archives({ archives })
+        : m.albumd_download_body_one_archive(),
+      count === 1 ? m.albumd_download_title_one() : m.albumd_download_title({ count }),
+      m.common_download()
     );
     if (!ok) return;
 
@@ -250,20 +260,16 @@
       {/if}
     </button>
 
-    {#if canManagePhotos && photosState.assets.length > 0}
+    <!-- Every viewer may select: the selection's own actions carry their rights (D9). -->
+    {#if photosState.assets.length > 0}
       <button
         type="button"
-        onclick={() => (photosState.selecting = !photosState.selecting)}
-        class="btn {photosState.selecting ? 'active' : ''}"
-        aria-pressed={photosState.selecting}
-        title={photosState.selecting ? m.albumd_select_finish() : m.albumd_select()}
+        onclick={() => photosState.enterSelection()}
+        class="btn"
+        title={m.albumd_select()}
       >
-        {#if photosState.selecting}
-          <Check size={18} />
-        {:else}
-          <CircleCheckBig size={18} />
-        {/if}
-        <span class="label">{photosState.selecting ? m.common_ok() : m.albumd_select()}</span>
+        <CircleCheckBig size={18} />
+        <span class="label">{m.albumd_select()}</span>
       </button>
     {/if}
 
@@ -299,7 +305,13 @@
         </div>
       </div>
 
-      <div class="header-toolbar">
+      <!-- While selecting, the selection's bars own the actions: the album's are inert and
+           invisible, but keep their room so the grid does not jump. -->
+      <div
+        class="header-toolbar"
+        class:selecting={photosState.selecting}
+        inert={photosState.selecting}
+      >
         {@render actionButtons(false)}
       </div>
     </header>
@@ -337,10 +349,12 @@
     {/if}
   </div>
 
-  <!-- Mobile action bar (sticky bottom) -->
-  <div class="mobile-bar">
-    {@render actionButtons(true)}
-  </div>
+  <!-- Mobile action bar (sticky bottom); the selection's own bar replaces it while selecting -->
+  {#if !photosState.selecting}
+    <div class="mobile-bar">
+      {@render actionButtons(true)}
+    </div>
+  {/if}
 
   <!-- Modals -->
   {#if showAlbumModal && page.params.id}
@@ -414,6 +428,9 @@
     margin-bottom: 2rem;
     position: relative;
     z-index: 1;
+  }
+  .header-toolbar.selecting {
+    visibility: hidden;
   }
   .title-wrapper h1 {
     margin: 0;
@@ -509,10 +526,6 @@
       border: none;
       color: var(--text-secondary);
       box-shadow: none;
-    }
-    .actions-group.mobile .btn.active {
-      color: var(--accent);
-      background: var(--accent-light);
     }
     .actions-group.mobile .label {
       white-space: nowrap;

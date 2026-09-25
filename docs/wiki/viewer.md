@@ -38,7 +38,9 @@ there and nowhere else, as before - nothing was invented for albums.
 buttons (zoom -, 100 %, zoom +, reset) are gone; the one remaining icon toggles 1x / 2.5x on the
 centre through the double-tap maths and is hidden on touch screens.
 
-**Share** hands the ORIGINAL file to the system share sheet (Web Share level 2), probed once with
+**Share** hands the ORIGINAL file to the system share sheet (Web Share level 2), through
+`src/lib/share-files.ts` - the ONE implementation, which the grid's selection Share also uses
+([photo-grid](photo-grid.md#selection-mode-d9)) - probed once with
 `navigator.canShare({ files })`; where that answers false the action is not drawn. `navigator.share`
 needs a live user activation (about 5 s in Chrome), and an 8 MB original on the lossy uplink can
 outlast it: the browser then refuses with `NotAllowedError`. The fetched file is kept and a toast
@@ -120,7 +122,8 @@ viewer.
 
 On a photo tile the menu, the selection check and the favourite button appear on hover only
 under `@media (hover: hover) and (pointer: fine)`: a touch screen keeps a sticky `:hover` on the
-last tile tapped. Touch devices use the long-press sheet instead, whatever their width.
+last tile tapped. Touch devices long-press a tile into selection mode instead, whatever their
+width ([photo-grid](photo-grid.md#selection-mode-d9)); the long-press sheet is deleted.
 
 ## Owed a device check
 
