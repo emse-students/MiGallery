@@ -177,7 +177,9 @@
   <title>{m.mp_page_title()}</title>
 </svelte:head>
 
-<main class="mesphotos-main">
+<!-- A div, not a <main>: the layout's <main> is the page's landmark, and the global `main {}`
+     rule would pad this one a second time (ui-redesign #10). -->
+<div class="mesphotos-main">
   <BackgroundBlobs />
 
   {#if accessDenied}
@@ -264,7 +266,7 @@
       onClose={closeChangePhotoModal}
     />
   {/if}
-</main>
+</div>
 
 <style>
   .mesphotos-main {
