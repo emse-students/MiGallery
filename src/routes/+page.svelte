@@ -39,7 +39,14 @@
   <div class="content-wrapper" in:fade={{ duration: 800 }}>
     <header class="header">
       <div class="logo-container">
-        <img src="/icon.png" alt="MiGallery Logo" class="logo" fetchpriority="high" />
+        <img
+          src="/logo.webp"
+          alt="MiGallery Logo"
+          class="logo"
+          width="256"
+          height="256"
+          fetchpriority="high"
+        />
       </div>
       <h1>MiGallery</h1>
       <p class="tagline">by MiTV</p>

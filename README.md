@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="static/MiGallery2.png" alt="MiGallery Logo" width="200"/>
+  <img src="static/logo-512.png" alt="MiGallery Logo" width="200"/>
 
 # MiGallery
 

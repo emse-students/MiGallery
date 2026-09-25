@@ -50,9 +50,21 @@ export interface SeoMeta {
   imageType?: string;
 }
 
+/**
+ * The preview image every page without its own falls back to: the logo on a light 1200x630 card,
+ * a JPEG because not every unfurler reads WebP. Its size is declared because it is KNOWN - the test
+ * reads the file and holds these numbers to it.
+ */
+export const DEFAULT_IMAGE = {
+  path: '/og-image.jpg',
+  width: 1200,
+  height: 630,
+  type: 'image/jpeg',
+} as const;
+
 /** Absolute URL of the default preview image, from a request origin. */
 export function defaultImage(origin: string): string {
-  return `${origin}/MiGallery.png`;
+  return `${origin}${DEFAULT_IMAGE.path}`;
 }
 
 /** Absolute URL for a path, from a request origin. Query and hash are deliberately dropped. */

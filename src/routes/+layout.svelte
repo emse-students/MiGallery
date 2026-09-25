@@ -88,7 +88,6 @@
 </script>
 
 <svelte:head>
-  <link rel="icon" type="image/png" sizes="32x32" href="/icon.png" />
   <meta name="theme-color" content="#3b82f6" />
 </svelte:head>
 
@@ -102,7 +101,14 @@
 
 <nav class="topbar" class:album-page={isAlbumPage}>
   <div class="brand">
-    <img src="/icon.png" alt="MiGallery" class="logo" fetchpriority="high" />
+    <img
+      src="/logo.webp"
+      alt="MiGallery"
+      class="logo"
+      width="256"
+      height="256"
+      fetchpriority="high"
+    />
     <a href="/">MiGallery</a>
   </div>
 

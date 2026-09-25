@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { canonicalUrl, defaultImage, siteSeo } from '$lib/seo';
+import sharp from 'sharp';
+import { canonicalUrl, DEFAULT_IMAGE, defaultImage, siteSeo } from '$lib/seo';
 
 /**
  * MiGallery refuses every crawler (`static/robots.txt`), so none of this is about search results.
@@ -14,7 +15,7 @@ import { canonicalUrl, defaultImage, siteSeo } from '$lib/seo';
 
 describe('absolute URLs', () => {
   it('builds the fallback image and the canonical from the request origin', () => {
-    expect(defaultImage('https://gallery.mitv.fr')).toBe('https://gallery.mitv.fr/MiGallery.png');
+    expect(defaultImage('https://gallery.mitv.fr')).toBe('https://gallery.mitv.fr/og-image.jpg');
     expect(canonicalUrl('http://localhost:5173', '/albums/42')).toBe(
       'http://localhost:5173/albums/42'
     );
@@ -46,5 +47,14 @@ describe('siteSeo', () => {
     expect(seo.imageWidth).toBeUndefined();
     expect(seo.imageHeight).toBeUndefined();
     expect(seo.imageType).toBeUndefined();
+  });
+});
+
+describe('DEFAULT_IMAGE', () => {
+  it('declares the size and type the file in static/ actually has', async () => {
+    const meta = await sharp(`static${DEFAULT_IMAGE.path}`).metadata();
+    expect(meta.width).toBe(DEFAULT_IMAGE.width);
+    expect(meta.height).toBe(DEFAULT_IMAGE.height);
+    expect(`image/${meta.format}`).toBe(DEFAULT_IMAGE.type);
   });
 });
