@@ -1,3 +1,17 @@
+# MiGallery v2.6.0
+
+**Date**: September 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Fourth step of the redesign: an album opens on its photos, laid out as a phone gallery does.
+
+## Album
+
+- The first screen of an album is its photos: the upload panel left the page, and the album actions (add, share, download, select) sit in one labelled bar at the bottom on a phone.
+- The grid runs edge to edge in justified rows, each photo at its own proportions, grouped under day headings, and only what is on screen is rendered, so a 700-photo album scrolls smoothly. Checked on a Mi 9T.
+
 # MiGallery v2.5.0
 
 **Date**: September 25, 2026
