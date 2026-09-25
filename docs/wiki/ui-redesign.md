@@ -180,3 +180,15 @@ in each (a readyState-`interactive` snapshot of the server HTML against the hydr
 from ONE `{ seed, at }` the root layout picks and SvelteKit serializes into the page; the greeting reads
 it on the Paris clock, and midnight to 5 a.m. has its own lines ("Encore debout, X ?"), the variant
 chosen by the day. Same snapshot after: identical blobs, identical heading.
+
+## The albums list copies Google Photos (2026-09-26)
+
+Rows #5 and #6. Measured on the Mi 9T app: the title with a magnifier and a `+` on one row, two
+columns of square covers at 16dp margins and gap, the title BELOW the cover on up to two lines, no
+menu and no mark on a card. So: the standing search field and the filled "Créer un album" button are
+two icon buttons (the field opens on demand); the caption left the gradient over the cover, which cut
+every long title to one line; the per-card overflow menu is gone because download and delete are in
+the album's own menu; a visibility mark shows only for the exceptions (private, unlisted), to the
+people who can set them. School years stay as small folding headings - with 300 albums they are what
+keeps the page short - but the month headings under them went: Google Photos puts none between tiles.
+Measured at 393px: 16px margins, 173px tiles, no horizontal scroll.
