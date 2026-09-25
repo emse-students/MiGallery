@@ -80,8 +80,9 @@ None open: #2, the last one, shipped with theme (2).
   (2) album page #2 #12 #13, (3) grid and thumbnails #7 #8 #14 #24 + D1, (4) navigation and layout
   #9 #10 #16 #17, (5) album list #5 #6 #15, (6) viewer #11, (7) settings, accessibility and manifest
   #18-#23.
-  **(3) is shipped**: the Google Photos grid - justified rows (target 300 px desktop, 140 px
-  phone), edge to edge with 2 px gaps on a phone, the 400 px width cap gone, a select-all check on
+  **(3) is shipped**: the Google Photos grid - justified rows (target 300 px desktop; on the
+  phone 90 px, three landscape photos a row, and a pinch between 2, 3 and 4 a row - see
+  [photo-grid](photo-grid.md#density-and-the-pinch)), edge to edge with 2 px gaps on a phone, the 400 px width cap gone, a select-all check on
   each day header, and the rows virtualised: Gala (707 photos) went from 7339 DOM nodes to 446 at
   1440x900. The maths, the metrics and every measurement are on [photo-grid](photo-grid.md).
   **(2) is shipped**: an album's first screen is photos. The upload box left the flow -

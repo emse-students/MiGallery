@@ -69,6 +69,11 @@
   let longPressFired = false;
 
   function handleTouchStart(e: TouchEvent) {
+    // A second finger is a pinch (the grid's density), never a long-press.
+    if (e.touches.length > 1) {
+      handleTouchCancel();
+      return;
+    }
     if ((e.target as HTMLElement).closest('button')) return;
     longPressFired = false;
     longPressTimer = setTimeout(() => {

@@ -9,7 +9,7 @@
     Share2,
     X,
   } from '@lucide/svelte';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
   import PhotoCard from '$lib/components/PhotoCard.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
@@ -36,6 +36,12 @@
     visibleBlockRange,
   } from '$lib/photo-grid-layout';
   import { daySelectionState, toggleDaySelection } from '$lib/day-selection';
+  import {
+    PHONE_DENSITY_STEPS,
+    densityAfterPinch,
+    loadDensity,
+    saveDensity,
+  } from '$lib/grid-density';
 
   interface Props {
     state: PhotosState;
@@ -284,7 +290,20 @@
   // DOM, so a 700-photo album renders a few dozen tiles instead of all of them.
 
   const phoneQuery = new MediaQuery(`max-width: ${PHONE_MAX_WIDTH}px`);
-  let metrics = $derived(phoneQuery.current ? GRID_METRICS.phone : GRID_METRICS.desktop);
+
+  /** The phone density step (`$lib/grid-density`), remembered per browser; a pinch moves it. */
+  let phoneDensity = $state(
+    loadDensity(typeof localStorage === 'undefined' ? undefined : localStorage)
+  );
+
+  let metrics = $derived(
+    phoneQuery.current
+      ? {
+          ...GRID_METRICS.phone,
+          targetRowHeight: PHONE_DENSITY_STEPS[phoneDensity].targetRowHeight,
+        }
+      : GRID_METRICS.desktop
+  );
 
   let gridElement = $state<HTMLDivElement | null>(null);
   let gridWidth = $state(0);
@@ -343,6 +362,89 @@
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
       if (frame) cancelAnimationFrame(frame);
+    };
+  });
+
+  // --- Pinch to change density (phone metrics only) ---
+  // The grid carries `touch-action: pan-y` on a phone, so the browser neither zooms the page
+  // nor scrolls sideways there: the listeners stay PASSIVE and never delay a scroll. One step
+  // per `PINCH_STEP_RATIO` of finger distance; the baseline resets after each step, so a long
+  // spread walks the whole scale. The photo under the fingers stays under them.
+
+  let pinch: { distance: number; midY: number } | null = null;
+
+  function fingerDistance(touches: TouchList): number {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    );
+  }
+
+  /** The asset whose tile is under viewport point y (the pinch midpoint), with its offset. */
+  function anchorAt(clientY: number): { id: string; offset: number } | null {
+    if (!gridElement) return null;
+    const gridTop = gridElement.getBoundingClientRect().top;
+    const y = clientY - gridTop;
+    const block = layout.blocks.find((b) => b.kind === 'row' && b.y <= y && y <= b.y + b.height);
+    if (!block || block.kind !== 'row') return null;
+    const id = days[block.day]?.ids[block.row.tiles[0].index];
+    return id ? { id, offset: clientY - (gridTop + block.y) } : null;
+  }
+
+  /** Scrolls so the anchor's row sits where it was, after the re-layout. */
+  function restoreAnchor(anchor: { id: string; offset: number }, clientY: number) {
+    if (!gridElement) return;
+    const block = layout.blocks.find(
+      (b) => b.kind === 'row' && b.row.tiles.some((t) => days[b.day]?.ids[t.index] === anchor.id)
+    );
+    if (!block) return;
+    const gridTop = gridElement.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({ top: gridTop + block.y - (clientY - Math.min(anchor.offset, block.height)) });
+  }
+
+  async function stepDensity(next: number, midY: number) {
+    if (next === phoneDensity) return;
+    const anchor = anchorAt(midY);
+    console.debug(`[PhotosGrid] pinch: phone density ${phoneDensity} -> ${next}`);
+    phoneDensity = next;
+    saveDensity(typeof localStorage === 'undefined' ? undefined : localStorage, next);
+    await tick();
+    if (anchor) restoreAnchor(anchor, midY);
+  }
+
+  $effect(() => {
+    const el = gridElement;
+    if (!el || !phoneQuery.current) return;
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinch = {
+          distance: fingerDistance(e.touches),
+          midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        };
+      } else pinch = null;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!pinch || e.touches.length !== 2 || pinch.distance <= 0) return;
+      const distance = fingerDistance(e.touches);
+      const next = densityAfterPinch(phoneDensity, distance / pinch.distance);
+      if (next !== phoneDensity) {
+        pinch = { distance, midY: pinch.midY };
+        void stepDensity(next, pinch.midY);
+      }
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+      pinch = null;
     };
   });
 
@@ -925,6 +1027,8 @@
     .photos-grid {
       width: 100vw;
       margin-left: calc(50% - 50vw);
+      /* A pinch here changes the density, not the page zoom; vertical scrolling stays native. */
+      touch-action: pan-y;
     }
 
     .day-header {
