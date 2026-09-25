@@ -5,31 +5,21 @@
     Plus,
     Image as ImageIcon,
     Search,
-    Download,
-    Trash2,
+    X,
     Lock,
     Link as LinkIcon,
-    Eye,
     ChevronRight,
   } from '@lucide/svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import LazyImage from '$lib/components/LazyImage.svelte';
   import AlbumModal from '$lib/components/AlbumModal.svelte';
-  import Modal from '$lib/components/Modal.svelte';
-  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
-  import type { OverflowMenuItem } from '$lib/overflow-menu';
-  import { showConfirm } from '$lib/confirm';
   import { m } from '$lib/paraglide/messages';
   import { getLocale } from '$lib/paraglide/runtime';
-  import { toast } from '$lib/toast';
   import { fuzzyMatch } from '$lib/fuzzy';
-  import { clientCache } from '$lib/client-cache';
   import { albumsView } from '$lib/albums-view-state.svelte';
-  import type { User, Album, ImmichAsset } from '$lib/types/api';
-  import { downloadInBatches } from '$lib/immich/download';
-  import { onDestroy, onMount } from 'svelte';
+  import type { User, Album } from '$lib/types/api';
+  import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
 
   /**
@@ -41,14 +31,12 @@
 
   // Derived, not filled from an $effect: the grid must have its full height on
   // the very first paint, or a restored scroll offset lands on a short page.
-  // Deletion reassigns it, which holds until the server data changes.
-  let albums = $derived((page.data?.albums as Album[] | undefined) ?? []);
+  const albums = $derived((page.data?.albums as Album[] | undefined) ?? []);
   let showAlbumModal = $state(false);
 
   // FILTERED, not ranked, and that is the one surface where it is the right answer: the grid
-  // buckets by school year and then by month and shows every match, so there is no truncation for
-  // a relevance order to rescue - reordering here would only scramble the chronology inside a
-  // month. `fuzzyMatch` still carries the typo and word-inversion tolerance; only the sort is
+  // buckets by school year and shows every match, so there is no truncation for a relevance order
+  // to rescue - reordering here would only scramble the chronology inside a year. `fuzzyMatch` still carries the typo and word-inversion tolerance; only the sort is
   // declined. Every list that TRUNCATES uses `fuzzySearch` instead (see docs/wiki/search.md).
   let filteredAlbums = $derived(
     albumsView.search.trim()
@@ -56,24 +44,8 @@
       : albums
   );
 
-  let showConfirmModal = $state(false);
-  let confirmModalConfig = $state<{
-    title: string;
-    message: string;
-    confirmText?: string;
-    onConfirm: () => void;
-  } | null>(null);
-
   let userRole = $derived((page.data.session?.user as User)?.role || 'user');
   let canCreateAlbum = $derived(userRole === 'mitviste' || userRole === 'admin');
-
-  function monthLabelFor(dateStr?: string | null) {
-    if (!dateStr) return m.albums_no_date();
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return m.albums_no_date();
-    const label = d.toLocaleString(getLocale(), { month: 'long', year: 'numeric' });
-    return label.charAt(0).toUpperCase() + label.slice(1);
-  }
 
   /** Start year of the school year an album belongs to; null when undated. */
   function schoolYearOf(dateStr?: string | null): number | null {
@@ -91,14 +63,14 @@
   interface SchoolYearGroup {
     key: string;
     label: string;
-    count: number;
-    months: Array<{ label: string; albums: Album[] }>;
+    albums: Album[];
   }
 
   /**
-   * Albums bucketed by school year (newest first, undated last), each keeping
-   * the month sub-grouping inside. Only expanded groups are rendered, which is
-   * what keeps a 300-album gallery to one short page.
+   * Albums bucketed by school year (newest first, undated last). Only expanded groups are rendered,
+   * which is what keeps a 300-album gallery to one short page. There is no month level under it any
+   * more: Google Photos puts no heading between album tiles at all, and a month heading over two or
+   * three tiles was most of what made the page read as a document rather than a gallery.
    */
   let schoolYearGroups = $derived.by<SchoolYearGroup[]>(() => {
     // eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -119,26 +91,11 @@
       return b - a;
     });
 
-    return years.map((year) => {
-      const list = byYear.get(year) as Album[];
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity
-      const months = new Map<string, Album[]>();
-      for (const a of list) {
-        const label = monthLabelFor(a.date);
-        const bucket = months.get(label);
-        if (bucket) {
-          bucket.push(a);
-        } else {
-          months.set(label, [a]);
-        }
-      }
-      return {
-        key: year === null ? 'undated' : String(year),
-        label: year === null ? m.albums_no_date() : `${year}-${year + 1}`,
-        count: list.length,
-        months: Array.from(months, ([label, albums]) => ({ label, albums })),
-      };
-    });
+    return years.map((year) => ({
+      key: year === null ? 'undated' : String(year),
+      label: year === null ? m.albums_no_date() : `${year}-${year + 1}`,
+      albums: byYear.get(year) as Album[],
+    }));
   });
 
   // Only the newest school year opens by default; a search opens everything
@@ -186,120 +143,31 @@
   // Albums whose cover failed to load (typically an album with no photo yet).
   let coverErrors = $state<Record<string, boolean>>({});
 
-  let downloadingAlbumId = $state<string | null>(null);
-  let downloadingProgress = $state<Record<string, number>>({});
-  let currentDownloadController: AbortController | null = null;
-
-  function getVisibilityIcon(visibility?: string): string {
-    if (!visibility || visibility === 'private') return 'lock';
-    if (visibility === 'unlisted') return 'link';
-    if (visibility === 'authenticated') return 'eye';
-    return 'eye';
+  /**
+   * The one visibility worth a mark on a card: the exceptions, to the people who set them. Every
+   * member sees `authenticated` albums, so marking those put a lock-ish glyph on every card - Google
+   * Photos marks nothing on a card, and download and delete live inside the album (its menu).
+   */
+  function visibilityMark(a: Album): 'private' | 'unlisted' | null {
+    if (!canCreateAlbum) return null;
+    if (a.visibility === 'private' || a.visibility === 'unlisted') return a.visibility;
+    return null;
   }
 
-  function getVisibilityLabel(visibility?: string): string {
-    if (visibility === 'unlisted') return m.albums_visibility_unlisted();
-    if (visibility === 'authenticated') return m.albums_visibility_authenticated();
-    return m.albums_visibility_private();
+  // The search is a magnifier in the header, opened on demand (Google Photos), not a standing field;
+  // a return trip with a query finds it open.
+  let searchOpen = $state(albumsView.search.trim().length > 0);
+  let searchInput = $state<HTMLInputElement | null>(null);
+
+  function openSearch() {
+    searchOpen = true;
+    requestAnimationFrame(() => searchInput?.focus());
   }
 
-  async function downloadAlbumAssets(immichId: string, albumName?: string) {
-    const ok = await showConfirm(
-      m.albums_download_confirm({ name: albumName || immichId }),
-      m.albums_download()
-    );
-    if (!ok) return;
-    downloadingAlbumId = immichId;
-    downloadingProgress = { ...downloadingProgress, [immichId]: 0 };
-
-    if (currentDownloadController) {
-      try {
-        currentDownloadController.abort();
-      } catch (e) {}
-      currentDownloadController = null;
-    }
-    const controller = new AbortController();
-    currentDownloadController = controller;
-
-    try {
-      const res = await fetch(`/api/albums/${immichId}`);
-      if (!res.ok) throw new Error(m.albums_assets_error());
-      const data = (await res.json()) as { assets: ImmichAsset[] };
-      const list: ImmichAsset[] = Array.isArray(data?.assets) ? data.assets : [];
-      const assetIds = list.map((x) => x.id).filter(Boolean);
-      if (assetIds.length === 0) {
-        toast.info(m.albums_download_empty());
-        return;
-      }
-      await downloadInBatches(assetIds, albumName || immichId, {
-        onProgress: (p) => {
-          downloadingProgress = { ...downloadingProgress, [immichId]: p };
-        },
-        signal: controller.signal,
-      });
-    } catch (e: unknown) {
-      if ((e as Error).name !== 'AbortError') {
-        toast.error(m.albums_download_error({ error: (e as Error).message }));
-      }
-    } finally {
-      const copy = { ...downloadingProgress };
-      delete copy[immichId];
-      downloadingProgress = copy;
-      downloadingAlbumId = null;
-      if (currentDownloadController === controller) currentDownloadController = null;
-    }
+  function closeSearch() {
+    albumsView.search = '';
+    searchOpen = false;
   }
-
-  async function deleteAlbum(immichId: string, albumName?: string) {
-    confirmModalConfig = {
-      title: m.albums_delete_title(),
-      message: m.albums_delete_message({ name: albumName || immichId }),
-      confirmText: m.common_delete(),
-      onConfirm: async () => {
-        showConfirmModal = false;
-        try {
-          const res = await fetch(`/api/albums/${immichId}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error((await res.text()) || m.albums_delete_failed());
-          await clientCache.delete('albums', immichId);
-          albums = albums.filter((a) => a.id !== immichId);
-          toast.success(m.albums_deleted());
-        } catch (e: unknown) {
-          toast.error(m.albums_delete_error({ error: (e as Error).message }));
-        }
-      },
-    };
-    showConfirmModal = true;
-  }
-
-  /** A card's overflow menu: delete is never a one-tap icon on a card (decision D4). */
-  function albumMenuItems(a: Album): OverflowMenuItem[] {
-    const items: OverflowMenuItem[] = [
-      {
-        label: m.albums_download_zip(),
-        icon: Download,
-        disabled: downloadingAlbumId === a.id,
-        onSelect: () => downloadAlbumAssets(a.id, a.name),
-      },
-    ];
-    if (canCreateAlbum) {
-      items.push({
-        label: m.common_delete(),
-        icon: Trash2,
-        danger: true,
-        onSelect: () => deleteAlbum(a.id, a.name),
-      });
-    }
-    return items;
-  }
-
-  onDestroy(() => {
-    if (currentDownloadController) {
-      try {
-        currentDownloadController.abort();
-      } catch (e) {}
-      currentDownloadController = null;
-    }
-  });
 
   async function handleAlbumCreated(newAlbumId?: string) {
     if (newAlbumId) {
@@ -318,34 +186,64 @@
   <title>{m.albums_page_title()}</title>
 </svelte:head>
 
-<main class="albums-main">
+<!-- A div, not a <main>: the layout's <main> is the page's landmark, and the global `main {}`
+     rule would pad this one a second time (ui-redesign #10). -->
+<div class="albums-main">
   <BackgroundBlobs />
 
   <div class="albums-container">
+    <!-- Measured on Google Photos (Mi 9T app, web): the title and two icon buttons on ONE row - no
+         standing search field, no filled "create" button. -->
     <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
-      <div class="header-content">
-        <h1>{m.nav_albums()}</h1>
-        <p class="subtitle">{m.albums_subtitle()}</p>
+      <h1>{m.nav_albums()}</h1>
+      <div class="header-actions">
+        <button
+          type="button"
+          class="header-icon"
+          class:active={searchOpen}
+          onclick={() => (searchOpen ? closeSearch() : openSearch())}
+          aria-label={m.albums_search_aria()}
+          aria-expanded={searchOpen}
+          title={m.albums_search_aria()}
+        >
+          <Search size={22} />
+        </button>
+        {#if canCreateAlbum}
+          <button
+            type="button"
+            class="header-icon"
+            onclick={() => (showAlbumModal = true)}
+            aria-label={m.albums_create()}
+            title={m.albums_create()}
+          >
+            <Plus size={24} />
+          </button>
+        {/if}
       </div>
+    </header>
 
-      <div class="header-search">
+    {#if searchOpen}
+      <div class="search-row" transition:fade={{ duration: 150 }}>
+        <Search size={18} />
         <input
+          bind:this={searchInput}
           class="search-input"
           placeholder={m.albums_search_placeholder()}
           bind:value={albumsView.search}
           aria-label={m.albums_search_aria()}
+          onkeydown={(e) => e.key === 'Escape' && closeSearch()}
         />
+        <button
+          type="button"
+          class="search-clear"
+          onclick={closeSearch}
+          aria-label={m.albums_search_close()}
+          title={m.albums_search_close()}
+        >
+          <X size={18} />
+        </button>
       </div>
-
-      {#if canCreateAlbum}
-        <div class="header-actions">
-          <button type="button" class="btn primary" onclick={() => (showAlbumModal = true)}>
-            <Plus size={18} />
-            <span>{m.albums_create()}</span>
-          </button>
-        </div>
-      {/if}
-    </header>
+    {/if}
 
     {#if albums.length === 0}
       <div in:fade>
@@ -356,126 +254,78 @@
         <EmptyState icon={Search} title={m.albums_no_match()} />
       </div>
     {:else}
-      <div class="albums-timeline">
-        {#each schoolYearGroups as group, groupIndex (group.key)}
-          {@const expanded = isExpanded(group.key, groupIndex)}
-          <section class="year-group">
-            <button
-              type="button"
-              class="year-header"
-              aria-expanded={expanded}
-              onclick={() => toggleYear(group.key, groupIndex)}
-            >
-              <span class="year-chevron" class:open={expanded}><ChevronRight size={20} /></span>
-              <h2 class="year-title">{group.label}</h2>
-              <span class="year-badge">{group.count}</span>
-              <div class="divider"></div>
-            </button>
+      {#each schoolYearGroups as group, groupIndex (group.key)}
+        {@const expanded = isExpanded(group.key, groupIndex)}
+        <section class="year-group">
+          <button
+            type="button"
+            class="year-header"
+            aria-expanded={expanded}
+            onclick={() => toggleYear(group.key, groupIndex)}
+          >
+            <h2 class="year-title">{group.label}</h2>
+            <span class="year-count">{group.albums.length}</span>
+            <span class="year-chevron" class:open={expanded}><ChevronRight size={18} /></span>
+          </button>
 
-            {#if expanded}
-              <div class="year-body">
-                {#each group.months as month (month.label)}
-                  <div class="month-group">
-                    <div class="month-header">
-                      <h3 class="month-title">{month.label}</h3>
-                      <span class="month-badge">{month.albums.length}</span>
-                      <div class="divider"></div>
-                    </div>
-
-                    <div class="album-grid">
-                      {#each month.albums as a (a.id)}
-                        <div class="album-item" class:album-hidden={!a.visible && canCreateAlbum}>
-                          <a href={`/albums/${a.id}`} class="album-link">
-                            <div class="album-cover-wrapper">
-                              {#if coverErrors[a.id]}
-                                <div class="cover-placeholder"><ImageIcon size={32} /></div>
-                              {:else}
-                                <LazyImage
-                                  src={coverUrl(a)}
-                                  alt={a.name}
-                                  class="album-cover"
-                                  aspectRatio="1"
-                                  isVideo={a.coverAssetType === 'VIDEO'}
-                                  radius="0"
-                                  onError={() => (coverErrors = { ...coverErrors, [a.id]: true })}
-                                />
-                              {/if}
-
-                              <!-- Overlay -->
-                              <div class="album-info-overlay">
-                                <div class="overlay-content">
-                                  <span class="album-name" title={a.name}>{a.name}</span>
-                                  <div class="album-meta">
-                                    {#if a.date}
-                                      <span class="album-date">
-                                        {new Date(a.date).toLocaleDateString(getLocale(), {
-                                          day: 'numeric',
-                                          month: 'short',
-                                          year: 'numeric',
-                                        })}
-                                      </span>
-                                    {/if}
-                                    <span
-                                      class="visibility-icon"
-                                      title={getVisibilityLabel(a.visibility)}
-                                    >
-                                      {#if getVisibilityIcon(a.visibility) === 'lock'}
-                                        <Lock size={12} />
-                                      {:else if getVisibilityIcon(a.visibility) === 'link'}
-                                        <LinkIcon size={12} />
-                                      {:else}
-                                        <Eye size={12} />
-                                      {/if}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </a>
-
-                          <!-- Actions -->
-                          <div class="album-actions">
-                            {#if downloadingAlbumId === a.id}
-                              <span class="action-busy" title={m.albums_download_zip()}>
-                                <Spinner size={14} />
-                              </span>
-                            {/if}
-                            <OverflowMenu items={albumMenuItems(a)} variant="overlay" />
-                          </div>
-                        </div>
-                      {/each}
-                    </div>
+          {#if expanded}
+            <div class="album-grid">
+              {#each group.albums as a (a.id)}
+                {@const mark = visibilityMark(a)}
+                <a
+                  href={`/albums/${a.id}`}
+                  class="album-item"
+                  class:album-hidden={!a.visible && canCreateAlbum}
+                >
+                  <div class="album-cover-wrapper">
+                    {#if coverErrors[a.id]}
+                      <div class="cover-placeholder"><ImageIcon size={32} /></div>
+                    {:else}
+                      <LazyImage
+                        src={coverUrl(a)}
+                        alt=""
+                        class="album-cover"
+                        aspectRatio="1"
+                        isVideo={a.coverAssetType === 'VIDEO'}
+                        radius="0"
+                        onError={() => (coverErrors = { ...coverErrors, [a.id]: true })}
+                      />
+                    {/if}
                   </div>
-                {/each}
-              </div>
-            {/if}
-          </section>
-        {/each}
-      </div>
+                  <span class="album-name">{a.name}</span>
+                  <span class="album-meta">
+                    {#if mark === 'private'}
+                      <span class="mark" title={m.albums_visibility_private()}
+                        ><Lock size={12} /></span
+                      >
+                    {:else if mark === 'unlisted'}
+                      <span class="mark" title={m.albums_visibility_unlisted()}
+                        ><LinkIcon size={12} /></span
+                      >
+                    {/if}
+                    {#if a.date}
+                      {new Date(a.date).toLocaleDateString(getLocale(), {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    {/if}
+                  </span>
+                </a>
+              {/each}
+            </div>
+          {/if}
+        </section>
+      {/each}
     {/if}
   </div>
 
-  <!-- Modals -->
   {#if showAlbumModal}
     <AlbumModal onClose={() => (showAlbumModal = false)} onSuccess={handleAlbumCreated} />
   {/if}
-
-  {#if showConfirmModal && confirmModalConfig}
-    <Modal
-      bind:show={showConfirmModal}
-      title={confirmModalConfig.title}
-      type="confirm"
-      confirmText={confirmModalConfig.confirmText}
-      onConfirm={confirmModalConfig.onConfirm}
-      onCancel={() => (showConfirmModal = false)}
-    >
-      <p class="confirm-message">{confirmModalConfig.message}</p>
-    </Modal>
-  {/if}
-</main>
+</div>
 
 <style>
-  /* Uses the global theme tokens directly (no per-page mirror variables). */
   .albums-main {
     position: relative;
     min-height: 100vh;
@@ -483,52 +333,94 @@
     overflow-x: hidden;
   }
 
-  /* --- LAYOUT --- */
+  /* Google Photos web: 24-32px gutters around ~254px tiles; the app: 16dp. */
   .albums-container {
     position: relative;
     z-index: 1;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem 1.5rem 6rem;
+    padding: 0.5rem 1rem 6rem;
   }
 
-  /* --- HEADER --- */
   .page-header {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 4rem;
-    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
   }
-  .header-content h1 {
-    font-size: 2rem;
-    font-weight: 800;
+  .page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
     margin: 0;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-  }
-  .subtitle {
-    color: var(--text-secondary);
-    font-size: 1rem;
-    margin: 0.25rem 0 0;
+    line-height: 1.2;
   }
   .header-actions {
     margin-left: auto;
+    display: flex;
+    gap: 0.25rem;
+  }
+  /* Stated in full: the global `button` rule would give these a filled background. */
+  .header-icon,
+  .search-clear {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+  }
+  .header-icon {
+    width: 44px;
+    height: 44px;
+    color: var(--text-primary);
+  }
+  .header-icon:hover,
+  .header-icon.active {
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
-  /* --- TIMELINE --- */
-  .year-group {
-    margin-bottom: 2rem;
+  .search-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 48px;
+    margin-bottom: 1.5rem;
+    padding: 0 0.375rem 0 1rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    color: var(--text-secondary);
   }
-  /* The whole header row is the toggle, so it stays a button (keyboard +
-	   screen readers) while looking like a section heading. */
+  .search-input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 1rem;
+    outline: none;
+  }
+  .search-clear {
+    width: 36px;
+    height: 36px;
+    color: var(--text-secondary);
+  }
+
+  /* A plain small heading that folds, not a banner: title, count, chevron. */
+  .year-group {
+    margin-bottom: 1.5rem;
+  }
   .year-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    justify-content: flex-start;
+    gap: 0.5rem;
     width: 100%;
     padding: 0.5rem 0;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     background: none;
     border: none;
     color: inherit;
@@ -540,187 +432,92 @@
     outline-offset: 4px;
     border-radius: var(--radius-xs);
   }
+  .year-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  .year-count {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
   .year-chevron {
     display: flex;
-    align-items: center;
     color: var(--text-secondary);
-    transition: transform 0.25s ease;
+    transition: transform 0.2s ease;
   }
   .year-chevron.open {
     transform: rotate(90deg);
   }
-  .year-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0;
-    white-space: nowrap;
-  }
-  .year-badge {
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    color: var(--text-primary);
-    padding: 0.2rem 0.65rem;
-    border-radius: var(--radius-xs);
-    font-size: 0.85rem;
-    font-weight: 700;
-  }
-  .year-header:hover .year-title,
-  .year-header:hover .year-chevron {
-    color: var(--accent);
-  }
-  .year-body {
-    padding-left: 0.25rem;
-  }
 
-  .month-group {
-    margin-bottom: 3rem;
-  }
-  .month-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  .month-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    text-transform: capitalize;
-    white-space: nowrap;
-    margin: 0;
-  }
-  .month-badge {
-    background: var(--surface-border);
-    color: var(--text-primary);
-    opacity: 0.7;
-    padding: 0.2rem 0.6rem;
-    border-radius: var(--radius-xs);
-    font-size: 0.8rem;
-    font-weight: 700;
-  }
-  .divider {
-    height: 1px;
-    flex: 1;
-    background: var(--border);
-    opacity: 0.5;
-  }
-
-  /* --- GRID --- */
   .album-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem 2rem;
   }
 
-  /* --- CARD (flat: a tonal tile, no shadow, no lift) --- */
+  /* A tile is a square cover with its caption BELOW it (Google Photos), not a caption on a gradient
+     over the photo - which cut every long title to one line. */
   .album-item {
-    position: relative;
-    border-radius: var(--radius);
-    overflow: hidden;
-    aspect-ratio: 1;
-    -webkit-mask-image: -webkit-radial-gradient(white, black);
-    mask-image: radial-gradient(white, black);
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    transition: border-color 0.2s;
-    z-index: 1;
-    transform: translateZ(0);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    text-decoration: none;
+    color: inherit;
   }
-
-  .album-item:hover {
-    border-color: var(--accent);
-  }
-  /* Hidden albums are shown greyed-out to privileged users */
   .album-item.album-hidden {
     filter: grayscale(100%);
     opacity: 0.6;
-    transition:
-      filter 0.25s ease,
-      opacity 0.25s ease;
   }
-  .album-item.album-hidden:hover {
-    /* Slight visual feedback on hover while staying distinct */
-    opacity: 0.75;
-  }
-  .album-link {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-    width: 100%;
-    height: 100%;
-  }
-
   .album-cover-wrapper {
     position: relative;
     aspect-ratio: 1;
-    width: 100%;
-    height: 100%;
-    display: block;
-    background-color: var(--surface);
-    margin: 0;
-    padding: 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--surface);
+    transition: filter 0.15s ease;
   }
-
-  /* Image global style for LazyImage content */
   :global(.album-cover) {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    background: transparent;
     border-radius: 0 !important;
-    margin: 0;
-    padding: 0;
-    transition: transform 0.5s ease;
   }
-  .album-item:hover :global(.album-cover) {
-    transform: scale(1.05);
+  .album-item:hover .album-cover-wrapper {
+    filter: brightness(0.9);
   }
-
-  /* OVERLAY */
-  .album-info-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(
-      to top,
-      rgba(0, 0, 0, 0.9) 0%,
-      rgba(0, 0, 0, 0.6) 50%,
-      transparent 100%
-    );
-    padding: 4rem 1.25rem 1.25rem;
-    pointer-events: none;
+  .album-item:focus-visible {
+    outline: none;
   }
-  .overlay-content {
-    transform: translateY(5px);
-    transition: transform 0.3s ease;
+  .album-item:focus-visible .album-cover-wrapper {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
-  .album-item:hover .overlay-content {
-    transform: translateY(0);
-  }
-
   .album-name {
-    display: block;
-    font-weight: 700;
-    font-size: 1.15rem;
-    color: white;
-    margin-bottom: 0.25rem;
-    white-space: nowrap;
+    margin-top: 0.6rem;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
   }
-
   .album-meta {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.9);
-    font-weight: 500;
+    gap: 0.3rem;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+  .mark {
+    display: flex;
   }
 
-  /* --- COVER FALLBACK (album with no photo yet) --- */
   .cover-placeholder {
     width: 100%;
     height: 100%;
@@ -731,87 +528,21 @@
     opacity: 0.3;
   }
 
-  /* --- ACTIONS --- */
-  /* Always shown on touch (no hover to reveal it); on a mouse, revealed by hover or focus
-     and kept while its menu is open. */
-  .album-actions {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    display: flex;
-    gap: 8px;
-    transition: opacity 0.2s ease;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .album-actions {
-      opacity: 0;
-      pointer-events: none;
-    }
-    .album-item:hover .album-actions,
-    .album-actions:focus-within,
-    .album-actions:has(:global([aria-expanded='true'])) {
-      opacity: 1;
-      pointer-events: auto;
-    }
-  }
-  .action-busy {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    color: white;
-    background-color: rgba(0, 0, 0, 0.6);
-  }
-
-  .confirm-message {
-    white-space: pre-wrap;
-  }
-
+  /* The app: two columns, 16dp margins and gap, ~24dp between rows. */
   @media (max-width: 640px) {
-    .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1rem;
-    }
-    .header-actions {
-      width: 100%;
-      margin-top: 1rem;
-    }
-    .btn.primary {
-      width: 100%;
-      justify-content: center;
-    }
-
+    /* The layout's <main> already gives the 16dp margin. */
     .albums-container {
-      padding: 1rem 1rem 6rem;
+      padding: 0 0 6rem;
+    }
+    .page-header {
+      margin-bottom: 0.75rem;
+    }
+    .page-header h1 {
+      font-size: 1.5rem;
     }
     .album-grid {
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem 1rem;
     }
-    .album-info-overlay {
-      padding-top: 2rem;
-    }
-  }
-
-  .header-search {
-    width: 100%;
-    max-width: 420px;
-    margin-left: 1rem;
-  }
-  .search-input {
-    width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--surface);
-    color: var(--text-primary);
-    font-size: 0.95rem;
-  }
-  .search-input:focus {
-    outline: none;
-    border-color: var(--accent);
   }
 </style>
