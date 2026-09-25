@@ -1,3 +1,22 @@
+# MiGallery v2.3.0
+
+**Date**: September 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+First step of the redesign towards a Google-Photos-grade gallery: flat surfaces, as the reference apps are.
+
+## Interface
+
+- No more glass, glow or text-shadow: buttons and panels are flat tonal surfaces (measured on the albums page: 30 blurred elements, 14 text-shadows and 1 glow down to 0). The background colour blobs stay - they are the app's identity.
+- Dialogs and the photo viewer are opaque, so the page behind no longer shows through their text.
+- Icons in buttons render at their intended size (the sizing rule was invalid CSS and ignored by every browser); the viewer's arrows went from a tiny glyph to 32 px.
+
+## Developer
+
+- `bun run dev` runs on bun (it ran vite under node, which cannot load `bun:sqlite`), and no longer logs a warning per `:global()` on start.
+
 # MiGallery v2.2.0
 
 **Date**: September 25, 2026
