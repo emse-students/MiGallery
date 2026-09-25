@@ -5,6 +5,7 @@
   import OverflowMenu from './OverflowMenu.svelte';
   import type { Asset } from '$lib/photos.svelte';
   import type { OverflowMenuItem } from '$lib/overflow-menu';
+  import { assetAspectRatio } from '$lib/photo-grid-layout';
   import { m } from '$lib/paraglide/messages';
 
   interface Props {
@@ -20,6 +21,13 @@
     onFavoriteToggle?: (assetId: string, event: Event) => void;
     albumVisibility?: string;
     albumId?: string;
+    /**
+     * The tile's box inside its row, in CSS px, computed by the justified layout
+     * (`src/lib/photo-grid-layout.ts`): the card no longer sizes itself.
+     */
+    x: number;
+    width: number;
+    height: number;
   }
 
   let {
@@ -35,36 +43,13 @@
     onFavoriteToggle,
     albumVisibility,
     albumId,
+    x,
+    width,
+    height,
   }: Props = $props();
 
-  function getAspectRatio(): number {
-    if (asset.exifInfo?.exifImageWidth && asset.exifInfo?.exifImageHeight) {
-      return asset.exifInfo.exifImageWidth / asset.exifInfo.exifImageHeight;
-    }
-
-    if (asset._raw?.exifInfo?.exifImageWidth && asset._raw?.exifInfo?.exifImageHeight) {
-      return asset._raw.exifInfo.exifImageWidth / asset._raw.exifInfo.exifImageHeight;
-    }
-
-    if (asset._raw?.width && asset._raw?.height) {
-      return asset._raw.width / asset._raw.height;
-    }
-
-    return 3 / 2;
-  }
-
-  function getAspectRatioString(): string {
-    const ratio = getAspectRatio();
-    const width = Math.round(ratio * 100);
-    const height = 100;
-    return `${width}/${height}`;
-  }
-
-  let aspectRatio = $derived(getAspectRatio());
-  let aspectRatioString = $derived(getAspectRatioString());
-
-  let flexBasis = $derived(aspectRatio * 220);
-  let flexGrow = $derived(aspectRatio * 100);
+  /** The ratio the skeleton and the image placeholder keep while the thumbnail loads. */
+  let aspectRatioString = $derived(`${Math.round(assetAspectRatio(asset) * 100)}/100`);
 
   let isFullyLoaded = $derived(
     asset.originalFileName !== undefined && asset.originalFileName !== null
@@ -192,7 +177,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="photo-card {isSelected ? 'selected' : ''}"
-  style="flex-basis: {flexBasis}px; flex-grow: {flexGrow};"
+  style="left: {x}px; width: {width}px; height: {height}px;"
   role="button"
   tabindex="0"
   onclick={handleCardClick}
@@ -306,38 +291,36 @@
 </div>
 
 <style>
+  /*
+   * Placed by the justified layout: absolute inside its row, square corners, no entrance
+   * animation - a virtualised row is re-mounted on scroll, and an animation would replay on
+   * every one (ui-redesign #8, #24).
+   */
   .photo-card {
-    position: relative;
-    height: 220px;
+    position: absolute;
+    top: 0;
     background: var(--bg-elevated);
-    border-radius: 6px;
     overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     user-select: none;
-    will-change: transform;
-    opacity: 0;
-    animation: photoFadeIn 0.5s ease-out forwards;
-    max-width: 400px;
+    /* The global `.photo-card` in app.css (a square, rounded, hover-shadowed card) does not apply. */
+    border-radius: 0;
+    box-shadow: none;
   }
 
-  @keyframes photoFadeIn {
-    from {
-      opacity: 0;
-      transform: scale(0.95) translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-
+  /* Selected: the photo shrinks inside a tinted frame, as Google Photos draws it. */
   .photo-card.selected {
-    /* Make selection persistent and clearly visible */
+    background: var(--accent-light);
+    /* The shrink says it; the global outline would frame it twice. */
     outline: none;
-    /* Keep the selected card above siblings so the frame is visible */
-    z-index: 20;
-    transform: translateY(-2px);
+  }
+
+  .photo-card.selected :global(.lazy-image-container) {
+    inset: 10%;
+    width: 80%;
+    height: 80%;
+    border-radius: var(--radius-xs);
+    overflow: hidden;
   }
 
   /* Ensure checkbox is visible when selected even without hover */
@@ -445,13 +428,9 @@
    * viewer, audit #4), whatever its width - touch actions live in the long-press sheet.
    */
   @media (hover: hover) and (pointer: fine) {
+    /* Flat: no lift on hover (the global `.photo-card:hover` adds a shadow). */
     .photo-card:hover {
-      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
-      z-index: 10;
-    }
-
-    .photo-card:hover :global(.lazy-image) {
-      transform: scale(1.05);
+      box-shadow: none;
     }
 
     .photo-card:hover .selection-checkbox {
@@ -473,17 +452,6 @@
       background: color-mix(in srgb, var(--error) 30%, transparent);
       color: var(--error);
       transform: scale(1.1);
-    }
-  }
-
-  @media (max-width: 768px) {
-    .photo-card {
-      height: auto;
-      aspect-ratio: 1;
-      /* 4 photos per row on mobile: 100% / 4 = 25%, minus gaps */
-      flex-basis: calc(25% - 3px) !important;
-      flex-grow: 0 !important;
-      max-width: calc(25% - 3px);
     }
   }
 
@@ -555,13 +523,5 @@
 
   .sheet-item.danger {
     color: var(--error);
-  }
-
-  @media (max-width: 480px) {
-    .photo-card {
-      /* 4 photos per row: more compact */
-      flex-basis: calc(25% - 2px) !important;
-      max-width: calc(25% - 2px);
-    }
   }
 </style>

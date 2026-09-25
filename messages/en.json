@@ -612,5 +612,7 @@
   "pm_share": "Share",
   "pm_share_error": "Could not share: {error}",
   "pm_share_ready": "Photo ready: tap Share again",
-  "pg_photo_count": "{count} photo(s)"
+  "pg_photo_count": "{count} photo(s)",
+  "pg_select_day": "Select this day's photos: {day}",
+  "pg_deselect_day": "Deselect this day's photos: {day}"
 }

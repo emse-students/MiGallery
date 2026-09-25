@@ -50,7 +50,9 @@ Generic modal supporting multiple display types.
 
 ### PhotosGrid.svelte
 
-Photo grid with selection mode and viewing modal.
+Photo grid with selection mode and viewing modal: days of justified rows, virtualised, with a
+select-a-day check on each header (layout maths in `src/lib/photo-grid-layout.ts`, see
+`docs/wiki/photo-grid.md`).
 
 ```svelte
 <PhotosGrid

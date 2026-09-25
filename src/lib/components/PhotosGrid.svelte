@@ -6,8 +6,10 @@
     Trash2,
     Image as ImageIcon,
     CircleMinus,
+    CircleCheck,
     Heart,
   } from '@lucide/svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import PhotoCard from '$lib/components/PhotoCard.svelte';
   import PhotoModal from '$lib/components/PhotoModal.svelte';
   import Spinner from '$lib/components/Spinner.svelte';
@@ -20,6 +22,15 @@
   import { toast } from '$lib/toast';
   import { activeOperations } from '$lib/operations';
   import { m } from '$lib/paraglide/messages';
+  import {
+    GRID_METRICS,
+    PHONE_MAX_WIDTH,
+    assetAspectRatio,
+    buildGridBlocks,
+    visibleBlockRange,
+  } from '$lib/photo-grid-layout';
+  import { daySelectionState, toggleDaySelection } from '$lib/day-selection';
+
   interface Props {
     state: PhotosState;
     onModalClose?: (hasChanges: boolean) => void;
@@ -262,6 +273,86 @@
       ? photosState.assets.filter((a) => a.isFavorite)
       : photosState.assets
   );
+
+  // --- Justified, virtualised grid (ui-redesign #7, #8, #24) ---
+  // The layout is pure (`src/lib/photo-grid-layout.ts`): days of justified rows, stacked as
+  // absolutely positioned blocks. Only the blocks within one screen of the viewport are in the
+  // DOM, so a 700-photo album renders a few dozen tiles instead of all of them.
+
+  const phoneQuery = new MediaQuery(`max-width: ${PHONE_MAX_WIDTH}px`);
+  let metrics = $derived(phoneQuery.current ? GRID_METRICS.phone : GRID_METRICS.desktop);
+
+  let gridElement = $state<HTMLDivElement | null>(null);
+  let gridWidth = $state(0);
+
+  let days = $derived(
+    Object.entries(groupByDay(displayedAssets)).map(([label, items]) => ({
+      label,
+      items,
+      ids: items.map((a) => a.id),
+    }))
+  );
+
+  let layout = $derived(
+    buildGridBlocks(
+      days.map((d) => d.items.map(assetAspectRatio)),
+      gridWidth,
+      metrics
+    )
+  );
+
+  let range = $state({ start: 0, end: 0 });
+  let visibleBlocks = $derived(layout.blocks.slice(range.start, range.end));
+  let selectedSet = $derived(new Set(photosState.selectedAssets));
+
+  /** Re-windows the blocks against the viewport, one screen of overscan above and below. */
+  function updateRange() {
+    if (!gridElement) return;
+    const top = -gridElement.getBoundingClientRect().top;
+    const overscan = window.innerHeight;
+    const next = visibleBlockRange(
+      layout.blocks,
+      top - overscan,
+      top + window.innerHeight + overscan
+    );
+    if (next.start !== range.start || next.end !== range.end) range = next;
+  }
+
+  // A new layout (streamed photos, a resize, the favourites filter) re-windows at once.
+  $effect(() => {
+    void layout;
+    updateRange();
+  });
+
+  $effect(() => {
+    let frame = 0;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        updateRange();
+      });
+    };
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  });
+
+  /** The day header's check: selects the whole day, or clears it when it is all selected (#14). */
+  function toggleDay(dayIndex: number) {
+    const day = days[dayIndex];
+    if (!day) return;
+    const next = toggleDaySelection(photosState.selectedAssets, day.ids);
+    console.debug(
+      `[PhotosGrid] day "${day.label}": ${day.ids.length} photo(s), selection ${photosState.selectedAssets.length} -> ${next.length}`
+    );
+    photosState.selectedAssets = next;
+    photosState.selecting = next.length > 0;
+  }
 </script>
 
 <!-- Main view -->
@@ -356,28 +447,63 @@
     </div>
   {/if}
 
-  <!-- Photo grid grouped by day -->
-  {#each Object.entries(groupByDay(displayedAssets)) as [dayLabel, items] (dayLabel)}
-    <h3 class="day-label">{dayLabel}</h3>
-    <div class="photos-grid">
-      {#each items as a (a.id)}
-        <PhotoCard
-          asset={a}
-          isSelected={photosState.selectedAssets.includes(a.id)}
-          isSelecting={photosState.selecting}
-          canDelete={canManagePhotos}
-          albumVisibility={visibility}
-          {albumId}
-          showFavorite={showFavorites}
-          onFavoriteToggle={() => handleFavoriteToggle(a.id)}
-          onCardClick={() => handlePhotoCardClick(a.id)}
-          onDownload={() => handleDownloadSingle(a.id)}
-          onDelete={() => handleDeleteAsset(a.id)}
-          onSelectionToggle={(id, selected) => photosState.toggleSelect(id, selected)}
-        />
-      {/each}
-    </div>
-  {/each}
+  <!-- Photo grid: days of justified rows, only the on-screen blocks rendered -->
+  <div
+    class="photos-grid"
+    bind:this={gridElement}
+    bind:clientWidth={gridWidth}
+    style="height: {layout.height}px"
+  >
+    {#each visibleBlocks as block (block.key)}
+      {@const day = days[block.day]}
+      {#if block.kind === 'header'}
+        {@const dayState = daySelectionState(selectedSet, day.ids)}
+        {@const dayAction =
+          dayState === 'all'
+            ? m.pg_deselect_day({ day: day.label })
+            : m.pg_select_day({ day: day.label })}
+        <div
+          class="day-header {photosState.selecting || dayState !== 'none' ? 'show-check' : ''}"
+          style="top: {block.y}px; height: {block.height}px"
+        >
+          <button
+            type="button"
+            class="day-check {dayState}"
+            aria-pressed={dayState === 'all'}
+            aria-label={dayAction}
+            title={dayAction}
+            onclick={() => toggleDay(block.day)}
+          >
+            <CircleCheck size={20} />
+          </button>
+          <h3 class="day-label">{day.label}</h3>
+        </div>
+      {:else}
+        <div class="grid-row" style="top: {block.y}px; height: {block.height}px">
+          {#each block.row.tiles as tile (day.ids[tile.index])}
+            {@const a = day.items[tile.index]}
+            <PhotoCard
+              asset={a}
+              x={tile.x}
+              width={tile.width}
+              height={block.height}
+              isSelected={selectedSet.has(a.id)}
+              isSelecting={photosState.selecting}
+              canDelete={canManagePhotos}
+              albumVisibility={visibility}
+              {albumId}
+              showFavorite={showFavorites}
+              onFavoriteToggle={() => handleFavoriteToggle(a.id)}
+              onCardClick={() => handlePhotoCardClick(a.id)}
+              onDownload={() => handleDownloadSingle(a.id)}
+              onDelete={() => handleDeleteAsset(a.id)}
+              onSelectionToggle={(id, selected) => photosState.toggleSelect(id, selected)}
+            />
+          {/each}
+        </div>
+      {/if}
+    {/each}
+  </div>
 {:else if !photosState.loading && !photosState.error}
   <!-- Empty state -->
   <EmptyState icon={ImageIcon} title={m.pg_empty()} />
@@ -548,39 +674,91 @@
     background: color-mix(in srgb, currentColor 22%, transparent);
   }
 
-  .day-label {
-    margin-top: 3rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    opacity: 0.6;
-  }
-
-  .day-label:first-of-type {
-    margin-top: 0;
-  }
-
+  /* The grid's height is the layout's; every block inside is absolutely positioned. */
   .photos-grid {
     position: relative;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    /* Not the global `.photos-grid` of app.css (a CSS grid with a 1rem gap). */
+    display: block;
+    margin-top: 0;
     margin-bottom: 2rem;
   }
 
-  /* Phantom element to prevent the last row from stretching */
-  .photos-grid::after {
-    content: '';
-    flex-grow: 999999;
+  .grid-row {
+    position: absolute;
+    left: 0;
+    right: 0;
   }
 
-  /* Responsive - square grid on mobile */
+  .day-header {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .day-label {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  /*
+   * The day check (#14): shown while selecting or once part of the day is selected; a pointer
+   * device also reveals it on hover, as Google Photos does. Hidden, it takes no width, so the
+   * label stays aligned with the page.
+   */
+  .day-check {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin-left: -0.625rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .day-check.some,
+  .day-check.all {
+    color: var(--accent);
+  }
+
+  .day-check.all :global(svg) {
+    fill: currentColor;
+    stroke: var(--bg-primary);
+  }
+
+  .day-header.show-check .day-check,
+  .day-check:focus-visible {
+    display: inline-flex;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .day-header:hover .day-check {
+      display: inline-flex;
+    }
+
+    .day-check:hover {
+      background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+    }
+  }
+
   @media (max-width: 768px) {
+    /* Edge to edge (#7): the grid escapes every container gutter to the viewport's width. */
     .photos-grid {
-      gap: 3px;
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+    }
+
+    .day-header {
+      padding: 0 1rem;
     }
 
     .selection-toolbar {
@@ -600,9 +778,7 @@
     }
 
     .day-label {
-      font-size: 0.8125rem;
-      margin-top: 2rem;
-      margin-bottom: 1rem;
+      font-size: 0.875rem;
     }
 
     .photos-header {
@@ -611,12 +787,6 @@
 
     .photos-count {
       font-size: 0.8125rem;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .photos-grid {
-      gap: 2px;
     }
   }
 </style>
