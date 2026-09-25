@@ -194,7 +194,9 @@ export function createTestContext(): TestContext {
 }
 
 /**
- * Open the application's SQLite file with the SAME driver the application uses.
+ * Open the test run's SQLite file (`MIGALLERY_TEST_DATABASE`, the same file the test server was
+ * started on) with the SAME driver the application uses. Throws when that variable is unset
+ * rather than guessing a path: the only other candidates are the developer's own databases.
  *
  * `bun:sqlite`, not better-sqlite3: a test that opens the database through a different driver than
  * production proves nothing about production. The interface below is structural on purpose, so no
@@ -219,9 +221,17 @@ export async function openTestDatabase(
   options: { readonly?: boolean } = {}
 ): Promise<TestDatabase | null> {
   const fs = await import('fs');
-  const path = await import('path');
 
-  const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
+  // Only the run's own database, named by scripts/test-with-server.mjs. Deliberately NOT
+  // `DATABASE_PATH`: a bare `vitest` run loads the developer's `.env`, whose `DATABASE_PATH` is
+  // their dev database, and this helper WRITES (it inserts the system user).
+  const DB_PATH = process.env.MIGALLERY_TEST_DATABASE;
+  if (!DB_PATH) {
+    throw new Error(
+      'MIGALLERY_TEST_DATABASE is not set: server-backed tests run through `bun run test`, ' +
+        'which creates a disposable database for them.'
+    );
+  }
 
   if (!fs.existsSync(DB_PATH)) {
     console.warn('WARN  Database not found at ' + DB_PATH);

@@ -123,7 +123,7 @@ bun run dev          # dev server with HMR
 bun run build        # production build -> build/
 bun run check        # svelte-kit sync + svelte-check
 bun run lint         # oxlint + oxvelte
-bun run test         # integration suite; bun run test:unit for Vitest only
+bun run test         # integration suite on a disposable DB, no Immich, never reads .env
 ```
 
 The Husky pre-commit hook runs `bun run lint && bun run check` - oxlint, oxvelte and

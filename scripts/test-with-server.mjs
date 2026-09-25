@@ -1,214 +1,173 @@
 #!/usr/bin/env bun
 /**
- * Script pour lancer les tests API avec un serveur local
- * Usage: bun run test
+ * Build the app, start it on a DISPOSABLE database, run the whole vitest suite against it, and
+ * delete that database. Usage: `bun run test`.
+ *
+ * The suite is hermetic by construction: it never reads the developer's `.env`, whatever it says.
+ *
+ * - Every child is started as `bun --no-env-file` with an environment this script writes itself,
+ *   so neither the server nor vitest can pick up `DATABASE_PATH`, `IMMICH_BASE_URL` or anything
+ *   else from a `.env` in the working tree. (`package.json` starts THIS script with
+ *   `--no-env-file` too, so nothing leaks through our own `process.env` either.)
+ * - `DATABASE_PATH` is a fresh file in a per-run temp directory. The server creates its schema
+ *   on first open, and the directory is removed when the run ends.
+ * - `IMMICH_BASE_URL` is empty: the suite's contract is "no Immich", the same as CI. A developer
+ *   `.env` pointing at a tunnel to the production Immich used to make the suite create real
+ *   `[TEST]` albums there AND fail tests whose assertions only run when Immich answers.
+ *
+ * Why it had to be this way: the dev `.env` points `DATABASE_PATH` at a shared dev database, and
+ * every run left an admin `test.user.<timestamp>`, an API key and album rows in it. The server no
+ * longer lets a `.env` override the environment it is started with (the `dotenv` override in
+ * `hooks.server.ts` is gone), so the values below are the ones it actually runs on.
  */
 
 import { spawn, spawnSync } from 'child_process';
-import { setTimeout } from 'timers/promises';
-import { readFileSync } from 'fs';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
 
+const API_BASE_URL = 'http://localhost:3000';
+const HEALTH_URL = `${API_BASE_URL}/api/health`;
+/** How long the server has to answer /api/health before the run FAILS (it is never skipped). */
+const READINESS_DEADLINE_MS = 60000;
+const READINESS_POLL_MS = 250;
+
+/** Where this run's database lives; created in main(), removed in finish(). */
+let runDir = '';
+/** @type {import('child_process').ChildProcess | null} */
+let server = null;
+
 /**
- * Kill the server process. On Windows child.kill() does not terminate the
- * detached bun process tree, which leaks a zombie holding port 3000 and
- * breaks the next test run; taskkill /T tears down the whole tree.
+ * The only environment the server and the tests see, on top of the OS basics inherited from the
+ * shell (PATH, TEMP, ...). Mirrors what CI needs: dev routes on (the suite logs in through
+ * `/dev/login-as`), no Immich, a trusted host, and this run's own database.
  */
-function killServer(server) {
-  if (!server || server.killed) return;
+function testEnv(databasePath) {
+  return {
+    ...process.env,
+    NODE_ENV: 'test',
+    PORT: '3000',
+    ORIGIN: API_BASE_URL,
+    API_BASE_URL,
+    ENABLE_DEV_ROUTES: 'true',
+    AUTH_TRUSTED_HOST: 'true',
+    IMMICH_BASE_URL: '',
+    IMMICH_API_KEY: '',
+    DATABASE_PATH: databasePath,
+    // Read by tests/test-helpers.ts `openTestDatabase`, which refuses to open anything else.
+    MIGALLERY_TEST_DATABASE: databasePath,
+  };
+}
+
+/**
+ * Run a bun child to completion with `.env` loading disabled, and resolve with its exit code.
+ */
+function runBun(args, env) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['--no-env-file', ...args], { stdio: 'inherit', env });
+    child.on('error', reject);
+    child.on('close', (code) => resolve(code ?? 1));
+  });
+}
+
+/**
+ * Kill the server. On Windows child.kill() does not terminate the bun process tree, which leaks
+ * a zombie holding port 3000 and breaks the next run; taskkill /T tears down the whole tree.
+ */
+function killServer() {
+  if (!server || server.exitCode !== null) return;
   if (process.platform === 'win32') {
-    try {
-      spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
-    } catch {
-      server.kill();
-    }
+    spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
   } else {
     server.kill();
   }
 }
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-const SERVER_STARTUP_DELAY = 7000; // 7 secondes (donne un peu plus de marge au serveur)
-const READINESS_TIMEOUT = 30000; // 30s
-const READINESS_POLL_INTERVAL = 500; // 0.5s
-
-/**
- * Charge les variables d'environnement depuis .env
- */
-function loadEnv() {
-  try {
-    const envPath = join(process.cwd(), '.env');
-    const content = readFileSync(envPath, 'utf-8');
-    const env = {};
-    content.split('\n').forEach((line) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) return;
-      const [key, ...rest] = trimmed.split('=');
-      if (key && rest.length > 0) {
-        env[key.trim()] = rest.join('=').trim();
-      }
-    });
-    return env;
-  } catch (error) {
-    console.warn('⚠️  Impossible de charger .env:', error.message);
-    return {};
-  }
-}
-
-/**
- * Build le serveur SvelteKit
- */
-async function buildServer() {
-  console.log('🔨 Building SvelteKit...\n');
-
-  const env = { ...process.env, NODE_ENV: 'test' };
-
-  return new Promise((resolve, reject) => {
-    const build = spawn('bun', ['run', 'build'], {
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-      env,
-    });
-
-    build.on('close', (code) => {
-      if (code === 0) {
-        console.log('\n✅ Build terminé avec succès\n');
-        resolve(true);
-      } else {
-        console.error(`\n❌ Build échoué avec le code ${code}\n`);
-        reject(new Error(`Build process exited with code ${code}`));
-      }
-    });
-
-    build.on('error', (error) => {
-      console.error('\n❌ Erreur lors du build:', error);
-      reject(error);
-    });
-  });
-}
-
-async function waitForReadiness(url, timeout = READINESS_TIMEOUT) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
+/** Stop the server and delete this run's database, then exit with `code`. */
+function finish(code) {
+  killServer();
+  if (runDir) {
     try {
-      const res = await fetch(url, { method: 'GET' });
-      // Si on obtient une réponse HTTP (quel que soit le code), considérer le service prêt
-      // Certaines routes peuvent retourner 404 si non configurées; l'important est que le serveur réponde.
-      return res;
-    } catch {
-      // connexion refusée => serveur pas encore prêt
-      await setTimeout(READINESS_POLL_INTERVAL);
+      rmSync(runDir, { recursive: true, force: true });
+      console.log(`🧹 Test database removed (${runDir})`);
+    } catch (e) {
+      // The run's result stands; a directory the OS still holds is left to TEMP, and said so.
+      console.warn(`⚠️  Could not remove ${runDir}: ${e.message}`);
     }
   }
-  throw new Error(`Timeout waiting for readiness at ${url}`);
+  process.exit(code);
+}
+
+/** True when something already answers on the test port. */
+async function portAnswers() {
+  try {
+    await fetch(HEALTH_URL);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve once /api/health answers. Reject if the server process exits first (port taken,
+ * crash on boot) or the deadline passes - a server that is not up is a failed run, never a
+ * reason to test against whatever else might be listening.
+ */
+async function waitForServer() {
+  const deadline = Date.now() + READINESS_DEADLINE_MS;
+  while (Date.now() < deadline) {
+    if (server.exitCode !== null) {
+      throw new Error(`test server exited with code ${server.exitCode} before answering`);
+    }
+    if (await portAnswers()) return;
+    await new Promise((r) => setTimeout(r, READINESS_POLL_MS));
+  }
+  throw new Error(`test server did not answer ${HEALTH_URL} within ${READINESS_DEADLINE_MS} ms`);
 }
 
 async function main() {
-  let server = null;
-
-  try {
-    // 0. Charger le .env
-    const envVars = loadEnv();
-    console.log('📄 Variables .env chargées:', Object.keys(envVars).join(', '));
-
-    // Guard: the integration suite creates real "[TEST] ..." albums in Immich.
-    // Refuse to run against a non-local Immich so a dev .env pointing at prod
-    // does not pollute it. Override with ALLOW_REMOTE_IMMICH_TESTS=true.
-    const immichUrl = (envVars.IMMICH_BASE_URL ?? process.env.IMMICH_BASE_URL ?? '').trim();
-    if (immichUrl && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(immichUrl)) {
-      if (process.env.ALLOW_REMOTE_IMMICH_TESTS !== 'true') {
-        console.error(
-          `\n⛔ IMMICH_BASE_URL points to a non-local Immich (${immichUrl}).\n` +
-            `   The test suite creates real "[TEST] ..." albums and would pollute it.\n` +
-            `   Use an empty IMMICH_BASE_URL or a local mock, or set` +
-            ` ALLOW_REMOTE_IMMICH_TESTS=true to override.\n`
-        );
-        process.exit(1);
-      }
-      console.warn(
-        `\n⚠️  Running tests against remote Immich (${immichUrl}) - override in effect.\n`
-      );
-    }
-
-    // Définir NODE_ENV=test pour activer les routes de dev pendant les tests
-    process.env.NODE_ENV = 'test';
-    console.log('✅ NODE_ENV défini à "test"');
-
-    // 1. Build le serveur
-    await buildServer();
-
-    console.log('🚀 Démarrage du serveur de test...\n');
-
-    // 2. Démarrer le serveur
-    server = spawn('bun', ['./build/index.js'], {
-      stdio: 'inherit',
-      detached: false,
-      env: { ...process.env, ...envVars, NODE_ENV: 'test' },
-    });
-
-    // 3. Attendre que le serveur démarre
-    await setTimeout(SERVER_STARTUP_DELAY);
-
-    console.log(`\n✅ Serveur démarré sur ${API_BASE_URL} (en attente de disponibilité)`);
-    try {
-      const healthUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/health`;
-      await waitForReadiness(healthUrl);
-      console.log('✅ Endpoint /api/health répond - démarrage OK');
-    } catch (err) {
-      console.warn(`⚠️  Readiness probe failed: ${(err && err.message) || err}`);
-      console.log("⚠️  Poursuite des tests malgré l'échec de la probe (timeout)");
-    }
-
-    console.log('🧪 Lancement des tests...\n');
-
-    // 4. Lancer les tests
-    const tests = spawn('bun', ['run', 'test:unit'], {
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-      env: { ...process.env, ...envVars, API_BASE_URL, NODE_ENV: 'test' },
-    });
-
-    // 5. Attendre la fin des tests
-    tests.on('close', async (code) => {
-      console.log('\n🛑 Arrêt du serveur...');
-      killServer(server);
-
-      // 6. Nettoyer les artefacts de test
-      console.log('\n🧹 Nettoyage des artefacts de test...');
-      const cleanup = spawn('bun', ['./scripts/cleanup-test-artifacts.cjs'], {
-        stdio: 'inherit',
-      });
-
-      cleanup.on('close', () => {
-        process.exit(code);
-      });
-
-      cleanup.on('error', () => {
-        // Ignorer les erreurs de cleanup et quitter avec le code des tests
-        process.exit(code);
-      });
-    });
-  } catch (error) {
-    console.error('\n💥 Erreur:', error.message);
-
-    if (server) {
-      console.log('🛑 Arrêt du serveur...');
-      killServer(server);
-    }
-
+  if (await portAnswers()) {
+    console.error(
+      `\n⛔ Something already answers on ${API_BASE_URL}. The suite would test THAT server and ` +
+        `its database, not this build. Stop it and re-run.\n`
+    );
     process.exit(1);
   }
+
+  runDir = mkdtempSync(join(tmpdir(), 'migallery-test-'));
+  const env = testEnv(join(runDir, 'migallery.db'));
+  console.log(`🗄️  Test database: ${env.DATABASE_PATH}`);
+
+  console.log('🔨 Building SvelteKit...\n');
+  const buildCode = await runBun(['run', 'build'], env);
+  if (buildCode !== 0) {
+    console.error(`\n❌ Build failed with code ${buildCode}\n`);
+    finish(buildCode);
+  }
+
+  console.log('🚀 Starting the test server...\n');
+  server = spawn(process.execPath, ['--no-env-file', './build/index.js'], {
+    stdio: 'inherit',
+    env,
+  });
+  await waitForServer();
+  console.log(`✅ ${HEALTH_URL} answers\n🧪 Running the tests...\n`);
+
+  // vitest is started directly rather than through `bun run test:unit`: that script spawns a
+  // nested bun, which would load `.env` again.
+  const testCode = await runBun(['--bun', 'vitest', 'run'], env);
+  console.log('\n🛑 Stopping the server...');
+  finish(testCode);
 }
 
-// Cleanup en cas d'interruption
-process.on('SIGINT', () => {
-  console.log('\n⚠️  Interruption détectée, arrêt du serveur...');
-  process.exit(1);
-});
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    console.log(`\n⚠️  ${signal} received, stopping the server...`);
+    finish(1);
+  });
+}
 
-process.on('SIGTERM', () => {
-  console.log('\n⚠️  Terminaison demandée, arrêt du serveur...');
-  process.exit(1);
+main().catch((error) => {
+  console.error('\n💥 Error:', error.message);
+  finish(1);
 });
-
-main();
