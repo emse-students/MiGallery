@@ -43,6 +43,7 @@ the page is a bug.
 | [outbound.md](outbound.md)                             | The 4 s deadline on every call to Immich and Authentik, and the three shapes it takes         |
 | [bandwidth.md](bandwidth.md)                           | The lossy prod path, the host tuning for it, and what each surface may load                   |
 | [viewer.md](viewer.md)                                 | The photo viewer's touch gestures, their thresholds, and the overflow menu that holds delete  |
+| [photo-grid.md](photo-grid.md)                         | The photo grid: justified rows, the tile size each DPR needs, virtualisation, select-a-day    |
 | [ui-redesign.md](ui-redesign.md)                       | The Google Photos-shaped redesign: the 2026-09-25 audit, its work list and the decisions owed |
 | [data-model.md](data-model.md)                         | The local SQLite schema                                                                       |
 | [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                                               |

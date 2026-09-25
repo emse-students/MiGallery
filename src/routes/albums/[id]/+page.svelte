@@ -371,7 +371,8 @@
     position: relative;
     min-height: 100vh;
     color: var(--text-primary);
-    overflow-x: hidden;
+    /* No `overflow-x: hidden`: it clipped the phone grid's edge-to-edge breakout to this
+       element's inset (ui-redesign #7). The blobs are fixed and clip themselves. */
     padding-bottom: 100px; /* Room for the mobile action bar */
   }
 

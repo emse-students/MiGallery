@@ -612,5 +612,7 @@
   "pm_share": "Partager",
   "pm_share_error": "Partage impossible : {error}",
   "pm_share_ready": "Photo prête : touchez Partager à nouveau",
-  "pg_photo_count": "{count} photo(s)"
+  "pg_photo_count": "{count} photo(s)",
+  "pg_select_day": "Sélectionner les photos du jour : {day}",
+  "pg_deselect_day": "Désélectionner les photos du jour : {day}"
 }

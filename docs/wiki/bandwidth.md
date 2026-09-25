@@ -40,11 +40,11 @@ The restart itself completes (systemd runs it), and the session comes back in
 Bytes still cost, the loss is still there, and the fix lives on one host. Keep
 the page light:
 
-| Surface           | Loads                                                                                                             | Never loads                                                            |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Grid tiles        | `thumbnail` (~15 KB WebP), via plain `<img>` and the HTTP cache                                                   | the `preview` (~450 KB), whatever the DPR - a 30x multiplier per tile  |
-| Lightbox          | `preview` of the photo shown AND of its two neighbours, so a swipe slides in a loaded photo ([viewer](viewer.md)) | the `original` (~8 MB for a DSLR photo) until the user zooms past 130% |
-| Album/person grid | `assets-stream` / `photos-stream`: one slim NDJSON line, gzip                                                     | a per-asset `GET /assets/{id}`, owner, EXIF, path, people              |
+| Surface           | Loads                                                                                                                                         | Never loads                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Grid tiles        | `thumbnail` (600x400, ~25 KB WebP since D1), via plain `<img>`, the HTTP cache, and only for the rows on screen ([photo-grid](photo-grid.md)) | the `preview` (~450 KB), whatever the DPR - a 30x multiplier per tile  |
+| Lightbox          | `preview` of the photo shown AND of its two neighbours, so a swipe slides in a loaded photo ([viewer](viewer.md))                             | the `original` (~8 MB for a DSLR photo) until the user zooms past 130% |
+| Album/person grid | `assets-stream` / `photos-stream`: one slim NDJSON line, gzip                                                                                 | a per-asset `GET /assets/{id}`, owner, EXIF, path, people              |
 
 `src/lib/server/asset-ndjson.ts` builds both streams. Immich v3 search results
 already carry `width` and `height` at the top level, which is all the justified
