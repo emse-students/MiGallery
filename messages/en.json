@@ -113,7 +113,16 @@
   "photos_no_profile": "No profile photo configured for this user",
   "photos_today": "Today",
   "photos_yesterday": "Yesterday",
-  "upload_album_success": "{count} file(s) uploaded and added to the album!",
+  "upload_album_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} file uploaded and added to the album!",
+        "countPlural=*": "{count} files uploaded and added to the album!"
+      }
+    }
+  ],
   "upload_error_long": "Upload error: {message}",
   "photos_none_selected": "No image selected",
   "photos_error": "Error: {message}",
@@ -128,7 +137,13 @@
   "albumd_share": "Share",
   "albumd_download_all": "Download all",
   "albumd_back": "Back to albums",
-  "albumd_photo_count": "{count} photo(s)",
+  "albumd_photo_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "{count} photo", "countPlural=*": "{count} photos" }
+    }
+  ],
   "albumd_add_photos": "Add photos",
   "albumd_add": "Add",
   "albumd_loading": "Loading the album…",
@@ -136,22 +151,76 @@
   "pm_cover_updated": "Cover updated",
   "pm_favorite_error": "Favorite error",
   "pg_photo_downloaded": "Photo downloaded!",
-  "pg_removed_count": "{count} photo(s) removed from the album!",
+  "pg_removed_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo removed from the album!",
+        "countPlural=*": "{count} photos removed from the album!"
+      }
+    }
+  ],
   "pg_remove_error": "Failed to remove from the album: {error}",
-  "pg_trashed_count": "{count} photo(s) moved to trash!",
+  "pg_trashed_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo moved to trash!",
+        "countPlural=*": "{count} photos moved to trash!"
+      }
+    }
+  ],
   "pg_photo_trashed": "Photo moved to trash!",
   "pg_fav_added": "Added to favorites",
   "pg_fav_removed": "Removed from favorites",
   "pg_empty": "No photo found",
   "pg_delete_selected_title": "Delete the selected photos",
-  "pg_delete_selected_body": "Do you really want to move {count} selected photo(s) to the trash?",
+  "pg_delete_selected_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Do you really want to move {count} selected photo to the trash?",
+        "countPlural=*": "Do you really want to move {count} selected photos to the trash?"
+      }
+    }
+  ],
   "pg_delete_selected_warn": "Warning: this will permanently delete the files from your Immich library.",
   "pg_remove_from_album": "Remove from the album",
-  "pg_remove_body": "Do you want to remove {count} photo(s) from this album?",
+  "pg_remove_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Do you want to remove {count} photo from this album?",
+        "countPlural=*": "Do you want to remove {count} photos from this album?"
+      }
+    }
+  ],
   "pg_remove_warn": "The photos will stay in your main library (My photos) and will not be permanently deleted.",
   "pg_download_selected_title": "Download the selected photos",
-  "pg_download_body": "Do you want to download {count} selected photo(s) as an archive?",
-  "pg_download_archive_confirm": "Download {count} image(s) as an archive?",
+  "pg_download_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Do you want to download {count} selected photo as an archive?",
+        "countPlural=*": "Do you want to download {count} selected photos as an archive?"
+      }
+    }
+  ],
+  "pg_download_archive_confirm": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Download {count} image as an archive?",
+        "countPlural=*": "Download {count} images as an archive?"
+      }
+    }
+  ],
   "pg_selected_count": "{count} selected",
   "pg_select_all": "Select all",
   "pg_deselect_all": "Deselect all",
@@ -161,12 +230,33 @@
   "uz_duplicate": "This file has already been uploaded",
   "uz_uploading": "Uploading…",
   "uz_connection_lost": "Connection lost, reconnecting…",
-  "uz_uploaded_count": "{count} file(s) uploaded",
+  "uz_uploaded_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} file uploaded",
+        "countPlural=*": "{count} files uploaded"
+      }
+    }
+  ],
   "uz_retry_failed": "Retry failed uploads",
   "uz_drop_active": "Drop your files or folders here",
   "uz_drop_idle": "Drag and drop files or folders here",
-  "uz_error_count": "{count} error(s)",
-  "uz_duplicate_count": "{count} duplicate(s)",
+  "uz_error_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "{count} error", "countPlural=*": "{count} errors" }
+    }
+  ],
+  "uz_duplicate_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "{count} duplicate", "countPlural=*": "{count} duplicates" }
+    }
+  ],
   "uz_pending_count": "{count} pending",
   "uz_or_click": "or click to select",
   "uz_accepted": "Images and videos accepted",
@@ -242,7 +332,16 @@
   "param_no_id_returned": "No ID returned",
   "param_type_confirmation": "Please type \"CONFIRMATION\"",
   "param_account_deleted": "Account deleted.",
-  "param_status_detected_count": "{count} person(s) detected",
+  "param_status_detected_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} person detected",
+        "countPlural=*": "{count} people detected"
+      }
+    }
+  ],
   "param_status_saving": "Face detected, saving…",
   "param_db_update_error": "Database update error: {error}",
   "param_status_multi_count": "{count} faces detected. Please use a photo with a single face.",
@@ -277,18 +376,60 @@
   "trash_subtitle": "Deleted items - restore or empty permanently",
   "trash_loading": "Loading deleted items…",
   "trash_empty": "The trash is empty",
-  "trash_items_in_bin": "item(s) in the trash",
+  "trash_items_in_bin": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "item in the trash", "countPlural=*": "items in the trash" }
+    }
+  ],
   "trash_select": "Select",
   "trash_restore": "Restore",
   "trash_restore_count": "Restore ({count})",
   "trash_delete_perm": "Delete permanently",
   "trash_delete_perm_count": "Delete permanently ({count})",
   "trash_restore_title": "Restore items",
-  "trash_restore_confirm": "Restore {count} item(s)?",
-  "trash_restore_success": "{count} item(s) restored successfully!",
+  "trash_restore_confirm": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Restore {count} item?",
+        "countPlural=*": "Restore {count} items?"
+      }
+    }
+  ],
+  "trash_restore_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item restored successfully!",
+        "countPlural=*": "{count} items restored successfully!"
+      }
+    }
+  ],
   "trash_restore_failed": "Restore failed",
-  "trash_delete_confirm": "WARNING: permanently delete {count} item(s)?\n\nThis action is IRREVERSIBLE!",
-  "trash_delete_success": "{count} item(s) permanently deleted.",
+  "trash_delete_confirm": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "WARNING: permanently delete {count} item?\n\nThis action is IRREVERSIBLE!",
+        "countPlural=*": "WARNING: permanently delete {count} items?\n\nThis action is IRREVERSIBLE!"
+      }
+    }
+  ],
+  "trash_delete_success": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item permanently deleted.",
+        "countPlural=*": "{count} items permanently deleted."
+      }
+    }
+  ],
   "trash_delete_failed": "Permanent delete failed",
   "trash_load_error": "Failed to load deleted items",
   "trombi_staff_other": "Staff / Other",
@@ -299,7 +440,16 @@
   "trombi_formations": "Programs",
   "trombi_all": "All",
   "trombi_none": "None",
-  "trombi_export_count": "{count} user(s) selected",
+  "trombi_export_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} user selected",
+        "countPlural=*": "{count} users selected"
+      }
+    }
+  ],
   "trombi_export": "Export",
   "trombi_photo_link": "Photo link (Immich)",
   "trombi_photo_linked_label": "Linked:",
@@ -428,7 +578,16 @@
   "metr_updated": "Last updated:",
   "logs_page_title": "Logs Admin - MiGallery",
   "logs_title": "System logs",
-  "logs_subtitle": "{count} event(s) recorded",
+  "logs_subtitle": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} event recorded",
+        "countPlural=*": "{count} events recorded"
+      }
+    }
+  ],
   "logs_search_ph": "Search (actor, target, details)…",
   "logs_all_types": "All types",
   "logs_reset": "Reset",
@@ -448,7 +607,13 @@
   "usr_role_mitviste": "MiTViste",
   "usr_role_admin": "Admin",
   "usr_title": "Users & roles",
-  "usr_count": "{count} user(s)",
+  "usr_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "{count} user", "countPlural=*": "{count} users" }
+    }
+  ],
   "usr_search_ph": "Search (name, promo, program, role)…",
   "usr_you": "you",
   "usr_no_self_role": "You cannot change your own role",
@@ -521,7 +686,16 @@
   "db_backup_desc": "Create a snapshot",
   "db_covers_prune_btn": "Orphan covers",
   "db_covers_prune_desc": "Delete unused album covers",
-  "db_covers_prune_done": "{deleted} cover(s) deleted, {size} freed",
+  "db_covers_prune_done": [
+    {
+      "declarations": ["input deleted", "local deletedPlural = deleted: plural"],
+      "selectors": ["deletedPlural"],
+      "match": {
+        "deletedPlural=one": "{deleted} cover deleted, {size} freed",
+        "deletedPlural=*": "{deleted} covers deleted, {size} freed"
+      }
+    }
+  ],
   "db_covers_prune_none": "No orphan cover to delete",
   "db_covers_prune_fail": "Cover cleanup failed",
   "db_export_btn": "SQL export",
@@ -565,7 +739,16 @@
   "med_orphans_desc": "Listed live from Immich, videos included. One page of 1,000 per request.",
   "med_orphans_load": "Load the list",
   "med_orphans_loading": "Loading... {loaded} items",
-  "med_orphans_total": "{count} item(s) in no album",
+  "med_orphans_total": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item in no album",
+        "countPlural=*": "{count} items in no album"
+      }
+    }
+  ],
   "med_orphans_none": "No orphan photo.",
   "med_orphans_select_page": "Select this page",
   "med_orphans_select_all": "Select all ({count})",
@@ -573,10 +756,37 @@
   "med_orphans_selected": "{count} selected",
   "med_orphans_add": "Add to an album",
   "med_orphans_trash": "Move to trash",
-  "med_orphans_trash_confirm": "Move {count} item(s) to the trash? They stay restorable from there.",
+  "med_orphans_trash_confirm": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Move {count} item to the trash? It stays restorable from there.",
+        "countPlural=*": "Move {count} items to the trash? They stay restorable from there."
+      }
+    }
+  ],
   "med_orphans_trash_title": "Move to trash",
-  "med_orphans_trash_done": "{count} item(s) moved to the trash",
-  "med_orphans_add_done": "{count} item(s) added to {album}",
+  "med_orphans_trash_done": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item moved to the trash",
+        "countPlural=*": "{count} items moved to the trash"
+      }
+    }
+  ],
+  "med_orphans_add_done": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item added to {album}",
+        "countPlural=*": "{count} items added to {album}"
+      }
+    }
+  ],
   "med_orphans_range": "{from} - {to} of {total}",
   "med_album_pick_title": "Add to an album",
   "med_album_pick_search": "Search for an album",
@@ -589,9 +799,27 @@
   "med_scan_running": "Scanning: {done} / {total} albums, {requests} requests",
   "med_scan_never": "Never scanned.",
   "med_scan_last": "Scanned on {date}: {albums} albums, {assets} items walked.",
-  "med_scan_result": "{count} item(s) in several albums",
+  "med_scan_result": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item in several albums",
+        "countPlural=*": "{count} items in several albums"
+      }
+    }
+  ],
   "med_scan_none": "No item in several albums.",
-  "med_scan_failed": "{count} album(s) could not be read (Immich too slow): the result is partial.",
+  "med_scan_failed": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} album could not be read (Immich too slow): the result is partial.",
+        "countPlural=*": "{count} albums could not be read (Immich too slow): the result is partial."
+      }
+    }
+  ],
   "med_scan_truncated": "Memory limit reached: the result is partial.",
   "med_scan_error": "The scan failed: {error}",
   "med_col_file": "File",
@@ -611,7 +839,13 @@
   "pm_share": "Share",
   "pm_share_error": "Could not share: {error}",
   "pm_share_ready": "Ready: tap Share again",
-  "pg_photo_count": "{count} photo(s)",
+  "pg_photo_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "{count} photo", "countPlural=*": "{count} photos" }
+    }
+  ],
   "pg_select_day": "Select this day's photos: {day}",
   "pg_deselect_day": "Deselect this day's photos: {day}",
   "pg_select_photo": "Select {name}",

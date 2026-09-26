@@ -145,7 +145,7 @@
       } else {
         toast.success(
           m.db_covers_prune_done({
-            deleted: String(result.deleted),
+            deleted: result.deleted,
             size: formatBytes(result.bytes),
           })
         );
