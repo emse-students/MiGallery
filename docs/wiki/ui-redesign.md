@@ -210,3 +210,14 @@ Measured at 393px: 16px margins, 173px tiles, no horizontal scroll.
   `$lib/viewer-info`, tested).
 - **Face card**: the info icon sat on a line of its own above the note (a lucide svg is a block);
   "Importer une photo" wrapped to two lines. The camera buttons' French literals became Paraglide.
+
+## Photos CV copies the albums list (2026-09-26)
+
+Point 3 of the user's desktop review. The admin tab opened on an upload card that filled the first
+screen, as the album page did before #330; it now takes the album page's page-level upload - a `+`
+in the title row opens the picker, a drop anywhere on the window works, the progress panel appears
+only once files are queued. The header is the albums list's (title left, one icon action); the
+sliding segmented control became Google Photos' filter chips; the personal-name heading and its
+"Personnel" badge went (the chip already says whose photos these are); the pagination is two icon
+buttons around the page number. The mobile-only `!important` colour overrides for the upload card
+went with it. Measured at 393px: photos from 0 to 393, title at 16px, no horizontal scroll.

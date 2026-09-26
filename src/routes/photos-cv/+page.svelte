@@ -3,14 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { fade } from 'svelte/transition';
-  import {
-    User as UserIcon,
-    Users,
-    CircleX,
-    CloudUpload,
-    ChevronLeft,
-    ChevronRight,
-  } from '@lucide/svelte';
+  import { CircleX, Plus, ChevronLeft, ChevronRight } from '@lucide/svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
@@ -29,6 +22,18 @@
   let currentView = $state<'my' | 'all'>('my');
   let personId = $state<string>('');
   let photosGridContainer = $state<HTMLDivElement | null>(null);
+
+  /**
+   * The page-level upload, as on the album page (#330): no box in the flow - the "+" opens the
+   * picker, a drop anywhere on the window works, and the progress panel appears only once files
+   * are queued. The upload card used to fill the admin tab's whole first screen.
+   */
+  let uploadZone = $state<ReturnType<typeof UploadZone> | null>(null);
+
+  function openUploadPicker() {
+    console.debug('[photos-cv] "+" action: opening the upload picker');
+    uploadZone?.openPicker();
+  }
 
   function scrollToPhotosGrid() {
     if (photosGridContainer) {
@@ -111,423 +116,222 @@
   <BackgroundBlobs />
 
   <div class="page-container">
-    <header class="page-header centered" in:fade={{ duration: 300, delay: 100 }}>
-      <div class="header-content">
+    <!-- The albums list's header (Google Photos): the title, and the one action as an icon. -->
+    <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
+      <div>
         <h1>{m.nav_photos_cv()}</h1>
         <p class="subtitle">{m.pcv_subtitle()}</p>
       </div>
+      {#if currentView === 'all' && canManagePhotos}
+        <button
+          type="button"
+          class="header-icon"
+          onclick={openUploadPicker}
+          aria-label={m.pcv_upload_title()}
+          title={m.pcv_upload_title()}
+        >
+          <Plus size={24} />
+        </button>
+      {/if}
     </header>
 
-    <!-- Navigation Tabs -->
+    <!-- Chips, not a sliding segmented control: Google Photos' filter row. -->
     {#if hasIdPhotos && canManagePhotos}
-      <div class="tabs-wrapper" in:fade={{ duration: 300, delay: 200 }}>
-        <div class="tabs">
-          <button
-            type="button"
-            class="tab-item {currentView === 'my' ? 'active' : ''}"
-            onclick={() => switchView('my')}
-          >
-            <UserIcon size={18} />
-            <span>{m.nav_my_photos()}</span>
-          </button>
-          <button
-            type="button"
-            class="tab-item {currentView === 'all' ? 'active' : ''}"
-            onclick={() => switchView('all')}
-          >
-            <Users size={18} />
-            <span>{m.pcv_tab_all()}</span>
-          </button>
-          <!-- Sliding indicator for visual effect -->
-          <div class="tab-indicator {currentView === 'my' ? 'left' : 'right'}"></div>
-        </div>
+      <div class="chips" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="chip"
+          class:active={currentView === 'my'}
+          aria-selected={currentView === 'my'}
+          onclick={() => switchView('my')}
+        >
+          {m.nav_my_photos()}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="chip"
+          class:active={currentView === 'all'}
+          aria-selected={currentView === 'all'}
+          onclick={() => switchView('all')}
+        >
+          {m.pcv_tab_all()}
+        </button>
       </div>
     {/if}
 
-    <div class="content-area">
-      <!-- VIEW: MY PHOTOS -->
-      {#if currentView === 'my' && hasIdPhotos}
-        <div class="view-container" in:fade={{ duration: 300 }}>
-          {#if myPhotosState.personName}
-            <div class="section-title">
-              <h2>{myPhotosState.personName}</h2>
-              <span class="badge">{m.pcv_badge_personal()}</span>
-            </div>
-          {/if}
-
-          {#if myPhotosState.error}
-            <div class="state-message error">
-              <CircleX size={20} />
-              {myPhotosState.error}
-            </div>
-          {/if}
-
-          {#if myPhotosState.loading}
-            <div class="state-message loading">
-              <Spinner size={32} />
-              {m.pcv_loading_my()}
-            </div>
-          {/if}
-
-          {#if !myPhotosState.loading && !myPhotosState.error}
-            <!-- No card around the grid: it runs edge to edge, as on the album page (#17) -->
-            <PhotosGrid state={myPhotosState} />
-          {/if}
-        </div>
+    {#if currentView === 'my' && hasIdPhotos}
+      {#if myPhotosState.error}
+        <div class="state-message error"><CircleX size={20} /> {myPhotosState.error}</div>
+      {:else if myPhotosState.loading}
+        <div class="state-message"><Spinner size={28} /> {m.pcv_loading_my()}</div>
+      {:else}
+        <!-- No card around the grid: it runs edge to edge, as on the album page (#17) -->
+        <PhotosGrid state={myPhotosState} />
       {/if}
+    {/if}
 
-      <!-- VIEW: ADMIN / ALL USERS -->
-      {#if currentView === 'all' && canManagePhotos}
-        <div class="view-container" in:fade={{ duration: 300 }}>
-          <!-- Upload Card -->
-          <div class="surface upload-section mb-8">
-            <div class="upload-header">
-              <div class="icon-box">
-                <CloudUpload size={24} />
-              </div>
-              <div>
-                <h3>{m.pcv_upload_title()}</h3>
-                <p>{m.pcv_upload_desc()}</p>
-              </div>
-            </div>
-            <div class="upload-content">
-              <UploadZone onUpload={handleUpload} />
-            </div>
-          </div>
+    {#if currentView === 'all' && canManagePhotos}
+      <UploadZone bind:this={uploadZone} variant="page" onUpload={handleUpload} />
 
-          {#if allPhotosState.error}
-            <div class="state-message error">
-              <CircleX size={20} />
-              {allPhotosState.error}
-            </div>
-          {/if}
-
-          {#if allPhotosState.loading}
-            <div class="state-message loading">
-              <Spinner size={32} />
-              {m.pcv_loading_all()}
-            </div>
-          {/if}
-
-          {#if !allPhotosState.loading && !allPhotosState.error}
-            <div bind:this={photosGridContainer} class="grid-anchor">
-              <PhotosGrid state={allPhotosState} />
-            </div>
-
-            <!-- Pagination Bottom -->
-            <div class="pagination-container bottom">
-              <button
-                type="button"
-                class="btn-nav"
-                onclick={async () => {
-                  await allPhotosState.loadPrevPagePhotosCV();
-                  scrollToPhotosGrid();
-                }}
-                disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-              >
-                <ChevronLeft size={20} />
-                {m.common_previous()}
-              </button>
-
-              <span class="page-badge"
-                >{m.common_page({ page: allPhotosState.photoCVCurrentPage })}</span
-              >
-
-              <button
-                type="button"
-                class="btn-nav"
-                onclick={async () => {
-                  await allPhotosState.loadNextPagePhotosCV();
-                  scrollToPhotosGrid();
-                }}
-                disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-              >
-                {m.common_next()}
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          {/if}
+      {#if allPhotosState.error}
+        <div class="state-message error"><CircleX size={20} /> {allPhotosState.error}</div>
+      {:else if allPhotosState.loading}
+        <div class="state-message"><Spinner size={28} /> {m.pcv_loading_all()}</div>
+      {:else}
+        <div bind:this={photosGridContainer} class="grid-anchor">
+          <PhotosGrid state={allPhotosState} />
         </div>
+
+        <nav class="pagination">
+          <button
+            type="button"
+            class="header-icon"
+            onclick={async () => {
+              await allPhotosState.loadPrevPagePhotosCV();
+              scrollToPhotosGrid();
+            }}
+            disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
+            aria-label={m.common_previous()}
+            title={m.common_previous()}
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <span class="page-label"
+            >{m.common_page({ page: allPhotosState.photoCVCurrentPage })}</span
+          >
+          <button
+            type="button"
+            class="header-icon"
+            onclick={async () => {
+              await allPhotosState.loadNextPagePhotosCV();
+              scrollToPhotosGrid();
+            }}
+            disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
+            aria-label={m.common_next()}
+            title={m.common_next()}
+          >
+            <ChevronRight size={22} />
+          </button>
+        </nav>
       {/if}
-    </div>
+    {/if}
   </div>
 </div>
 
 <style>
-  /* Uses the global theme tokens directly (no per-page mirror variables). */
   .page-main {
     position: relative;
     min-height: 100vh;
-    padding: 4rem 0 6rem;
     color: var(--text-primary);
     /* No `overflow-x: hidden`: it would clip the phone grid's edge-to-edge breakout to this
        element's inset (photo-grid.md, Traps). The blobs are fixed and clip themselves. */
   }
 
+  /* The layout's <main> already pads the page, so the gutter is its padding alone and the grid
+     starts at the same left edge as on the album page and the albums list. */
   .page-container {
     position: relative;
     z-index: 1;
     max-width: 1400px;
     margin: 0 auto;
-    /* The layout's <main> already pads the page: the gutter is its padding alone, as on the
-       album page, so the grid starts at the same left edge on every page. */
-    padding: 2rem 0 6rem;
+    padding: 0.5rem 0 6rem;
   }
 
-  /* --- HEADER --- */
   .page-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-bottom: 3rem;
-    flex-wrap: wrap;
-    text-align: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .page-header > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .page-header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.2;
   }
   .subtitle {
+    margin: 0.15rem 0 0;
     color: var(--text-secondary);
-    font-size: 1.1rem;
-    margin: 0.25rem 0 0;
-  }
-
-  /* --- TABS --- */
-  .tabs-wrapper {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 3rem;
-  }
-  .tabs {
-    position: relative;
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.4rem;
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    border-radius: 99px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  }
-  .tab-item {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.5rem;
-    border: none;
-    background: transparent;
-    color: var(--text-secondary);
-    font-weight: 600;
-    cursor: pointer;
-    transition: color 0.3s ease;
-    border-radius: 99px;
-  }
-  .tab-item.active {
-    color: white;
-  }
-  .tab-item:hover:not(.active) {
-    color: var(--text-primary);
-  }
-
-  .tab-indicator {
-    position: absolute;
-    top: 0.4rem;
-    bottom: 0.4rem;
-    z-index: 1;
-    background: var(--accent);
-    border-radius: 99px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    width: calc(50% - 0.4rem);
-  }
-  .tab-indicator.left {
-    left: 0.4rem;
-    transform: translateX(0);
-  }
-  .tab-indicator.right {
-    left: 0.4rem;
-    transform: translateX(100%);
-  }
-
-  /* --- CARDS & GRID --- */
-  .surface {
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-lg);
-    margin-bottom: 1.5em;
-  }
-
-  /* Upload Section */
-  .upload-section {
-    overflow: hidden;
-  }
-  .upload-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    /* Use theme-aware glass background for better contrast */
-    background: var(--surface);
-  }
-  .icon-box {
-    width: 42px;
-    height: 42px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .upload-header h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .upload-header p {
-    margin: 0;
     font-size: 0.9rem;
-    color: var(--text-secondary);
   }
-  .upload-content {
-    padding: 1.5rem;
-  }
-
-  /* Section Title */
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-    padding-left: 0.5rem;
-  }
-  .section-title h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-  }
-  .badge {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 0.2rem 0.6rem;
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-    color: var(--accent);
-  }
-
-  /* --- PAGINATION --- */
-  .pagination-container {
+  /* Stated in full: the global `button` rule would give it a filled background. */
+  .header-icon {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 1rem;
-  }
-  .pagination-container.bottom {
-    margin-top: 2rem;
-  }
-
-  .btn-nav {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--surface);
-    border: 1px solid var(--surface-border);
-    border-radius: var(--radius-sm);
+    border: none;
+    border-radius: 50%;
+    background: transparent;
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.2s;
   }
-  .btn-nav:hover:not(:disabled) {
-    background: var(--surface);
-    border-color: var(--accent);
-    color: var(--accent);
+  .header-icon:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
-  .btn-nav:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .header-icon:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
 
-  .page-badge {
-    font-family: monospace;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  /* --- STATES --- */
-  .state-message {
-    padding: 3rem;
-    text-align: center;
-    color: var(--text-secondary);
+  .chips {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.75rem;
-    background: var(--surface);
-    border-radius: var(--radius);
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .chip {
+    height: 2.25rem;
+    padding: 0 1rem;
     border: 1px solid var(--border);
-    margin-bottom: 2rem;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .chip.active {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+  .page-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .state-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 3rem 1rem;
+    color: var(--text-secondary);
   }
   .state-message.error {
     color: var(--error);
-    border-color: color-mix(in srgb, var(--error) 20%, transparent);
   }
 
   @media (max-width: 640px) {
-    .header-content h1 {
-      font-size: 2rem;
-    }
-  }
-
-  /* Mobile: improve readability of upload areas and glass cards */
-  @media (max-width: 768px) {
-    .upload-section,
-    .surface.upload-section,
-    .surface.upload-section .upload-content {
-      /* Make background more opaque on mobile for better contrast */
-      background: rgba(255, 255, 255, 0.96) !important;
-      border-color: rgba(0, 0, 0, 0.06) !important;
-      color: var(--text-primary) !important;
-    }
-    .upload-section .upload-header h3,
-    .upload-section .upload-header p {
-      color: var(--text-primary) !important;
-    }
-    .upload-section {
-      margin-bottom: 1rem !important;
-    }
-  }
-
-  @media (max-width: 768px) and (prefers-color-scheme: dark) {
-    .upload-section,
-    .surface.upload-section,
-    .surface.upload-section .upload-content {
-      background: rgba(10, 12, 16, 0.92) !important;
-      border-color: rgba(255, 255, 255, 0.06) !important;
-      color: var(--text-primary) !important;
-    }
-    .upload-section .upload-header h3,
-    .upload-section .upload-header p {
-      color: var(--text-primary) !important;
-    }
-  }
-
-  /* Mobile light-mode specific tweak for better contrast */
-  @media (max-width: 768px) and (prefers-color-scheme: light) {
-    .upload-section,
-    .surface.upload-section,
-    .surface.upload-section .upload-content {
-      background: rgba(255, 255, 255, 0.96) !important;
-      border-color: rgba(0, 0, 0, 0.06) !important;
-      /* Force explicit readable text color in light mode */
-      color: var(--text-primary, #111827) !important;
-    }
-    .upload-section .upload-header h3,
-    .upload-section .upload-header p,
-    .upload-section .upload-content,
-    .upload-section * {
-      color: var(--text-primary, #111827) !important;
+    .page-header h1 {
+      font-size: 1.5rem;
     }
   }
 </style>
