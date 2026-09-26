@@ -273,7 +273,7 @@
     <div class="toolbar">
       <div class="items-count">
         <strong>{assets.length}</strong>
-        {m.trash_items_in_bin()}
+        {m.trash_items_in_bin({ count: assets.length })}
       </div>
 
       <div class="toolbar-actions">
