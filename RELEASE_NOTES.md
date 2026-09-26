@@ -19,7 +19,6 @@ The new logo everywhere, and the fixes from the desktop review.
 - Settings: the face recognition note has its icon beside the text, and "Importer une photo" stays on one line.
 - Photos CV looks like the albums list: the upload panel no longer fills the first screen (a + next to the title, or drop files anywhere), chips instead of tabs, and no photo overflows the screen.
 - Counts are written as words agree: "1 photo", "2956 photos" - no more "photo(s)", anywhere in the app.
-- Photos CV looks like the albums list: the upload panel no longer fills the first screen (a + next to the title, or drop files anywhere), chips instead of tabs, and no photo overflows the screen.
 
 # MiGallery v2.8.0
 
