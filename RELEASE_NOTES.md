@@ -1,3 +1,18 @@
+# MiGallery v2.10.0
+
+**Date**: September 27, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+The drop overlay and two fixes from the user's review.
+
+## Changes
+
+- Dragging files over an album or Photos CV no longer greys out the whole window: the page stays visible, blurred, behind a dashed frame, and the "Déposez vos fichiers" label fades in on its own card.
+- Photos CV no longer shows "100 photos" above the grid: it was the page size, not a count.
+- In the light theme, the "Changer la photo de profil" dialog is readable again: its label and instructions were written in white.
+
 # MiGallery v2.9.0
 
 **Date**: September 26, 2026

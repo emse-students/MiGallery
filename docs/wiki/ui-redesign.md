@@ -221,3 +221,18 @@ sliding segmented control became Google Photos' filter chips; the personal-name 
 "Personnel" badge went (the chip already says whose photos these are); the pagination is two icon
 buttons around the page number. The mobile-only `!important` colour overrides for the upload card
 went with it. Measured at 393px: photos from 0 to 393, title at 16px, no horizontal scroll.
+
+## The drop overlay is glass, not a grey screen (2026-09-27)
+
+`UploadZone`'s `page` variant covered the window with an opaque `--bg-elevated` card while files
+were dragged over it. It now follows the dialogs (`Modal.svelte`): the page at 45 % tint behind a
+`blur(12px)`, a dashed accent frame over an 8 % accent wash, and the label on an OPAQUE pill -
+over a blurred photo grid bare text had no contrast (measured on the rig in both themes, 1440x900).
+Fade-in (0.18 s), a 0.97 scale on the frame, a slow float on the icon; all three stop under
+`prefers-reduced-motion`.
+
+Two fixes shipped with it: Photos CV no longer prints the page size as a count (`showCount={false}`,
+the album page's switch), and `ChangePhotoModal` uses theme tokens instead of hard-coded white text.
+
+**Desktop sidebar decided (user, 2026-09-27):** from 769 px up, a Google-Photos left sidebar
+(~256 px) replaces the bottom bar, which stays for phones only (row #9).
