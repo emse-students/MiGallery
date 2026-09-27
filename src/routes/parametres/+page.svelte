@@ -3,19 +3,15 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import {
-    User as UserIcon,
     Camera,
     Palette,
-    Sun,
-    Moon,
     ScanEye,
     Info,
     CircleCheckBig,
     CircleAlert,
-    Share2,
     X,
-    Users,
     ChevronRight,
+    Trash2,
     TriangleAlert,
     Languages,
     Shield,
@@ -26,10 +22,10 @@
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
   import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
   import Avatar from '$lib/components/Avatar.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
   import { fuzzySearch } from '$lib/fuzzy';
   import { PhotosState } from '$lib/photos.svelte';
-  import { theme } from '$lib/theme';
+  import { theme, type ThemePreference } from '$lib/theme';
+  import SettingsRow from '$lib/components/SettingsRow.svelte';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
@@ -40,6 +36,13 @@
   import { switchLocale } from '$lib/locale';
 
   const photosState = new PhotosState();
+  /** The theme choices, in Google Photos' order: the device's own first. */
+  const THEME_CHOICES: { value: ThemePreference; label: () => string }[] = [
+    { value: 'system', label: m.param_theme_system },
+    { value: 'light', label: m.param_theme_light },
+    { value: 'dark', label: m.param_theme_dark },
+  ];
+
   let showChangePhotoModal = $state(false);
 
   let isAdmin = $state<boolean>(false);
@@ -591,107 +594,61 @@
   <BackgroundBlobs />
 
   <div class="settings-container">
-    <header class="page-header settings-header centered">
-      <div class="header-content">
-        <h1>{m.nav_settings()}</h1>
-        <p class="subtitle">{m.param_subtitle()}</p>
-      </div>
+    <header class="settings-header">
+      <h1>{m.nav_settings()}</h1>
     </header>
 
-    <section class="settings-card surface">
-      <div class="card-header">
-        <div class="icon-wrapper blue">
-          <UserIcon size={24} />
-        </div>
-        <div>
-          <h2>{m.param_profile()}</h2>
-          <p>{m.param_profile_sub()}</p>
-        </div>
-      </div>
-
-      <div class="card-body">
-        <div class="preference-row">
-          <div class="pref-info">
-            <span class="pref-title">{m.param_profile_photo()}</span>
-            <span class="pref-desc">{m.param_profile_photo_desc()}</span>
-          </div>
-          <button
-            type="button"
-            onclick={() => (showChangePhotoModal = true)}
-            class="btn-secondary"
-            disabled={!currentUserHasFace}
-            title={!currentUserHasFace ? m.param_need_face_first() : ''}
-          >
-            <Camera size={18} />
-            <span>{m.param_choose_photo()}</span>
-          </button>
-        </div>
+    <section class="settings-group">
+      <h2 class="group-title">{m.param_profile()}</h2>
+      <div class="group-card">
+        <SettingsRow
+          icon={Camera}
+          title={m.param_profile_photo()}
+          description={currentUserHasFace
+            ? m.param_profile_photo_desc()
+            : m.param_need_face_first()}
+          onclick={() => (showChangePhotoModal = true)}
+          disabled={!currentUserHasFace}
+        />
       </div>
     </section>
 
-    <section class="settings-card surface">
-      <div class="card-header">
-        <div class="icon-wrapper blue">
-          <Palette size={24} />
-        </div>
-        <div>
-          <h2>{m.param_appearance()}</h2>
-          <p>{m.param_appearance_sub()}</p>
-        </div>
-      </div>
-
-      <div class="card-body">
-        <div class="preference-row">
-          <div class="pref-info">
-            <span class="pref-title">{m.param_theme_label()}</span>
-            <span class="pref-desc">{m.param_theme_desc()}</span>
+    <section class="settings-group">
+      <h2 class="group-title">{m.param_appearance()}</h2>
+      <div class="group-card">
+        <SettingsRow icon={Palette} title={m.param_theme_label()}>
+          <div class="segmented" role="radiogroup" aria-label={m.param_theme_label()}>
+            {#each THEME_CHOICES as choice (choice.value)}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={$theme === choice.value}
+                class:active={$theme === choice.value}
+                onclick={() => theme.set(choice.value)}
+              >
+                {choice.label()}
+              </button>
+            {/each}
           </div>
-          <button
-            type="button"
-            onclick={() => theme.toggle()}
-            class="theme-toggle-btn"
-            aria-label={m.param_theme_toggle_aria()}
+        </SettingsRow>
+        <SettingsRow icon={Languages} title={m.param_language()}>
+          <select
+            class="lang-select"
+            value={getLocale()}
+            onchange={(e) => switchLocale((e.currentTarget as HTMLSelectElement).value as Locale)}
+            aria-label={m.param_language()}
           >
-            {#if $theme === 'dark'}
-              <Sun size={20} /> <span>{m.param_theme_light()}</span>
-            {:else}
-              <Moon size={20} /> <span>{m.param_theme_dark()}</span>
-            {/if}
-          </button>
-        </div>
-
-        <div class="preference-row">
-          <div class="pref-info">
-            <span class="pref-title">{m.param_language()}</span>
-            <span class="pref-desc">{m.param_language_desc()}</span>
-          </div>
-          <label class="lang-select">
-            <Languages size={18} />
-            <select
-              value={getLocale()}
-              onchange={(e) => switchLocale((e.currentTarget as HTMLSelectElement).value as Locale)}
-              aria-label={m.param_language()}
-            >
-              <option value="fr">{m.lang_french()}</option>
-              <option value="en">{m.lang_english()}</option>
-            </select>
-          </label>
-        </div>
+            <option value="fr">{m.lang_french()}</option>
+            <option value="en">{m.lang_english()}</option>
+          </select>
+        </SettingsRow>
       </div>
     </section>
 
-    <section id="face-recognition" class="settings-card surface">
-      <div class="card-header">
-        <div class="icon-wrapper purple">
-          <ScanEye size={24} />
-        </div>
-        <div>
-          <h2>{m.param_face_title()}</h2>
-          <p>{m.param_face_sub()}</p>
-        </div>
-      </div>
-
-      <div class="card-body">
+    <section id="face-recognition" class="settings-group">
+      <h2 class="group-title">{m.param_face_title()}</h2>
+      <p class="group-desc">{m.param_face_sub()}</p>
+      <div class="group-card group-body">
         <!-- The icon is the flex row's first child, not inside the <p>: lucide's svg is a block, so
              in the text it took a line of its own above it (user, 2026-09-26). -->
         <div class="info-box">
@@ -784,18 +741,10 @@
     </section>
 
     {#if currentUserHasFace}
-      <section class="settings-card surface">
-        <div class="card-header">
-          <div class="icon-wrapper green">
-            <Share2 size={24} />
-          </div>
-          <div>
-            <h2>{m.param_share_title()}</h2>
-            <p>{m.param_share_sub()}</p>
-          </div>
-        </div>
-
-        <div class="card-body">
+      <section class="settings-group">
+        <h2 class="group-title">{m.param_share_title()}</h2>
+        <p class="group-desc">{m.param_share_sub()}</p>
+        <div class="group-card group-body">
           <div class="permission-add-row">
             <div class="user-selector">
               <input
@@ -857,7 +806,7 @@
             <button
               type="button"
               onclick={addPhotoPermission}
-              class="theme-toggle-btn"
+              class="btn primary"
               disabled={isAddingPermission || !newAuthUserId.trim()}
             >
               {#if isAddingPermission}<Spinner size={16} />{/if}
@@ -902,25 +851,17 @@
                 {/each}
               </div>
             {:else}
-              <EmptyState title={m.param_no_auth()} size="sm" />
+              <p class="group-empty">{m.param_no_auth()}</p>
             {/if}
           </div>
         </div>
       </section>
     {/if}
 
-    <section class="settings-card surface">
-      <div class="card-header">
-        <div class="icon-wrapper indigo">
-          <Users size={24} />
-        </div>
-        <div>
-          <h2>{m.param_shared_title()}</h2>
-          <p>{m.param_shared_sub()}</p>
-        </div>
-      </div>
-
-      <div class="card-body">
+    <section class="settings-group">
+      <h2 class="group-title">{m.param_shared_title()}</h2>
+      <p class="group-desc">{m.param_shared_sub()}</p>
+      <div class="group-card group-body">
         {#if isLoadingSharedWithMe}
           <div class="loading-state"><Spinner size={20} /> {m.common_loading()}</div>
         {:else if sharedWithMe.length > 0}
@@ -948,75 +889,44 @@
             {/each}
           </div>
         {:else}
-          <EmptyState title={m.param_no_shared()} size="sm" />
+          <p class="group-empty">{m.param_no_shared()}</p>
         {/if}
       </div>
     </section>
 
     {#if isAdmin}
-      <section class="settings-card surface">
-        <div class="card-header">
-          <div class="icon-wrapper indigo">
-            <Shield size={24} />
-          </div>
-          <div>
-            <h2>{m.param_admin_title()}</h2>
-            <p>{m.param_admin_sub()}</p>
-          </div>
-        </div>
-
-        <div class="card-body">
-          <a href="/admin" class="admin-link-row">
-            <div class="pref-info">
-              <span class="pref-title">{m.param_admin_open()}</span>
-              <span class="pref-desc">{m.param_admin_open_desc()}</span>
-            </div>
-            <ChevronRight size={20} />
-          </a>
+      <section class="settings-group">
+        <h2 class="group-title">{m.param_admin_title()}</h2>
+        <div class="group-card">
+          <SettingsRow
+            icon={Shield}
+            title={m.param_admin_open()}
+            description={m.param_admin_open_desc()}
+            href="/admin"
+          />
         </div>
       </section>
     {/if}
 
-    <section class="settings-card danger-zone">
-      <div class="card-header">
-        <div class="icon-wrapper red">
-          <TriangleAlert size={24} />
-        </div>
-        <div>
-          <h2>{m.param_danger_title()}</h2>
-          <p>{m.param_danger_sub()}</p>
-        </div>
-      </div>
-
-      <div class="card-body">
+    <section class="settings-group">
+      <h2 class="group-title">{m.param_account_title()}</h2>
+      <div class="group-card">
         {#if currentUserHasFace}
-          <div class="danger-row">
-            <div class="danger-info">
-              <strong>{m.param_unlink_face()}</strong>
-              <p>{m.param_unlink_face_desc()}</p>
-            </div>
-            <button
-              type="button"
-              onclick={() => {
-                showUnlinkFaceModal = true;
-              }}
-              class="btn danger"
-            >
-              {m.param_unlink()}
-            </button>
-          </div>
-          <div class="separator"></div>
+          <SettingsRow
+            icon={ScanEye}
+            title={m.param_unlink_face()}
+            description={m.param_unlink_face_desc()}
+            onclick={() => (showUnlinkFaceModal = true)}
+            danger
+          />
         {/if}
-
-        <div class="danger-row">
-          <div class="danger-info">
-            <strong>{m.param_delete_account()}</strong>
-            <p>{m.param_delete_account_desc()}</p>
-          </div>
-          <button type="button" onclick={openDeleteAccountModal} class="btn danger">
-            {m.common_delete()}
-          </button>
-        </div>
+        <SettingsRow
+          icon={Trash2}
+          title={m.param_delete_account()}
+          description={m.param_delete_account_desc()}
+          onclick={openDeleteAccountModal}
+          danger
+        />
       </div>
     </section>
 
@@ -1115,13 +1025,9 @@
   }
 
   .settings-main {
-    /* Danger-zone tint pair (theme-independent, derived from --error). */
-    --st-danger-bg: color-mix(in srgb, var(--error) 7%, transparent);
-    --st-danger-border: color-mix(in srgb, var(--error) 28%, transparent);
-
     position: relative;
     min-height: 100vh;
-    padding: 4rem 0 6rem;
+    padding: 2rem 0 6rem;
     color: var(--text-primary);
     overflow-x: hidden;
   }
@@ -1131,162 +1037,97 @@
     z-index: 1;
     max-width: 720px;
     margin: 0 auto;
-    padding: 0 1.5rem;
+    padding: 0 1rem;
   }
 
+  /* Left-aligned like every other page's title (ui-redesign #16), no subtitle. */
   .settings-header {
-    margin-bottom: 3rem;
-    text-align: center;
+    margin-bottom: 1.5rem;
   }
 
-  .subtitle {
-    font-size: 1.1rem;
-    color: var(--text-secondary);
-  }
-
-  .settings-card {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 2rem;
-    overflow: hidden;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    transition:
-      transform 0.2s,
-      box-shadow 0.2s;
-  }
-
-  .settings-card:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-  }
-
-  .card-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .card-header h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
+  .settings-header h1 {
     margin: 0;
   }
-  .card-header p {
-    font-size: 0.9rem;
+
+  /* A group: a small heading, an optional line of context, then one flat card of rows. */
+  .settings-group {
+    margin-bottom: 1.75rem;
+  }
+
+  .group-title {
+    margin: 0 0 0.5rem 1rem;
     color: var(--text-secondary);
-    margin: 0.25rem 0 0;
-  }
-
-  .icon-wrapper {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-  }
-  .icon-wrapper.blue {
-    background: var(--accent);
-  }
-  .icon-wrapper.purple {
-    background: var(--purple);
-  }
-  .icon-wrapper.green {
-    background: var(--success);
-  }
-  .icon-wrapper.indigo {
-    background: var(--indigo);
-  }
-  .icon-wrapper.red {
-    background: var(--error);
-  }
-
-  .card-body {
-    padding: 1.5rem;
-  }
-
-  .preference-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .pref-title {
-    display: block;
+    font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--text-primary);
-  }
-  .pref-desc {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
+    letter-spacing: 0.02em;
   }
 
-  .theme-toggle-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    min-height: var(--st-control-height);
-    padding: 0 1rem;
-    background: var(--bg-primary);
+  .group-desc {
+    margin: -0.25rem 0 0.625rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.8125rem;
+  }
+
+  .group-card {
+    overflow: hidden;
     border: 1px solid var(--border);
-    border-radius: 99px;
-    color: var(--text-primary);
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
-  .theme-toggle-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
   }
 
-  .lang-select {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: var(--st-control-height);
-    padding: 0 1rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    color: var(--text-primary);
-  }
-  .lang-select select {
-    align-self: stretch;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-primary);
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    padding-right: 0.25rem;
-  }
-
-  .preference-row + .preference-row {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
+  /* Rows are separated by a hairline inset past the icon, as in a native list. */
+  .group-card > :global(.settings-row + .settings-row) {
     border-top: 1px solid var(--border);
   }
 
-  .admin-link-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    text-decoration: none;
+  /* A group holding free content (face recognition, sharing) rather than rows. */
+  .group-body {
+    padding: 1rem;
+  }
+
+  /* Nothing to list is one quiet line, not an illustration: the heading already says what it is. */
+  .group-empty {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+
+  /* The theme: three choices, one tap each - the old button showed the OPPOSITE of the theme in
+     force, so "Mode Clair" read as a state and acted as an action. */
+  .segmented {
+    display: inline-flex;
+    padding: 0.1875rem;
+    border-radius: 999px;
+    background: var(--bg-tertiary);
+  }
+
+  .segmented button {
+    min-height: 2rem;
+    padding: 0 0.875rem;
+    border-radius: 999px;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .segmented button.active {
+    background: var(--bg-elevated);
     color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
   }
-  .admin-link-row:hover {
-    color: var(--accent);
-  }
-  .admin-link-row:hover .pref-title {
-    color: var(--accent);
+
+  .lang-select {
+    min-height: 2.25rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
   }
 
   .info-box {
@@ -1548,26 +1389,6 @@
     color: var(--text-muted);
   }
 
-  /* --- DANGER ZONE --- */
-  .danger-zone {
-    border-color: var(--st-danger-border);
-    background: var(--st-danger-bg);
-  }
-  .danger-info strong {
-    color: var(--text-primary);
-    display: block;
-    margin-bottom: 0.25rem;
-  }
-  .danger-info p {
-    margin: 0;
-    font-size: 0.9rem;
-  }
-  .separator {
-    height: 1px;
-    background: var(--st-danger-border);
-    margin: 1rem 0;
-  }
-
   /* --- FOOTER --- */
   .settings-footer {
     text-align: center;
@@ -1585,21 +1406,11 @@
 
   @media (max-width: 640px) {
     .settings-main {
-      padding-top: 2rem;
+      padding-top: 1rem;
     }
-    .card-header {
-      flex-direction: column;
-      text-align: center;
-    }
-    .danger-row {
-      flex-direction: column;
-      text-align: center;
-      gap: 1rem;
-    }
-    .preference-row {
-      flex-direction: column;
-      text-align: center;
-      gap: 1rem;
+
+    .segmented button {
+      padding: 0 0.625rem;
     }
   }
 </style>
