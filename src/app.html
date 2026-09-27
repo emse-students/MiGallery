@@ -24,14 +24,19 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
     />
     <!-- The theme before the first paint: the same rule as src/lib/theme-preference.ts (parsePreference +
-         resolveTheme), inline because a store only runs after hydration, which painted a light
+         resolveTheme, THEME_COLORS), inline because a store only runs after hydration, which painted a light
          user dark for a frame. Keep the two in step. -->
+    <!-- The chrome colour continues the page: dark here, repainted below and by `theme.ts`. -->
+    <meta name="theme-color" content="#0d0d0d" />
     <script>
       try {
         var t = localStorage.getItem('theme');
         if (t !== 'light' && t !== 'dark')
           t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', t);
+        document
+          .querySelector('meta[name="theme-color"]')
+          .setAttribute('content', t === 'light' ? '#ffffff' : '#0d0d0d');
       } catch (e) {
         console.warn('theme: localStorage unreadable, painting dark', e);
         document.documentElement.setAttribute('data-theme', 'dark');

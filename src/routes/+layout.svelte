@@ -87,10 +87,6 @@
   }
 </script>
 
-<svelte:head>
-  <meta name="theme-color" content="#3b82f6" />
-</svelte:head>
-
 <!--
 	The `<title>` element stays with the pages, and every route sets one. This layout also carried
 	`<title>MiGallery</title>`, which never reached a single page: Svelte deduplicates `<title>` in

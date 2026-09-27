@@ -19,6 +19,13 @@ export function parsePreference(stored: string | null): ThemePreference {
   return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
 }
 
+/**
+ * The browser chrome colour (`<meta name="theme-color">`) per painted theme: each theme's
+ * `--bg-primary` in `app.css`, so the status bar continues the page. The manifest's
+ * `theme_color` is the dark one. `app.html`'s inline script repeats these two values.
+ */
+export const THEME_COLORS: Readonly<Record<Theme, string>> = { dark: '#0d0d0d', light: '#ffffff' };
+
 /** The theme a preference paints, given whether the device currently prefers light. */
 export function resolveTheme(pref: ThemePreference, deviceLight: boolean): Theme {
   if (pref === 'system') return deviceLight ? 'light' : 'dark';

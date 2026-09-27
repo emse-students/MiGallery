@@ -53,6 +53,13 @@
   "albums_empty": "No album found",
   "albums_no_match": "No album matches your search",
   "albums_no_date": "No date",
+  "albums_year_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": { "countPlural=one": "{count} album", "countPlural=*": "{count} albums" }
+    }
+  ],
   "albums_visibility_private": "Visibility: private",
   "albums_visibility_unlisted": "Visibility: unlisted",
   "albums_visibility_authenticated": "Visibility: authenticated",
@@ -151,6 +158,7 @@
   "pm_cover_updated": "Cover updated",
   "pm_favorite_error": "Favorite error",
   "pg_photo_downloaded": "Photo downloaded!",
+  "pg_tile_loading": "Photo loading",
   "pg_removed_count": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

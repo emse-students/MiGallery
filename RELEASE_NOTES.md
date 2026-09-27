@@ -1,3 +1,18 @@
+# MiGallery v2.15.1
+
+**Date**: September 27, 2026
+**Type**: Patch Release
+
+## 🎯 Objective
+
+Three small accessibility and polish fixes.
+
+## Changes
+
+- Screen readers name every photo in a grid, including the ones not loaded yet ("Photo en cours de chargement").
+- The school-year headings in Albums are read as "2026-2027, 14 albums" instead of "2026-2027 14".
+- On a phone, the browser's status bar takes the page colour - dark or light, following your theme - instead of blue.
+
 # MiGallery v2.15.0
 
 **Date**: September 27, 2026

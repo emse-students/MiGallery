@@ -159,13 +159,16 @@
   ]);
 </script>
 
-<!-- Photo Card Container -->
+<!-- Photo Card Container. The tile names itself: its thumbnail is lazy, so an off-screen tile has
+     no <img> alt to lend it a name, and a placeholder has no file name yet. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="photo-card {isSelected ? 'selected' : ''}"
   style="left: {x}px; width: {width}px; height: {height}px;"
   role="button"
   tabindex="0"
+  aria-label={isFullyLoaded ? fileName : m.pg_tile_loading()}
+  aria-busy={isFullyLoaded ? undefined : true}
   aria-pressed={isSelecting ? isSelected : undefined}
   onclick={handleCardClick}
   onkeydown={(e) => {
