@@ -507,8 +507,10 @@
   {#if isDragging}
     <div class="drop-overlay" aria-hidden="true" use:portal>
       <div class="drop-card">
-        <Upload size={40} />
-        <p>{m.uz_drop_active()}</p>
+        <div class="drop-label">
+          <Upload size={28} />
+          <p>{m.uz_drop_active()}</p>
+        </div>
       </div>
     </div>
   {/if}
@@ -568,7 +570,9 @@
 {/if}
 
 <style>
-  /* `page` variant: the full-window drop target, shown only while files are dragged over it. */
+  /* `page` variant: the full-window drop target, shown only while files are dragged over it.
+     Translucent over a blurred page, like the dialogs (`Modal.svelte`): the album stays visible
+     behind it, so the drop reads as "into this page" rather than a screen swap. */
   .drop-overlay {
     position: fixed;
     inset: 0;
@@ -577,29 +581,75 @@
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
-    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
+    background: color-mix(in srgb, var(--bg-primary) 45%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
+    backdrop-filter: blur(12px) saturate(1.2);
     pointer-events: none;
+    animation: drop-fade 0.18s ease-out;
   }
 
   .drop-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
     width: 100%;
     height: 100%;
     justify-content: center;
-    border: 2px dashed var(--accent);
+    border: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent);
     border-radius: var(--radius-lg);
-    background: var(--bg-elevated);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
     color: var(--accent);
     font-size: 1.125rem;
     font-weight: 600;
+    animation: drop-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  .drop-card p {
+  /* The label sits on an opaque pill: over a blurred photo grid, bare text has no contrast. */
+  .drop-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.25rem 1.75rem;
+    border-radius: var(--radius-lg);
+    background: var(--bg-elevated);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  }
+
+  .drop-label :global(svg) {
+    animation: drop-float 1.6s ease-in-out 0.22s infinite;
+  }
+
+  .drop-label p {
     margin: 0;
     color: var(--text-primary);
+  }
+
+  @keyframes drop-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes drop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  @keyframes drop-float {
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .drop-overlay,
+    .drop-card,
+    .drop-label :global(svg) {
+      animation: none;
+    }
   }
 
   /* `page` variant: the progress panel, in the flow only once files are queued. */
