@@ -654,6 +654,19 @@
     border-radius: var(--radius);
   }
 
+  /* Visually hidden, still read by assistive tech (a tab's name, a count's phrase). */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   /* Buttons. Every button is an inline flex row, but only a `.btn` CENTRES its content: a
      row that fills its width (a menu item, a settings row, a list entry) reads left-aligned by
      default, and a button wider than its content that wants it centred says so itself. The

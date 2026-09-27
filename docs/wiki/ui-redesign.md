@@ -377,3 +377,21 @@ Photos CV, Paramètres ("Supprimer mon compte" open), the home page and three ad
 1440x900 and 393x851: the ONLY rows that moved are the admin documentation's table of contents,
 which went from centred to left-aligned at 12 px - the intended fix. Every menu, dialog button and
 settings row already stated its own alignment.
+
+## Three leftovers of the accessibility pass (2026-09-27)
+
+- **Every photo tile names itself.** A tile is a `role="button"` whose name came from its
+  thumbnail's `alt`; the thumbnail is lazy, so every tile below the fold (21 of 42 on Gala at
+  393 px) was a button with no name - not only the placeholders. `PhotoCard` now carries
+  `aria-label` = the file name, or "Photo en cours de chargement" (`pg_tile_loading`) with
+  `aria-busy` while its details load. Measured: 0 of 42 unnamed.
+- **The year heading reads as a phrase.** The visible count is `aria-hidden` and an `sr-only`
+  `albums_year_count` ("14 albums", plural in fr and en) is read instead: the button is announced
+  "2026-2027 14 albums". `.sr-only` is now one global utility in `app.css` (MobileNav's scoped
+  copy went).
+- **`theme-color` follows the painted theme.** It was a fixed accent blue (`#3b82f6`) from the
+  layout. It is now each theme's `--bg-primary` (`THEME_COLORS` in `$lib/theme-preference`,
+  `#0d0d0d` / `#ffffff`, the manifest's `theme_color` being the dark one), set before the first
+  paint by `app.html`'s inline script and repainted by `theme.ts` on every change - checked on the
+  rig for Système / Clair / Sombre. `tests/theme.test.ts` pins the four copies (app.css, the
+  manifest, app.html, the constant) to each other.

@@ -4,6 +4,7 @@ import { browser } from '$app/environment';
 import {
   parsePreference,
   resolveTheme,
+  THEME_COLORS,
   THEME_STORAGE_KEY,
   type Theme,
   type ThemePreference,
@@ -20,7 +21,12 @@ export const paintedTheme = writable<Theme>('dark');
 
 function apply(pref: ThemePreference): void {
   const resolved = resolveTheme(pref, deviceLight());
-  if (browser) document.documentElement.setAttribute('data-theme', resolved);
+  if (browser) {
+    document.documentElement.setAttribute('data-theme', resolved);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', THEME_COLORS[resolved]);
+  }
   paintedTheme.set(resolved);
 }
 

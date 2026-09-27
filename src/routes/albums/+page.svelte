@@ -285,7 +285,9 @@
             onclick={() => toggleYear(group.key, groupIndex)}
           >
             <h2 class="year-title">{group.label}</h2>
-            <span class="year-count">{group.albums.length}</span>
+            <!-- Seen as a bare number; heard as "14 albums" rather than "2026-2027 14". -->
+            <span class="year-count" aria-hidden="true">{group.albums.length}</span>
+            <span class="sr-only">{m.albums_year_count({ count: group.albums.length })}</span>
             <span class="year-chevron" class:open={expanded}><ChevronRight size={18} /></span>
           </button>
 
