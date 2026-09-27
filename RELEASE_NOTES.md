@@ -1,3 +1,20 @@
+# MiGallery v2.14.0
+
+**Date**: September 27, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Every page lines up on the same edge, screen readers hear each thing once, and MiGallery can be installed on a phone.
+
+## Changes
+
+- Every page uses the same margins: on a phone, Paramètres no longer has a double margin on each side, and on a computer the titles of Albums, Photos CV and Paramètres start on the same line.
+- The home page has one "Se connecter" button instead of two, and no longer scrolls on a phone.
+- MiGallery can be added to a phone's home screen, where it opens full screen on the albums list.
+- Screen readers (TalkBack, VoiceOver) announce each album once, with its title and date, and no longer read the hidden buttons of every photo; the album search field is announced as a search.
+- The favourite button on a photo is read in the app's language instead of always in English.
+
 # MiGallery v2.13.0
 
 **Date**: September 27, 2026

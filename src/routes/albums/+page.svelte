@@ -142,6 +142,31 @@
       : `/api/albums/${a.id}/cover`;
   }
 
+  /** The card's date line ("13 sept. 2025"), empty for an undated album. */
+  function albumDate(a: Album): string {
+    if (!a.date) return '';
+    return new Date(a.date).toLocaleDateString(getLocale(), {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  /**
+   * The card's ONE accessible name: title, date, then the visibility mark when there is one. The
+   * visible title and date are `aria-hidden`, because a link reads its whole text content and
+   * TalkBack announced every card twice (ui-redesign #19).
+   */
+  function albumCardLabel(a: Album, mark: 'private' | 'unlisted' | null): string {
+    const markLabel =
+      mark === 'private'
+        ? m.albums_visibility_private()
+        : mark === 'unlisted'
+          ? m.albums_visibility_unlisted()
+          : '';
+    return [a.name, albumDate(a), markLabel].filter(Boolean).join(', ');
+  }
+
   // Albums whose cover failed to load (typically an album with no photo yet).
   let coverErrors = $state<Record<string, boolean>>({});
 
@@ -215,11 +240,15 @@
     </PageHeader>
 
     {#if searchOpen}
-      <div class="search-row" transition:fade={{ duration: 150 }}>
+      <div class="search-row" role="search" transition:fade={{ duration: 150 }}>
         <Search size={18} />
         <input
           bind:this={searchInput}
           class="search-input"
+          type="text"
+          inputmode="search"
+          enterkeyhint="search"
+          autocomplete="off"
           placeholder={m.albums_search_placeholder()}
           bind:value={albumsView.search}
           aria-label={m.albums_search_aria()}
@@ -267,6 +296,7 @@
                 <a
                   href={`/albums/${a.id}`}
                   class="album-item"
+                  aria-label={albumCardLabel(a, mark)}
                   class:album-hidden={!a.visible && canCreateAlbum}
                 >
                   <div class="album-cover-wrapper">
@@ -284,8 +314,8 @@
                       />
                     {/if}
                   </div>
-                  <span class="album-name">{a.name}</span>
-                  <span class="album-meta">
+                  <span class="album-name" aria-hidden="true">{a.name}</span>
+                  <span class="album-meta" aria-hidden="true">
                     {#if mark === 'private'}
                       <span class="mark" title={m.albums_visibility_private()}
                         ><Lock size={12} /></span
@@ -295,13 +325,7 @@
                         ><LinkIcon size={12} /></span
                       >
                     {/if}
-                    {#if a.date}
-                      {new Date(a.date).toLocaleDateString(getLocale(), {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    {/if}
+                    {albumDate(a)}
                   </span>
                 </a>
               {/each}
@@ -325,13 +349,12 @@
     overflow-x: hidden;
   }
 
-  /* Google Photos web: 24-32px gutters around ~254px tiles; the app: 16dp. */
+  /* Google Photos web: 24-32px gutters around ~254px tiles; the app: 16dp. Width and gutter are
+     the layout's <main> alone (ui-redesign #10). */
   .albums-container {
     position: relative;
     z-index: 1;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0.5rem 1rem 6rem;
+    padding: 0.5rem 0 6rem;
   }
 
   /* The search field's clear button: stated in full, the global `button` rule would fill it. */
@@ -495,9 +518,8 @@
 
   /* The app: two columns, 16dp margins and gap, ~24dp between rows. */
   @media (max-width: 640px) {
-    /* The layout's <main> already gives the 16dp margin. */
     .albums-container {
-      padding: 0 0 6rem;
+      padding-top: 0;
     }
     .album-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));

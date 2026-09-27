@@ -215,7 +215,7 @@
         class="favorite-btn {isFavorite ? 'active' : ''}"
         title={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
         onclick={handleFavoriteClick}
-        aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        aria-label={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
       >
         <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
       </button>
@@ -355,7 +355,12 @@
     color: white;
     cursor: pointer;
     opacity: 0;
-    transition: all 0.2s ease;
+    visibility: hidden;
+    transition:
+      opacity 0.2s ease,
+      visibility 0.2s ease,
+      background 0.2s ease,
+      transform 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -383,14 +388,23 @@
     pointer-events: none;
   }
 
+  /*
+   * The hidden overlay (favourite button, menu) is `visibility: hidden`, not only transparent:
+   * an `opacity: 0` button stays in the accessibility tree, and TalkBack read every tile as
+   * "Select ... Download ... Delete ..." (ui-redesign #21). A hidden element is neither announced
+   * nor focusable; the reveals below turn it back on.
+   */
   .tile-menu {
     position: absolute;
     top: 0.625rem;
     right: 0.625rem;
     z-index: 5;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.2s ease;
+    transition:
+      opacity 0.2s ease,
+      visibility 0.2s ease;
   }
 
   /* Keyboard focus reveals the menu on any device; an open menu keeps its trigger shown. */
@@ -398,6 +412,15 @@
   .tile-menu:has(:global(:focus-visible)),
   .tile-menu:has(:global([aria-expanded='true'])) {
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Same for the favourite button: the tile's keyboard focus makes it reachable by Tab. */
+  .photo-card:focus-visible .favorite-btn,
+  .favorite-btn:focus-visible {
+    opacity: 1;
+    visibility: visible;
     pointer-events: auto;
   }
 
@@ -424,6 +447,7 @@
     .photo-card:hover .favorite-btn,
     .photo-card:hover .tile-menu {
       opacity: 1;
+      visibility: visible;
       pointer-events: auto;
     }
 

@@ -591,7 +591,9 @@
   <title>{m.param_page_title()}</title>
 </svelte:head>
 
-<main class="settings-main">
+<!-- A div, not a <main>: the layout's <main> is the landmark and the ONE page container - it
+alone sets the width and the gutter, which this page used to add a second time (ui-redesign #10). -->
+<div class="settings-main">
   <BackgroundBlobs />
 
   <div class="settings-container">
@@ -938,7 +940,7 @@
       <p class="copyright">{m.param_copyright()}</p>
     </footer>
   </div>
-</main>
+</div>
 
 <Modal
   bind:show={showDeleteAccountModal}
@@ -1026,17 +1028,17 @@
   .settings-main {
     position: relative;
     min-height: 100vh;
-    padding: 2rem 0 6rem;
+    padding: 0.5rem 0 6rem;
     color: var(--text-primary);
     overflow-x: hidden;
   }
 
+  /* A readable column, flush with the other pages' left edge (Google Photos' settings are a
+     left-aligned list too); the gutter is the layout's alone. */
   .settings-container {
     position: relative;
     z-index: 1;
     max-width: 720px;
-    margin: 0 auto;
-    padding: 0 1rem;
   }
 
   /* A group: a small heading, an optional line of context, then one flat card of rows. */
@@ -1395,10 +1397,6 @@
   }
 
   @media (max-width: 640px) {
-    .settings-main {
-      padding-top: 1rem;
-    }
-
     .segmented button {
       padding: 0 0.625rem;
     }
