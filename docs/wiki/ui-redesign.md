@@ -395,3 +395,26 @@ settings row already stated its own alignment.
   paint by `app.html`'s inline script and repainted by `theme.ts` on every change - checked on the
   rig for Système / Clair / Sombre. `tests/theme.test.ts` pins the four copies (app.css, the
   manifest, app.html, the constant) to each other.
+
+## The sharing search's list is a popover (2026-09-27)
+
+From the user (desktop, dark): in Paramètres, "Partage de mes photos", the profile suggestions
+were cut at the card's bottom edge with a scrollbar inside the card. Cause: the list was
+`position: absolute` inside `.group-card`, which has `overflow: hidden` (it rounds the rows of every
+settings card), so the card clipped it. Making the card taller would only have moved the edge.
+
+The fix reuses the overflow menu's pattern: `ProfilePicker.svelte` portals the list to `<body>`
+(`$lib/portal`) with fixed coordinates, under the field, and follows it on scroll and resize (its
+own scroll ignored). Where it goes is `placePopover` (`$lib/popover-position`, tested in
+`tests/popover-position.test.ts`), which `OverflowMenu` now uses too: below, unless it does not fit
+there and there is more room above - so near the bottom of the viewport it opens upwards - and
+capped to the chosen side, scrolling past that.
+
+It is a WAI-ARIA combobox now (it had no keyboard support): the input is the `combobox`, the list a
+`listbox` of `option`s, the arrows move `aria-activedescendant` (wrapping, via `nextMenuIndex`),
+Enter picks, Escape and Tab close. The old close was a 200 ms timer on blur, there so a click on an
+option landed before the list vanished; the list now cancels its own `mousedown`, so the input
+keeps focus through a pick and the blur can close it at once. Measured on the rig with 7 profiles:
+at 1440x900 the list ran from y=476 to 776 over a card ending at 535; with the field at y=816 it
+opened above (512-812); at 393 px it spans the field's width (225 px) and flips the same way; the
+arrows, Enter, Escape, a click, a tap and a click outside all behave, light and dark.
