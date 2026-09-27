@@ -21,6 +21,8 @@
   import type { User, Album } from '$lib/types/api';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
+  import PageHeader from '$lib/components/PageHeader.svelte';
+  import IconButton from '$lib/components/IconButton.svelte';
 
   /**
    * Day of August a school year rolls over on: an album dated on or after
@@ -194,33 +196,23 @@
   <div class="albums-container">
     <!-- Measured on Google Photos (Mi 9T app, web): the title and two icon buttons on ONE row - no
          standing search field, no filled "create" button. -->
-    <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
-      <h1>{m.nav_albums()}</h1>
-      <div class="header-actions">
-        <button
-          type="button"
-          class="header-icon"
-          class:active={searchOpen}
+    <PageHeader title={m.nav_albums()}>
+      {#snippet actions()}
+        <IconButton
+          label={m.albums_search_aria()}
+          active={searchOpen}
+          expanded={searchOpen}
           onclick={() => (searchOpen ? closeSearch() : openSearch())}
-          aria-label={m.albums_search_aria()}
-          aria-expanded={searchOpen}
-          title={m.albums_search_aria()}
         >
           <Search size={22} />
-        </button>
+        </IconButton>
         {#if canCreateAlbum}
-          <button
-            type="button"
-            class="header-icon"
-            onclick={() => (showAlbumModal = true)}
-            aria-label={m.albums_create()}
-            title={m.albums_create()}
-          >
+          <IconButton label={m.albums_create()} onclick={() => (showAlbumModal = true)}>
             <Plus size={24} />
-          </button>
+          </IconButton>
         {/if}
-      </div>
-    </header>
+      {/snippet}
+    </PageHeader>
 
     {#if searchOpen}
       <div class="search-row" transition:fade={{ duration: 150 }}>
@@ -342,25 +334,7 @@
     padding: 0.5rem 1rem 6rem;
   }
 
-  .page-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  .page-header h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0;
-    line-height: 1.2;
-  }
-  .header-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 0.25rem;
-  }
-  /* Stated in full: the global `button` rule would give these a filled background. */
-  .header-icon,
+  /* The search field's clear button: stated in full, the global `button` rule would fill it. */
   .search-clear {
     padding: 0;
     display: flex;
@@ -370,15 +344,6 @@
     border-radius: 50%;
     background: transparent;
     cursor: pointer;
-  }
-  .header-icon {
-    width: 44px;
-    height: 44px;
-    color: var(--text-primary);
-  }
-  .header-icon:hover,
-  .header-icon.active {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   .search-row {
@@ -533,12 +498,6 @@
     /* The layout's <main> already gives the 16dp margin. */
     .albums-container {
       padding: 0 0 6rem;
-    }
-    .page-header {
-      margin-bottom: 0.75rem;
-    }
-    .page-header h1 {
-      font-size: 1.5rem;
     }
     .album-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));

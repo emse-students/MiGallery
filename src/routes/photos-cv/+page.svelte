@@ -2,7 +2,8 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { fade } from 'svelte/transition';
+  import PageHeader from '$lib/components/PageHeader.svelte';
+  import IconButton from '$lib/components/IconButton.svelte';
   import { CircleX, Plus, ChevronLeft, ChevronRight } from '@lucide/svelte';
   import Spinner from '$lib/components/Spinner.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
@@ -117,23 +118,15 @@
 
   <div class="page-container">
     <!-- The albums list's header (Google Photos): the title, and the one action as an icon. -->
-    <header class="page-header" in:fade={{ duration: 300, delay: 100 }}>
-      <div>
-        <h1>{m.nav_photos_cv()}</h1>
-        <p class="subtitle">{m.pcv_subtitle()}</p>
-      </div>
-      {#if currentView === 'all' && canManagePhotos}
-        <button
-          type="button"
-          class="header-icon"
-          onclick={openUploadPicker}
-          aria-label={m.pcv_upload_title()}
-          title={m.pcv_upload_title()}
-        >
-          <Plus size={24} />
-        </button>
-      {/if}
-    </header>
+    <PageHeader title={m.nav_photos_cv()} subtitle={m.pcv_subtitle()}>
+      {#snippet actions()}
+        {#if currentView === 'all' && canManagePhotos}
+          <IconButton label={m.pcv_upload_title()} onclick={openUploadPicker}>
+            <Plus size={24} />
+          </IconButton>
+        {/if}
+      {/snippet}
+    </PageHeader>
 
     <!-- Chips, not a sliding segmented control: Google Photos' filter row. -->
     {#if hasIdPhotos && canManagePhotos}
@@ -185,35 +178,29 @@
         </div>
 
         <nav class="pagination">
-          <button
-            type="button"
-            class="header-icon"
+          <IconButton
+            label={m.common_previous()}
             onclick={async () => {
               await allPhotosState.loadPrevPagePhotosCV();
               scrollToPhotosGrid();
             }}
             disabled={allPhotosState.photoCVCurrentPage <= 1 || allPhotosState.loading}
-            aria-label={m.common_previous()}
-            title={m.common_previous()}
           >
             <ChevronLeft size={22} />
-          </button>
+          </IconButton>
           <span class="page-label"
             >{m.common_page({ page: allPhotosState.photoCVCurrentPage })}</span
           >
-          <button
-            type="button"
-            class="header-icon"
+          <IconButton
+            label={m.common_next()}
             onclick={async () => {
               await allPhotosState.loadNextPagePhotosCV();
               scrollToPhotosGrid();
             }}
             disabled={!allPhotosState.photoCVHasMore || allPhotosState.loading}
-            aria-label={m.common_next()}
-            title={m.common_next()}
           >
             <ChevronRight size={22} />
-          </button>
+          </IconButton>
         </nav>
       {/if}
     {/if}
@@ -237,50 +224,6 @@
     max-width: 1400px;
     margin: 0 auto;
     padding: 0.5rem 0 6rem;
-  }
-
-  .page-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-  .page-header > div {
-    flex: 1;
-    min-width: 0;
-  }
-  .page-header h1 {
-    margin: 0;
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-  .subtitle {
-    margin: 0.15rem 0 0;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-  }
-  /* Stated in full: the global `button` rule would give it a filled background. */
-  .header-icon {
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-  }
-  .header-icon:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--text-primary) 10%, transparent);
-  }
-  .header-icon:disabled {
-    opacity: 0.35;
-    cursor: default;
   }
 
   .chips {
@@ -327,11 +270,5 @@
   }
   .state-message.error {
     color: var(--error);
-  }
-
-  @media (max-width: 640px) {
-    .page-header h1 {
-      font-size: 1.5rem;
-    }
   }
 </style>

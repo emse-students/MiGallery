@@ -1,3 +1,17 @@
+# MiGallery v2.13.0
+
+**Date**: September 27, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+One page header everywhere, and "Mes photos" gets to your photos straight away.
+
+## Changes
+
+- "Mes photos" shows your face small, beside your name, instead of a large centred portrait: the photos start on the first screen. Tap the face to change your profile photo.
+- Albums, Mes photos, Photos CV and Paramètres share the same header: the title on the left, the page's actions as round icons on the right.
+
 # MiGallery v2.12.0
 
 **Date**: September 27, 2026

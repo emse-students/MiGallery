@@ -26,6 +26,7 @@
   import { PhotosState } from '$lib/photos.svelte';
   import { theme, type ThemePreference } from '$lib/theme';
   import SettingsRow from '$lib/components/SettingsRow.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
@@ -594,9 +595,7 @@
   <BackgroundBlobs />
 
   <div class="settings-container">
-    <header class="settings-header">
-      <h1>{m.nav_settings()}</h1>
-    </header>
+    <PageHeader title={m.nav_settings()} />
 
     <section class="settings-group">
       <h2 class="group-title">{m.param_profile()}</h2>
@@ -1038,15 +1037,6 @@
     max-width: 720px;
     margin: 0 auto;
     padding: 0 1rem;
-  }
-
-  /* Left-aligned like every other page's title (ui-redesign #16), no subtitle. */
-  .settings-header {
-    margin-bottom: 1.5rem;
-  }
-
-  .settings-header h1 {
-    margin: 0;
   }
 
   /* A group: a small heading, an optional line of context, then one flat card of rows. */
