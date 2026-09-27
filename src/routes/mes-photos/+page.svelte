@@ -6,6 +6,7 @@
   import LoadingState from '$lib/components/LoadingState.svelte';
   import ErrorState from '$lib/components/ErrorState.svelte';
   import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
   import PhotosGrid from '$lib/components/PhotosGrid.svelte';
   import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
   import { PhotosState } from '$lib/photos.svelte';
@@ -206,40 +207,36 @@
       </a>
     </div>
   {:else}
-    {#if photosState.personName && photosState.imageUrl}
-      <div class="header-section">
-        {#if canEditProfilePhoto}
-          <button
-            type="button"
-            class="profile-photo-btn"
-            onclick={openChangePhotoModal}
-            title={m.mp_change_profile_photo()}
-          >
-            <img src={photosState.imageUrl} alt={m.mp_portrait_alt()} class="profile-photo" />
-            <div class="photo-overlay">
-              <Camera size={32} />
-              <span class="change-photo-text">{m.mp_change_photo()}</span>
-            </div>
-          </button>
-        {:else}
-          <img src={photosState.imageUrl} alt={m.mp_portrait_alt()} class="profile-photo static" />
-        {/if}
-        <div class="header-text centered">
-          <h1 class="page-title">
-            {targetUserName ?? photosState.personName}
-          </h1>
+    {#if photosState.personName}
+      <!-- Google Photos' person page: a small face beside the name, not half a screen of portrait. -->
+      <PageHeader title={targetUserName ?? photosState.personName}>
+        {#snippet leading()}
+          {#if photosState.imageUrl}
+            {#if canEditProfilePhoto}
+              <button
+                type="button"
+                class="face"
+                onclick={openChangePhotoModal}
+                aria-label={m.mp_change_profile_photo()}
+                title={m.mp_change_profile_photo()}
+              >
+                <img src={photosState.imageUrl} alt={m.mp_portrait_alt()} />
+                <span class="face-badge"><Camera size={12} /></span>
+              </button>
+            {:else}
+              <span class="face"><img src={photosState.imageUrl} alt={m.mp_portrait_alt()} /></span>
+            {/if}
+          {/if}
+        {/snippet}
+        {#snippet below()}
           {#if !isViewingOwnPhotos}
             <span class="viewing-badge">
               <Eye size={14} />
               {m.mp_viewing_badge()}
             </span>
           {/if}
-        </div>
-      </div>
-    {:else if photosState.personName}
-      <h1 class="page-title-center">
-        {targetUserName ?? photosState.personName}
-      </h1>
+        {/snippet}
+      </PageHeader>
     {/if}
 
     {#if photosState.error}
@@ -275,22 +272,6 @@
     position: relative;
   }
 
-  .header-section {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2rem;
-    margin: 2rem 0 3rem;
-    flex-wrap: wrap;
-  }
-
-  .header-text {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
   .viewing-badge {
     display: inline-flex;
     align-items: center;
@@ -301,81 +282,49 @@
     background: rgba(124, 58, 237, 0.1);
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
-    margin: 0 auto;
   }
 
-  /* Titles: use global header styles (shared in app.css) */
-
-  .profile-photo-btn {
+  /* The face: 56 px, a camera badge when tapping it changes the profile photo. */
+  .face {
     position: relative;
-    border: none;
-    background: none;
-    cursor: pointer;
+    display: block;
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
     padding: 0;
+    border: none;
     border-radius: 50%;
-    overflow: hidden;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: none;
   }
 
-  .profile-photo-btn::before {
-    content: '';
-    position: absolute;
-    inset: -3px;
-    background: var(--accent);
+  button.face {
+    cursor: pointer;
+  }
+
+  .face img {
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  .profile-photo-btn:hover::before {
-    opacity: 1;
-  }
-
-  .profile-photo-btn:hover {
-    transform: scale(1.08);
-  }
-
-  .profile-photo {
-    width: 140px;
-    height: 140px;
     object-fit: cover;
-    border-radius: 50%;
-    border: 5px solid var(--bg-primary);
-    transition: border-color 0.3s ease;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
-  .photo-overlay {
+  .face-badge {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+    right: -2px;
+    bottom: -2px;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--bg-primary);
     border-radius: 50%;
-    color: white;
-    opacity: 0; /* Hide the overlay by default */
-    transition: opacity 0.3s ease; /* Smooth animation */
+    background: var(--accent);
+    color: #fff;
   }
 
-  .change-photo-text {
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-align: center;
-  }
-
-  .profile-photo-btn:hover .photo-overlay {
-    opacity: 1;
-  }
-
-  .profile-photo.static {
-    cursor: default;
+  button.face:hover img {
+    filter: brightness(0.9);
   }
 
   /* Access denied styles */
@@ -441,24 +390,5 @@
     color: var(--text-secondary);
     margin: 0 0 1.5rem;
     max-width: 400px;
-  }
-
-  @media (max-width: 640px) {
-    .header-section {
-      flex-direction: column;
-      gap: 1.5rem;
-      margin: 1.5rem 0 2rem;
-    }
-
-    .page-title,
-    .page-title-center {
-      font-size: 2rem;
-      text-align: center;
-    }
-
-    .profile-photo {
-      width: 120px;
-      height: 120px;
-    }
   }
 </style>
