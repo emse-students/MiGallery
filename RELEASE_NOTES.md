@@ -1,3 +1,19 @@
+# MiGallery v2.15.0
+
+**Date**: September 27, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Flat bars, a phone bar without text, and menus that line up.
+
+## Changes
+
+- The top bar and the phone's bottom bar are solid, in the page colour, instead of see-through and blurred.
+- The phone's bottom bar shows its four icons without text, like most phone apps: it is shorter (48 px), the current page is the coloured icon, and screen readers still hear each tab's full name.
+- No glow and no large shadows anywhere: the profile-photo picker, the drop area and the admin trash are flat; loading tiles fade in their own colour instead of a sweeping shine.
+- Lists of buttons (menus, the admin documentation contents) are aligned on the left instead of centred.
+
 # MiGallery v2.14.0
 
 **Date**: September 27, 2026

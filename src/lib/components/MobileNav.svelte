@@ -23,21 +23,29 @@
 {#if isAuthenticated && !isAlbumDetailPage}
   <nav class="mobile-nav" aria-label={m.nav_main_aria()}>
     {#each NAV_ITEMS as item (item.href)}
+      {@const active = isNavActive(currentPath, item.href)}
       <a
         href={item.href}
         class="nav-item"
-        class:active={isNavActive(currentPath, item.href)}
-        aria-current={isNavActive(currentPath, item.href) ? 'page' : undefined}
+        class:active
+        aria-current={active ? 'page' : undefined}
         data-sveltekit-preload-data
       >
-        <item.icon size={24} />
-        <span class="nav-label">{item.label()}</span>
+        <!-- The glyph alone is drawn; the full name stays the tab's accessible name. -->
+        <item.icon size={24} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
+        <span class="sr-only">{item.label()}</span>
       </a>
     {/each}
   </nav>
 {/if}
 
 <style>
+  /*
+   * Instagram's bar, measured on the Mi 9T (Canari design-reference section 23): 48 px plus the
+   * safe-area inset, a 24 px glyph, no label under it, every target at least 44 px, and the active
+   * tab marked by the glyph alone (tint and a heavier stroke - no underline, no glow).
+   * `--mobile-nav-height` in app.css is this height; keep the two in step.
+   */
   .mobile-nav {
     display: none; /* the sidebar carries navigation above 768 px */
     position: fixed;
@@ -45,36 +53,32 @@
     left: 0;
     right: 0;
     width: 100%;
-    /* Same material as the top bar (app.css `.topbar`): photos scroll under both. */
-    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(1.3);
-    backdrop-filter: blur(20px) saturate(1.3);
+    /* Same material as the top bar (app.css `.topbar`): opaque page colour and a hairline, no
+       glass and no shadow (ui-redesign #25). */
+    background: var(--bg-primary);
     border-top: 1px solid var(--surface-border);
-    padding: 0.5rem 0;
-    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px)); /* iPhone notch support */
+    padding-bottom: env(safe-area-inset-bottom, 0px); /* iPhone home indicator */
     z-index: 1000;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   }
 
   @media (max-width: 768px) {
     .mobile-nav {
       display: flex;
-      justify-content: space-around;
-      align-items: center;
+      align-items: stretch;
     }
   }
 
   .nav-item {
+    flex: 1;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.75rem;
+    justify-content: center;
+    height: 48px;
+    min-width: 44px;
     color: var(--text-muted);
     text-decoration: none;
-    border-radius: var(--radius-sm);
-    transition: all 0.2s ease;
-    min-width: 60px;
+    transition: color 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .nav-item:hover {
@@ -85,15 +89,21 @@
     color: var(--accent);
   }
 
-  .nav-label {
-    font-size: 0.625rem;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    text-align: center;
+  .nav-item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -4px;
+    border-radius: var(--radius-sm);
   }
 
-  /* Tap animation */
-  .nav-item:active {
-    transform: scale(0.95);
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

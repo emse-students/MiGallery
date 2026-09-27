@@ -543,19 +543,15 @@
     animation: photoFadeIn 0.5s ease-out forwards;
   }
 
+  /* Flat (ui-redesign #25): no lift on hover, and a selected card is a solid ring, not a glow. */
   .photo-card:hover {
-    box-shadow:
-      0 12px 30px rgba(2, 6, 23, 0.45),
-      0 6px 15px rgba(2, 6, 23, 0.25);
-    border-color: rgba(255, 255, 255, 0.08);
+    border-color: var(--surface-border-hover);
     z-index: 10;
   }
 
   .photo-card.selected {
     border-color: var(--accent);
-    box-shadow:
-      0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent),
-      0 8px 25px color-mix(in srgb, var(--accent) 20%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   @keyframes photoFadeIn {

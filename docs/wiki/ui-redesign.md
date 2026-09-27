@@ -27,9 +27,7 @@ None open: #2, the last one, shipped with theme (2).
 
 ### P2 - the Google Photos shape
 
-| #   | Defect                                                                                                                                                                                                                                                                                                                                         | Where                                                                                                   | Change                                                                                                                                                                                                            |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 25  | **Glassmorphism and glow everywhere**: on the signed-in albums page, 30 elements carry a `backdrop-filter`, 14 a `text-shadow`, 20 a gradient background, and the primary button a blue glow (`rgba(59,130,246,.16) 0 6px 18px`). Google Photos, same page: 0 of each. The user: _"les effets glow ... pas du tout l'esprit des app de 2026"_. | `src/app.css` (glass tokens, `.btn-glass`), `.glass-card`, `.glass-tabs` and every component using them | Flat tonal surfaces, no glow, no text-shadow; `.btn-glass` replaced by plain button variants. Counted by the script in Canari `docs/wiki/ecosystem-convergence.md` section 12 - re-run it after, the target is 0. |
+None open: #25, the last one, shipped in v2.15.0 (below).
 
 ### P3 - accessibility and polish
 
@@ -323,3 +321,59 @@ school-year groups, the search icon and the + icon, which already covered the re
   logo PNGs. They are transparent, so they are declared `any`, not `maskable`.
 
 Rows #10 and #19-#23 shipped in v2.14.0 and were pruned from the work list.
+
+## No glass on the bars, no glow anywhere (#25, 2026-09-27)
+
+Counted with the section-12 script of Canari's `ecosystem-convergence.md` (computed `box-shadow`
+coloured or blurred >= 24 px, `backdrop-filter`, `text-shadow`, gradient backgrounds, blur on
+`::before`/`::after`), signed in, dark theme, on the rig, on the landing, Albums, an album, Mes
+photos, Photos CV and Paramètres, at 1440x900 and 393x851:
+
+|                  | glow  | `backdrop-filter`                                             | `text-shadow` | gradients                                                        |
+| ---------------- | ----- | ------------------------------------------------------------- | ------------- | ---------------------------------------------------------------- |
+| Before (v2.14.0) | 0     | 1 per page at 1440 (the top bar), 2 at 393 (top + bottom bar) | 0             | the 6 background blobs; +2 on Mes photos; the album hero's scrim |
+| After (v2.15.0)  | **0** | **0**                                                         | **0**         | the same: blobs (D7) and the scrim under the hero title          |
+
+The 30 glass surfaces and 14 text-shadows of the audit had already gone with the v2.3.0 flat pass;
+`.btn-glass`, `.glass-card` and `.glass-tabs` no longer exist. What was left and changed:
+
+- **The two bars** are opaque `--bg-primary` with a hairline: photos scroll under a sticky bar,
+  and an opaque one keeps it legible without the 20 px blur. The bottom bar lost its shadow too.
+- **Shadows of 24 px and more**, which the count calls glow: `ChangePhotoModal`'s current photo and
+  its hover lift, the drop overlay's label pill (a hairline now), the admin trash's hover lift and
+  its ACCENT glow on a selected card.
+- **Coloured rings** are outlines, not box-shadows: the input focus ring (`app.css`), the picked
+  photo in `ChangePhotoModal`, a selected card in the admin trash.
+- **`Skeleton`**: the sweeping shimmer gradient became the placeholder breathing in its own tone,
+  stopped under `prefers-reduced-motion`.
+
+**Kept, and the user's call to revisit**: two transient surfaces still blur the page behind them -
+the dialogs' `::backdrop` (`Modal.svelte`, `blur(8px)`) and the drop overlay (`UploadZone`,
+`blur(12px)`). Both were asked for after this row was written (the 2026-09-26 review and the
+2026-09-27 drop-overlay decision), they exist only while a dialog is open or files are dragged,
+and neither is a glow. Removing them is two lines each.
+
+## The phone's bottom bar is Instagram's (2026-09-27)
+
+From the user: the bar showed a text label under each icon, which most phone apps do not. Its
+shape is now the one Canari measured on Instagram on the Mi 9T (Canari
+`docs/wiki/frontend/design-reference.md` section 23, "The two bars"): **48 px** plus the
+safe-area inset (it was 72), a **24 px** glyph, **no text** - each tab's full name is an `sr-only`
+accessible name, pinned non-empty in every locale by `tests/nav-items.test.ts` -, four tabs of 98 x
+48 px at 393 px (the floor is 44), and the active tab marked by the glyph alone: the accent tint
+and a 2.5 stroke instead of 2, no underline, no glow. MiGallery has no unread mark; if one comes,
+it is a 6 px dot with no ring, centred under the glyph. `--mobile-nav-height` in `app.css` is the
+same 48 px + inset, so `main` reserves exactly the bar.
+
+## Buttons centre only when they say so (2026-09-27)
+
+`app.css`'s shared button rule gave EVERY button `justify-content: center`, so a row that fills
+its width and forgot to override it drew its content in the middle - it misaligned the overflow
+menus (#337). The shared rule now only makes a button an inline flex row; `.btn` alone adds
+`justify-content: center`. A button whose box is its content is unaffected either way. Measured by
+the offset of every visible button's content inside its box, before and after, on Albums, an
+album (its menu, "Modifier" open, a tile's menu, the viewer's menu), Mes photos (a tile's menu),
+Photos CV, Paramètres ("Supprimer mon compte" open), the home page and three admin pages, at
+1440x900 and 393x851: the ONLY rows that moved are the admin documentation's table of contents,
+which went from centred to left-aligned at 12 px - the intended fix. Every menu, dialog button and
+settings row already stated its own alignment.
