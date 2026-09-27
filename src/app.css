@@ -94,7 +94,8 @@
    applied (a phone's `--topbar-height: 56px` there was dead for that reason, and was removed). */
 @media (max-width: 768px) {
   :root {
-    --mobile-nav-height: 72px;
+    /* MobileNav's bar: 48 px (Instagram's, measured) plus the home-indicator inset. */
+    --mobile-nav-height: calc(48px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -314,12 +315,9 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 var(--container-padding);
-    /* The album's action pill's own material (--surface over the page), so the bar and the pill read
-       as one family (user, 2026-09-26). A sticky bar has photos scrolling under it: the blur is what
-       keeps its labels legible over them, not decoration. */
-    background: color-mix(in srgb, var(--bg-primary) 70%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(1.3);
-    backdrop-filter: blur(20px) saturate(1.3);
+    /* Opaque, in the page colour, as Google Photos' bar: photos scroll under a sticky bar, and an
+       opaque one keeps its labels legible without the glass (ui-redesign #25). */
+    background: var(--bg-primary);
     border-bottom: 1px solid var(--surface-border);
   }
 
@@ -656,12 +654,15 @@
     border-radius: var(--radius);
   }
 
-  /* Buttons */
+  /* Buttons. Every button is an inline flex row, but only a `.btn` CENTRES its content: a
+     row that fills its width (a menu item, a settings row, a list entry) reads left-aligned by
+     default, and a button wider than its content that wants it centred says so itself. The
+     global `justify-content: center` here centred every row that forgot to override it - it
+     misaligned the overflow menus (#337). */
   .btn,
   button:not(.topbar button) {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
@@ -671,6 +672,10 @@
     transition: all var(--ease) 150ms;
     cursor: pointer;
     line-height: 1;
+  }
+
+  .btn {
+    justify-content: center;
   }
 
   .btn-primary,
@@ -1253,9 +1258,11 @@
   input:focus,
   textarea:focus,
   select:focus {
-    outline: none;
+    /* The ring is an outline, not a coloured shadow (flat, ui-redesign #25), which forced-colors
+       mode also draws. */
+    outline: 3px solid var(--accent-light);
+    outline-offset: 0;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-light);
   }
 
   label {

@@ -1,6 +1,7 @@
 import type { Component } from 'svelte';
 import { Folder, User as UserIcon, Camera, Settings } from '@lucide/svelte';
 import { m } from '$lib/paraglide/messages';
+import type { Locale } from '$lib/paraglide/runtime';
 
 /**
  * One destination of the app's main navigation. The phone's bottom bar (`MobileNav`) and the
@@ -9,8 +10,12 @@ import { m } from '$lib/paraglide/messages';
 export interface NavItem {
   href: string;
   icon: Component;
-  /** A function, not a string: Paraglide resolves the locale at render time. */
-  label: () => string;
+  /**
+   * The destination's full name. A function, not a string: Paraglide resolves the locale at
+   * render time. The phone's bar draws no text, so there this is the tab's accessible name only -
+   * never let it be empty (pinned in `tests/nav-items.test.ts` for every locale).
+   */
+  label: (inputs?: Record<string, never>, options?: { locale?: Locale }) => string;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [

@@ -177,7 +177,6 @@
     object-fit: cover;
     border: 3px solid var(--surface-border);
     margin-bottom: 0.75rem;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
   .current-photo p {
@@ -240,13 +239,13 @@
 
   .photo-item:hover {
     border-color: var(--surface-border-hover);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     z-index: 1;
   }
 
+  /* Flat: the pick is a solid ring, not a coloured shadow (ui-redesign #25). */
   .photo-item.selected {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   .selected-overlay {

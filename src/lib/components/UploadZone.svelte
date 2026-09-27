@@ -613,7 +613,7 @@
     padding: 1.25rem 1.75rem;
     border-radius: var(--radius-lg);
     background: var(--bg-elevated);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--border);
   }
 
   .drop-label :global(svg) {

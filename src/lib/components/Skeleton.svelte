@@ -52,24 +52,28 @@
     border-radius: 50%;
   }
 
+  /* Flat: the placeholder breathes in its own tone instead of a gradient sweeping across it, as
+     Google Photos' grey tiles do (ui-redesign #25). */
   .skeleton-shimmer {
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.05) 50%,
-      transparent 100%
-    );
-    animation: shimmer 2s infinite;
+    background: var(--bg-tertiary);
+    animation: skeleton-breathe 2s ease-in-out infinite;
   }
 
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
+  @keyframes skeleton-breathe {
+    0%,
     100% {
-      transform: translateX(100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer {
+      animation: none;
     }
   }
 
