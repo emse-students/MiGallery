@@ -1,3 +1,17 @@
+# MiGallery v2.15.2
+
+**Date**: September 27, 2026
+**Type**: Patch Release
+
+## 🎯 Objective
+
+The profile search in Paramètres shows its whole list.
+
+## Changes
+
+- In "Partage de mes photos", the list of matching profiles is no longer cut off by the card: it floats over the page, and opens upwards when the field is near the bottom of the screen.
+- The list can be used with the keyboard: the arrows move through it, Entrée picks a profile, Échap closes it.
+
 # MiGallery v2.15.1
 
 **Date**: September 27, 2026

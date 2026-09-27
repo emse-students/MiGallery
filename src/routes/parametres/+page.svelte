@@ -27,6 +27,7 @@
   import { theme, type ThemePreference } from '$lib/theme';
   import SettingsRow from '$lib/components/SettingsRow.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
+  import ProfilePicker from '$lib/components/ProfilePicker.svelte';
   import { asApiResponse } from '$lib/ts-utils';
   import type { UserRow, Album, User } from '$lib/types/api';
   import { showConfirm } from '$lib/confirm';
@@ -106,7 +107,6 @@
   let availableUsers = $state<AvailableUser[]>([]);
   let isLoadingAvailableUsers = $state<boolean>(false);
   let searchQuery = $state<string>('');
-  let showUserDropdown = $state<boolean>(false);
 
   // Ranked best-first: this dropdown is what somebody types a colleague's name into, so the
   // closest match belongs at the top rather than wherever the roster happened to put them.
@@ -252,7 +252,6 @@
         toast.success(data.message || m.param_auth_added());
         newAuthUserId = '';
         searchQuery = '';
-        showUserDropdown = false;
         await loadPhotoPermissions();
       } else {
         toast.error(data.error || m.param_add_error());
@@ -748,61 +747,27 @@ alone sets the width and the gutter, which this page used to add a second time (
         <div class="group-card group-body">
           <div class="permission-add-row">
             <div class="user-selector">
-              <input
-                type="text"
-                bind:value={searchQuery}
+              <!-- The list is portalled out of this card, which clips its children (ProfilePicker). -->
+              <ProfilePicker
+                options={matchingUsers}
+                bind:query={searchQuery}
                 placeholder={m.param_search_profile()}
-                class="settings-input selector-input"
                 disabled={isAddingPermission || isLoadingAvailableUsers}
-                oninput={() => {
+                loading={isLoadingAvailableUsers}
+                optionsDisabled={isAddingPermission}
+                onType={() => {
                   // Typing invalidates any previously picked user so we never
                   // authorize a stale selection that no longer matches the text.
                   newAuthUserId = '';
-                  showUserDropdown = true;
                 }}
-                onfocus={() => {
-                  showUserDropdown = true;
+                onOpen={() => {
                   if (availableUsers.length === 0) loadAvailableUsers();
                 }}
-                onblur={() => {
-                  setTimeout(() => {
-                    showUserDropdown = false;
-                  }, 200);
+                onPick={(user) => {
+                  newAuthUserId = user.id_user;
+                  searchQuery = user.name;
                 }}
               />
-              {#if showUserDropdown && availableUsers.length > 0}
-                <div class="user-dropdown">
-                  {#if isLoadingAvailableUsers}
-                    <div class="dropdown-loading"><Spinner size={16} /> {m.common_loading()}</div>
-                  {:else}
-                    {#each matchingUsers as user (user.id_user)}
-                      <button
-                        type="button"
-                        class="dropdown-item"
-                        onclick={() => {
-                          newAuthUserId = user.id_user;
-                          searchQuery = user.name;
-                          showUserDropdown = false;
-                        }}
-                        disabled={isAddingPermission}
-                      >
-                        <div class="user-item-content">
-                          <div class="user-item-name">{user.name}</div>
-                          {#if user.formation || user.promo}
-                            <div class="user-item-meta">
-                              {#if user.promo}{user.promo}{/if}
-                              {#if user.formation}
-                                {#if user.promo}•{/if}
-                                {user.formation}
-                              {/if}
-                            </div>
-                          {/if}
-                        </div>
-                      </button>
-                    {/each}
-                  {/if}
-                </div>
-              {/if}
             </div>
             <button
               type="button"
@@ -1190,7 +1155,8 @@ alone sets the width and the gutter, which this page used to add a second time (
   }
 
   /* --- FORMS & INPUTS --- */
-  .settings-input {
+  .settings-input,
+  .user-selector :global(.settings-input) {
     min-height: var(--st-control-height);
     padding: 0.5rem 1rem;
     border: 1px solid var(--border);
@@ -1200,10 +1166,12 @@ alone sets the width and the gutter, which this page used to add a second time (
     outline: none;
     transition: border-color 0.2s;
   }
-  .settings-input:focus {
+  .settings-input:focus,
+  .user-selector :global(.settings-input):focus {
     border-color: var(--accent);
   }
-  .settings-input:disabled {
+  .settings-input:disabled,
+  .user-selector :global(.settings-input):disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
@@ -1221,73 +1189,8 @@ alone sets the width and the gutter, which this page used to add a second time (
     position: relative;
   }
 
-  .selector-input {
+  .user-selector :global(.selector-input) {
     width: 100%;
-  }
-
-  .user-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 var(--radius-xs) var(--radius-xs);
-    max-height: 300px;
-    overflow-y: auto;
-    z-index: 10;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  }
-
-  .dropdown-loading {
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-secondary);
-    justify-content: center;
-  }
-
-  .dropdown-item {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: none;
-    background: none;
-    text-align: left;
-    cursor: pointer;
-    color: var(--text-primary);
-    font-size: 0.95rem;
-    transition: background-color 0.2s;
-  }
-
-  .dropdown-item:hover:not(:disabled) {
-    background: var(--bg-primary);
-  }
-
-  .dropdown-item:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .user-item-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .user-item-name {
-    font-weight: 500;
-    color: var(--text-primary);
-  }
-
-  .user-item-meta {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-  }
-
-  .permission-add-row input {
-    flex: 1;
   }
 
   /* Inline retry action inside face-detection status boxes. */

@@ -15,6 +15,7 @@
   import { m } from '$lib/paraglide/messages';
   import { nextMenuIndex, type OverflowMenuItem } from '$lib/overflow-menu';
   import { portal } from '$lib/portal';
+  import { placePopover } from '$lib/popover-position';
 
   interface Props {
     items: OverflowMenuItem[];
@@ -64,11 +65,8 @@
     if (!triggerElement) return;
     const rect = triggerElement.getBoundingClientRect();
     const right = Math.max(VIEWPORT_MARGIN, window.innerWidth - rect.right);
-    let top = rect.bottom + MENU_GAP;
     const height = menuElement?.offsetHeight ?? 0;
-    if (top + height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = Math.max(VIEWPORT_MARGIN, rect.top - MENU_GAP - height);
-    }
+    const { top } = placePopover(rect, height, window.innerHeight, MENU_GAP, VIEWPORT_MARGIN);
     position = { top, right };
   }
 
