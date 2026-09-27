@@ -32,7 +32,6 @@ None open: #2, the last one, shipped with theme (2).
 | 10  | Each page has its own side gutter (albums 1400, photos-cv 1200, paramètres 720) and the padding is applied twice: the global `main {}` rule hits the layout's `<main>` AND every page's own `<main>`.                                                                                                                                          | `app.css:477-485, 736-741`; `src/routes/+layout.svelte:169-171`; every `routes/*/+page.svelte` root                 | Pages stop rendering their own `<main>` (use a `div`); one container token for width and gutter. Left edges then align (title, search and section headers differ today).                                          |
 | 15  | Album list: no filter chips, no sort, no list view; "Créer un album" is a full-width button and the search field is permanent.                                                                                                                                                                                                                 | `src/routes/albums/+page.svelte:308-324`                                                                            | Chips (Tous / Mes albums / Partagés), sort, search as an icon in the top bar (it keeps `fuzzyMatch`), "Nouvel album" as a tile.                                                                                   |
 | 16  | Huge vertical gaps: ~150 px between "Créer un album" and the first year header on a phone; "Mes photos" spends half the first screen on the avatar and name; "Photos CV" centres its title where "Albums" left-aligns it.                                                                                                                      | `src/routes/albums/+page.svelte`, `src/routes/mes-photos/+page.svelte`, `src/routes/photos-cv/+page.svelte:108-250` | One page-header component (left-aligned title, optional subtitle, actions on the right) shared by every page.                                                                                                     |
-| 18  | Paramètres: one screen for one setting, big centred cards; "Choisir sa photo" does not look like a button; "Mode Clair" is ambiguous (current state or action?).                                                                                                                                                                               | `src/routes/parametres/+page.svelte:590-780, 1122-1132`                                                             | A list: row = icon, label, current value, chevron. Theme = Système / Clair / Sombre.                                                                                                                              |
 | 25  | **Glassmorphism and glow everywhere**: on the signed-in albums page, 30 elements carry a `backdrop-filter`, 14 a `text-shadow`, 20 a gradient background, and the primary button a blue glow (`rgba(59,130,246,.16) 0 6px 18px`). Google Photos, same page: 0 of each. The user: _"les effets glow ... pas du tout l'esprit des app de 2026"_. | `src/app.css` (glass tokens, `.btn-glass`), `.glass-card`, `.glass-tabs` and every component using them             | Flat tonal surfaces, no glow, no text-shadow; `.btn-glass` replaced by plain button variants. Counted by the script in Canari `docs/wiki/ecosystem-convergence.md` section 12 - re-run it after, the target is 0. |
 
 ### P3 - accessibility and polish
@@ -252,3 +251,25 @@ live overrides (`--mobile-nav-height`, `--sidenav-width`) sit in unlayered media
 `:root`.
 
 Rows #5, #6, #9 and #17 shipped and were pruned from the work list.
+
+## Paramètres is a list (row #18, 2026-09-27)
+
+Google Photos' settings shape: a left-aligned title, groups under a small heading (Profil,
+Apparence, Reconnaissance faciale, the two sharing groups, Administration, Compte), each group ONE
+flat card of rows. `SettingsRow.svelte` is the row - icon, title, optional description, and on the
+right either a control or a chevron when the whole row is the action; it renders a link, a button
+or a plain block according to that job. The free-content groups (face capture, sharing lists) keep
+their bodies inside the same card; an empty list is one quiet line instead of an `EmptyState`.
+
+**The theme is Système / Clair / Sombre.** The old button showed the theme it would switch TO, so
+"Mode Clair" read as a state and acted as an action. `src/lib/theme.ts` now stores a preference
+(`system` follows `prefers-color-scheme`, live) and `parsePreference` reads anything unknown -
+including nothing stored - as `system`, so a user who never chose now gets their device's theme
+instead of dark. `app.html` applies the same rule inline before the first paint: the store only ran
+after hydration, which painted every light user dark for a frame.
+
+**Dead global rules removed from `app.css`:** `.settings-main button { margin: 1rem 0 }` (it doubled
+the theme pill's height and padded every row button), the `h3` rules of the old page, and
+`.blob-1..3`, which nothing has drawn since `BackgroundBlobs` took the seeded blobs.
+
+Row #18 shipped and was pruned from the work list.

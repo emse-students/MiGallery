@@ -1,3 +1,20 @@
+# MiGallery v2.12.0
+
+**Date**: September 27, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Settings become a list, like Google Photos.
+
+## Changes
+
+- Paramètres is a list of rows grouped under small headings, instead of large centred cards.
+- The theme has three choices - Système, Clair, Sombre - and "Système" follows your phone or computer, live. If you never picked one, the app now follows your device instead of always starting dark.
+- A light theme no longer flashes dark for an instant when a page loads.
+- "Photo de profil" is one row you tap; when face recognition is not set up yet, the row says so.
+- "Supprimer mon compte" and "Dissocier mon visage" are red rows under "Compte".
+
 # MiGallery v2.11.0
 
 **Date**: September 27, 2026
