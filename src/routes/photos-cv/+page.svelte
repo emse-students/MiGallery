@@ -168,7 +168,7 @@
         <div class="state-message"><Spinner size={28} /> {m.pcv_loading_my()}</div>
       {:else}
         <!-- No card around the grid: it runs edge to edge, as on the album page (#17) -->
-        <PhotosGrid state={myPhotosState} />
+        <PhotosGrid state={myPhotosState} showCount={false} />
       {/if}
     {/if}
 
@@ -181,7 +181,7 @@
         <div class="state-message"><Spinner size={28} /> {m.pcv_loading_all()}</div>
       {:else}
         <div bind:this={photosGridContainer} class="grid-anchor">
-          <PhotosGrid state={allPhotosState} />
+          <PhotosGrid state={allPhotosState} showCount={false} />
         </div>
 
         <nav class="pagination">

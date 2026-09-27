@@ -175,13 +175,13 @@
     height: 120px;
     border-radius: 50%;
     object-fit: cover;
-    border: 3px solid rgba(255, 255, 255, 0.2);
+    border: 3px solid var(--surface-border);
     margin-bottom: 0.75rem;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
   .current-photo p {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-secondary);
     font-size: 0.875rem;
     margin: 0;
   }
@@ -191,10 +191,10 @@
     align-items: center;
     gap: 0.75rem;
     padding: 1rem;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: color-mix(in srgb, var(--info) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
     border-radius: var(--radius-xs);
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
   }
 
   .instructions p {
@@ -207,10 +207,10 @@
     align-items: center;
     gap: 0.75rem;
     padding: 1rem;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
     border-radius: var(--radius-xs);
-    color: rgba(255, 100, 100, 0.9);
+    color: var(--error);
     margin-bottom: 1rem;
   }
 
@@ -234,19 +234,19 @@
     cursor: pointer;
     border: 2px solid transparent;
     transition: all 0.2s ease;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-tertiary);
     padding: 0;
   }
 
   .photo-item:hover {
-    border-color: rgba(255, 255, 255, 0.3);
+    border-color: var(--surface-border-hover);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     z-index: 1;
   }
 
   .photo-item.selected {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
   }
 
   .selected-overlay {
