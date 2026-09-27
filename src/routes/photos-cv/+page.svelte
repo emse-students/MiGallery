@@ -221,8 +221,6 @@
   .page-container {
     position: relative;
     z-index: 1;
-    max-width: 1400px;
-    margin: 0 auto;
     padding: 0.5rem 0 6rem;
   }
 

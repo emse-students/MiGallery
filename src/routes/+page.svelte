@@ -33,7 +33,8 @@
   <title>{m.home_page_title()}</title>
 </svelte:head>
 
-<main class="home-main">
+<!-- A div, not a <main>: the layout's <main> is the landmark and the page container (#10). -->
+<div class="home-main">
   <BackgroundBlobs />
 
   <div class="content-wrapper" in:fade={{ duration: 800 }}>
@@ -80,7 +81,7 @@
       {/if}
     </div>
   </div>
-</main>
+</div>
 
 <style>
   :global(body) {
@@ -91,8 +92,14 @@
     overflow-x: hidden;
   }
 
+  /* Exactly the layout's content box, so the card is centred and the landing never scrolls
+     (ui-redesign #23): main's min-height less its two paddings (the bottom one includes the
+     bottom bar, 0 when signed out). */
   .home-main {
     position: relative;
+    min-height: calc(
+      100svh - var(--topbar-height) - 2 * var(--mobile-nav-height) - 2 * var(--container-padding)
+    );
     display: flex;
     align-items: center;
     justify-content: center;
@@ -115,8 +122,10 @@
   }
 
   .logo {
+    display: block;
     width: 120px;
     height: auto;
+    margin: 0 auto;
   }
 
   h1 {

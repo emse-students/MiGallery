@@ -143,8 +143,12 @@
         <ThemeToggle />
         <LocaleToggle />
       </div>
-      <button type="button" class="btn-login" onclick={() => handleSignIn()}>{m.nav_login()}</button
-      >
+      <!-- The home page's own card carries the one sign-in button (ui-redesign #23). -->
+      {#if !isHomePage}
+        <button type="button" class="btn-login" onclick={() => handleSignIn()}
+          >{m.nav_login()}</button
+        >
+      {/if}
     {/if}
   </div>
 </nav>

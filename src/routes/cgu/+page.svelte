@@ -12,7 +12,8 @@
   <meta name="description" content={m.cgu_meta_desc()} />
 </svelte:head>
 
-<main class="cgu-main">
+<!-- A div, not a <main>: the layout's <main> is the landmark and the page container (#10). -->
+<div class="cgu-main">
   <BackgroundBlobs />
 
   <div class="cgu-container">
@@ -115,7 +116,7 @@
       </section>
     </div>
   </div>
-</main>
+</div>
 
 <style>
   .cgu-main {
@@ -139,7 +140,6 @@
     z-index: 1;
     max-width: 800px;
     margin: 0 auto;
-    padding: 0 1.5rem;
   }
 
   .cgu-header {

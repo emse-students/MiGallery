@@ -64,7 +64,9 @@
   /* The phone's bottom bar; 0 above 768 px, where the sidebar replaces it. */
   --mobile-nav-height: 0px;
   --sidenav-width: 256px;
-  --max-width: 1600px;
+  /* THE page container (ui-redesign #10): the layout's <main> is the only element that applies
+     these two - a page never sets its own max-width or side padding, so every left edge aligns. */
+  --max-width: 1400px;
   --container-padding: clamp(1rem, 3vw, 2rem);
   /* Coherent radius scale: xs < sm < md < base < lg. */
   --radius-lg: 20px;
@@ -448,12 +450,13 @@
     color: var(--text-primary);
   }
 
-  /* Main content */
+  /* Main content: the one page container (width + gutter). Pages render a `div`, never a second
+     `<main>`, and do not pad themselves (ui-redesign #10). */
   main {
     max-width: var(--max-width);
     margin: 0 auto;
     padding: var(--container-padding);
-    min-height: calc(100vh - var(--topbar-height) - var(--mobile-nav-height));
+    min-height: calc(100svh - var(--topbar-height) - var(--mobile-nav-height));
     padding-bottom: calc(var(--container-padding) + var(--mobile-nav-height));
     position: relative;
     z-index: 1;
@@ -524,13 +527,7 @@
 
   html,
   body,
-  main,
-  .albums-main,
-  .mesphotos-main,
-  .corbeille-main,
-  .trombi-main,
-  .page-main,
-  .settings-main {
+  main {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -993,77 +990,6 @@
     color: var(--text-secondary);
   }
 
-  /* Home page */
-  .home-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-    max-width: 800px;
-    margin: 4rem auto;
-    position: relative;
-    min-height: auto;
-  }
-
-  .home-main .page-background {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .home-main .gradient-blob {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.15;
-  }
-
-  .home-main .blob-1 {
-    width: 700px;
-    height: 700px;
-    background: radial-gradient(circle, rgba(251, 191, 36, 0.6) 0%, transparent 70%);
-    top: -100px;
-    right: 5%;
-  }
-
-  .home-main .blob-2 {
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.5) 0%, transparent 70%);
-    bottom: -50px;
-    left: 10%;
-  }
-
-  .home-main .blob-3 {
-    width: 550px;
-    height: 550px;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, transparent 70%);
-    top: 40%;
-    left: 50%;
-  }
-
-  .home-main .header {
-    text-align: center;
-    padding: 2rem;
-  }
-
-  .home-main .header .logo {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 1rem;
-    border-radius: var(--radius);
-  }
-
-  .home-main .header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .home-main .tagline {
-    color: var(--text-secondary);
-    font-size: 1.125rem;
-  }
-
   .first-login-banner {
     background: var(--accent);
     border-radius: var(--radius);
@@ -1351,38 +1277,6 @@
     grid-column: 1 / -1;
   }
 
-  /* Settings page specific */
-  .settings-main {
-    max-width: 1400px;
-    margin: 0 auto;
-    position: relative;
-    min-height: 100vh;
-  }
-
-  .settings-main .page-background {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    overflow: hidden;
-  }
-
-  .settings-main .gradient-blob {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.14;
-  }
-
-  .settings-main > div,
-  .settings-main > section {
-    margin-bottom: 3rem;
-  }
-
-  .settings-main > div:last-child,
-  .settings-main > section:last-child {
-    margin-bottom: 0;
-  }
-
   .settings-title {
     margin-bottom: 2rem;
   }
@@ -1391,14 +1285,6 @@
     margin-top: 3rem;
     margin-bottom: 1.5rem;
     color: var(--text-secondary);
-  }
-
-  .settings-main .section {
-    overflow-x: auto;
-  }
-
-  .settings-main table {
-    min-width: 800px;
   }
 
   .status-box {
@@ -1415,11 +1301,6 @@
 
   .success-button:hover {
     background: var(--success-hover);
-  }
-
-  /* Mes photos specific */
-  .mesphotos-main {
-    max-width: var(--max-width);
   }
 
   .user-info {
@@ -1449,14 +1330,6 @@
     color: var(--text-secondary);
     font-size: 0.875rem;
     margin: 0.25rem 0;
-  }
-
-  /* Albums page */
-  /* The albums page owns its full layout with scoped styles (BackgroundBlobs,
-	   timeline grid, surfaces). Only the container needs a global rule. */
-  .albums-main {
-    position: relative;
-    min-height: 100vh;
   }
 
   /* Spinner for loading states */
@@ -1515,6 +1388,12 @@
   }
 
   /* The sidebar: a drawer from 1100 px, a rail below, gone on a phone (SideNav.svelte). */
+  /* Signed out there is no bottom bar, so `main` reserves no room for one: that room is what made
+     the landing page scroll by 143 px on a phone with nothing below (ui-redesign #23). */
+  .app-shell:not(.has-sidenav) {
+    --mobile-nav-height: 0px;
+  }
+
   @media (min-width: 769px) {
     .app-shell.has-sidenav {
       padding-left: var(--sidenav-width);
@@ -1544,14 +1423,6 @@
     .photos-grid {
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 0.75rem;
-    }
-
-    .home-main {
-      margin: 2rem auto;
-    }
-
-    .home-main .header h1 {
-      font-size: 2rem;
     }
 
     h1 {

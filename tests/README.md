@@ -334,7 +334,9 @@ See `vitest.config.ts`:
 ### "Something already answers on http://localhost:3000"
 
 Another server (a previous `bun build/index.js`, a dev preview) holds the test port. Stop it and
-re-run; the suite refuses to test a server it did not start.
+re-run; the suite refuses to test a server it did not start. When that port belongs to something
+you must keep running (another project's local stack), move the suite instead:
+`MIGALLERY_TEST_PORT=3100 bun run test` - the pre-push hook inherits it too.
 
 ### "MIGALLERY_TEST_DATABASE is not set"
 

@@ -49,9 +49,10 @@
     </div>
   </aside>
 
-  <main class="content admin-shell">
+  <!-- A div, not a <main>: the root layout's <main> is the page's one landmark (#10). -->
+  <div class="content admin-shell">
     {@render children()}
-  </main>
+  </div>
 </div>
 
 <style>

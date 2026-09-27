@@ -1,0 +1,26 @@
+{
+  "name": "MiGallery",
+  "short_name": "MiGallery",
+  "description": "MiGallery - Galerie photo des étudiants EMSE",
+  "lang": "fr",
+  "id": "/",
+  "start_url": "/albums",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

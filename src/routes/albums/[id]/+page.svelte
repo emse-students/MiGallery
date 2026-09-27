@@ -461,8 +461,6 @@
   .page-container {
     position: relative;
     z-index: 1;
-    max-width: 1400px;
-    margin: 0 auto;
     /* The layout's <main> already pads the page: the gutter is its padding alone. */
     padding: 0 0 2rem;
   }
@@ -471,8 +469,6 @@
   .float-bar {
     position: relative;
     z-index: 2;
-    max-width: 1400px;
-    margin: 0 auto;
     padding: 0;
     display: flex;
     align-items: center;

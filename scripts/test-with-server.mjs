@@ -26,7 +26,13 @@ import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-const API_BASE_URL = 'http://localhost:3000';
+/**
+ * The port the suite's own server listens on. 3000 by default (CI); `MIGALLERY_TEST_PORT` moves it
+ * when a workstation already runs something there - the refusal below still guards whatever port
+ * is chosen.
+ */
+const TEST_PORT = process.env.MIGALLERY_TEST_PORT || '3000';
+const API_BASE_URL = `http://localhost:${TEST_PORT}`;
 const HEALTH_URL = `${API_BASE_URL}/api/health`;
 /** How long the server has to answer /api/health before the run FAILS (it is never skipped). */
 const READINESS_DEADLINE_MS = 60000;
@@ -46,7 +52,7 @@ function testEnv(databasePath) {
   return {
     ...process.env,
     NODE_ENV: 'test',
-    PORT: '3000',
+    PORT: TEST_PORT,
     ORIGIN: API_BASE_URL,
     API_BASE_URL,
     ENABLE_DEV_ROUTES: 'true',

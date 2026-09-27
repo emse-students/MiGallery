@@ -29,18 +29,11 @@ None open: #2, the last one, shipped with theme (2).
 
 | #   | Defect                                                                                                                                                                                                                                                                                                                                         | Where                                                                                                   | Change                                                                                                                                                                                                            |
 | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 10  | Each page has its own side gutter (albums 1400, photos-cv 1200, paramètres 720) and the padding is applied twice: the global `main {}` rule hits the layout's `<main>` AND every page's own `<main>`.                                                                                                                                          | `app.css:477-485, 736-741`; `src/routes/+layout.svelte:169-171`; every `routes/*/+page.svelte` root     | Pages stop rendering their own `<main>` (use a `div`); one container token for width and gutter. Left edges then align (title, search and section headers differ today).                                          |
 | 25  | **Glassmorphism and glow everywhere**: on the signed-in albums page, 30 elements carry a `backdrop-filter`, 14 a `text-shadow`, 20 a gradient background, and the primary button a blue glow (`rgba(59,130,246,.16) 0 6px 18px`). Google Photos, same page: 0 of each. The user: _"les effets glow ... pas du tout l'esprit des app de 2026"_. | `src/app.css` (glass tokens, `.btn-glass`), `.glass-card`, `.glass-tabs` and every component using them | Flat tonal surfaces, no glow, no text-shadow; `.btn-glass` replaced by plain button variants. Counted by the script in Canari `docs/wiki/ecosystem-convergence.md` section 12 - re-run it after, the target is 0. |
 
 ### P3 - accessibility and polish
 
-| #   | Defect                                                                                                                                           | Where                                                  | Change                                                                                     |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 19  | Each album card is announced twice ("WEI 2026 .. WEI 2026 .."), the emoji comes out as "..".                                                     | `src/routes/albums/+page.svelte:364-446`               | One accessible name per card (`aria-label` = title + date), decorative text `aria-hidden`. |
-| 20  | The album search field is absent from the Android accessibility tree.                                                                            | `src/routes/albums/+page.svelte:308-315`               | Check its label/role once the field becomes an icon + input.                               |
-| 21  | Every thumbnail exposes hidden "Select / Download / Delete" buttons to assistive tech (`Select IMG_2042_DxO.jpg Download ... Delete ...`).       | `PhotoCard.svelte:236-291`                             | Hide the overlay from the tree when it is not shown (`inert` or conditional render).       |
-| 22  | No web app manifest: MiGallery cannot be installed to a home screen, the cheapest way to an "app" on mobile.                                     | `static/`, `src/app.html`                              | `manifest.webmanifest` (name, icons, `display: standalone`, dark `theme_color`).           |
-| 23  | The landing page offers two sign-in buttons ("Connexion" in the header and "Se connecter" in the card) and scrolls by 143 px with nothing below. | `src/routes/+page.svelte`, `src/routes/+layout.svelte` | One button; no scroll.                                                                     |
+None open: #19-#23 shipped in v2.14.0 (below).
 
 ## Decisions taken by the user (2026-09-25)
 
@@ -297,3 +290,36 @@ has neither: every album is a school event, visible to the whole school (`Album`
 school-year groups, the search icon and the + icon, which already covered the rest of the row.
 
 **Next (user, 2026-09-27):** Canari's viewers before the rest of MiGallery's D8 (#10, #25, P3).
+
+## One container, one sign-in, and the accessibility rows (#10, #19-#23, 2026-09-27)
+
+- **#10 - one page container.** The layout's `<main>` is the only element that sets the page's
+  width and side gutter (`--max-width: 1400px`, `--container-padding` in `app.css`); every page
+  renders a `div`, never a second `<main>` - Paramètres, the home page, the CGU and the admin
+  shell were the ones left - and no page sets its own `max-width` or side padding. Measured: at
+  393 px every page starts at x=16 (Paramètres was at 32, the gutter applied twice); at 1440x900
+  the titles, headings and first tiles of Albums, Photos CV and Paramètres all start at x=288
+  (256 sidebar + 32 gutter; Albums was at 304). Paramètres keeps a 720 px readable column, flush
+  left like Google Photos' settings rather than centred. The dead global `.home-main`,
+  `.settings-main` and `.albums-main` rules went from `app.css`.
+- **#23 - one sign-in, no scroll.** The top bar hides its "Connexion" on the home page, whose card
+  carries the one button. The landing scrolled because `main` reserved the phone's bottom bar
+  (72 px) with no bottom bar drawn when signed out, plus the old global `.home-main` margins:
+  `.app-shell:not(.has-sidenav)` now sets `--mobile-nav-height: 0px`, and the home page fills
+  exactly the layout's content box (`100svh` less the bar and the paddings). Measured: 900 of 900
+  px at 1440x900, 851 of 851 at 393x851.
+- **#19 - one name per album card.** The link's `aria-label` is "title, date" (plus "Visibilité : privée" or
+  "Visibilité : non répertoriée" for the marked exceptions); the visible title and date are `aria-hidden`.
+- **#20 - the search field.** It opens on demand (#5) and is in the tree as a `search` landmark
+  holding a textbox named "Rechercher des albums" (Chrome's accessibility snapshot); the input
+  gets `inputmode="search"` and `enterkeyhint="search"`.
+- **#21 - the tile overlay.** `PhotoCard`'s favourite button and overflow menu are
+  `visibility: hidden` until shown, not only `opacity: 0`: a transparent button stays in the
+  accessibility tree. Hover (fine pointers) and the tile's keyboard focus reveal them; the hover
+  check was already `display: none`. The favourite button's `aria-label` was a hard-coded English
+  "Add to favorites"; it is the Paraglide message the tooltip already used.
+- **#22 - the manifest.** `static/manifest.webmanifest`: standalone, opens on `/albums`, dark
+  `theme_color` / `background_color` (`#0d0d0d`, the dark `--bg-primary`), the 192 and 512 px
+  logo PNGs. They are transparent, so they are declared `any`, not `maskable`.
+
+Rows #10 and #19-#23 shipped in v2.14.0 and were pruned from the work list.
