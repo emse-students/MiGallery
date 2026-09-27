@@ -1,3 +1,18 @@
+# MiGallery v2.11.0
+
+**Date**: September 27, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+On a computer, navigation moves to a sidebar, like Google Photos.
+
+## Changes
+
+- From tablet width up, a left sidebar carries Albums, Mes photos, Photos CV and Paramètres; the page you are on is highlighted. On a narrower window it becomes a slim rail of icons.
+- The bottom bar is for phones only: it no longer stretches across a computer screen.
+- An album page now has navigation at every width.
+
 # MiGallery v2.10.0
 
 **Date**: September 27, 2026

@@ -1,14 +1,13 @@
 <!--
-  MobileNav.svelte - Fixed bottom navigation bar on mobile
+  MobileNav.svelte - the phone's bottom navigation bar (<= 768 px).
 
-  Shows a native-app-like navigation bar at the bottom of the screen on mobile.
-  It automatically handles conditional display per user permissions, the active
-  page indication, and the tap transition. Included in the root layout.
+  Above that width the desktop sidebar (`SideNav`) carries the same destinations; both draw
+  `NAV_ITEMS`. Hidden on an album page, whose cover hero owns the phone screen.
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import { Folder, User as UserIcon, Camera, Settings } from '@lucide/svelte';
   import type { User } from '$lib/types/api';
+  import { NAV_ITEMS, isNavActive } from '$lib/nav-items';
   import { m } from '$lib/paraglide/messages';
 
   let user = $derived(page.data?.session?.user as User | undefined);
@@ -19,65 +18,28 @@
   let isAlbumDetailPage = $derived(
     currentPath.startsWith('/albums/') && currentPath !== '/albums/'
   );
-
-  /**
-   * Whether a nav link is active.
-   * @param href - the link path
-   * @param exact - if true, require an exact match
-   */
-  function isActive(href: string, exact = false): boolean {
-    if (exact) return currentPath === href;
-    return currentPath.startsWith(href);
-  }
 </script>
 
 {#if isAuthenticated && !isAlbumDetailPage}
-  <nav class="mobile-nav" aria-label={m.nav_mobile_aria()}>
-    <a
-      href="/albums"
-      class="nav-item"
-      class:active={isActive('/albums')}
-      data-sveltekit-preload-data
-    >
-      <Folder size={24} />
-      <span class="nav-label">{m.nav_albums()}</span>
-    </a>
-
-    <a
-      href="/mes-photos"
-      class="nav-item"
-      class:active={isActive('/mes-photos')}
-      data-sveltekit-preload-data
-    >
-      <UserIcon size={24} />
-      <span class="nav-label">{m.nav_my_photos()}</span>
-    </a>
-
-    <a
-      href="/photos-cv"
-      class="nav-item"
-      class:active={isActive('/photos-cv')}
-      data-sveltekit-preload-data
-    >
-      <Camera size={24} />
-      <span class="nav-label">{m.nav_photos_cv()}</span>
-    </a>
-
-    <a
-      href="/parametres"
-      class="nav-item"
-      class:active={isActive('/parametres')}
-      data-sveltekit-preload-data
-    >
-      <Settings size={24} />
-      <span class="nav-label">{m.nav_settings()}</span>
-    </a>
+  <nav class="mobile-nav" aria-label={m.nav_main_aria()}>
+    {#each NAV_ITEMS as item (item.href)}
+      <a
+        href={item.href}
+        class="nav-item"
+        class:active={isNavActive(currentPath, item.href)}
+        aria-current={isNavActive(currentPath, item.href) ? 'page' : undefined}
+        data-sveltekit-preload-data
+      >
+        <item.icon size={24} />
+        <span class="nav-label">{item.label()}</span>
+      </a>
+    {/each}
   </nav>
 {/if}
 
 <style>
   .mobile-nav {
-    display: none; /* Hidden by default on desktop */
+    display: none; /* the sidebar carries navigation above 768 px */
     position: fixed;
     bottom: 0;
     left: 0;
@@ -94,7 +56,7 @@
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
   }
 
-  @media (max-width: 1440px) {
+  @media (max-width: 768px) {
     .mobile-nav {
       display: flex;
       justify-content: space-around;

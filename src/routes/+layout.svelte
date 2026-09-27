@@ -5,11 +5,11 @@
   import { navigationModalStore } from '$lib/navigation-store';
   import { theme } from '$lib/theme';
   import type { User } from '$lib/types/api';
-  import { Folder, User as UserIcon, Camera, Settings, LogIn } from '@lucide/svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import ConfirmHost from '$lib/components/ConfirmHost.svelte';
   import MobileNav from '$lib/components/MobileNav.svelte';
+  import SideNav from '$lib/components/SideNav.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import LocaleToggle from '$lib/components/LocaleToggle.svelte';
   import Seo from '$lib/components/Seo.svelte';
@@ -112,34 +112,6 @@
     <a href="/">MiGallery</a>
   </div>
 
-  <div class="links">
-    {#if isAuthenticated}
-      <div class="links-left">
-        <a href="/albums" data-sveltekit-preload-data>
-          <Folder size={18} />
-          <span class="link-text">{m.nav_albums()}</span>
-        </a>
-        <a href="/mes-photos" data-sveltekit-preload-data>
-          <UserIcon size={18} />
-          <span class="link-text">{m.nav_my_photos()}</span>
-        </a>
-        <a href="/photos-cv" data-sveltekit-preload-data>
-          <Camera size={18} />
-          <span class="link-text">{m.nav_photos_cv()}</span>
-        </a>
-      </div>
-
-      <div class="links-right">
-        <a href="/parametres">
-          <Settings size={18} />
-          <span class="link-text">{m.nav_settings()}</span>
-        </a>
-      </div>
-    {/if}
-  </div>
-
-  <div class="nav-separator"></div>
-
   <div class="user">
     {#if u}
       <a href="/mes-photos" class="avatar-link">
@@ -177,9 +149,14 @@
   </div>
 </nav>
 
-<main>
-  {@render children()}
-</main>
+<SideNav />
+
+<!-- The shell steps aside for the sidebar (> 768 px, signed in); `main` keeps its own centring. -->
+<div class="app-shell" class:has-sidenav={isAuthenticated}>
+  <main>
+    {@render children()}
+  </main>
+</div>
 
 <ToastContainer />
 
