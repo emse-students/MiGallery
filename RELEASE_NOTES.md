@@ -1,3 +1,18 @@
+# MiGallery v2.15.4
+
+**Date**: September 28, 2026
+**Type**: Patch Release
+
+## 🎯 Objective
+
+One failed file could stall a whole import, and a rare race could silently save a truncated video.
+
+## Changes
+
+- Fixed: one file failing its upload no longer stops the rest of a batch - every other file still uploads, and the failed one shows its own error and can be retried.
+- Fixed: a stuck upload lock now clears itself automatically after a few minutes instead of blocking that file forever.
+- Fixed: a rare timing issue could let an incomplete video be saved as if it were complete. The server now checks the file is whole before accepting it.
+
 # MiGallery v2.15.3
 
 **Date**: September 28, 2026
