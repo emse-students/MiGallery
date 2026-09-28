@@ -473,6 +473,20 @@ async function handleChunkedUpload(
     } catch {
       /* ignore */
     }
+    // The success path releases lockPath right after the chunk write+verify
+    // (above), but any error thrown while holding it - an aborted request
+    // body, a write failure, a hash-stream error - skips that release and
+    // lands here instead. Without this, the lock is left on disk forever:
+    // fileId is deterministic (name+size+mtime), so every retry of the same
+    // file, including a fresh reconnect, hits `fs.openSync(lockPath, 'wx')`
+    // and gets 409 'File currently locked, retry' with no way to recover.
+    try {
+      if (fs.existsSync(lockPath)) {
+        fs.unlinkSync(lockPath);
+      }
+    } catch {
+      /* ignore */
+    }
 
     return new Response(
       JSON.stringify({ error: _err.message || 'Internal Server Error processing chunk' }),

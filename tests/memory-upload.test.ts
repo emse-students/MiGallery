@@ -182,4 +182,22 @@ describe('Chunked upload - disk buffering and resume', () => {
     const res = await sendChunk('bad id/with slash', 0, 1, new Uint8Array(8).fill(1));
     expect(res.status).toBe(400);
   });
+
+  it('releases the per-fileId lock after an error, instead of wedging every retry behind 409', async () => {
+    if (!immichConfigured) {
+      return;
+    }
+
+    const fileId = newFileId('lock-release-on-error');
+
+    // An empty body makes handleChunkedUpload throw ('Empty chunk body')
+    // while still holding lockPath, landing in the outer catch.
+    const failed = await sendChunk(fileId, 0, 2, new Uint8Array(0));
+    expect(failed.status).toBe(500);
+
+    // A real retry of the same chunk (same fileId, so the same lockPath) must
+    // be accepted, not answered with 409 'File currently locked, retry'.
+    const retried = await sendChunk(fileId, 0, 2, new Uint8Array(512).fill(3));
+    expect(retried.status).toBe(200);
+  });
 });
