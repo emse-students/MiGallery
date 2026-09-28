@@ -222,6 +222,55 @@ async function checkPublicAssetsAccess(
   return true;
 }
 
+// Must match CHUNK_SIZE in src/lib/album-operations.ts: used only to sanity-check
+// that the assembled file is as large as a complete sequence requires before it
+// is ever handed to Immich - not to size anything ourselves.
+const CHUNK_SIZE = 5 * 1024 * 1024;
+
+// A real chunk write (lock held) completes in well under a minute even on a
+// slow link (see docs/wiki/bandwidth.md) - ten minutes of margin is generous.
+// Past that, nothing legitimate is still holding the lock: the request that
+// took it either crashed the process or never released it, so the next
+// attempt for this fileId may take over instead of failing forever.
+const STALE_LOCK_MS = 10 * 60 * 1000;
+
+// A part file nobody has resumed in two days is abandoned, not in progress -
+// swept opportunistically (on chunk 0 of a new upload) rather than on a
+// clock, so there is no separate schedule to keep alive or forget about.
+const STALE_UPLOAD_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * Best-effort disk hygiene for data/chunk-uploads/: removes .part/.lock/
+ * .complete files nobody has touched in STALE_UPLOAD_MS, for every fileId
+ * except the one currently uploading. Runs on chunk 0 only, so a multi-chunk
+ * upload does not pay for a directory scan on every request.
+ */
+function sweepStaleChunkUploads(uploadDir: string, currentFileId: string): void {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(uploadDir);
+  } catch {
+    return;
+  }
+
+  const now = Date.now();
+  for (const entry of entries) {
+    if (entry.includes(currentFileId)) {
+      continue;
+    }
+    const entryPath = path.join(uploadDir, entry);
+    try {
+      const stats = fs.statSync(entryPath);
+      if (now - stats.mtimeMs > STALE_UPLOAD_MS) {
+        fs.unlinkSync(entryPath);
+        log.info('swept stale chunk-upload artifact', { entry, ageMs: now - stats.mtimeMs });
+      }
+    } catch {
+      /* another request may have already removed it - not a failure */
+    }
+  }
+}
+
 /**
  * Handles chunked upload to bypass Cloudflare limits.
  * Stores chunks on disk and transfers the complete file to Immich at the end.
@@ -256,6 +305,10 @@ async function handleChunkedUpload(
     fs.mkdirSync(uploadDir, { recursive: true });
   }
 
+  if (chunkIndex === 0) {
+    sweepStaleChunkUploads(uploadDir, fileId);
+  }
+
   const tempFilePath = path.join(uploadDir, `immich_proxy_${fileId}.part`);
   const lockPath = `${tempFilePath}.lock`;
   const completePath = `${tempFilePath}.complete`;
@@ -266,10 +319,28 @@ async function handleChunkedUpload(
       const fd = fs.openSync(lockPath, 'wx');
       fs.closeSync(fd);
     } catch {
-      return new Response(JSON.stringify({ error: 'File currently locked, retry' }), {
-        status: 409,
-        headers: { 'content-type': 'application/json' },
-      });
+      // Held already - but by whom? A lock older than STALE_LOCK_MS cannot be
+      // a legitimate in-flight chunk write (see the constant above), so it is
+      // a leak - a crashed process, or (before this fix existed) an error
+      // path that skipped the release - and the next attempt may take over
+      // rather than fail forever. A genuinely concurrent writer's lock is
+      // always fresh, so this never steals from one.
+      try {
+        const staleAgeMs = Date.now() - fs.statSync(lockPath).mtimeMs;
+        if (staleAgeMs > STALE_LOCK_MS) {
+          fs.unlinkSync(lockPath);
+          const fd = fs.openSync(lockPath, 'wx');
+          fs.closeSync(fd);
+          log.warn('took over a stale chunk-upload lock', { fileId, staleAgeMs });
+        } else {
+          throw new Error('lock is fresh');
+        }
+      } catch {
+        return new Response(JSON.stringify({ error: 'File currently locked, retry' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
 
     // Read the chunk (<= 5MB) and append it to the part file. We buffer with
@@ -319,6 +390,35 @@ async function handleChunkedUpload(
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
+    }
+
+    // This request claims to be the last chunk, so the part file must already
+    // hold every chunk before it. Found live 2026-09-28: a race around a
+    // request that failed AFTER writing its chunk (client retries it, server
+    // has already moved on) let a "final chunk" arrive against a part file
+    // that had not actually received every prior chunk - the truncated result
+    // was silently handed to Immich as a real asset. Better than not to catch
+    // it here (there is no cross-chunk byte accounting to lean on) than never.
+    const assembledSize = fs.statSync(tempFilePath).size;
+    const minCompleteSize = (totalChunks - 1) * CHUNK_SIZE;
+    if (assembledSize < minCompleteSize) {
+      log.error('refusing to finalize an incomplete chunked upload', {
+        fileId,
+        totalChunks,
+        assembledSize,
+        minCompleteSize,
+      });
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch {
+        /* ignore */
+      }
+      return new Response(
+        JSON.stringify({
+          error: `Incomplete upload: expected at least ${minCompleteSize} bytes, got ${assembledSize}`,
+        }),
+        { status: 409, headers: { 'content-type': 'application/json' } }
+      );
     }
 
     let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
