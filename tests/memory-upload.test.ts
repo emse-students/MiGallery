@@ -16,7 +16,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createHash } from 'node:crypto';
-import { existsSync, unlinkSync } from 'node:fs';
+import { existsSync, unlinkSync, writeFileSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
 
@@ -199,5 +199,43 @@ describe('Chunked upload - disk buffering and resume', () => {
     // be accepted, not answered with 409 'File currently locked, retry'.
     const retried = await sendChunk(fileId, 0, 2, new Uint8Array(512).fill(3));
     expect(retried.status).toBe(200);
+  });
+
+  it('takes over a lock older than the staleness threshold instead of answering 409 forever', async () => {
+    if (!immichConfigured) {
+      return;
+    }
+
+    const fileId = newFileId('stale-lock-takeover');
+    const lockPath = join(CHUNK_DIR, `immich_proxy_${fileId}.part.lock`);
+
+    // Simulate a leaked lock from a process that died mid-write: create it
+    // directly on disk (bypassing the handler) and backdate it well past
+    // STALE_LOCK_MS (10 min in the handler).
+    writeFileSync(lockPath, '');
+    const staleTime = new Date(Date.now() - 15 * 60 * 1000);
+    utimesSync(lockPath, staleTime, staleTime);
+
+    const res = await sendChunk(fileId, 0, 2, new Uint8Array(512).fill(5));
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses to finalize a "last chunk" when the part file is short of the prior chunks (409)', async () => {
+    if (!immichConfigured) {
+      return;
+    }
+
+    // Found live 2026-09-28: a race let a "final chunk" request through
+    // against a part file that never received the chunks before it, and the
+    // truncated result was silently pushed to Immich as a real asset. Send
+    // only the final chunk of a 2-chunk sequence, with none of chunk 0's
+    // bytes ever written - the assembled size (a few hundred bytes) must be
+    // refused against the minimum a complete sequence requires (1 full
+    // CHUNK_SIZE for chunk 0), not accepted as done.
+    const fileId = newFileId('incomplete-finalize');
+    const res = await sendChunk(fileId, 1, 2, new Uint8Array(512).fill(9));
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/incomplete/i);
   });
 });

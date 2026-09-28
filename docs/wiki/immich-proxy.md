@@ -45,6 +45,31 @@ Uploads are streamed to disk, never buffered in memory (see the size rule in
 Do not reintroduce `Buffer.alloc` or chunk accumulation for anything larger than
 a few MB - it defeats the streaming design and blows up memory on big videos.
 
+### The lock: release-on-error, and a stale one takes over rather than wedging
+
+Found live 2026-09-28: an error thrown while the lock was held (an aborted
+request body, a write failure) used to skip the release and fall into the
+outer catch, which cleaned up the `.part` file but never `lockPath`. `fileId`
+is deterministic (name+size+mtime, on purpose, for resume), so the orphan
+made every future retry of that exact file - including after reconnecting -
+fail forever with `409 File currently locked, retry`. The outer catch now
+releases the lock too.
+
+That closes the leak going forward, but three months of orphaned `.lock`
+files (from 2026-07-08, never cleaned) were found sitting in
+`data/chunk-uploads/` on `mitv` on the same day - proof this had been
+happening silently long before it was noticed. There is no cron for this
+directory (`scheduled.yml` only runs the nightly security pass), and adding
+one would need prod SSH from CI for a problem the request handler already
+sees on every call. Instead, the handler self-heals: acquiring a lock that is
+already held checks its age first - a real chunk write completes in well
+under a minute even on a slow link (see [bandwidth](bandwidth.md)), so a lock
+older than `STALE_LOCK_MS` (10 min) cannot belong to anything legitimate, and
+the next request takes it over instead of answering 409 forever. Chunk 0 of
+every new upload also opportunistically sweeps `.part`/`.lock`/`.complete`
+files untouched for `STALE_UPLOAD_MS` (48 h) - genuinely abandoned uploads,
+not a schedule to keep alive.
+
 ## Why a universal handler
 
 Routing everything through one `[...path]` handler keeps a single place for the

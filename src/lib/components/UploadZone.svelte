@@ -19,6 +19,7 @@
     file: File;
     isDuplicate: boolean;
     assetId?: string;
+    error?: string;
   }
 
   interface Props {
@@ -294,7 +295,14 @@
       const onFileResultCallback = (result: FileResult) => {
         const statusIndex = fileStatuses.findIndex((s) => s.file === result.file);
         if (statusIndex >= 0) {
-          if (result.isDuplicate) {
+          if (result.error) {
+            // A per-file failure reported by handleAlbumUpload: this file's own
+            // retries were exhausted, but the batch kept going for the rest.
+            // Left visible (no auto-clear) so "Retry failed" still finds it.
+            fileStatuses[statusIndex].status = 'error';
+            fileStatuses[statusIndex].error = result.error;
+            errorCountPersist = errorCountPersist + 1;
+          } else if (result.isDuplicate) {
             fileStatuses[statusIndex].status = 'duplicate';
             fileStatuses[statusIndex].error = m.uz_duplicate();
             duplicateCountPersist = duplicateCountPersist + 1;

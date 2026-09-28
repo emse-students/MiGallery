@@ -177,7 +177,12 @@ export async function handleAlbumUpload(
   photosState: PhotosState,
   options: {
     onProgress?: (current: number, total: number) => void;
-    onFileResult?: (result: { file: File; isDuplicate: boolean; assetId?: string }) => void;
+    onFileResult?: (result: {
+      file: File;
+      isDuplicate: boolean;
+      assetId?: string;
+      error?: string;
+    }) => void;
     onFileStart?: (file: File) => void;
     isPhotosCV?: boolean;
     onSuccess?: () => void;
@@ -210,140 +215,21 @@ export async function handleAlbumUpload(
         }
       }
 
-      let uploadRes: Response | null = null;
-      let lastError: Error | null = null;
-      const maxServerRetries = 3; // exponential-backoff retries for 5xx / timeouts
-      const OFFLINE_WAIT_MS = 60_000; // how long to wait for reconnection per cycle
-      const maxOfflineWaits = 20; // hard cap so a dropped connection never loops forever
-      let serverAttempt = 0;
-      let offlineWaits = 0;
-
-      while (true) {
-        // If the browser is offline, wait for reconnection instead of burning
-        // server retries. The stable fileId lets the next attempt resume from
-        // the last chunk the server already has.
-        if (isOffline()) {
-          if (offlineWaits++ >= maxOfflineWaits) {
-            throw lastError || new Error('Upload aborted: connection lost');
+      try {
+        await uploadOneFile(file, id, isPhotosCV, options, results);
+      } catch (fileErr: unknown) {
+        // One file exhausting its retries must not take the rest of the batch
+        // down with it: report this file as failed and move on, instead of
+        // throwing out of the for loop (which used to leave every remaining
+        // file - never even attempted - marked as an error too).
+        const message = fileErr instanceof Error ? fileErr.message : String(fileErr);
+        console.error(`Upload failed for ${file.name}:`, fileErr);
+        if (options.onFileResult) {
+          try {
+            options.onFileResult({ file, isDuplicate: false, error: message });
+          } catch (e) {
+            void e;
           }
-          console.warn('Connection lost, waiting for reconnection before resuming upload...');
-          await waitForOnline(OFFLINE_WAIT_MS);
-          continue;
-        }
-
-        try {
-          uploadRes = await uploadFileChunked(file);
-
-          if (uploadRes.ok) {
-            break; // Success
-          }
-
-          if (uploadRes.status >= 500 || uploadRes.status === 408 || uploadRes.status === 429) {
-            if (serverAttempt < maxServerRetries - 1) {
-              const delay = Math.pow(2, serverAttempt) * 1000; // 1s, 2s, 4s
-              serverAttempt++;
-              console.warn(
-                `Upload failed with ${uploadRes.status}, retrying in ${delay}ms (attempt ${serverAttempt}/${maxServerRetries})...`
-              );
-              await new Promise((r) => setTimeout(r, delay));
-              continue;
-            }
-          }
-          break; // Non-retriable status or out of server retries
-        } catch (err: unknown) {
-          lastError = err instanceof Error ? err : new Error(String(err));
-          // A network-level failure while offline: loop back and wait for
-          // reconnection (does not consume a server retry).
-          if (isOffline()) {
-            continue;
-          }
-          if (serverAttempt < maxServerRetries - 1) {
-            const delay = Math.pow(2, serverAttempt) * 1000;
-            serverAttempt++;
-            console.warn(
-              `Upload failed with error, retrying in ${delay}ms (attempt ${serverAttempt}/${maxServerRetries})...`,
-              err
-            );
-            await new Promise((r) => setTimeout(r, delay));
-          } else {
-            throw err;
-          }
-        }
-      }
-
-      if (!uploadRes) {
-        throw lastError || new Error('Upload failed: no response received');
-      }
-
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text().catch(() => uploadRes.statusText);
-        throw new Error(`Upload error: ${errText}`);
-      }
-
-      type AssetLike = { id?: string; assetId?: string; duplicateId?: string };
-
-      const uploadResult = (await uploadRes.json()) as unknown;
-
-      const assetsFromRes: AssetLike[] = (() => {
-        try {
-          if (Array.isArray(uploadResult)) {
-            return uploadResult as AssetLike[];
-          }
-
-          if (uploadResult && typeof uploadResult === 'object') {
-            const obj = uploadResult as Record<string, unknown>;
-
-            if (obj.status === 'duplicate' && obj.id) {
-              return [{ duplicateId: String(obj.id), id: String(obj.id) }];
-            }
-
-            if (Array.isArray(obj.results)) {
-              return obj.results as AssetLike[];
-            }
-
-            return [uploadResult as AssetLike];
-          }
-
-          return [] as AssetLike[];
-        } catch {
-          return [] as AssetLike[];
-        }
-      })();
-
-      const assetData = assetsFromRes[0];
-      const isDup = !!assetData?.duplicateId;
-      const aid = assetData?.id || assetData?.assetId;
-      results.push({ file, isDuplicate: isDup, assetId: aid });
-
-      if (options.onFileResult) {
-        try {
-          options.onFileResult({ file, isDuplicate: isDup, assetId: aid });
-        } catch (e) {
-          void e;
-        }
-      }
-
-      if (aid) {
-        const assetIdToAdd = aid;
-        try {
-          if (isPhotosCV) {
-            await fetch('/api/people', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'add-to-album',
-                assetIds: [assetIdToAdd],
-              }),
-            });
-          } else {
-            await fetch(`/api/albums/${id}/assets`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ids: [assetIdToAdd] }),
-            });
-          }
-        } catch (addErr: unknown) {
-          console.warn(`Error adding asset ${aid} to album:`, addErr);
         }
       }
 
@@ -354,7 +240,9 @@ export async function handleAlbumUpload(
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    toast.success(m.upload_album_success({ count: files.length }));
+    if (results.length > 0) {
+      toast.success(m.upload_album_success({ count: results.length }));
+    }
 
     if (options.onSuccess) {
       await options.onSuccess();
@@ -367,5 +255,157 @@ export async function handleAlbumUpload(
     throw e;
   } finally {
     activeOperations.end(operationId);
+  }
+}
+
+async function uploadOneFile(
+  file: File,
+  id: string,
+  isPhotosCV: boolean,
+  options: {
+    onFileResult?: (result: {
+      file: File;
+      isDuplicate: boolean;
+      assetId?: string;
+      error?: string;
+    }) => void;
+  },
+  results: Array<{ file: File; isDuplicate: boolean; assetId?: string }>
+): Promise<void> {
+  let uploadRes: Response | null = null;
+  let lastError: Error | null = null;
+  const maxServerRetries = 3; // exponential-backoff retries for 5xx / timeouts
+  const OFFLINE_WAIT_MS = 60_000; // how long to wait for reconnection per cycle
+  const maxOfflineWaits = 20; // hard cap so a dropped connection never loops forever
+  let serverAttempt = 0;
+  let offlineWaits = 0;
+
+  while (true) {
+    // If the browser is offline, wait for reconnection instead of burning
+    // server retries. The stable fileId lets the next attempt resume from
+    // the last chunk the server already has.
+    if (isOffline()) {
+      if (offlineWaits++ >= maxOfflineWaits) {
+        throw lastError || new Error('Upload aborted: connection lost');
+      }
+      console.warn('Connection lost, waiting for reconnection before resuming upload...');
+      await waitForOnline(OFFLINE_WAIT_MS);
+      continue;
+    }
+
+    try {
+      uploadRes = await uploadFileChunked(file);
+
+      if (uploadRes.ok) {
+        break; // Success
+      }
+
+      if (uploadRes.status >= 500 || uploadRes.status === 408 || uploadRes.status === 429) {
+        if (serverAttempt < maxServerRetries - 1) {
+          const delay = Math.pow(2, serverAttempt) * 1000; // 1s, 2s, 4s
+          serverAttempt++;
+          console.warn(
+            `Upload failed with ${uploadRes.status}, retrying in ${delay}ms (attempt ${serverAttempt}/${maxServerRetries})...`
+          );
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+      break; // Non-retriable status or out of server retries
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      // A network-level failure while offline: loop back and wait for
+      // reconnection (does not consume a server retry).
+      if (isOffline()) {
+        continue;
+      }
+      if (serverAttempt < maxServerRetries - 1) {
+        const delay = Math.pow(2, serverAttempt) * 1000;
+        serverAttempt++;
+        console.warn(
+          `Upload failed with error, retrying in ${delay}ms (attempt ${serverAttempt}/${maxServerRetries})...`,
+          err
+        );
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (!uploadRes) {
+    throw lastError || new Error('Upload failed: no response received');
+  }
+
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text().catch(() => uploadRes.statusText);
+    throw new Error(`Upload error: ${errText}`);
+  }
+
+  type AssetLike = { id?: string; assetId?: string; duplicateId?: string };
+
+  const uploadResult = (await uploadRes.json()) as unknown;
+
+  const assetsFromRes: AssetLike[] = (() => {
+    try {
+      if (Array.isArray(uploadResult)) {
+        return uploadResult as AssetLike[];
+      }
+
+      if (uploadResult && typeof uploadResult === 'object') {
+        const obj = uploadResult as Record<string, unknown>;
+
+        if (obj.status === 'duplicate' && obj.id) {
+          return [{ duplicateId: String(obj.id), id: String(obj.id) }];
+        }
+
+        if (Array.isArray(obj.results)) {
+          return obj.results as AssetLike[];
+        }
+
+        return [uploadResult as AssetLike];
+      }
+
+      return [] as AssetLike[];
+    } catch {
+      return [] as AssetLike[];
+    }
+  })();
+
+  const assetData = assetsFromRes[0];
+  const isDup = !!assetData?.duplicateId;
+  const aid = assetData?.id || assetData?.assetId;
+  results.push({ file, isDuplicate: isDup, assetId: aid });
+
+  if (options.onFileResult) {
+    try {
+      options.onFileResult({ file, isDuplicate: isDup, assetId: aid });
+    } catch (e) {
+      void e;
+    }
+  }
+
+  if (aid) {
+    const assetIdToAdd = aid;
+    try {
+      if (isPhotosCV) {
+        await fetch('/api/people', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'add-to-album',
+            assetIds: [assetIdToAdd],
+          }),
+        });
+      } else {
+        await fetch(`/api/albums/${id}/assets`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [assetIdToAdd] }),
+        });
+      }
+    } catch (addErr: unknown) {
+      console.warn(`Error adding asset ${aid} to album:`, addErr);
+    }
   }
 }
