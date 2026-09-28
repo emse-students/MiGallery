@@ -1,3 +1,16 @@
+# MiGallery v2.15.3
+
+**Date**: September 28, 2026
+**Type**: Patch Release
+
+## 🎯 Objective
+
+A file that hit a network hiccup mid-import could never be uploaded again.
+
+## Changes
+
+- Fixed: an error while writing an upload chunk (a dropped connection, a write failure) could leave the per-file lock stuck on disk forever. Every retry of that exact file - including after reconnecting - then failed permanently with "File currently locked, retry" instead of resuming.
+
 # MiGallery v2.15.2
 
 **Date**: September 27, 2026
