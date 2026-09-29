@@ -1,3 +1,17 @@
+# MiGallery v2.15.5
+
+**Date**: September 29, 2026
+**Type**: Patch Release
+
+## 🎯 Objective
+
+A pinch on the phone grid stopped after one step, and a failed album load also said the album was empty.
+
+## Changes
+
+- Fixed: one pinch now walks the whole grid density scale, in both directions. It used to stop after a single step whenever the row under the fingers was redrawn.
+- Fixed: when an album's photos fail to load, the page shows the error alone instead of also saying "Cet album est vide pour le moment."
+
 # MiGallery v2.15.4
 
 **Date**: September 28, 2026
