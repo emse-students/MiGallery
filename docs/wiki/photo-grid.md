@@ -60,6 +60,16 @@ re-layout and the window is scrolled back onto it after (measured: 347.7 px befo
   only loses the memory, and the grid renders at the default.
 - **Phone metrics only.** Above 768 px the grid keeps the desktop target (300 px) and has no
   pinch: a trackpad pinch arrives as `ctrl`+wheel, which is the browser's page zoom.
+- **The gesture is heard on the touched elements, never on the grid** (`src/lib/touch-targets.ts`,
+  pinned by `tests/touch-targets.test.ts`). A touch keeps dispatching to the element it started on,
+  and a density step re-lays out the blocks, which REMOVES the row under the fingers from the DOM.
+  A detached element bubbles nothing, so a grid-level `touchmove` went deaf after the first step:
+  on the Mi 9T (2026-09-29) one spread walked 2 -> 3 and stopped, with the touched `.grid-row` at
+  `isConnected: false`, and a long pinch reached two steps only when the fingers happened to land
+  on a row that survived. The grid now listens only for `touchstart`, and `followTouchTargets`
+  hangs the move and end listeners on each finger's own target. Measured on the same phone after
+  the fix: one pinch of x0.6 walks 2 -> 5 and one of x1.67 walks 5 -> 2; a pinch of x0.75 still
+  moves exactly one step each way.
 - **The listeners are passive.** The phone grid carries `touch-action: pan-y`, so the browser
   neither zooms the page nor pans sideways there and nothing has to be `preventDefault`ed: a
   scroll is never delayed by the pinch handler. Page zoom still works everywhere outside the grid.
