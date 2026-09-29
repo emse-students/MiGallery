@@ -36,15 +36,15 @@ the effective minimum.
 
 ## Users and photo-access
 
-| Path                                                        | Auth         | Purpose                            |
-| ----------------------------------------------------------- | ------------ | ---------------------------------- |
-| `GET /api/users`, `/api/users/[id]`                         | admin / self | User management                    |
-| `/api/users/me`                                             | session      | Current user                       |
-| `/api/users/me/face`                                        | session      | Own reference face                 |
-| `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session      | RGPD photo-access consent          |
-| `/api/users/[userId]/photo-access`                          | admin / self | A user's grants                    |
-| `/api/users/[username]/avatar`                              | read         | User avatar (used by Sky, Canari)  |
-| `/api/change-user`                                          | admin        | Impersonation (sets signed cookie) |
+| Path                                                        | Auth            | Purpose                                                                                                         |
+| ----------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
+| `GET /api/users`, `/api/users/[id]`                         | admin / self    | User management                                                                                                 |
+| `/api/users/me`                                             | session         | Current user                                                                                                    |
+| `/api/users/me/face`                                        | session         | Own reference face                                                                                              |
+| `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session         | RGPD photo-access consent                                                                                       |
+| `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                 |
+| `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below |
+| `/api/change-user`                                          | admin           | Impersonation (sets signed cookie)                                                                              |
 
 ## Favorites and download
 
@@ -81,3 +81,18 @@ All under `requireAdminSession` / admin scope.
 
 Admin pages: `/admin`, `/admin/api-keys`, `/admin/database`,
 `/admin/logs`.
+
+## The signed avatar URL
+
+`GET /api/users/<id_user>/avatar?sig=<sig>` answers with no session and no API key when
+`sig = base64url(HMAC-SHA256(AVATAR_SIGNING_KEY, id_user))`, unpadded
+(`src/lib/server/avatar-signature.ts`). It exists because MinoWiki and Archives MINO receive the
+avatar URL inside each user's own OIDC claims: that URL used to carry a `read` API key, and a key
+here is never scoped to a route, so every user of either app held a key reading every read-scoped
+API. A signature opens ONE avatar, and each person only ever receives their own.
+
+MiConnect computes the same value in its `avatar` property mapping, the only other holder of the
+key; `tests/avatar-signature.test.ts` pins a vector produced by the PYTHON expression, since the
+two sides share no code. No expiry, deliberately (a relying party stores the URL it was given);
+rotating the key is the revocation, and it invalidates every URL at once. The response stays
+`private`, like every avatar: a shared cache must never hold a face.

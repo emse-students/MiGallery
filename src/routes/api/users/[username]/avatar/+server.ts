@@ -5,6 +5,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 import { generateFaceCrop } from '$lib/server/face-crop';
+import { isAvatarSignatureValid } from '$lib/server/avatar-signature';
 
 import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
@@ -16,10 +17,27 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 /**
  * GET /api/users/[username]/avatar
  * Gets a user's profile photo by their id_user
- * Requires: authentication (session cookie, auth provider, or API key with 'read' scope)
+ * Requires: authentication (session cookie, auth provider, or API key with 'read' scope), OR a
+ * `?sig=` that signs THIS id_user - the keyless URL MiConnect hands to MinoWiki and Archives
+ * ($lib/server/avatar-signature).
  */
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read', { allowQueryApiKey: true });
+  const sig = event.url.searchParams.get('sig');
+  if (sig === null) {
+    await requireScope(event, 'read', { allowQueryApiKey: true });
+  } else {
+    const key = env.AVATAR_SIGNING_KEY ?? '';
+    if (!key) {
+      log.error('Signed avatar request but AVATAR_SIGNING_KEY is not configured');
+      return svelteError(500, 'Signed avatars are not configured');
+    }
+    if (!isAvatarSignatureValid(key, event.params.username ?? '', sig)) {
+      log.warn('Signed avatar request refused: signature does not match', {
+        username: event.params.username,
+      });
+      return svelteError(403, 'Invalid signature');
+    }
+  }
   try {
     const { username } = event.params;
     const { fetch } = event;
