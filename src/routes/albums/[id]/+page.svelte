@@ -374,7 +374,8 @@
     <!-- Photos grid -->
     {#if photosState.loading && photosState.assets.length === 0}
       <LoadingState label={m.albumd_loading()} layout="block" />
-    {:else if !photosState.loading && photosState.assets.length === 0}
+    {:else if !photosState.loading && !photosState.error && photosState.assets.length === 0}
+      <!-- Not after a failed load: the error card above says what happened, and "empty" would be a lie. -->
       <EmptyState icon={ImageIcon} title={m.albumd_empty()} />
     {:else}
       <div class="gallery-wrapper" in:fade={{ duration: 300 }}>
