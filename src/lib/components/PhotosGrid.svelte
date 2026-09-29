@@ -42,6 +42,7 @@
     loadDensity,
     saveDensity,
   } from '$lib/grid-density';
+  import { distinctTargets, followTouchTargets } from '$lib/touch-targets';
 
   interface Props {
     state: PhotosState;
@@ -412,17 +413,17 @@
     if (anchor) restoreAnchor(anchor, midY);
   }
 
+  /*
+   * THE MOVES ARE HEARD ON THE TOUCHED ELEMENTS, NOT ON THE GRID. A density step re-lays out the
+   * virtualised blocks, which removes the row under the fingers from the DOM; a touch keeps
+   * dispatching to the element it started on, and a detached element bubbles nothing. Listening
+   * on the grid, one pinch walked 2 -> 3 and went deaf (Mi 9T, 2026-09-29: the touched
+   * `.grid-row` read `isConnected: false`). `followTouchTargets` listens on the targets instead.
+   */
   $effect(() => {
     const el = gridElement;
     if (!el || !phoneQuery.current) return;
-    const onStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        pinch = {
-          distance: fingerDistance(e.touches),
-          midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-        };
-      } else pinch = null;
-    };
+    let release = () => {};
     const onMove = (e: TouchEvent) => {
       if (!pinch || e.touches.length !== 2 || pinch.distance <= 0) return;
       const distance = fingerDistance(e.touches);
@@ -433,17 +434,27 @@
       }
     };
     const onEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) pinch = null;
+      if (e.touches.length < 2) {
+        pinch = null;
+        release();
+      }
+    };
+    const onStart = (e: TouchEvent) => {
+      release();
+      if (e.touches.length !== 2) {
+        pinch = null;
+        return;
+      }
+      pinch = {
+        distance: fingerDistance(e.touches),
+        midY: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+      release = followTouchTargets(distinctTargets(e.touches), { move: onMove, end: onEnd });
     };
     el.addEventListener('touchstart', onStart, { passive: true });
-    el.addEventListener('touchmove', onMove, { passive: true });
-    el.addEventListener('touchend', onEnd, { passive: true });
-    el.addEventListener('touchcancel', onEnd, { passive: true });
     return () => {
       el.removeEventListener('touchstart', onStart);
-      el.removeEventListener('touchmove', onMove);
-      el.removeEventListener('touchend', onEnd);
-      el.removeEventListener('touchcancel', onEnd);
+      release();
       pinch = null;
     };
   });
