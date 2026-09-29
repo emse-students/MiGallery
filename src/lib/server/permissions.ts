@@ -44,11 +44,10 @@ export async function requireScope(
   options?: {
     allowSelf?: boolean;
     targetUserId?: string;
-    allowQueryApiKey?: boolean;
   }
 ): Promise<AuthResult> {
   const { request, locals, cookies } = event;
-  const { allowSelf = false, targetUserId, allowQueryApiKey = false } = options || {};
+  const { allowSelf = false, targetUserId } = options || {};
 
   if (requiredScope === 'public') {
     return {
@@ -58,8 +57,7 @@ export async function requireScope(
     };
   }
 
-  const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
-  const apiKey = apiKeyHeader || (allowQueryApiKey ? event.url.searchParams.get('api_key') : null);
+  const apiKey = request.headers.get('x-api-key') || request.headers.get('X-API-KEY');
   if (apiKey) {
     if (requiredScope === 'admin') {
       if (!verifyRawKeyWithScope(apiKey, 'admin')) {

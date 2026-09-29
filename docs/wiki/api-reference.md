@@ -96,3 +96,7 @@ key; `tests/avatar-signature.test.ts` pins a vector produced by the PYTHON expre
 two sides share no code. No expiry, deliberately (a relying party stores the URL it was given);
 rotating the key is the revocation, and it invalidates every URL at once. The response stays
 `private`, like every avatar: a shared cache must never hold a face.
+
+**An API key is read from the `x-api-key` header ONLY.** The `?api_key=` query parameter this route
+used to accept existed for that URL alone, and it was removed once the mapping switched (2026-09-30):
+a key in a URL lands in logs, histories and claims.
