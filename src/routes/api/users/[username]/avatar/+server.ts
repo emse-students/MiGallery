@@ -24,7 +24,7 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 export const GET: RequestHandler = async (event) => {
   const sig = event.url.searchParams.get('sig');
   if (sig === null) {
-    await requireScope(event, 'read', { allowQueryApiKey: true });
+    await requireScope(event, 'read');
   } else {
     const key = env.AVATAR_SIGNING_KEY ?? '';
     if (!key) {
