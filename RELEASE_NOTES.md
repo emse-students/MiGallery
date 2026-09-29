@@ -1,3 +1,16 @@
+# MiGallery v2.15.6
+
+**Date**: September 30, 2026
+**Type**: Patch Release
+
+## 🎯 Objective
+
+MinoWiki and Archives no longer need an API key to show a MiGallery avatar.
+
+## Changes
+
+- Security: an avatar can be fetched with a per-person signature (`?sig=`), which opens that one avatar and nothing else. It replaces the API key MiConnect used to put in the avatar URL of every MinoWiki and Archives user.
+
 # MiGallery v2.15.5
 
 **Date**: September 29, 2026

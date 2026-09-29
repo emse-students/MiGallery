@@ -30,6 +30,9 @@ services:
       MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://auth.canari-emse.fr/application/o/migallery}
       MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}
       MICONNECT_CLIENT_SECRET: ${MICONNECT_CLIENT_SECRET:?MICONNECT_CLIENT_SECRET requis}
+      # Signe les URL d avatar sans cle que MiConnect donne a MinoWiki et Archives
+      # (src/lib/server/avatar-signature.ts). MiConnect en detient la MEME valeur.
+      AVATAR_SIGNING_KEY: ${AVATAR_SIGNING_KEY:?AVATAR_SIGNING_KEY requis}
       # Aucun secret de session : le cookie ne transporte qu'un jeton opaque et la
       # table `sessions` porte tout le reste - rien a signer, donc rien a tourner.
       # Max request body accepted by adapter-node. Nothing legitimately needs a big
