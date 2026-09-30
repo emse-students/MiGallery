@@ -4,7 +4,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { getDefaultPromos } from '$lib/promo-utils';
 
-const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FSSS', 'Master'];
+const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FSSS', 'Autre'];
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'write');
