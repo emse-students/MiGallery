@@ -5,6 +5,7 @@
  * so importing any server module that reads configuration would fail here on the import alone -
  * which is why `src/lib/auth.ts` had no unit test at all. Nothing in this stub is a fixture: the
  * tests that reach it exercise code paths that never read `env`, and an empty object makes that
- * explicit by breaking loudly if one ever does.
+ * explicit by breaking loudly if one ever does. A test that needs a value sets it on this object
+ * and restores it afterwards (`tests/seo.test.ts` does, for `ORIGIN`).
  */
 export const env: Record<string, string | undefined> = {};
