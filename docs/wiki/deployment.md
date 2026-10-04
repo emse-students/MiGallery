@@ -38,6 +38,10 @@ IMMICH_BASE_URL, MICONNECT_ISSUER, ports) have defaults in
 | `BODY_SIZE_LIMIT`                                          | max upload body (e.g. `20G`)                         |
 | `ENABLE_DEV_ROUTES`                                        | dev-only routes; must be `false` in production       |
 
+`ORIGIN` is also the origin of every canonical link, `og:url`, `sitemap.xml` and
+the `Sitemap:` line of `robots.txt` ([seo](seo.md#the-origin-comes-from-configuration)):
+moving the gallery to its final hostname is setting this variable, not a code change.
+
 ## Dependency updates, and the merge that reaches production
 
 Dependabot opens the pull requests (`.github/dependabot.yml`); **from there they are the same as

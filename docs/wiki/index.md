@@ -39,7 +39,7 @@ the page is a bug.
 | [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent                              |
 | [downloads.md](downloads.md)                           | Token-based archive download (native browser save)                                            |
 | [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked                     |
-| [seo.md](seo.md)                                       | Link previews, why there is no SEO, and why the head still matters                            |
+| [seo.md](seo.md)                                       | What may be indexed (the public pages only), robots.txt, the sitemap, and link previews       |
 | [outbound.md](outbound.md)                             | The 4 s deadline on every call to Immich and Authentik, and the three shapes it takes         |
 | [bandwidth.md](bandwidth.md)                           | The lossy prod path, the host tuning for it, and what each surface may load                   |
 | [viewer.md](viewer.md)                                 | The photo viewer's touch gestures, their thresholds, and the overflow menu that holds delete  |

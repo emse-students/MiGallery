@@ -26,6 +26,8 @@ declare global {
       } | null;
       /** Set by the root layout on every page: see `$lib/first-paint`. */
       firstPaint: FirstPaint;
+      /** Set by the root layout on every page: the configured public origin (`$lib/server/site-origin`). */
+      siteOrigin: string;
     }
   }
 }

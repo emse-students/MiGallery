@@ -1,14 +1,21 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { canonicalUrl, DEFAULT_IMAGE, defaultImage, type SeoMeta } from '$lib/seo';
+  import {
+    canonicalUrl,
+    DEFAULT_IMAGE,
+    defaultImage,
+    robotsDirective,
+    type SeoMeta,
+  } from '$lib/seo';
 
   let { meta }: { meta: SeoMeta } = $props();
 
-  // The REQUEST's own origin, never a constant: MiGallery answers on its production hostname and
-  // on localhost during development, and an absolute URL built from the wrong one is a preview
-  // image no unfurler can fetch.
-  const origin = $derived(page.url.origin);
+  // The CONFIGURED origin (`ORIGIN`, via the root layout), never a constant and never the host a
+  // request happened to reach: the canonical must name the gallery's one public hostname, whichever
+  // name it ends up with.
+  const origin = $derived(page.data.siteOrigin);
   const canonical = $derived(canonicalUrl(origin, page.url.pathname));
+  const robots = $derived(robotsDirective(page.url.pathname));
   const image = $derived(meta.image || defaultImage(origin));
   // Declared only for an image whose size is known: the page's own, or the default card.
   const size = $derived(
@@ -25,10 +32,10 @@
 <svelte:head>
   <meta name="description" content={meta.description} />
 
-  <!-- `static/robots.txt` already refuses every crawler, and this says the same thing to the ones
-	     that fetch a page before reading it. It is not in tension with the tags below: an unfurler
-	     ignores both, which is the entire reason those tags exist. -->
-  <meta name="robots" content="noindex, nofollow" />
+  <!-- `index` on the public pages only (`INDEXABLE_PATHS`, the same list robots.txt and the sitemap
+	     read); every other page says `noindex`. Not in tension with the card below: an unfurler
+	     ignores both robots.txt and this, which is the entire reason the card exists. -->
+  <meta name="robots" content={robots} />
   <link rel="canonical" href={canonical} />
 
   <meta property="og:type" content="website" />

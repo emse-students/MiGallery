@@ -7,6 +7,7 @@ import type { User, Album } from '$lib/types/api';
 import { redirect } from '@sveltejs/kit';
 import { loginBounceTarget } from '$lib/auth-redirect';
 import { resolveCover } from '$lib/server/album-cover';
+import { siteOrigin } from '$lib/server/site-origin';
 
 /** Formate la date et le lieu en description OG lisible (ex. "15 mai 2024 · Paris"). */
 function buildOgDescription(date?: string | null, location?: string | null): string {
@@ -74,7 +75,10 @@ export const load: PageServerLoad = async ({ params, parent, url, fetch }) => {
   const seo: SeoMeta = {
     title: album.name || m.albumd_default_title(),
     description: buildOgDescription(album.date, album.location),
-    image: album.visibility !== 'private' ? `${url.origin}/api/albums/${album.id}/og-cover` : null,
+    image:
+      album.visibility !== 'private'
+        ? `${siteOrigin(url.origin)}/api/albums/${album.id}/og-cover`
+        : null,
     imageAlt: m.albumd_cover_alt(),
     // The og-cover endpoint renders a fixed 1200x630 WebP, so these describe THIS image.
     imageWidth: 1200,

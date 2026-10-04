@@ -2,6 +2,7 @@ import type { UserRow } from '$lib/types/api';
 import { getSession } from '$lib/session';
 import { createLogger } from '$lib/server/logger';
 import { newFirstPaint } from '$lib/first-paint';
+import { siteOrigin } from '$lib/server/site-origin';
 import type { LayoutServerLoad } from './$types';
 
 const log = createLogger('layout');
@@ -37,16 +38,18 @@ function toSessionUser(user: UserRow): SessionPageUser {
  */
 export const load: LayoutServerLoad = (event) => {
   const firstPaint = newFirstPaint();
+  // The configured public origin every canonical and preview URL is built from (`$lib/seo`).
+  const origin = siteOrigin(event.url.origin);
   try {
     const session = getSession(event.cookies);
     if (!session) {
-      return { session: null, firstPaint };
+      return { session: null, firstPaint, siteOrigin: origin };
     }
 
-    return { session: { user: toSessionUser(session.user) }, firstPaint };
+    return { session: { user: toSessionUser(session.user) }, firstPaint, siteOrigin: origin };
   } catch (e) {
     log.warn('error while loading the session', e);
 
-    return { session: null, firstPaint };
+    return { session: null, firstPaint, siteOrigin: origin };
   }
 };

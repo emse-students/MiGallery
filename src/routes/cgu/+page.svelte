@@ -9,7 +9,6 @@
 
 <svelte:head>
   <title>{m.cgu_page_title()}</title>
-  <meta name="description" content={m.cgu_meta_desc()} />
 </svelte:head>
 
 <!-- A div, not a <main>: the layout's <main> is the landmark and the page container (#10). -->
