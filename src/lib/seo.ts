@@ -3,12 +3,13 @@ import { m } from '$lib/paraglide/messages';
 /**
  * What a link to MiGallery becomes when somebody pastes it somewhere.
  *
- * This module has a deliberately narrow job, and the reason is `static/robots.txt`: MiGallery is a
- * private photo gallery and every crawler is refused with `Disallow: /`. That posture is not
- * changing, so there is nothing here for a search engine - no JSON-LD, no sitemap, no keywords.
- * A structured-data graph with no consumer is decoration that reads as effort.
+ * **Exactly ONE page is indexable: the home page (user decision, 2026-10-06)** - a presentation of the
+ * gallery and a sign-in button, never a photo, an album or a name. {@link isIndexable} is that
+ * allowlist of one; `static/robots.txt`, the `robots` meta in `Seo.svelte` and the `X-Robots-Tag` header
+ * in `hooks.server.ts` all read it, so the three cannot disagree. Every album stays unindexed:
+ * it is photographs of named students.
  *
- * **An unfurler is not a crawler.** Discord, Slack, WhatsApp and Canari's own link preview fetch
+ * **An unfurler is not a crawler**, and it is a second audience that has not changed. Discord, Slack, WhatsApp and Canari's own link preview fetch
  * the page directly and ignore `robots.txt` entirely - that is the whole reason the album page
  * already carried Open Graph tags. So the head exists for exactly one audience, and it is judged by
  * exactly one question: does a shared album link render as a card, or as a bare URL?
@@ -85,4 +86,47 @@ export function siteSeo(): SeoMeta {
     image: null,
     imageAlt: m.app_logo_alt(),
   };
+}
+
+/** The `X-Robots-Tag` value every response but the home page carries. */
+export const NOINDEX_HEADER = 'noindex, nofollow';
+
+/**
+ * Whether a path may be indexed: ONLY the home page. An allowlist of one, so a new route is
+ * un-indexable until somebody decides otherwise. The album pages are shared as LINKS and unfurled by
+ * chat clients, which ignore this entirely - they are not search results and must never become some.
+ */
+export function isIndexable(pathname: string): boolean {
+  return pathname === '/';
+}
+
+/**
+ * The site as schema.org describes it, for the home page only: what the gallery is and who runs it,
+ * from facts the app already states. No photo, no album and no person.
+ */
+export function siteNode(origin: string): Record<string, unknown> {
+  return {
+    '@type': 'WebSite',
+    '@id': `${origin}/#website`,
+    name: 'MiGallery',
+    url: `${origin}/`,
+    description: m.app_meta_description(),
+    inLanguage: 'fr',
+    publisher: { '@type': 'Organization', name: 'MiTV' },
+  };
+}
+
+/**
+ * The `<script type="application/ld+json">` element, as a string.
+ *
+ * `JSON.stringify` leaves `</script>` intact, and inside a script element that sequence ENDS the
+ * element, so `<` and `&` become unicode escapes: identical to a JSON parser, inert to the HTML
+ * tokenizer. Assembled here and not in a `.svelte` file, where the closing tag needs an escape to stop
+ * the Svelte parser ending the block early.
+ */
+export function jsonLdScript(nodes: Record<string, unknown>[]): string {
+  const body = JSON.stringify({ '@context': 'https://schema.org', '@graph': nodes })
+    .replace(/</g, '\\u003c')
+    .replace(/&/g, '\\u0026');
+  return `<script type="application/ld+json">${body}</script>`;
 }

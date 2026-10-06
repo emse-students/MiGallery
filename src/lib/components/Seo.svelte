@@ -1,6 +1,14 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { canonicalUrl, DEFAULT_IMAGE, defaultImage, type SeoMeta } from '$lib/seo';
+  import {
+    canonicalUrl,
+    DEFAULT_IMAGE,
+    defaultImage,
+    isIndexable,
+    jsonLdScript,
+    siteNode,
+    type SeoMeta,
+  } from '$lib/seo';
 
   let { meta }: { meta: SeoMeta } = $props();
 
@@ -9,6 +17,9 @@
   // image no unfurler can fetch.
   const origin = $derived(page.url.origin);
   const canonical = $derived(canonicalUrl(origin, page.url.pathname));
+  // The home page is the ONE indexable page; every other one says noindex, as `X-Robots-Tag` does.
+  const indexable = $derived(isIndexable(page.url.pathname));
+  const jsonLd = $derived(indexable ? jsonLdScript([siteNode(origin)]) : null);
   const image = $derived(meta.image || defaultImage(origin));
   // Declared only for an image whose size is known: the page's own, or the default card.
   const size = $derived(
@@ -25,10 +36,14 @@
 <svelte:head>
   <meta name="description" content={meta.description} />
 
-  <!-- `static/robots.txt` already refuses every crawler, and this says the same thing to the ones
-	     that fetch a page before reading it. It is not in tension with the tags below: an unfurler
-	     ignores both, which is the entire reason those tags exist. -->
-  <meta name="robots" content="noindex, nofollow" />
+  <!-- `static/robots.txt` allows the home page alone, and this says the same thing to the crawlers that
+	     fetch a page before reading it. It is not in tension with the tags below: an unfurler ignores
+	     both, which is the entire reason those tags exist. -->
+  {#if indexable}
+    <meta name="robots" content="index, follow" />
+  {:else}
+    <meta name="robots" content="noindex, nofollow" />
+  {/if}
   <link rel="canonical" href={canonical} />
 
   <meta property="og:type" content="website" />
@@ -57,4 +72,10 @@
   <meta name="twitter:title" content={meta.title} />
   <meta name="twitter:description" content={meta.description} />
   <meta name="twitter:image" content={image} />
+
+  {#if jsonLd}
+    <!-- The script is assembled by `jsonLdScript`, which escapes `<` and `&` so no string can close it. -->
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+    {@html jsonLd}
+  {/if}
 </svelte:head>

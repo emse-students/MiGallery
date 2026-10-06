@@ -1,11 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import sharp from 'sharp';
-import { canonicalUrl, DEFAULT_IMAGE, defaultImage, siteSeo } from '$lib/seo';
+import {
+  canonicalUrl,
+  DEFAULT_IMAGE,
+  defaultImage,
+  isIndexable,
+  jsonLdScript,
+  siteNode,
+  siteSeo,
+} from '$lib/seo';
 
 /**
- * MiGallery refuses every crawler (`static/robots.txt`), so none of this is about search results.
- * It is about what a pasted album link becomes in a chat, and an unfurler is not a crawler: it
- * fetches the URL it was given and never reads robots.txt.
+ * Two audiences. A search engine gets the home page ALONE (`static/robots.txt`, the `robots` meta and
+ * the `X-Robots-Tag` header all read `isIndexable`). And what a pasted album link becomes in a chat is
+ * a separate matter: an unfurler is not a crawler, it fetches the URL it was given and never reads
+ * robots.txt.
  *
  * The properties worth pinning are the ones that fail SILENTLY - a relative image URL no unfurler
  * can resolve, and a card built from a constant origin rather than the request's, which is right in
@@ -56,5 +65,67 @@ describe('DEFAULT_IMAGE', () => {
     expect(meta.width).toBe(DEFAULT_IMAGE.width);
     expect(meta.height).toBe(DEFAULT_IMAGE.height);
     expect(`image/${meta.format}`).toBe(DEFAULT_IMAGE.type);
+  });
+});
+
+describe('isIndexable', () => {
+  it('allows the home page and nothing else', () => {
+    expect(isIndexable('/')).toBe(true);
+  });
+
+  it('refuses albums, photos, the API, the login chain and a route nobody has written yet', () => {
+    for (const path of [
+      '/albums',
+      '/albums/42',
+      '/mes-photos',
+      '/photos-cv',
+      '/api/albums',
+      '/admin',
+      '/cgu',
+      '/nouvelle-route',
+    ]) {
+      expect(isIndexable(path)).toBe(false);
+    }
+  });
+});
+
+describe('siteNode', () => {
+  it('is built from the request origin and names no photo, album or person', () => {
+    const node = siteNode('http://localhost:5173');
+    expect(node['@id']).toBe('http://localhost:5173/#website');
+    expect(node.url).toBe('http://localhost:5173/');
+    // The PROPERTIES, not the prose: the description says "photothèque" and that is fine.
+    const properties = Object.keys(node).map((key) => key.toLowerCase());
+    for (const key of ['image', 'photo', 'author', 'creator', 'person', 'hasPart', 'about']) {
+      expect(properties).not.toContain(key.toLowerCase());
+    }
+  });
+});
+
+describe('jsonLdScript', () => {
+  const OPEN = '<script type="application/ld+json">';
+  const CLOSE = '</script>';
+  const unwrap = (out: string) => {
+    expect(out.startsWith(OPEN)).toBe(true);
+    expect(out.endsWith(CLOSE)).toBe(true);
+    return out.slice(OPEN.length, out.length - CLOSE.length);
+  };
+
+  it('wraps the nodes in a schema.org graph', () => {
+    const parsed = JSON.parse(unwrap(jsonLdScript([{ '@type': 'WebSite' }])));
+    expect(parsed['@context']).toBe('https://schema.org');
+    expect(parsed['@graph']).toEqual([{ '@type': 'WebSite' }]);
+  });
+
+  it('cannot close the script element it is embedded in', () => {
+    const inner = unwrap(jsonLdScript([{ name: '</script><img src=x onerror=alert(1)>' }]));
+    expect(inner).not.toContain('<');
+    expect(JSON.parse(inner)['@graph'][0].name).toBe('</script><img src=x onerror=alert(1)>');
+  });
+
+  it('escapes ampersands too, so an entity in a name survives verbatim', () => {
+    const inner = unwrap(jsonLdScript([{ name: 'Arts &amp; Metiers' }]));
+    expect(inner).not.toContain('&');
+    expect(JSON.parse(inner)['@graph'][0].name).toBe('Arts &amp; Metiers');
   });
 });
