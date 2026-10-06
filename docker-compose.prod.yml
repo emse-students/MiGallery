@@ -27,7 +27,7 @@ services:
       # via son IP LAN.
       IMMICH_BASE_URL: ${IMMICH_BASE_URL:-http://10.0.0.4:2283}
       IMMICH_API_KEY: ${IMMICH_API_KEY:?IMMICH_API_KEY requis}
-      MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://auth.canari-emse.fr/application/o/migallery}
+      MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://miconnect.emse.fr/application/o/migallery}
       MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}
       MICONNECT_CLIENT_SECRET: ${MICONNECT_CLIENT_SECRET:?MICONNECT_CLIENT_SECRET requis}
       # Signe les URL d avatar sans cle que MiConnect donne a MinoWiki et Archives
