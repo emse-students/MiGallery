@@ -58,6 +58,7 @@
         <div class="card surface">
           <h2>{m.home_welcome_title()}</h2>
           <p>{m.home_welcome_sub()}</p>
+          <p>{m.home_about()}</p>
           <button type="button" onclick={handleSignIn} class="btn primary">
             <LogIn size={20} />
             {m.home_signin()}

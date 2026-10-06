@@ -1,28 +1,42 @@
-# Link previews (and why there is no SEO)
+# Link previews, and the ONE page a search engine may index
 
 **Source**: `src/lib/seo.ts`, `src/lib/components/Seo.svelte`,
 `src/routes/+layout.svelte`, `src/routes/albums/[id]/+page.server.ts`,
-`static/robots.txt`
+`src/hooks.server.ts`, `static/robots.txt`
 
-## The constraint everything here follows from
+## The rule, decided by the user on 2026-10-06
 
-MiGallery is a private photo gallery of named students, and `static/robots.txt`
-refuses every crawler with `Disallow: /`. **That posture is not changing.** So
-there is nothing on this page about search results: no JSON-LD, no sitemap, no
-keywords. Structured data with no consumer is decoration that reads as effort.
+MiGallery is a private photo gallery of named students. It used to refuse every crawler
+(`Disallow: /`, "deliberate and permanent"). **That is now an allowlist of ONE: the home page**,
+which presents the gallery and offers a sign-in button, and shows no photo, no album and no name.
+Everything else stays out of every index.
 
-What the head IS for is one audience:
+`isIndexable(pathname)` in `src/lib/seo.ts` is that allowlist (`pathname === '/'`), and three things
+read it, so they cannot disagree:
+
+| Where                                | What it does for `/`                                                    | What it does for everything else  |
+| ------------------------------------ | ----------------------------------------------------------------------- | --------------------------------- |
+| `static/robots.txt`                  | `Allow: /$` (the root alone; the longer rule wins in Google's matching) | `Disallow: /`                     |
+| `Seo.svelte`                         | `<meta name="robots" content="index, follow">` plus a JSON-LD `WebSite` | `noindex, nofollow`               |
+| `robotsHandler` in `hooks.server.ts` | nothing                                                                 | `X-Robots-Tag: noindex, nofollow` |
+
+The header is the second voice, for an engine that never fetched `robots.txt` or already knows a URL.
+A thrown `redirect()` does not come back through `resolve` - it travels up as an exception - so the
+handler converts it into the response it would have become before stamping it.
+
+The JSON-LD (`siteNode`) states what the site is and who runs it, from facts the app already carries,
+and **nothing about a photo, an album or a person** (`tests/seo.test.ts` asserts it). There is still
+no sitemap.
+
+## The other audience, unchanged
 
 > **An unfurler is not a crawler.** Discord, Slack, WhatsApp and Canari's own
 > link preview fetch the exact URL somebody pasted, and never read `robots.txt`.
 
-Sharing an album link is a supported action - it is what `unlisted` visibility
-exists for - so the card that link produces is part of the product. The album
-page has carried Open Graph tags for that reason since before this page existed.
-
-The pages also carry `<meta name="robots" content="noindex, nofollow">`. It is
-not in tension with the Open Graph tags below: it addresses crawlers, which are
-already refused, while the tags address unfurlers, which ignore both.
+Sharing an album link is a supported action - it is what `unlisted` visibility exists for - so the card
+that link produces is part of the product. The album page has carried Open Graph tags for that reason
+since before this page existed. They are not in tension with `noindex`: it addresses crawlers, the tags
+address unfurlers, which ignore both.
 
 ## One head, assembled in one place
 
