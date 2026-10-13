@@ -36,15 +36,16 @@ the effective minimum.
 
 ## Users and photo-access
 
-| Path                                                        | Auth            | Purpose                                                                                                         |
-| ----------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
-| `GET /api/users`, `/api/users/[id]`                         | admin / self    | User management                                                                                                 |
-| `/api/users/me`                                             | session         | Current user                                                                                                    |
-| `/api/users/me/face`                                        | session         | Own reference face                                                                                              |
-| `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session         | RGPD photo-access consent                                                                                       |
-| `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                 |
-| `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below |
-| `/api/change-user`                                          | admin           | Impersonation (sets signed cookie)                                                                              |
+| Path                                                        | Auth            | Purpose                                                                                                                      |
+| ----------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/users`, `/api/users/[id]`                         | admin / self    | User management                                                                                                              |
+| `/api/users/me`                                             | session         | Current user                                                                                                                 |
+| `/api/users/me/face`                                        | session         | Own reference face                                                                                                           |
+| `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session         | RGPD photo-access consent                                                                                                    |
+| `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                              |
+| `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below              |
+| `/api/users/avatar-presence?ids=a,b`                        | read            | Which of up to 100 users have a photo, in one query (`{ withPhoto }`) - Canari asks it instead of collecting 404s; see below |
+| `/api/change-user`                                          | admin           | Impersonation (sets signed cookie)                                                                                           |
 
 ## Favorites and download
 
@@ -81,6 +82,16 @@ All under `requireAdminSession` / admin scope.
 
 Admin pages: `/admin`, `/admin/api-keys`, `/admin/database`,
 `/admin/logs`.
+
+## Which users have a photo, asked for a list
+
+`GET /api/users/avatar-presence?ids=<a>,<b>` answers `{ withPhoto: [...] }`: the ids among those
+named whose `users` row has a `photos_id` - exactly the ones `/api/users/<id>/avatar` does not
+answer 404 for (a `photos_id` whose Immich person is gone is the rare exception). At most 100 distinct
+ids (`MAX_AVATAR_PRESENCE_IDS`, Canari's profile batch size); a longer or empty list is a 400, never a
+short answer. It exists because Canari learned which members have no photo by being refused once per
+face - 37 404s in one salon walk on 2026-10-13 - for a fact this table already holds
+(`src/lib/server/avatar-presence.ts`, `tests/avatar-presence.test.ts`).
 
 ## The signed avatar URL
 
