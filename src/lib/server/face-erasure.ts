@@ -34,12 +34,13 @@ import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 import { searchAllAssets } from '$lib/server/immich-search';
 import { deletePersonFaceCrops } from '$lib/server/face-crop';
+import { normalisePersonId } from '$lib/server/person-id';
 import { withdrawFaceConsent } from '$lib/server/face-consent';
 
 const log = createLogger('face-erasure');
 
 /** Why the face data goes. */
-export type FaceErasureReason = 'withdrawal' | 'account_deletion';
+export type FaceErasureReason = 'withdrawal' | 'account_deletion' | 'relink' | 'admin_unlink';
 
 /** A pending row older than this is reported as an error on every run. */
 export const ERASURE_OVERDUE_MS = 24 * 60 * 60 * 1000;
@@ -58,42 +59,51 @@ interface ErasureRow {
   attempts: number;
 }
 
+/** What {@link eraseLocalFaceData} decided, for the caller to finish AFTER its commit. */
+export interface LocalErasure {
+  /** The journal row, or null when no Immich person was linked (or its id is not a person id). */
+  erasure: number | null;
+  /** The person whose link was undone, for the crop cleanup. */
+  personId: string | null;
+}
+
 /**
  * The local half for `userId`, inside the caller's transaction: drop the face link and profile
- * photo pointer, the grants in both directions and the on-disk crops, and journal the Immich half
- * when there is a person to erase. Returns the journal row id, or null when the member had no
- * linked person.
- *
- * The crops are files, not rows, so a rollback cannot restore them - which is harmless: they are
- * a cache, regenerated from Immich on demand while the link still exists.
+ * photo pointer, the grants the member GAVE (the ones on their own face photos - grants others
+ * gave them are about other people's faces and stay), close the consent record, and journal the
+ * Immich half when there is a person to clear. The file side (crops, the run) is NOT done here: a
+ * file error must not roll a withdrawal back, so the caller runs {@link finishLocalErasure} after
+ * its COMMIT. Called for a withdrawal, an account deletion, an admin unlink and a RELINK - the
+ * old person's grants and consent never carry over to a different person.
  */
 export function eraseLocalFaceData(
   db: Db,
   userId: string,
   reason: FaceErasureReason,
   now: number = Date.now()
-): number | null {
+): LocalErasure {
   const row = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
     photos_id: string | null;
   } | null;
-  const personId = row?.photos_id ?? null;
+  const linked = row?.photos_id ?? null;
 
   db.prepare('UPDATE users SET photos_id = NULL, photos_asset_id = NULL WHERE id_user = ?').run(
     userId
   );
-  db.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ? OR authorized_id = ?').run(
-    userId,
-    userId
-  );
-
+  db.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ?').run(userId);
   withdrawFaceConsent(db, userId);
 
-  if (!personId) {
+  if (!linked) {
     log.info('face data erased locally, no Immich person was linked', { reason });
-    return null;
+    return { erasure: null, personId: null };
+  }
+  const personId = normalisePersonId(linked);
+  if (!personId) {
+    // A link an admin stored by hand that is not a person id: nothing in Immich can be named.
+    log.warn('face link was not a person id; nothing journaled', { reason });
+    return { erasure: null, personId: null };
   }
 
-  deletePersonFaceCrops(personId);
   const info = db
     .prepare('INSERT INTO face_erasures (person_id, reason, requested_at) VALUES (?, ?, ?)')
     .run(personId, reason, now);
@@ -101,7 +111,22 @@ export function eraseLocalFaceData(
     erasure: info.lastInsertRowid,
     reason,
   });
-  return Number(info.lastInsertRowid);
+  return { erasure: Number(info.lastInsertRowid), personId };
+}
+
+/** After the COMMIT: delete the person's crops (never throws) and kick the Immich half. */
+export function finishLocalErasure(local: LocalErasure): void {
+  if (local.personId) {
+    deletePersonFaceCrops(local.personId);
+  }
+  if (local.erasure !== null) {
+    kickFaceErasures();
+  }
+}
+
+/** Start a run and never leave its rejection unhandled. */
+export function kickFaceErasures(): void {
+  runFaceErasures().catch((e: unknown) => log.error('face erasure run crashed', e));
 }
 
 /**
@@ -119,6 +144,10 @@ export function anonymiseUserInLogs(db: Db, userId: string, personId: string | n
       "UPDATE logs SET target_id = ?, details = NULL WHERE target_type = 'user' AND target_id = ?"
     )
     .run(DELETED_ID, userId);
+  // Any other row whose details name the member (an id inside a JSON blob) loses its details.
+  const inDetails = db
+    .prepare("UPDATE logs SET details = NULL WHERE details LIKE ? ESCAPE '!'")
+    .run(`%${userId.replace(/[!%_]/g, (c) => `!${c}`)}%`).changes;
   let person = 0;
   if (personId) {
     person = db
@@ -128,6 +157,7 @@ export function anonymiseUserInLogs(db: Db, userId: string, personId: string | n
   log.info('audit log anonymised for a deleted account', {
     asActor: actor.changes,
     asTarget: target.changes,
+    inDetails,
     asPerson: person,
   });
 }
@@ -170,10 +200,8 @@ export function deleteUserAccount(db: Db, userId: string): boolean {
   if (!result) {
     return false;
   }
-  if (result.erasure !== null) {
-    void runFaceErasures();
-  }
-  log.info('account deleted', { erasureJournaled: result.erasure !== null });
+  finishLocalErasure(result.erasure);
+  log.info('account deleted', { erasureJournaled: result.erasure.erasure !== null });
   return true;
 }
 
@@ -204,9 +232,14 @@ async function immichCall(
   });
 }
 
+/**
+ * The error for a refused Immich call. The response body is deliberately NOT included: Immich
+ * echoes the request, and a person's name is what this code exists to remove - it must not end up
+ * in `face_erasures.last_error` or the logs.
+ */
 async function failure(res: Response, what: string): Promise<Error> {
-  const text = await res.text().catch(() => '');
-  return new Error(`${what}: ${res.status} ${text.slice(0, 200)}`);
+  await res.body?.cancel().catch(() => undefined);
+  return new Error(`${what}: ${res.status}`);
 }
 
 const SEARCH_PAGE = 500;
@@ -287,7 +320,7 @@ let rerun = false;
 /**
  * Drive every pending erasure. A call made while a run is in progress does not start a second
  * one in parallel; it asks for ONE more pass after it, because the run in progress read the
- * journal before the caller's row existed. Never throws: each row's failure is logged and
+ * journal before the caller's row existed. NEVER REJECTS (a pass that fails is logged and the next tick retries): each row's failure is logged and
  * recorded on that row, and the next row still runs.
  */
 export function runFaceErasures(fetchFn: typeof fetch = fetch): Promise<void> {
@@ -298,7 +331,11 @@ export function runFaceErasures(fetchFn: typeof fetch = fetch): Promise<void> {
   running = (async () => {
     do {
       rerun = false;
-      await runOnce(fetchFn);
+      try {
+        await runOnce(fetchFn);
+      } catch (e) {
+        log.error('face erasure pass failed', e);
+      }
     } while (rerun);
   })().finally(() => {
     running = null;
@@ -338,9 +375,13 @@ async function runOnce(fetchFn: typeof fetch): Promise<void> {
       log.info('face erasure done', { erasure: row.id, outcome: result.outcome });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      db.prepare(
-        'UPDATE face_erasures SET attempts = attempts + 1, last_attempt_at = ?, last_error = ? WHERE id = ?'
-      ).run(now, message.slice(0, 500), row.id);
+      try {
+        db.prepare(
+          'UPDATE face_erasures SET attempts = attempts + 1, last_attempt_at = ?, last_error = ? WHERE id = ?'
+        ).run(now, message.slice(0, 500), row.id);
+      } catch (writeErr) {
+        log.error('face erasure attempt could not be recorded', writeErr);
+      }
       log.error('face erasure attempt failed, will retry', {
         erasure: row.id,
         attempt: row.attempts + 1,
@@ -349,7 +390,11 @@ async function runOnce(fetchFn: typeof fetch): Promise<void> {
     }
   }
 
-  reportOverdue(db, Date.now());
+  try {
+    reportOverdue(db, Date.now());
+  } catch (e) {
+    log.error('face erasure overdue report failed', e);
+  }
 }
 
 /** Log, as an error, every erasure still pending more than {@link ERASURE_OVERDUE_MS} after it was asked. */
@@ -384,7 +429,7 @@ export function startFaceErasureWorker(): void {
   }
   workerStarted = true;
   const tick = () => {
-    void runFaceErasures().catch((e: unknown) => log.error('face erasure run crashed', e));
+    kickFaceErasures();
   };
   setTimeout(tick, 30_000);
   setInterval(tick, RETRY_INTERVAL_MS);

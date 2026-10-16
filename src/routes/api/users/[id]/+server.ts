@@ -4,9 +4,14 @@ import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
-import { deleteUserAccount, DELETED_ID } from '$lib/server/face-erasure';
+import {
+  deleteUserAccount,
+  DELETED_ID,
+  finishLocalErasure,
+  inTransaction,
+} from '$lib/server/face-erasure';
 import { resolveAdminPersonLink } from '$lib/server/face-access';
-import { recordFaceConsent, withdrawFaceConsent } from '$lib/server/face-consent';
+import { applyFaceLink } from '$lib/server/face-link';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -74,10 +79,9 @@ export const PUT: RequestHandler = async (event) => {
     // the request means "leave the link alone": the UPDATE below used to null it silently.
     const link = resolveAdminPersonLink(body.photos_id, targetId);
     if (!link.ok) {
-      return json(
-        { error: 'photos_id must be a person id that no other member holds' },
-        { status: 409 }
-      );
+      return link.reason === 'invalid'
+        ? json({ error: 'photos_id must be a string or null' }, { status: 400 })
+        : json({ error: 'photos_id belongs to another member' }, { status: 409 });
     }
     const formation = body.formation ?? null;
 
@@ -94,38 +98,35 @@ export const PUT: RequestHandler = async (event) => {
     }
 
     const db = getDatabase();
-    // A changed person invalidates the profile-photo pointer, which belongs to the previous one.
-    const current = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(targetId) as {
-      photos_id: string | null;
-    } | null;
-    const photos_id = link.personId === undefined ? (current?.photos_id ?? null) : link.personId;
-    const personChanged = (current?.photos_id ?? null) !== photos_id;
-    const stmt = db.prepare(
-      `UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ?, formation = ?${
-        personChanged ? ', photos_asset_id = NULL' : ''
-      } WHERE id_user = ?`
-    );
-    const info = stmt.run(
-      name,
-      first_name,
-      last_name,
-      role || 'user',
-      promo,
-      photos_id,
-      formation,
-      targetId
-    );
-
-    if (info.changes === 0) {
+    // The other columns and the link move in ONE transaction. The link goes through
+    // applyFaceLink (face-link.ts): a changed or cleared person drops the old person's grants,
+    // closes its consent, clears the profile pointer and journals the Immich clearing.
+    const outcome = inTransaction(db, () => {
+      const info = db
+        .prepare(
+          'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, formation = ? WHERE id_user = ?'
+        )
+        .run(name, first_name, last_name, role || 'user', promo, formation, targetId);
+      if (info.changes === 0) {
+        return null;
+      }
+      return link.personId === undefined
+        ? { changes: info.changes, local: null }
+        : {
+            changes: info.changes,
+            local: applyFaceLink(db, targetId, link.personId, {
+              source: 'admin',
+              unlinkReason: 'admin_unlink',
+            }).local,
+          };
+    });
+    if (!outcome) {
       return json({ error: 'User not found' }, { status: 404 });
     }
-    if (personChanged) {
-      // An admin set the link: the old consent was for the old person, the new one is the admin's.
-      withdrawFaceConsent(db, targetId);
-      if (photos_id) {
-        recordFaceConsent(db, targetId, 'admin');
-      }
+    if (outcome.local) {
+      finishLocalErasure(outcome.local);
     }
+    const info = { changes: outcome.changes };
 
     const updated = db
       .prepare(
@@ -158,6 +159,9 @@ export const PUT: RequestHandler = async (event) => {
       throw e;
     }
     const err = ensureError(e);
+    if (/UNIQUE constraint failed: users\.photos_id|SQLITE_CONSTRAINT_UNIQUE/.test(err.message)) {
+      return json({ error: 'photos_id belongs to another member' }, { status: 409 });
+    }
     log.error('PUT /api/users/[id] error', err);
     return json({ success: false, error: err.message }, { status: 500 });
   }

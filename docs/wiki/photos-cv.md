@@ -143,34 +143,42 @@ person's name in Immich. The anonymous cluster, its faces and their embeddings s
 
 Linking a cluster to a member happens only through MiGallery (`users.photos_id`).
 
-A member withdrawing their OWN face link (`PATCH /api/users/me/face` with
-`person_id: null`) and deleting an account (`DELETE /api/users/me`, or an
-admin's `DELETE /api/users/[id]`) run the erasure. The code is
-`src/lib/server/face-erasure.ts`, pinned by `tests/face-erasure.test.ts`.
+Every CHANGE of the person linked to an account runs the erasure for the OLD person, through
+`applyFaceLink` (`src/lib/server/face-link.ts`, the one writer of `users.photos_id`): a member
+withdrawing (`PATCH /api/users/me/face` with `person_id: null`, reason `withdrawal`), a member
+relinking to another person (`relink`), an admin unlinking or changing a link (`PATCH` with
+`user_id`, `PUT /api/users/[id]`, reason `admin_unlink` / `relink`), and an account deletion
+(`DELETE /api/users/me`, an admin's `DELETE /api/users/[id]`). The grants, the consent and the
+Immich name hang from the link, so none of them may carry over to a different person. The code is
+`src/lib/server/face-erasure.ts`, pinned by `tests/face-erasure.test.ts` and, at handler level,
+`tests/face-routes.test.ts`.
 
-Two cases deliberately do NOT run it:
-
-- **an admin (or an API key) unlinking someone else** through the same endpoint
-  with `user_id`: that is the correction of a wrong association. It only unlinks.
-- **anything done while impersonating**: a withdrawal or an account deletion
-  is irreversible, so an admin "acting as" the member gets a 403.
+**Nothing of this may be done by an admin impersonating the member:** a link, a withdrawal, a
+profile photo, an account deletion and a photo-access grant or revocation get a 403 in an
+impersonated session (they are the member's own acts and consents).
 
 **In the request, in one SQLite transaction:**
 
 - `photos_id` and `photos_asset_id` set to NULL. `photos_asset_id` is the
   gallery photo chosen as profile picture, an archive photo: it is unlinked,
   never deleted.
-- every `photo_access_permissions` row naming the member, both directions;
+- every `photo_access_permissions` row the member GAVE (grants on their own face photos). Grants others
+  gave the member concern other people's faces and stay on a withdrawal or a relink; an account deletion
+  takes them by cascade;
+- the member's open consent row is closed (`withdrawn_at`);
 - account deletion only: the member's id in `logs` becomes `[deleted]` (as
   actor, with the row's `ip` cleared, and as target of a `user` or `person`
-  event, whose details are cleared), their `album_permissions` rows of kind
+  event, whose details are cleared; any other row whose `details` contains the member's id also loses
+  its details), their `album_permissions` rows of kind
   `user` (no foreign key, so no cascade) go, then the `users` row goes and its
   foreign keys take sessions and favorites;
 - a `face_erasures` row naming the Immich person (never the member).
 
-The on-disk crops of that person (`data/cache/faces/*_<personId>.webp`) are
-deleted in the same request (files, so outside the transaction) and again
-when the Immich half completes, since they can be regenerated meanwhile.
+The link write and its consent row are one transaction. The on-disk crops of that person
+(`data/cache/faces/*_<personId>.webp`) are files: they are deleted AFTER the commit, and a failure is
+logged per file and never undoes the withdrawal (`deletePersonFaceCrops` never throws). They go again
+when the Immich half completes, since they can be regenerated meanwhile. A stored link that is not a
+UUID (an admin's hand-typed test id) journals nothing.
 
 **Then in Immich, from the journal** (can fail, so it is retried):
 
@@ -181,7 +189,8 @@ when the Immich half completes, since they can be regenerated meanwhile.
    `{ "name": "", "birthDate": null }`, then `GET` again; a name still there fails
    the attempt.
 
-The request kicks a run at once (a run already in progress makes one more pass);
+The request kicks a run at once (a run already in progress makes one more pass; `runFaceErasures` never rejects, a failing pass is
+logged and the next tick retries, and every caller goes through `kickFaceErasures`);
 the worker (`startFaceErasureWorker`, `hooks.server.ts`) retries every 15 minutes
 and on start. Each failed attempt is logged as an error and recorded on its row
 (`attempts`, `last_error`); every row still pending 24 h after it was asked is
@@ -197,7 +206,7 @@ client-side: a tab closed in the middle of the detection leaves it in Immich.
 ### Does a screen read the Immich person `name`?
 
 Read on 2026-10-16: one place, and it degrades. `photos.svelte.ts#loadPerson` reads
-`GET /api/immich/people/{id}` into `personName` (`'Sans nom'` when empty), shown in the
+`GET /api/immich/people/{id}` into `personName` (the localized `mp_person_unnamed` when empty), shown in the
 `/mes-photos` header only as the fallback of `targetUserName`, which is the MiGallery
 user's own name. Nothing else reads it: the trombinoscope lists MiGallery users, the
 admin face check (`admin/users`) reads person ids. The one other path is `GET /api/people/people` (the whole Immich list, `name` included, no in-app caller): an EXTERNAL API-key consumer would see empty names. MiGallery
@@ -214,7 +223,9 @@ IMMICH_BASE_URL=https://... IMMICH_API_KEY=... bun scripts/immich-clear-person-n
 IMMICH_BASE_URL=https://... IMMICH_API_KEY=... bun scripts/immich-clear-person-names.mjs --apply  # writes
 ```
 
-`--apply` sends `PUT /api/people/{id}` `{ "name": "", "birthDate": null }` for each such person
+The listing is paged until Immich returns an EMPTY page and the count seen must equal the total it reports
+(else nothing is written); the page count is printed; an Immich error body is never printed (it can echo a
+name). `--apply` sends `PUT /api/people/{id}` `{ "name": "", "birthDate": null }` for each such person
 and re-reads it. The Immich key needs the `person.read` and `person.update` permissions. Hidden
 people are included. Re-running is safe (a cleared person is skipped).
 

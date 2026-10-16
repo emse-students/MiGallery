@@ -211,7 +211,7 @@ export class PhotosState {
       const personRes = await fetch(`/api/immich/people/${id}`);
       if (personRes.ok) {
         const personData = (await personRes.json()) as { name?: string };
-        this.personName = personData.name || 'Sans nom';
+        this.personName = personData.name || m.mp_person_unnamed();
       }
 
       if (profile?.userId) {

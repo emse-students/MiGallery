@@ -23,10 +23,13 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireScope, type AuthResult } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
+import { normalisePersonId } from '$lib/server/person-id';
 import { env } from '$env/dynamic/private';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('face-access');
+
+export { normalisePersonId };
 
 /** Why a viewer may read an owner's face-linked photos. `null` = they may not. */
 export type FaceAccessReason = 'admin' | 'own_photos' | 'granted';
@@ -35,21 +38,6 @@ export type FaceAccessReason = 'admin' | 'own_photos' | 'granted';
 export interface FaceViewer {
   id_user: string;
   role?: string | null;
-}
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * The ONE spelling of an Immich person id: a UUID, lowercase. Immich (and Postgres `uuid`) accept
- * any case, SQLite's `=` does not, so an id is normalised before it is stored or compared -
- * otherwise `ABC...` and `abc...` would be two owners of one person. `null` = not a person id.
- */
-export function normalisePersonId(id: unknown): string | null {
-  if (typeof id !== 'string') {
-    return null;
-  }
-  const trimmed = id.trim();
-  return UUID.test(trimmed) ? trimmed.toLowerCase() : null;
 }
 
 /**
@@ -352,7 +340,7 @@ export function classifyProxiedBody(
 export function resolveAdminPersonLink(
   raw: unknown,
   userId: string
-): { ok: true; personId: string | null | undefined } | { ok: false } {
+): { ok: true; personId: string | null | undefined } | { ok: false; reason: 'invalid' | 'taken' } {
   if (raw === undefined) {
     return { ok: true, personId: undefined };
   }
@@ -360,7 +348,7 @@ export function resolveAdminPersonLink(
     return { ok: true, personId: null };
   }
   if (typeof raw !== 'string') {
-    return { ok: false };
+    return { ok: false, reason: 'invalid' };
   }
   const personId = normalisePersonId(raw) ?? raw;
   const holder = getDatabase()
@@ -371,7 +359,7 @@ export function resolveAdminPersonLink(
       userId,
       personId,
     });
-    return { ok: false };
+    return { ok: false, reason: 'taken' };
   }
   return { ok: true, personId };
 }

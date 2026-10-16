@@ -221,8 +221,12 @@ describe('resolveAdminPersonLink (admin writes of users.photos_id)', () => {
   it('refuses a person another member holds, in any case, and a non-string', () => {
     expect(access.resolveAdminPersonLink(PERSON.toUpperCase(), STRANGER.id_user)).toEqual({
       ok: false,
+      reason: 'taken',
     });
-    expect(access.resolveAdminPersonLink(42, STRANGER.id_user)).toEqual({ ok: false });
+    expect(access.resolveAdminPersonLink(42, STRANGER.id_user)).toEqual({
+      ok: false,
+      reason: 'invalid',
+    });
   });
 
   it('lets the holder keep their own person', () => {

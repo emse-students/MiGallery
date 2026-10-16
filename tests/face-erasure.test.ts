@@ -122,7 +122,7 @@ beforeEach(() => {
 });
 
 describe('the local half', () => {
-  it('a withdrawal drops the link, the profile pointer, the grants both ways and the crops', () => {
+  it('a withdrawal drops the link, the profile pointer, the grants the member GAVE and (after commit) the crops', () => {
     addUser('owner', PERSON);
     addUser('friend', null);
     const db = database.getDatabase();
@@ -138,17 +138,21 @@ describe('the local half', () => {
     fs.writeFileSync(centerCrop, 'x');
 
     try {
-      const id = erasure.inTransaction(db, () =>
+      const local = erasure.inTransaction(db, () =>
         erasure.eraseLocalFaceData(db, 'owner', 'withdrawal')
       );
 
-      expect(id).not.toBeNull();
+      expect(local.erasure).not.toBeNull();
+      // The crops are files: they go AFTER the commit, so a file error cannot undo the withdrawal.
+      expect(fs.existsSync(crop)).toBe(true);
+      erasure.finishLocalErasure(local);
       expect(
         db.prepare("SELECT photos_id, photos_asset_id FROM users WHERE id_user = 'owner'").get()
       ).toEqual({ photos_id: null, photos_asset_id: null });
-      expect(db.prepare('SELECT COUNT(*) AS n FROM photo_access_permissions').get()).toEqual({
-        n: 0,
-      });
+      // Only the grant the owner GAVE goes; the one the friend gave the owner is about the friend's face.
+      expect(db.prepare('SELECT owner_id FROM photo_access_permissions').all()).toEqual([
+        { owner_id: 'friend' },
+      ]);
       expect(fs.existsSync(crop)).toBe(false);
       expect(fs.existsSync(centerCrop)).toBe(true);
       expect(journal()).toMatchObject([{ person_id: PERSON, reason: 'withdrawal', done_at: null }]);
@@ -160,7 +164,7 @@ describe('the local half', () => {
   it('journals nothing when no person was linked', () => {
     addUser('nobody', null);
     const db = database.getDatabase();
-    expect(erasure.eraseLocalFaceData(db, 'nobody', 'withdrawal')).toBeNull();
+    expect(erasure.eraseLocalFaceData(db, 'nobody', 'withdrawal').erasure).toBeNull();
     expect(journal()).toEqual([]);
   });
 

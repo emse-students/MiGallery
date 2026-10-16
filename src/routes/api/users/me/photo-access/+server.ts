@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
+import { isImpersonating } from '$lib/server/auth';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -70,6 +71,10 @@ export const GET: RequestHandler = async (event) => {
  */
 export const POST: RequestHandler = async (event) => {
   const user = await requireSession(event);
+  // A grant of the member's face photos is the member's own consent: an admin acting as them must not give or take it.
+  if (isImpersonating(event)) {
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
 
   try {
     const db = getDatabase();
@@ -124,6 +129,10 @@ export const POST: RequestHandler = async (event) => {
  */
 export const DELETE: RequestHandler = async (event) => {
   const user = await requireSession(event);
+  // A grant of the member's face photos is the member's own consent: an admin acting as them must not give or take it.
+  if (isImpersonating(event)) {
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
 
   try {
     const db = getDatabase();

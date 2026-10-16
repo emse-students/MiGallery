@@ -33,25 +33,41 @@ const call = async (method, path, body) => {
   }
   const res = await fetch(`${base}/api/${path}`, init);
   if (!res.ok) {
-    throw new Error(`${method} ${path}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+    // The body is NOT printed: Immich echoes the request and a person's name is what this removes.
+    throw new Error(`${method} ${path}: ${res.status}`);
   }
   return res.json();
 };
 
 const named = [];
 let total = 0;
+let reported = null;
+let pages = 0;
+// Page until Immich returns an EMPTY page: hasNextPage is trusted by nothing here, and the count
+// seen is checked against the total Immich reports, so a truncated listing cannot pass as complete.
 for (let page = 1; ; page++) {
   const body = await call('GET', `people?withHidden=true&page=${page}&size=1000`);
+  if (!Array.isArray(body.people)) {
+    throw new Error('people listing is not a PeopleResponseDto');
+  }
+  if (body.people.length === 0) {
+    break;
+  }
+  pages++;
+  reported = body.total ?? reported;
   total += body.people.length;
   for (const p of body.people) {
     if (p.name || p.birthDate) {
       named.push(p.id);
     }
   }
-  if (body.hasNextPage !== true) {
-    break;
-  }
 }
+if (reported !== null && total !== reported) {
+  throw new Error(
+    `listing incomplete: saw ${total} people, Immich reports ${reported}. Nothing written.`
+  );
+}
+console.log(`${pages} page(s) read`);
 console.log(`${total} people in Immich, ${named.length} carry a name or a birth date`);
 
 if (!apply) {

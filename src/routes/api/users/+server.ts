@@ -6,6 +6,7 @@ import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
 import { resolveAdminPersonLink } from '$lib/server/face-access';
 import { recordFaceConsent } from '$lib/server/face-consent';
+import { inTransaction } from '$lib/server/face-erasure';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -60,10 +61,9 @@ export const POST: RequestHandler = async (event) => {
     // One spelling of a person id, never one another member holds (face-access.ts).
     const link = resolveAdminPersonLink(body.photos_id, id_user ?? '');
     if (!link.ok) {
-      return json(
-        { error: 'photos_id must be a person id that no other member holds' },
-        { status: 409 }
-      );
+      return link.reason === 'invalid'
+        ? json({ error: 'photos_id must be a string or null' }, { status: 400 })
+        : json({ error: 'photos_id belongs to another member' }, { status: 409 });
     }
     const photos_id = link.personId ?? null;
     const formation = body.formation ?? null;
@@ -81,19 +81,23 @@ export const POST: RequestHandler = async (event) => {
       'INSERT INTO users (id_user, name, first_name, last_name, role, promo, photos_id, formation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
     const effectiveRole = id_user === SYSTEM_USER_ID ? 'admin' : role;
-    const info = insert.run(
-      id_user,
-      name,
-      first_name,
-      last_name,
-      effectiveRole,
-      promo,
-      photos_id,
-      formation
-    );
-    if (photos_id) {
-      recordFaceConsent(db, id_user, 'admin');
-    }
+    // The row and the consent for its link are written together or not at all.
+    const info = inTransaction(db, () => {
+      const run = insert.run(
+        id_user,
+        name,
+        first_name,
+        last_name,
+        effectiveRole,
+        promo,
+        photos_id,
+        formation
+      );
+      if (photos_id) {
+        recordFaceConsent(db, id_user, 'admin');
+      }
+      return run;
+    });
     const created = db
       .prepare(
         `SELECT
@@ -118,6 +122,12 @@ export const POST: RequestHandler = async (event) => {
   } catch (e) {
     const err = e as Error;
     log.error('POST /api/users error', err);
+    if (err.message.includes('users.photos_id')) {
+      return json(
+        { success: false, error: 'photos_id belongs to another member' },
+        { status: 409 }
+      );
+    }
     if (
       err.message.includes('UNIQUE constraint failed') ||
       err.message.includes('SQLITE_CONSTRAINT_UNIQUE')
