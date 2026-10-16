@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { getUserByCasId, createUser, updateUser } from '$lib/db/users';
+import { getUserByCasId, createUser, updateUser, type UserWrite } from '$lib/db/users';
 import { createLogger } from '$lib/server/logger';
 import type { DBUser } from '$lib/db/users';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
@@ -289,7 +289,7 @@ export function handleUserInDatabase(
           ? (customClaims.formation as string).trim()
           : null;
 
-    const userData: DBUser = {
+    const userData: UserWrite = {
       id_user: userId,
       name: computeName(profile, userId),
       first_name: firstName,
@@ -297,7 +297,6 @@ export function handleUserInDatabase(
       role: isAdmin ? 'admin' : 'user',
       promo,
       formation,
-      photos_id: null,
     };
 
     if (!existingUser) {

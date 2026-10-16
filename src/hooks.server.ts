@@ -6,12 +6,15 @@ import {
   LEGACY_SESSION_COOKIE_NAME,
 } from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
+import { startFaceErasureWorker } from '$lib/server/face-erasure';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { cookieName as LOCALE_COOKIE, isLocale } from '$lib/paraglide/runtime';
 import { isIndexable, NOINDEX_HEADER } from '$lib/seo';
 
 // Start the daily automatic backup as soon as the server starts
 startBackupScheduler();
+// Drive the Immich half of face erasures that a restart or an Immich outage left pending
+startFaceErasureWorker();
 
 /**
  * List of allowed domains for CORS.

@@ -42,6 +42,17 @@ export function getRealUser(context: AuthContext): UserRow | null {
   return getRequestSession(context)?.realUser ?? null;
 }
 
+/**
+ * True while an admin impersonates someone: the account acted as is not the one that signed in.
+ * Irreversible actions on a member's data refuse it: face withdrawal and link, account deletion
+ * (their own and an admin's), the admin writes of `photos_id` (PUT and POST /api/users, DELETE
+ * /api/users/[id]), the photo-access grants and the avatar-link revocation. An admin may
+ * impersonate another admin, so "the route is admin-only" is not a defence.
+ */
+export function isImpersonating(context: AuthContext): boolean {
+  return !!getRequestSession(context)?.impersonating;
+}
+
 function isAdmin(user: UserRow | null): boolean {
   return (user?.role || 'user') === 'admin';
 }

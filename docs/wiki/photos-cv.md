@@ -78,7 +78,40 @@ through the person rule.
 | any proxied call naming `personId(s)` in its query or JSON body (`search/metadata`, `timeline/buckets`)   | person, for EACH id                               |
 
 The proxy judges the path Immich will actually route: `.` segments resolved,
-repeated slashes collapsed, case folded (Immich's router is case-insensitive).
+repeated slashes collapsed, case folded (Immich's router is case-insensitive), and
+a path that carries its own `?` or `#` (the path parameter arrives decoded) is
+refused. A mutation's body must be of a type the proxy can judge
+(`classifyProxiedBody`): JSON, read once, judged and forwarded as that same text;
+the multipart upload of `POST assets`; an `application/octet-stream` upload
+chunk. Anything else (urlencoded included, which Immich would parse) gets a 415.
+A search asking for the people of every result (`withPeople`) is admin-only.
+
+**The link is the trust root, so it is guarded too.** A person id has ONE
+spelling, a lowercase UUID (`normalisePersonId`), on write and on every
+comparison - SQLite's `=` is case-sensitive, Immich is not - and a partial
+unique index on `users.photos_id` makes one person one member (created at start
+unless duplicates already exist, which are then logged by person id for a human
+to resolve). Admin writes (`POST /api/users`, `PUT /api/users/[id]`) go through
+`resolveAdminPersonLink`: the same spelling, a 409 for a person another member holds,
+and a `PUT` that omits `photos_id` leaves the link alone instead of nulling it. Any
+change of person clears `photos_asset_id`, the profile-photo pointer of the previous one.
+
+**What the selfie check is, and is not.** A member links a NEW person through
+`PATCH /api/users/me/face` only with `selfie_asset_id`, and `selfieProves` requires
+all of: the proxy's own `import` audit row shows THAT member uploaded it, as a new
+file (not a duplicate); Immich reports it uploaded within the last 30 minutes; Immich
+found exactly that one person in it. Keeping their current person needs no check; admins
+correct links by hand.
+
+It is a **speed bump, not a proof of identity.** The only evidence of WHO is on the photo
+is Immich's own clustering, which is the thing being linked: a member who uploads a
+photo of someone else that Immich files under that person passes. What it does stop is a
+bare API call naming an arbitrary person id, an old or someone else's upload, and a
+selfie showing several people. Proving that the photo is the member's own face needs a
+human (an admin confirming a link to a person who already has photos), which is the
+owner's decision and is not built. Do not describe this check as a proof in the UI, the
+terms or a review.
+
 `/mes-photos?userId=X` no longer bounces a viewer who has no face of their own: the
 page carries no photo, and the routes it reads from enforce the rule above.
 
@@ -87,7 +120,133 @@ Pinned by `tests/face-access.test.ts` (a throwaway SQLite file, no server).
 What this does NOT cover: the asset routes (`/api/immich/assets/{id}/...`) and an
 asset's detail, which lists the people Immich found in it. Those follow the album
 permission model ([albums-and-permissions.md](albums-and-permissions.md)), not
-this rule.
+this rule. The avatar route (`/api/users/[username]/avatar`) shows each member's
+profile face to any session by design: it is the avatar, not the set.
+
+## Consent record
+
+`face_consents` (see [data-model.md](data-model.md)) holds one row per consent: who, when, the
+terms version (`TERMS_VERSION`, the one value the `/cgu` page also shows) and the source.
+`PATCH /api/users/me/face` writes it when a person is newly linked (`selfie` for the member,
+`admin` when an admin links for them, also through `POST /api/users` and `PUT /api/users/[id]`); a changed or cleared link closes the previous row; `ensureSchema` backfills `legacy` rows for every link that
+exists without one, idempotently. Withdrawal closes the row (`withdrawn_at`) and keeps it. There is
+no explicit consent step in the settings UI yet: the link is the recorded act.
+
+## Erasure
+
+**The contract (owner decision 2026-10-16).** Immich groups EVERY face into anonymous clusters
+(people with no name). That is accepted: it is internal, a black box, and never shown to a
+member. A cluster is tied to a human only by what MiGallery writes (`users.photos_id`,
+`users.photos_asset_id`) and by the person's name and birth date in Immich. When a member
+withdraws consent, unlinks, or deletes their account, MiGallery undoes the link AND removes the
+person's name in Immich. The anonymous cluster, its faces and their embeddings stay.
+
+Linking a cluster to a member happens only through MiGallery (`users.photos_id`).
+
+Every CHANGE of the person linked to an account runs the erasure for the OLD person, through
+`applyFaceLink` (`src/lib/server/face-link.ts`, the one application writer of `users.photos_id`; `createUser`/`updateUser` refuse the column, `POST /api/users` goes through it, and only dev/seed inserts of the system user bypass it, with a NULL link): a member
+withdrawing (`PATCH /api/users/me/face` with `person_id: null`, reason `withdrawal`), a member
+relinking to another person (`relink`), an admin unlinking or changing a link (`PATCH` with
+`user_id`, `PUT /api/users/[id]`, reason `admin_unlink` / `relink`), and an account deletion
+(`DELETE /api/users/me`, an admin's `DELETE /api/users/[id]`). The grants, the consent and the
+Immich name hang from the link, so none of them may carry over to a different person. Every one of those writes, an admin's included, is refused (403) in an impersonated session. A journal row whose person is by then linked to a member is closed as `relinked` without touching Immich, and deleting an account also scrubs its id from the audit log by exact match of the quoted id, never a substring. The code is
+`src/lib/server/face-erasure.ts`, pinned by `tests/face-erasure.test.ts` and, at handler level,
+`tests/face-routes.test.ts`.
+
+**Nothing of this may be done by an admin impersonating the member:** a link, a withdrawal, a
+profile photo, an account deletion and a photo-access grant or revocation get a 403 in an
+impersonated session (they are the member's own acts and consents).
+
+**In the request, in one SQLite transaction:**
+
+- `photos_id` and `photos_asset_id` set to NULL. `photos_asset_id` is the
+  gallery photo chosen as profile picture, an archive photo: it is unlinked,
+  never deleted.
+- every `photo_access_permissions` row the member GAVE (grants on their own face photos). Grants others
+  gave the member concern other people's faces and stay on a withdrawal or a relink; an account deletion
+  takes them by cascade;
+- the member's open consent row is closed (`withdrawn_at`);
+- account deletion only: the member's id in `logs` becomes `[deleted]` (as
+  actor, with the row's `ip` cleared, and as target of a `user` or `person`
+  event, whose details are cleared; any other row whose `details` contains the member's id also loses
+  its details), their `album_permissions` rows of kind
+  `user` (no foreign key, so no cascade) go, then the `users` row goes and its
+  foreign keys take sessions and favorites;
+- a `face_erasures` row naming the Immich person (never the member).
+
+The link write and its consent row are one transaction. The on-disk crops of that person
+(`data/cache/faces/*_<personId>.webp`) are files: they are deleted AFTER the commit, and a failure is
+logged per file and never undoes the withdrawal (`deletePersonFaceCrops` never throws). They go again
+when the Immich half completes, since they can be regenerated meanwhile. A stored link that is not a
+UUID (an admin's hand-typed test id) journals nothing.
+
+**Then in Immich, from the journal** (can fail, so it is retried):
+
+1. `GET /api/people/{id}`. Immich answers 400 both for "not found" and for "no
+   access", so "absent" is believed only when a search by that person ALSO
+   finds nothing; otherwise the attempt fails.
+2. If the person carries a name or a birth date: `PUT /api/people/{id}` with
+   `{ "name": "", "birthDate": null }`, then `GET` again; a name still there fails
+   the attempt.
+
+The request kicks a run at once (a run already in progress makes one more pass; `runFaceErasures` never rejects, a failing pass is
+logged and the next tick retries, and every caller goes through `kickFaceErasures`);
+the worker (`startFaceErasureWorker`, `hooks.server.ts`) retries every 15 minutes
+and on start. Each failed attempt is logged as an error and recorded on its row
+(`attempts`, `last_error`); every row still pending 24 h after it was asked is
+logged as `face erasure OVERDUE` on every run until it completes. Once done the
+row keeps only its outcome (`erased` or `absent`) and drops the person id. If
+another member links the same cluster meanwhile, the name is still cleared:
+MiGallery never writes a person's name, so nothing is lost.
+
+The selfie used to link a face is deleted by the browser right after
+detection, with `force: true` so it skips Immich's trash. That deletion is
+client-side: a tab closed in the middle of the detection leaves it in Immich.
+
+### Does a screen read the Immich person `name`?
+
+Read on 2026-10-16: one place, and it degrades. `photos.svelte.ts#loadPerson` reads
+`GET /api/immich/people/{id}` into `personName` (the localized `mp_person_unnamed` when empty), shown in the
+`/mes-photos` header only as the fallback of `targetUserName`, which is the MiGallery
+user's own name. Nothing else reads it: the trombinoscope lists MiGallery users, the
+admin face check (`admin/users`) reads person ids. The one other path is `GET /api/people/people` (the whole Immich list, `name` included, no in-app caller): an EXTERNAL API-key consumer would see empty names. MiGallery
+never writes a person name (it writes `featureFaceAssetId` only). Clearing every name
+therefore changes nothing a member sees except that header fallback.
+
+### Removing every existing person name in Immich (admin procedure, NOT run)
+
+`scripts/immich-clear-person-names.mjs`: DRY RUN BY DEFAULT, it only counts the people that carry
+a name or a birth date (never prints the names). Run it after a dump of the Immich database:
+
+```sh
+IMMICH_BASE_URL=https://... IMMICH_API_KEY=... bun scripts/immich-clear-person-names.mjs          # dry run
+IMMICH_BASE_URL=https://... IMMICH_API_KEY=... bun scripts/immich-clear-person-names.mjs --apply  # writes
+```
+
+The listing is paged until Immich returns an EMPTY page and the count seen must equal the total it reports
+(else nothing is written); the page count is printed; an Immich error body is never printed (it can echo a
+name). `--apply` sends `PUT /api/people/{id}` `{ "name": "", "birthDate": null }` for each such person
+and re-reads it. The Immich key needs the `person.read` and `person.update` permissions. Hidden
+people are included. Re-running is safe (a cleared person is skipped).
+
+**What erasure does not reach**, and the terms must say so:
+
+- **The cluster itself.** Immich keeps the anonymous cluster, its faces and their embeddings,
+  accepted by the owner. Only an Immich admin can see them, unnamed and linked to nobody.
+- **Immich's featured-face pointer.** `featureFaceAssetId` (the thumbnail MiGallery sets when a
+  member picks a profile photo) cannot be unset through Immich's API; the thumbnail stays on the
+  anonymous person. MiGallery's own pointer (`photos_asset_id`) is nulled.
+- **Backups.** The local snapshots under `data/backups/` (the last 10 kept,
+  daily), the off-site MiGallery copies (about 14 days) and the off-site Immich
+  database dumps (about 7 days, `scripts/backup-offsite.sh`, pruned by file age)
+  keep the data until they rotate out. Immich's own local dump retention is an
+  Immich setting, not read from here.
+- **A person merged away in Immich.** Its id stops existing and its faces live on
+  in the person it was merged into, which this erasure never names; a name given to
+  that other person is not reached.
+- **Photos.** The member's appearances in event photos stay in the archive.
+- **The Immich API key's rights.** The calls need the key to hold `person.update`; a refusal
+  shows as a failed attempt, then OVERDUE.
 
 ## Why this design
 

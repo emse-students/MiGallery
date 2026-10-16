@@ -23,8 +23,13 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireScope, type AuthResult } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
+import { normalisePersonId } from '$lib/server/person-id';
+import { env } from '$env/dynamic/private';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('face-access');
+
+export { normalisePersonId };
 
 /** Why a viewer may read an owner's face-linked photos. `null` = they may not. */
 export type FaceAccessReason = 'admin' | 'own_photos' | 'granted';
@@ -37,12 +42,14 @@ export interface FaceViewer {
 
 /**
  * The member who owns an Immich person, i.e. whose `photos_id` it is, or `null` when no member
- * has linked it.
+ * has linked it (or the id is not a person id at all).
  */
 export function findPersonOwner(personId: string): string | null {
-  const row = getDatabase()
-    .prepare('SELECT id_user FROM users WHERE photos_id = ?')
-    .get(personId) as {
+  const id = normalisePersonId(personId);
+  if (!id) {
+    return null;
+  }
+  const row = getDatabase().prepare('SELECT id_user FROM users WHERE photos_id = ?').get(id) as {
     id_user: string;
   } | null;
   return row?.id_user ?? null;
@@ -167,6 +174,12 @@ export function assertProxiedFaceAccess(
   query: URLSearchParams,
   body: unknown
 ): void {
+  // The path param arrives DECODED, so an encoded `?` or `#` in it would start a query (or a
+  // fragment) of its own in the URL the proxy builds - one this check would never see.
+  if (/[?#]/.test(path)) {
+    log.warn('proxied path carrying a query or fragment refused', { path });
+    throw error(400, 'Invalid path');
+  }
   // Judge the path Immich will actually route: the URL the proxy builds resolves `.` segments,
   // and Immich's router is case-insensitive and tolerant of repeated slashes.
   const clean = new URL(`/api/${path}`, 'http://immich.invalid').pathname
@@ -178,7 +191,7 @@ export function assertProxiedFaceAccess(
     const [, personId, rest] = person;
     if (method === 'GET' || method === 'HEAD') {
       assertPersonAccess(auth, personId);
-    } else if (method === 'PUT' && !rest) {
+    } else if ((method === 'PUT' || method === 'PATCH') && !rest) {
       assertPersonOwner(auth, personId);
     } else {
       assertFaceAdmin(auth, clean);
@@ -187,8 +200,12 @@ export function assertProxiedFaceAccess(
     assertFaceAdmin(auth, clean);
   }
 
-  for (const key of ['personId', 'personIds']) {
-    for (const value of query.getAll(key)) {
+  // Every spelling of the key a query parser could map to personId(s): `personIds[]`, `PersonId`...
+  for (const [key, value] of query) {
+    if (key.toLowerCase() === 'withpeople') {
+      assertFaceAdmin(auth, `${clean} withPeople`);
+    }
+    if (key.toLowerCase().startsWith('personid')) {
       for (const id of value.split(',').filter(Boolean)) {
         assertPersonAccess(auth, id);
       }
@@ -196,10 +213,153 @@ export function assertProxiedFaceAccess(
   }
 
   if (body && typeof body === 'object') {
-    const { personIds, personId } = body as { personIds?: unknown; personId?: unknown };
-    const ids = [...(Array.isArray(personIds) ? personIds : []), ...(personId ? [personId] : [])];
+    const { personIds, personId, withPeople } = body as {
+      personIds?: unknown;
+      personId?: unknown;
+      withPeople?: unknown;
+    };
+    // Whatever shape the value has - an array, one id, a comma list - every id in it is checked;
+    // whether Immich would accept that shape is not this check's to assume.
+    const asIds = (v: unknown): unknown[] =>
+      Array.isArray(v) ? v : typeof v === 'string' ? v.split(',').filter(Boolean) : v ? [v] : [];
+    const ids = [...asIds(personIds), ...asIds(personId)];
     for (const id of ids) {
       assertPersonAccess(auth, String(id));
     }
+    // A search asked to list the people in EVERY result would hand back the whole face graph,
+    // from which any person's set can be rebuilt.
+    if (withPeople) {
+      assertFaceAdmin(auth, `${clean} withPeople`);
+    }
   }
+}
+
+/** How fresh the selfie must be: the detection flow links within about a minute of uploading. */
+export const SELFIE_MAX_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Whether Immich asset `assetId` passes the selfie checks for `personId` (a speed bump, NOT proof
+ * that the face is the caller's - see docs/wiki/photos-cv.md): uploaded by `callerId`
+ * through this proxy as a new file (not a duplicate), within
+ * {@link SELFIE_MAX_AGE_MS}, and showing exactly one person, that one. Read server-side from
+ * Immich, so the client cannot assert it.
+ */
+export async function selfieProves(
+  fetchFn: typeof fetch,
+  assetId: unknown,
+  personId: string,
+  callerId: string
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (typeof assetId !== 'string' || !/^[0-9a-f-]{36}$/i.test(assetId)) {
+    return { ok: false, reason: 'no selfie asset' };
+  }
+  // The caller must have uploaded it THEMSELVES, as a new file: every upload reaches Immich with
+  // the one shared key, so only the proxy's own audit row (`import`, written by
+  // finishImmichUpload with the uploader as actor) ties an asset to a member.
+  const uploaded = getDatabase()
+    .prepare(
+      "SELECT details FROM logs WHERE event_type = 'import' AND target_type = 'asset' AND target_id = ? AND actor = ? ORDER BY id DESC"
+    )
+    .get(assetId, callerId) as { details: string | null } | null;
+  if (!uploaded) {
+    return { ok: false, reason: 'selfie not uploaded by the caller' };
+  }
+  if (uploaded.details && (JSON.parse(uploaded.details) as { duplicate?: boolean }).duplicate) {
+    return { ok: false, reason: 'selfie is a duplicate of an existing asset' };
+  }
+  const base = env.IMMICH_BASE_URL?.replace(/\/$/, '');
+  if (!base) {
+    return { ok: false, reason: 'IMMICH_BASE_URL not configured' };
+  }
+  const res = await fetchFn(`${base}/api/assets/${assetId}`, {
+    signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+    headers: { 'x-api-key': env.IMMICH_API_KEY ?? '', Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    return { ok: false, reason: `asset lookup ${res.status}` };
+  }
+  const asset = (await res.json()) as { createdAt?: string; people?: Array<{ id?: string }> };
+  const age = Date.now() - Date.parse(asset.createdAt ?? '');
+  if (!(age >= -60_000 && age <= SELFIE_MAX_AGE_MS)) {
+    return { ok: false, reason: 'selfie not freshly uploaded' };
+  }
+  const people = asset.people ?? [];
+  if (people.length !== 1 || normalisePersonId(people[0].id) !== personId) {
+    return { ok: false, reason: 'selfie does not show exactly that person' };
+  }
+  return { ok: true };
+}
+
+/** What the proxy may do with a request body: nothing to judge, judge it as JSON, or refuse it. */
+export type ProxiedBodyKind = 'none' | 'json' | 'upload' | 'refused';
+
+/**
+ * Classify the body of a proxied request by its media type, BEFORE anything is forwarded. Immich
+ * parses JSON and urlencoded bodies alike, so a body type this proxy cannot judge would carry a
+ * search's `personIds` past {@link assertProxiedFaceAccess}. Only three kinds go through: JSON
+ * (judged), the multipart upload of `POST assets`, and an `application/octet-stream` chunk of the
+ * chunked upload. Everything else is refused. A body with no content type is not parsed by Immich
+ * and is left alone.
+ */
+export function classifyProxiedBody(
+  method: string,
+  path: string,
+  contentType: string | null,
+  isChunk: boolean
+): ProxiedBodyKind {
+  if (method === 'GET' || method === 'HEAD') {
+    return 'none';
+  }
+  const media = (contentType ?? '').split(';')[0].trim().toLowerCase();
+  if (!media) {
+    return 'none';
+  }
+  if (media === 'application/json' || media.endsWith('+json')) {
+    return 'json';
+  }
+  if (
+    media === 'multipart/form-data' &&
+    method === 'POST' &&
+    path.replace(/^\/+/, '') === 'assets'
+  ) {
+    return 'upload';
+  }
+  if (media === 'application/octet-stream' && method === 'POST' && isChunk) {
+    return 'upload';
+  }
+  return 'refused';
+}
+
+/**
+ * The `photos_id` an ADMIN write (`POST /api/users`, `PUT /api/users/[id]`) may store for
+ * `userId`: one spelling (a non-UUID admin value is kept as given, test fixtures use them), and
+ * never a person another member already holds. `undefined` means "not in the request" and is
+ * returned as `undefined`, so a caller can leave the column alone. Without this an admin write
+ * bypassed both the 409 of the member path and, now, the unique index (a 500 with a SQL message).
+ */
+export function resolveAdminPersonLink(
+  raw: unknown,
+  userId: string
+): { ok: true; personId: string | null | undefined } | { ok: false; reason: 'invalid' | 'taken' } {
+  if (raw === undefined) {
+    return { ok: true, personId: undefined };
+  }
+  if (raw === null || raw === '') {
+    return { ok: true, personId: null };
+  }
+  if (typeof raw !== 'string') {
+    return { ok: false, reason: 'invalid' };
+  }
+  const personId = normalisePersonId(raw) ?? raw;
+  const holder = getDatabase()
+    .prepare('SELECT id_user FROM users WHERE photos_id = ? AND id_user != ?')
+    .get(personId, userId) as { id_user: string } | null;
+  if (holder) {
+    log.warn('admin face link refused: the person belongs to another member', {
+      userId,
+      personId,
+    });
+    return { ok: false, reason: 'taken' };
+  }
+  return { ok: true, personId };
 }

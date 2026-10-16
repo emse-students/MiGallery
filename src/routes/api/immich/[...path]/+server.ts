@@ -4,7 +4,7 @@ import { logEvent } from '$lib/server/logs';
 import { createLogger } from '$lib/server/logger';
 import { env } from '$env/dynamic/private';
 import { requireScope, type AuthResult } from '$lib/server/permissions';
-import { assertProxiedFaceAccess } from '$lib/server/face-access';
+import { assertProxiedFaceAccess, classifyProxiedBody } from '$lib/server/face-access';
 import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { getDatabase } from '$lib/db/database';
 
@@ -692,19 +692,48 @@ const handle: RequestHandler = async function (event) {
     }
   }
 
+  // Prevent path traversal
+  if (pathParam.includes('..') || pathParam.includes('\0')) {
+    return new Response(JSON.stringify({ error: 'Invalid path' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
   // Face-linked paths (people, faces, a search naming a person) obey the same consent rule as the
-  // dedicated /api/people routes. A JSON body is read from a CLONE, because a search names its
-  // people there, and the original stream is still the one forwarded below.
+  // dedicated /api/people routes. A JSON body is judged and then forwarded AS JUDGED - the text
+  // read here, re-labelled `application/json` - so Immich can never parse a body (another case of
+  // content type, another charset) that differs from the one this check saw.
+  let judgedJsonBody: string | undefined;
   if (auth) {
+    const kind = classifyProxiedBody(
+      request.method,
+      pathParam,
+      request.headers.get('content-type'),
+      request.headers.has('x-chunk-index') && request.headers.has('x-file-id')
+    );
+    if (kind === 'refused') {
+      log.warn('proxied body of a type the proxy cannot judge refused', {
+        path: pathParam,
+        contentType: request.headers.get('content-type'),
+      });
+      return new Response(JSON.stringify({ error: 'Unsupported body type' }), {
+        status: 415,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     let jsonBody: unknown = null;
-    if (
-      !['GET', 'HEAD'].includes(request.method) &&
-      (request.headers.get('content-type') || '').includes('application/json')
-    ) {
-      jsonBody = await request
-        .clone()
-        .json()
-        .catch(() => null);
+    if (kind === 'json') {
+      judgedJsonBody = await request.text();
+      try {
+        jsonBody = judgedJsonBody ? JSON.parse(judgedJsonBody) : null;
+      } catch {
+        log.warn('proxied JSON body that does not parse refused', { path: pathParam });
+        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
     assertProxiedFaceAccess(auth, request.method, pathParam, event.url.searchParams, jsonBody);
   }
@@ -712,14 +741,6 @@ const handle: RequestHandler = async function (event) {
   let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
   if (base && !/^https?:\/\//i.test(base)) {
     base = `http://${base}`;
-  }
-
-  // Prevent path traversal
-  if (pathParam.includes('..') || pathParam.includes('\0')) {
-    return new Response(JSON.stringify({ error: 'Invalid path' }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    });
   }
 
   const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
@@ -796,7 +817,11 @@ const handle: RequestHandler = async function (event) {
   const contentType = request.headers.get('content-type');
 
   let bodyToForward: BodyInit | undefined = undefined;
-  if (!['GET', 'HEAD'].includes(request.method)) {
+  if (judgedJsonBody !== undefined) {
+    // Already read and judged above: forward exactly that text.
+    outgoingHeaders['content-type'] = 'application/json';
+    bodyToForward = judgedJsonBody;
+  } else if (!['GET', 'HEAD'].includes(request.method)) {
     try {
       if (contentType) {
         outgoingHeaders['content-type'] = contentType;
@@ -1119,7 +1144,13 @@ async function finishImmichUpload(
             }
           }
           if (assetId) {
-            await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+            // `duplicate` is read by selfieProves (face-access.ts): a re-upload of a known file
+            // proves nothing about who is in it.
+            await logEvent(event, 'import', 'asset', assetId, {
+              originalName,
+              proxied: true,
+              duplicate: respData.status === 'duplicate',
+            });
           }
         } catch (e) {
           log.warn('failed to log upload', e);
