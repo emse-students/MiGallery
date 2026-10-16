@@ -54,6 +54,14 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+### `face_erasures`
+
+`face_erasures(id, person_id, reason, requested_at, attempts, last_attempt_at,
+last_error, faces_deleted, done_at, outcome)` - the journal of the Immich half of
+a face withdrawal or account deletion (`src/lib/server/face-erasure.ts`, see
+[photos-cv.md](photos-cv.md#erasure)). It names the Immich person, never the
+member, and clears that id once done.
+
 ### `sessions`
 
 `sessions(token, id_user, impersonated_id_user, created_at, expires_at)` - the

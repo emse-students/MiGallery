@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
+import { deleteUserAccount, DELETED_ID } from '$lib/server/face-erasure';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -151,14 +152,15 @@ export const DELETE: RequestHandler = async (event) => {
   }
 
   const db = getDatabase();
-  const info = db.prepare('DELETE FROM users WHERE id_user = ?').run(targetId);
-  if (info.changes === 0) {
+  // Face data, grants and the audit log's mentions go with the row (face-erasure.ts).
+  if (!deleteUserAccount(db, targetId)) {
     return json({ error: 'User not found' }, { status: 404 });
   }
   try {
-    await logEvent(event, 'delete', 'user', targetId, null);
+    // The deletion itself stays on record, without the id it just erased.
+    await logEvent(event, 'delete', 'user', DELETED_ID, null);
   } catch (logErr) {
     log.warn('logEvent failed (users DELETE):', logErr);
   }
-  return json({ success: true, changes: info.changes });
+  return json({ success: true, changes: 1 });
 };

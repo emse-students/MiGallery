@@ -118,3 +118,26 @@ CREATE TABLE IF NOT EXISTS api_keys (
     revoked INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
 );
+
+-- Face erasures: the durable journal of a face withdrawal or an account deletion
+-- whose Immich half (the person's face records, then the person) is still owed.
+-- The local half (the link, the crops, the grants, the log ids) is done in the
+-- request itself; this row is what makes the remote half survive a restart and an
+-- Immich outage. It names the Immich person only - never the member - and that id
+-- is cleared once the erasure is done (see src/lib/server/face-erasure.ts).
+CREATE TABLE IF NOT EXISTS face_erasures (
+    id INTEGER PRIMARY KEY,
+    person_id TEXT,
+    -- reason: 'withdrawal' | 'account_deletion'
+    reason TEXT NOT NULL,
+    requested_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_attempt_at INTEGER,
+    last_error TEXT,
+    faces_deleted INTEGER NOT NULL DEFAULT 0,
+    done_at INTEGER,
+    -- outcome: 'erased' | 'absent' (Immich no longer had it) | 'relinked' (a member
+    -- linked that person again before the erasure ran, so it was not erased)
+    outcome TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_face_erasures_pending ON face_erasures(done_at);

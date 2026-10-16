@@ -439,7 +439,8 @@
         'Content-Type': 'application/json',
         'X-Face-Pairing-Cleanup': 'true',
       },
-      body: JSON.stringify({ ids: [id] }),
+      // force: the selfie is deleted outright, not parked in Immich's trash for its retention.
+      body: JSON.stringify({ ids: [id], force: true }),
     });
     if (!response.ok) {
       const errMsg = `Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`;

@@ -3,6 +3,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 import { clearSessionCookie } from '$lib/session';
+import { deleteUserAccount } from '$lib/server/face-erasure';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -68,9 +69,8 @@ export const DELETE: RequestHandler = async (event) => {
       return json({ error: 'Cannot delete system user' }, { status: 403 });
     }
 
-    const result = db.prepare('DELETE FROM users WHERE id_user = ?').run(user.id_user);
-
-    if (result.changes === 0) {
+    // Face data, grants and the audit log's mentions go with the row (face-erasure.ts).
+    if (!deleteUserAccount(db, user.id_user)) {
       return json({ error: 'Failed to delete user' }, { status: 500 });
     }
 

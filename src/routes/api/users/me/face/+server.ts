@@ -4,6 +4,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
 import { m } from '$lib/paraglide/messages';
+import { eraseLocalFaceData, inTransaction, runFaceErasures } from '$lib/server/face-erasure';
 
 const log = createLogger('user-face');
 
@@ -46,6 +47,21 @@ export const PATCH: RequestHandler = async (event) => {
 
     if (personId !== null && (personId === undefined || typeof personId !== 'string')) {
       return json({ error: 'person_id is required and must be a string or null' }, { status: 400 });
+    }
+
+    // Unlinking is a WITHDRAWAL: the face data goes, not just the link (face-erasure.ts). The
+    // local half is done here, the Immich half is journaled in the same transaction and run now.
+    if (personId === null) {
+      const exists = db.prepare('SELECT 1 FROM users WHERE id_user = ?').get(userId);
+      if (!exists) {
+        return json({ error: 'User not found' }, { status: 404 });
+      }
+      const erasure = inTransaction(db, () => eraseLocalFaceData(db, userId, 'withdrawal'));
+      if (erasure !== null) {
+        void runFaceErasures();
+      }
+      log.info('face link withdrawn', { erasureJournaled: erasure !== null, byAdmin: isAdmin });
+      return json({ success: true, person_id: null });
     }
 
     if (personId) {
