@@ -3,11 +3,9 @@ import type { ImmichAsset } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
+import { requireAlbumAccess } from '$lib/server/album-asset-access';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 import { assetsNdjsonResponse } from '$lib/server/asset-ndjson';
 
 const log = createLogger('albums-id-assets-stream');
@@ -27,55 +25,7 @@ export const GET: RequestHandler = async (event) => {
       throw error(500, 'IMMICH_BASE_URL not configured');
     }
 
-    const albumHeaders: Record<string, string> = { Accept: 'application/json' };
-    if (IMMICH_API_KEY) {
-      albumHeaders['x-api-key'] = IMMICH_API_KEY;
-    }
-
-    let albumVisibility: string | undefined;
-    try {
-      const albumMetaRes = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
-        signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-        headers: albumHeaders,
-      });
-      if (albumMetaRes.ok) {
-        const albumMeta = (await albumMetaRes.json()) as { visibility?: string };
-        albumVisibility = albumMeta.visibility;
-      }
-    } catch (metaErr: unknown) {
-      const _metaErr = ensureError(metaErr);
-      log.warn(
-        '[assets-stream] failed to read album visibility metadata',
-        _metaErr.message || _metaErr
-      );
-    }
-
-    let visibilityHint: string | null = null;
-    try {
-      const parsed = new URL(request.url);
-      visibilityHint = parsed.searchParams.get('visibility');
-    } catch {
-      visibilityHint = null;
-    }
-    let localVisibility: string | undefined = undefined;
-    try {
-      const db = getDatabase();
-      const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(id) as
-        | { visibility?: string }
-        | undefined;
-      localVisibility = row?.visibility;
-    } catch (dbErr: unknown) {
-      const _dbErr = ensureError(dbErr);
-      log.warn('failed to read local DB visibility', _dbErr.message || _dbErr);
-    }
-
-    const isUnlisted =
-      visibilityHint === 'unlisted' ||
-      localVisibility === 'unlisted' ||
-      albumVisibility === 'unlisted';
-    if (!isUnlisted) {
-      await requireScope(event, 'read');
-    }
+    await requireAlbumAccess(event, id);
 
     const assets = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
 

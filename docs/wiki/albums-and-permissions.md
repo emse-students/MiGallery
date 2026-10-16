@@ -84,3 +84,11 @@ signed-in user.
 - **Assets**: `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`,
   `/asset-original`, `/asset-thumbnail` serve album contents (streamed from
   Immich through the proxy, gated by `checkAlbumAccess`).
+
+## An unlisted album serves its own photos, and nothing else (2026-10-16)
+
+The album routes (`asset-original`, `asset-thumbnail`, `thumbnail`, `assets-stream`) authorise through
+`src/lib/server/album-asset-access.ts`. An `unlisted` album is a secret link: its OWN photos are served
+without a session, so the photo must be a member of the album named in the URL (checked against
+Immich, cached 60 s). The visibility comes from the local DB only; a `visibility` query parameter is
+ignored. Everything else needs a `read` session or key. Pinned by `tests/album-asset-access.test.ts`.
