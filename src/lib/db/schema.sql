@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS logs (
     details TEXT,
     ip TEXT
 );
+-- The 90-day purge and the admin log view both filter on the timestamp.
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
 
 -- Sessions: the server-side half of the login cookie. The cookie carries an
 -- opaque token and NOTHING else, so a session is a row we own: it can be

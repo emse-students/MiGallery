@@ -76,6 +76,13 @@ is a property of the host's firewall today, not of this code. Binding it to
 tunnel's ingress target is confirmed to be the loopback address (not verified
 from this repository).
 
+**OPEN CHECK, owed to whoever can read the host (`ssh mitv`): what the `cloudflared`
+ingress points at.** If it is `http://localhost:3000` or `127.0.0.1:3000`, set
+`MIGALLERY_HOST_PORT` binding to loopback (`'127.0.0.1:3000:3000'` in the compose file) so
+the forged-header hole is closed by the file; if it is the host's LAN address, the bind must stay
+and the firewall is the control. Until that is read, a peer on the LAN could forge
+`cf-connecting-ip` and write any address in the audit log. Nothing in this repository says which.
+
 ### `face_consents`
 
 `face_consents(id, user_id, created_at, version, source, withdrawn_at)` - the record that a
