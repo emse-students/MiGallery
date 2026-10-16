@@ -22,7 +22,7 @@ function localVisibility(albumId: string): string | undefined {
     const row = getDatabase().prepare('SELECT visibility FROM albums WHERE id = ?').get(albumId) as
       | { visibility?: string }
       | undefined;
-    return row?.visibility;
+    return row?.visibility?.toLowerCase();
   } catch (e) {
     log.warn('failed to read local album visibility', e);
     return undefined;
@@ -53,7 +53,11 @@ async function albumContainsAsset(
       }
     }
     const ids = new Set(assets.map((a) => a.id));
-    membershipCache.set(albumId, { ids, expires: Date.now() + MEMBERSHIP_TTL_MS });
+    // An empty list is how a failed Immich search fallback looks: never cache it, or one hiccup
+    // would lock legitimate viewers of the link out for the whole TTL.
+    if (ids.size > 0) {
+      membershipCache.set(albumId, { ids, expires: Date.now() + MEMBERSHIP_TTL_MS });
+    }
     return ids.has(assetId);
   } catch (e) {
     log.error(`membership check failed album=${albumId}`, e);
