@@ -178,6 +178,26 @@ describe('PATCH /api/users/me/face - linking', () => {
   });
 });
 
+describe('PATCH /api/users/me/face - the same person again', () => {
+  it('keeps the grants, the consent and the journal untouched', async () => {
+    addUser('member', A);
+    addUser('friend', null);
+    db()
+      .prepare(
+        'INSERT INTO face_consents (user_id, created_at, version, source) VALUES (?, 1, ?, ?)'
+      )
+      .run('member', 'v', 'selfie');
+    db()
+      .prepare('INSERT INTO photo_access_permissions (owner_id, authorized_id) VALUES (?, ?)')
+      .run('member', 'friend');
+    expect((await patch({ person_id: A })).status).toBe(200);
+    expect(grants()).toHaveLength(1);
+    expect(journal()).toEqual([]);
+    expect(consents('member')).toHaveLength(1);
+    expect(consents('member')[0].withdrawn_at).toBeNull();
+  });
+});
+
 describe('PATCH /api/users/me/face - a changed person never carries the old one over', () => {
   async function linkedWithGrantAndCrop() {
     addUser('member', A);
@@ -302,6 +322,35 @@ describe('impersonation', () => {
   });
 });
 
+describe('an impersonated admin session cannot touch the face data of a member', () => {
+  beforeEach(() => {
+    state.admin = true;
+    state.user = { id_user: 'boss', role: 'admin' };
+    state.impersonating = true;
+  });
+
+  it('PUT with photos_id, DELETE and POST are 403 and change nothing; PUT without photos_id still edits', async () => {
+    addUser('member', A);
+    expect((await put('member', { name: 'M', photos_id: B, role: 'user' })).status).toBe(403);
+    expect((await put('member', { name: 'M', photos_id: '', role: 'user' })).status).toBe(403);
+    const del = await call(putUser.DELETE, {
+      request: req('DELETE', {}),
+      params: { id: 'member' },
+    });
+    expect(del.status).toBe(403);
+    const create = await call(usersRoute.POST, {
+      request: req('POST', { id_user: 'fresh', name: 'F', photos_id: B }),
+    });
+    expect(create.status).toBe(403);
+    expect(linkOf('member')).toEqual({ photos_id: A, photos_asset_id: 'asset-of-member' });
+    expect(db().prepare("SELECT 1 FROM users WHERE id_user = 'fresh'").get()).toBeNull();
+    expect(journal()).toEqual([]);
+
+    expect((await put('member', { name: 'Renamed', role: 'user' })).status).toBe(200);
+    expect(linkOf('member')).toMatchObject({ photos_id: A });
+  });
+});
+
 describe('admin writes of photos_id', () => {
   beforeEach(() => {
     state.admin = true;
@@ -343,6 +392,25 @@ describe('admin writes of photos_id', () => {
   it('PUT on an unknown user: 404, and no stray consent row', async () => {
     expect((await put('ghost', { name: 'G', photos_id: A, role: 'user' })).status).toBe(404);
     expect(consents('ghost')).toEqual([]);
+  });
+
+  it('POST: a consent row left open by an earlier account of the same id does not skip the admin consent', async () => {
+    // The foreign key normally prevents this orphan; a database restored from a dump may hold one.
+    db().exec('PRAGMA foreign_keys = OFF');
+    db()
+      .prepare(
+        "INSERT INTO face_consents (user_id, created_at, version, source) VALUES ('back', 1, 'old', 'selfie')"
+      )
+      .run();
+    db().exec('PRAGMA foreign_keys = ON');
+    const res = await call(usersRoute.POST, {
+      request: req('POST', { id_user: 'back', name: 'B', photos_id: A }),
+    });
+    expect(res.status).toBe(200);
+    expect(consents('back').map((c) => [c.source, c.withdrawn_at === null])).toEqual([
+      ['selfie', false],
+      ['admin', true],
+    ]);
   });
 
   it('POST: creates with an admin consent; a held person is 409 and no user is created', async () => {

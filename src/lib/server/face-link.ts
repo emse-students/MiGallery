@@ -1,6 +1,9 @@
 /**
- * Changing the face link of an account: the ONE place that writes `users.photos_id`, so the three
- * things that must move with it cannot be forgotten by one of its callers.
+ * Changing the face link of an account: the ONE place in the application that writes
+ * `users.photos_id`, so the things that must move with it cannot be forgotten by one of its
+ * callers. `createUser` / `updateUser` (db/users.ts) refuse the column. The only other writers are
+ * dev and seed scripts that insert the system user with a NULL link (`dev/login-as`,
+ * `scripts/init-db.cjs`, `scripts/inspect-db.cjs`), which have no consent to record.
  *
  * A link is what `photo_access_permissions` grants, the consent record and the Immich person's
  * name all hang from. So when the person CHANGES - a relink to someone else, an unlink by the

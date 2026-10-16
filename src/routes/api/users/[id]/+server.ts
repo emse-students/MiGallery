@@ -3,6 +3,7 @@ import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
+import { isImpersonating } from '$lib/server/auth';
 import { logEvent } from '$lib/server/logs';
 import {
   deleteUserAccount,
@@ -69,6 +70,11 @@ export const PUT: RequestHandler = async (event) => {
       photos_id?: string | null;
       formation?: string | null;
     };
+    // An impersonated session may edit a profile but never move a member's face link: that
+    // erases or re-binds biometric data in the name of an account the admin is only acting as.
+    if (body.photos_id !== undefined && isImpersonating(event)) {
+      return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+    }
     const first_name = body.first_name ?? null;
     const last_name = body.last_name ?? null;
     const legacyName = [first_name, last_name].filter(Boolean).join(' ').trim();
@@ -172,6 +178,10 @@ export const DELETE: RequestHandler = async (event) => {
 
   const targetId = event.params.id;
 
+  // Account deletion erases face data: never in the name of an account only being acted as.
+  if (isImpersonating(event)) {
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
   if (auth.user && auth.user.id_user === targetId) {
     return json({ error: 'Admins cannot delete their own account' }, { status: 403 });
   }

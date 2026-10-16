@@ -4,9 +4,11 @@ import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
+import { isImpersonating } from '$lib/server/auth';
 import { resolveAdminPersonLink } from '$lib/server/face-access';
-import { recordFaceConsent } from '$lib/server/face-consent';
+import { withdrawFaceConsent } from '$lib/server/face-consent';
 import { inTransaction } from '$lib/server/face-erasure';
+import { applyFaceLink } from '$lib/server/face-link';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -38,6 +40,10 @@ export const GET: RequestHandler = async (event) => {
 
 export const POST: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
+  // Creating a member can bind a face: not in the name of an account only being acted as.
+  if (isImpersonating(event)) {
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
 
   try {
     const body = (await event.request.json()) as {
@@ -78,23 +84,17 @@ export const POST: RequestHandler = async (event) => {
 
     const db = getDatabase();
     const insert = db.prepare(
-      'INSERT INTO users (id_user, name, first_name, last_name, role, promo, photos_id, formation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (id_user, name, first_name, last_name, role, promo, formation) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     const effectiveRole = id_user === SYSTEM_USER_ID ? 'admin' : role;
-    // The row and the consent for its link are written together or not at all.
+    // The row and its link are written together or not at all, the link through applyFaceLink
+    // like every other. A consent row left open by an earlier account of the same id would make
+    // recordFaceConsent skip the admin consent, so it is closed first.
     const info = inTransaction(db, () => {
-      const run = insert.run(
-        id_user,
-        name,
-        first_name,
-        last_name,
-        effectiveRole,
-        promo,
-        photos_id,
-        formation
-      );
+      withdrawFaceConsent(db, id_user);
+      const run = insert.run(id_user, name, first_name, last_name, effectiveRole, promo, formation);
       if (photos_id) {
-        recordFaceConsent(db, id_user, 'admin');
+        applyFaceLink(db, id_user, photos_id, { source: 'admin', unlinkReason: 'admin_unlink' });
       }
       return run;
     });

@@ -261,6 +261,60 @@ describe('the Immich half', () => {
   });
 });
 
+describe('what the final review asked to pin', () => {
+  it('a journal row whose person now belongs to a member is closed without touching Immich', async () => {
+    addUser('old-owner', PERSON);
+    addUser('new-owner', null);
+    const db = database.getDatabase();
+    erasure.eraseLocalFaceData(db, 'old-owner', 'relink');
+    db.prepare("UPDATE users SET photos_id = ? WHERE id_user = 'new-owner'").run(PERSON);
+
+    const immich = scriptedImmich({});
+    await erasure.runFaceErasures(immich.fetchFn);
+
+    expect(immich.calls).toEqual([]);
+    expect(journal()).toMatchObject([{ outcome: 'relinked', person_id: null }]);
+    expect(journal()[0].done_at).not.toBeNull();
+  });
+
+  it('a rolled-back transaction leaves the journal empty and the grants intact', () => {
+    addUser('owner', PERSON);
+    addUser('friend', null);
+    const db = database.getDatabase();
+    db.prepare('INSERT INTO photo_access_permissions (owner_id, authorized_id) VALUES (?, ?)').run(
+      'owner',
+      'friend'
+    );
+    expect(() =>
+      erasure.inTransaction(db, () => {
+        erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
+        throw new Error('boom');
+      })
+    ).toThrow('boom');
+    expect(journal()).toEqual([]);
+    expect(db.prepare('SELECT 1 FROM photo_access_permissions').all()).toHaveLength(1);
+    expect(db.prepare("SELECT photos_id FROM users WHERE id_user = 'owner'").get()).toEqual({
+      photos_id: PERSON,
+    });
+  });
+
+  it('deleting a member with a short id leaves the details of rows naming a longer one', () => {
+    addUser('admin', null);
+    const db = database.getDatabase();
+    const log = db.prepare(
+      'INSERT INTO logs (actor, event_type, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)'
+    );
+    log.run('someone', 'update', 'album', 'x', JSON.stringify({ owner: 'administrator' }));
+    log.run('someone', 'update', 'album', 'y', JSON.stringify({ owner: 'admin' }));
+    expect(erasure.deleteUserAccount(db, 'admin')).toBe(true);
+    const rows = db.prepare('SELECT target_id, details FROM logs ORDER BY target_id').all();
+    expect(rows).toEqual([
+      { target_id: 'x', details: JSON.stringify({ owner: 'administrator' }) },
+      { target_id: 'y', details: null },
+    ]);
+  });
+});
+
 describe('what the review asked to pin', () => {
   it('believes "absent" only when a search by the person finds nothing either', async () => {
     addUser('owner', PERSON);

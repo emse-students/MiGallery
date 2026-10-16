@@ -145,9 +145,11 @@ export function anonymiseUserInLogs(db: Db, userId: string, personId: string | n
     )
     .run(DELETED_ID, userId);
   // Any other row whose details name the member (an id inside a JSON blob) loses its details.
+  // An EXACT match on the quoted JSON string value: a bare substring would NULL the details of
+  // every row naming a longer id that merely contains a short one (`admin`, `member`).
   const inDetails = db
     .prepare("UPDATE logs SET details = NULL WHERE details LIKE ? ESCAPE '!'")
-    .run(`%${userId.replace(/[!%_]/g, (c) => `!${c}`)}%`).changes;
+    .run(`%"${userId.replace(/[!%_]/g, (c) => `!${c}`)}"%`).changes;
   let person = 0;
   if (personId) {
     person = db
@@ -191,7 +193,7 @@ export function deleteUserAccount(db: Db, userId: string): boolean {
       return null;
     }
     const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
-    anonymiseUserInLogs(db, userId, row.photos_id);
+    anonymiseUserInLogs(db, userId, normalisePersonId(row.photos_id));
     // Per-user album grants name the member and carry no foreign key, so they do not cascade.
     db.prepare("DELETE FROM album_permissions WHERE kind = 'user' AND value = ?").run(userId);
     db.prepare('DELETE FROM users WHERE id_user = ?').run(userId);
@@ -359,6 +361,19 @@ async function runOnce(fetchFn: typeof fetch): Promise<void> {
     const now = Date.now();
     try {
       const personId = row.person_id;
+      // A row left behind by an earlier link: if the person now belongs to a member, clearing its
+      // name or crops would erase someone else's live link. Close the row, touch nothing.
+      const relinked = personId
+        ? db.prepare('SELECT 1 FROM users WHERE photos_id = ?').get(personId)
+        : null;
+      if (relinked) {
+        db.prepare(
+          `UPDATE face_erasures SET done_at = ?, outcome = 'relinked', person_id = NULL, last_error = NULL,
+             attempts = attempts + 1, last_attempt_at = ? WHERE id = ?`
+        ).run(now, now, row.id);
+        log.info('face erasure skipped, person relinked', { erasure: row.id });
+        continue;
+      }
       const result = personId
         ? await eraseImmichPerson(fetchFn, personId)
         : { outcome: 'absent' as const };

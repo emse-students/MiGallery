@@ -128,14 +128,14 @@ CREATE TABLE IF NOT EXISTS api_keys (
 CREATE TABLE IF NOT EXISTS face_erasures (
     id INTEGER PRIMARY KEY,
     person_id TEXT,
-    -- reason: 'withdrawal' | 'account_deletion'
+    -- reason: 'withdrawal' | 'account_deletion' | 'relink' | 'admin_unlink'
     reason TEXT NOT NULL,
     requested_at INTEGER NOT NULL,
     attempts INTEGER NOT NULL DEFAULT 0,
     last_attempt_at INTEGER,
     last_error TEXT,
     done_at INTEGER,
-    -- outcome: 'erased' (the name and birth date are gone from Immich) | 'absent' (Immich no
+    -- outcome: 'erased' (the name and birth date are gone from Immich) | 'relinked' (the person now belongs to a member: nothing touched) | 'absent' (Immich no
     -- longer had the person)
     outcome TEXT
 );

@@ -144,12 +144,12 @@ person's name in Immich. The anonymous cluster, its faces and their embeddings s
 Linking a cluster to a member happens only through MiGallery (`users.photos_id`).
 
 Every CHANGE of the person linked to an account runs the erasure for the OLD person, through
-`applyFaceLink` (`src/lib/server/face-link.ts`, the one writer of `users.photos_id`): a member
+`applyFaceLink` (`src/lib/server/face-link.ts`, the one application writer of `users.photos_id`; `createUser`/`updateUser` refuse the column, `POST /api/users` goes through it, and only dev/seed inserts of the system user bypass it, with a NULL link): a member
 withdrawing (`PATCH /api/users/me/face` with `person_id: null`, reason `withdrawal`), a member
 relinking to another person (`relink`), an admin unlinking or changing a link (`PATCH` with
 `user_id`, `PUT /api/users/[id]`, reason `admin_unlink` / `relink`), and an account deletion
 (`DELETE /api/users/me`, an admin's `DELETE /api/users/[id]`). The grants, the consent and the
-Immich name hang from the link, so none of them may carry over to a different person. The code is
+Immich name hang from the link, so none of them may carry over to a different person. Every one of those writes, an admin's included, is refused (403) in an impersonated session. A journal row whose person is by then linked to a member is closed as `relinked` without touching Immich, and deleting an account also scrubs its id from the audit log by exact match of the quoted id, never a substring. The code is
 `src/lib/server/face-erasure.ts`, pinned by `tests/face-erasure.test.ts` and, at handler level,
 `tests/face-routes.test.ts`.
 
