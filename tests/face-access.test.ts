@@ -12,6 +12,9 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 // The assert* functions judge an AuthResult already obtained; authentication itself (and the
 // SvelteKit-only modules behind it) is out of the picture.
 vi.mock('$lib/server/permissions', () => ({ requireScope: vi.fn() }));
+vi.mock('$env/dynamic/private', () => ({
+  env: { IMMICH_BASE_URL: 'http://immich.test', IMMICH_API_KEY: 'k' },
+}));
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -148,7 +151,38 @@ describe('assertProxiedFaceAccess (the generic Immich proxy)', () => {
     expect(proxy(session(OWNER), 'GET', './people')).toBe(403);
     expect(proxy(session(OWNER), 'GET', 'PEOPLE')).toBe(403);
     expect(proxy(session(OWNER), 'GET', '/faces')).toBe(403);
+    // The owner's own person in capitals is still theirs; a stranger's capitals are no key.
+    expect(proxy(session(OWNER), 'GET', `People/${PERSON.toUpperCase()}`)).toBe(200);
     expect(proxy(session(STRANGER), 'GET', `People/${PERSON.toUpperCase()}`)).toBe(403);
+  });
+
+  it('refuses a path that would smuggle its own query string past the check', () => {
+    // The path param arrives decoded: `timeline/buckets%3FpersonId=...` becomes this.
+    expect(proxy(session(STRANGER), 'GET', `timeline/buckets?personId=${PERSON}`)).toBe(400);
+    expect(proxy(session(OWNER), 'GET', 'assets#x')).toBe(400);
+  });
+
+  it('treats PATCH on a person as an edit, like PUT', () => {
+    expect(proxy(session(OWNER), 'PATCH', `people/${PERSON}`)).toBe(200);
+    expect(proxy(session(VIEWER), 'PATCH', `people/${PERSON}`)).toBe(403);
+  });
+
+  it('a person id in capitals or under another query key is still checked', () => {
+    const upper = PERSON.toUpperCase();
+    expect(proxy(session(STRANGER), 'POST', 'search/metadata', q(), { personIds: [upper] })).toBe(
+      403
+    );
+    expect(proxy(session(OWNER), 'POST', 'search/metadata', q(), { personIds: [upper] })).toBe(200);
+    expect(proxy(session(STRANGER), 'GET', 'timeline/buckets', q(`personIds[]=${PERSON}`))).toBe(
+      403
+    );
+    expect(proxy(session(STRANGER), 'GET', 'x', q(`personIds=${UNLINKED},${PERSON}`))).toBe(403);
+  });
+
+  it('keeps a search listing the people of every result to admins', () => {
+    expect(proxy(session(OWNER), 'POST', 'search/metadata', q(), { withPeople: true })).toBe(403);
+    expect(proxy(session(OWNER), 'GET', 'search/random', q('withPeople=true'))).toBe(403);
+    expect(proxy(session(ADMIN), 'POST', 'search/metadata', q(), { withPeople: true })).toBe(200);
   });
 
   it('checks every person a search names, in its body or its query', () => {
@@ -165,5 +199,48 @@ describe('assertProxiedFaceAccess (the generic Immich proxy)', () => {
   it('leaves a path that names no person alone', () => {
     expect(proxy(session(STRANGER), 'GET', 'assets/abc/thumbnail')).toBe(200);
     expect(proxy(session(STRANGER), 'POST', 'search/metadata', q(), { type: 'IMAGE' })).toBe(200);
+  });
+});
+
+describe('normalisePersonId', () => {
+  it('accepts a UUID in any case and returns it lowercase, refuses anything else', () => {
+    expect(access.normalisePersonId(PERSON.toUpperCase())).toBe(PERSON);
+    expect(access.normalisePersonId(` ${PERSON} `)).toBe(PERSON);
+    expect(access.normalisePersonId('test-person-id')).toBeNull();
+    expect(access.normalisePersonId(42)).toBeNull();
+  });
+
+  it('so the owner lookup does not depend on the spelling', () => {
+    expect(access.findPersonOwner(PERSON.toUpperCase())).toBe(OWNER.id_user);
+  });
+});
+
+describe('selfieProves (the proof a member needs to link a new person)', () => {
+  const ASSET = 'cccccccc-0000-4000-8000-000000000001';
+  const immich = (asset: unknown, status = 200) =>
+    (async () => new Response(JSON.stringify(asset), { status })) as unknown as typeof fetch;
+  const fresh = new Date().toISOString();
+
+  it('accepts a fresh upload showing exactly that person, in any case', async () => {
+    const res = await access.selfieProves(
+      immich({ createdAt: fresh, people: [{ id: PERSON.toUpperCase() }] }),
+      ASSET,
+      PERSON
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  it('refuses an old asset, another person, several people, no asset or an Immich refusal', async () => {
+    const old = new Date(Date.now() - access.SELFIE_MAX_AGE_MS - 60_000).toISOString();
+    const cases: Array<[typeof fetch, unknown]> = [
+      [immich({ createdAt: old, people: [{ id: PERSON }] }), ASSET],
+      [immich({ createdAt: fresh, people: [{ id: UNLINKED }] }), ASSET],
+      [immich({ createdAt: fresh, people: [{ id: PERSON }, { id: UNLINKED }] }), ASSET],
+      [immich({ createdAt: fresh, people: [{ id: PERSON }] }), undefined],
+      [immich({ message: 'no' }, 404), ASSET],
+    ];
+    for (const [fetchFn, asset] of cases) {
+      expect((await access.selfieProves(fetchFn, asset, PERSON)).ok).toBe(false);
+    }
   });
 });

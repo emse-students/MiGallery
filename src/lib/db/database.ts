@@ -198,6 +198,13 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
     if (!cols.includes('photos_asset_id')) {
       dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_asset_id TEXT').run();
     }
+    // One spelling of an Immich person id, lowercase (face-access.ts normalisePersonId): SQLite's
+    // `=` is case-sensitive, Immich is not, so a second spelling would be a second owner.
+    dbInstance
+      .prepare(
+        'UPDATE users SET photos_id = lower(photos_id) WHERE photos_id IS NOT NULL AND photos_id != lower(photos_id)'
+      )
+      .run();
     try {
       const acols = dbInstance
         .prepare('PRAGMA table_info(albums)')

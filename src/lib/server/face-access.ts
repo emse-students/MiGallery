@@ -23,6 +23,8 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { getDatabase } from '$lib/db/database';
 import { requireScope, type AuthResult } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
+import { env } from '$env/dynamic/private';
+import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('face-access');
 
@@ -35,14 +37,31 @@ export interface FaceViewer {
   role?: string | null;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The ONE spelling of an Immich person id: a UUID, lowercase. Immich (and Postgres `uuid`) accept
+ * any case, SQLite's `=` does not, so an id is normalised before it is stored or compared -
+ * otherwise `ABC...` and `abc...` would be two owners of one person. `null` = not a person id.
+ */
+export function normalisePersonId(id: unknown): string | null {
+  if (typeof id !== 'string') {
+    return null;
+  }
+  const trimmed = id.trim();
+  return UUID.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
 /**
  * The member who owns an Immich person, i.e. whose `photos_id` it is, or `null` when no member
- * has linked it.
+ * has linked it (or the id is not a person id at all).
  */
 export function findPersonOwner(personId: string): string | null {
-  const row = getDatabase()
-    .prepare('SELECT id_user FROM users WHERE photos_id = ?')
-    .get(personId) as {
+  const id = normalisePersonId(personId);
+  if (!id) {
+    return null;
+  }
+  const row = getDatabase().prepare('SELECT id_user FROM users WHERE photos_id = ?').get(id) as {
     id_user: string;
   } | null;
   return row?.id_user ?? null;
@@ -167,6 +186,12 @@ export function assertProxiedFaceAccess(
   query: URLSearchParams,
   body: unknown
 ): void {
+  // The path param arrives DECODED, so an encoded `?` or `#` in it would start a query (or a
+  // fragment) of its own in the URL the proxy builds - one this check would never see.
+  if (/[?#]/.test(path)) {
+    log.warn('proxied path carrying a query or fragment refused', { path });
+    throw error(400, 'Invalid path');
+  }
   // Judge the path Immich will actually route: the URL the proxy builds resolves `.` segments,
   // and Immich's router is case-insensitive and tolerant of repeated slashes.
   const clean = new URL(`/api/${path}`, 'http://immich.invalid').pathname
@@ -178,7 +203,7 @@ export function assertProxiedFaceAccess(
     const [, personId, rest] = person;
     if (method === 'GET' || method === 'HEAD') {
       assertPersonAccess(auth, personId);
-    } else if (method === 'PUT' && !rest) {
+    } else if ((method === 'PUT' || method === 'PATCH') && !rest) {
       assertPersonOwner(auth, personId);
     } else {
       assertFaceAdmin(auth, clean);
@@ -187,8 +212,12 @@ export function assertProxiedFaceAccess(
     assertFaceAdmin(auth, clean);
   }
 
-  for (const key of ['personId', 'personIds']) {
-    for (const value of query.getAll(key)) {
+  // Every spelling of the key a query parser could map to personId(s): `personIds[]`, `PersonId`...
+  for (const [key, value] of query) {
+    if (key.toLowerCase() === 'withpeople') {
+      assertFaceAdmin(auth, `${clean} withPeople`);
+    }
+    if (key.toLowerCase().startsWith('personid')) {
       for (const id of value.split(',').filter(Boolean)) {
         assertPersonAccess(auth, id);
       }
@@ -196,10 +225,58 @@ export function assertProxiedFaceAccess(
   }
 
   if (body && typeof body === 'object') {
-    const { personIds, personId } = body as { personIds?: unknown; personId?: unknown };
+    const { personIds, personId, withPeople } = body as {
+      personIds?: unknown;
+      personId?: unknown;
+      withPeople?: unknown;
+    };
     const ids = [...(Array.isArray(personIds) ? personIds : []), ...(personId ? [personId] : [])];
     for (const id of ids) {
       assertPersonAccess(auth, String(id));
     }
+    // A search asked to list the people in EVERY result would hand back the whole face graph,
+    // from which any person's set can be rebuilt.
+    if (withPeople) {
+      assertFaceAdmin(auth, `${clean} withPeople`);
+    }
   }
+}
+
+/** How fresh the selfie must be: the detection flow links within about a minute of uploading. */
+export const SELFIE_MAX_AGE_MS = 30 * 60 * 1000;
+
+/**
+ * Whether Immich asset `assetId` is a selfie that proves `personId`: uploaded within
+ * {@link SELFIE_MAX_AGE_MS}, and showing exactly one person, that one. Read server-side from
+ * Immich, so the client cannot assert it.
+ */
+export async function selfieProves(
+  fetchFn: typeof fetch,
+  assetId: unknown,
+  personId: string
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (typeof assetId !== 'string' || !/^[0-9a-f-]{36}$/i.test(assetId)) {
+    return { ok: false, reason: 'no selfie asset' };
+  }
+  const base = env.IMMICH_BASE_URL?.replace(/\/$/, '');
+  if (!base) {
+    return { ok: false, reason: 'IMMICH_BASE_URL not configured' };
+  }
+  const res = await fetchFn(`${base}/api/assets/${assetId}`, {
+    signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+    headers: { 'x-api-key': env.IMMICH_API_KEY ?? '', Accept: 'application/json' },
+  });
+  if (!res.ok) {
+    return { ok: false, reason: `asset lookup ${res.status}` };
+  }
+  const asset = (await res.json()) as { createdAt?: string; people?: Array<{ id?: string }> };
+  const age = Date.now() - Date.parse(asset.createdAt ?? '');
+  if (!(age >= -60_000 && age <= SELFIE_MAX_AGE_MS)) {
+    return { ok: false, reason: 'selfie not freshly uploaded' };
+  }
+  const people = asset.people ?? [];
+  if (people.length !== 1 || normalisePersonId(people[0].id) !== personId) {
+    return { ok: false, reason: 'selfie does not show exactly that person' };
+  }
+  return { ok: true };
 }

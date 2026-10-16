@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
+import { normalisePersonId } from '$lib/server/face-access';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -55,7 +56,8 @@ export const POST: RequestHandler = async (event) => {
     const name = body.name ?? (legacyName || null);
     const role = body.role ?? 'user';
     const promo = body.promo ?? null;
-    const photos_id = body.photos_id ?? null;
+    // One spelling of a person id (face-access.ts); a non-UUID admin value is kept as given.
+    const photos_id = normalisePersonId(body.photos_id) ?? body.photos_id ?? null;
     const formation = body.formation ?? null;
 
     if (!id_user || !name) {

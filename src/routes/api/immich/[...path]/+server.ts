@@ -692,19 +692,35 @@ const handle: RequestHandler = async function (event) {
     }
   }
 
+  // Prevent path traversal
+  if (pathParam.includes('..') || pathParam.includes('\0')) {
+    return new Response(JSON.stringify({ error: 'Invalid path' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+
   // Face-linked paths (people, faces, a search naming a person) obey the same consent rule as the
-  // dedicated /api/people routes. A JSON body is read from a CLONE, because a search names its
-  // people there, and the original stream is still the one forwarded below.
+  // dedicated /api/people routes. A JSON body is judged and then forwarded AS JUDGED - the text
+  // read here, re-labelled `application/json` - so Immich can never parse a body (another case of
+  // content type, another charset) that differs from the one this check saw.
+  let judgedJsonBody: string | undefined;
   if (auth) {
     let jsonBody: unknown = null;
     if (
       !['GET', 'HEAD'].includes(request.method) &&
-      (request.headers.get('content-type') || '').includes('application/json')
+      (request.headers.get('content-type') || '').toLowerCase().includes('json')
     ) {
-      jsonBody = await request
-        .clone()
-        .json()
-        .catch(() => null);
+      judgedJsonBody = await request.text();
+      try {
+        jsonBody = judgedJsonBody ? JSON.parse(judgedJsonBody) : null;
+      } catch {
+        log.warn('proxied JSON body that does not parse refused', { path: pathParam });
+        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
     assertProxiedFaceAccess(auth, request.method, pathParam, event.url.searchParams, jsonBody);
   }
@@ -712,14 +728,6 @@ const handle: RequestHandler = async function (event) {
   let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
   if (base && !/^https?:\/\//i.test(base)) {
     base = `http://${base}`;
-  }
-
-  // Prevent path traversal
-  if (pathParam.includes('..') || pathParam.includes('\0')) {
-    return new Response(JSON.stringify({ error: 'Invalid path' }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    });
   }
 
   const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
@@ -796,7 +804,11 @@ const handle: RequestHandler = async function (event) {
   const contentType = request.headers.get('content-type');
 
   let bodyToForward: BodyInit | undefined = undefined;
-  if (!['GET', 'HEAD'].includes(request.method)) {
+  if (judgedJsonBody !== undefined) {
+    // Already read and judged above: forward exactly that text.
+    outgoingHeaders['content-type'] = 'application/json';
+    bodyToForward = judgedJsonBody;
+  } else if (!['GET', 'HEAD'].includes(request.method)) {
     try {
       if (contentType) {
         outgoingHeaders['content-type'] = contentType;
