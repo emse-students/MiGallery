@@ -11,6 +11,11 @@ import {
   removeAssetsFromAlbum,
 } from '$lib/photos-cv/handlers';
 import { requireScope } from '$lib/server/permissions';
+import {
+  assertPersonAccess,
+  assertPhotoCvManager,
+  requirePhotoCvManager,
+} from '$lib/server/face-access';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -29,7 +34,8 @@ export const GET: RequestHandler = async (event) => {
   const action = url.searchParams.get('action');
   const personId = url.searchParams.get('personId');
 
-  await requireScope(event, 'read');
+  // Each action names what it reads, so each is guarded by the rule for THAT (face-access.ts).
+  const auth = await requireScope(event, 'read');
 
   try {
     switch (action) {
@@ -37,6 +43,7 @@ export const GET: RequestHandler = async (event) => {
         if (!personId) {
           throw error(400, 'personId is required');
         }
+        assertPersonAccess(auth, personId);
         const assets = await getPersonAssets(personId, false, fetch);
         return json({ assets });
       }
@@ -45,16 +52,19 @@ export const GET: RequestHandler = async (event) => {
         if (!personId) {
           throw error(400, 'personId is required');
         }
+        assertPersonAccess(auth, personId);
         const assets = await getPersonAssets(personId, true, fetch);
         return json({ assets });
       }
 
       case 'all-album-photos': {
+        assertPhotoCvManager(auth, 'all-album-photos');
         const assets = await getAlbumAssets(fetch);
         return json({ assets });
       }
 
       case 'album-info': {
+        assertPhotoCvManager(auth, 'album-info');
         const info = await getAlbumInfo(fetch);
         return json(info);
       }
@@ -85,7 +95,7 @@ export const GET: RequestHandler = async (event) => {
  * Body: { action: string, assetIds: string[] }
  */
 export const POST: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requirePhotoCvManager(event, 'write');
   try {
     const body = (await event.request.json()) as { action?: string; assetIds?: string[] };
     const { action, assetIds } = body;

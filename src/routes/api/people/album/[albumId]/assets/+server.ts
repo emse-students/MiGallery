@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { requireScope } from '$lib/server/permissions';
+import { requirePhotoCvManager } from '$lib/server/face-access';
 import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -27,7 +27,7 @@ async function readAssetIds(request: Request): Promise<string[]> {
 
 export const GET: RequestHandler = async (event) => {
   const albumId = requireAlbumId(event.params.albumId);
-  await requireScope(event, 'read');
+  await requirePhotoCvManager(event);
 
   // fetchAlbumAssets fetches the album itself and throws when it is missing, so
   // the album GET this handler used to run first - and throw the answer away -
@@ -38,7 +38,7 @@ export const GET: RequestHandler = async (event) => {
 
 export const PUT: RequestHandler = async (event) => {
   const albumId = requireAlbumId(event.params.albumId);
-  await requireScope(event, 'write');
+  await requirePhotoCvManager(event, 'write');
 
   const added = await addAlbumAssets(event.fetch, albumId, await readAssetIds(event.request));
   return json({ success: true, added });
@@ -46,7 +46,7 @@ export const PUT: RequestHandler = async (event) => {
 
 export const DELETE: RequestHandler = async (event) => {
   const albumId = requireAlbumId(event.params.albumId);
-  await requireScope(event, 'write');
+  await requirePhotoCvManager(event, 'write');
 
   const removed = await removeAlbumAssets(event.fetch, albumId, await readAssetIds(event.request));
   return json({ success: true, removed });

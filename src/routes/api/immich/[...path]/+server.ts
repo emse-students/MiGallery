@@ -3,7 +3,8 @@ import { ensureError } from '$lib/ts-utils';
 import { logEvent } from '$lib/server/logs';
 import { createLogger } from '$lib/server/logger';
 import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
+import { requireScope, type AuthResult } from '$lib/server/permissions';
+import { assertProxiedFaceAccess } from '$lib/server/face-access';
 import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { getDatabase } from '$lib/db/database';
 
@@ -602,6 +603,9 @@ const handle: RequestHandler = async function (event) {
   const request = event.request;
   const pathParam = (event.params.path as string) || '';
   const search = event.url.search || '';
+  // The caller, once authenticated. It stays null only for the two keyless ways in: the server's
+  // own internal key and a public (unlisted) asset - neither of which reaches a face-linked path.
+  let auth: AuthResult | null = null;
 
   if (['GET', 'HEAD'].includes(request.method)) {
     const internalKey = request.headers.get('x-internal-immich-key') || undefined;
@@ -609,7 +613,7 @@ const handle: RequestHandler = async function (event) {
       void 0;
     } else {
       try {
-        await requireScope(event, 'read');
+        auth = await requireScope(event, 'read');
       } catch (err) {
         const assetMatch = pathParam.match(
           /^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
@@ -652,7 +656,7 @@ const handle: RequestHandler = async function (event) {
 
   if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
     try {
-      await requireScope(event, 'write');
+      auth = await requireScope(event, 'write');
     } catch (err) {
       const isDownload =
         pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
@@ -686,6 +690,23 @@ const handle: RequestHandler = async function (event) {
         throw err;
       }
     }
+  }
+
+  // Face-linked paths (people, faces, a search naming a person) obey the same consent rule as the
+  // dedicated /api/people routes. A JSON body is read from a CLONE, because a search names its
+  // people there, and the original stream is still the one forwarded below.
+  if (auth) {
+    let jsonBody: unknown = null;
+    if (
+      !['GET', 'HEAD'].includes(request.method) &&
+      (request.headers.get('content-type') || '').includes('application/json')
+    ) {
+      jsonBody = await request
+        .clone()
+        .json()
+        .catch(() => null);
+    }
+    assertProxiedFaceAccess(auth, request.method, pathParam, event.url.searchParams, jsonBody);
   }
 
   let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
