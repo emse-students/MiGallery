@@ -6,6 +6,9 @@ import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('audit-log');
 
+/** Set once the missing-address fault has been logged, so it is reported once per process. */
+let addressFaultReported = false;
+
 /**
  * Log an event to the local DB `logs` table.
  * event: the SvelteKit request event (used to extract actor/ip when possible)
@@ -60,7 +63,15 @@ export function logEvent(
       try {
         ip = event.getClientAddress().slice(0, 64) || null;
       } catch (e) {
-        log.warn('client address unavailable for the audit log', (e as Error).message);
+        // A missing header is a deployment fault that hits EVERY row: say it loudly once per
+        // process, not once per event, so the line stays readable.
+        if (!addressFaultReported) {
+          addressFaultReported = true;
+          log.error(
+            'client address unavailable for the audit log; rows record NULL until fixed',
+            (e as Error).message
+          );
+        }
       }
     }
 

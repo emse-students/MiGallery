@@ -41,7 +41,7 @@ describe('purgeOldLogs', () => {
       "INSERT INTO logs (event_type, timestamp) VALUES (?, datetime('now', ?))"
     );
     add.run('old', `-${logs.LOG_RETENTION_DAYS + 1} days`);
-    add.run('edge', `-${logs.LOG_RETENTION_DAYS - 1} days`);
+    add.run('edge', `-${logs.LOG_RETENTION_DAYS * 24 - 1} hours`);
     add.run('new', '-1 hours');
 
     expect(logs.purgeOldLogs()).toBe(1);

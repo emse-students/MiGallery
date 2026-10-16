@@ -67,10 +67,14 @@ Cloudflare sets `CF-Connecting-IP` to the address it was reached from,
 overwriting any value the client sent. `X-Forwarded-For` is never read: its
 first value is whatever the client chose to send, and it used to be stored
 whole. When no address is available (`getClientAddress()` throws, e.g. a request
-that did not come through the tunnel) the row records NULL and a warning, never a
-guess. What this rests on: the container's published port must only be reached
-through the tunnel - a client reaching port 3000 directly could set that header
-itself. That is a property of the host's network, not of this code.
+that did not come through the tunnel) the row records NULL, never a guess, and the fault is logged once per process
+at error level. What this rests on: the container's published port must only be
+reached through the tunnel - a client reaching port 3000 directly could set that
+header itself. `docker-compose.prod.yml` publishes it on every interface, so that
+is a property of the host's firewall today, not of this code. Binding it to
+`127.0.0.1` would make it a property of the file, and is safe only once the
+tunnel's ingress target is confirmed to be the loopback address (not verified
+from this repository).
 
 ### `face_consents`
 
