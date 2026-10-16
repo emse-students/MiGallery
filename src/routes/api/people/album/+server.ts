@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
+import { requirePhotoCvManager } from '$lib/server/face-access';
 import { fetchAlbumAssets } from '$lib/immich/album-assets';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
@@ -13,7 +13,7 @@ import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-album');
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read');
+  await requirePhotoCvManager(event);
   try {
     const { fetch, url } = event;
     const page = parseInt(url.searchParams.get('page') ?? '1', 10);
