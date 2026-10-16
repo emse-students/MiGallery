@@ -35,6 +35,7 @@ import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 import { searchAllAssets } from '$lib/server/immich-search';
 import { deletePersonFaceCrops } from '$lib/server/face-crop';
 import { normalisePersonId } from '$lib/server/person-id';
+import { rotateAvatarSalt } from '$lib/server/avatar-revocation';
 import { withdrawFaceConsent } from '$lib/server/face-consent';
 
 const log = createLogger('face-erasure');
@@ -194,6 +195,9 @@ export function deleteUserAccount(db: Db, userId: string): boolean {
     }
     const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
     anonymiseUserInLogs(db, userId, normalisePersonId(row.photos_id));
+    // A recreated account of the same id must not re-validate the signed avatar URLs issued for
+    // this one. The id stays in avatar_revocations as a tombstone (no personal data).
+    rotateAvatarSalt(db, userId);
     // Per-user album grants name the member and carry no foreign key, so they do not cascade.
     db.prepare("DELETE FROM album_permissions WHERE kind = 'user' AND value = ?").run(userId);
     db.prepare('DELETE FROM users WHERE id_user = ?').run(userId);

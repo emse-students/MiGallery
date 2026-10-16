@@ -97,6 +97,17 @@ two sides share no code. No expiry, deliberately (a relying party stores the URL
 rotating the key is the revocation, and it invalidates every URL at once. The response stays
 `private`, like every avatar: a shared cache must never hold a face.
 
+**Revoking one user's links.** Each revoked user has a salt in `avatar_revocations` (keyed by id_user, surviving the account's
+deletion; no row until a revocation). No row signs the bare id, what MiConnect computes today; once set, the signed message is
+`<id_user>\n<salt>`, so `DELETE /api/users/me/avatar-link` (the member, session only) and
+`DELETE /api/users/<id>/avatar-link` (an admin) kill every URL ever issued for that user and nobody
+else's. MiConnect cannot compute a salted signature, so after a revocation that user's avatar stops
+showing in MinoWiki and Archives until the mapping learns the salt: it is a hard stop, which is what
+a revocation is for. Pinned by `tests/avatar-signature.test.ts` (the salted message, the unsalted
+Python vector unchanged) and `tests/avatar-revocation.test.ts`. A relying party may have cached the image server-side (MinoWiki, Archives): a revocation stops
+new fetches, not a copy they already hold. Nothing revokes automatically yet
+(a face withdrawal does not), and the settings page has no button for it.
+
 **An API key is read from the `x-api-key` header ONLY.** The `?api_key=` query parameter this route
 used to accept existed for that URL alone, and it was removed once the mapping switched (2026-09-30):
 a key in a URL lands in logs, histories and claims.

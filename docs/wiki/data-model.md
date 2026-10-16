@@ -83,6 +83,11 @@ the forged-header hole is closed by the file; if it is the host's LAN address, t
 and the firewall is the control. Until that is read, a peer on the LAN could forge
 `cf-connecting-ip` and write any address in the audit log. Nothing in this repository says which.
 
+`avatar_revocations(id_user, salt, revoked_at)` holds the salt of a user whose signed avatar links were
+revoked. It is keyed by id_user with no foreign key ON PURPOSE: it survives the deletion of the account,
+so a user recreated at their next sign-in does not re-validate old URLs. Account deletion rotates the salt in its own transaction; the pseudonymous id then stays here as a tombstone (an id and a random salt, no personal data) while the audit-log scrub removes it everywhere else
+([api-reference.md](api-reference.md#the-signed-avatar-url)).
+
 ### `face_consents`
 
 `face_consents(id, user_id, created_at, version, source, withdrawn_at)` - the record that a

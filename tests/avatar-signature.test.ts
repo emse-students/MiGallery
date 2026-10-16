@@ -9,7 +9,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { computeAvatarSignature, isAvatarSignatureValid } from '$lib/server/avatar-signature';
+import {
+  computeAvatarSignature,
+  isAvatarSignatureValid,
+  newAvatarSalt,
+} from '$lib/server/avatar-signature';
 
 const KEY = 'test-signing-key';
 const ID_USER = '4f1c9e0b2a7d';
@@ -43,5 +47,29 @@ describe('avatar signature', () => {
 
   it('refuses everything when no key is configured', () => {
     expect(isAvatarSignatureValid('', ID_USER, computeAvatarSignature('', ID_USER))).toBe(false);
+  });
+});
+
+describe('a per-user salt (revocation)', () => {
+  it('no salt, an empty salt and null all sign the bare id, so MiConnect keeps working', () => {
+    expect(computeAvatarSignature(KEY, ID_USER, null)).toBe(PYTHON_SIG);
+    expect(computeAvatarSignature(KEY, ID_USER, '')).toBe(PYTHON_SIG);
+    expect(computeAvatarSignature(KEY, ID_USER, undefined)).toBe(PYTHON_SIG);
+  });
+
+  it('a salt changes the signature: the old URL stops verifying, the new one does', () => {
+    const salt = newAvatarSalt();
+    const salted = computeAvatarSignature(KEY, ID_USER, salt);
+    expect(salted).not.toBe(PYTHON_SIG);
+    expect(isAvatarSignatureValid(KEY, ID_USER, PYTHON_SIG, salt)).toBe(false);
+    expect(isAvatarSignatureValid(KEY, ID_USER, salted, salt)).toBe(true);
+  });
+
+  it('two salts never collide, and a salt of one user opens nothing of another', () => {
+    expect(newAvatarSalt()).not.toBe(newAvatarSalt());
+    const salt = newAvatarSalt();
+    expect(
+      isAvatarSignatureValid(KEY, 'someone-else', computeAvatarSignature(KEY, ID_USER, salt), salt)
+    ).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import { env } from '$env/dynamic/private';
 import { requireScope } from '$lib/server/permissions';
 import { generateFaceCrop } from '$lib/server/face-crop';
 import { isAvatarSignatureValid } from '$lib/server/avatar-signature';
+import { avatarSaltOf } from '$lib/server/avatar-revocation';
 
 import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
@@ -31,7 +32,10 @@ export const GET: RequestHandler = async (event) => {
       log.error('Signed avatar request but AVATAR_SIGNING_KEY is not configured');
       return svelteError(500, 'Signed avatars are not configured');
     }
-    if (!isAvatarSignatureValid(key, event.params.username ?? '', sig)) {
+    const idUser = event.params.username ?? '';
+    // The user's revocation salt, if any (avatar-signature.ts): a revoked link no longer verifies.
+    const salt = avatarSaltOf(getDatabase(), idUser);
+    if (!isAvatarSignatureValid(key, idUser, sig, salt)) {
       log.warn('Signed avatar request refused: signature does not match', {
         username: event.params.username,
       });
