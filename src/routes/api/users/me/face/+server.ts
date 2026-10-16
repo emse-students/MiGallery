@@ -70,9 +70,13 @@ export const PATCH: RequestHandler = async (event) => {
         photos_id: string | null;
       } | null;
       if (normalisePersonId(current?.photos_id) !== personId) {
-        const proof = await selfieProves(event.fetch, body.selfie_asset_id, personId);
+        const proof = await selfieProves(event.fetch, body.selfie_asset_id, personId, userId);
         if (!proof.ok) {
-          log.warn('face link refused: no selfie proof', { reason: proof.reason });
+          log.warn('face link refused: no selfie proof', {
+            userId,
+            personId,
+            reason: proof.reason,
+          });
           return json(
             { error: 'selfie_proof_required', message: m.face_selfie_proof_msg() },
             { status: 403 }
@@ -118,7 +122,15 @@ export const PATCH: RequestHandler = async (event) => {
 
     return json({ success: true, person_id: personId });
   } catch (e) {
-    const err = e as Error;
+    const err = e as Error & { code?: string };
+    // The unique index on photos_id caught a concurrent link of the same person.
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      log.warn('face link refused: the person was linked concurrently');
+      return json(
+        { error: 'face_already_assigned', message: m.face_already_assigned_msg() },
+        { status: 409 }
+      );
+    }
     log.error('PATCH /api/users/me/face failed', { message: err.message, stack: err.stack });
     return json({ error: err.message }, { status: 500 });
   }

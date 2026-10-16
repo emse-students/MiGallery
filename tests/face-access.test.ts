@@ -217,17 +217,32 @@ describe('normalisePersonId', () => {
 
 describe('selfieProves (the proof a member needs to link a new person)', () => {
   const ASSET = 'cccccccc-0000-4000-8000-000000000001';
+  const OTHERS = 'cccccccc-0000-4000-8000-000000000002';
+  const DUP = 'cccccccc-0000-4000-8000-000000000003';
   const immich = (asset: unknown, status = 200) =>
     (async () => new Response(JSON.stringify(asset), { status })) as unknown as typeof fetch;
   const fresh = new Date().toISOString();
+  const solo = () => immich({ createdAt: fresh, people: [{ id: PERSON.toUpperCase() }] });
 
-  it('accepts a fresh upload showing exactly that person, in any case', async () => {
-    const res = await access.selfieProves(
-      immich({ createdAt: fresh, people: [{ id: PERSON.toUpperCase() }] }),
-      ASSET,
-      PERSON
-    );
-    expect(res.ok).toBe(true);
+  beforeAll(() => {
+    // The proxy's audit rows: who uploaded what (finishImmichUpload writes them).
+    const add = database
+      .getDatabase()
+      .prepare(
+        "INSERT INTO logs (actor, event_type, target_type, target_id, details) VALUES (?, 'import', 'asset', ?, ?)"
+      );
+    add.run(STRANGER.id_user, ASSET, '{"duplicate":false}');
+    add.run(OWNER.id_user, OTHERS, '{"duplicate":false}');
+    add.run(STRANGER.id_user, DUP, '{"duplicate":true}');
+  });
+
+  it('accepts a fresh upload of the caller showing exactly that person, in any case', async () => {
+    expect((await access.selfieProves(solo(), ASSET, PERSON, STRANGER.id_user)).ok).toBe(true);
+  });
+
+  it('refuses an asset someone else uploaded, or a re-upload of a known file', async () => {
+    expect((await access.selfieProves(solo(), OTHERS, PERSON, STRANGER.id_user)).ok).toBe(false);
+    expect((await access.selfieProves(solo(), DUP, PERSON, STRANGER.id_user)).ok).toBe(false);
   });
 
   it('refuses an old asset, another person, several people, no asset or an Immich refusal', async () => {
@@ -240,7 +255,62 @@ describe('selfieProves (the proof a member needs to link a new person)', () => {
       [immich({ message: 'no' }, 404), ASSET],
     ];
     for (const [fetchFn, asset] of cases) {
-      expect((await access.selfieProves(fetchFn, asset, PERSON)).ok).toBe(false);
+      expect((await access.selfieProves(fetchFn, asset, PERSON, STRANGER.id_user)).ok).toBe(false);
     }
+  });
+});
+
+describe('classifyProxiedBody (what body the proxy can judge)', () => {
+  it('judges JSON whatever its case or parameters', () => {
+    expect(access.classifyProxiedBody('POST', 'search/metadata', 'Application/JSON', false)).toBe(
+      'json'
+    );
+    expect(
+      access.classifyProxiedBody('POST', 'x', 'application/json; charset=utf-16le', false)
+    ).toBe('json');
+  });
+
+  it('refuses a body type Immich parses but the check cannot read', () => {
+    for (const ct of ['application/x-www-form-urlencoded', 'text/plain', 'application/xml']) {
+      expect(access.classifyProxiedBody('POST', 'search/metadata', ct, false)).toBe('refused');
+    }
+  });
+
+  it('lets the two upload shapes through, and only on their own route', () => {
+    const multipart = 'multipart/form-data; boundary=----json-boundary';
+    expect(access.classifyProxiedBody('POST', 'assets', multipart, false)).toBe('upload');
+    expect(access.classifyProxiedBody('POST', 'search/metadata', multipart, false)).toBe('refused');
+    expect(access.classifyProxiedBody('POST', 'assets', 'application/octet-stream', true)).toBe(
+      'upload'
+    );
+    expect(access.classifyProxiedBody('POST', 'assets', 'application/octet-stream', false)).toBe(
+      'refused'
+    );
+  });
+
+  it('leaves bodiless requests alone', () => {
+    expect(access.classifyProxiedBody('GET', 'people', 'text/plain', false)).toBe('none');
+    expect(access.classifyProxiedBody('DELETE', 'assets', null, false)).toBe('none');
+  });
+});
+
+describe('assertProxiedFaceAccess with a personIds string', () => {
+  it('checks each id of a plain string or comma list too', () => {
+    const run = (body: unknown) => {
+      try {
+        access.assertProxiedFaceAccess(
+          session(STRANGER),
+          'POST',
+          'search/metadata',
+          new URLSearchParams(),
+          body
+        );
+        return 200;
+      } catch (e) {
+        return (e as { status?: number }).status ?? 500;
+      }
+    };
+    expect(run({ personIds: PERSON })).toBe(403);
+    expect(run({ personIds: `${UNLINKED},${PERSON}` })).toBe(403);
   });
 });

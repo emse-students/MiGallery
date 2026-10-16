@@ -4,7 +4,7 @@ import { logEvent } from '$lib/server/logs';
 import { createLogger } from '$lib/server/logger';
 import { env } from '$env/dynamic/private';
 import { requireScope, type AuthResult } from '$lib/server/permissions';
-import { assertProxiedFaceAccess } from '$lib/server/face-access';
+import { assertProxiedFaceAccess, classifyProxiedBody } from '$lib/server/face-access';
 import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
 import { getDatabase } from '$lib/db/database';
 
@@ -706,11 +706,24 @@ const handle: RequestHandler = async function (event) {
   // content type, another charset) that differs from the one this check saw.
   let judgedJsonBody: string | undefined;
   if (auth) {
+    const kind = classifyProxiedBody(
+      request.method,
+      pathParam,
+      request.headers.get('content-type'),
+      request.headers.has('x-chunk-index') && request.headers.has('x-file-id')
+    );
+    if (kind === 'refused') {
+      log.warn('proxied body of a type the proxy cannot judge refused', {
+        path: pathParam,
+        contentType: request.headers.get('content-type'),
+      });
+      return new Response(JSON.stringify({ error: 'Unsupported body type' }), {
+        status: 415,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
     let jsonBody: unknown = null;
-    if (
-      !['GET', 'HEAD'].includes(request.method) &&
-      (request.headers.get('content-type') || '').toLowerCase().includes('json')
-    ) {
+    if (kind === 'json') {
       judgedJsonBody = await request.text();
       try {
         jsonBody = judgedJsonBody ? JSON.parse(judgedJsonBody) : null;
@@ -1131,7 +1144,13 @@ async function finishImmichUpload(
             }
           }
           if (assetId) {
-            await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+            // `duplicate` is read by selfieProves (face-access.ts): a re-upload of a known file
+            // proves nothing about who is in it.
+            await logEvent(event, 'import', 'asset', assetId, {
+              originalName,
+              proxied: true,
+              duplicate: respData.status === 'duplicate',
+            });
           }
         } catch (e) {
           log.warn('failed to log upload', e);

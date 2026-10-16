@@ -200,11 +200,36 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
     }
     // One spelling of an Immich person id, lowercase (face-access.ts normalisePersonId): SQLite's
     // `=` is case-sensitive, Immich is not, so a second spelling would be a second owner.
-    dbInstance
+    const respelled = dbInstance
       .prepare(
         'UPDATE users SET photos_id = lower(photos_id) WHERE photos_id IS NOT NULL AND photos_id != lower(photos_id)'
       )
-      .run();
+      .run().changes;
+    if (respelled > 0) {
+      log.info('person ids normalised to lowercase', { rows: respelled });
+    }
+    // One person, one member - now that there is one spelling, the database says so itself, which
+    // also closes the read-then-write race of two links at once. A pre-existing duplicate is NOT
+    // resolved here (which member it belongs to is a human's call): it is reported, by person
+    // id, and the index waits until it is gone.
+    try {
+      const duplicates = dbInstance
+        .prepare(
+          'SELECT photos_id, COUNT(*) AS n FROM users WHERE photos_id IS NOT NULL GROUP BY photos_id HAVING n > 1'
+        )
+        .all() as Array<{ photos_id: string; n: number }>;
+      if (duplicates.length > 0) {
+        log.error('a person is linked to several members; the unique index is NOT created', {
+          persons: duplicates.map((d) => d.photos_id),
+        });
+      } else {
+        dbInstance.exec(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_photos_id_unique ON users(photos_id) WHERE photos_id IS NOT NULL'
+        );
+      }
+    } catch (e) {
+      log.error('unique index on users.photos_id failed', (e as Error).message);
+    }
     try {
       const acols = dbInstance
         .prepare('PRAGMA table_info(albums)')

@@ -80,18 +80,25 @@ through the person rule.
 The proxy judges the path Immich will actually route: `.` segments resolved,
 repeated slashes collapsed, case folded (Immich's router is case-insensitive), and
 a path that carries its own `?` or `#` (the path parameter arrives decoded) is
-refused. A JSON body is read once, judged, and forwarded as that same text, so
-Immich never parses a body the check did not see. A search asking for the people
-of every result (`withPeople`) is admin-only.
+refused. A mutation's body must be of a type the proxy can judge
+(`classifyProxiedBody`): JSON, read once, judged and forwarded as that same text;
+the multipart upload of `POST assets`; an `application/octet-stream` upload
+chunk. Anything else (urlencoded included, which Immich would parse) gets a 415.
+A search asking for the people of every result (`withPeople`) is admin-only.
 
 **The link is the trust root, so it is guarded too.** A person id has ONE
 spelling, a lowercase UUID (`normalisePersonId`), on write and on every
-comparison - SQLite's `=` is case-sensitive, Immich is not. A member links a NEW
-person through `PATCH /api/users/me/face` only with `selfie_asset_id`: Immich
-must report that asset uploaded within the last 30 minutes and showing exactly
-that one person (`selfieProves`). Keeping their current person needs no proof;
-admins correct links by hand. What this cannot prove: that the "selfie" is not a
-photo of someone else - that is the limit of face matching, not of the code.
+comparison - SQLite's `=` is case-sensitive, Immich is not - and a partial
+unique index on `users.photos_id` makes one person one member (created at start
+unless duplicates already exist, which are then logged by person id for a human
+to resolve). A member links a NEW person through `PATCH /api/users/me/face` only
+with `selfie_asset_id`, and `selfieProves` requires all of: the proxy's own
+`import` audit row shows THAT member uploaded it, as a new file (not a
+duplicate); Immich reports it uploaded within the last 30 minutes; it shows
+exactly that one person. Keeping their current person needs no proof; admins
+correct links by hand. What this cannot prove: that the photo is a genuine selfie of the member. That
+guarantee needs a human (an admin confirming a link to a person who already has
+photos), which is the owner's decision.
 
 `/mes-photos?userId=X` no longer bounces a viewer who has no face of their own: the
 page carries no photo, and the routes it reads from enforce the rule above.

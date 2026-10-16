@@ -495,6 +495,13 @@
         throw new Error(m.param_no_id_returned());
       }
 
+      // A file Immich already holds proves nothing about who took it, and the server refuses it
+      // as a selfie (selfieProves): say so now rather than after the detection wait.
+      if (isDuplicate) {
+        uploadStatus = m.face_selfie_proof_msg();
+        return;
+      }
+
       assetId = uploadedAssetId;
 
       // Increase to 60 seconds to give Immich time to process

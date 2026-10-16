@@ -230,7 +230,11 @@ export function assertProxiedFaceAccess(
       personId?: unknown;
       withPeople?: unknown;
     };
-    const ids = [...(Array.isArray(personIds) ? personIds : []), ...(personId ? [personId] : [])];
+    // Whatever shape the value has - an array, one id, a comma list - every id in it is checked;
+    // whether Immich would accept that shape is not this check's to assume.
+    const asIds = (v: unknown): unknown[] =>
+      Array.isArray(v) ? v : typeof v === 'string' ? v.split(',').filter(Boolean) : v ? [v] : [];
+    const ids = [...asIds(personIds), ...asIds(personId)];
     for (const id of ids) {
       assertPersonAccess(auth, String(id));
     }
@@ -246,17 +250,33 @@ export function assertProxiedFaceAccess(
 export const SELFIE_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
- * Whether Immich asset `assetId` is a selfie that proves `personId`: uploaded within
+ * Whether Immich asset `assetId` is a selfie that proves `personId`: uploaded by `callerId`
+ * through this proxy as a new file (not a duplicate), within
  * {@link SELFIE_MAX_AGE_MS}, and showing exactly one person, that one. Read server-side from
  * Immich, so the client cannot assert it.
  */
 export async function selfieProves(
   fetchFn: typeof fetch,
   assetId: unknown,
-  personId: string
+  personId: string,
+  callerId: string
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (typeof assetId !== 'string' || !/^[0-9a-f-]{36}$/i.test(assetId)) {
     return { ok: false, reason: 'no selfie asset' };
+  }
+  // The caller must have uploaded it THEMSELVES, as a new file: every upload reaches Immich with
+  // the one shared key, so only the proxy's own audit row (`import`, written by
+  // finishImmichUpload with the uploader as actor) ties an asset to a member.
+  const uploaded = getDatabase()
+    .prepare(
+      "SELECT details FROM logs WHERE event_type = 'import' AND target_type = 'asset' AND target_id = ? AND actor = ? ORDER BY id DESC"
+    )
+    .get(assetId, callerId) as { details: string | null } | null;
+  if (!uploaded) {
+    return { ok: false, reason: 'selfie not uploaded by the caller' };
+  }
+  if (uploaded.details && (JSON.parse(uploaded.details) as { duplicate?: boolean }).duplicate) {
+    return { ok: false, reason: 'selfie is a duplicate of an existing asset' };
   }
   const base = env.IMMICH_BASE_URL?.replace(/\/$/, '');
   if (!base) {
@@ -279,4 +299,44 @@ export async function selfieProves(
     return { ok: false, reason: 'selfie does not show exactly that person' };
   }
   return { ok: true };
+}
+
+/** What the proxy may do with a request body: nothing to judge, judge it as JSON, or refuse it. */
+export type ProxiedBodyKind = 'none' | 'json' | 'upload' | 'refused';
+
+/**
+ * Classify the body of a proxied request by its media type, BEFORE anything is forwarded. Immich
+ * parses JSON and urlencoded bodies alike, so a body type this proxy cannot judge would carry a
+ * search's `personIds` past {@link assertProxiedFaceAccess}. Only three kinds go through: JSON
+ * (judged), the multipart upload of `POST assets`, and an `application/octet-stream` chunk of the
+ * chunked upload. Everything else is refused. A body with no content type is not parsed by Immich
+ * and is left alone.
+ */
+export function classifyProxiedBody(
+  method: string,
+  path: string,
+  contentType: string | null,
+  isChunk: boolean
+): ProxiedBodyKind {
+  if (method === 'GET' || method === 'HEAD') {
+    return 'none';
+  }
+  const media = (contentType ?? '').split(';')[0].trim().toLowerCase();
+  if (!media) {
+    return 'none';
+  }
+  if (media === 'application/json' || media.endsWith('+json')) {
+    return 'json';
+  }
+  if (
+    media === 'multipart/form-data' &&
+    method === 'POST' &&
+    path.replace(/^\/+/, '') === 'assets'
+  ) {
+    return 'upload';
+  }
+  if (media === 'application/octet-stream' && method === 'POST' && isChunk) {
+    return 'upload';
+  }
+  return 'refused';
 }
