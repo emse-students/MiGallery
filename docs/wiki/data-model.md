@@ -54,6 +54,35 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+**Retention: 90 days.** `purgeOldLogs` deletes older rows; `startLogRetention`
+(`hooks.server.ts`) runs it a minute after start, then daily, in-process like the
+backup scheduler. Each row's own `timestamp` decides, so a missed day only makes
+the next run delete more. Pinned by `tests/logs-retention.test.ts`.
+
+**`ip` comes from ONE trusted source**, SvelteKit's `getClientAddress()`. In
+production `docker-compose.prod.yml` sets adapter-node's
+`ADDRESS_HEADER=cf-connecting-ip`: the only public way in is the Cloudflare
+tunnel (`cloudflared` on the host, see [bandwidth.md](bandwidth.md)), and
+Cloudflare sets `CF-Connecting-IP` to the address it was reached from,
+overwriting any value the client sent. `X-Forwarded-For` is never read: its
+first value is whatever the client chose to send, and it used to be stored
+whole. When no address is available (`getClientAddress()` throws, e.g. a request
+that did not come through the tunnel) the row records NULL, never a guess, and the fault is logged once per process
+at error level. What this rests on: the container's published port must only be
+reached through the tunnel - a client reaching port 3000 directly could set that
+header itself. `docker-compose.prod.yml` publishes it on every interface, so that
+is a property of the host's firewall today, not of this code. Binding it to
+`127.0.0.1` would make it a property of the file, and is safe only once the
+tunnel's ingress target is confirmed to be the loopback address (not verified
+from this repository).
+
+**OPEN CHECK, owed to whoever can read the host (`ssh mitv`): what the `cloudflared`
+ingress points at.** If it is `http://localhost:3000` or `127.0.0.1:3000`, set
+`MIGALLERY_HOST_PORT` binding to loopback (`'127.0.0.1:3000:3000'` in the compose file) so
+the forged-header hole is closed by the file; if it is the host's LAN address, the bind must stay
+and the firewall is the control. Until that is read, a peer on the LAN could forge
+`cf-connecting-ip` and write any address in the audit log. Nothing in this repository says which.
+
 ### `face_consents`
 
 `face_consents(id, user_id, created_at, version, source, withdrawn_at)` - the record that a

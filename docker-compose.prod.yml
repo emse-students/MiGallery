@@ -22,6 +22,11 @@ services:
       PORT: '3000'
       NODE_ENV: production
       ORIGIN: ${ORIGIN:-https://gallery.mitv.fr}
+      # Client address for getClientAddress() and the audit log: the only public way in is the
+      # Cloudflare tunnel, and Cloudflare sets this header to the address it was reached from,
+      # overwriting any client-sent value. Never X-Forwarded-For (its first value is the
+      # client's own claim). See docs/wiki/data-model.md#logs.
+      ADDRESS_HEADER: cf-connecting-ip
       DATABASE_PATH: /app/data/migallery.db
       # Immich (publie sur l hote mitv). Depuis le conteneur, l hote est joignable
       # via son IP LAN.
