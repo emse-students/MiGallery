@@ -7,6 +7,8 @@ import {
 } from '$lib/session';
 import { startBackupScheduler } from '$lib/server/backup';
 import { startFaceErasureWorker } from '$lib/server/face-erasure';
+
+import { startLogRetention } from '$lib/server/logs';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 import { cookieName as LOCALE_COOKIE, isLocale } from '$lib/paraglide/runtime';
 import { isIndexable, NOINDEX_HEADER } from '$lib/seo';
@@ -15,6 +17,9 @@ import { isIndexable, NOINDEX_HEADER } from '$lib/seo';
 startBackupScheduler();
 // Drive the Immich half of face erasures that a restart or an Immich outage left pending
 startFaceErasureWorker();
+
+// Keep the audit log to its retention (90 days)
+startLogRetention();
 
 /**
  * List of allowed domains for CORS.

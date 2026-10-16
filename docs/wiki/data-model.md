@@ -54,6 +54,24 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+**Retention: 90 days.** `purgeOldLogs` deletes older rows; `startLogRetention`
+(`hooks.server.ts`) runs it a minute after start, then daily, in-process like the
+backup scheduler. Each row's own `timestamp` decides, so a missed day only makes
+the next run delete more. Pinned by `tests/logs-retention.test.ts`.
+
+**`ip` comes from ONE trusted source**, SvelteKit's `getClientAddress()`. In
+production `docker-compose.prod.yml` sets adapter-node's
+`ADDRESS_HEADER=cf-connecting-ip`: the only public way in is the Cloudflare
+tunnel (`cloudflared` on the host, see [bandwidth.md](bandwidth.md)), and
+Cloudflare sets `CF-Connecting-IP` to the address it was reached from,
+overwriting any value the client sent. `X-Forwarded-For` is never read: its
+first value is whatever the client chose to send, and it used to be stored
+whole. When no address is available (`getClientAddress()` throws, e.g. a request
+that did not come through the tunnel) the row records NULL and a warning, never a
+guess. What this rests on: the container's published port must only be reached
+through the tunnel - a client reaching port 3000 directly could set that header
+itself. That is a property of the host's network, not of this code.
+
 ### `face_consents`
 
 `face_consents(id, user_id, created_at, version, source, withdrawn_at)` - the record that a
