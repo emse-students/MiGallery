@@ -202,6 +202,37 @@ describe('assertProxiedFaceAccess (the generic Immich proxy)', () => {
   });
 });
 
+describe('resolveAdminPersonLink (admin writes of users.photos_id)', () => {
+  it('leaves an absent value alone, clears null, normalises the spelling', () => {
+    expect(access.resolveAdminPersonLink(undefined, STRANGER.id_user)).toEqual({
+      ok: true,
+      personId: undefined,
+    });
+    expect(access.resolveAdminPersonLink(null, STRANGER.id_user)).toEqual({
+      ok: true,
+      personId: null,
+    });
+    expect(access.resolveAdminPersonLink(UNLINKED.toUpperCase(), STRANGER.id_user)).toEqual({
+      ok: true,
+      personId: UNLINKED,
+    });
+  });
+
+  it('refuses a person another member holds, in any case, and a non-string', () => {
+    expect(access.resolveAdminPersonLink(PERSON.toUpperCase(), STRANGER.id_user)).toEqual({
+      ok: false,
+    });
+    expect(access.resolveAdminPersonLink(42, STRANGER.id_user)).toEqual({ ok: false });
+  });
+
+  it('lets the holder keep their own person', () => {
+    expect(access.resolveAdminPersonLink(PERSON, OWNER.id_user)).toEqual({
+      ok: true,
+      personId: PERSON,
+    });
+  });
+});
+
 describe('normalisePersonId', () => {
   it('accepts a UUID in any case and returns it lowercase, refuses anything else', () => {
     expect(access.normalisePersonId(PERSON.toUpperCase())).toBe(PERSON);
@@ -215,7 +246,7 @@ describe('normalisePersonId', () => {
   });
 });
 
-describe('selfieProves (the proof a member needs to link a new person)', () => {
+describe('selfieProves (the checks a member passes to link a new person; NOT an identity proof)', () => {
   const ASSET = 'cccccccc-0000-4000-8000-000000000001';
   const OTHERS = 'cccccccc-0000-4000-8000-000000000002';
   const DUP = 'cccccccc-0000-4000-8000-000000000003';

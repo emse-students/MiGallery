@@ -111,9 +111,16 @@ export const PATCH: RequestHandler = async (event) => {
       return json({ error: 'photos_asset_id must be a string or null' }, { status: 400 });
     }
 
+    // A changed person invalidates the profile-photo pointer, which belongs to the previous one.
+    const before = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
+      photos_id: string | null;
+    } | null;
+    const personChanged = (before?.photos_id ?? null) !== personId;
     const stmt = setAsset
       ? db.prepare('UPDATE users SET photos_id = ?, photos_asset_id = ? WHERE id_user = ?')
-      : db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
+      : personChanged
+        ? db.prepare('UPDATE users SET photos_id = ?, photos_asset_id = NULL WHERE id_user = ?')
+        : db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
     const result = setAsset ? stmt.run(personId, assetId, userId) : stmt.run(personId, userId);
 
     if (result.changes === 0) {

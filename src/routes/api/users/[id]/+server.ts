@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { logEvent } from '$lib/server/logs';
-import { normalisePersonId } from '$lib/server/face-access';
+import { resolveAdminPersonLink } from '$lib/server/face-access';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -68,8 +68,15 @@ export const PUT: RequestHandler = async (event) => {
     const name = body.name ?? (legacyName || targetId);
     const role = body.role;
     const promo = body.promo ?? null;
-    // One spelling of a person id (face-access.ts); a non-UUID admin value is kept as given.
-    const photos_id = normalisePersonId(body.photos_id) ?? body.photos_id ?? null;
+    // One spelling of a person id, never one another member holds (face-access.ts). Absent from
+    // the request means "leave the link alone": the UPDATE below used to null it silently.
+    const link = resolveAdminPersonLink(body.photos_id, targetId);
+    if (!link.ok) {
+      return json(
+        { error: 'photos_id must be a person id that no other member holds' },
+        { status: 409 }
+      );
+    }
     const formation = body.formation ?? null;
 
     // Prevent admin from removing their own admin status
@@ -85,8 +92,16 @@ export const PUT: RequestHandler = async (event) => {
     }
 
     const db = getDatabase();
+    // A changed person invalidates the profile-photo pointer, which belongs to the previous one.
+    const current = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(targetId) as {
+      photos_id: string | null;
+    } | null;
+    const photos_id = link.personId === undefined ? (current?.photos_id ?? null) : link.personId;
+    const personChanged = (current?.photos_id ?? null) !== photos_id;
     const stmt = db.prepare(
-      'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ?, formation = ? WHERE id_user = ?'
+      `UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ?, formation = ?${
+        personChanged ? ', photos_asset_id = NULL' : ''
+      } WHERE id_user = ?`
     );
     const info = stmt.run(
       name,

@@ -250,7 +250,8 @@ export function assertProxiedFaceAccess(
 export const SELFIE_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
- * Whether Immich asset `assetId` is a selfie that proves `personId`: uploaded by `callerId`
+ * Whether Immich asset `assetId` passes the selfie checks for `personId` (a speed bump, NOT proof
+ * that the face is the caller's - see docs/wiki/photos-cv.md): uploaded by `callerId`
  * through this proxy as a new file (not a duplicate), within
  * {@link SELFIE_MAX_AGE_MS}, and showing exactly one person, that one. Read server-side from
  * Immich, so the client cannot assert it.
@@ -339,4 +340,38 @@ export function classifyProxiedBody(
     return 'upload';
   }
   return 'refused';
+}
+
+/**
+ * The `photos_id` an ADMIN write (`POST /api/users`, `PUT /api/users/[id]`) may store for
+ * `userId`: one spelling (a non-UUID admin value is kept as given, test fixtures use them), and
+ * never a person another member already holds. `undefined` means "not in the request" and is
+ * returned as `undefined`, so a caller can leave the column alone. Without this an admin write
+ * bypassed both the 409 of the member path and, now, the unique index (a 500 with a SQL message).
+ */
+export function resolveAdminPersonLink(
+  raw: unknown,
+  userId: string
+): { ok: true; personId: string | null | undefined } | { ok: false } {
+  if (raw === undefined) {
+    return { ok: true, personId: undefined };
+  }
+  if (raw === null || raw === '') {
+    return { ok: true, personId: null };
+  }
+  if (typeof raw !== 'string') {
+    return { ok: false };
+  }
+  const personId = normalisePersonId(raw) ?? raw;
+  const holder = getDatabase()
+    .prepare('SELECT id_user FROM users WHERE photos_id = ? AND id_user != ?')
+    .get(personId, userId) as { id_user: string } | null;
+  if (holder) {
+    log.warn('admin face link refused: the person belongs to another member', {
+      userId,
+      personId,
+    });
+    return { ok: false };
+  }
+  return { ok: true, personId };
 }

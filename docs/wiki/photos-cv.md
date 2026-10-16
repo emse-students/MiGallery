@@ -91,14 +91,26 @@ spelling, a lowercase UUID (`normalisePersonId`), on write and on every
 comparison - SQLite's `=` is case-sensitive, Immich is not - and a partial
 unique index on `users.photos_id` makes one person one member (created at start
 unless duplicates already exist, which are then logged by person id for a human
-to resolve). A member links a NEW person through `PATCH /api/users/me/face` only
-with `selfie_asset_id`, and `selfieProves` requires all of: the proxy's own
-`import` audit row shows THAT member uploaded it, as a new file (not a
-duplicate); Immich reports it uploaded within the last 30 minutes; it shows
-exactly that one person. Keeping their current person needs no proof; admins
-correct links by hand. What this cannot prove: that the photo is a genuine selfie of the member. That
-guarantee needs a human (an admin confirming a link to a person who already has
-photos), which is the owner's decision.
+to resolve). Admin writes (`POST /api/users`, `PUT /api/users/[id]`) go through
+`resolveAdminPersonLink`: the same spelling, a 409 for a person another member holds,
+and a `PUT` that omits `photos_id` leaves the link alone instead of nulling it. Any
+change of person clears `photos_asset_id`, the profile-photo pointer of the previous one.
+
+**What the selfie check is, and is not.** A member links a NEW person through
+`PATCH /api/users/me/face` only with `selfie_asset_id`, and `selfieProves` requires
+all of: the proxy's own `import` audit row shows THAT member uploaded it, as a new
+file (not a duplicate); Immich reports it uploaded within the last 30 minutes; Immich
+found exactly that one person in it. Keeping their current person needs no check; admins
+correct links by hand.
+
+It is a **speed bump, not a proof of identity.** The only evidence of WHO is on the photo
+is Immich's own clustering, which is the thing being linked: a member who uploads a
+photo of someone else that Immich files under that person passes. What it does stop is a
+bare API call naming an arbitrary person id, an old or someone else's upload, and a
+selfie showing several people. Proving that the photo is the member's own face needs a
+human (an admin confirming a link to a person who already has photos), which is the
+owner's decision and is not built. Do not describe this check as a proof in the UI, the
+terms or a review.
 
 `/mes-photos?userId=X` no longer bounces a viewer who has no face of their own: the
 page carries no photo, and the routes it reads from enforce the rule above.
