@@ -3,15 +3,16 @@ import type { ImmichAlbum } from '$lib/types/api';
 import { ensureError } from '$lib/ts-utils';
 import type { RequestHandler } from './$types';
 import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
-import { requireScope } from '$lib/server/permissions';
+import { requirePhotoCvManager } from '$lib/server/face-access';
 
 import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 
 const log = createLogger('people-album-info');
 export const GET: RequestHandler = async (event) => {
+  // Outside the try: its catch answers 500 for everything, and a 401/403 must stay one.
+  await requirePhotoCvManager(event);
   try {
-    await requireScope(event, 'read');
     const { fetch } = event;
     const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
     const headers: Record<string, string> = { Accept: 'application/json' };

@@ -7,7 +7,7 @@ import { env } from '$env/dynamic/private';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getPersonAssets as getPersonAlbumAssets } from '$lib/photos-cv/handlers';
-import { requireScope } from '$lib/server/permissions';
+import { requirePersonAccess } from '$lib/server/face-access';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -49,7 +49,7 @@ export const GET: RequestHandler = async (event) => {
   }
   const inAlbum = event.url.searchParams.get('in_album') === 'true';
 
-  await requireScope(event, 'read');
+  await requirePersonAccess(event, personId);
   try {
     const assets = await getPersonAssets(personId, inAlbum, event.fetch);
     return json({ assets });

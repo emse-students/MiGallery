@@ -343,7 +343,8 @@
         const updateResponse = await fetch('/api/users/me/face', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ person_id: personId }),
+          // The selfie is the proof the server checks before it links a new person.
+          body: JSON.stringify({ person_id: personId, selfie_asset_id: assetId }),
         });
         const updateData = (await updateResponse.json()) as {
           success?: boolean;
@@ -378,9 +379,12 @@
           await new Promise((resolve) => setTimeout(resolve, 1500));
           window.location.reload();
         } else {
-          uploadStatus = m.param_db_update_error({
-            error: updateData.error || m.common_unknown_error(),
-          });
+          uploadStatus =
+            updateData.error === 'selfie_proof_required'
+              ? m.face_selfie_proof_msg()
+              : m.param_db_update_error({
+                  error: updateData.error || m.common_unknown_error(),
+                });
           if (shouldCleanup) {
             try {
               await cleanupAsset(assetIdToDelete);
@@ -490,6 +494,13 @@
         uploadedAssetId = String(uploadData.id);
       } else {
         throw new Error(m.param_no_id_returned());
+      }
+
+      // A file Immich already holds proves nothing about who took it, and the server refuses it
+      // as a selfie (selfieProves): say so now rather than after the detection wait.
+      if (isDuplicate) {
+        uploadStatus = m.face_selfie_proof_msg();
+        return;
       }
 
       assetId = uploadedAssetId;

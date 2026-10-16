@@ -6,7 +6,9 @@ import { createLogger } from '$lib/server/logger';
 import { m } from '$lib/paraglide/messages';
 import { eraseLocalFaceData, inTransaction, runFaceErasures } from '$lib/server/face-erasure';
 import { isImpersonating } from '$lib/server/auth';
-import { recordFaceConsent } from '$lib/server/face-consent';
+import { recordFaceConsent, withdrawFaceConsent } from '$lib/server/face-consent';
+
+import { normalisePersonId, selfieProves } from '$lib/server/face-access';
 
 const log = createLogger('user-face');
 
@@ -17,6 +19,8 @@ const log = createLogger('user-face');
  * Body:
  * - person_id: string | null (required) - The person ID to associate
  * - user_id: string (optional, admin only) - Allows editing another user
+ * - selfie_asset_id: string - required when a MEMBER links a person other than their current
+ *   one: the selfie just uploaded, in which Immich found exactly that person (selfieProves)
  */
 export const PATCH: RequestHandler = async (event) => {
   const { request } = event;
@@ -29,6 +33,7 @@ export const PATCH: RequestHandler = async (event) => {
       person_id?: string | null;
       user_id?: string;
       photos_asset_id?: string | null;
+      selfie_asset_id?: unknown;
     };
 
     // A session-authenticated admin gets grantedScope 'read' here (requireScope
@@ -45,11 +50,20 @@ export const PATCH: RequestHandler = async (event) => {
       return json({ error: 'Unauthorized - no user identified' }, { status: 401 });
     }
 
-    const personId = body.person_id;
+    const rawPersonId = body.person_id;
 
-    if (personId !== null && (personId === undefined || typeof personId !== 'string')) {
+    if (rawPersonId !== null && (rawPersonId === undefined || typeof rawPersonId !== 'string')) {
       return json({ error: 'person_id is required and must be a string or null' }, { status: 400 });
     }
+
+    // One spelling of a person id (face-access.ts): the link IS what the photo rule trusts, so a
+    // second spelling of someone else's person must never be storable. An admin may still store
+    // a non-UUID test id as given; a member may not.
+    const normalised = rawPersonId === null ? null : normalisePersonId(rawPersonId);
+    if (rawPersonId !== null && !normalised && !isAdmin) {
+      return json({ error: 'person_id must be an Immich person id' }, { status: 400 });
+    }
+    const personId = rawPersonId === null ? null : (normalised ?? rawPersonId);
 
     // A member unlinking their OWN face is a WITHDRAWAL: the face data goes, not just the link
     // (face-erasure.ts). The local half is done here, the Immich half is journaled in the same
@@ -75,6 +89,29 @@ export const PATCH: RequestHandler = async (event) => {
     }
     if (personId === null) {
       log.info('face link removed by an admin, no erasure (correction)', { target: userId });
+    }
+
+    // A member links a NEW person only with the proof the selfie flow produces: a photo they just
+    // uploaded in which Immich found exactly that one person. Keeping their current person (the
+    // profile-photo change) needs no proof. Admins correct links by hand.
+    if (personId && !isAdmin) {
+      const current = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
+        photos_id: string | null;
+      } | null;
+      if (normalisePersonId(current?.photos_id) !== personId) {
+        const proof = await selfieProves(event.fetch, body.selfie_asset_id, personId, userId);
+        if (!proof.ok) {
+          log.warn('face link refused: no selfie proof', {
+            userId,
+            personId,
+            reason: proof.reason,
+          });
+          return json(
+            { error: 'selfie_proof_required', message: m.face_selfie_proof_msg() },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     if (personId) {
@@ -103,14 +140,16 @@ export const PATCH: RequestHandler = async (event) => {
       return json({ error: 'photos_asset_id must be a string or null' }, { status: 400 });
     }
 
-    const priorPerson = (
-      db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
-        photos_id: string | null;
-      } | null
-    )?.photos_id;
+    // A changed person invalidates the profile-photo pointer, which belongs to the previous one.
+    const before = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
+      photos_id: string | null;
+    } | null;
+    const personChanged = (before?.photos_id ?? null) !== personId;
     const stmt = setAsset
       ? db.prepare('UPDATE users SET photos_id = ?, photos_asset_id = ? WHERE id_user = ?')
-      : db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
+      : personChanged
+        ? db.prepare('UPDATE users SET photos_id = ?, photos_asset_id = NULL WHERE id_user = ?')
+        : db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
     const result = setAsset ? stmt.run(personId, assetId, userId) : stmt.run(personId, userId);
 
     if (result.changes === 0) {
@@ -119,13 +158,25 @@ export const PATCH: RequestHandler = async (event) => {
 
     // The link is the act of consent: record who, when, which terms, and how (a member's own
     // selfie, or an admin acting for them).
-    if (personId && priorPerson !== personId) {
-      recordFaceConsent(db, userId, auth.user?.id_user === userId ? 'selfie' : 'admin');
+    if (personChanged) {
+      // The old consent was for the old person (or the link is gone): close it, open the new one.
+      withdrawFaceConsent(db, userId);
+      if (personId) {
+        recordFaceConsent(db, userId, auth.user?.id_user === userId ? 'selfie' : 'admin');
+      }
     }
 
     return json({ success: true, person_id: personId });
   } catch (e) {
-    const err = e as Error;
+    const err = e as Error & { code?: string };
+    // The unique index on photos_id caught a concurrent link of the same person.
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      log.warn('face link refused: the person was linked concurrently');
+      return json(
+        { error: 'face_already_assigned', message: m.face_already_assigned_msg() },
+        { status: 409 }
+      );
+    }
     log.error('PATCH /api/users/me/face failed', { message: err.message, stack: err.stack });
     return json({ error: err.message }, { status: 500 });
   }

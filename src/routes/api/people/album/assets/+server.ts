@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
 import { addAssetsToAlbum, removeAssetsFromAlbum } from '$lib/photos-cv/handlers';
-import { requireScope } from '$lib/server/permissions';
+import { requirePhotoCvManager } from '$lib/server/face-access';
 
 /**
  * Bulk add/remove on the PhotoCV system album - the album id is resolved
@@ -20,13 +20,13 @@ async function readAssetIds(request: Request): Promise<string[]> {
 }
 
 export const PUT: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requirePhotoCvManager(event, 'write');
   const added = await addAssetsToAlbum(await readAssetIds(event.request), event.fetch);
   return json({ success: true, added });
 };
 
 export const DELETE: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requirePhotoCvManager(event, 'write');
   const removed = await removeAssetsFromAlbum(await readAssetIds(event.request), event.fetch);
   return json({ success: true, removed });
 };

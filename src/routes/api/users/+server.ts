@@ -4,6 +4,8 @@ import type { RequestHandler } from './$types';
 import { getDatabase } from '$lib/db/database';
 import { logEvent } from '$lib/server/logs';
 import { requireScope } from '$lib/server/permissions';
+import { resolveAdminPersonLink } from '$lib/server/face-access';
+import { recordFaceConsent } from '$lib/server/face-consent';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -55,7 +57,15 @@ export const POST: RequestHandler = async (event) => {
     const name = body.name ?? (legacyName || null);
     const role = body.role ?? 'user';
     const promo = body.promo ?? null;
-    const photos_id = body.photos_id ?? null;
+    // One spelling of a person id, never one another member holds (face-access.ts).
+    const link = resolveAdminPersonLink(body.photos_id, id_user ?? '');
+    if (!link.ok) {
+      return json(
+        { error: 'photos_id must be a person id that no other member holds' },
+        { status: 409 }
+      );
+    }
+    const photos_id = link.personId ?? null;
     const formation = body.formation ?? null;
 
     if (!id_user || !name) {
@@ -81,6 +91,9 @@ export const POST: RequestHandler = async (event) => {
       photos_id,
       formation
     );
+    if (photos_id) {
+      recordFaceConsent(db, id_user, 'admin');
+    }
     const created = db
       .prepare(
         `SELECT
