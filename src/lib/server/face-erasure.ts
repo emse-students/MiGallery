@@ -112,7 +112,10 @@ export function eraseLocalFaceData(
  * the log still says WHAT happened; it no longer says to whom.
  */
 export function anonymiseUserInLogs(db: Db, userId: string, personId: string | null): void {
-  const actor = db.prepare('UPDATE logs SET actor = ? WHERE actor = ?').run(DELETED_ID, userId);
+  // The address goes with the id: an IP and a timestamp identify a person as well as a name.
+  const actor = db
+    .prepare('UPDATE logs SET actor = ?, ip = NULL WHERE actor = ?')
+    .run(DELETED_ID, userId);
   const target = db
     .prepare(
       "UPDATE logs SET target_id = ?, details = NULL WHERE target_type = 'user' AND target_id = ?"
@@ -146,8 +149,9 @@ export function inTransaction<T>(db: Db, fn: () => T): T {
 
 /**
  * Delete account `userId` and everything that names it, in one transaction: its face data (the
- * Immich half journaled), its id in the audit log, then the row - whose foreign keys take its
- * sessions, favorites and remaining grants with it. Kicks the Immich half when there is one.
+ * Immich half journaled), its id and address in the audit log, its per-user album grants, then
+ * the row - whose foreign keys take its sessions, favorites and remaining grants with it. Kicks
+ * the Immich half when there is one.
  * Returns false when there was no such account.
  */
 export function deleteUserAccount(db: Db, userId: string): boolean {
@@ -160,6 +164,8 @@ export function deleteUserAccount(db: Db, userId: string): boolean {
     }
     const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
     anonymiseUserInLogs(db, userId, row.photos_id);
+    // Per-user album grants name the member and carry no foreign key, so they do not cascade.
+    db.prepare("DELETE FROM album_permissions WHERE kind = 'user' AND value = ?").run(userId);
     db.prepare('DELETE FROM users WHERE id_user = ?').run(userId);
     return { erasure };
   });
@@ -205,6 +211,46 @@ async function failure(res: Response, what: string): Promise<Error> {
   return new Error(`${what}: ${res.status} ${text.slice(0, 200)}`);
 }
 
+const SEARCH_PAGE = 500;
+const SEARCH_MAX_PAGES = 200;
+
+/** Every asset Immich lists for `personId`, trashed ones included. Throws if the cap is reached. */
+async function personAssets(
+  fetchFn: typeof fetch,
+  personId: string
+): Promise<Array<{ id: string }>> {
+  const assets = await searchAllAssets(
+    fetchFn,
+    { personIds: [personId], withDeleted: true },
+    { size: SEARCH_PAGE, maxPages: SEARCH_MAX_PAGES }
+  );
+  if (assets.length >= SEARCH_PAGE * SEARCH_MAX_PAGES) {
+    // The search stopped at its cap, so "everything" is not known: do not act as if it were.
+    throw new Error('person search reached its page cap');
+  }
+  return assets;
+}
+
+/** Delete, for good, every face on `assetId` that points at `personId`. Returns how many went. */
+async function deleteFacesOn(fetchFn: typeof fetch, assetId: string, personId: string) {
+  const facesRes = await immichCall(fetchFn, 'GET', `faces?id=${encodeURIComponent(assetId)}`);
+  if (!facesRes.ok) {
+    throw await failure(facesRes, `faces of asset ${assetId}`);
+  }
+  const faces = (await facesRes.json()) as ImmichFace[];
+  let deleted = 0;
+  for (const face of faces.filter((f) => f.person?.id === personId)) {
+    // force: delete the record (and the embedding it carries); without it Immich only hides it.
+    const del = await immichCall(fetchFn, 'DELETE', `faces/${face.id}`, { force: true });
+    if (del.ok) {
+      deleted++;
+    } else if (del.status !== 404) {
+      throw await failure(del, `delete face ${face.id}`);
+    }
+  }
+  return deleted;
+}
+
 /**
  * The Immich half for one person: delete every face record pointing at it, on every asset it
  * appears in (trashed ones included), then the person. Returns how it ended and how many faces
@@ -216,34 +262,31 @@ export async function eraseImmichPerson(
 ): Promise<{ outcome: 'erased' | 'absent'; facesDeleted: number }> {
   const person = await immichCall(fetchFn, 'GET', `people/${encodeURIComponent(personId)}`);
   if (person.status === 404 || person.status === 400) {
-    // 400 too: Immich validates the id before it looks it up.
+    // Immich answers 400 for "not found" AND for "no access", and a 404 may come from anything
+    // between us and it. "Absent" is therefore never believed on the status alone: it is
+    // believed only when a search by that person finds nothing either.
+    const left = await personAssets(fetchFn, personId);
+    if (left.length > 0) {
+      throw new Error(
+        `person lookup answered ${person.status} but ${left.length} asset(s) still show it`
+      );
+    }
     return { outcome: 'absent', facesDeleted: 0 };
   }
   if (!person.ok) {
     throw await failure(person, 'person lookup');
   }
 
-  const assets = await searchAllAssets(
-    fetchFn,
-    { personIds: [personId], withDeleted: true },
-    { size: 500, maxPages: 200 }
-  );
-
   let facesDeleted = 0;
-  for (const asset of assets) {
-    const facesRes = await immichCall(fetchFn, 'GET', `faces?id=${encodeURIComponent(asset.id)}`);
-    if (!facesRes.ok) {
-      throw await failure(facesRes, `faces of asset ${asset.id}`);
-    }
-    const faces = (await facesRes.json()) as ImmichFace[];
-    for (const face of faces.filter((f) => f.person?.id === personId)) {
-      // force: delete the record (and the embedding it carries), not just hide it.
-      const del = await immichCall(fetchFn, 'DELETE', `faces/${face.id}`, { force: true });
-      if (!del.ok && del.status !== 404) {
-        throw await failure(del, `delete face ${face.id}`);
-      }
-      facesDeleted++;
-    }
+  for (const asset of await personAssets(fetchFn, personId)) {
+    facesDeleted += await deleteFacesOn(fetchFn, asset.id, personId);
+  }
+
+  // Before the person goes, prove its faces did: deleting a person DETACHES whatever faces still
+  // point at it rather than deleting them, so a person deleted early would strand embeddings.
+  const remaining = await personAssets(fetchFn, personId);
+  if (remaining.length > 0) {
+    throw new Error(`${remaining.length} asset(s) still show the person after its faces went`);
   }
 
   const del = await immichCall(fetchFn, 'DELETE', `people/${encodeURIComponent(personId)}`, {});
@@ -254,17 +297,27 @@ export async function eraseImmichPerson(
 }
 
 let running: Promise<void> | null = null;
+let rerun = false;
 
 /**
- * Drive every pending erasure once. Concurrent calls share the run in progress. Never throws:
- * each row's failure is logged and recorded on that row, and the next row still runs.
+ * Drive every pending erasure. A call made while a run is in progress does not start a second
+ * one in parallel; it asks for ONE more pass after it, because the run in progress read the
+ * journal before the caller's row existed. Never throws: each row's failure is logged and
+ * recorded on that row, and the next row still runs.
  */
 export function runFaceErasures(fetchFn: typeof fetch = fetch): Promise<void> {
-  if (!running) {
-    running = runOnce(fetchFn).finally(() => {
-      running = null;
-    });
+  if (running) {
+    rerun = true;
+    return running;
   }
+  running = (async () => {
+    do {
+      rerun = false;
+      await runOnce(fetchFn);
+    } while (rerun);
+  })().finally(() => {
+    running = null;
+  });
   return running;
 }
 
@@ -298,9 +351,14 @@ async function runOnce(fetchFn: typeof fetch): Promise<void> {
          WHERE id = ?`
       ).run(now, result.outcome, now, result.facesDeleted, row.id);
       if (result.outcome === 'relinked') {
-        // A member linked that person again (with a fresh consent) before the erasure ran.
-        log.warn('face erasure skipped: the person is linked again', { erasure: row.id });
+        // The link path refuses a person with a pending erasure, so this is a row older than that
+        // rule, or a duplicate link: never erase a person a member holds.
+        log.warn('face erasure skipped: the person is linked to a member', { erasure: row.id });
       } else {
+        if (personId) {
+          // Crops may have been regenerated while the person still existed in Immich.
+          deletePersonFaceCrops(personId);
+        }
         log.info('face erasure done', {
           erasure: row.id,
           outcome: result.outcome,
@@ -360,4 +418,15 @@ export function startFaceErasureWorker(): void {
   setTimeout(tick, 30_000);
   setInterval(tick, RETRY_INTERVAL_MS);
   log.info('face erasure worker started');
+}
+
+/**
+ * Whether Immich person `personId` has an erasure still owed. The link path refuses such a
+ * person: linking it would make the erasure stand down ("relinked") and leave the withdrawn
+ * member's faces attached to another account.
+ */
+export function hasPendingErasure(db: Db, personId: string): boolean {
+  return !!db
+    .prepare('SELECT 1 FROM face_erasures WHERE person_id = ? AND done_at IS NULL')
+    .get(personId);
 }

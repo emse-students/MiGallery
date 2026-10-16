@@ -4,6 +4,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireSession } from '$lib/server/permissions';
 import { clearSessionCookie } from '$lib/session';
 import { deleteUserAccount } from '$lib/server/face-erasure';
+import { isImpersonating } from '$lib/server/auth';
 
 import { createLogger } from '$lib/server/logger';
 
@@ -63,6 +64,11 @@ export const DELETE: RequestHandler = async (event) => {
 
   try {
     const user = await requireSession(event);
+    // Irreversible: an admin "acting as" the member cannot delete the account for them.
+    if (isImpersonating(event)) {
+      log.warn('account deletion refused while impersonating');
+      return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+    }
     const db = getDatabase();
 
     if (user.id_user === SYSTEM_USER_ID) {

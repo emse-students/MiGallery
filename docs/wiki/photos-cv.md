@@ -45,37 +45,60 @@ Endpoints:
 
 ## Erasure
 
-Withdrawing the face link (`PATCH /api/users/me/face` with `person_id: null`) and
-deleting an account (`DELETE /api/users/me`, or an admin's `DELETE
-/api/users/[id]`) erase the face data, not just the link. The code is
-`src/lib/server/face-erasure.ts`, pinned by `tests/face-erasure.test.ts`.
+A member withdrawing their OWN face link (`PATCH /api/users/me/face` with
+`person_id: null`) and deleting an account (`DELETE /api/users/me`, or an
+admin's `DELETE /api/users/[id]`) erase the face data, not just the link. The
+code is `src/lib/server/face-erasure.ts`, pinned by `tests/face-erasure.test.ts`.
 
-**In the request, in one SQLite transaction** (cannot fail halfway):
+Two cases deliberately do NOT erase:
+
+- **an admin (or an API key) unlinking someone else** through the same endpoint
+  with `user_id`: that is the correction of a wrong association, and the person
+  may be another human's. It only unlinks.
+- **anything done while impersonating**: a withdrawal or an account deletion
+  is irreversible, so an admin "acting as" the member gets a 403.
+
+**In the request, in one SQLite transaction:**
 
 - `photos_id` and `photos_asset_id` set to NULL. `photos_asset_id` is the
   gallery photo chosen as profile picture, an archive photo - it is unlinked,
   never deleted.
 - every `photo_access_permissions` row naming the member, both directions;
-- the on-disk face crops of that person (`data/cache/faces/*_<personId>.webp`);
 - account deletion only: the member's id in `logs` becomes `[deleted]` (as
-  actor, and as target of a `user` or `person` event, whose details are cleared),
-  then the `users` row goes and its foreign keys take sessions and favorites;
+  actor - with the row's `ip` cleared - and as target of a `user` or `person`
+  event, whose details are cleared), their `album_permissions` rows of kind
+  `user` (no foreign key, so no cascade) go, then the `users` row goes and its
+  foreign keys take sessions and favorites;
 - a `face_erasures` row naming the Immich person (never the member).
 
+The on-disk crops of that person (`data/cache/faces/*_<personId>.webp`) are
+deleted in the same request - files, so outside the transaction - and again
+when the Immich half completes, since they can be regenerated meanwhile.
+
 **Then in Immich, from the journal** (can fail, so it is retried):
-`GET /api/people/{id}` (absent = done), every asset showing the person
-(`search/metadata`, `withDeleted: true`), `DELETE /api/faces/{faceId}` with
-`force: true` for each face record still pointing at the person - the record
-holds the face's embedding - then `DELETE /api/people/{id}`. The person is
-deleted only after all its faces, so a run cut short is resumed by the next
-one from what Immich still holds. The request kicks a run at once; the worker
-(`startFaceErasureWorker`, `hooks.server.ts`) retries every 15 minutes and on
-start. Each failed attempt is logged as an error and recorded on its row
-(`attempts`, `last_error`); every row still pending 24 h after it was asked is
-logged as `face erasure OVERDUE` on every run until it completes. Once done the
-row keeps only its outcome (`erased`, `absent`, or `relinked` when a member
-linked that person again before the run, which is then NOT erased) and drops
-the person id.
+
+1. `GET /api/people/{id}`. Immich answers 400 both for "not found" and for "no
+   access", so "absent" is believed only when a search by that person ALSO
+   finds nothing; otherwise the attempt fails.
+2. Every asset showing the person (`search/metadata`, `withDeleted: true`):
+   `GET /api/faces?id=<asset>`, then `DELETE /api/faces/{faceId}` with
+   `force: true` (a hard delete of the record and its embedding) for each face
+   pointing at the person.
+3. The search again: if any asset still shows the person, the attempt fails -
+   the person is NOT deleted, because deleting a person detaches its remaining
+   faces (embeddings kept) instead of deleting them.
+4. `DELETE /api/people/{id}`.
+
+A person with an erasure still owed cannot be linked by anyone (409
+`face_erasure_pending`): linking it would make the erasure stand down. A row
+whose person is nonetheless linked to a member (one older than that rule) ends
+`relinked`, without erasing. The request kicks a run at once (a run already in
+progress makes one more pass); the worker (`startFaceErasureWorker`,
+`hooks.server.ts`) retries every 15 minutes and on start. Each failed attempt
+is logged as an error and recorded on its row (`attempts`, `last_error`); every
+row still pending 24 h after it was asked is logged as `face erasure OVERDUE` on
+every run until it completes. Once done the row keeps only its outcome
+(`erased`, `absent` or `relinked`) and drops the person id.
 
 The selfie used to link a face is deleted by the browser right after
 detection, with `force: true` so it skips Immich's trash. That deletion is
@@ -83,13 +106,22 @@ client-side: a tab closed in the middle of the detection leaves it in Immich.
 
 **What erasure does not reach**, and the terms must say so:
 
-- **Backups.** The in-app snapshots under `data/backups/` (last 10, daily), the
-  off-site MiGallery copies (14 days) and the off-site Immich database dumps
-  (7 days, `scripts/backup-offsite.sh`) keep the data until they rotate out.
-  Immich's own local dump retention is an Immich setting, not read from here.
-- **Faces Immich detects again.** A FULL re-run of Immich's face detection job
-  re-detects every face on every asset and would create new records (and a new
-  unnamed person) for that member. The incremental runs only process new assets.
+- **Backups.** The local snapshots under `data/backups/` (the last 10 kept,
+  daily), the off-site MiGallery copies (about 14 days) and the off-site Immich
+  database dumps (about 7 days, `scripts/backup-offsite.sh`, pruned by file age)
+  keep the data until they rotate out. Immich's own local dump retention is an
+  Immich setting, not read from here.
+- **Faces Immich does not list.** `GET /api/faces` returns visible faces only.
+  If the search keeps finding the person after the visible ones went, the
+  erasure stays pending and goes OVERDUE - an admin must look in Immich.
+- **Other clusters of the same human.** Immich often splits one person into
+  several clusters; only the one linked to the member is erased. The others are
+  unnamed and linked to nobody, so only an admin can read them, but they hold
+  that member's faces.
+- **A person merged away in Immich.** Its id stops existing and its faces live on
+  in the person it was merged into, which this erasure never names.
+- **Faces Immich detects again.** A full re-run of Immich's face detection job
+  re-detects every face and would create new records for that member.
 - **Photos.** The member's appearances in event photos stay in the archive; only
   the face records that tied them together are removed.
 - **The Immich API key's rights.** The calls need the key to hold the face and

@@ -4,7 +4,13 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
 import { m } from '$lib/paraglide/messages';
-import { eraseLocalFaceData, inTransaction, runFaceErasures } from '$lib/server/face-erasure';
+import {
+  eraseLocalFaceData,
+  hasPendingErasure,
+  inTransaction,
+  runFaceErasures,
+} from '$lib/server/face-erasure';
+import { isImpersonating } from '$lib/server/auth';
 
 const log = createLogger('user-face');
 
@@ -49,9 +55,17 @@ export const PATCH: RequestHandler = async (event) => {
       return json({ error: 'person_id is required and must be a string or null' }, { status: 400 });
     }
 
-    // Unlinking is a WITHDRAWAL: the face data goes, not just the link (face-erasure.ts). The
-    // local half is done here, the Immich half is journaled in the same transaction and run now.
-    if (personId === null) {
+    // A member unlinking their OWN face is a WITHDRAWAL: the face data goes, not just the link
+    // (face-erasure.ts). The local half is done here, the Immich half is journaled in the same
+    // transaction and run now. An admin (or an API key) unlinking SOMEONE ELSE is a correction of a
+    // wrong association - the person may be another human's - so it only unlinks, below.
+    const selfService = !!auth.user && userId === auth.user.id_user;
+    if (personId === null && selfService) {
+      // Erasure is irreversible: an admin "acting as" the member cannot withdraw for them.
+      if (isImpersonating(event)) {
+        log.warn('face withdrawal refused while impersonating');
+        return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+      }
       const exists = db.prepare('SELECT 1 FROM users WHERE id_user = ?').get(userId);
       if (!exists) {
         return json({ error: 'User not found' }, { status: 404 });
@@ -60,8 +74,20 @@ export const PATCH: RequestHandler = async (event) => {
       if (erasure !== null) {
         void runFaceErasures();
       }
-      log.info('face link withdrawn', { erasureJournaled: erasure !== null, byAdmin: isAdmin });
+      log.info('face link withdrawn', { erasureJournaled: erasure !== null });
       return json({ success: true, person_id: null });
+    }
+    if (personId === null) {
+      log.info('face link removed by an admin, no erasure (correction)', { target: userId });
+    }
+
+    // A person whose erasure is still owed cannot be linked: the erasure would stand down and the
+    // withdrawn member's faces would stay, attached to this account.
+    if (personId && hasPendingErasure(db, personId)) {
+      return json(
+        { error: 'face_erasure_pending', message: m.face_erasure_pending_msg() },
+        { status: 409 }
+      );
     }
 
     if (personId) {

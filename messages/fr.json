@@ -328,6 +328,7 @@
   "param_type_confirm_placeholder": "Tapez CONFIRMATION",
   "param_unlink_confirm": "Vous perdrez l'accès à la page \"Mes photos\". Votre compte restera actif.",
   "face_already_assigned_msg": "Ce visage a déjà été assigné à un autre compte. Si ce n'est pas le vôtre, merci de contacter bureau@mitv.fr",
+  "face_erasure_pending_msg": "Ce visage est encore en cours d'effacement après un retrait. Merci de réessayer plus tard, ou de contacter bureau@mitv.fr",
   "param_face_taken_title": "Visage déjà associé",
   "param_face_taken_body": "Ce visage est déjà assigné à un autre compte. Contactez le bureau MiTV si c'est une erreur.",
   "param_no_immich_link": "Vous n'êtes pas lié à une personne Immich.",

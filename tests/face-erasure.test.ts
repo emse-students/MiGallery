@@ -30,16 +30,31 @@ const FACE_DIR = path.resolve('data/cache/faces');
 
 type Call = { method: string; url: string; body?: unknown };
 
-/** A scripted Immich: two assets show PERSON, one of them also shows OTHER_PERSON. */
-function scriptedImmich(opts: { failFaceDelete?: boolean } = {}) {
+/**
+ * A scripted Immich holding two assets that show PERSON, one of them also OTHER_PERSON. It keeps
+ * state: a deleted face is gone from the next listing and from the next search.
+ * - personStatus: what GET /people/{PERSON} answers (200, or the 400 Immich gives for "not found")
+ * - hiddenFace: a face of PERSON that /faces never lists (Immich lists visible faces only), so
+ *   the search keeps finding its asset
+ */
+function scriptedImmich(
+  opts: {
+    failFaceDelete?: boolean;
+    personStatus?: number;
+    hiddenFace?: boolean;
+    empty?: boolean;
+  } = {}
+) {
   const calls: Call[] = [];
-  const faces: Record<string, Array<{ id: string; person: { id: string } }>> = {
-    a1: [
-      { id: 'f1', person: { id: PERSON } },
-      { id: 'f2', person: { id: OTHER_PERSON } },
-    ],
-    a2: [{ id: 'f3', person: { id: PERSON } }],
-  };
+  const faces: Record<string, Array<{ id: string; person: { id: string } }>> = opts.empty
+    ? {}
+    : {
+        a1: [
+          { id: 'f1', person: { id: PERSON } },
+          { id: 'f2', person: { id: OTHER_PERSON } },
+        ],
+        a2: [{ id: 'f3', person: { id: PERSON } }],
+      };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
@@ -50,20 +65,32 @@ function scriptedImmich(opts: { failFaceDelete?: boolean } = {}) {
         status,
         headers: { 'content-type': 'application/json' },
       });
-    if (url.endsWith(`/api/people/${PERSON}`) && method === 'GET') {
-      return json({ id: PERSON });
+    if (/\/api\/people\/[\w-]+$/.test(url) && method === 'GET') {
+      const status = opts.personStatus ?? 200;
+      return json(status === 200 ? { id: PERSON } : { message: 'Not found or no access' }, status);
     }
     if (url.endsWith('/api/search/metadata')) {
-      return json({ assets: { items: [{ id: 'a1' }, { id: 'a2' }], nextPage: null } });
+      const showing = Object.keys(faces).filter((a) =>
+        faces[a].some((f) => f.person.id === PERSON)
+      );
+      if (opts.hiddenFace) {
+        showing.push('a9');
+      }
+      return json({ assets: { items: showing.map((id) => ({ id })), nextPage: null } });
     }
     const facesOf = url.match(/\/api\/faces\?id=(\w+)/);
     if (facesOf) {
       return json(faces[facesOf[1]] ?? []);
     }
-    if (/\/api\/faces\/\w+$/.test(url) && method === 'DELETE') {
-      return opts.failFaceDelete
-        ? json({ message: 'boom' }, 500)
-        : new Response(null, { status: 204 });
+    const faceDel = url.match(/\/api\/faces\/(\w+)$/);
+    if (faceDel && method === 'DELETE') {
+      if (opts.failFaceDelete) {
+        return json({ message: 'boom' }, 500);
+      }
+      for (const a of Object.keys(faces)) {
+        faces[a] = faces[a].filter((f) => f.id !== faceDel[1]);
+      }
+      return new Response(null, { status: 204 });
     }
     if (url.endsWith(`/api/people/${PERSON}`) && method === 'DELETE') {
       return new Response(null, { status: 204 });
@@ -242,5 +269,80 @@ describe('the Immich half', () => {
     add.run(PERSON, now - erasure.ERASURE_OVERDUE_MS - 1000);
     add.run(OTHER_PERSON, now - 1000);
     expect(erasure.reportOverdue(db, now)).toBe(1);
+  });
+});
+
+describe('what the review asked to pin', () => {
+  it('believes "absent" only when a search by the person finds nothing either', async () => {
+    addUser('owner', PERSON);
+    const db = database.getDatabase();
+    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
+
+    // 400 while assets still show the person: Immich refused access, it did not say "gone".
+    await erasure.runFaceErasures(scriptedImmich({ personStatus: 400 }).fetchFn);
+    expect(journal()).toMatchObject([{ done_at: null, attempts: 1 }]);
+
+    await erasure.runFaceErasures(scriptedImmich({ personStatus: 400, empty: true }).fetchFn);
+    expect(journal()).toMatchObject([{ outcome: 'absent', person_id: null }]);
+  });
+
+  it('never deletes the person while a face Immich will not list still points at it', async () => {
+    addUser('owner', PERSON);
+    const db = database.getDatabase();
+    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
+    const immich = scriptedImmich({ hiddenFace: true });
+
+    await erasure.runFaceErasures(immich.fetchFn);
+
+    expect(immich.calls.some((c) => c.method === 'DELETE' && c.url.includes('/people/'))).toBe(
+      false
+    );
+    expect(journal()).toMatchObject([{ done_at: null }]);
+    expect(String(journal()[0].last_error)).toContain('still show the person');
+  });
+
+  it('a person with an erasure owed is reported as such, so the link path can refuse it', () => {
+    addUser('owner', PERSON);
+    const db = database.getDatabase();
+    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
+    expect(erasure.hasPendingErasure(db, PERSON)).toBe(true);
+    expect(erasure.hasPendingErasure(db, OTHER_PERSON)).toBe(false);
+  });
+
+  it('an account deletion also drops its per-user album grants and its addresses in the log', async () => {
+    addUser('leaver', null);
+    const db = database.getDatabase();
+    db.prepare("INSERT INTO albums (id, name) VALUES ('alb-r', 'A')").run();
+    const grant = db.prepare(
+      "INSERT INTO album_permissions (album_id, kind, value) VALUES ('alb-r', ?, ?)"
+    );
+    grant.run('user', 'leaver');
+    grant.run('promo', '2024');
+    db.prepare(
+      "INSERT INTO logs (actor, event_type, ip) VALUES ('leaver', 'login', '203.0.113.9')"
+    ).run();
+
+    expect(erasure.deleteUserAccount(db, 'leaver')).toBe(true);
+
+    expect(db.prepare('SELECT kind FROM album_permissions').all()).toEqual([{ kind: 'promo' }]);
+    expect(db.prepare('SELECT actor, ip FROM logs').all()).toEqual([
+      { actor: '[deleted]', ip: null },
+    ]);
+    db.prepare("DELETE FROM albums WHERE id = 'alb-r'").run();
+  });
+
+  it('a run asked for while one is in progress makes one more pass, so a new row is not left waiting', async () => {
+    addUser('first', PERSON);
+    addUser('second', OTHER_PERSON);
+    const db = database.getDatabase();
+    erasure.eraseLocalFaceData(db, 'first', 'withdrawal');
+    const immich = scriptedImmich({ empty: true, personStatus: 400 });
+
+    const inProgress = erasure.runFaceErasures(immich.fetchFn);
+    erasure.eraseLocalFaceData(db, 'second', 'withdrawal');
+    void erasure.runFaceErasures(immich.fetchFn);
+    await inProgress;
+
+    expect(journal().every((r) => r.done_at !== null)).toBe(true);
   });
 });
