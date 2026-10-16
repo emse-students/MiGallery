@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '${MIGALLERY_HOST_PORT:-3000}:3000'
+      - '127.0.0.1:${MIGALLERY_HOST_PORT:-3000}:3000'
     environment:
       PORT: '3000'
       NODE_ENV: production
