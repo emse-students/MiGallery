@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const state = { visibility: undefined as string | undefined, members: [] as string[] };
+const state = {
+  visibility: undefined as string | undefined,
+  members: [] as string[],
+  fail: false,
+};
 const requireScope = vi.fn();
 
 vi.mock('$env/dynamic/private', () => ({
@@ -14,7 +18,12 @@ vi.mock('$lib/db/database', () => ({
   }),
 }));
 vi.mock('$lib/immich/album-assets', () => ({
-  fetchAlbumAssets: async () => state.members.map((id) => ({ id })),
+  fetchAlbumAssets: async () => {
+    if (state.fail) {
+      throw new Error('immich down');
+    }
+    return state.members.map((id) => ({ id }));
+  },
 }));
 vi.mock('$lib/server/permissions', () => ({
   requireScope: (...a: unknown[]) => requireScope(...a),
@@ -39,6 +48,7 @@ beforeEach(() => {
   clearAlbumMembershipCache();
   state.visibility = undefined;
   state.members = [];
+  state.fail = false;
 });
 
 describe('requireAlbumAssetAccess', () => {
@@ -65,6 +75,27 @@ describe('requireAlbumAssetAccess', () => {
     await expect(requireAlbumAssetAccess(event, 'alb', 'other')).rejects.toThrow(
       'requires a session'
     );
+  });
+});
+
+describe('requireAlbumAssetAccess failure modes', () => {
+  it('fails closed when Immich is down', async () => {
+    state.visibility = 'unlisted';
+    state.fail = true;
+    await expect(requireAlbumAssetAccess(event, 'alb', 'a1')).rejects.toThrow('requires a session');
+  });
+
+  it('does not cache an empty list, so the next request can succeed', async () => {
+    state.visibility = 'unlisted';
+    await expect(requireAlbumAssetAccess(event, 'alb', 'a1')).rejects.toThrow('requires a session');
+    state.members = ['a1'];
+    await expect(requireAlbumAssetAccess(event, 'alb', 'a1')).resolves.toBeUndefined();
+  });
+
+  it('reads the visibility case-insensitively, like the album page does', async () => {
+    state.visibility = 'Unlisted';
+    state.members = ['a1'];
+    await expect(requireAlbumAssetAccess(event, 'alb', 'a1')).resolves.toBeUndefined();
   });
 });
 
