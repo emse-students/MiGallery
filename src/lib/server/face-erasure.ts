@@ -34,6 +34,7 @@ import { createLogger } from '$lib/server/logger';
 import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
 import { searchAllAssets } from '$lib/server/immich-search';
 import { deletePersonFaceCrops } from '$lib/server/face-crop';
+import { withdrawFaceConsent } from '$lib/server/face-consent';
 
 const log = createLogger('face-erasure');
 
@@ -84,6 +85,8 @@ export function eraseLocalFaceData(
     userId,
     userId
   );
+
+  withdrawFaceConsent(db, userId);
 
   if (!personId) {
     log.info('face data erased locally, no Immich person was linked', { reason });

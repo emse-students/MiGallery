@@ -43,6 +43,15 @@ Endpoints:
 - `/api/people/person/[id]/my-photos` and `/album-photos` - a person's photos,
   enforced against the consent table.
 
+## Consent record
+
+`face_consents` (see [data-model.md](data-model.md)) holds one row per consent: who, when, the
+terms version (`TERMS_VERSION`, the one value the `/cgu` page also shows) and the source.
+`PATCH /api/users/me/face` writes it when a person is newly linked (`selfie` for the member,
+`admin` when an admin links for them); `ensureSchema` backfills `legacy` rows for every link that
+exists without one, idempotently. Withdrawal closes the row (`withdrawn_at`) and keeps it. There is
+no explicit consent step in the settings UI yet: the link is the recorded act.
+
 ## Erasure
 
 **The contract (owner decision 2026-10-16).** Immich groups EVERY face into anonymous clusters

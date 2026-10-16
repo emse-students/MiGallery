@@ -140,3 +140,20 @@ CREATE TABLE IF NOT EXISTS face_erasures (
     outcome TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_face_erasures_pending ON face_erasures(done_at);
+
+-- Face consents: the record that a member agreed to link their face to their account, with when,
+-- under which version of the terms (src/lib/legal.ts TERMS_VERSION) and HOW. source:
+-- 'selfie' (the member linked a person from their own selfie), 'admin' (an admin linked it for
+-- them) or 'legacy' (the link existed before this table: the consent was obtained by another
+-- means, the owner keeps that proof, and created_at is the backfill date, NOT the consent date).
+-- A withdrawal sets withdrawn_at and keeps the row; an account deletion takes it by cascade.
+CREATE TABLE IF NOT EXISTS face_consents (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    version TEXT NOT NULL,
+    source TEXT NOT NULL,
+    withdrawn_at INTEGER,
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);

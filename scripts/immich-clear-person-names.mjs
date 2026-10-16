@@ -22,16 +22,16 @@ if (!base || !key) {
 }
 
 const call = async (method, path, body) => {
-  const res = await fetch(`${base}/api/${path}`, {
+  const init = {
     method,
     signal: AbortSignal.timeout(30_000),
-    headers: {
-      'x-api-key': key,
-      Accept: 'application/json',
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+    headers: { 'x-api-key': key, Accept: 'application/json' },
+  };
+  if (body !== undefined) {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetch(`${base}/api/${path}`, init);
   if (!res.ok) {
     throw new Error(`${method} ${path}: ${res.status} ${(await res.text()).slice(0, 200)}`);
   }

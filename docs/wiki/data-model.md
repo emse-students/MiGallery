@@ -54,6 +54,15 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+### `face_consents`
+
+`face_consents(id, user_id, created_at, version, source, withdrawn_at)` - the record that a
+member agreed to link their face: when, under which terms version (`src/lib/legal.ts`
+`TERMS_VERSION`) and how (`selfie`, `admin`, or `legacy` for a link that predates the table,
+backfilled at start; its `created_at` is the backfill date, not the consent date - the owner holds
+that proof). A withdrawal sets `withdrawn_at`; an account deletion cascades. See
+[photos-cv.md](photos-cv.md#consent-record).
+
 ### `face_erasures`
 
 `face_erasures(id, person_id, reason, requested_at, attempts, last_attempt_at,

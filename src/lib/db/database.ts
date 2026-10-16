@@ -2,6 +2,7 @@ import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { createRequire } from 'module';
 import { createLogger } from '$lib/server/logger';
+import { backfillLegacyConsents } from '$lib/server/face-consent';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
 const log = createLogger('db');
@@ -198,6 +199,9 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
     if (!cols.includes('photos_asset_id')) {
       dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_asset_id TEXT').run();
     }
+    // Links that predate the consent table were consented to by another means (owner decision
+    // 2026-10-16): one `legacy` row each, the owner keeps the proof.
+    backfillLegacyConsents(dbInstance as never);
     try {
       const acols = dbInstance
         .prepare('PRAGMA table_info(albums)')

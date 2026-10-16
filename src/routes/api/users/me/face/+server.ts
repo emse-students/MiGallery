@@ -6,6 +6,7 @@ import { createLogger } from '$lib/server/logger';
 import { m } from '$lib/paraglide/messages';
 import { eraseLocalFaceData, inTransaction, runFaceErasures } from '$lib/server/face-erasure';
 import { isImpersonating } from '$lib/server/auth';
+import { recordFaceConsent } from '$lib/server/face-consent';
 
 const log = createLogger('user-face');
 
@@ -102,6 +103,11 @@ export const PATCH: RequestHandler = async (event) => {
       return json({ error: 'photos_asset_id must be a string or null' }, { status: 400 });
     }
 
+    const priorPerson = (
+      db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
+        photos_id: string | null;
+      } | null
+    )?.photos_id;
     const stmt = setAsset
       ? db.prepare('UPDATE users SET photos_id = ?, photos_asset_id = ? WHERE id_user = ?')
       : db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?');
@@ -109,6 +115,12 @@ export const PATCH: RequestHandler = async (event) => {
 
     if (result.changes === 0) {
       return json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // The link is the act of consent: record who, when, which terms, and how (a member's own
+    // selfie, or an admin acting for them).
+    if (personId && priorPerson !== personId) {
+      recordFaceConsent(db, userId, auth.user?.id_user === userId ? 'selfie' : 'admin');
     }
 
     return json({ success: true, person_id: personId });
