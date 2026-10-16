@@ -11,8 +11,11 @@ rules, not prose:
   member consents. **Change it, and only it, when the terms change in substance.**
 - **Every claim on the page must be one the repository can back.** The page names
   the controller (the association MiTV, `bureau@mitv.fr`), the recipients
-  (MiConnect on the School's shared server, Cloudflare in transit, a second server
-  on the same LAN for backups), a legal basis per data item, the retentions, the
+  (Cloudflare in transit, the Canari project's server `canari@10.0.0.3` on the same LAN
+  for the backups named in `scripts/backup-offsite.sh`; MiConnect is described only as a separate
+  service with its own terms, because nothing in this repository says where it runs), who else
+  reads face-linked sets (administrators and admin-issued API keys), what is public (unlisted
+  albums by link, album cover images), a legal basis per data item, the retentions, the
   rights, and the minimum age (15, the age at which a minor consents alone in
   France). Where a number comes from code it is that code's: logs 90 days
   (`LOG_RETENTION_DAYS`, `src/lib/server/logs.ts`), backups from
@@ -29,3 +32,9 @@ but not the anonymous cluster, which is deleted on request.
 Two UI strings repeat these claims and must move with them:
 `param_face_note_*` (what happens to the selfie) and `param_unlink_face_desc`
 (what unlinking does).
+
+**What the page must NOT assert** because the repository cannot back it: where the server
+physically stands, and who administers MiConnect's host. The association's postal address appears as
+the controller's address only. The consent origins are three (`selfie`, `admin`, `legacy`): the page
+must not say every link is the member's own selfie. The log scrub covers the member's id as actor,
+as target and inside `details`, and the IP of the rows they acted in - no more.
