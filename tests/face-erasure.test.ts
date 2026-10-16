@@ -4,9 +4,9 @@
  *
  * What it pins: withdrawing a face or deleting an account removes the LOCAL face data in the
  * request, journals the Immich half in the same transaction, and the journal drives Immich to
- * "no face record and no person left" - retrying a refusal instead of dropping it, and refusing
- * to erase a person a member has linked again. Before this, withdrawal only nulled `photos_id`
- * and an account deletion only deleted the row: every face record stayed in Immich.
+ * "the person carries no name and no birth date" - retrying a refusal instead of dropping it. The
+ * anonymous cluster and its faces stay (owner decision 2026-10-16). Before this, withdrawal only
+ * nulled `photos_id` and an account deletion only deleted the row.
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
@@ -26,35 +26,33 @@ let dbDir: string;
 
 const PERSON = 'bbbbbbbb-0000-4000-8000-000000000001';
 const OTHER_PERSON = 'bbbbbbbb-0000-4000-8000-000000000002';
+const PERSON_URL = /\/api\/people\/[\w-]+$/;
 const FACE_DIR = path.resolve('data/cache/faces');
 
 type Call = { method: string; url: string; body?: unknown };
 
 /**
- * A scripted Immich holding two assets that show PERSON, one of them also OTHER_PERSON. It keeps
- * state: a deleted face is gone from the next listing and from the next search.
+ * A scripted Immich holding one named person. It keeps state: a PUT changes the name.
  * - personStatus: what GET /people/{PERSON} answers (200, or the 400 Immich gives for "not found")
- * - hiddenFace: a face of PERSON that /faces never lists (Immich lists visible faces only), so
- *   the search keeps finding its asset
+ * - refusePut: the PUT is refused with a 500
+ * - ignorePut: the PUT answers 200 but changes nothing (a write that did not take)
+ * - empty: no asset shows the person (so a 400 really means "gone")
  */
 function scriptedImmich(
   opts: {
-    failFaceDelete?: boolean;
+    refusePut?: boolean;
+    ignorePut?: boolean;
     personStatus?: number;
-    hiddenFace?: boolean;
     empty?: boolean;
+    named?: boolean;
   } = {}
 ) {
   const calls: Call[] = [];
-  const faces: Record<string, Array<{ id: string; person: { id: string } }>> = opts.empty
-    ? {}
-    : {
-        a1: [
-          { id: 'f1', person: { id: PERSON } },
-          { id: 'f2', person: { id: OTHER_PERSON } },
-        ],
-        a2: [{ id: 'f3', person: { id: PERSON } }],
-      };
+  const person = {
+    id: PERSON,
+    name: opts.named === false ? '' : 'Alice Martin',
+    birthDate: opts.named === false ? null : '2001-02-03',
+  };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
@@ -65,39 +63,26 @@ function scriptedImmich(
         status,
         headers: { 'content-type': 'application/json' },
       });
-    if (/\/api\/people\/[\w-]+$/.test(url) && method === 'GET') {
+    if (PERSON_URL.test(url) && method === 'GET') {
       const status = opts.personStatus ?? 200;
-      return json(status === 200 ? { id: PERSON } : { message: 'Not found or no access' }, status);
+      return json(status === 200 ? person : { message: 'Not found or no access' }, status);
     }
-    if (url.endsWith('/api/search/metadata')) {
-      const showing = Object.keys(faces).filter((a) =>
-        faces[a].some((f) => f.person.id === PERSON)
-      );
-      if (opts.hiddenFace) {
-        showing.push('a9');
-      }
-      return json({ assets: { items: showing.map((id) => ({ id })), nextPage: null } });
-    }
-    const facesOf = url.match(/\/api\/faces\?id=(\w+)/);
-    if (facesOf) {
-      return json(faces[facesOf[1]] ?? []);
-    }
-    const faceDel = url.match(/\/api\/faces\/(\w+)$/);
-    if (faceDel && method === 'DELETE') {
-      if (opts.failFaceDelete) {
+    if (PERSON_URL.test(url) && method === 'PUT') {
+      if (opts.refusePut) {
         return json({ message: 'boom' }, 500);
       }
-      for (const a of Object.keys(faces)) {
-        faces[a] = faces[a].filter((f) => f.id !== faceDel[1]);
+      if (!opts.ignorePut) {
+        person.name = body.name;
+        person.birthDate = body.birthDate;
       }
-      return new Response(null, { status: 204 });
+      return json(person);
     }
-    if (url.endsWith(`/api/people/${PERSON}`) && method === 'DELETE') {
-      return new Response(null, { status: 204 });
+    if (url.endsWith('/api/search/metadata')) {
+      return json({ assets: { items: opts.empty ? [] : [{ id: 'a1' }], nextPage: null } });
     }
     return json({ message: 'unexpected' }, 418);
   }) as typeof fetch;
-  return { calls, fetchFn };
+  return { calls, fetchFn, person };
 }
 
 function addUser(id: string, photosId: string | null) {
@@ -208,7 +193,7 @@ describe('the local half', () => {
 });
 
 describe('the Immich half', () => {
-  it('deletes exactly the faces of that person, then the person, and forgets its id', async () => {
+  it('clears the name and the birth date, reads them back, keeps the cluster, forgets the id', async () => {
     addUser('owner', PERSON);
     const db = database.getDatabase();
     erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
@@ -216,30 +201,33 @@ describe('the Immich half', () => {
 
     await erasure.runFaceErasures(immich.fetchFn);
 
-    const deletes = immich.calls.filter((c) => c.method === 'DELETE').map((c) => c.url);
-    expect(deletes).toEqual([
-      'http://immich.test/api/faces/f1',
-      'http://immich.test/api/faces/f3',
-      `http://immich.test/api/people/${PERSON}`,
+    expect(immich.person).toMatchObject({ name: '', birthDate: null });
+    expect(immich.calls.filter((c) => c.method === 'PUT').map((c) => c.body)).toEqual([
+      { name: '', birthDate: null },
     ]);
-    expect(immich.calls.find((c) => c.url.endsWith('/faces/f1'))?.body).toEqual({ force: true });
-    const search = immich.calls.find((c) => c.url.endsWith('/search/metadata'));
-    expect(search?.body).toMatchObject({ personIds: [PERSON], withDeleted: true });
+    // The cluster stays: nothing is deleted in Immich.
+    expect(immich.calls.some((c) => c.method === 'DELETE')).toBe(false);
     expect(journal()).toMatchObject([
-      { outcome: 'erased', person_id: null, faces_deleted: 2, attempts: 1, last_error: null },
+      { outcome: 'erased', person_id: null, attempts: 1, last_error: null },
     ]);
   });
 
-  it('a refusal is recorded and retried, and the person is not deleted while faces remain', async () => {
+  it('writes nothing when the person is already anonymous', async () => {
     addUser('owner', PERSON);
-    const db = database.getDatabase();
-    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
+    erasure.eraseLocalFaceData(database.getDatabase(), 'owner', 'withdrawal');
+    const immich = scriptedImmich({ named: false });
 
-    const failing = scriptedImmich({ failFaceDelete: true });
-    await erasure.runFaceErasures(failing.fetchFn);
-    expect(failing.calls.some((c) => c.method === 'DELETE' && c.url.includes('/people/'))).toBe(
-      false
-    );
+    await erasure.runFaceErasures(immich.fetchFn);
+
+    expect(immich.calls.some((c) => c.method === 'PUT')).toBe(false);
+    expect(journal()).toMatchObject([{ outcome: 'erased' }]);
+  });
+
+  it('a refusal is recorded and retried', async () => {
+    addUser('owner', PERSON);
+    erasure.eraseLocalFaceData(database.getDatabase(), 'owner', 'withdrawal');
+
+    await erasure.runFaceErasures(scriptedImmich({ refusePut: true }).fetchFn);
     expect(journal()).toMatchObject([{ done_at: null, attempts: 1, person_id: PERSON }]);
     expect(String(journal()[0].last_error)).toContain('500');
 
@@ -247,17 +235,14 @@ describe('the Immich half', () => {
     expect(journal()).toMatchObject([{ outcome: 'erased', attempts: 2, last_error: null }]);
   });
 
-  it('never erases a person a member has linked again', async () => {
+  it('a write that did not take is a failed attempt, not a success', async () => {
     addUser('owner', PERSON);
-    const db = database.getDatabase();
-    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
-    db.prepare("UPDATE users SET photos_id = ? WHERE id_user = 'owner'").run(PERSON);
-    const immich = scriptedImmich();
+    erasure.eraseLocalFaceData(database.getDatabase(), 'owner', 'withdrawal');
 
-    await erasure.runFaceErasures(immich.fetchFn);
+    await erasure.runFaceErasures(scriptedImmich({ ignorePut: true }).fetchFn);
 
-    expect(immich.calls).toEqual([]);
-    expect(journal()).toMatchObject([{ outcome: 'relinked', person_id: null }]);
+    expect(journal()).toMatchObject([{ done_at: null, attempts: 1 }]);
+    expect(String(journal()[0].last_error)).toContain('still carries');
   });
 
   it('reports every row pending for more than 24 hours', () => {
@@ -284,29 +269,6 @@ describe('what the review asked to pin', () => {
 
     await erasure.runFaceErasures(scriptedImmich({ personStatus: 400, empty: true }).fetchFn);
     expect(journal()).toMatchObject([{ outcome: 'absent', person_id: null }]);
-  });
-
-  it('never deletes the person while a face Immich will not list still points at it', async () => {
-    addUser('owner', PERSON);
-    const db = database.getDatabase();
-    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
-    const immich = scriptedImmich({ hiddenFace: true });
-
-    await erasure.runFaceErasures(immich.fetchFn);
-
-    expect(immich.calls.some((c) => c.method === 'DELETE' && c.url.includes('/people/'))).toBe(
-      false
-    );
-    expect(journal()).toMatchObject([{ done_at: null }]);
-    expect(String(journal()[0].last_error)).toContain('still show the person');
-  });
-
-  it('a person with an erasure owed is reported as such, so the link path can refuse it', () => {
-    addUser('owner', PERSON);
-    const db = database.getDatabase();
-    erasure.eraseLocalFaceData(db, 'owner', 'withdrawal');
-    expect(erasure.hasPendingErasure(db, PERSON)).toBe(true);
-    expect(erasure.hasPendingErasure(db, OTHER_PERSON)).toBe(false);
   });
 
   it('an account deletion also drops its per-user album grants and its addresses in the log', async () => {

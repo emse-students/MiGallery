@@ -4,12 +4,7 @@ import { getDatabase } from '$lib/db/database';
 import { requireScope } from '$lib/server/permissions';
 import { createLogger } from '$lib/server/logger';
 import { m } from '$lib/paraglide/messages';
-import {
-  eraseLocalFaceData,
-  hasPendingErasure,
-  inTransaction,
-  runFaceErasures,
-} from '$lib/server/face-erasure';
+import { eraseLocalFaceData, inTransaction, runFaceErasures } from '$lib/server/face-erasure';
 import { isImpersonating } from '$lib/server/auth';
 
 const log = createLogger('user-face');
@@ -79,15 +74,6 @@ export const PATCH: RequestHandler = async (event) => {
     }
     if (personId === null) {
       log.info('face link removed by an admin, no erasure (correction)', { target: userId });
-    }
-
-    // A person whose erasure is still owed cannot be linked: the erasure would stand down and the
-    // withdrawn member's faces would stay, attached to this account.
-    if (personId && hasPendingErasure(db, personId)) {
-      return json(
-        { error: 'face_erasure_pending', message: m.face_erasure_pending_msg() },
-        { status: 409 }
-      );
     }
 
     if (personId) {

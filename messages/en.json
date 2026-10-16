@@ -319,7 +319,6 @@
   "param_type_confirm_placeholder": "Type CONFIRMATION",
   "param_unlink_confirm": "You will lose access to the \"My photos\" page. Your account stays active.",
   "face_already_assigned_msg": "This face has already been assigned to another account. If it is not yours, please contact bureau@mitv.fr",
-  "face_erasure_pending_msg": "This face is still being erased after a withdrawal. Please try again later, or contact bureau@mitv.fr",
   "param_face_taken_title": "Face already linked",
   "param_face_taken_body": "This face is already assigned to another account. Contact the MiTV office if this is a mistake.",
   "param_no_immich_link": "You are not linked to an Immich person.",

@@ -57,7 +57,7 @@ audit trail (uploads, deletes, logins, API-key usage), written by
 ### `face_erasures`
 
 `face_erasures(id, person_id, reason, requested_at, attempts, last_attempt_at,
-last_error, faces_deleted, done_at, outcome)` - the journal of the Immich half of
+last_error, done_at, outcome)` - the journal of the Immich half (name removal) of
 a face withdrawal or account deletion (`src/lib/server/face-erasure.ts`, see
 [photos-cv.md](photos-cv.md#erasure)). It names the Immich person, never the
 member, and clears that id once done.

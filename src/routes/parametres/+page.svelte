@@ -378,12 +378,9 @@
           await new Promise((resolve) => setTimeout(resolve, 1500));
           window.location.reload();
         } else {
-          uploadStatus =
-            updateData.error === 'face_erasure_pending'
-              ? m.face_erasure_pending_msg()
-              : m.param_db_update_error({
-                  error: updateData.error || m.common_unknown_error(),
-                });
+          uploadStatus = m.param_db_update_error({
+            error: updateData.error || m.common_unknown_error(),
+          });
           if (shouldCleanup) {
             try {
               await cleanupAsset(assetIdToDelete);
