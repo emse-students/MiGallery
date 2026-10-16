@@ -121,6 +121,16 @@ CREATE TABLE IF NOT EXISTS api_keys (
     created_at INTEGER NOT NULL
 );
 
+-- Avatar link revocations: a random salt per user whose signed avatar links were revoked
+-- (src/lib/server/avatar-signature.ts). Keyed by id_user and deliberately NOT a foreign key: the
+-- revocation must survive the deletion of the account, or a user recreated at their next sign-in
+-- (same id_user) would re-validate every URL ever issued.
+CREATE TABLE IF NOT EXISTS avatar_revocations (
+    id_user TEXT PRIMARY KEY,
+    salt TEXT NOT NULL,
+    revoked_at INTEGER NOT NULL
+);
+
 -- Face erasures: the durable journal of a face withdrawal or an account deletion whose Immich
 -- half (removing the person's name and birth date; the anonymous cluster stays) is still owed.
 -- The local half (the link, the crops, the grants, the log ids) is done in the request itself;

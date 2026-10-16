@@ -13,13 +13,31 @@
  * other holder of it. It never expires, deliberately: the claim is re-issued at every sign-in and
  * an expiring URL would break the avatar a relying party stored. Rotating the key invalidates
  * every URL at once, which is the revocation.
+ *
+ * REVOKING ONE USER'S LINK. Rotating the key is all-or-nothing, so each user also has an optional
+ * SALT (table `avatar_revocations`). No salt (NULL, the state of every user until a revocation) signs
+ * the bare id, exactly what MiConnect computes today. With a salt the signed message is
+ * `<id_user>\n<salt>` (a newline between), so a revocation - a fresh random salt, {@link newAvatarSalt} - kills every
+ * URL ever issued for that user and nobody else's. MiConnect cannot compute a salted signature,
+ * so after a revocation that user's avatar stops showing in MinoWiki and Archives until the
+ * mapping is taught the salt: revocation is a hard stop, and that is the point of it.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-/** The signature MiConnect must put in `?sig=` for `idUser`'s avatar. */
-export function computeAvatarSignature(key: string, idUser: string): string {
-  return createHmac('sha256', key).update(idUser, 'utf8').digest('base64url');
+/** The message that is signed: the bare id, or the id and the user's salt once one was set. */
+function signedMessage(idUser: string, salt: string | null | undefined): string {
+  return salt ? `${idUser}\n${salt}` : idUser;
+}
+
+/** A fresh salt for a revocation: 128 random bits, hex. */
+export function newAvatarSalt(): string {
+  return randomBytes(16).toString('hex');
+}
+
+/** The signature MiConnect must put in `?sig=` for `idUser`'s avatar (`salt`: see the file doc). */
+export function computeAvatarSignature(key: string, idUser: string, salt?: string | null): string {
+  return createHmac('sha256', key).update(signedMessage(idUser, salt), 'utf8').digest('base64url');
 }
 
 /**
@@ -27,9 +45,14 @@ export function computeAvatarSignature(key: string, idUser: string): string {
  * key, so a server started without the key refuses every signed URL instead of accepting a
  * signature anyone can compute.
  */
-export function isAvatarSignatureValid(key: string, idUser: string, sig: string): boolean {
+export function isAvatarSignatureValid(
+  key: string,
+  idUser: string,
+  sig: string,
+  salt?: string | null
+): boolean {
   if (!key) return false;
-  const expected = Buffer.from(computeAvatarSignature(key, idUser), 'utf8');
+  const expected = Buffer.from(computeAvatarSignature(key, idUser, salt), 'utf8');
   const given = Buffer.from(sig, 'utf8');
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
