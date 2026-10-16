@@ -78,7 +78,21 @@ through the person rule.
 | any proxied call naming `personId(s)` in its query or JSON body (`search/metadata`, `timeline/buckets`)   | person, for EACH id                               |
 
 The proxy judges the path Immich will actually route: `.` segments resolved,
-repeated slashes collapsed, case folded (Immich's router is case-insensitive).
+repeated slashes collapsed, case folded (Immich's router is case-insensitive), and
+a path that carries its own `?` or `#` (the path parameter arrives decoded) is
+refused. A JSON body is read once, judged, and forwarded as that same text, so
+Immich never parses a body the check did not see. A search asking for the people
+of every result (`withPeople`) is admin-only.
+
+**The link is the trust root, so it is guarded too.** A person id has ONE
+spelling, a lowercase UUID (`normalisePersonId`), on write and on every
+comparison - SQLite's `=` is case-sensitive, Immich is not. A member links a NEW
+person through `PATCH /api/users/me/face` only with `selfie_asset_id`: Immich
+must report that asset uploaded within the last 30 minutes and showing exactly
+that one person (`selfieProves`). Keeping their current person needs no proof;
+admins correct links by hand. What this cannot prove: that the "selfie" is not a
+photo of someone else - that is the limit of face matching, not of the code.
+
 `/mes-photos?userId=X` no longer bounces a viewer who has no face of their own: the
 page carries no photo, and the routes it reads from enforce the rule above.
 
@@ -87,7 +101,8 @@ Pinned by `tests/face-access.test.ts` (a throwaway SQLite file, no server).
 What this does NOT cover: the asset routes (`/api/immich/assets/{id}/...`) and an
 asset's detail, which lists the people Immich found in it. Those follow the album
 permission model ([albums-and-permissions.md](albums-and-permissions.md)), not
-this rule.
+this rule. The avatar route (`/api/users/[username]/avatar`) shows each member's
+profile face to any session by design: it is the avatar, not the set.
 
 ## Why this design
 
