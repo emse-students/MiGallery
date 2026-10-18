@@ -35,7 +35,7 @@ on:
 jobs:
   codeql:
     name: CodeQL Security Analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: read
       contents: read
@@ -62,7 +62,7 @@ jobs:
 
   secret-scan:
     name: Scan for Secrets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -80,7 +80,7 @@ jobs:
 
   code-quality:
     name: Code Quality (oxlint + SonarCloud)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     env:
@@ -119,7 +119,7 @@ jobs:
   # request that would fix it.
   dependencies:
     name: Check Dependencies Vulnerabilities
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
