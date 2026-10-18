@@ -140,11 +140,21 @@ jobs:
             printf 'AVATAR_SIGNING_KEY=%s\n' "$AVATAR_SIGNING_KEY"
           } > "$DEPLOY_DIR/.env"
 
+      # THE OFFSITE TARGET IS THE HOST'S FILE, and the scripts synced below refuse to run without it.
+      # Checked HERE, before they replace the old ones, so a box missing it fails this deploy loudly
+      # instead of the 05:00 backup failing unread (docs/wiki/deployment.md, "Backups").
+      - name: Require the offsite target on the host
+        run: |
+          if [ ! -f /etc/migallery/offsite.env ]; then
+            echo "::error::/etc/migallery/offsite.env is missing: the offsite backup has no target (docs/MIGRATION.md section 3)"
+            exit 1
+          fi
+
       - name: Sync deploy files
         run: |
           cp docker-compose.prod.yml "$DEPLOY_DIR/"
           mkdir -p "$DEPLOY_DIR/scripts"
-          cp scripts/backup-offsite.sh scripts/restore-offsite.sh "$DEPLOY_DIR/scripts/"
+          cp scripts/backup-offsite.sh scripts/restore-offsite.sh scripts/offsite-target.sh "$DEPLOY_DIR/scripts/"
           chmod +x "$DEPLOY_DIR/scripts/backup-offsite.sh" "$DEPLOY_DIR/scripts/restore-offsite.sh"
 
       # The compose file reads IMAGE_PREFIX, so the deploy names the same image the build pushed.

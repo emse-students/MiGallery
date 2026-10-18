@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Sauvegarde offsite de MiGallery (et, en option, du dump de la base Immich)
-# vers le serveur canari (miroir reciproque entre les deux serveurs LAN).
+# vers le serveur offsite nomme par l hote (scripts/offsite-target.sh).
 #
 # - Base MiGallery : dump SQLite coherent via l API de sauvegarde en ligne
 #   (sqlite3 ".backup", WAL-safe), gzip, puis envoi rsync offsite.
@@ -9,8 +9,8 @@
 #   (library/backups/immich-db-backup-*.sql.gz) avec ses extensions vector. On
 #   envoie simplement le plus recent offsite. Les medias (sur le RAID) sont exclus.
 #
-# Tourne sur mitv (root, via cron). L offsite utilise la cle SSH de root,
-# autorisee pour l utilisateur canari sur 10.0.0.3.
+# Tourne sur mitv (root, via cron). L offsite utilise la cle SSH de root, autorisee
+# pour l utilisateur offsite ; la destination est dans /etc/migallery/offsite.env.
 #
 set -euo pipefail
 
@@ -18,13 +18,16 @@ set -euo pipefail
 MIGALLERY_DIR="${MIGALLERY_DIR:-/home/mitv/MiGallery}"
 MIGALLERY_DB="${MIGALLERY_DB:-$MIGALLERY_DIR/data/migallery.db}"
 IMMICH_BACKUP_DIR="${IMMICH_BACKUP_DIR:-/srv/dev-disk-by-uuid-ff73ed20-08b7-4b38-b53c-6de6a86bfd6a/immich-app/library/backups}"
-OFFSITE_HOST="${OFFSITE_HOST:-canari@10.0.0.3}"
-OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"   # relatif au home du user canari
 MIGALLERY_RETENTION_DAYS="${MIGALLERY_RETENTION_DAYS:-14}"
 IMMICH_RETENTION_DAYS="${IMMICH_RETENTION_DAYS:-7}"   # dumps ~1 Go : retention courte
 INCLUDE_IMMICH="${INCLUDE_IMMICH:-1}"
 
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
+
+# The destination (OFFSITE_HOST, OFFSITE_PATH) is the HOST's setting, never a default here.
+# shellcheck source=scripts/offsite-target.sh
+. "$(dirname "$0")/offsite-target.sh"
+load_offsite_target || exit 1
 
 log() { printf '[migallery-backup] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 fail() { printf '[migallery-backup] ERROR %s\n' "$*" >&2; exit 1; }

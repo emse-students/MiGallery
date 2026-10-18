@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Restauration de la base MiGallery depuis la sauvegarde offsite (serveur canari).
+# Restauration de la base MiGallery depuis la sauvegarde offsite (destination : scripts/offsite-target.sh).
 # Pensee pour la reprise / migration vers un nouveau serveur.
 #
 #   ./scripts/restore-offsite.sh --yes                 # derniere sauvegarde offsite
@@ -12,8 +12,6 @@
 #
 set -euo pipefail
 
-OFFSITE_HOST="${OFFSITE_HOST:-canari@10.0.0.3}"
-OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"
 DEPLOY_DIR="${DEPLOY_DIR:-/home/mitv/MiGallery}"
 DB_DEST="${DB_DEST:-$DEPLOY_DIR/data/migallery.db}"
 COMPOSE="docker compose -f $DEPLOY_DIR/docker-compose.prod.yml --project-directory $DEPLOY_DIR"
@@ -36,6 +34,9 @@ trap 'rm -rf "$STAGE"' EXIT
 
 # Recupere la derniere sauvegarde offsite si aucune archive locale fournie.
 if [ -z "$ARCHIVE" ]; then
+  # shellcheck source=scripts/offsite-target.sh
+  . "$(dirname "$0")/offsite-target.sh"
+  load_offsite_target || exit 1
   log "Recuperation de la derniere sauvegarde depuis $OFFSITE_HOST..."
   LATEST="$(ssh -o BatchMode=yes "$OFFSITE_HOST" \
     "ls -1t '$OFFSITE_PATH'/migallery/migallery-*.db.gz 2>/dev/null | head -1")"
