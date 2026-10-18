@@ -1,3 +1,24 @@
+# MiGallery v2.16.0
+
+**Date**: October 18, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Privacy and access fixes across albums, faces and logs, revocable signed avatar links, and one request to learn which users have a photo.
+
+## Changes
+
+- New: `GET /api/users/avatar-presence?ids=a,b` answers which of up to 100 users have a photo in one request, so Canari no longer collects one 404 per face (#387).
+- New: each user has a salt behind their signed avatar links, so those links can be revoked; deleting an account rotates it, and a signed link is refused while impersonating (#394).
+- Security: an unlisted album serves only its own photos, and its visibility is never read from the request (#388).
+- Fixed: an empty album listing is no longer cached, and visibility is compared case-insensitively (#389).
+- Privacy: the face-photo consent rule is enforced on the server (#390).
+- Privacy: withdrawing a face or deleting an account erases the face data (#392).
+- Privacy: the audit log is kept 90 days, and the client address is taken from one trusted source (#393).
+- Terms: the CGU name the controller, the legal bases, the retention periods and what erasure leaves (#395).
+- Deploy: the image name comes from the repository and the health is read from the container (#386); the container port is bound to loopback (#396).
+
 # MiGallery v2.15.6
 
 **Date**: September 30, 2026
