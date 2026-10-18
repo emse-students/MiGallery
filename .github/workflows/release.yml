@@ -47,7 +47,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════════════════════════
   preflight:
     name: May this release start?
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       checks: read
@@ -126,7 +126,7 @@ jobs:
   assets:
     name: Package and attach
     needs: preflight
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
