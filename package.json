@@ -76,7 +76,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitest/coverage-v8": "^5.0.1",
+    "@vitest/coverage-v8": "^5.0.5",
     "browserslist": "^4.29.1",
     "husky": "^9.1.7",
     "lightningcss": "^1.33.0",
@@ -87,8 +87,8 @@
     "tailwindcss": "^4.3.1",
     "tar": "^7.5.22",
     "typescript": "~6",
-    "vite": "^8.3.1",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "overrides": {
     "cookie": "^0.7.0"
