@@ -44,14 +44,22 @@ have defaults in `docker-compose.prod.yml`, overridable if needed.
 
 ## 3. SSH access for offsite backup
 
-The backup pushes to canari. On the new server (as root, which runs the cron):
+The backup pushes to the offsite server named in `/etc/migallery/offsite.env` (the host and its
+account are in the private operations notes, never here). On the new server, as root (which runs
+the cron):
 
 ```bash
-ssh-keyscan -H 10.0.0.3 >> /root/.ssh/known_hosts
+install -d -m 755 /etc/migallery   # 755: the deploy runner checks the file exists
+printf 'OFFSITE_HOST=%s
+OFFSITE_PATH=%s
+' '<user>@<offsite-host>' 'migallery-offsite' > /etc/migallery/offsite.env
+chmod 600 /etc/migallery/offsite.env
+ssh-keyscan -H <offsite-host> >> /root/.ssh/known_hosts
 ```
 
-On canari, authorize the public key of root@<server> in
-`~/.ssh/authorized_keys` of the `canari` user and create `~/migallery-offsite/`.
+On the offsite server, authorize the public key of root@<server> in that account's
+`~/.ssh/authorized_keys` and create the `OFFSITE_PATH` directory. Without the env file, the
+backup and the restore stop and name it.
 
 ## 4. First deployment
 
@@ -63,18 +71,18 @@ pushes it to GHCR, generates `.env`, then `docker compose up -d` on the server.
 ### MiGallery (our database)
 
 ```bash
-./scripts/restore-offsite.sh --yes     # latest backup from canari
+./scripts/restore-offsite.sh --yes     # latest backup from the offsite server
 ```
 
 ### Immich (optional)
 
 Immich produces its own dumps (`library/backups/immich-db-backup-*.sql.gz`),
-copied offsite to `~/migallery-offsite/immich/` on canari. Restoration follows
+copied offsite to `<OFFSITE_PATH>/immich/` on the offsite server. Restoration follows
 the **official Immich procedure** (recreating the database with its vector
 extensions):
 
 ```bash
-# Retrieve the dump from canari, then (see Immich docs):
+# Retrieve the dump from the offsite server, then (see Immich docs):
 #   docker compose down
 #   (recreate the db volume)
 #   docker compose up -d database

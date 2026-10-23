@@ -11,8 +11,9 @@ rules, not prose:
   member consents. **Change it, and only it, when the terms change in substance.**
 - **Every claim on the page must be one the repository can back.** The page names
   the controller (the association MiTV, `bureau@mitv.fr`), the recipients
-  (Cloudflare in transit, the Canari project's server `canari@10.0.0.3` on the same LAN
-  for the backups named in `scripts/backup-offsite.sh`; MiConnect is described only as a separate
+  (Cloudflare in transit, a Canari project server on the same LAN for the backups
+  `scripts/backup-offsite.sh` sends, to the host its `/etc/migallery/offsite.env` names - the
+  sentence changes with the WP-MIGALLERY-OFFSITE move if that server is elsewhere; MiConnect is described only as a separate
   service with its own terms, because nothing in this repository says where it runs), who else
   reads face-linked sets (administrators and admin-issued API keys), what is public (unlisted
   albums by link, album cover images), a legal basis per data item, the retentions, the

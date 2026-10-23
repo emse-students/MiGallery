@@ -18,7 +18,7 @@ database, via Immich's own procedure).
 | Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches                                 |
 | Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                                                     |
 | CD            | `release.yml`: preflight -> `deploy.yml` (build-image -> deploy, self-hosted). **A push deploys nothing.** |
-| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)                                  |
+| Backups       | `scripts/backup-offsite.sh` -> offsite rsync, target in `/etc/migallery/offsite.env` (root cron, 05:00)    |
 | Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                                                     |
 
 ## Configuration
@@ -108,13 +108,39 @@ lockfile is an ABSENCE of pull requests, which nobody notices.
 ## Backups
 
 A root cron runs `scripts/backup-offsite.sh` at 05:00 (after Immich's 02:00
-dump), rsyncing the MiGallery SQLite DB offsite to Canari
-(`~/migallery-offsite/`). Restore with `scripts/restore-offsite.sh --yes`. The
+dump), rsyncing the MiGallery SQLite DB offsite. **Where to is the host's setting**:
+`OFFSITE_HOST` and `OFFSITE_PATH` in `/etc/migallery/offsite.env` (root, mode 600; the
+environment wins over it), read by `scripts/offsite-target.sh`. Nothing defaults: with no target,
+both scripts stop before any ssh and name that file. Restore with `scripts/restore-offsite.sh --yes`. The
 in-app daily backup scheduler (`startBackupScheduler`, kicked off in
 `hooks.server.ts`) produces local DB snapshots under `data/`.
 
 Immich has its own dumps and restore procedure (see the Immich docs); MiGallery
 does not manage Immich's data.
+
+### Moving the offsite to Canari's offsite server (WP-MIGALLERY-OFFSITE, decided 2026-10-18)
+
+The copy still lands on the old Canari VM, which is to be wound down. The user decided it goes to
+the Canari project's own offsite server. The repository side is the host file above; everything
+else is a host operation, in this order, and the server's name stays in the private notes:
+
+1. **Before this change deploys**, write `/etc/migallery/offsite.env` on the MiGallery host with
+   the CURRENT target (the old VM), `chmod 600`, and run `scripts/backup-offsite.sh` once by hand:
+   it must print `target ... (from /etc/migallery/offsite.env)` and `MiGallery offsite OK`.
+   Without the file the deploy itself stops (`Require the offsite target on the host`), and a
+   05:00 run on a box that lost it stops and says so - neither falls back.
+2. On the offsite server: a dedicated account (not Canari's backup account) whose
+   `authorized_keys` entry for the MiGallery host's root key is restricted to rsync into one
+   directory (`rrsync`, `restrict`), and that directory created.
+3. On the MiGallery host: `ssh-keyscan` the offsite server into root's `known_hosts`, point the
+   env file at it, run the backup by hand, and read the file arriving on the offsite side.
+4. **A restore test** before the old VM goes: `DB_DEST=/tmp/restore-test/migallery.db` is not
+   enough, because `restore-offsite.sh` stops and restarts the live container - fetch the latest
+   archive with `rsync` into a scratch directory, `gunzip -t` it and open it with
+   `sqlite3 ... 'PRAGMA integrity_check; SELECT count(*) FROM users;'`.
+5. Only then: the old VM's `migallery-offsite/` is deleted with the VM, and the terms
+   (`cgu_s3_hosting_body`, fr and en: "on the same local network") and their version date change
+   if the new server is not on that network ([terms](terms.md)).
 
 ## Local development
 

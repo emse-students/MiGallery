@@ -77,6 +77,11 @@ jobs:
       - name: Test the release gates
         run: bash .github/scripts/tests/release-preflight.test.sh
 
+      # AND WHERE THE BACKUPS GO IS THE HOST'S SETTING, NEVER A DEFAULT HERE: with no target named,
+      # the offsite scripts stop before any ssh and say which file to write. Fakes on `PATH`, no network.
+      - name: Test the offsite target
+        run: bash .github/scripts/tests/offsite-target.test.sh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
