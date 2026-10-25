@@ -1,21 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
-  import { activeOperations } from '$lib/operations';
-  import { navigationModalStore } from '$lib/navigation-store';
-  import { theme } from '$lib/theme';
-  import type { User } from '$lib/types/api';
-  import ToastContainer from '$lib/components/ToastContainer.svelte';
-  import Modal from '$lib/components/Modal.svelte';
-  import ConfirmHost from '$lib/components/ConfirmHost.svelte';
-  import MobileNav from '$lib/components/MobileNav.svelte';
-  import SideNav from '$lib/components/SideNav.svelte';
-  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-  import LocaleToggle from '$lib/components/LocaleToggle.svelte';
-  import Seo from '$lib/components/Seo.svelte';
-  import { siteSeo, type SeoMeta } from '$lib/seo';
-  import { m } from '$lib/paraglide/messages';
-  import { loginUrlWithRedirect, REDIRECT_PARAM } from '$lib/auth-redirect';
+  import { activeOperations } from '#lib/operations.ts';
+  import { navigationModalStore } from '#lib/navigation-store.ts';
+  import { theme } from '#lib/theme.ts';
+  import type { User } from '#lib/types/api.ts';
+  import ToastContainer from '#lib/components/ToastContainer.svelte';
+  import Modal from '#lib/components/Modal.svelte';
+  import ConfirmHost from '#lib/components/ConfirmHost.svelte';
+  import MobileNav from '#lib/components/MobileNav.svelte';
+  import SideNav from '#lib/components/SideNav.svelte';
+  import ThemeToggle from '#lib/components/ThemeToggle.svelte';
+  import LocaleToggle from '#lib/components/LocaleToggle.svelte';
+  import Seo from '#lib/components/Seo.svelte';
+  import { siteSeo, type SeoMeta } from '#lib/seo.ts';
+  import { m } from '#lib/paraglide/messages.js';
+  import { loginUrlWithRedirect, REDIRECT_PARAM } from '#lib/auth-redirect.ts';
   import '../app.css';
 
   let u = $derived(page.data?.session?.user as User);

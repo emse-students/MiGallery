@@ -1,10 +1,10 @@
 import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireSession } from '$lib/server/permissions';
-import { faceAccessReason } from '$lib/server/face-access';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireSession } from '#lib/server/permissions.ts';
+import { faceAccessReason } from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-userId-photo-access');
 interface UserInfo {

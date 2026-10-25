@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
-import { requireAdminPage } from '$lib/server/auth';
-import { getDatabase } from '$lib/db/database';
+import { requireAdminPage } from '#lib/server/auth.ts';
+import { getDatabase } from '#lib/db/database.ts';
 
 const PAGE_SIZE = 50;
 

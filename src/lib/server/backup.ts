@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
+import { registerShutdown } from '#lib/server/shutdown.ts';
 
 const log = createLogger('backup');
 
@@ -90,10 +91,17 @@ export function startBackupScheduler(): void {
     }
   };
 
-  setTimeout(() => {
+  // A backup is synchronous (bun:sqlite), so the shutdown event can only run BETWEEN backups:
+  // stopping the timers is the whole of "finish cleanly".
+  let interval: ReturnType<typeof setInterval> | undefined;
+  const first = setTimeout(() => {
     runAndSchedule();
-    setInterval(runAndSchedule, BACKUP_INTERVAL_MS);
+    interval = setInterval(runAndSchedule, BACKUP_INTERVAL_MS);
   }, msUntilMidnight);
+  registerShutdown('backup scheduler', () => {
+    clearTimeout(first);
+    clearInterval(interval);
+  });
 
   const hUntil = Math.round(msUntilMidnight / 3_600_000);
   log.info(`scheduler started - next backup in ~${hUntil}h (midnight)`);

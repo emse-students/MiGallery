@@ -7,17 +7,17 @@ const state = {
 };
 const requireScope = vi.fn();
 
-vi.mock('$env/dynamic/private', () => ({
+vi.mock('#lib/server/env.ts', () => ({
   env: { IMMICH_BASE_URL: 'http://immich', IMMICH_API_KEY: 'k' },
 }));
-vi.mock('$lib/db/database', () => ({
+vi.mock('#lib/db/database.ts', () => ({
   getDatabase: () => ({
     prepare: () => ({
       get: () => (state.visibility === undefined ? undefined : { visibility: state.visibility }),
     }),
   }),
 }));
-vi.mock('$lib/immich/album-assets', () => ({
+vi.mock('#lib/immich/album-assets.ts', () => ({
   fetchAlbumAssets: async () => {
     if (state.fail) {
       throw new Error('immich down');
@@ -25,10 +25,10 @@ vi.mock('$lib/immich/album-assets', () => ({
     return state.members.map((id) => ({ id }));
   },
 }));
-vi.mock('$lib/server/permissions', () => ({
+vi.mock('#lib/server/permissions.ts', () => ({
   requireScope: (...a: unknown[]) => requireScope(...a),
 }));
-vi.mock('$lib/server/logger', () => ({
+vi.mock('#lib/server/logger.ts', () => ({
   createLogger: () => ({ warn() {}, error() {}, debug() {}, info() {} }),
 }));
 

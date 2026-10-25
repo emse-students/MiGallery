@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { requireAlbumAssetAccess } from '$lib/server/album-asset-access';
+import { env } from '#lib/server/env.ts';
+import { requireAlbumAssetAccess } from '#lib/server/album-asset-access.ts';
 import { error } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-asset-thumbnail-assetId-thumbnail');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

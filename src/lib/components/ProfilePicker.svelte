@@ -20,10 +20,10 @@
    */
   import { tick } from 'svelte';
   import Spinner from './Spinner.svelte';
-  import { portal } from '$lib/portal';
-  import { placePopover } from '$lib/popover-position';
-  import { nextMenuIndex } from '$lib/overflow-menu';
-  import { m } from '$lib/paraglide/messages';
+  import { portal } from '#lib/portal.ts';
+  import { placePopover } from '#lib/popover-position.ts';
+  import { nextMenuIndex } from '#lib/overflow-menu.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     /** The profiles matching `query`, best first. */

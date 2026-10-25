@@ -1,11 +1,11 @@
 import { json } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { createApiKey, listApiKeys } from '$lib/db/api-keys';
-import { requireScope } from '$lib/server/permissions';
+import { createApiKey, listApiKeys } from '#lib/db/api-keys.ts';
+import { requireScope } from '#lib/server/permissions.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('admin-api-keys');
 export const GET: RequestHandler = async (event) => {

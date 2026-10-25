@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { getOrphanPage } from '$lib/server/media-anomalies';
+import { requireScope } from '#lib/server/permissions.ts';
+import { getOrphanPage } from '#lib/server/media-anomalies.ts';
 
 /**
  * GET /api/admin/medias/orphans?page=N

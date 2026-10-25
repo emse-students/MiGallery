@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Store to manage in-progress operations (uploads, etc.)

@@ -13,7 +13,7 @@ the page is a bug.
 
 ## Stack at a glance
 
-- **Framework**: SvelteKit 2 + Svelte 5 runes (SSR, `adapter-node`), TypeScript
+- **Framework**: SvelteKit 3 + Svelte 5 runes (SSR, `adapter-bun`), TypeScript
 - **Styling**: Tailwind CSS 4
 - **Local database**: SQLite via `bun:sqlite` (synchronous by design)
 - **Auth**: Authentik OIDC (MiConnect) + signed session cookies

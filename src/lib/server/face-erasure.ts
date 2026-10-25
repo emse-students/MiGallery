@@ -28,16 +28,17 @@
  * docs/wiki/photos-cv.md#erasure.
  */
 
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import { searchAllAssets } from '$lib/server/immich-search';
-import { deletePersonFaceCrops } from '$lib/server/face-crop';
-import { normalisePersonId } from '$lib/server/person-id';
-import { rotateAvatarSalt } from '$lib/server/avatar-revocation';
-import { withdrawFaceConsent } from '$lib/server/face-consent';
-import { eraseFaceReferences } from '$lib/server/face-references';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { registerShutdown } from '#lib/server/shutdown.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import { searchAllAssets } from '#lib/server/immich-search.ts';
+import { deletePersonFaceCrops } from '#lib/server/face-crop.ts';
+import { normalisePersonId } from '#lib/server/person-id.ts';
+import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
+import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
+import { eraseFaceReferences } from '#lib/server/face-references.ts';
 
 const log = createLogger('face-erasure');
 
@@ -48,6 +49,9 @@ export type FaceErasureReason = 'withdrawal' | 'account_deletion' | 'relink' | '
 export const ERASURE_OVERDUE_MS = 24 * 60 * 60 * 1000;
 /** How often the worker retries what is still pending. */
 const RETRY_INTERVAL_MS = 15 * 60 * 1000;
+
+/** How long a shutdown waits for the erasure pass in flight; inside `docker stop`'s grace period. */
+const ERASURE_SHUTDOWN_WAIT_MS = 10_000;
 /** The literal that replaces a deleted member's id in the audit log. */
 export const DELETED_ID = '[deleted]';
 
@@ -453,7 +457,28 @@ export function startFaceErasureWorker(): void {
   const tick = () => {
     kickFaceErasures();
   };
-  setTimeout(tick, 30_000);
-  setInterval(tick, RETRY_INTERVAL_MS);
+  const first = setTimeout(tick, 30_000);
+  const interval = setInterval(tick, RETRY_INTERVAL_MS);
+  registerShutdown('face erasure worker', async () => {
+    clearTimeout(first);
+    clearInterval(interval);
+    if (!running) {
+      return;
+    }
+    // A pass in flight is allowed to finish, but not past `docker stop`'s grace period. What it
+    // leaves unfinished is NOT lost: every erasure is journaled and the next boot's first tick
+    // picks the row up again (see runOnce).
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    const finished = await Promise.race([
+      running.then(() => true),
+      new Promise<boolean>((resolve) => {
+        deadline = setTimeout(() => resolve(false), ERASURE_SHUTDOWN_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(deadline);
+    if (!finished) {
+      log.warn('face erasure pass still running at shutdown, left for the next start');
+    }
+  });
   log.info('face erasure worker started');
 }

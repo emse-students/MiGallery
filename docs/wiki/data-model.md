@@ -60,7 +60,7 @@ backup scheduler. Each row's own `timestamp` decides, so a missed day only makes
 the next run delete more. Pinned by `tests/logs-retention.test.ts`.
 
 **`ip` comes from ONE trusted source**, SvelteKit's `getClientAddress()`. In
-production `docker-compose.prod.yml` sets adapter-node's
+production `docker-compose.prod.yml` sets adapter-bun's
 `ADDRESS_HEADER=cf-connecting-ip`: the only public way in is the Cloudflare
 tunnel (`cloudflared` on the host, see [bandwidth.md](bandwidth.md)), and
 Cloudflare sets `CF-Connecting-IP` to the address it was reached from,

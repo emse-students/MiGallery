@@ -23,7 +23,11 @@ describe('Immich people list (GET /api/people, v3 PeopleResponseDto)', () => {
       })
     );
 
-    const people = await fetchAllPeople(fetchMock as typeof fetch, 'http://immich/', 'key');
+    const people = await fetchAllPeople(
+      fetchMock as unknown as typeof fetch,
+      'http://immich/',
+      'key'
+    );
 
     expect(people).toEqual([
       { id: 'p1', name: 'Alice' },
@@ -46,7 +50,11 @@ describe('Immich people list (GET /api/people, v3 PeopleResponseDto)', () => {
         peoplePage({ people: [{ id: 'p2', name: 'B' }], total: 2, hidden: 0, hasNextPage: false })
       );
 
-    const people = await fetchAllPeople(fetchMock as typeof fetch, 'http://immich', 'key');
+    const people = await fetchAllPeople(
+      fetchMock as unknown as typeof fetch,
+      'http://immich',
+      'key'
+    );
 
     expect(people.map((p) => p.id)).toEqual(['p1', 'p2']);
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -59,9 +67,9 @@ describe('Immich people list (GET /api/people, v3 PeopleResponseDto)', () => {
   it("carries Immich's status when it refuses", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(new Response('nope', { status: 401 }));
 
-    await expect(fetchAllPeople(fetchMock as typeof fetch, 'http://immich', 'key')).rejects.toEqual(
-      expect.objectContaining({ name: 'ImmichPeopleError', status: 401 })
-    );
+    await expect(
+      fetchAllPeople(fetchMock as unknown as typeof fetch, 'http://immich', 'key')
+    ).rejects.toEqual(expect.objectContaining({ name: 'ImmichPeopleError', status: 401 }));
   });
 
   it('refuses a bare array: that is not what Immich serves', async () => {
@@ -72,7 +80,7 @@ describe('Immich people list (GET /api/people, v3 PeopleResponseDto)', () => {
       );
 
     await expect(
-      fetchAllPeople(fetchMock as typeof fetch, 'http://immich', 'key')
+      fetchAllPeople(fetchMock as unknown as typeof fetch, 'http://immich', 'key')
     ).rejects.toBeInstanceOf(ImmichPeopleError);
   });
 });

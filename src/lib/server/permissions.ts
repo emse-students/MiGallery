@@ -11,11 +11,11 @@
  */
 
 import { error } from '@sveltejs/kit';
-import { verifyRawKeyWithScope } from '$lib/db/api-keys';
-import { getCurrentUser, ensureAdmin } from '$lib/server/auth';
+import { verifyRawKeyWithScope } from '#lib/db/api-keys.ts';
+import { getCurrentUser, ensureAdmin } from '#lib/server/auth.ts';
 import type { RequestEvent } from '@sveltejs/kit';
-import type { UserRow } from '$lib/types/api';
-import { logEvent } from '$lib/server/logs';
+import type { UserRow } from '#lib/types/api.ts';
+import { logEvent } from '#lib/server/logs.ts';
 
 export type Scope = 'public' | 'read' | 'write' | 'admin';
 

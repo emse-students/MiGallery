@@ -21,10 +21,10 @@ const state = vi.hoisted(() => ({
   proof: { ok: true } as { ok: true } | { ok: false; reason: string },
 }));
 
-vi.mock('$env/dynamic/private', () => ({
+vi.mock('#lib/server/env.ts', () => ({
   env: { IMMICH_BASE_URL: 'http://immich.test', IMMICH_API_KEY: 'k' },
 }));
-vi.mock('$lib/server/permissions', () => ({
+vi.mock('#lib/server/permissions.ts', () => ({
   requireScope: async () => {
     if (!state.user) throw Object.assign(new Error('unauthorized'), { status: 401 });
     return {
@@ -38,26 +38,26 @@ vi.mock('$lib/server/permissions', () => ({
     return state.user;
   },
 }));
-vi.mock('$lib/server/auth', () => ({
+vi.mock('#lib/server/auth.ts', () => ({
   isImpersonating: () => state.impersonating,
   getRequestSession: () => null,
 }));
-vi.mock('$lib/session', () => ({ clearSessionCookie: vi.fn() }));
-vi.mock('$lib/server/logs', () => ({ logEvent: vi.fn() }));
-vi.mock('$lib/server/face-access', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('$lib/server/face-access')>()),
+vi.mock('#lib/session.ts', () => ({ clearSessionCookie: vi.fn() }));
+vi.mock('#lib/server/logs.ts', () => ({ logEvent: vi.fn() }));
+vi.mock('#lib/server/face-access.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('#lib/server/face-access.ts')>()),
   selfieProves: async () => state.proof,
 }));
 
-let database: typeof import('$lib/db/database');
-let erasure: typeof import('$lib/server/face-erasure');
+let database: typeof import('#lib/db/database.ts');
+let erasure: typeof import('#lib/server/face-erasure.ts');
 let faceRoute: typeof import('../src/routes/api/users/me/face/+server');
 let putUser: typeof import('../src/routes/api/users/[id]/+server');
 let usersRoute: typeof import('../src/routes/api/users/+server');
 let meRoute: typeof import('../src/routes/api/users/me/+server');
 let grantRoute: typeof import('../src/routes/api/users/me/photo-access/+server');
-let faceCrop: typeof import('$lib/server/face-crop');
-let legal: typeof import('$lib/legal');
+let faceCrop: typeof import('#lib/server/face-crop.ts');
+let legal: typeof import('#lib/legal.ts');
 let dbDir: string;
 
 const A = 'cccccccc-0000-4000-8000-00000000000a';
@@ -111,15 +111,15 @@ const grants = () =>
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-face-routes-'));
   process.env.DATABASE_PATH = join(dbDir, 'face-routes.db');
-  database = await import('$lib/db/database');
-  erasure = await import('$lib/server/face-erasure');
+  database = await import('#lib/db/database.ts');
+  erasure = await import('#lib/server/face-erasure.ts');
   faceRoute = await import('../src/routes/api/users/me/face/+server');
   putUser = await import('../src/routes/api/users/[id]/+server');
   usersRoute = await import('../src/routes/api/users/+server');
   meRoute = await import('../src/routes/api/users/me/+server');
   grantRoute = await import('../src/routes/api/users/me/photo-access/+server');
-  faceCrop = await import('$lib/server/face-crop');
-  legal = await import('$lib/legal');
+  faceCrop = await import('#lib/server/face-crop.ts');
+  legal = await import('#lib/legal.ts');
   // An Immich that is down: a kicked erasure run records one refused attempt and reaches no network.
   vi.stubGlobal('fetch', async () => new Response('down', { status: 503 }));
 });

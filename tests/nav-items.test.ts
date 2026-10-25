@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { NAV_ITEMS, isNavActive } from '$lib/nav-items';
-import { locales } from '$lib/paraglide/runtime';
+import { NAV_ITEMS, isNavActive } from '#lib/nav-items.ts';
+import { locales } from '#lib/paraglide/runtime.js';
 
 describe('isNavActive', () => {
   it('lights a section on its own page and below it', () => {

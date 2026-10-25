@@ -12,12 +12,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
 
-vi.mock('$env/dynamic/private', () => ({ env: { IMMICH_BASE_URL: '', IMMICH_API_KEY: '' } }));
+vi.mock('#lib/server/env.ts', () => ({ env: { IMMICH_BASE_URL: '', IMMICH_API_KEY: '' } }));
 
-let consent: typeof import('$lib/server/face-consent');
-let erasure: typeof import('$lib/server/face-erasure');
-let database: typeof import('$lib/db/database');
-let legal: typeof import('$lib/legal');
+let consent: typeof import('#lib/server/face-consent.ts');
+let erasure: typeof import('#lib/server/face-erasure.ts');
+let database: typeof import('#lib/db/database.ts');
+let legal: typeof import('#lib/legal.ts');
 let dbDir: string;
 
 const PERSON = 'dddddddd-0000-4000-8000-000000000001';
@@ -39,10 +39,10 @@ function rows() {
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-face-consent-'));
   process.env.DATABASE_PATH = join(dbDir, 'face-consent.db');
-  database = await import('$lib/db/database');
-  consent = await import('$lib/server/face-consent');
-  erasure = await import('$lib/server/face-erasure');
-  legal = await import('$lib/legal');
+  database = await import('#lib/db/database.ts');
+  consent = await import('#lib/server/face-consent.ts');
+  erasure = await import('#lib/server/face-erasure.ts');
+  legal = await import('#lib/legal.ts');
   vi.stubGlobal('fetch', async () => new Response('down', { status: 503 }));
 });
 

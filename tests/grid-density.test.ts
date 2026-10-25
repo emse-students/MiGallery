@@ -15,8 +15,8 @@ import {
   densityAfterPinch,
   loadDensity,
   saveDensity,
-} from '$lib/grid-density';
-import { GRID_METRICS, justifyRows } from '$lib/photo-grid-layout';
+} from '#lib/grid-density.ts';
+import { GRID_METRICS, justifyRows } from '#lib/photo-grid-layout.ts';
 
 describe('the steps on a 393 px phone', () => {
   const landscapes = Array.from({ length: 24 }, () => 3 / 2);

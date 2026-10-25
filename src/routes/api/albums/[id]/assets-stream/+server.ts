@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
-import type { ImmichAsset } from '$lib/types/api';
-import { ensureError } from '$lib/ts-utils';
+import type { ImmichAsset } from '#lib/types/api.ts';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { requireAlbumAccess } from '$lib/server/album-asset-access';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { createLogger } from '$lib/server/logger';
-import { assetsNdjsonResponse } from '$lib/server/asset-ndjson';
+import { env } from '#lib/server/env.ts';
+import { requireAlbumAccess } from '#lib/server/album-asset-access.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { assetsNdjsonResponse } from '#lib/server/asset-ndjson.ts';
 
 const log = createLogger('albums-id-assets-stream');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

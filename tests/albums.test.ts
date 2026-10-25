@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { ImmichAlbum } from '$lib/types/api';
+import type { ImmichAlbum } from '#lib/types/api.ts';
 import {
   setupTestAuth,
   teardownTestAuth,

@@ -13,7 +13,7 @@ import type {
   UserCreateResponse,
   ApiKeysListResponse,
   HealthResponse,
-} from '$lib/types/api';
+} from '#lib/types/api.ts';
 import { openTestDatabase } from './test-helpers';
 
 // Configuration

@@ -122,6 +122,30 @@ export async function waitForService(
 }
 
 /**
+ * DELETE a resource the way a real API client must, and FAIL LOUDLY when it is refused.
+ *
+ * Kit 3 answers 403 to a mutation that carries neither an Origin nor a Content-Type, before any
+ * hook runs (see docs/wiki/api-reference.md), so `Content-Type` is part of the call. Cleanup used
+ * to swallow every answer, which let that 403 leave test data behind for weeks without a sound.
+ * A 404 is fine (already gone); anything else in `accepted` is the caller's stated tolerance.
+ */
+export async function deleteOrThrow(
+  url: string,
+  headers: Record<string, string>,
+  accepted: readonly number[] = [200, 204, 404]
+): Promise<void> {
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+  if (!accepted.includes(response.status)) {
+    throw new Error(
+      `cleanup DELETE ${url} answered ${response.status}, expected one of ${accepted.join('/')}`
+    );
+  }
+}
+
+/**
  * Helper to clean up resources after tests
  */
 export async function cleanupResource(
@@ -133,14 +157,7 @@ export async function cleanupResource(
     return;
   }
 
-  try {
-    await fetch(`${url}/${resourceId}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': apiKey },
-    });
-  } catch {
-    // Ignore cleanup errors
-  }
+  await deleteOrThrow(`${url}/${resourceId}`, { 'x-api-key': apiKey });
 }
 
 /**
@@ -487,28 +504,18 @@ export async function teardownTestAuth(context: TestContext): Promise<void> {
 
   // Delete the test user
   if (context.testUserId) {
-    try {
-      await fetch(`${API_BASE_URL}/api/users/${context.testUserId}`, {
-        method: 'DELETE',
-        headers: { 'x-api-key': context.adminApiKey },
-      });
-      console.debug(`✅ Test user deleted: ${context.testUserId}`);
-    } catch {
-      console.warn('⚠️  Unable to delete test user');
-    }
+    await deleteOrThrow(`${API_BASE_URL}/api/users/${context.testUserId}`, {
+      'x-api-key': context.adminApiKey,
+    });
+    console.debug(`✅ Test user deleted: ${context.testUserId}`);
   }
 
   // Delete the API keys
   for (const keyId of context.createdResources.apiKeys) {
-    try {
-      await fetch(`${API_BASE_URL}/api/admin/api-keys/${keyId}`, {
-        method: 'DELETE',
-        headers: { Cookie: context.sessionCookie },
-      });
-      console.debug('✅ API key deleted');
-    } catch {
-      console.warn('⚠️  Unable to delete an API key');
-    }
+    await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${keyId}`, {
+      Cookie: context.sessionCookie,
+    });
+    console.debug('✅ API key deleted');
   }
 
   // Clean up other resources

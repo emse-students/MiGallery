@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet, type Component } from 'svelte';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
   import {
     Info,
     CircleCheckBig,

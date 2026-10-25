@@ -1,10 +1,10 @@
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { ensureError } from '$lib/ts-utils';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { ensureError } from '#lib/ts-utils.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-permissions-users');
 /**

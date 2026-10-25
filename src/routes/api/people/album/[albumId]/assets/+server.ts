@@ -1,9 +1,9 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { requirePhotoCvManager } from '$lib/server/face-access';
-import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
+import { env } from '#lib/server/env.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
+import { requirePhotoCvManager } from '#lib/server/face-access.ts';
+import { addAlbumAssets, removeAlbumAssets } from '#lib/server/immich-album-assets.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY;

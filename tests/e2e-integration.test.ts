@@ -4,7 +4,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '$lib/types/api';
+import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '#lib/types/api.ts';
+import { deleteOrThrow } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let sessionCookie = '';
@@ -89,33 +90,29 @@ beforeAll(async () => {
 afterAll(async () => {
   console.debug('\n🧹 Cleaning up test resources'); // Delete the test user
   if (testUserId && adminApiKey) {
-    await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': adminApiKey },
-    });
+    await deleteOrThrow(`${API_BASE_URL}/api/users/${testUserId}`, { 'x-api-key': adminApiKey });
   }
 
   // Delete the test album
   if (testAlbumId && adminApiKey) {
-    await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': adminApiKey },
-    });
+    await deleteOrThrow(
+      `${API_BASE_URL}/api/albums/${testAlbumId}`,
+      { 'x-api-key': adminApiKey },
+      [200, 204, 404, 500]
+    );
   }
 
   // Delete the test API keys
   if (testApiKeyId && sessionCookie) {
-    await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
-      method: 'DELETE',
-      headers: { Cookie: sessionCookie },
+    await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
+      Cookie: sessionCookie,
     });
   }
 
   // Delete the test read API key
   if (testReadApiKeyId && sessionCookie) {
-    await fetch(`${API_BASE_URL}/api/admin/api-keys/${testReadApiKeyId}`, {
-      method: 'DELETE',
-      headers: { Cookie: sessionCookie },
+    await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${testReadApiKeyId}`, {
+      Cookie: sessionCookie,
     });
   }
 
@@ -181,7 +178,8 @@ describe('E2E - Complete user workflow', () => {
       // 4. Delete the user
       const deleteResponse = await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
         method: 'DELETE',
-        headers: { 'x-api-key': adminApiKey },
+        // Kit 3 refuses a body-less mutation that carries neither an Origin nor a Content-Type.
+        headers: { 'x-api-key': adminApiKey, 'Content-Type': 'application/json' },
       });
 
       expect([200, 204]).toContain(deleteResponse.status);
@@ -234,7 +232,7 @@ describe('E2E - Complete album workflow', () => {
       // 4. Delete the album
       const deleteResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
         method: 'DELETE',
-        headers: { 'x-api-key': adminApiKey },
+        headers: { 'x-api-key': adminApiKey, 'Content-Type': 'application/json' },
       });
 
       expect([200, 204, 404, 500]).toContain(deleteResponse.status);

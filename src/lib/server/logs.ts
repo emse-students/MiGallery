@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
-import { getDatabase } from '$lib/db/database';
+import { getDatabase } from '#lib/db/database.ts';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getRequestSession } from '$lib/server/auth';
-import { createLogger } from '$lib/server/logger';
+import { getRequestSession } from '#lib/server/auth.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('audit-log');
 
@@ -54,7 +54,7 @@ export function logEvent(
     }
 
     // The client address, from ONE trusted source: SvelteKit's getClientAddress(). In production
-    // adapter-node reads it from the header named by ADDRESS_HEADER, set to `cf-connecting-ip`
+    // adapter-bun reads it from the header named by ADDRESS_HEADER, set to `cf-connecting-ip`
     // in docker-compose.prod.yml - the only public way in is the Cloudflare tunnel, and Cloudflare
     // overwrites that header with the address it received the request from. X-Forwarded-For is
     // never read: its first value is whatever the client chose to send (docs/wiki/data-model.md#logs).

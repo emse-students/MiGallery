@@ -8,7 +8,7 @@
     jsonLdScript,
     siteNode,
     type SeoMeta,
-  } from '$lib/seo';
+  } from '#lib/seo.ts';
 
   let { meta }: { meta: SeoMeta } = $props();
 

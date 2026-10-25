@@ -1,4 +1,4 @@
-import type { ImmichAsset } from '$lib/types/api';
+import type { ImmichAsset } from '#lib/types/api.ts';
 
 /**
  * The fields a grid actually reads. Immich v3 search results carry `width` and

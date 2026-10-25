@@ -18,8 +18,8 @@ import {
   toggleAllInSelection,
   toggleInSelection,
   type SelectionActionInput,
-} from '$lib/selection';
-import { archiveCount } from '$lib/immich/download';
+} from '#lib/selection.ts';
+import { archiveCount } from '#lib/immich/download.ts';
 
 describe('entering and leaving', () => {
   it('enters empty from the button, and with the pressed tile from a long-press', () => {

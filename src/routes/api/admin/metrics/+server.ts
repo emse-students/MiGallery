@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
+import { requireScope } from '#lib/server/permissions.ts';
 
 /**
  * GET /api/admin/metrics

@@ -20,12 +20,12 @@
  */
 
 import { error, type RequestEvent } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireScope, type AuthResult } from '$lib/server/permissions';
-import { createLogger } from '$lib/server/logger';
-import { normalisePersonId } from '$lib/server/person-id';
-import { env } from '$env/dynamic/private';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { normalisePersonId } from '#lib/server/person-id.ts';
+import { env } from '#lib/server/env.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('face-access');
 

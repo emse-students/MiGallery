@@ -1,4 +1,4 @@
-import type { ImmichAsset } from '$lib/types/api';
+import type { ImmichAsset } from '#lib/types/api.ts';
 
 const memoryCache = new Map<string, ImmichAsset>();
 const inflight = new Map<string, Promise<ImmichAsset | null>>();

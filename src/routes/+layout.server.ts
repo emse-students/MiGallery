@@ -1,7 +1,7 @@
-import type { UserRow } from '$lib/types/api';
-import { getSession } from '$lib/session';
-import { createLogger } from '$lib/server/logger';
-import { newFirstPaint } from '$lib/first-paint';
+import type { UserRow } from '#lib/types/api.ts';
+import { getSession } from '#lib/session.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { newFirstPaint } from '#lib/first-paint.ts';
 import type { LayoutServerLoad } from './$types';
 
 const log = createLogger('layout');
@@ -33,7 +33,7 @@ function toSessionUser(user: UserRow): SessionPageUser {
  * is nothing to resolve here beyond shaping it for the client.
  *
  * `firstPaint` is the ONE draw of chance and clock the page renders from, so the server render and
- * the hydration agree (see `$lib/first-paint`).
+ * the hydration agree (see `#lib/first-paint.ts`).
  */
 export const load: LayoutServerLoad = (event) => {
   const firstPaint = newFirstPaint();

@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 
 import type { PageServerLoad } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
+import { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
 import fs from 'fs';
 import path from 'path';
 

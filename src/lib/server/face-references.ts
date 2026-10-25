@@ -4,15 +4,15 @@
  * table itself.
  */
 
-import type { getDatabase } from '$lib/db/database';
+import type { getDatabase } from '#lib/db/database.ts';
 import {
   FACE_MODEL,
   FACE_MAX_REFERENCES,
   decodeEmbedding,
   encodeEmbedding,
-} from '$lib/face-embedding';
-import { referenceContext, seal, unseal } from '$lib/server/face-seal';
-import { createLogger } from '$lib/server/logger';
+} from '#lib/face-embedding.ts';
+import { referenceContext, seal, unseal } from '#lib/server/face-seal.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('face-references');
 

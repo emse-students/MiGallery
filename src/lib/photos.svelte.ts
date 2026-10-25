@@ -1,10 +1,10 @@
-import { downloadInBatches } from '$lib/immich/download';
-import type { ImmichAsset } from '$lib/types/api';
-import { ensureError } from '$lib/ts-utils';
-import { consumeNDJSONStream } from '$lib/streaming';
-import { showConfirm } from '$lib/confirm';
-import { toast } from '$lib/toast';
-import { m } from '$lib/paraglide/messages';
+import { downloadInBatches } from '#lib/immich/download.ts';
+import type { ImmichAsset } from '#lib/types/api.ts';
+import { ensureError } from '#lib/ts-utils.ts';
+import { consumeNDJSONStream } from '#lib/streaming.ts';
+import { showConfirm } from '#lib/confirm.ts';
+import { toast } from '#lib/toast.ts';
+import { m } from '#lib/paraglide/messages.js';
 import {
   enterSelection,
   exitSelection,
@@ -12,7 +12,7 @@ import {
   toggleAllInSelection,
   toggleInSelection,
   type Selection,
-} from '$lib/selection';
+} from '#lib/selection.ts';
 
 export type Asset = {
   id: string;
@@ -459,7 +459,7 @@ export class PhotosState {
     }
   }
 
-  /** The selection as one value, for the pure transitions of `$lib/selection`. */
+  /** The selection as one value, for the pure transitions of `#lib/selection.ts`. */
   get selection(): Selection {
     return { active: this.#selecting, ids: this.#selectedAssets };
   }

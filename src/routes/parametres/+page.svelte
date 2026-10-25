@@ -16,26 +16,26 @@
     Languages,
     Shield,
   } from '@lucide/svelte';
-  import Modal from '$lib/components/Modal.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import CameraInput from '$lib/components/CameraInput.svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
-  import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
-  import Avatar from '$lib/components/Avatar.svelte';
-  import { fuzzySearch } from '$lib/fuzzy';
-  import { PhotosState } from '$lib/photos.svelte';
-  import { theme, type ThemePreference } from '$lib/theme';
-  import SettingsRow from '$lib/components/SettingsRow.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
-  import ProfilePicker from '$lib/components/ProfilePicker.svelte';
-  import { asApiResponse } from '$lib/ts-utils';
-  import type { UserRow, Album, User } from '$lib/types/api';
-  import { showConfirm } from '$lib/confirm';
-  import { toast } from '$lib/toast';
-  import { uploadFileChunked } from '$lib/album-operations';
-  import { m } from '$lib/paraglide/messages';
-  import { getLocale, type Locale } from '$lib/paraglide/runtime';
-  import { switchLocale } from '$lib/locale';
+  import Modal from '#lib/components/Modal.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import CameraInput from '#lib/components/CameraInput.svelte';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import ChangePhotoModal from '#lib/components/ChangePhotoModal.svelte';
+  import Avatar from '#lib/components/Avatar.svelte';
+  import { fuzzySearch } from '#lib/fuzzy.ts';
+  import { PhotosState } from '#lib/photos.svelte.ts';
+  import { theme, type ThemePreference } from '#lib/theme.ts';
+  import SettingsRow from '#lib/components/SettingsRow.svelte';
+  import PageHeader from '#lib/components/PageHeader.svelte';
+  import ProfilePicker from '#lib/components/ProfilePicker.svelte';
+  import { asApiResponse } from '#lib/ts-utils.ts';
+  import type { UserRow, Album, User } from '#lib/types/api.ts';
+  import { showConfirm } from '#lib/confirm.ts';
+  import { toast } from '#lib/toast.ts';
+  import { uploadFileChunked } from '#lib/album-operations.ts';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
+  import { switchLocale } from '#lib/locale.ts';
 
   const photosState = new PhotosState();
   /** The theme choices, in Google Photos' order: the device's own first. */

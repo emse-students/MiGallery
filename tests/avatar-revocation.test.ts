@@ -9,10 +9,10 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
-import { computeAvatarSignature, isAvatarSignatureValid } from '$lib/server/avatar-signature';
+import { computeAvatarSignature, isAvatarSignatureValid } from '#lib/server/avatar-signature.ts';
 
-let database: typeof import('$lib/db/database');
-let revocation: typeof import('$lib/server/avatar-revocation');
+let database: typeof import('#lib/db/database.ts');
+let revocation: typeof import('#lib/server/avatar-revocation.ts');
 let dbDir: string;
 const KEY = 'test-signing-key';
 
@@ -21,8 +21,8 @@ const saltOf = (id: string) => revocation.avatarSaltOf(database.getDatabase(), i
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-avatar-rev-'));
   process.env.DATABASE_PATH = join(dbDir, 'avatar-rev.db');
-  database = await import('$lib/db/database');
-  revocation = await import('$lib/server/avatar-revocation');
+  database = await import('#lib/db/database.ts');
+  revocation = await import('#lib/server/avatar-revocation.ts');
   const add = database.getDatabase().prepare('INSERT INTO users (id_user, name) VALUES (?, ?)');
   add.run('alice', 'Alice');
   add.run('bob', 'Bob');
@@ -35,7 +35,7 @@ afterAll(() => {
 
 describe('account deletion', () => {
   it('rotates the salt even for a user who never revoked, so a same-id account re-validates nothing', async () => {
-    const erasure = await import('$lib/server/face-erasure');
+    const erasure = await import('#lib/server/face-erasure.ts');
     const db = database.getDatabase();
     db.prepare('INSERT INTO users (id_user, name) VALUES (?, ?)').run('dave', 'Dave');
     const issued = computeAvatarSignature(KEY, 'dave', saltOf('dave'));

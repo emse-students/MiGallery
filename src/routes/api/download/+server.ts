@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { createDownloadToken } from '$lib/server/download-tokens';
+import { requireScope } from '#lib/server/permissions.ts';
+import { createDownloadToken } from '#lib/server/download-tokens.ts';
 
 export const POST: RequestHandler = async (event) => {
   await requireScope(event, 'read');

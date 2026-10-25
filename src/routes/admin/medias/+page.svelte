@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import AdminPage from '$lib/components/AdminPage.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import AdminPage from '#lib/components/AdminPage.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
   import {
     CircleAlert,
     Film,
@@ -13,11 +13,11 @@
     RefreshCw,
     ScanSearch,
     Trash2,
-  } from '$lib/icons';
-  import { m } from '$lib/paraglide/messages';
-  import { toast } from '$lib/toast';
-  import { showConfirm } from '$lib/confirm';
-  import { fuzzySearch } from '$lib/fuzzy';
+  } from '#lib/icons.ts';
+  import { m } from '#lib/paraglide/messages.js';
+  import { toast } from '#lib/toast.ts';
+  import { showConfirm } from '#lib/confirm.ts';
+  import { fuzzySearch } from '#lib/fuzzy.ts';
 
   interface Untracked {
     id: string;

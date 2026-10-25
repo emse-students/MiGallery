@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { placePopover } from '$lib/popover-position';
+import { placePopover } from '#lib/popover-position.ts';
 
 describe('placePopover', () => {
   it('opens below when the content fits there', () => {

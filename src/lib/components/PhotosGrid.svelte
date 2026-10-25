@@ -11,38 +11,43 @@
   } from '@lucide/svelte';
   import { onMount, tick } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
-  import PhotoCard from '$lib/components/PhotoCard.svelte';
-  import PhotoModal from '$lib/components/PhotoModal.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
-  import Modal from '$lib/components/Modal.svelte';
-  import OverflowMenu from '$lib/components/OverflowMenu.svelte';
-  import type { OverflowMenuItem } from '$lib/overflow-menu';
-  import { portal } from '$lib/portal';
-  import { FileSharer, probeFileSharing } from '$lib/share-files';
-  import { isAllSelected, selectionActions, shareTooLarge, MAX_SHARE_FILES } from '$lib/selection';
-  import type { PhotosState } from '$lib/photos.svelte';
-  import { groupByDay } from '$lib/photos.svelte';
-  import type { User } from '$lib/types/api';
+  import PhotoCard from '#lib/components/PhotoCard.svelte';
+  import PhotoModal from '#lib/components/PhotoModal.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
+  import Modal from '#lib/components/Modal.svelte';
+  import OverflowMenu from '#lib/components/OverflowMenu.svelte';
+  import type { OverflowMenuItem } from '#lib/overflow-menu.ts';
+  import { portal } from '#lib/portal.ts';
+  import { FileSharer, probeFileSharing } from '#lib/share-files.ts';
+  import {
+    isAllSelected,
+    selectionActions,
+    shareTooLarge,
+    MAX_SHARE_FILES,
+  } from '#lib/selection.ts';
+  import type { PhotosState } from '#lib/photos.svelte.ts';
+  import { groupByDay } from '#lib/photos.svelte.ts';
+  import type { User } from '#lib/types/api.ts';
   import { page } from '$app/state';
-  import { toast } from '$lib/toast';
-  import { activeOperations } from '$lib/operations';
-  import { m } from '$lib/paraglide/messages';
+  import { toast } from '#lib/toast.ts';
+  import { activeOperations } from '#lib/operations.ts';
+  import { m } from '#lib/paraglide/messages.js';
   import {
     GRID_METRICS,
     PHONE_MAX_WIDTH,
     assetAspectRatio,
     buildGridBlocks,
     visibleBlockRange,
-  } from '$lib/photo-grid-layout';
-  import { daySelectionState, toggleDaySelection } from '$lib/day-selection';
+  } from '#lib/photo-grid-layout.ts';
+  import { daySelectionState, toggleDaySelection } from '#lib/day-selection.ts';
   import {
     PHONE_DENSITY_STEPS,
     densityAfterPinch,
     loadDensity,
     saveDensity,
-  } from '$lib/grid-density';
-  import { distinctTargets, followTouchTargets } from '$lib/touch-targets';
+  } from '#lib/grid-density.ts';
+  import { distinctTargets, followTouchTargets } from '#lib/touch-targets.ts';
 
   interface Props {
     state: PhotosState;
@@ -292,7 +297,7 @@
 
   const phoneQuery = new MediaQuery(`max-width: ${PHONE_MAX_WIDTH}px`);
 
-  /** The phone density step (`$lib/grid-density`), remembered per browser; a pinch moves it. */
+  /** The phone density step (`#lib/grid-density.ts`), remembered per browser; a pinch moves it. */
   let phoneDensity = $state(
     loadDensity(typeof localStorage === 'undefined' ? undefined : localStorage)
   );

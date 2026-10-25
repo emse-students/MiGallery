@@ -19,9 +19,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
 
-let auth: typeof import('$lib/auth');
-let users: typeof import('$lib/db/users');
-let database: typeof import('$lib/db/database');
+let auth: typeof import('#lib/auth.ts');
+let users: typeof import('#lib/db/users.ts');
+let database: typeof import('#lib/db/database.ts');
 let dbDir: string;
 
 const SUB = 'sso-mirror-test-subject';
@@ -34,9 +34,9 @@ beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-sso-'));
   process.env.DATABASE_PATH = join(dbDir, 'sso-mirror.db');
 
-  auth = await import('$lib/auth');
-  users = await import('$lib/db/users');
-  database = await import('$lib/db/database');
+  auth = await import('#lib/auth.ts');
+  users = await import('#lib/db/users.ts');
+  database = await import('#lib/db/database.ts');
 });
 
 afterAll(() => {

@@ -18,14 +18,14 @@
     Box,
     Images,
   } from '@lucide/svelte';
-  import AdminPage from '$lib/components/AdminPage.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import AdminPage from '#lib/components/AdminPage.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
   import { page } from '$app/state';
   import type { PageData } from './$types';
-  import { asApiResponse } from '$lib/ts-utils';
-  import { showConfirm } from '$lib/confirm';
-  import { toast } from '$lib/toast';
-  import { m } from '$lib/paraglide/messages';
+  import { asApiResponse } from '#lib/ts-utils.ts';
+  import { showConfirm } from '#lib/confirm.ts';
+  import { toast } from '#lib/toast.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   let isAdmin = $derived(page.data.session?.user?.role === 'admin');
   const data = page.data as PageData;

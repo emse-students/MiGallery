@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
+import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '#lib/server/disk-cache.ts';
 import { removeTempDir } from './test-helpers';
 
 /**

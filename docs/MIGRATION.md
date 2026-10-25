@@ -39,7 +39,7 @@ The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 | `IMMICH_API_KEY`                                  | access to the Immich API |
 | `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik           |
 
-Non-secret values (ORIGIN, IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
+Non-secret values (IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
 have defaults in `docker-compose.prod.yml`, overridable if needed.
 
 ## 3. SSH access for offsite backup

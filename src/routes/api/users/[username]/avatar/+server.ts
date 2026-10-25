@@ -1,15 +1,15 @@
 import { error as svelteError, isHttpError } from '@sveltejs/kit';
 
-import { getDatabase } from '$lib/db/database';
+import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
-import { generateFaceCrop } from '$lib/server/face-crop';
-import { isAvatarSignatureValid } from '$lib/server/avatar-signature';
-import { avatarSaltOf } from '$lib/server/avatar-revocation';
+import { env } from '#lib/server/env.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { generateFaceCrop } from '#lib/server/face-crop.ts';
+import { isAvatarSignatureValid } from '#lib/server/avatar-signature.ts';
+import { avatarSaltOf } from '#lib/server/avatar-revocation.ts';
 
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('users-username-avatar');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blobsFor, greetingAt, newFirstPaint, NIGHT_VARIANTS } from '$lib/first-paint';
+import { blobsFor, greetingAt, newFirstPaint, NIGHT_VARIANTS } from '#lib/first-paint.ts';
 
 /**
  * The server render and the hydration must draw the same page: two independent `Math.random()`

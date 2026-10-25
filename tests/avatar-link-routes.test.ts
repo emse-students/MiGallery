@@ -17,9 +17,9 @@ const auth = vi.hoisted(() => ({
   impersonating: false,
 }));
 
-vi.mock('$lib/server/auth', () => ({ isImpersonating: () => auth.impersonating }));
+vi.mock('#lib/server/auth.ts', () => ({ isImpersonating: () => auth.impersonating }));
 
-vi.mock('$lib/server/permissions', () => ({
+vi.mock('#lib/server/permissions.ts', () => ({
   requireSession: async () => {
     if (!auth.session) throw error(401, 'Unauthorized');
     return auth.session;
@@ -30,10 +30,10 @@ vi.mock('$lib/server/permissions', () => ({
     return { user: auth.session, grantedScope: 'admin', viaApiKey: false };
   },
 }));
-vi.mock('$lib/server/logs', () => ({ logEvent: vi.fn() }));
+vi.mock('#lib/server/logs.ts', () => ({ logEvent: vi.fn() }));
 
-let database: typeof import('$lib/db/database');
-let revocation: typeof import('$lib/server/avatar-revocation');
+let database: typeof import('#lib/db/database.ts');
+let revocation: typeof import('#lib/server/avatar-revocation.ts');
 let me: typeof import('../src/routes/api/users/me/avatar-link/+server');
 let byId: typeof import('../src/routes/api/users/[id]/avatar-link/+server');
 let dbDir: string;
@@ -49,8 +49,8 @@ const call = async (fn: (e: never) => unknown, event: object) => {
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-avatar-routes-'));
   process.env.DATABASE_PATH = join(dbDir, 'routes.db');
-  database = await import('$lib/db/database');
-  revocation = await import('$lib/server/avatar-revocation');
+  database = await import('#lib/db/database.ts');
+  revocation = await import('#lib/server/avatar-revocation.ts');
   me = await import('../src/routes/api/users/me/avatar-link/+server');
   byId = await import('../src/routes/api/users/[id]/avatar-link/+server');
   const add = database.getDatabase().prepare('INSERT INTO users (id_user, name) VALUES (?, ?)');

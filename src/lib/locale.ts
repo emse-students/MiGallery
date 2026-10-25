@@ -1,4 +1,4 @@
-import { setLocale, type Locale } from '$lib/paraglide/runtime';
+import { setLocale, type Locale } from '#lib/paraglide/runtime.js';
 
 /**
  * Switch the UI language. First records the choice against the logged-in user's

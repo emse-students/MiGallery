@@ -70,6 +70,13 @@ the effective minimum.
 | `/api/external/media/[id]` | `x-api-key` | Server-to-server media access (consumed by Sky/Canari for avatars) |
 | `/api/health`              | public      | Liveness probe                                                     |
 
+**A server-to-server caller must send a `Content-Type` on every `POST`/`PUT`/`PATCH`/`DELETE`** (SvelteKit 3,
+which this app runs since the kit 3 migration): a mutation with no `Origin` header (no browser) and no
+`Content-Type` is refused `403` by the framework before `hooks.server.ts` runs, and `csrf.trustedOrigins`
+cannot allow a missing origin. `Content-Type: application/json` on a body-less call is enough.
+
+**There is no per-route opt-out**: kit's check (`runtime/server/csrf.js`) runs before any hook, `csrf.trustedOrigins` is matched against the `Origin` header only, and neither the config nor adapter-bun offers a path exception for `/api/external/*`. So the header is a CONTRACT with every client, pinned by `tests/server-env.test.ts`. It binds `DELETE /api/external/media/[id]`, `DELETE /api/admin/api-keys/[id]` and `DELETE /api/albums/[id]` (and every other mutating route) when called with an API key. The 403 body reads `Cross-site DELETE form submissions are forbidden`, which names the cause once you know to look for it. Known clients (Sky, portail-etu, le-cercle, Canari core-service) only GET.
+
 ## Admin
 
 All under `requireAdminSession` / admin scope.

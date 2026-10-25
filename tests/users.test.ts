@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { UserResponse, UsersListResponse, UserCreateResponse } from '$lib/types/api';
-import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
+import type { UserResponse, UsersListResponse, UserCreateResponse } from '#lib/types/api.ts';
+import { setupTestAuth, teardownTestAuth, globalTestContext, deleteOrThrow } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let createdUserId: string | null = null;
@@ -19,14 +19,9 @@ afterAll(async () => {
   // Cleanup: delete all created test users
   if (globalTestContext.adminApiKey) {
     for (const userId of createdUserIds) {
-      try {
-        await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-          method: 'DELETE',
-          headers: { 'x-api-key': globalTestContext.adminApiKey },
-        });
-      } catch {
-        // Ignore errors
-      }
+      await deleteOrThrow(`${API_BASE_URL}/api/users/${userId}`, {
+        'x-api-key': globalTestContext.adminApiKey,
+      });
     }
   }
 

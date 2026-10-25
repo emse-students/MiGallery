@@ -23,7 +23,7 @@ import {
   halfToFloat,
   minDistance,
   normalizeEmbedding,
-} from '$lib/face-embedding';
+} from '#lib/face-embedding.ts';
 import {
   SEAL_OVERHEAD,
   SEAL_VERSION,
@@ -32,9 +32,9 @@ import {
   referenceContext,
   seal,
   unseal,
-} from '$lib/server/face-seal';
+} from '#lib/server/face-seal.ts';
 
-vi.mock('$env/dynamic/private', () => ({ env: { IMMICH_BASE_URL: '', IMMICH_API_KEY: '' } }));
+vi.mock('#lib/server/env.ts', () => ({ env: { IMMICH_BASE_URL: '', IMMICH_API_KEY: '' } }));
 
 /** Deterministic pseudo-random vector (mulberry32), so a failure reproduces. */
 function synthetic(seed: number): Float32Array {
@@ -370,10 +370,10 @@ describe('sealing', () => {
 });
 
 describe('the tables', () => {
-  let database: typeof import('$lib/db/database');
-  let refs: typeof import('$lib/server/face-references');
-  let link: typeof import('$lib/server/face-link');
-  let erasure: typeof import('$lib/server/face-erasure');
+  let database: typeof import('#lib/db/database.ts');
+  let refs: typeof import('#lib/server/face-references.ts');
+  let link: typeof import('#lib/server/face-link.ts');
+  let erasure: typeof import('#lib/server/face-erasure.ts');
   let dbDir: string;
   const key = parseSealKey('ab'.repeat(32));
 
@@ -390,10 +390,10 @@ describe('the tables', () => {
   beforeAll(async () => {
     dbDir = mkdtempSync(join(tmpdir(), 'migallery-face-store-'));
     process.env.DATABASE_PATH = join(dbDir, 'face-store.db');
-    database = await import('$lib/db/database');
-    refs = await import('$lib/server/face-references');
-    erasure = await import('$lib/server/face-erasure');
-    link = await import('$lib/server/face-link');
+    database = await import('#lib/db/database.ts');
+    refs = await import('#lib/server/face-references.ts');
+    erasure = await import('#lib/server/face-erasure.ts');
+    link = await import('#lib/server/face-link.ts');
   });
 
   afterAll(() => {

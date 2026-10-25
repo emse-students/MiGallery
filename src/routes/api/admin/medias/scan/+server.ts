@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { getScanState, loadScanSnapshot, startDeepScan } from '$lib/server/media-anomalies';
-import { logEvent } from '$lib/server/logs';
+import { requireScope } from '#lib/server/permissions.ts';
+import { getScanState, loadScanSnapshot, startDeepScan } from '#lib/server/media-anomalies.ts';
+import { logEvent } from '#lib/server/logs.ts';
 
 /**
  * The deep scan: which assets sit in more than one album.

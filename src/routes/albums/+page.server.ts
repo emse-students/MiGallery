@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
-import { listAllAlbums, getAllAlbums, checkAlbumAccess } from '$lib/albums';
-import type { Album, User } from '$lib/types/api';
+import { listAllAlbums, getAllAlbums, checkAlbumAccess } from '#lib/albums.ts';
+import type { Album, User } from '#lib/types/api.ts';
 import { redirect } from '@sveltejs/kit';
-import { loginBounceTarget } from '$lib/auth-redirect';
+import { loginBounceTarget } from '#lib/auth-redirect.ts';
 
 export const load: PageServerLoad = async ({ parent, url }) => {
   const { session } = await parent();

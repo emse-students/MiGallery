@@ -1,13 +1,13 @@
 import { json } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
+import { requireScope } from '#lib/server/permissions.ts';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 
-import { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
+import { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('admin-db-inspect');
 const execFileAsync = promisify(execFile);

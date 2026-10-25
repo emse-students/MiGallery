@@ -3,9 +3,9 @@
  * salt, so every URL ever issued for them stops verifying and nobody else's does.
  */
 
-import type { getDatabase } from '$lib/db/database';
-import { newAvatarSalt } from '$lib/server/avatar-signature';
-import { createLogger } from '$lib/server/logger';
+import type { getDatabase } from '#lib/db/database.ts';
+import { newAvatarSalt } from '#lib/server/avatar-signature.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('avatar-revocation');
 

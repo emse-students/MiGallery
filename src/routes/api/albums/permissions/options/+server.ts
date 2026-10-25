@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { getDefaultPromos } from '$lib/promo-utils';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { getDefaultPromos } from '#lib/promo-utils.ts';
 
 const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FSSS', 'Autre'];
 

@@ -35,6 +35,7 @@ Sealing needs `FACE_STORE_KEY`: 64 hex characters (32 bytes), held by the server
 by `parseSealKey`, which throws on anything else rather than weaken. **It is NOT yet declared in
 `docker-compose.prod.yml` or in the deployment table**, deliberately: nothing reads it, and a
 required variable would stop a deploy for nothing. Lot A2 adds it where the first reader appears.
+**The day the store is wired, `FACE_STORE_KEY` MUST be declared in `src/env.ts`** (kit 3 exposes only what is declared there: an undeclared variable reads `undefined`, silently) and read through `#lib/server/env.ts`; today `face-seal.ts` has no runtime reader.
 Rotating it makes every sealed blob unreadable, which is also how the whole store is erased.
 
 ## Tests

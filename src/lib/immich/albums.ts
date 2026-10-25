@@ -1,4 +1,4 @@
-import type { ImmichAlbum } from '$lib/types/api';
+import type { ImmichAlbum } from '#lib/types/api.ts';
 
 export async function getAlbum(immichId: string | null): Promise<{
   albumName: string | null;

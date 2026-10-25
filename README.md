@@ -6,7 +6,7 @@
 **by MiTV**
 
 [![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Bun](https://img.shields.io/badge/Bun-1.4-000000?logo=bun&logoColor=white)](https://bun.sh/)
 
 [![CI](https://github.com/emse-students/MiGallery/actions/workflows/ci.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/ci.yml)
 [![Code Analysis](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml)
@@ -39,10 +39,10 @@ MiGallery is a modern photo gallery web application built with **SvelteKit** run
 - **Node.js** >= 20
 - SQLite (built into the bun runtime, `bun:sqlite`)
 
-Check Node.js:
+Check bun:
 
 ```bash
-node --version
+bun --version
 ```
 
 ### Installation Steps
@@ -337,7 +337,7 @@ This user is intended for system administration and should not be deleted.
 - **[SvelteKit](https://kit.svelte.dev/)** - Modern, high-performance web framework
 - **[Svelte 5](https://svelte.dev/)** - Reactive UI framework
 - **[Vite](https://vitejs.dev/)** - Ultra-fast build tool
-- **[Node.js](https://nodejs.org/)** - JavaScript runtime
+- **[Bun](https://bun.sh/)** - JavaScript runtime and package manager
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[bun:sqlite](https://bun.sh/docs/api/sqlite)** - Synchronous SQLite database, built into the runtime
 - **[Auth.js](https://authjs.dev/)** - Flexible authentication
@@ -518,7 +518,7 @@ pip install --upgrade pre-commit
 pre-commit --version
 ```
 
-- `node: command not found` → Install Node.js from <https://nodejs.org>
+- `bun: command not found` → Install bun from <https://bun.sh>
 
 - Hooks not running:
 

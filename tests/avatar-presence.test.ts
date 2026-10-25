@@ -12,16 +12,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
 
-let presence: typeof import('$lib/server/avatar-presence');
-let database: typeof import('$lib/db/database');
+let presence: typeof import('#lib/server/avatar-presence.ts');
+let database: typeof import('#lib/db/database.ts');
 let dbDir: string;
 
 beforeAll(async () => {
   // DB_PATH is read once at module load, so the env is set BEFORE the first import.
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-presence-'));
   process.env.DATABASE_PATH = join(dbDir, 'presence.db');
-  presence = await import('$lib/server/avatar-presence');
-  database = await import('$lib/db/database');
+  presence = await import('#lib/server/avatar-presence.ts');
+  database = await import('#lib/db/database.ts');
   const insert = database
     .getDatabase()
     .prepare('INSERT INTO users (id_user, name, photos_id, role) VALUES (?, ?, ?, ?)');

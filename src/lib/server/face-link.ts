@@ -14,14 +14,14 @@
  * or a consent row without its link, would be an unprovable state.
  */
 
-import type { getDatabase } from '$lib/db/database';
+import type { getDatabase } from '#lib/db/database.ts';
 import {
   eraseLocalFaceData,
   type FaceErasureReason,
   type LocalErasure,
-} from '$lib/server/face-erasure';
-import { recordFaceConsent } from '$lib/server/face-consent';
-import { eraseFaceReferences } from '$lib/server/face-references';
+} from '#lib/server/face-erasure.ts';
+import { recordFaceConsent } from '#lib/server/face-consent.ts';
+import { eraseFaceReferences } from '#lib/server/face-references.ts';
 
 type Db = ReturnType<typeof getDatabase>;
 
