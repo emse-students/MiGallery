@@ -62,6 +62,7 @@ function testEnv(databasePath) {
     MICONNECT_ISSUER: 'https://idp.test.invalid/application/o/migallery',
     MICONNECT_CLIENT_ID: 'test-client-id',
     MICONNECT_CLIENT_SECRET: 'test-client-secret',
+    AVATAR_SIGNING_KEY: 'test-avatar-signing-key',
     DATABASE_PATH: databasePath,
     // Read by tests/test-helpers.ts `openTestDatabase`, which refuses to open anything else.
     MIGALLERY_TEST_DATABASE: databasePath,

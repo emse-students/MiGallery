@@ -1,3 +1,23 @@
+# MiGallery v2.17.0
+
+**Date**: October 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+SvelteKit 3 on `@sveltejs/adapter-bun`, which clears the last advisories (`bun audit` ends at zero), and the first tables of the sealed face store.
+
+## Changes
+
+- Deps: SvelteKit 3.1 replaces 2.x and `@sveltejs/adapter-bun` replaces adapter-node; the build is `bun --bun vite build` and the server still runs as `bun build/index.js` (#406).
+- Contract: every `POST`/`PUT`/`PATCH`/`DELETE` an API-key client makes MUST carry a `Content-Type` (`application/json` is enough, also on a body-less call). Kit 3 answers `403 Cross-site DELETE form submissions are forbidden` to a mutation with neither an `Origin` nor a `Content-Type`, before any route runs, and offers no per-route opt-out. This binds `DELETE /api/external/media/[id]`, `DELETE /api/admin/api-keys/[id]` and `DELETE /api/albums/[id]`. Sky, Portail-etu, Le Cercle and Canari only `GET`.
+- Deploy: the public origin is no longer configured (`ORIGIN` is gone): it comes from the `Host` header with https assumed, so the proxy or tunnel must forward `gallery.mitv.fr` unchanged. The OIDC `redirect_uri` and canonical URLs follow it.
+- Deploy: `docker stop` now exits 0 within seconds (SIGTERM stops the timers and waits for a face erasure) instead of being killed after 10 s; the compose file sets `stop_grace_period: 45s`.
+- Config: the server reads only the variables declared in `src/env.ts` (Immich, MiConnect, avatar signing key).
+- New: the sealed face store tables, reference vectors, erasure and link (A1, #404); `FACE_STORE_KEY` has no reader yet.
+- Fixed: the sign-in redirect to the identity provider is allow-listed to the issuer's origin, as kit 3 requires.
+- Fixed: a callback whose code the identity provider refuses (forged, expired, replayed) answers `401` instead of `500`.
+
 # MiGallery v2.16.0
 
 **Date**: October 18, 2026
