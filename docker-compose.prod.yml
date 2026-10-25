@@ -13,6 +13,10 @@ services:
     # take the host down. Tune MIGALLERY_MEM_LIMIT to ~50-75% of host RAM (default 3g).
     mem_limit: ${MIGALLERY_MEM_LIMIT:-3g}
     mem_reservation: 512m
+    # SIGTERM drains the listener (adapter-bun, up to SHUTDOWN_TIMEOUT = 30 s), then
+    # src/lib/server/shutdown.ts waits up to 10 s for a face erasure and exits 0. Docker's default
+    # 10 s would SIGKILL (137) a shutdown with a request in flight.
+    stop_grace_period: 45s
     build:
       context: .
       dockerfile: Dockerfile

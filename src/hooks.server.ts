@@ -8,11 +8,15 @@ import {
 } from '#lib/session.ts';
 import { startBackupScheduler } from '#lib/server/backup.ts';
 import { startFaceErasureWorker } from '#lib/server/face-erasure.ts';
+import { installShutdownListener } from '#lib/server/shutdown.ts';
 
 import { startLogRetention } from '#lib/server/logs.ts';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
+
+// adapter-bun drains on SIGTERM but never exits: this listener stops the timers below and exits
+installShutdownListener();
 
 // Start the daily automatic backup as soon as the server starts
 startBackupScheduler();

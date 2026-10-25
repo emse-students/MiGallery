@@ -1,3 +1,5 @@
+import { registerShutdown } from '#lib/server/shutdown.ts';
+
 interface DownloadToken {
   assetIds: string[];
   filename: string;
@@ -7,7 +9,7 @@ interface DownloadToken {
 const store = new Map<string, DownloadToken>();
 
 // Purge expired tokens every minute
-setInterval(() => {
+const purgeTimer = setInterval(() => {
   const now = Date.now();
   for (const [token, data] of store) {
     if (data.expiresAt < now) {
@@ -15,6 +17,7 @@ setInterval(() => {
     }
   }
 }, 60_000);
+registerShutdown('download token purge', () => clearInterval(purgeTimer));
 
 export function createDownloadToken(assetIds: string[], filename: string): string {
   const token = crypto.randomUUID();

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { ApiKeyResponse, ApiKeysListResponse } from '#lib/types/api.ts';
-import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
+import { setupTestAuth, teardownTestAuth, globalTestContext, deleteOrThrow } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let testApiKeyId: string | null = null;
@@ -24,37 +24,35 @@ beforeAll(async () => {
 afterAll(async () => {
   // Cleanup: delete the main test key
   if (testApiKeyId && globalTestContext.sessionCookie) {
-    await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
-      method: 'DELETE',
-      headers: { Cookie: globalTestContext.sessionCookie },
+    await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
+      Cookie: globalTestContext.sessionCookie,
     });
   }
 
   // Cleanup: delete all test keys created
   if (globalTestContext.adminApiKey) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
-        headers: { 'x-api-key': globalTestContext.adminApiKey },
-      });
-      if (response.ok) {
-        const data = (await response.json()) as ApiKeysListResponse;
-        for (const key of data.keys || []) {
-          // Delete keys with test labels or that start with "Test API Key"
-          if (
-            TEST_KEY_LABELS.includes(key.label || '') ||
-            (key.label && key.label.startsWith('Test API Key'))
-          ) {
-            await fetch(`${API_BASE_URL}/api/admin/api-keys/${key.id}`, {
-              method: 'DELETE',
-              headers: { 'x-api-key': globalTestContext.adminApiKey },
-            });
-          }
-        }
+    const response = await fetch(`${API_BASE_URL}/api/admin/api-keys`, {
+      headers: { 'x-api-key': globalTestContext.adminApiKey },
+    });
+    if (!response.ok) {
+      throw new Error(`cleanup: listing API keys answered ${response.status}`);
+    }
+    const data = (await response.json()) as ApiKeysListResponse;
+    // The setup's own keys (the admin key authenticates every call here) are teardownTestAuth's:
+    // deleting the admin key first would make its user deletion a 403.
+    const setupKeys = new Set(globalTestContext.createdResources?.apiKeys ?? []);
+    for (const key of data.keys || []) {
+      if (setupKeys.has(key.id)) {
+        continue;
       }
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      if (!message.startsWith('fetch failed')) {
-        console.warn('Error cleaning up test keys:', message);
+      // Delete keys with test labels or that start with "Test API Key"
+      if (
+        TEST_KEY_LABELS.includes(key.label || '') ||
+        (key.label && key.label.startsWith('Test API Key'))
+      ) {
+        await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${key.id}`, {
+          'x-api-key': globalTestContext.adminApiKey,
+        });
       }
     }
 

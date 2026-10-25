@@ -14,12 +14,25 @@ database, via Immich's own procedure).
 
 | Element       | Detail                                                                                                     |
 | ------------- | ---------------------------------------------------------------------------------------------------------- |
-| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                                                 |
+| Runtime       | Docker container `migallery` (SvelteKit 3 on bun, adapter-bun), port 3000                                  |
 | Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches                                 |
 | Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                                                     |
 | CD            | `release.yml`: preflight -> `deploy.yml` (build-image -> deploy, self-hosted). **A push deploys nothing.** |
 | Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)                                  |
 | Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                                                     |
+
+## The public Host, and how the container stops
+
+The origin is NOT configured: adapter-bun derives it from the request's `Host` header and assumes
+`https`. **The tunnel or proxy in front MUST forward the public Host unchanged** (the OIDC `redirect_uri`,
+the canonical and OG URLs and the CSRF self-origin all come from it). A build never carries a host, so a
+dev, preview or local build points at itself. Pinned by `tests/server-env.test.ts`.
+
+`docker stop` sends SIGTERM: adapter-bun drains the listener and emits `sveltekit:shutdown`, and
+`src/lib/server/shutdown.ts` (the listener adapter-bun does not provide) stops the timers, waits up to 10 s
+for a face-erasure pass and exits 0. `stop_grace_period: 45s` in the compose file covers the 30 s drain
+plus that wait; `scripts/test-with-server.mjs` sends a real SIGTERM on Linux and fails unless the server
+exits 0 within 15 s.
 
 ## Configuration
 

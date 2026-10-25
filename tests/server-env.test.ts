@@ -21,6 +21,41 @@ describe('server environment', () => {
     expect(location.searchParams.get('client_id')).toBe('test-client-id');
   });
 
+  it('derives the origin from the Host header, never from the build', async () => {
+    // adapter-bun assumes https and trusts the Host the proxy forwards. A baked-in origin would
+    // send every dev, preview or local build's redirect_uri to production.
+    const host = 'gallery.host-derivation.test';
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      redirect: 'manual',
+      headers: { Host: host },
+    });
+
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get('location') ?? '');
+    expect(location.searchParams.get('redirect_uri')).toBe(`https://${host}/api/auth/callback`);
+
+    const page = await fetch(`${API_BASE_URL}/cgu`, { headers: { Host: host } });
+    expect(await page.text()).toContain(`https://${host}/cgu`);
+  });
+
+  it('refuses a body-less mutation that has no Origin and no Content-Type (kit 3 contract)', async () => {
+    // Answered by the framework before hooks.server.ts, so it cannot be opted out per route:
+    // docs/wiki/api-reference.md makes `Content-Type` part of the API for every client.
+    const bare = await fetch(`${API_BASE_URL}/api/external/media/none`, {
+      method: 'DELETE',
+      headers: { 'x-api-key': 'not-a-key' },
+    });
+    expect(bare.status).toBe(403);
+    expect(await bare.text()).toContain('Cross-site DELETE form submissions are forbidden');
+
+    const typed = await fetch(`${API_BASE_URL}/api/external/media/none`, {
+      method: 'DELETE',
+      headers: { 'x-api-key': 'not-a-key', 'Content-Type': 'application/json' },
+    });
+    // The handler answers its own 403 for a bad key; only the framework's message is the contract.
+    expect(await typed.text()).not.toContain('Cross-site');
+  });
+
   it('reports the database as connected through bun:sqlite', async () => {
     const response = await fetch(`${API_BASE_URL}/api/health`);
 

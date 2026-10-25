@@ -34,9 +34,10 @@ export default defineConfig({
       prerender: {
         handleHttpError: 'warn',
       },
-      // The public origin. Kit 3 reads it from here for the CSRF check on forms; adapter-node's
-      // ORIGIN variable is gone and adapter-bun has none.
-      paths: { origin: 'https://gallery.mitv.fr' },
+      // NO `paths.origin`: it is baked at BUILD time and rewrites every request onto one host, so
+      // a dev, preview or local build would send its OIDC redirect_uri and OG URLs to production.
+      // adapter-bun derives the origin from the request's Host header (https assumed), so the
+      // proxy or tunnel in front MUST forward the public Host unchanged (docs/wiki/deployment.md).
       // Configuration CSRF : on spécifie les origines de confiance.
       // Les routes /api/external/* utilisent x-api-key (pas de cookies), donc pas de risque CSRF.
       // Les autres routes mutantes (POST/PUT/DELETE) sont vérifiées dans hooks.server.ts.
