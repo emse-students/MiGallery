@@ -37,6 +37,7 @@ import { deletePersonFaceCrops } from '$lib/server/face-crop';
 import { normalisePersonId } from '$lib/server/person-id';
 import { rotateAvatarSalt } from '$lib/server/avatar-revocation';
 import { withdrawFaceConsent } from '$lib/server/face-consent';
+import { eraseFaceReferences } from '$lib/server/face-references';
 
 const log = createLogger('face-erasure');
 
@@ -71,7 +72,7 @@ export interface LocalErasure {
 /**
  * The local half for `userId`, inside the caller's transaction: drop the face link and profile
  * photo pointer, the grants the member GAVE (the ones on their own face photos - grants others
- * gave them are about other people's faces and stay), close the consent record, and journal the
+ * gave them are about other people's faces and stay), close the consent record, delete the sealed reference embeddings, and journal the
  * Immich half when there is a person to clear. The file side (crops, the run) is NOT done here: a
  * file error must not roll a withdrawal back, so the caller runs {@link finishLocalErasure} after
  * its COMMIT. Called for a withdrawal, an account deletion, an admin unlink and a RELINK - the
@@ -93,6 +94,8 @@ export function eraseLocalFaceData(
   );
   db.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ?').run(userId);
   withdrawFaceConsent(db, userId);
+  // The member's stored face templates go with the consent: withdrawal, unlink and relink all end here.
+  eraseFaceReferences(db, userId);
 
   if (!linked) {
     log.info('face data erased locally, no Immich person was linked', { reason });
