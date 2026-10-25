@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { requireAdminPage } from '$lib/server/auth';
+import { requireAdminPage } from '#lib/server/auth.ts';
 
 /**
  * Nothing is loaded server-side on purpose: every figure on this page costs

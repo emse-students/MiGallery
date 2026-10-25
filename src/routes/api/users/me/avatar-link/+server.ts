@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireSession } from '$lib/server/permissions';
-import { isImpersonating } from '$lib/server/auth';
-import { revokeAvatarLinks } from '$lib/server/avatar-revocation';
-import { logEvent } from '$lib/server/logs';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireSession } from '#lib/server/permissions.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { revokeAvatarLinks } from '#lib/server/avatar-revocation.ts';
+import { logEvent } from '#lib/server/logs.ts';
 
 /**
  * DELETE /api/users/me/avatar-link

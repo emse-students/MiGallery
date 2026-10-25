@@ -1,12 +1,12 @@
 import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireSession } from '$lib/server/permissions';
-import { clearSessionCookie } from '$lib/session';
-import { deleteUserAccount } from '$lib/server/face-erasure';
-import { isImpersonating } from '$lib/server/auth';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireSession } from '#lib/server/permissions.ts';
+import { clearSessionCookie } from '#lib/session.ts';
+import { deleteUserAccount } from '#lib/server/face-erasure.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-me');
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';

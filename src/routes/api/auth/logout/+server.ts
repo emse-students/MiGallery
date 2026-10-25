@@ -1,8 +1,8 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { clearSessionCookie, getSessionToken } from '$lib/session';
-import { deleteSession } from '$lib/db/sessions';
-import { createLogger } from '$lib/server/logger';
+import { clearSessionCookie, getSessionToken } from '#lib/session.ts';
+import { deleteSession } from '#lib/db/sessions.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('auth-logout');
 

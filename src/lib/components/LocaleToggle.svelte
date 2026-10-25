@@ -6,9 +6,9 @@
    * interactions to answer a question one tap settles. It is written as a cycle over `locales`
    * so adding a third needs no change here - only the label stops reading as a binary.
    */
-  import { getLocale, locales, type Locale } from '$lib/paraglide/runtime';
-  import { switchLocale } from '$lib/locale';
-  import { m } from '$lib/paraglide/messages';
+  import { getLocale, locales, type Locale } from '#lib/paraglide/runtime.js';
+  import { switchLocale } from '#lib/locale.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   /** The locale one click away. */
   function nextLocale(): Locale {

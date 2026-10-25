@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
-import { requireAdminPage } from '$lib/server/auth';
-import { getDatabase } from '$lib/db/database';
-import type { UserRow } from '$lib/types/api';
+import { requireAdminPage } from '#lib/server/auth.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import type { UserRow } from '#lib/types/api.ts';
 
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 

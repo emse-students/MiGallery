@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { nextMenuIndex } from '$lib/overflow-menu';
+import { nextMenuIndex } from '#lib/overflow-menu.ts';
 
 describe('nextMenuIndex', () => {
   const none = [false, false, false];

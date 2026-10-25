@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { loginBounceTarget } from '$lib/auth-redirect';
+import { loginBounceTarget } from '#lib/auth-redirect.ts';
 
 export const load: PageServerLoad = async ({ parent, url }) => {
   const { session } = await parent();

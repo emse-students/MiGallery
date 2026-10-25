@@ -3,7 +3,7 @@
  */
 
 import { toast as toastStore } from './toast';
-import { m } from '$lib/paraglide/messages';
+import { m } from '#lib/paraglide/messages.js';
 
 /**
  * Show a success message

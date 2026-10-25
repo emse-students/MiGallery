@@ -1,8 +1,8 @@
-import { dev } from '$app/environment';
-import type { UserRow } from '$lib/types/api';
-import { getDatabase } from '$lib/db/database';
-import { createSession } from '$lib/db/sessions';
-import { setSessionCookie } from '$lib/session';
+import { dev } from '$app/env';
+import type { UserRow } from '#lib/types/api.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { createSession } from '#lib/db/sessions.ts';
+import { setSessionCookie } from '#lib/session.ts';
 import type { RequestHandler } from './$types';
 
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';

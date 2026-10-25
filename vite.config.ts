@@ -1,4 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import adapter from '@sveltejs/adapter-bun';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
@@ -9,7 +11,7 @@ import pkg from './package.json' with { type: 'json' };
 export default defineConfig({
   plugins: [
     // Paraglide compiles the message runtime into src/lib/paraglide before
-    // SvelteKit. MiGallery is server-rendered (adapter-node), so locale
+    // SvelteKit. MiGallery is server-rendered (adapter-bun), so locale
     // detection is server-driven: the cookie set by the language switcher, then
     // the browser Accept-Language header, then the base locale (fr). The server
     // middleware in hooks.server.ts binds the resolved locale during SSR.
@@ -22,7 +24,35 @@ export default defineConfig({
     // path Tailwind keeps for build tools that are not Vite; here it only added a
     // second CSS pass over every file.
     tailwindcss(),
-    sveltekit(),
+    sveltekit({
+      adapter: adapter(),
+      // `style: false`: no component style uses a preprocessor language, and preprocessing them
+      // handed each raw <style> block to lightningcss BEFORE Svelte compiled it, so every
+      // `:global(...)` was reported as an unknown pseudo-class on every dev start. Svelte's
+      // compiled CSS still goes through vite's lightningcss afterwards, targets included.
+      preprocess: vitePreprocess({ script: true, style: false }),
+      prerender: {
+        handleHttpError: 'warn',
+      },
+      // The public origin. Kit 3 reads it from here for the CSRF check on forms; adapter-node's
+      // ORIGIN variable is gone and adapter-bun has none.
+      paths: { origin: 'https://gallery.mitv.fr' },
+      // Configuration CSRF : on spécifie les origines de confiance.
+      // Les routes /api/external/* utilisent x-api-key (pas de cookies), donc pas de risque CSRF.
+      // Les autres routes mutantes (POST/PUT/DELETE) sont vérifiées dans hooks.server.ts.
+      csrf: {
+        trustedOrigins: [
+          'https://portail-etu.emse.fr',
+          'https://gallery.mitv.fr',
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'http://localhost:5174',
+        ],
+      },
+      version: {
+        pollInterval: 60000,
+      },
+    }),
   ],
   // VENDOR PREFIXES. Dropping PostCSS drops autoprefixer with it, and that was NOT
   // cosmetic: the source writes `backdrop-filter` 50 times and `-webkit-backdrop-filter`

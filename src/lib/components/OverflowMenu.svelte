@@ -12,10 +12,10 @@
    */
   import { tick } from 'svelte';
   import { EllipsisVertical } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { nextMenuIndex, type OverflowMenuItem } from '$lib/overflow-menu';
-  import { portal } from '$lib/portal';
-  import { placePopover } from '$lib/popover-position';
+  import { m } from '#lib/paraglide/messages.js';
+  import { nextMenuIndex, type OverflowMenuItem } from '#lib/overflow-menu.ts';
+  import { portal } from '#lib/portal.ts';
+  import { placePopover } from '#lib/popover-position.ts';
 
   interface Props {
     items: OverflowMenuItem[];

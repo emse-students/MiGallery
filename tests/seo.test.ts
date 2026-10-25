@@ -8,7 +8,7 @@ import {
   jsonLdScript,
   siteNode,
   siteSeo,
-} from '$lib/seo';
+} from '#lib/seo.ts';
 
 /**
  * Two audiences. A search engine gets the home page ALONE (`static/robots.txt`, the `robots` meta and

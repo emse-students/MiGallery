@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { daySelectionState, toggleDaySelection } from '$lib/day-selection';
+import { daySelectionState, toggleDaySelection } from '#lib/day-selection.ts';
 
 const day = ['a', 'b', 'c'];
 

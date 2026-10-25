@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import { deleteApiKey } from '$lib/db/api-keys';
-import { requireScope } from '$lib/server/permissions';
+import { deleteApiKey } from '#lib/db/api-keys.ts';
+import { requireScope } from '#lib/server/permissions.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('admin-api-keys-id');
 export const DELETE: RequestHandler = async (event) => {

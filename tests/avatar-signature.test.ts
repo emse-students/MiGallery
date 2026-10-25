@@ -13,7 +13,7 @@ import {
   computeAvatarSignature,
   isAvatarSignatureValid,
   newAvatarSalt,
-} from '$lib/server/avatar-signature';
+} from '#lib/server/avatar-signature.ts';
 
 const KEY = 'test-signing-key';
 const ID_USER = '4f1c9e0b2a7d';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Info, CircleCheckBig, CircleX, TriangleAlert, X } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     message: string;

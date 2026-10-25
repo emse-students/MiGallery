@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
 
 import { json, error } from '@sveltejs/kit';
-import { getPersonAssets } from '$lib/photos-cv/handlers';
-import { requirePersonAccess } from '$lib/server/face-access';
+import { getPersonAssets } from '#lib/photos-cv/handlers.ts';
+import { requirePersonAccess } from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-person-id-my-photos');
 export const GET: RequestHandler = async (event) => {

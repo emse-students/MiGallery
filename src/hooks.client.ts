@@ -1,5 +1,5 @@
-import { activeOperations } from '$lib/operations';
-import { navigationModalStore } from '$lib/navigation-store';
+import { activeOperations } from '#lib/operations.ts';
+import { navigationModalStore } from '#lib/navigation-store.ts';
 
 /**
  * Intercept clicks on links to block navigation

@@ -1,7 +1,7 @@
 import type { Component } from 'svelte';
 import { Folder, User as UserIcon, Camera, Settings } from '@lucide/svelte';
-import { m } from '$lib/paraglide/messages';
-import type { Locale } from '$lib/paraglide/runtime';
+import { m } from '#lib/paraglide/messages.js';
+import type { Locale } from '#lib/paraglide/runtime.js';
 
 /**
  * One destination of the app's main navigation. The phone's bottom bar (`MobileNav`) and the

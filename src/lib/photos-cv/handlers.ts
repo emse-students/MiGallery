@@ -1,11 +1,11 @@
-import { env } from '$env/dynamic/private';
+import { env } from '#lib/server/env.ts';
 import { error } from '@sveltejs/kit';
-import type { ImmichAsset, ImmichAlbum } from '$lib/types/api';
-import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
-import { searchAllAssets } from '$lib/server/immich-search';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import type { ImmichAsset, ImmichAlbum } from '#lib/types/api.ts';
+import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
+import { addAlbumAssets, removeAlbumAssets } from '#lib/server/immich-album-assets.ts';
+import { searchAllAssets } from '#lib/server/immich-search.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';

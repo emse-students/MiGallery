@@ -3,9 +3,9 @@
  * version of the terms and how. Written in the same request as the link, never reconstructed.
  */
 
-import type { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
-import { LEGACY_CONSENT_VERSION, TERMS_VERSION } from '$lib/legal';
+import type { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { LEGACY_CONSENT_VERSION, TERMS_VERSION } from '#lib/legal.ts';
 
 const log = createLogger('face-consent');
 

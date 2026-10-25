@@ -16,7 +16,7 @@ import {
   formatViewerDateTitle,
   formatViewerFullDate,
   viewerDateOf,
-} from '$lib/viewer-info';
+} from '#lib/viewer-info.ts';
 
 const labels = { today: "Aujourd'hui", yesterday: 'Hier' };
 const fr = {

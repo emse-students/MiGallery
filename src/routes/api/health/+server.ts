@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
 
 /**
  * GET /api/health

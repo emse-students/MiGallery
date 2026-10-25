@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { getDatabase, ensureSchema } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
+import { getDatabase, ensureSchema } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // Canonical table set, kept in sync with src/lib/db/schema.sql.

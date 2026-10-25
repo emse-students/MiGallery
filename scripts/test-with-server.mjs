@@ -59,6 +59,10 @@ function testEnv(databasePath) {
     AUTH_TRUSTED_HOST: 'true',
     IMMICH_BASE_URL: '',
     IMMICH_API_KEY: '',
+    // Fixed fake provider: tests/server-env.test.ts reads them back through the BUILT server.
+    MICONNECT_ISSUER: 'https://idp.test.invalid/application/o/migallery',
+    MICONNECT_CLIENT_ID: 'test-client-id',
+    MICONNECT_CLIENT_SECRET: 'test-client-secret',
     DATABASE_PATH: databasePath,
     // Read by tests/test-helpers.ts `openTestDatabase`, which refuses to open anything else.
     MIGALLERY_TEST_DATABASE: databasePath,

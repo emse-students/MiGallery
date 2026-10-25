@@ -21,7 +21,6 @@ services:
     environment:
       PORT: '3000'
       NODE_ENV: production
-      ORIGIN: ${ORIGIN:-https://gallery.mitv.fr}
       # Client address for getClientAddress() and the audit log: the only public way in is the
       # Cloudflare tunnel, and Cloudflare sets this header to the address it was reached from,
       # overwriting any client-sent value. Never X-Forwarded-For (its first value is the
@@ -40,7 +39,7 @@ services:
       AVATAR_SIGNING_KEY: ${AVATAR_SIGNING_KEY:?AVATAR_SIGNING_KEY requis}
       # Aucun secret de session : le cookie ne transporte qu'un jeton opaque et la
       # table `sessions` porte tout le reste - rien a signer, donc rien a tourner.
-      # Max request body accepted by adapter-node. Nothing legitimately needs a big
+      # Max request body accepted by adapter-bun. Nothing legitimately needs a big
       # body: simple uploads are < 10MB and large files are sent in 5MB chunks, so
       # keep a small, safe cap.
       BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-64M}

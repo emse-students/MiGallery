@@ -70,6 +70,11 @@ the effective minimum.
 | `/api/external/media/[id]` | `x-api-key` | Server-to-server media access (consumed by Sky/Canari for avatars) |
 | `/api/health`              | public      | Liveness probe                                                     |
 
+**A server-to-server caller must send a `Content-Type` on every `POST`/`PUT`/`PATCH`/`DELETE`** (SvelteKit 3,
+which this app runs since the kit 3 migration): a mutation with no `Origin` header (no browser) and no
+`Content-Type` is refused `403` by the framework before `hooks.server.ts` runs, and `csrf.trustedOrigins`
+cannot allow a missing origin. `Content-Type: application/json` on a body-less call is enough.
+
 ## Admin
 
 All under `requireAdminSession` / admin scope.

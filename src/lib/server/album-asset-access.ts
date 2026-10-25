@@ -1,9 +1,9 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { requireScope } from '$lib/server/permissions';
-import { createLogger } from '$lib/server/logger';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('album-asset-access');
 

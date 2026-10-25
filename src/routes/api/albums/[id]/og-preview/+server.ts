@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { getStoredCover } from '$lib/server/album-cover';
+import { getDatabase } from '#lib/db/database.ts';
+import { getStoredCover } from '#lib/server/album-cover.ts';
 
 /**
  * GET /api/albums/[id]/og-preview

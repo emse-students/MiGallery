@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
+import { browser } from '$app/env';
 
 import {
   parsePreference,
@@ -8,7 +8,7 @@ import {
   THEME_STORAGE_KEY,
   type Theme,
   type ThemePreference,
-} from '$lib/theme-preference';
+} from '#lib/theme-preference.ts';
 
 export type { Theme, ThemePreference };
 

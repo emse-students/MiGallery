@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { generateFaceCrop } from '$lib/server/face-crop';
+import { requireScope } from '#lib/server/permissions.ts';
+import { generateFaceCrop } from '#lib/server/face-crop.ts';
 
 /**
  * GET /api/faces/[assetId]/[personId]

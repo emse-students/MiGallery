@@ -1,15 +1,15 @@
 import { json, error } from '@sveltejs/kit';
-import type { ImmichAsset } from '$lib/types/api';
-import { ensureError } from '$lib/ts-utils';
+import type { ImmichAsset } from '#lib/types/api.ts';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
+import { env } from '#lib/server/env.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { getPersonAssets as getPersonAlbumAssets } from '$lib/photos-cv/handlers';
-import { requirePersonAccess } from '$lib/server/face-access';
+import { getPersonAssets as getPersonAlbumAssets } from '#lib/photos-cv/handlers.ts';
+import { requirePersonAccess } from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-people-personId-photos');
 async function getPersonAssets(personId: string, inAlbum: boolean, fetchFn: typeof fetch) {

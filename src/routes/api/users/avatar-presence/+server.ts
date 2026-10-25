@@ -1,12 +1,12 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
+import { requireScope } from '#lib/server/permissions.ts';
 import {
   AvatarPresenceRequestError,
   parseAvatarPresenceIds,
   usersWithPhoto,
-} from '$lib/server/avatar-presence';
-import { createLogger } from '$lib/server/logger';
+} from '#lib/server/avatar-presence.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-avatar-presence');
 

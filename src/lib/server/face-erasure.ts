@@ -28,16 +28,16 @@
  * docs/wiki/photos-cv.md#erasure.
  */
 
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import { searchAllAssets } from '$lib/server/immich-search';
-import { deletePersonFaceCrops } from '$lib/server/face-crop';
-import { normalisePersonId } from '$lib/server/person-id';
-import { rotateAvatarSalt } from '$lib/server/avatar-revocation';
-import { withdrawFaceConsent } from '$lib/server/face-consent';
-import { eraseFaceReferences } from '$lib/server/face-references';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import { searchAllAssets } from '#lib/server/immich-search.ts';
+import { deletePersonFaceCrops } from '#lib/server/face-crop.ts';
+import { normalisePersonId } from '#lib/server/person-id.ts';
+import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
+import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
+import { eraseFaceReferences } from '#lib/server/face-references.ts';
 
 const log = createLogger('face-erasure');
 

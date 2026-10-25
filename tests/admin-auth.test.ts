@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { ApiKeyResponse, ApiKeysListResponse } from '$lib/types/api';
+import type { ApiKeyResponse, ApiKeysListResponse } from '#lib/types/api.ts';
 import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';

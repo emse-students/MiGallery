@@ -1,4 +1,4 @@
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 const IMMICH_BASE_URL = (typeof process !== 'undefined' && process.env?.IMMICH_BASE_URL) || '';
 const IMMICH_API_KEY = (typeof process !== 'undefined' && process.env?.IMMICH_API_KEY) || '';
 

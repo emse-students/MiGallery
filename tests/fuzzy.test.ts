@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { fuzzyScore, fuzzyMatch, fuzzySearch, normalizeText, editDistance } from '$lib/fuzzy';
+import { fuzzyScore, fuzzyMatch, fuzzySearch, normalizeText, editDistance } from '#lib/fuzzy.ts';
 
 describe('normalizeText', () => {
   it('folds case and accents so a French name is reachable from a bare keyboard', () => {

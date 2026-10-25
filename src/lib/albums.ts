@@ -1,5 +1,5 @@
-import { getDatabase } from '$lib/db/database';
-import type { User, AlbumRow } from '$lib/types/api';
+import { getDatabase } from '#lib/db/database.ts';
+import type { User, AlbumRow } from '#lib/types/api.ts';
 
 /**
  * Check whether a given user can access an album row from our local albums table.

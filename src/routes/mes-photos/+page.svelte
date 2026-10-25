@@ -3,16 +3,16 @@
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { Lock, ArrowLeft, Camera, Eye } from '@lucide/svelte';
-  import LoadingState from '$lib/components/LoadingState.svelte';
-  import ErrorState from '$lib/components/ErrorState.svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
-  import PhotosGrid from '$lib/components/PhotosGrid.svelte';
-  import ChangePhotoModal from '$lib/components/ChangePhotoModal.svelte';
-  import { PhotosState } from '$lib/photos.svelte';
-  import { toast } from '$lib/toast';
-  import { m } from '$lib/paraglide/messages';
-  import type { User } from '$lib/types/api';
+  import LoadingState from '#lib/components/LoadingState.svelte';
+  import ErrorState from '#lib/components/ErrorState.svelte';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import PageHeader from '#lib/components/PageHeader.svelte';
+  import PhotosGrid from '#lib/components/PhotosGrid.svelte';
+  import ChangePhotoModal from '#lib/components/ChangePhotoModal.svelte';
+  import { PhotosState } from '#lib/photos.svelte.ts';
+  import { toast } from '#lib/toast.ts';
+  import { m } from '#lib/paraglide/messages.js';
+  import type { User } from '#lib/types/api.ts';
 
   const photosState = new PhotosState();
 

@@ -1,20 +1,20 @@
 import { json, isHttpError } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { isImpersonating } from '$lib/server/auth';
-import { logEvent } from '$lib/server/logs';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { logEvent } from '#lib/server/logs.ts';
 import {
   deleteUserAccount,
   DELETED_ID,
   finishLocalErasure,
   inTransaction,
-} from '$lib/server/face-erasure';
-import { resolveAdminPersonLink } from '$lib/server/face-access';
-import { applyFaceLink } from '$lib/server/face-link';
+} from '#lib/server/face-erasure.ts';
+import { resolveAdminPersonLink } from '#lib/server/face-access.ts';
+import { applyFaceLink } from '#lib/server/face-link.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-id');
 const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';

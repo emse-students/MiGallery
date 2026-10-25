@@ -1,11 +1,11 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { completeOIDCFlow } from '$lib/auth';
-import { setSessionCookie } from '$lib/session';
-import { createSession, deleteExpiredSessions } from '$lib/db/sessions';
-import { RETURN_COOKIE_NAME, safeRedirectTarget } from '$lib/auth-redirect';
+import { completeOIDCFlow } from '#lib/auth.ts';
+import { setSessionCookie } from '#lib/session.ts';
+import { createSession, deleteExpiredSessions } from '#lib/db/sessions.ts';
+import { RETURN_COOKIE_NAME, safeRedirectTarget } from '#lib/auth-redirect.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('auth-callback');
 export const GET: RequestHandler = async ({ cookies, url }) => {

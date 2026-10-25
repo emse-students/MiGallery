@@ -1,8 +1,8 @@
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { createRequire } from 'module';
-import { createLogger } from '$lib/server/logger';
-import { backfillLegacyConsents } from '$lib/server/face-consent';
+import { createLogger } from '#lib/server/logger.ts';
+import { backfillLegacyConsents } from '#lib/server/face-consent.ts';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
 const log = createLogger('db');

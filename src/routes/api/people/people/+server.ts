@@ -1,12 +1,12 @@
 import { json, error } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { requireFaceAdmin } from '$lib/server/face-access';
-import { fetchAllPeople, ImmichPeopleError } from '$lib/immich/people';
+import { env } from '#lib/server/env.ts';
+import { requireFaceAdmin } from '#lib/server/face-access.ts';
+import { fetchAllPeople, ImmichPeopleError } from '#lib/immich/people.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-people');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

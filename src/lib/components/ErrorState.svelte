@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import type { IconComponent } from '$lib/icons';
+  import type { IconComponent } from '#lib/icons.ts';
   import { CircleX, RotateCcw } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     /** Lucide icon component (defaults to CircleX). */

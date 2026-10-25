@@ -1,17 +1,18 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import { isRedirect, type Handle } from '@sveltejs/kit';
+import { isRedirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import {
   getSessionUser,
   LEGACY_IMPERSONATION_COOKIES,
   LEGACY_SESSION_COOKIE_NAME,
-} from '$lib/session';
-import { startBackupScheduler } from '$lib/server/backup';
-import { startFaceErasureWorker } from '$lib/server/face-erasure';
+} from '#lib/session.ts';
+import { startBackupScheduler } from '#lib/server/backup.ts';
+import { startFaceErasureWorker } from '#lib/server/face-erasure.ts';
 
-import { startLogRetention } from '$lib/server/logs';
-import { paraglideMiddleware } from '$lib/paraglide/server';
-import { cookieName as LOCALE_COOKIE, isLocale } from '$lib/paraglide/runtime';
-import { isIndexable, NOINDEX_HEADER } from '$lib/seo';
+import { startLogRetention } from '#lib/server/logs.ts';
+import { paraglideMiddleware } from '#lib/paraglide/server.js';
+import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js';
+import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
 
 // Start the daily automatic backup as soon as the server starts
 startBackupScheduler();
@@ -181,8 +182,10 @@ const paraglideHandler: Handle = ({ event, resolve }) => {
   if (event.url.pathname.startsWith('/api/')) {
     return resolve(event);
   }
-  return paraglideMiddleware(event.request, ({ request, locale }) => {
-    event.request = request;
+  // Kit 3 made `event.request` read-only. The usual `event.request = request` hand-back only
+  // matters for the URL locale strategy, which this app does not use (cookie, Accept-Language,
+  // base locale): the request paraglide hands back is the one it was given.
+  return paraglideMiddleware(event.request, ({ locale }) => {
     return resolve(event, {
       transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale),
     });

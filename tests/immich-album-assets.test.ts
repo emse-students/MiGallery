@@ -20,7 +20,7 @@ describe('Immich album asset resolver', () => {
       );
 
     const assets = await fetchAlbumAssets(
-      fetchMock as typeof fetch,
+      fetchMock as unknown as typeof fetch,
       'http://immich',
       'api-key',
       'album-1'

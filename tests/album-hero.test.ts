@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { albumHeroSources, formatAlbumDate } from '$lib/album-hero';
+import { albumHeroSources, formatAlbumDate } from '#lib/album-hero.ts';
 
 describe('albumHeroSources', () => {
   it('uses the preview for the hero and the versioned square cover for the backdrop', () => {

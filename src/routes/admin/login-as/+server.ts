@@ -1,7 +1,7 @@
-import { getDatabase } from '$lib/db/database';
-import { ensureAdmin } from '$lib/server/auth';
-import { getSessionToken } from '$lib/session';
-import { setSessionImpersonation } from '$lib/db/sessions';
+import { getDatabase } from '#lib/db/database.ts';
+import { ensureAdmin } from '#lib/server/auth.ts';
+import { getSessionToken } from '#lib/session.ts';
+import { setSessionImpersonation } from '#lib/db/sessions.ts';
 import type { RequestHandler } from './$types';
 import { redirect } from '@sveltejs/kit';
 

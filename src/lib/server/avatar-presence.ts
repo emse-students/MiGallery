@@ -1,4 +1,4 @@
-import { getDatabase } from '$lib/db/database';
+import { getDatabase } from '#lib/db/database.ts';
 
 /**
  * The most ids one `GET /api/users/avatar-presence` may carry. Mirrors Canari's own profile batch

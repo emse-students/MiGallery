@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { deleteOrphanedAlbumAssets } from '$lib/server/immich-album-delete';
+import { deleteOrphanedAlbumAssets } from '#lib/server/immich-album-delete.ts';
 
 type RequestRecord = { url: string; method: string };
 
 describe('deleteOrphanedAlbumAssets', () => {
   it('deletes only assets that have no other album', async () => {
     const requests: RequestRecord[] = [];
-    const fetchFn: typeof fetch = async (input, init) => {
+    const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = init?.method || 'GET';
       requests.push({ url, method });
@@ -26,7 +26,7 @@ describe('deleteOrphanedAlbumAssets', () => {
         return new Response('[]', { status: 200 });
       }
       return new Response('not found', { status: 404 });
-    };
+    }) as unknown as typeof fetch;
 
     const result = await deleteOrphanedAlbumAssets(
       fetchFn,
@@ -47,10 +47,10 @@ describe('deleteOrphanedAlbumAssets', () => {
 
   it('does not call Immich when there are no assets', async () => {
     let calls = 0;
-    const fetchFn: typeof fetch = async () => {
+    const fetchFn = (async () => {
       calls++;
       return new Response('[]', { status: 200 });
-    };
+    }) as unknown as typeof fetch;
 
     const result = await deleteOrphanedAlbumAssets(
       fetchFn,

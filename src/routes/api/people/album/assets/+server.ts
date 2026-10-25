@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import { addAssetsToAlbum, removeAssetsFromAlbum } from '$lib/photos-cv/handlers';
-import { requirePhotoCvManager } from '$lib/server/face-access';
+import { addAssetsToAlbum, removeAssetsFromAlbum } from '#lib/photos-cv/handlers.ts';
+import { requirePhotoCvManager } from '#lib/server/face-access.ts';
 
 /**
  * Bulk add/remove on the PhotoCV system album - the album id is resolved

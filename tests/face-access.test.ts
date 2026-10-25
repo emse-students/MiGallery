@@ -11,18 +11,18 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 // The assert* functions judge an AuthResult already obtained; authentication itself (and the
 // SvelteKit-only modules behind it) is out of the picture.
-vi.mock('$lib/server/permissions', () => ({ requireScope: vi.fn() }));
-vi.mock('$env/dynamic/private', () => ({
+vi.mock('#lib/server/permissions.ts', () => ({ requireScope: vi.fn() }));
+vi.mock('#lib/server/env.ts', () => ({
   env: { IMMICH_BASE_URL: 'http://immich.test', IMMICH_API_KEY: 'k' },
 }));
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
-import type { AuthResult } from '$lib/server/permissions';
+import type { AuthResult } from '#lib/server/permissions.ts';
 
-let access: typeof import('$lib/server/face-access');
-let database: typeof import('$lib/db/database');
+let access: typeof import('#lib/server/face-access.ts');
+let database: typeof import('#lib/db/database.ts');
 let dbDir: string;
 
 const OWNER = { id_user: 'fa-owner', role: 'user' };
@@ -50,8 +50,8 @@ function status(fn: () => void): number {
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-face-access-'));
   process.env.DATABASE_PATH = join(dbDir, 'face-access.db');
-  database = await import('$lib/db/database');
-  access = await import('$lib/server/face-access');
+  database = await import('#lib/db/database.ts');
+  access = await import('#lib/server/face-access.ts');
 
   const db = database.getDatabase();
   for (const u of [OWNER, VIEWER, STRANGER, ADMIN, MITVISTE]) {

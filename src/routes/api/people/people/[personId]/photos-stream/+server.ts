@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { requirePersonAccess } from '$lib/server/face-access';
-import { getPersonAssets } from '$lib/photos-cv/handlers';
-import { assetsNdjsonResponse } from '$lib/server/asset-ndjson';
+import { requirePersonAccess } from '#lib/server/face-access.ts';
+import { getPersonAssets } from '#lib/photos-cv/handlers.ts';
+import { assetsNdjsonResponse } from '#lib/server/asset-ndjson.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-people-personId-photos-stream');
 /**

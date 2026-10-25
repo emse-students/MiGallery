@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('backup');
 

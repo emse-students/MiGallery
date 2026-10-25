@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '$lib/types/api';
+import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '#lib/types/api.ts';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let sessionCookie = '';
@@ -181,7 +181,8 @@ describe('E2E - Complete user workflow', () => {
       // 4. Delete the user
       const deleteResponse = await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
         method: 'DELETE',
-        headers: { 'x-api-key': adminApiKey },
+        // Kit 3 refuses a body-less mutation that carries neither an Origin nor a Content-Type.
+        headers: { 'x-api-key': adminApiKey, 'Content-Type': 'application/json' },
       });
 
       expect([200, 204]).toContain(deleteResponse.status);

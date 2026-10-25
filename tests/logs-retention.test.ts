@@ -2,7 +2,7 @@
  * The audit log keeps 90 days and records the client address from ONE trusted source.
  *
  * What it pins: `purgeOldLogs` deletes exactly the rows past the retention, and `logEvent` takes
- * the address from SvelteKit's getClientAddress() - adapter-node's ADDRESS_HEADER in production -
+ * the address from SvelteKit's getClientAddress() - adapter-bun's ADDRESS_HEADER in production -
  * never from X-Forwarded-For, whose first value is whatever the client sent.
  */
 
@@ -12,17 +12,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
 
-vi.mock('$lib/server/auth', () => ({ getRequestSession: () => null }));
+vi.mock('#lib/server/auth.ts', () => ({ getRequestSession: () => null }));
 
-let logs: typeof import('$lib/server/logs');
-let database: typeof import('$lib/db/database');
+let logs: typeof import('#lib/server/logs.ts');
+let database: typeof import('#lib/db/database.ts');
 let dbDir: string;
 
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-logs-'));
   process.env.DATABASE_PATH = join(dbDir, 'logs.db');
-  database = await import('$lib/db/database');
-  logs = await import('$lib/server/logs');
+  database = await import('#lib/db/database.ts');
+  logs = await import('#lib/server/logs.ts');
 });
 
 afterAll(() => {
