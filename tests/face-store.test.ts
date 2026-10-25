@@ -23,7 +23,15 @@ import {
   minDistance,
   normalizeEmbedding,
 } from '$lib/face-embedding';
-import { SEAL_OVERHEAD, parseSealKey, seal, unseal } from '$lib/server/face-seal';
+import {
+  SEAL_OVERHEAD,
+  SEAL_VERSION,
+  embeddingContext,
+  parseSealKey,
+  referenceContext,
+  seal,
+  unseal,
+} from '$lib/server/face-seal';
 
 vi.mock('$env/dynamic/private', () => ({ env: { IMMICH_BASE_URL: '', IMMICH_API_KEY: '' } }));
 
@@ -78,6 +86,97 @@ describe('the float16 codec', () => {
     }
   });
 
+  // The reference is the runtime's own binary16 rounding (bun 1.4.0: Math.f16round, setFloat16).
+  const refView = new DataView(new ArrayBuffer(2));
+  function refBits(x: number): number {
+    (refView as unknown as { setFloat16(o: number, v: number): void }).setFloat16(0, x);
+    return refView.getUint16(0);
+  }
+  const f16round = (Math as unknown as { f16round(x: number): number }).f16round;
+
+  it('has the runtime reference it is compared against', () => {
+    expect(typeof f16round).toBe('function');
+    expect(refBits(1)).toBe(0x3c00);
+  });
+
+  it('rounds random float32 values exactly like Math.f16round, in every exponent range', () => {
+    const f32 = new Float32Array(1);
+    const u32 = new Uint32Array(f32.buffer);
+    let a = 12345;
+    const next = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return (t ^ (t >>> 14)) >>> 0;
+    };
+    let compared = 0;
+    for (let i = 0; i < 200_000; i++) {
+      u32[0] = next(); // every bit pattern: all exponents, both signs
+      if (i % 2) {
+        // Half of the draws are squeezed into the half range (normals and subnormals).
+        u32[0] = (u32[0] & 0x807fffff) | ((100 + (next() % 30)) << 23);
+      }
+      const x = f32[0];
+      if (Number.isNaN(x)) continue;
+      expect(floatToHalf(x), `bits ${u32[0].toString(16)}`).toBe(refBits(x));
+      expect(halfToFloat(floatToHalf(x))).toBe(f16round(x));
+      compared++;
+    }
+    expect(compared).toBeGreaterThan(190_000);
+  });
+
+  it('rounds ties to even and just beside them correctly, subnormals included', () => {
+    for (let h = 0; h < 0x7bff; h++) {
+      const lo = halfToFloat(h);
+      const hi = halfToFloat(h + 1);
+      const tie = Math.fround((lo + hi) / 2);
+      for (const sign of [1, -1]) {
+        const t = sign * tie;
+        // Exactly half way: the even mantissa wins, as the runtime does.
+        expect(floatToHalf(t), `tie after half ${h}`).toBe(refBits(t));
+        const above = Math.fround(sign * (tie + (hi - lo) / 64));
+        const below = Math.fround(sign * (tie - (hi - lo) / 64));
+        expect(floatToHalf(above)).toBe(refBits(above));
+        expect(floatToHalf(below)).toBe(refBits(below));
+      }
+    }
+    // Spot-check the named cases: 2^-25 is the tie between 0 and the smallest subnormal (even: 0).
+    expect(floatToHalf(2 ** -25)).toBe(0x0000);
+    expect(floatToHalf(3 * 2 ** -25)).toBe(0x0002);
+    expect(floatToHalf(65520)).toBe(0x7c00);
+  });
+
+  it('writes little-endian, pinned by a fixed byte vector', () => {
+    const bytes = new Uint8Array(FACE_EMBEDDING_DIM * 2);
+    bytes.set([0x00, 0x3c, 0x00, 0xc0]); // 1.0 then -2.0, little-endian halves
+    const decoded = decodeEmbedding(bytes);
+    expect(decoded[0]).toBe(1);
+    expect(decoded[1]).toBe(-2);
+    expect(decoded[2]).toBe(0);
+    // And the encoder: a unit axis vector, and 3-4-5 normalised to 0.6 / -0.8.
+    const axis = new Float32Array(FACE_EMBEDDING_DIM);
+    axis[0] = 1;
+    const axisBytes = encodeEmbedding(axis);
+    expect([axisBytes[0], axisBytes[1], axisBytes[2], axisBytes[3]]).toEqual([0x00, 0x3c, 0, 0]);
+    const tri = new Float32Array(FACE_EMBEDDING_DIM);
+    tri[0] = 3;
+    tri[1] = -4;
+    const triBytes = encodeEmbedding(tri);
+    expect([triBytes[0], triBytes[1], triBytes[2], triBytes[3]]).toEqual([0xcd, 0x38, 0x66, 0xba]);
+  });
+
+  it('encodeEmbedding normalises before packing', () => {
+    const v = synthetic(7);
+    const scaled = Float32Array.from(v, (x) => x * 37);
+    for (const input of [v, scaled]) {
+      const back = decodeEmbedding(encodeEmbedding(input));
+      let norm = 0;
+      for (const x of back) norm += x * x;
+      expect(Math.sqrt(norm)).toBeCloseTo(1, 2);
+    }
+    expect(cosineDistance(decodeEmbedding(encodeEmbedding(scaled)), v)).toBeLessThan(1e-5);
+  });
+
   it('encodes 1024 bytes and decodes within half precision', () => {
     const v = normalizeEmbedding(synthetic(1));
     const bytes = encodeEmbedding(v);
@@ -122,7 +221,50 @@ describe('distance and bands', () => {
     expect(classifyDistance(FACE_SUGGEST_MAX_DISTANCE)).toBe('suggested');
     expect(classifyDistance(FACE_SUGGEST_MAX_DISTANCE + 1e-9)).toBe('none');
     expect(classifyDistance(NaN)).toBe('none');
-    expect(classifyDistance(-0.1)).toBe('none');
+    // A negative is not a NaN: cosineDistance never returns one (clamped), so only NaN is refused.
+    expect(classifyDistance(-0.1)).toBe('auto');
+    expect(classifyDistance(Infinity)).toBe('none');
+  });
+
+  it('never returns a negative distance, and parallel vectors are auto', () => {
+    let negatives = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      const v = synthetic(seed);
+      const scaled = Float32Array.from(v, (x) => x * 3.7);
+      const unit = normalizeEmbedding(v);
+      for (const other of [v, scaled, unit]) {
+        const d = cosineDistance(v, other);
+        if (d < 0) negatives++;
+        expect(classifyDistance(d)).toBe('auto');
+      }
+    }
+    expect(negatives).toBe(0);
+    expect(
+      cosineDistance(
+        base,
+        Float32Array.from(base, (x) => -x)
+      )
+    ).toBeLessThanOrEqual(2);
+    expect(
+      cosineDistance(
+        base,
+        Float32Array.from(base, (x) => -x)
+      )
+    ).toBeGreaterThan(1.99);
+  });
+
+  it('answers NaN, and says which reference, when a reference is not finite', () => {
+    const bad = Float32Array.from(base);
+    bad[5] = NaN;
+    const seen: number[] = [];
+    const d = minDistance([base, bad], base, (i) => seen.push(i));
+    expect(Number.isNaN(d)).toBe(true);
+    expect(classifyDistance(d)).toBe('none');
+    expect(seen).toEqual([1]);
+  });
+
+  it('accepts a single reference (the minimum of three is enforced at enrolment, not here)', () => {
+    expect(minDistance([base], base)).toBeCloseTo(0, 6);
   });
 
   it('keeps the decided numbers', () => {
@@ -158,6 +300,36 @@ describe('sealing', () => {
     expect(() => unseal(key, 'ctx:1', new Uint8Array(5))).toThrow(/short/);
   });
 
+  it('starts with a format version, authenticates it, and refuses an unknown one', () => {
+    const sealed = seal(key, 'ctx:1', plain);
+    expect(sealed[0]).toBe(SEAL_VERSION);
+    expect(SEAL_OVERHEAD).toBe(29);
+    for (const other of [0, 2, 255]) {
+      const forged = Uint8Array.from(sealed);
+      forged[0] = other;
+      expect(() => unseal(key, 'ctx:1', forged)).toThrow(/unknown seal version/);
+    }
+  });
+
+  it('has contexts that never collide, whatever characters an id holds', () => {
+    // With ':' joining, ("a:b", "m") and ("a", "b:m") were the same string.
+    expect(referenceContext('a:b', 'm')).not.toBe(referenceContext('a', 'b:m'));
+    expect(referenceContext('a', 'b')).not.toBe(referenceContext('a', 'b '));
+    expect(embeddingContext('x:1', 2, 'm')).not.toBe(embeddingContext('x', 1, '2:m'));
+    expect(embeddingContext('x', 1, 'm')).not.toBe(referenceContext('x', 'm'));
+    const sealed = seal(key, referenceContext('a:b', 'm'), plain);
+    expect(() => unseal(key, referenceContext('a', 'b:m'), sealed)).toThrow();
+    expect(() => unseal(key, referenceContext('a:b', 'm'), sealed)).not.toThrow();
+  });
+
+  it('binds an embedding to its asset, face index and model', () => {
+    const sealed = seal(key, embeddingContext('asset', 0, 'buffalo_l'), plain);
+    expect(() => unseal(key, embeddingContext('asset', 0, 'buffalo_l'), sealed)).not.toThrow();
+    expect(() => unseal(key, embeddingContext('asset', 1, 'buffalo_l'), sealed)).toThrow();
+    expect(() => unseal(key, embeddingContext('other', 0, 'buffalo_l'), sealed)).toThrow();
+    expect(() => unseal(key, embeddingContext('asset', 0, 'other'), sealed)).toThrow();
+  });
+
   it('accepts only a 64-hex key', () => {
     expect(() => parseSealKey(undefined)).toThrow(/64 hex/);
     expect(() => parseSealKey('abc')).toThrow(/64 hex/);
@@ -168,6 +340,7 @@ describe('sealing', () => {
 describe('the tables', () => {
   let database: typeof import('$lib/db/database');
   let refs: typeof import('$lib/server/face-references');
+  let erasure: typeof import('$lib/server/face-erasure');
   let dbDir: string;
   const key = parseSealKey('ab'.repeat(32));
 
@@ -186,6 +359,7 @@ describe('the tables', () => {
     process.env.DATABASE_PATH = join(dbDir, 'face-store.db');
     database = await import('$lib/db/database');
     refs = await import('$lib/server/face-references');
+    erasure = await import('$lib/server/face-erasure');
   });
 
   afterAll(() => {
@@ -256,14 +430,45 @@ describe('the tables', () => {
     expect(count('face_references')).toBe(0);
   });
 
-  it('has the embedding table, keyed by asset and face', () => {
+  it('counts the cap per model, and the trigger number is the constant', () => {
+    addUser('m3');
     const db = database.getDatabase();
     const insert = db.prepare(
-      "INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h, score, sealed, created_at) VALUES ('s', ?, 'buffalo_l', 0, 0, 1, 1, 10, 10, 0.9, x'00', 0)"
+      "INSERT INTO face_references (user_id, model, source, sealed, created_at) VALUES ('m3', ?, 'admin', x'00', 0)"
     );
-    insert.run(0);
-    insert.run(1);
-    expect(() => insert.run(1)).toThrow();
+    for (let i = 0; i < FACE_MAX_REFERENCES; i++) insert.run('old_model');
+    // A full set of another model must not block the current model's references.
+    expect(refs.addFaceReference(db, key, 'm3', 'photo', synthetic(70))).toBe(true);
+    expect(() => insert.run('old_model')).toThrow(/at most 5/);
+    const trigger = db
+      .prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_face_references_cap'")
+      .get() as { sql: string };
+    expect(trigger.sql).toContain(`>= ${FACE_MAX_REFERENCES}`);
+    expect(trigger.sql).toContain('NEW.model');
+  });
+
+  it('erases references when consent is withdrawn, unlinked or relinked', () => {
+    const db = database.getDatabase();
+    for (const reason of ['withdrawal', 'admin_unlink', 'relink', 'account_deletion'] as const) {
+      addUser(`w-${reason}`);
+      addUser(`keep-${reason}`);
+      refs.addFaceReference(db, key, `w-${reason}`, 'selfie', synthetic(80));
+      refs.addFaceReference(db, key, `keep-${reason}`, 'selfie', synthetic(81));
+      erasure.eraseLocalFaceData(db, `w-${reason}`, reason);
+      expect(refs.loadFaceReferences(db, key, `w-${reason}`)).toHaveLength(0);
+      expect(refs.loadFaceReferences(db, key, `keep-${reason}`)).toHaveLength(1);
+    }
+  });
+
+  it('has the embedding table, keyed by asset, face and model', () => {
+    const db = database.getDatabase();
+    const insert = db.prepare(
+      "INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h, score, sealed, created_at) VALUES ('s', ?, ?, 0, 0, 1, 1, 10, 10, 0.9, x'00', 0)"
+    );
+    insert.run(0, 'buffalo_l');
+    insert.run(1, 'buffalo_l');
+    expect(() => insert.run(1, 'buffalo_l')).toThrow();
+    insert.run(1, 'next_model'); // a re-embedding sits beside the old row
     db.exec('DELETE FROM face_embeddings');
   });
 });

@@ -14,7 +14,7 @@ export const FACE_EMBEDDING_DIM = 512;
 
 /** Reference embeddings per member: at least this many are wanted, never more than the cap. */
 export const FACE_MIN_REFERENCES = 3;
-/** The cap. schema.sql holds the same number in `trg_face_references_cap`. */
+/** The cap. schema.sql holds the same number in `trg_face_references_cap` (a test pins both). */
 export const FACE_MAX_REFERENCES = 5;
 
 /** Cosine distance up to which a face is accepted without a human (Immich's own value). */
@@ -153,28 +153,44 @@ export function cosineDistance(a: ArrayLike<number>, b: ArrayLike<number>): numb
   if (na === 0 || nb === 0) {
     throw new Error('cannot compare a zero vector');
   }
-  return 1 - dot / Math.sqrt(na * nb);
+  // Rounding leaves 1 - dot/norm at about -5e-15 for identical or parallel vectors; a distance is
+  // never negative, and classifyDistance would send a negative to 'none'. A NaN stays a NaN.
+  return Math.min(2, Math.max(0, 1 - dot / Math.sqrt(na * nb)));
 }
 
-/** The smallest distance from `candidate` to any of the member's references. */
+/**
+ * The smallest distance from `candidate` to any of the member's references. A NaN distance (a
+ * reference or candidate holding a non-finite value) makes the result NaN, which classifyDistance
+ * maps to 'none': it fails safe, but `onInvalid` is called with the reference index so the
+ * caller can log it (this module is shared with the client and has no logger).
+ *
+ * It accepts ONE reference: FACE_MIN_REFERENCES is enforced at enrolment (A2/A5), not here.
+ */
 export function minDistance(
   references: ReadonlyArray<ArrayLike<number>>,
-  candidate: ArrayLike<number>
+  candidate: ArrayLike<number>,
+  onInvalid?: (referenceIndex: number) => void
 ): number {
   if (references.length === 0) {
     throw new Error('a member with no reference cannot be matched');
   }
   let best = Infinity;
-  for (const reference of references) {
-    best = Math.min(best, cosineDistance(reference, candidate));
-  }
-  return best;
+  let invalid = false;
+  references.forEach((reference, index) => {
+    const d = cosineDistance(reference, candidate);
+    if (Number.isNaN(d)) {
+      invalid = true;
+      onInvalid?.(index);
+    }
+    best = Math.min(best, d);
+  });
+  return invalid ? NaN : best;
 }
 
-/** Which band a distance falls in. Both bounds are inclusive. */
+/** Which band a distance falls in. Both bounds are inclusive; only NaN is never a match. */
 export function classifyDistance(distance: number): FaceBand {
-  if (!(distance >= 0)) {
-    return 'none'; // NaN or negative: never a match
+  if (Number.isNaN(distance)) {
+    return 'none'; // never a match
   }
   if (distance <= FACE_AUTO_MAX_DISTANCE) {
     return 'auto';

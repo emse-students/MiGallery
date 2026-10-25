@@ -168,6 +168,8 @@ if (!hasErrors) {
     try {
       const dbWrite = new Database(DB_PATH);
       dbWrite.exec('PRAGMA foreign_keys = ON');
+      // Repair never deletes a user today; if it ever does, face_references must cascade AND be overwritten.
+      dbWrite.exec('PRAGMA secure_delete = ON');
 
       let repaired = false;
 

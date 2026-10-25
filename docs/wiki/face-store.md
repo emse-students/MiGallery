@@ -11,13 +11,13 @@ Nothing is wired into a deployment: the secret below is read by no code path tod
 
 ## What A1 contains
 
-| File                                | Role                                                                                                                                                                              |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/face-embedding.ts`         | the float16 codec (own implementation, checked against every one of the 65,536 halves), L2 normalisation, `cosineDistance`, `minDistance`, `classifyDistance`, and the constants  |
-| `src/lib/server/face-seal.ts`       | AES-256-GCM sealing of a template: 12-byte nonce, ciphertext, 16-byte tag (+28 bytes); a context string is authenticated so a blob copied onto another row or model fails to open |
-| `src/lib/server/face-references.ts` | add (cap 5), load (opened) and erase a member's references                                                                                                                        |
-| `schema.sql`                        | `face_references` (cascade on the account, trigger holding the cap) and `face_embeddings` (sealed vector, box, score, model tag)                                                  |
-| `database.ts`                       | `PRAGMA secure_delete = ON`, so a deleted row is overwritten in the file                                                                                                          |
+| File                                | Role                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/face-embedding.ts`         | the float16 codec (own implementation, tested against the runtime's own binary16 rounding (`Math.f16round`, `DataView.setFloat16`) on 200,000 random float32 values, every tie between neighbouring halves and just beside it, the subnormals, and a fixed little-endian byte vector; every half round-trips), L2 normalisation, `cosineDistance`, `minDistance`, `classifyDistance`, and the constants                 |
+| `src/lib/server/face-seal.ts`       | AES-256-GCM sealing of a template: 1-byte format version (also the key id; unknown versions refused, rotation path in the file header), 12-byte nonce, ciphertext, 16-byte tag (+29 bytes); a canonical JSON context is authenticated: a reference is bound to its MEMBER and MODEL (not to its row: one member's references are interchangeable), an embedding to its asset, face index and model (`embeddingContext`) |
+| `src/lib/server/face-references.ts` | add (cap 5 per model), load (opened) and erase a member's references; erasure runs from `eraseLocalFaceData`, the single path of withdrawal, unlink and relink                                                                                                                                                                                                                                                          |
+| `schema.sql`                        | `face_references` (cascade on the account, trigger holding the cap) and `face_embeddings` (sealed vector, box, score; primary key asset, face index and model)                                                                                                                                                                                                                                                          |
+| `database.ts`                       | `PRAGMA secure_delete = ON`, so a deleted row is overwritten in the file                                                                                                                                                                                                                                                                                                                                                |
 
 ## The decided numbers
 
@@ -40,8 +40,7 @@ Rotating it makes every sealed blob unreadable, which is also how the whole stor
 ## Tests
 
 `tests/face-store.test.ts` uses **synthetic seeded vectors only**: no photo, no real person's data.
-It pins the codec, the distance bands at both bounds, the sealing (context, key and byte flips
-refused), the cap, the cascade and `secure_delete`.
+It pins the codec (against the runtime's binary16, plus mutation-tested: skipping normalisation, breaking ties or endianness fails), the distance (clamped to [0, 2], only NaN is never a match, and a NaN reference is reported), the bands at both bounds, the sealing (context, key, version and byte flips refused, no context collision), the cap per model against the trigger, reference erasure on withdrawal, the cascade and `secure_delete`. `minDistance` accepts one reference: `FACE_MIN_REFERENCES` is enforced at enrolment (A2/A5).
 
 ## Owed
 

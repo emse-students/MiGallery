@@ -11,7 +11,7 @@ import {
   decodeEmbedding,
   encodeEmbedding,
 } from '$lib/face-embedding';
-import { seal, unseal } from '$lib/server/face-seal';
+import { referenceContext, seal, unseal } from '$lib/server/face-seal';
 import { createLogger } from '$lib/server/logger';
 
 const log = createLogger('face-references');
@@ -20,11 +20,6 @@ type Db = ReturnType<typeof getDatabase>;
 
 /** How a reference came to be. */
 export type ReferenceSource = 'selfie' | 'photo' | 'admin';
-
-/** The authenticated context binding a blob to its member and model. */
-function referenceContext(userId: string, model: string): string {
-  return `face_references:${userId}:${model}`;
-}
 
 /**
  * Store one reference for `userId`. Returns false, storing nothing, when the member already holds
@@ -39,8 +34,8 @@ export function addFaceReference(
   now: number = Date.now()
 ): boolean {
   const held = db
-    .prepare('SELECT COUNT(*) AS n FROM face_references WHERE user_id = ?')
-    .get(userId) as { n: number };
+    .prepare('SELECT COUNT(*) AS n FROM face_references WHERE user_id = ? AND model = ?')
+    .get(userId, FACE_MODEL) as { n: number };
   if (held.n >= FACE_MAX_REFERENCES) {
     log.warn('reference refused: the member holds the maximum', { held: held.n });
     return false;

@@ -171,12 +171,15 @@ CREATE TABLE IF NOT EXISTS face_consents (
 CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
 
 -- Face store, option C (docs/wiki/face-store.md). Both tables hold BIOMETRIC TEMPLATES, so every
--- vector is sealed (AES-256-GCM, src/lib/server/face-seal.ts) and bound to its row: a ciphertext
--- copied to another row fails to open. Nothing reads or writes them yet (lot A1); `secure_delete`
+-- vector is sealed (AES-256-GCM, src/lib/server/face-seal.ts) and bound by its authenticated
+-- context: a reference to its member AND model (referenceContext), an embedding to its asset, face
+-- index and model (embeddingContext) - a ciphertext copied elsewhere fails to open. A member's own
+-- references are NOT told apart from one another. Nothing reads or writes them yet (lot A1); `secure_delete`
 -- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
 --
 -- face_references: the 3-5 reference embeddings of a consenting member (source: 'selfie' |
--- 'photo' | 'admin'). The trigger holds the cap at FACE_MAX_REFERENCES (5) whoever inserts. An
+-- 'photo' | 'admin'). The trigger holds the cap at FACE_MAX_REFERENCES (5) per member AND model
+-- whoever inserts (a test pins the number against the constant). An
 -- account deletion takes them by cascade.
 CREATE TABLE IF NOT EXISTS face_references (
     id INTEGER PRIMARY KEY,
@@ -190,13 +193,14 @@ CREATE TABLE IF NOT EXISTS face_references (
 CREATE INDEX IF NOT EXISTS idx_face_references_user ON face_references(user_id);
 CREATE TRIGGER IF NOT EXISTS trg_face_references_cap
 BEFORE INSERT ON face_references
-WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id) >= 5
+WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= 5
 BEGIN
     SELECT RAISE(ABORT, 'face_references: at most 5 per member');
 END;
 
 -- face_embeddings: one sealed float16 512-d embedding per detected face, with its box. `model`
--- tags the network that produced it, so a vector of another model is never compared.
+-- tags the network that produced it, so a vector of another model is never compared; it is part of
+-- the key so a re-embedding by a new model can sit beside the old rows during a migration.
 CREATE TABLE IF NOT EXISTS face_embeddings (
     asset_id TEXT NOT NULL,
     face_index INTEGER NOT NULL,
@@ -210,5 +214,5 @@ CREATE TABLE IF NOT EXISTS face_embeddings (
     score REAL NOT NULL,
     sealed BLOB NOT NULL,
     created_at INTEGER NOT NULL,
-    PRIMARY KEY(asset_id, face_index)
+    PRIMARY KEY(asset_id, face_index, model)
 );
