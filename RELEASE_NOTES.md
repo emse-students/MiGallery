@@ -16,6 +16,7 @@ SvelteKit 3 on `@sveltejs/adapter-bun`, which clears the last advisories (`bun a
 - Config: the server reads only the variables declared in `src/env.ts` (Immich, MiConnect, avatar signing key).
 - New: the sealed face store tables, reference vectors, erasure and link (A1, #404); `FACE_STORE_KEY` has no reader yet.
 - Fixed: the sign-in redirect to the identity provider is allow-listed to the issuer's origin, as kit 3 requires.
+- Fixed: a callback whose code the identity provider refuses (forged, expired, replayed) answers `401` instead of `500`.
 
 # MiGallery v2.16.0
 
