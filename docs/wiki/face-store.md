@@ -42,6 +42,18 @@ Rotating it makes every sealed blob unreadable, which is also how the whole stor
 `tests/face-store.test.ts` uses **synthetic seeded vectors only**: no photo, no real person's data.
 It pins the codec (against the runtime's binary16, plus mutation-tested: skipping normalisation, breaking ties or endianness fails), the distance (clamped to [0, 2], only NaN is never a match, and a NaN reference is reported), the bands at both bounds, the sealing (context, key, version and byte flips refused, no context collision), the cap per model against the trigger, reference erasure on withdrawal, the cascade and `secure_delete`. `minDistance` accepts one reference: `FACE_MIN_REFERENCES` is enforced at enrolment (A2/A5).
 
+## Changing these tables after the first release
+
+The schema uses `CREATE ... IF NOT EXISTS`, which never applies a changed definition to a database
+that already has the object. Once A1 has shipped, ANY change to `face_references`, `face_embeddings`
+or `trg_face_references_cap` needs a guarded step in `ensureSchema` (database.ts). Examples: drop
+and recreate the trigger when its stored SQL (`sqlite_master`) lacks `NEW.model`; rebuild
+`face_embeddings` when its primary key lacks `model`.
+
+**Developers with a local database started from commit f659c179 or fa2dcb4**: those two tables are
+empty, so drop the trigger and both tables (`DROP TRIGGER trg_face_references_cap; DROP TABLE
+face_references; DROP TABLE face_embeddings;`) and restart; the current schema recreates them.
+
 ## Owed
 
 The recall cost of float16 is NOT MEASURED; the 0.62 threshold must be re-checked on independent

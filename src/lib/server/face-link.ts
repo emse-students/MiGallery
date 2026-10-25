@@ -21,6 +21,7 @@ import {
   type LocalErasure,
 } from '$lib/server/face-erasure';
 import { recordFaceConsent } from '$lib/server/face-consent';
+import { eraseFaceReferences } from '$lib/server/face-references';
 
 type Db = ReturnType<typeof getDatabase>;
 
@@ -60,6 +61,9 @@ export function applyFaceLink(
   let local: LocalErasure | null = null;
   if (changed && before !== null) {
     local = eraseLocalFaceData(db, userId, personId === null ? options.unlinkReason : 'relink');
+  } else if (personId === null) {
+    // Already unlinked: a withdrawal must still erase the sealed references, whatever the link state.
+    eraseFaceReferences(db, userId);
   }
   if (personId !== null && changed) {
     db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?').run(personId, userId);

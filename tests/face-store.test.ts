@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { mkdtempSync } from 'node:fs';
+import { createCipheriv, randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
@@ -253,6 +254,14 @@ describe('distance and bands', () => {
     ).toBeGreaterThan(1.99);
   });
 
+  it('does not call unrelated vectors scaled to underflow a match', () => {
+    const a = Float64Array.from(synthetic(21), (x) => x * 1e-100);
+    const b = Float64Array.from(synthetic(22), (x) => x * 1e-100);
+    // na * nb underflows to 0 here; the distance must still be the true one, never a clamped match.
+    expect(cosineDistance(a, b)).toBeCloseTo(cosineDistance(synthetic(21), synthetic(22)), 6);
+    expect(classifyDistance(cosineDistance(a, b))).toBe('none');
+  });
+
   it('answers NaN, and says which reference, when a reference is not finite', () => {
     const bad = Float32Array.from(base);
     bad[5] = NaN;
@@ -311,6 +320,29 @@ describe('sealing', () => {
     }
   });
 
+  it('authenticates the version byte: a blob sealed with a context-only AAD is refused', () => {
+    const ctx = 'ctx:1';
+    const nonce = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', key, nonce, { authTagLength: 16 });
+    cipher.setAAD(Buffer.from(ctx, 'utf8')); // no version in the AAD
+    const body = Buffer.concat([cipher.update(plain), cipher.final()]);
+    const forged = Buffer.concat([Buffer.from([SEAL_VERSION]), nonce, body, cipher.getAuthTag()]);
+    expect(() => unseal(key, ctx, forged)).toThrow(/auth/i);
+  });
+
+  it('refuses a context part that JSON would equate with another', () => {
+    for (const bad of [null, undefined, '', 5, {}, { toJSON: () => 'x' }]) {
+      expect(() => referenceContext(bad as never, 'm')).toThrow();
+      expect(() => referenceContext('a', bad as never)).toThrow();
+      expect(() => embeddingContext(bad as never, 0, 'm')).toThrow();
+      expect(() => embeddingContext('a', 0, bad as never)).toThrow();
+    }
+    for (const bad of [NaN, Infinity, -Infinity, -0, -1, 1.5, 2 ** 53, null, undefined, '1']) {
+      expect(() => embeddingContext('a', bad as never, 'm')).toThrow();
+    }
+    expect(embeddingContext('a', 0, 'm')).toBe('["face_embeddings","a",0,"m"]');
+  });
+
   it('has contexts that never collide, whatever characters an id holds', () => {
     // With ':' joining, ("a:b", "m") and ("a", "b:m") were the same string.
     expect(referenceContext('a:b', 'm')).not.toBe(referenceContext('a', 'b:m'));
@@ -340,6 +372,7 @@ describe('sealing', () => {
 describe('the tables', () => {
   let database: typeof import('$lib/db/database');
   let refs: typeof import('$lib/server/face-references');
+  let link: typeof import('$lib/server/face-link');
   let erasure: typeof import('$lib/server/face-erasure');
   let dbDir: string;
   const key = parseSealKey('ab'.repeat(32));
@@ -360,6 +393,7 @@ describe('the tables', () => {
     database = await import('$lib/db/database');
     refs = await import('$lib/server/face-references');
     erasure = await import('$lib/server/face-erasure');
+    link = await import('$lib/server/face-link');
   });
 
   afterAll(() => {
@@ -458,6 +492,18 @@ describe('the tables', () => {
       expect(refs.loadFaceReferences(db, key, `w-${reason}`)).toHaveLength(0);
       expect(refs.loadFaceReferences(db, key, `keep-${reason}`)).toHaveLength(1);
     }
+  });
+
+  it('erases references on a withdrawal even when the member is already unlinked', () => {
+    const db = database.getDatabase();
+    addUser('u1');
+    refs.addFaceReference(db, key, 'u1', 'selfie', synthetic(90));
+    const result = link.applyFaceLink(db, 'u1', null, {
+      source: 'selfie',
+      unlinkReason: 'withdrawal',
+    });
+    expect(result.changed).toBe(false);
+    expect(refs.loadFaceReferences(db, key, 'u1')).toHaveLength(0);
   });
 
   it('has the embedding table, keyed by asset, face and model', () => {

@@ -153,9 +153,14 @@ export function cosineDistance(a: ArrayLike<number>, b: ArrayLike<number>): numb
   if (na === 0 || nb === 0) {
     throw new Error('cannot compare a zero vector');
   }
-  // Rounding leaves 1 - dot/norm at about -5e-15 for identical or parallel vectors; a distance is
-  // never negative, and classifyDistance would send a negative to 'none'. A NaN stays a NaN.
-  return Math.min(2, Math.max(0, 1 - dot / Math.sqrt(na * nb)));
+  // Two sqrt, not sqrt(na * nb): the product underflows to 0 for vectors scaled by ~1e-100.
+  const raw = 1 - dot / (Math.sqrt(na) * Math.sqrt(nb));
+  if (!Number.isFinite(raw)) {
+    return NaN; // never clamp an overflow or underflow into a match
+  }
+  // Rounding leaves the raw value at about -5e-15 for identical or parallel vectors; a distance is
+  // never negative, and classifyDistance would send a negative to 'none'.
+  return Math.min(2, Math.max(0, raw));
 }
 
 /**

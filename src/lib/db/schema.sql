@@ -195,7 +195,7 @@ CREATE TRIGGER IF NOT EXISTS trg_face_references_cap
 BEFORE INSERT ON face_references
 WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= 5
 BEGIN
-    SELECT RAISE(ABORT, 'face_references: at most 5 per member');
+    SELECT RAISE(ABORT, 'face_references: at most 5 per member and model');
 END;
 
 -- face_embeddings: one sealed float16 512-d embedding per detected face, with its box. `model`

@@ -382,8 +382,9 @@ export function getDatabase(): DatabaseInstance {
 
     try {
       dbInstance.exec('PRAGMA foreign_keys = ON');
-    } catch {
-      void 0;
+    } catch (e) {
+      // The cascade that erases face_references (sealed templates) on an account deletion depends on it.
+      log.error('foreign_keys could not be enabled; cascades will NOT run', (e as Error).message);
     }
 
     // Deleted pages are overwritten with zeros: a withdrawn member's face data must not linger

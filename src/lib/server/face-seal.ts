@@ -31,17 +31,31 @@ const TAG_BYTES = 16;
 /** Bytes a sealing adds to its plaintext. */
 export const SEAL_OVERHEAD = VERSION_BYTES + NONCE_BYTES + TAG_BYTES;
 
+/** A context part must be a real, non-empty string: JSON would otherwise equate null, NaN, -0... */
+function requireText(value: unknown, name: string): void {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`${name} must be a non-empty string`);
+  }
+}
+
 /**
  * Canonical context of a `face_references` blob: the MEMBER and the MODEL. It does not name the
  * row: a member's references are interchangeable, so one copied onto another of the same member
  * opens (harmless: same person, same model). JSON, not ':'-joined, so no two pairs collide.
  */
 export function referenceContext(userId: string, model: string): string {
+  requireText(userId, 'userId');
+  requireText(model, 'model');
   return JSON.stringify(['face_references', userId, model]);
 }
 
 /** Canonical context of a `face_embeddings` blob: its whole key (asset, face index) and the model. */
 export function embeddingContext(assetId: string, faceIndex: number, model: string): string {
+  requireText(assetId, 'assetId');
+  requireText(model, 'model');
+  if (!Number.isSafeInteger(faceIndex) || faceIndex < 0 || Object.is(faceIndex, -0)) {
+    throw new Error('faceIndex must be a non-negative safe integer');
+  }
   return JSON.stringify(['face_embeddings', assetId, faceIndex, model]);
 }
 
