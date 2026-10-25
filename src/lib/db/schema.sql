@@ -169,3 +169,46 @@ CREATE TABLE IF NOT EXISTS face_consents (
     FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
+
+-- Face store, option C (docs/wiki/face-store.md). Both tables hold BIOMETRIC TEMPLATES, so every
+-- vector is sealed (AES-256-GCM, src/lib/server/face-seal.ts) and bound to its row: a ciphertext
+-- copied to another row fails to open. Nothing reads or writes them yet (lot A1); `secure_delete`
+-- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
+--
+-- face_references: the 3-5 reference embeddings of a consenting member (source: 'selfie' |
+-- 'photo' | 'admin'). The trigger holds the cap at FACE_MAX_REFERENCES (5) whoever inserts. An
+-- account deletion takes them by cascade.
+CREATE TABLE IF NOT EXISTS face_references (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    source TEXT NOT NULL,
+    sealed BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_face_references_user ON face_references(user_id);
+CREATE TRIGGER IF NOT EXISTS trg_face_references_cap
+BEFORE INSERT ON face_references
+WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id) >= 5
+BEGIN
+    SELECT RAISE(ABORT, 'face_references: at most 5 per member');
+END;
+
+-- face_embeddings: one sealed float16 512-d embedding per detected face, with its box. `model`
+-- tags the network that produced it, so a vector of another model is never compared.
+CREATE TABLE IF NOT EXISTS face_embeddings (
+    asset_id TEXT NOT NULL,
+    face_index INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    x1 REAL NOT NULL,
+    y1 REAL NOT NULL,
+    x2 REAL NOT NULL,
+    y2 REAL NOT NULL,
+    img_w INTEGER NOT NULL,
+    img_h INTEGER NOT NULL,
+    score REAL NOT NULL,
+    sealed BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(asset_id, face_index)
+);

@@ -386,6 +386,14 @@ export function getDatabase(): DatabaseInstance {
       void 0;
     }
 
+    // Deleted pages are overwritten with zeros: a withdrawn member's face data must not linger
+    // in the file's free pages (face_references, face_embeddings; docs/wiki/face-store.md).
+    try {
+      dbInstance.exec('PRAGMA secure_delete = ON');
+    } catch (e) {
+      log.error('secure_delete could not be enabled', (e as Error).message);
+    }
+
     ensureSchema(dbInstance);
 
     db = dbInstance;
