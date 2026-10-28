@@ -4,7 +4,6 @@ import { createLogger } from '#lib/server/logger.ts';
 import type { DBUser } from '#lib/db/users.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 const log = createLogger('auth-oidc');
 
 interface OIDCToken {
@@ -273,7 +272,6 @@ export function handleUserInDatabase(
     }
 
     const existingUser = getUserByCasId(userId);
-    const isAdmin = userId === SYSTEM_USER_ID;
 
     // Extract all available data
     const firstName =
@@ -304,7 +302,8 @@ export function handleUserInDatabase(
       name: computeName(profile, userId),
       first_name: firstName,
       last_name: lastName,
-      role: isAdmin ? 'admin' : 'user',
+      // Every account starts as a member; an admin grants roles in /admin/users.
+      role: 'user',
       promo,
       formation,
     };

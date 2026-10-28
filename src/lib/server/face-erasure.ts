@@ -39,6 +39,7 @@ import { normalisePersonId } from '#lib/server/person-id.ts';
 import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
 import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
 import { eraseFaceReferences } from '#lib/server/face-references.ts';
+import { assertAnotherAdminRemains } from '#lib/server/admin-floor.ts';
 
 const log = createLogger('face-erasure');
 
@@ -190,7 +191,8 @@ export function inTransaction<T>(db: Db, fn: () => T): T {
  * Immich half journaled), its id and address in the audit log, its per-user album grants, then
  * the row - whose foreign keys take its sessions, favorites and remaining grants with it. Kicks
  * the Immich half when there is one.
- * Returns false when there was no such account.
+ * Returns false when there was no such account; throws LastAdminError, deleting nothing, when it
+ * is the last administrator (admin-floor.ts).
  */
 export function deleteUserAccount(db: Db, userId: string): boolean {
   const result = inTransaction(db, () => {
@@ -200,6 +202,8 @@ export function deleteUserAccount(db: Db, userId: string): boolean {
     if (!row) {
       return null;
     }
+    // Throws LastAdminError, which rolls the whole deletion back (admin-floor.ts).
+    assertAnotherAdminRemains(db, userId);
     const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
     anonymiseUserInLogs(db, userId, normalisePersonId(row.photos_id));
     // A recreated account of the same id must not re-validate the signed avatar URLs issued for

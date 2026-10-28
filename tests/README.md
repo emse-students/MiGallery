@@ -87,7 +87,9 @@ run is **hermetic whatever your `.env` says**:
   reach Immich accept the resulting 500. A dev `.env` pointing at a tunnel to the production Immich
   used to make the suite create real `[TEST]` albums there, and fail the tests whose assertions only
   run when Immich answers.
-- Dev routes on (`/dev/login-as`), `AUTH_TRUSTED_HOST=true`, port 3000. If something already
+- A `--mode test` build: the only build that carries `/dev/login-as` (production builds fold it
+  out, and CI checks that), `AUTH_TRUSTED_HOST=true`, port 3000. The suite signs in as its own
+  admin row (`TEST_CONFIG.TEST_ADMIN_ID`), written by the runner once the server is up. If something already
   answers on port 3000 the run refuses to start, rather than testing that server and its database.
 
 `openTestDatabase()` in `test-helpers.ts` opens only the file named by `MIGALLERY_TEST_DATABASE`,
@@ -265,8 +267,7 @@ node ./scripts/test-api.cjs
 
 ### ✅ Authentication
 
-- Detection of system user `les.roots`
-- Login via `/dev/login-as`
+- Login via `/dev/login-as` as the suite's own admin
 - API key creation/deletion
 
 ### ✅ Albums
@@ -352,13 +353,12 @@ The suite runs without Immich on purpose; tests that reach it accept the 500.
 🚀 API test setup
 📍 Base URL: http://localhost:3000
 
-✅ System user les.roots exists (role: admin)
 ✅ Login successful with session cookie
 ✅ API key created: Fw0v6dGLtjlR...
 
 ✓ Albums API > should list albums
 ✓ Users API > should list users (admin)
-✓ Users API > should retrieve the system user
+✓ Users API > should fetch the test admin
 ✓ Users CRUD (Admin) > should create a user
 ✓ Users CRUD (Admin) > should retrieve the created user
 ✓ Users CRUD (Admin) > should modify the user

@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 import type {
-  UserRow,
   ApiKeyResponse,
   UsersListResponse,
   UserResponse,
@@ -14,7 +13,7 @@ import type {
   ApiKeysListResponse,
   HealthResponse,
 } from '#lib/types/api.ts';
-import { openTestDatabase } from './test-helpers';
+import { TEST_CONFIG, loginAsTestAdmin } from './test-helpers';
 
 // Configuration
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -28,74 +27,6 @@ let createdUserId: string | null = null;
 // ========================================
 // Authentication and setup functions
 // ========================================
-
-async function ensureSystemUserExists(): Promise<boolean> {
-  console.debug('Checking system user existence...');
-  try {
-    const db = await openTestDatabase({ readonly: true });
-    if (!db) {
-      return false;
-    }
-
-    try {
-      const user = db
-        .prepare('SELECT id_user, role FROM users WHERE id_user = ?')
-        .get('dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782') as UserRow | null;
-      db.close(true);
-
-      if (user) {
-        console.debug(
-          `✅ System user dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 exists (role: ${user.role})`
-        );
-        return true;
-      } else {
-        console.warn(
-          '⚠️  System user dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782 not found'
-        );
-        return false;
-      }
-    } catch (dbError) {
-      db.close(true);
-      throw dbError;
-    }
-  } catch (error) {
-    console.error(`❌ Error during verification: ${(error as Error).message}`);
-    return false;
-  }
-}
-
-async function loginAsSystemUser(): Promise<boolean> {
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
-      {
-        redirect: 'manual',
-      }
-    );
-
-    // console.debug(`Login status: ${response.status}`);
-    // console.debug(`Login headers:`, Object.fromEntries(response.headers.entries()));
-    const cookies = response.headers.get('set-cookie');
-    // console.debug(`Login cookies: ${cookies}`);
-
-    if (response.status === 303 || response.status === 302) {
-      if (cookies) {
-        const match = cookies.match(/migallery_session=([^;]+)/);
-        if (match) {
-          sessionCookie = `migallery_session=${match[1]}`;
-          // console.debug('✅ Successful login with session cookie');
-          return true;
-        }
-      }
-    }
-
-    // console.debug(`❌ Login failed (status: ${response.status})`);
-    return false;
-  } catch {
-    // console.debug(`❌ Error during login: ${(error as Error).message}`);
-    return false;
-  }
-}
 
 async function createTestApiKey(scopes?: string[]): Promise<{ id: string; rawKey: string } | null> {
   try {
@@ -175,12 +106,9 @@ beforeAll(async () => {
   console.debug('\n🚀 API tests setup');
   console.debug(`📍 Base URL: ${API_BASE_URL}\n`);
 
-  const userExists = await ensureSystemUserExists();
-  console.debug(`User exists: ${userExists}`);
-
-  // Attempting to log in even if the user isn't found locally
-  // because the endpoint /dev/login-as will create it if NODE_ENV=test
-  const loginSuccess = await loginAsSystemUser();
+  // Writes the suite's admin row, then signs in through /dev/login-as (test build only).
+  sessionCookie = await loginAsTestAdmin();
+  const loginSuccess = sessionCookie !== '';
   console.debug(`Login success: ${loginSuccess}`);
 
   if (loginSuccess) {
@@ -283,22 +211,17 @@ describe('Users API', () => {
     }
   });
 
-  it('should fetch system user', async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+  it('should fetch the test admin', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/${TEST_CONFIG.TEST_ADMIN_ID}`, {
+      headers: getAuthHeaders(),
+    });
 
     expect([200, 401, 404, 500]).toContain(response.status);
 
     if (response.status === 200) {
       const data = (await response.json()) as UserResponse;
       expect(data.success).toBe(true);
-      expect(data.user.id_user).toBe(
-        'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'
-      );
+      expect(data.user.id_user).toBe(TEST_CONFIG.TEST_ADMIN_ID);
     }
   });
 });

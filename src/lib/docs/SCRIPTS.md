@@ -16,7 +16,8 @@ This folder contains all utility scripts for managing MiGallery.
 
 - Creates a new SQLite database if it doesn't exist
 - Applies the complete schema (tables, constraints, indexes)
-- Creates the system admin user (`les.roots@etu.emse.fr`)
+- Creates no account: the first administrator signs in once, then is promoted by hand (README,
+  "First administrator")
 - Does NOT overwrite an existing database (safety)
 
 **When to use**:
@@ -72,8 +73,7 @@ This folder contains all utility scripts for managing MiGallery.
 - Verifies the presence of all expected tables
 - Checks foreign key constraints
 - Displays statistics (number of users, albums, etc.)
-- Verifies the system admin user
-- Can attempt to automatically repair certain errors
+- Has no automatic repair: `--repair` reports the errors and the backup-and-reset path
 
 **When to use**:
 
@@ -84,8 +84,6 @@ This folder contains all utility scripts for managing MiGallery.
 
 **Repair mode**:
 
-- Recreates the system user if missing
-- Fixes the system user's role
 - Offers to backup and reset in case of irreparable errors
 
 **Detected errors**:
@@ -93,7 +91,6 @@ This folder contains all utility scripts for managing MiGallery.
 - ❌ SQLite integrity issues
 - ❌ Missing tables
 - ❌ Foreign key violations
-- ❌ Missing or incorrect system user
 
 ---
 

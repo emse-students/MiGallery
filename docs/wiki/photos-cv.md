@@ -144,7 +144,7 @@ person's name in Immich. The anonymous cluster, its faces and their embeddings s
 Linking a cluster to a member happens only through MiGallery (`users.photos_id`).
 
 Every CHANGE of the person linked to an account runs the erasure for the OLD person, through
-`applyFaceLink` (`src/lib/server/face-link.ts`, the one application writer of `users.photos_id`; `createUser`/`updateUser` refuse the column, `POST /api/users` goes through it, and only dev/seed inserts of the system user bypass it, with a NULL link): a member
+`applyFaceLink` (`src/lib/server/face-link.ts`, the one application writer of `users.photos_id`; `createUser`/`updateUser` refuse the column, `POST /api/users` goes through it, and only the test suite's own admin row bypasses it, with a NULL link): a member
 withdrawing (`PATCH /api/users/me/face` with `person_id: null`, reason `withdrawal`), a member
 relinking to another person (`relink`), an admin unlinking or changing a link (`PATCH` with
 `user_id`, `PUT /api/users/[id]`, reason `admin_unlink` / `relink`), and an account deletion
