@@ -124,7 +124,8 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       # Every value is checked BEFORE anything is written, so a missing secret leaves the host's
-      # .env, compose file and backup scripts exactly as they were. The backup destinations go to
+      # .env, compose file and backup scripts exactly as they were; a value holding a newline or CR is
+      # refused for the same reason, since it would inject a second line into the file. The backup destinations go to
       # scripts/backup.env, not .env: they are the backup scripts' (scripts/backup-config.sh).
       - name: Generate .env and backup.env from secrets
         env:
@@ -139,6 +140,10 @@ jobs:
           for v in DEPLOY_DIR IMMICH_API_KEY IMMICH_BASE_URL MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET \
             AVATAR_SIGNING_KEY OFFSITE_HOST IMMICH_BACKUP_DIR; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
+            # One KEY=VALUE per line: a newline or CR inside a value would write a second key.
+            case "${!v}" in
+              *$'\n'* | *$'\r'*) echo "::error::Secret GitHub $v contient un saut de ligne"; exit 1 ;;
+            esac
           done
           mkdir -p "$DEPLOY_DIR/scripts"
           umask 077

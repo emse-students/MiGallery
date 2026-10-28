@@ -22,6 +22,8 @@ fail() { printf '[migallery-restore] ERROR %s\n' "$*" >&2; exit 1; }
 # server that has not been deployed yet. It is required below, only when the archive is fetched.
 # shellcheck source=scripts/backup-config.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-config.sh"
+# Read the file FIRST, so a backup.env that sets OFFSITE_PATH is honoured; the default comes after.
+load_backup_config
 OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"
 # The deploy syncs this script into <deploy-dir>/scripts, so its parent IS the deploy directory.
 DEPLOY_DIR="${DEPLOY_DIR:-$(dirname "$BACKUP_SCRIPTS_DIR")}"

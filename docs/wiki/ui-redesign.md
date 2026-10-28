@@ -146,6 +146,14 @@ included; nothing in the bars depends on the viewport. `overscroll-behavior-y: n
 `body` removes it (and Chrome's pull-to-refresh, which an app with a bottom bar does not offer). The
 same recording on the fix: the edge stays at 2090-2093 throughout.
 
+## Open question from the same session
+
+- **`gallery.mitv.fr` answered Cloudflare error 1033 (the tunnel had no healthy connector) once**,
+  and 200 on every probe a minute later. The tunnel connector was running and the app container was
+  healthy, but had restarted about a quarter of an hour earlier. The tunnel connector's log for that
+  minute was not read; it is what separates a tunnel reconnect from something else, and it is the
+  first thing to read if a 1033 is seen again.
+
 ## The home page no longer repaints itself on load (2026-09-26)
 
 The user saw the blobs "load twice" and the greeting flip from "Bonsoir" to "Bonjour" at night. Both were
