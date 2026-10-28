@@ -17,7 +17,6 @@ import { applyFaceLink } from '#lib/server/face-link.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-id');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
@@ -54,10 +53,6 @@ export const PUT: RequestHandler = async (event) => {
   const targetId = event.params.id;
   if (!targetId) {
     return json({ error: 'Bad Request' }, { status: 400 });
-  }
-
-  if (targetId === SYSTEM_USER_ID) {
-    return json({ error: 'Cannot modify system user' }, { status: 403 });
   }
 
   try {
@@ -184,10 +179,6 @@ export const DELETE: RequestHandler = async (event) => {
   }
   if (auth.user && auth.user.id_user === targetId) {
     return json({ error: 'Admins cannot delete their own account' }, { status: 403 });
-  }
-
-  if (targetId === SYSTEM_USER_ID) {
-    return json({ error: 'Cannot delete system user' }, { status: 403 });
   }
 
   const db = getDatabase();

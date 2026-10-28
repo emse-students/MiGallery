@@ -1,15 +1,44 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import adapter from '@sveltejs/adapter-bun';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import tailwindcss from '@tailwindcss/vite';
 import browserslist from 'browserslist';
 import { browserslistToTargets } from 'lightningcss';
 import pkg from './package.json' with { type: 'json' };
 
+/** Route modules that exist only under `vite dev` and in the `--mode test` build. */
+const DEV_ONLY_ROUTES = ['/src/routes/dev/login-as/+server.ts'];
+
+/**
+ * Builds every other mode with each DEV_ONLY_ROUTES module replaced by a bare 404, so the code is
+ * not in the bundle at all - a build-time decision no environment variable can reverse. SvelteKit
+ * has no per-route exclusion, so the module is swapped at `load`, before anything compiles it.
+ * CI's "The production build carries no dev login" step checks the result.
+ */
+function devOnlyRoutes(): Plugin {
+  let keep = false;
+  return {
+    name: 'migallery:dev-only-routes',
+    enforce: 'pre',
+    configResolved(config) {
+      keep = config.command === 'serve' || config.mode === 'test';
+    },
+    load(id) {
+      if (keep) return null;
+      const path = id.replaceAll('\\', '/');
+      if (DEV_ONLY_ROUTES.some((route) => path.endsWith(route))) {
+        return "export const GET = () => new Response('Not found', { status: 404 });";
+      }
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    devOnlyRoutes(),
     // Paraglide compiles the message runtime into src/lib/paraglide before
     // SvelteKit. MiGallery is server-rendered (adapter-bun), so locale
     // detection is server-driven: the cookie set by the language switcher, then

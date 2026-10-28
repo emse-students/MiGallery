@@ -9,7 +9,6 @@ import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-me');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 /**
  * GET /api/users/me
@@ -70,10 +69,6 @@ export const DELETE: RequestHandler = async (event) => {
       return json({ error: 'Not allowed while impersonating' }, { status: 403 });
     }
     const db = getDatabase();
-
-    if (user.id_user === SYSTEM_USER_ID) {
-      return json({ error: 'Cannot delete system user' }, { status: 403 });
-    }
 
     // Face data, grants and the audit log's mentions go with the row (face-erasure.ts).
     if (!deleteUserAccount(db, user.id_user)) {

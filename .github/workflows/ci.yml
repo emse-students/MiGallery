@@ -117,8 +117,20 @@ jobs:
       - name: Build
         run: bun run build
 
-      # The runner writes the whole test environment itself (disposable database, no Immich, dev
-      # routes on) and never reads a `.env`, so there is nothing to set up here.
+      # `/dev/login-as` opens a session as any user, so it must not EXIST in what production runs,
+      # not merely be switched off: its handler is folded out of every build but `--mode test`
+      # (src/routes/dev/login-as/+server.ts). This is the production build the deploy also makes,
+      # and the marker is a string only that handler carries - present means the fold failed.
+      - name: The production build carries no dev login
+        run: |
+          if grep -rl 'dev-login-as: no such local user' build/; then
+            echo "::error::the production build still contains the /dev/login-as handler"
+            exit 1
+          fi
+          echo "no dev login in build/"
+
+      # The runner writes the whole test environment itself (disposable database, no Immich, a
+      # `--mode test` build) and never reads a `.env`, so there is nothing to set up here.
       - name: Run tests
         run: bun run test
 

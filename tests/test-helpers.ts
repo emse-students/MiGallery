@@ -9,7 +9,8 @@ export const TEST_CONFIG = {
   DEFAULT_TIMEOUT: 10000,
   LONG_TIMEOUT: 30000,
   IMMICH_TIMEOUT: 15000,
-  SYSTEM_USER_ID: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+  // The suite's own admin, written into the run's database by scripts/test-with-server.mjs.
+  TEST_ADMIN_ID: 'test-admin',
 
   // Scope configuration
   SCOPES: {
@@ -28,7 +29,6 @@ export const TEST_CONFIG = {
 
   // Test users
   TEST_USERS: {
-    SYSTEM: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
     PREFIX: 'test.user.',
   },
 };
@@ -241,7 +241,7 @@ export async function openTestDatabase(
 
   // Only the run's own database, named by scripts/test-with-server.mjs. Deliberately NOT
   // `DATABASE_PATH`: a bare `vitest` run loads the developer's `.env`, whose `DATABASE_PATH` is
-  // their dev database, and this helper WRITES (it inserts the system user).
+  // their dev database, and a caller may WRITE through this handle.
   const DB_PATH = process.env.MIGALLERY_TEST_DATABASE;
   if (!DB_PATH) {
     throw new Error(
@@ -265,91 +265,23 @@ export async function openTestDatabase(
 }
 
 /**
- * Create the system user in the DB (directly via SQLite)
- * Useful for tests before calling /dev/login-as
+ * Log in as the suite's admin (written by `scripts/test-with-server.mjs` before any test runs) and
+ * return its session cookie. Throws with the server's answer on failure: the suite hides console
+ * output, so a reason that is only logged is never seen.
  */
-async function ensureSystemUserExists(): Promise<boolean> {
-  try {
-    const db = await openTestDatabase();
-    if (!db) {
-      return false;
-    }
-
-    try {
-      // Check if user exists
-      const existingUser = db
-        .prepare('SELECT id_user FROM users WHERE id_user = ?')
-        .get(TEST_CONFIG.SYSTEM_USER_ID);
-
-      if (existingUser) {
-        console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} already exists`);
-        db.close(true);
-        return true;
-      }
-
-      // Create the system user
-      db.prepare(
-        'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, role, promo, photos_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(TEST_CONFIG.SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', 'admin', null, null);
-
-      console.debug(`✅ System user ${TEST_CONFIG.SYSTEM_USER_ID} created in the DB`);
-      db.close(true);
-      return true;
-    } catch (dbError) {
-      try {
-        db.close(true);
-      } catch {
-        void 0;
-      }
-      throw dbError;
-    }
-  } catch (error) {
-    console.error(`❌ Error creating system user: ${(error as Error).message}`);
-    return false;
-  }
-}
-
-/**
- * Log in with the system user
- */
-async function loginAsSystemUser(): Promise<string> {
+export async function loginAsTestAdmin(): Promise<string> {
   const { API_BASE_URL } = TEST_CONFIG;
 
-  // First ensure the user exists in the DB
-  const userExists = await ensureSystemUserExists();
-  if (!userExists) {
-    console.warn('⚠️ Unable to create/verify system user locally, trying via endpoint');
+  const response = await fetch(`${API_BASE_URL}/dev/login-as?u=${TEST_CONFIG.TEST_ADMIN_ID}`, {
+    redirect: 'manual',
+  });
+  const match = (response.headers.get('set-cookie') ?? '').match(/migallery_session=([^;]+)/);
+  if (response.status === 303 && match) {
+    return `migallery_session=${match[1]}`;
   }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/dev/login-as?u=${TEST_CONFIG.SYSTEM_USER_ID}`, {
-      redirect: 'manual',
-    });
-
-    // Accept 302/303 (redirect) or 200 (HTML with cookie) depending on SvelteKit version
-    if (response.status === 303 || response.status === 302 || response.status === 200) {
-      const cookies = response.headers.get('set-cookie');
-      if (cookies) {
-        const match = cookies.match(/migallery_session=([^;]+)/);
-        if (match) {
-          const sessionCookie = `migallery_session=${match[1]}`;
-          return sessionCookie;
-        }
-      }
-      // No set-cookie - log for diagnostics
-      console.error(
-        `❌ Login failed (status: ${response.status}), no cookie returned, body=${await response.text()}`
-      );
-    } else {
-      console.error(
-        `❌ Login failed (status: ${response.status}), responseBody=${await response.text()}`
-      );
-    }
-    return '';
-  } catch (error) {
-    console.error(`❌ Error during login: ${(error as Error).message}`);
-    return '';
-  }
+  throw new Error(
+    `login as the test admin failed: status ${response.status}, body=${(await response.text()).slice(0, 200)}`
+  );
 }
 
 /**
@@ -453,8 +385,8 @@ export async function setupTestAuth(): Promise<TestContext> {
 
   const context = createTestContext();
 
-  // 1. Log in with the system user
-  const sessionCookie = await loginAsSystemUser();
+  // 1. Log in as the suite's admin
+  const sessionCookie = await loginAsTestAdmin();
   if (!sessionCookie) {
     throw new Error('Login failed');
   }

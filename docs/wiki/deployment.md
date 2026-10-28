@@ -47,7 +47,6 @@ The CD generates `.env` from GitHub repo secrets. Non-secret values (IMMICH_BASE
 | `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` (secret) | OIDC client                                          |
 | `DATABASE_PATH`                                            | SQLite path (`./data/migallery.db`)                  |
 | `BODY_SIZE_LIMIT`                                          | max upload body (e.g. `20G`)                         |
-| `ENABLE_DEV_ROUTES`                                        | dev-only routes; must be `false` in production       |
 
 ## Dependency updates, and the merge that reaches production
 
