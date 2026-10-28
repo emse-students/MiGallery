@@ -118,11 +118,13 @@ jobs:
         run: bun run build
 
       # `/dev/login-as` opens a session as any user, so it must not EXIST in what production runs,
-      # not merely be switched off: its handler is folded out of every build but `--mode test`
-      # (src/routes/dev/login-as/+server.ts). This is the production build the deploy also makes,
-      # and the marker is a string only that handler carries - present means the fold failed.
+      # not merely be switched off: its handler is replaced by a 404 stub in every build but
+      # `--mode test` (src/routes/dev/login-as/+server.ts). This is the production build the deploy
+      # also makes, and the marker is a string only that handler carries - present means the
+      # replacement failed. A missing server output would make the grep vacuous, so it fails first.
       - name: The production build carries no dev login
         run: |
+          test -d build/server || { echo "::error::no build/server - nothing to inspect"; exit 1; }
           if grep -rl 'dev-login-as: no such local user' build/; then
             echo "::error::the production build still contains the /dev/login-as handler"
             exit 1

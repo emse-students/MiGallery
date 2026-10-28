@@ -18,7 +18,7 @@ const log = createLogger('dev-login-as');
  *
  * It opens an ordinary session rather than a special cookie, so what is being exercised in dev and
  * in tests is the same code path production uses. It never creates or promotes a user: the test
- * suite writes its own admin row first (`tests/test-helpers.ts`).
+ * runner writes its own admin row first (`scripts/test-with-server.mjs`).
  */
 const DEV_LOGIN_MARKER = 'dev-login-as: no such local user';
 

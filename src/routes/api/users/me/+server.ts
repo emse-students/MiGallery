@@ -5,6 +5,7 @@ import { requireSession } from '#lib/server/permissions.ts';
 import { clearSessionCookie } from '#lib/session.ts';
 import { deleteUserAccount } from '#lib/server/face-erasure.ts';
 import { isImpersonating } from '#lib/server/auth.ts';
+import { LastAdminError } from '#lib/server/admin-floor.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -56,6 +57,7 @@ export const GET: RequestHandler = async (event) => {
  * Deletes the account of the logged-in user
  *
  * This action is irreversible and deletes all data associated with the user.
+ * Refused with 409 when the user is the last administrator (admin-floor.ts).
  * Note: This endpoint requires an active session (not API key) for security reasons.
  */
 export const DELETE: RequestHandler = async (event) => {
@@ -83,6 +85,9 @@ export const DELETE: RequestHandler = async (event) => {
   } catch (e) {
     if (isHttpError(e)) {
       throw e;
+    }
+    if (e instanceof LastAdminError) {
+      return json({ error: e.message }, { status: 409 });
     }
     const err = e as Error;
     log.error('DELETE /api/users/me error', err);

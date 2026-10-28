@@ -2,7 +2,7 @@
  * Changing the face link of an account: the ONE place in the application that writes
  * `users.photos_id`, so the things that must move with it cannot be forgotten by one of its
  * callers. `createUser` / `updateUser` (db/users.ts) refuse the column. The only other writer is the
- * test suite's own admin row (`tests/test-helpers.ts`), inserted with a NULL link and so no consent
+ * test runner's own admin row (`scripts/test-with-server.mjs`), inserted with a NULL link and so no consent
  * to record.
  *
  * A link is what `photo_access_permissions` grants, the consent record and the Immich person's
