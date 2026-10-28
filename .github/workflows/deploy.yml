@@ -107,9 +107,11 @@ jobs:
     permissions:
       contents: read
       packages: read
+    # The deploy directory names a host account, so it is a secret (masked in the public logs)
+    # rather than a literal here; the first step that uses it refuses an empty one.
     env:
-      DEPLOY_DIR: /home/mitv/MiGallery
-      COMPOSE: docker compose -f /home/mitv/MiGallery/docker-compose.prod.yml --project-directory /home/mitv/MiGallery
+      DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+      COMPOSE: docker compose -f ${{ secrets.DEPLOY_DIR }}/docker-compose.prod.yml --project-directory ${{ secrets.DEPLOY_DIR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -121,30 +123,40 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Generate .env from secrets
+      # Every value is checked BEFORE anything is written, so a missing secret leaves the host's
+      # .env, compose file and backup scripts exactly as they were. The backup destinations go to
+      # scripts/backup.env, not .env: they are the backup scripts' (scripts/backup-config.sh).
+      - name: Generate .env and backup.env from secrets
         env:
           IMMICH_API_KEY: ${{ secrets.IMMICH_API_KEY }}
+          IMMICH_BASE_URL: ${{ secrets.IMMICH_BASE_URL }}
           MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
           MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
           AVATAR_SIGNING_KEY: ${{ secrets.AVATAR_SIGNING_KEY }}
+          OFFSITE_HOST: ${{ secrets.OFFSITE_HOST }}
+          IMMICH_BACKUP_DIR: ${{ secrets.IMMICH_BACKUP_DIR }}
         run: |
-          for v in IMMICH_API_KEY MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET AVATAR_SIGNING_KEY; do
+          for v in DEPLOY_DIR IMMICH_API_KEY IMMICH_BASE_URL MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET \
+            AVATAR_SIGNING_KEY OFFSITE_HOST IMMICH_BACKUP_DIR; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
           done
-          mkdir -p "$DEPLOY_DIR"
+          mkdir -p "$DEPLOY_DIR/scripts"
           umask 077
           {
             printf 'IMMICH_API_KEY=%s\n' "$IMMICH_API_KEY"
+            printf 'IMMICH_BASE_URL=%s\n' "$IMMICH_BASE_URL"
             printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
             printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
             printf 'AVATAR_SIGNING_KEY=%s\n' "$AVATAR_SIGNING_KEY"
           } > "$DEPLOY_DIR/.env"
+          printf 'OFFSITE_HOST=%s\nIMMICH_BACKUP_DIR=%s\n' "$OFFSITE_HOST" "$IMMICH_BACKUP_DIR" \
+            > "$DEPLOY_DIR/scripts/backup.env"
 
       - name: Sync deploy files
         run: |
           cp docker-compose.prod.yml "$DEPLOY_DIR/"
           mkdir -p "$DEPLOY_DIR/scripts"
-          cp scripts/backup-offsite.sh scripts/restore-offsite.sh "$DEPLOY_DIR/scripts/"
+          cp scripts/backup-offsite.sh scripts/restore-offsite.sh scripts/backup-config.sh "$DEPLOY_DIR/scripts/"
           chmod +x "$DEPLOY_DIR/scripts/backup-offsite.sh" "$DEPLOY_DIR/scripts/restore-offsite.sh"
 
       # The compose file reads IMAGE_PREFIX, so the deploy names the same image the build pushed.

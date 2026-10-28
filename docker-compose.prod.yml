@@ -25,15 +25,15 @@ services:
     environment:
       PORT: '3000'
       NODE_ENV: production
-      # Client address for getClientAddress() and the audit log: the only public way in is the
-      # Cloudflare tunnel, and Cloudflare sets this header to the address it was reached from,
+      # Client address for getClientAddress() and the audit log: the app is reachable only through
+      # the reverse proxy, which sets this header to the address it was reached from,
       # overwriting any client-sent value. Never X-Forwarded-For (its first value is the
       # client's own claim). See docs/wiki/data-model.md#logs.
       ADDRESS_HEADER: cf-connecting-ip
       DATABASE_PATH: /app/data/migallery.db
-      # Immich (publie sur l hote mitv). Depuis le conteneur, l hote est joignable
-      # via son IP LAN.
-      IMMICH_BASE_URL: ${IMMICH_BASE_URL:-http://10.0.0.4:2283}
+      # Immich, tel que le conteneur le joint. Secret `IMMICH_BASE_URL`, ecrit dans
+      # .env par le deploy : aucune adresse d infrastructure dans ce depot public.
+      IMMICH_BASE_URL: ${IMMICH_BASE_URL:?IMMICH_BASE_URL requis}
       IMMICH_API_KEY: ${IMMICH_API_KEY:?IMMICH_API_KEY requis}
       MICONNECT_ISSUER: ${MICONNECT_ISSUER:-https://miconnect.emse.fr/application/o/migallery}
       MICONNECT_CLIENT_ID: ${MICONNECT_CLIENT_ID:?MICONNECT_CLIENT_ID requis}

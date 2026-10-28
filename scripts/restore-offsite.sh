@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Restauration de la base MiGallery depuis la sauvegarde offsite (serveur canari).
+# Restauration de la base MiGallery depuis la sauvegarde offsite (OFFSITE_HOST).
 # Pensee pour la reprise / migration vers un nouveau serveur.
 #
 #   ./scripts/restore-offsite.sh --yes                 # derniere sauvegarde offsite
@@ -12,14 +12,21 @@
 #
 set -euo pipefail
 
-OFFSITE_HOST="${OFFSITE_HOST:-canari@10.0.0.3}"
-OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"
-DEPLOY_DIR="${DEPLOY_DIR:-/home/mitv/MiGallery}"
-DB_DEST="${DB_DEST:-$DEPLOY_DIR/data/migallery.db}"
-COMPOSE="docker compose -f $DEPLOY_DIR/docker-compose.prod.yml --project-directory $DEPLOY_DIR"
+# Run from <deploy-dir>/scripts (DEPLOY_DIR defaults to its parent); on a server not yet deployed,
+# export OFFSITE_HOST (and DEPLOY_DIR) first.
 
 log() { printf '[migallery-restore] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 fail() { printf '[migallery-restore] ERROR %s\n' "$*" >&2; exit 1; }
+
+# OFFSITE_HOST comes from the deploy-written backup.env (backup-config.sh), or the environment on a
+# server that has not been deployed yet. It is required below, only when the archive is fetched.
+# shellcheck source=scripts/backup-config.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-config.sh"
+OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"
+# The deploy syncs this script into <deploy-dir>/scripts, so its parent IS the deploy directory.
+DEPLOY_DIR="${DEPLOY_DIR:-$(dirname "$BACKUP_SCRIPTS_DIR")}"
+DB_DEST="${DB_DEST:-$DEPLOY_DIR/data/migallery.db}"
+COMPOSE="docker compose -f $DEPLOY_DIR/docker-compose.prod.yml --project-directory $DEPLOY_DIR"
 
 ARCHIVE=""
 CONFIRM="no"
@@ -36,6 +43,7 @@ trap 'rm -rf "$STAGE"' EXIT
 
 # Recupere la derniere sauvegarde offsite si aucune archive locale fournie.
 if [ -z "$ARCHIVE" ]; then
+  load_backup_config OFFSITE_HOST
   log "Recuperation de la derniere sauvegarde depuis $OFFSITE_HOST..."
   LATEST="$(ssh -o BatchMode=yes "$OFFSITE_HOST" \
     "ls -1t '$OFFSITE_PATH'/migallery/migallery-*.db.gz 2>/dev/null | head -1")"
