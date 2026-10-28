@@ -61,21 +61,18 @@ the next run delete more. Pinned by `tests/logs-retention.test.ts`.
 
 **`ip` comes from ONE trusted source**, SvelteKit's `getClientAddress()`. In
 production `docker-compose.prod.yml` sets adapter-bun's
-`ADDRESS_HEADER=cf-connecting-ip`: the only public way in is the Cloudflare
-tunnel (`cloudflared` on the host, see [bandwidth.md](bandwidth.md)), and
-Cloudflare sets `CF-Connecting-IP` to the address it was reached from,
-overwriting any value the client sent. `X-Forwarded-For` is never read: its
-first value is whatever the client chose to send, and it used to be stored
-whole. When no address is available (`getClientAddress()` throws, e.g. a request
-that did not come through the tunnel) the row records NULL, never a guess, and the fault is logged once per process
-at error level. What this rests on: the container's published port must only be
-reached through the tunnel - a client reaching port 3000 directly could set that
-header itself. `docker-compose.prod.yml` therefore binds it to `127.0.0.1`, a property of the file
-and not of a firewall. Read on the host on 2026-10-17: the `cloudflared` connector of `mitv` sends
-`gallery.mitv.fr` to `http://localhost:3000` and `immich.mitv.fr` to `http://localhost:2283`
-(behind Cloudflare Access), so the loopback bind cuts nothing the tunnel needs. No other service of this
-repository calls the container by the LAN address. The host's Immich port 2283 is still published on
-every interface (it is not this file's); see the Immich compose on the host.
+`ADDRESS_HEADER=cf-connecting-ip`: the reverse proxy in front of the app sets that
+header to the address it was reached from, overwriting any value the client sent.
+`X-Forwarded-For` is never read: its first value is whatever the client chose to
+send, and it used to be stored whole. When no address is available
+(`getClientAddress()` throws) the row records NULL, never a guess, and the fault
+is logged once per process at error level.
+
+**The invariant this rests on: the app must only be reachable through the reverse
+proxy.** A header the proxy sets is only evidence if nothing else can reach the
+listener. `docker-compose.prod.yml` therefore binds the container's port to
+`127.0.0.1` - a property of the file and not of a firewall - and no other service
+of this repository calls the container by a network address.
 
 `avatar_revocations(id_user, salt, revoked_at)` holds the salt of a user whose signed avatar links were
 revoked. It is keyed by id_user with no foreign key ON PURPOSE: it survives the deletion of the account,

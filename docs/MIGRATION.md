@@ -12,10 +12,10 @@ a new server and data restoration.
 | Element | Detail                                                                                                      |
 | ------- | ----------------------------------------------------------------------------------------------------------- |
 | Runtime | `migallery` Docker container (SvelteKit + Node), port 3000                                                  |
-| Data    | `data/` mounted as volume (`/home/mitv/MiGallery/data`): SQLite + caches                                    |
+| Data    | `data/` mounted as volume (`<deploy-dir>/data`): SQLite + caches                                            |
 | Image   | `ghcr.io/emse-students/migallery:latest` (built by CD)                                                      |
 | CD      | `.github/workflows/release.yml`: preflight -> `deploy.yml` (build-image -> deploy). A push deploys nothing. |
-| Backups | `scripts/backup-offsite.sh` -> offsite rsync to canari (root cron 05h)                                      |
+| Backups | `scripts/backup-offsite.sh` -> offsite rsync to `<backup-host>` (root cron 05h)                             |
 
 ## 0. Prerequisites
 
@@ -34,24 +34,26 @@ install as a service. The runner user must be able to run `docker`
 
 The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 
-| Secret                                            | Role                     |
-| ------------------------------------------------- | ------------------------ |
-| `IMMICH_API_KEY`                                  | access to the Immich API |
-| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik           |
+| Secret                                            | Role                                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `IMMICH_API_KEY`                                  | access to the Immich API                                                        |
+| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                                  |
+| `AVATAR_SIGNING_KEY`                              | signed avatar URLs                                                              |
+| `IMMICH_BASE_URL`                                 | `http://<immich-host>:2283`, as reached from the container                      |
+| `DEPLOY_DIR`                                      | `<deploy-dir>`, where the runner writes `.env`, the compose file and `scripts/` |
+| `OFFSITE_HOST`                                    | `<backup-account>@<backup-host>`, the offsite backup target                     |
+| `IMMICH_BACKUP_DIR`                               | the directory of Immich's own nightly dumps on the host                         |
 
-Non-secret values (IMMICH_BASE_URL, MICONNECT_ISSUER, ports...)
+The deploy refuses to run while any of them is missing. `OFFSITE_HOST` and `IMMICH_BACKUP_DIR`
+never reach `.env`: the deploy writes them into `<deploy-dir>/scripts/backup.env`, which both
+backup scripts read (`scripts/backup-config.sh`). Non-secret values (MICONNECT_ISSUER, ports...)
 have defaults in `docker-compose.prod.yml`, overridable if needed.
 
 ## 3. SSH access for offsite backup
 
-The backup pushes to canari. On the new server (as root, which runs the cron):
-
-```bash
-ssh-keyscan -H 10.0.0.3 >> /root/.ssh/known_hosts
-```
-
-On canari, authorize the public key of root@<server> in
-`~/.ssh/authorized_keys` of the `canari` user and create `~/migallery-offsite/`.
+The backup pushes to `<backup-host>` as root, which runs the cron. On the new server, add the
+backup host's key to root's `known_hosts`; on the backup host, authorize root@<server>'s public key
+for the backup account and create `~/migallery-offsite/` in its home.
 
 ## 4. First deployment
 
@@ -63,18 +65,18 @@ pushes it to GHCR, generates `.env`, then `docker compose up -d` on the server.
 ### MiGallery (our database)
 
 ```bash
-./scripts/restore-offsite.sh --yes     # latest backup from canari
+./scripts/restore-offsite.sh --yes     # latest backup from the offsite host
 ```
 
 ### Immich (optional)
 
 Immich produces its own dumps (`library/backups/immich-db-backup-*.sql.gz`),
-copied offsite to `~/migallery-offsite/immich/` on canari. Restoration follows
+copied offsite to `~/migallery-offsite/immich/` on the backup host. Restoration follows
 the **official Immich procedure** (recreating the database with its vector
 extensions):
 
 ```bash
-# Retrieve the dump from canari, then (see Immich docs):
+# Retrieve the dump from the backup host, then (see Immich docs):
 #   docker compose down
 #   (recreate the db volume)
 #   docker compose up -d database
@@ -90,14 +92,14 @@ Root cron on the server (after the Immich dump at 02h):
 
 ```cron
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-0 5 * * * /home/mitv/MiGallery/scripts/backup-offsite.sh >> /var/log/migallery-backup.log 2>&1
+0 5 * * * <deploy-dir>/scripts/backup-offsite.sh >> /var/log/migallery-backup.log 2>&1
 ```
 
 ## Checklist
 
 - [ ] Docker + compose, self-hosted runner (docker group)
 - [ ] GitHub Secrets created
-- [ ] SSH server -> canari for offsite
+- [ ] SSH server -> backup host for offsite
 - [ ] CD green (image + deployment)
 - [ ] MiGallery database restored
 - [ ] (opt) Immich database restored

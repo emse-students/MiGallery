@@ -1,7 +1,7 @@
 # Bandwidth: a lossy path, not a small pipe
 
 Production leaves through EMSE onto RENATER (AS2200, ~10 ms to Cloudflare Paris)
-behind a Stormshield gateway (`10.0.0.1`), and reaches the internet through a
+behind the School's gateway, and reaches the internet through a
 `cloudflared` tunnel. The path is symmetric and has capacity to spare, but it
 **drops ~4% of outbound packets at random** (measured 2026-09-25: 4.4% TCP
 retransmissions, 3.7% QUIC loss over 12 days; zero drops and zero NIC errors on
@@ -15,10 +15,10 @@ connections flattened at ~1 MB/s for the whole site, and a 39 KB album list took
 
 ## The host fix (2026-09-25)
 
-| Setting                                                                          | Where                                                                                     |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `net.ipv4.tcp_congestion_control = bbr` (model-based, shrugs off random loss)    | `/etc/sysctl.d/90-bbr.conf`, module in `/etc/modules-load.d/bbr.conf`                     |
-| Tunnel on TCP so BBR applies to it: `TUNNEL_TRANSPORT_PROTOCOL=http2` (not QUIC) | drop-in `/etc/systemd/system/cloudflared.service.d/protocol.conf` - the unit is untouched |
+| Setting                                                                          | Where                                       |
+| -------------------------------------------------------------------------------- | ------------------------------------------- |
+| `net.ipv4.tcp_congestion_control = bbr` (model-based, shrugs off random loss)    | a sysctl drop-in, BBR module loaded at boot |
+| Tunnel on TCP so BBR applies to it: `TUNNEL_TRANSPORT_PROTOCOL=http2` (not QUIC) | a systemd drop-in; the unit is untouched    |
 
 | Measured                          | cubic + QUIC   | BBR + http2  |
 | --------------------------------- | -------------- | ------------ |
@@ -27,13 +27,9 @@ connections flattened at ~1 MB/s for the whole site, and a 39 KB album list took
 | Through the tunnel, per request   | 0.45-0.85 MB/s | 2.5-4.3 MB/s |
 | Through the tunnel, 8 in parallel | 1.2 MB/s       | 12 MB/s      |
 
-Rollback: delete the drop-in, `systemctl daemon-reload && systemctl restart
-cloudflared`; delete the two BBR files and `sysctl -w
-net.ipv4.tcp_congestion_control=cubic`.
-
-**Restarting `cloudflared` cuts `ssh mitv`**: SSH goes through the same tunnel.
-The restart itself completes (systemd runs it), and the session comes back in
-~30 s - but if the tunnel does not, the only way in is the machine's console.
+Rollback: delete the drop-in and restart the tunnel; delete the BBR files and set
+`net.ipv4.tcp_congestion_control=cubic`. The exact paths, and what a tunnel
+restart does to remote access, are in the operators' private notes.
 
 ## What goes over the wire
 
@@ -74,6 +70,6 @@ per network chunk, not once per line.
   (`/logo-512.png?x=<random>`, 25 KB - a small file measures latency more than throughput, so repeat it or pick an album cover) FROM the host - `cf-cache-status: MISS`
   forces an origin pull, and the host's fast downlink leaves the tunnel uplink as
   the only bottleneck.
-- `cloudflared` exposes per-connection counters on `127.0.0.1:20241/metrics`.
+- `cloudflared` exposes per-connection counters on its local metrics endpoint.
 - Who is browsing is visible in Cloudflare Analytics, not in the app logs
   (MiGallery does not log requests).

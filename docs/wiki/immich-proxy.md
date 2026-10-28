@@ -32,8 +32,8 @@ to a signed-out visitor while everything else stays gated.
 
 ## Chunked uploads
 
-Uploads are streamed to disk, never buffered in memory (see the size rule in
-`CLAUDE.md`):
+Uploads are streamed to disk, never buffered in memory - no `Buffer.alloc` on the
+upload path, pinned by `tests/memory-invariants.test.ts`:
 
 - **Small files (< 10 MB)**: a simple `POST /api/immich/assets` with `FormData`.
 - **Large files (>= 10 MB)**: 5 MB chunks with resume support and a per-chunk
@@ -57,7 +57,7 @@ releases the lock too.
 
 That closes the leak going forward, but three months of orphaned `.lock`
 files (from 2026-07-08, never cleaned) were found sitting in
-`data/chunk-uploads/` on `mitv` on the same day - proof this had been
+`data/chunk-uploads/` on the production host on the same day - proof this had been
 happening silently long before it was noticed. There is no cron for this
 directory (`scheduled.yml` only runs the nightly security pass), and adding
 one would need prod SSH from CI for a problem the request handler already

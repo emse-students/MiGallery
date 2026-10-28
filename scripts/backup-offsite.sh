@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Sauvegarde offsite de MiGallery (et, en option, du dump de la base Immich)
-# vers le serveur canari (miroir reciproque entre les deux serveurs LAN).
+# vers OFFSITE_HOST (un serveur du meme reseau local).
 #
 # - Base MiGallery : dump SQLite coherent via l API de sauvegarde en ligne
 #   (sqlite3 ".backup", WAL-safe), gzip, puis envoi rsync offsite.
@@ -9,25 +9,33 @@
 #   (library/backups/immich-db-backup-*.sql.gz) avec ses extensions vector. On
 #   envoie simplement le plus recent offsite. Les medias (sur le RAID) sont exclus.
 #
-# Tourne sur mitv (root, via cron). L offsite utilise la cle SSH de root,
-# autorisee pour l utilisateur canari sur 10.0.0.3.
+# Tourne sur le serveur de production (root, via cron). L offsite utilise la cle
+# SSH de root, autorisee pour le compte de sauvegarde sur OFFSITE_HOST.
 #
 set -euo pipefail
 
-# ── Configuration (surchargeable via l environnement) ─────────────────────────
-MIGALLERY_DIR="${MIGALLERY_DIR:-/home/mitv/MiGallery}"
-MIGALLERY_DB="${MIGALLERY_DB:-$MIGALLERY_DIR/data/migallery.db}"
-IMMICH_BACKUP_DIR="${IMMICH_BACKUP_DIR:-/srv/dev-disk-by-uuid-ff73ed20-08b7-4b38-b53c-6de6a86bfd6a/immich-app/library/backups}"
-OFFSITE_HOST="${OFFSITE_HOST:-canari@10.0.0.3}"
-OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"   # relatif au home du user canari
-MIGALLERY_RETENTION_DAYS="${MIGALLERY_RETENTION_DAYS:-14}"
-IMMICH_RETENTION_DAYS="${IMMICH_RETENTION_DAYS:-7}"   # dumps ~1 Go : retention courte
-INCLUDE_IMMICH="${INCLUDE_IMMICH:-1}"
-
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
-
 log() { printf '[migallery-backup] %s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
 fail() { printf '[migallery-backup] ERROR %s\n' "$*" >&2; exit 1; }
+
+# ── Configuration (surchargeable via l environnement) ─────────────────────────
+INCLUDE_IMMICH="${INCLUDE_IMMICH:-1}"
+# OFFSITE_HOST and IMMICH_BACKUP_DIR come from the deploy-written backup.env (backup-config.sh);
+# the Immich dump directory is required only when the Immich dump is sent.
+# shellcheck source=scripts/backup-config.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backup-config.sh"
+if [ "$INCLUDE_IMMICH" = "1" ]; then
+  load_backup_config OFFSITE_HOST IMMICH_BACKUP_DIR
+else
+  load_backup_config OFFSITE_HOST
+fi
+# The deploy syncs this script into <deploy-dir>/scripts, so its parent IS the deploy directory.
+MIGALLERY_DIR="${MIGALLERY_DIR:-$(dirname "$BACKUP_SCRIPTS_DIR")}"
+MIGALLERY_DB="${MIGALLERY_DB:-$MIGALLERY_DIR/data/migallery.db}"
+OFFSITE_PATH="${OFFSITE_PATH:-migallery-offsite}"   # relatif au home du compte de sauvegarde
+MIGALLERY_RETENTION_DAYS="${MIGALLERY_RETENTION_DAYS:-14}"
+IMMICH_RETENTION_DAYS="${IMMICH_RETENTION_DAYS:-7}"   # dumps ~1 Go : retention courte
+
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
 
 command -v sqlite3 >/dev/null || fail "sqlite3 CLI requis (apt-get install sqlite3)"
 command -v rsync >/dev/null || fail "rsync requis"
