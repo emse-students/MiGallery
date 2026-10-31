@@ -1,18 +1,19 @@
 /**
- * Undoing a member's face link: what a face withdrawal, an unlink and an account deletion remove.
+ * Undoing a member's face data: what a face withdrawal, an unlink and an account deletion remove.
  *
- * THE CONTRACT (owner decision 2026-10-16). Immich groups EVERY face into anonymous clusters and
- * that is accepted: it is internal, a black box, never shown. What ties a cluster to a human is
- * only what MiGallery writes - `users.photos_id` and `users.photos_asset_id` - plus the person's
- * NAME and birth date in Immich. So the member's link is undone locally and the person's name and
- * birth date are removed in Immich. The cluster itself, its faces and their embeddings stay,
- * unnamed and linked to nobody.
+ * THE CONTRACT (option C, docs/wiki/face-matching-option-c.md). What ties a face to a member is
+ * MiGallery's own state: the member's sealed reference templates (`face_references`), the faces
+ * given to them or answered by them (`face_matches`), their consent record, and - until lot A8
+ * deletes Immich's own faces and persons - the legacy `users.photos_id` link and the person's NAME
+ * and birth date in Immich. Withdrawal removes all of it. The store of every face
+ * (`data/faces.db`) is not the member's: it goes with each photo, never with a withdrawal.
  *
- * TWO HALVES, AND ONLY ONE CAN FAIL. The local half - the `photos_id` link, the profile photo
- * pointer, the on-disk face crops, the photo-access grants in both directions and, for an account
- * deletion, the member's id in the audit log - is MiGallery's own state and is removed inside the
- * request that asked for it ({@link eraseLocalFaceData}, {@link anonymiseUserInLogs}). The remote
- * half (clearing the name in Immich) can fail - Immich down, slow or refusing - so it is written to
+ * TWO HALVES, AND ONLY ONE CAN FAIL. The local half - references, matches, consent, the
+ * `photos_id` link, the profile photo pointer, the photo-access grants the member gave and, for an
+ * account deletion, the member's id in the audit log - is MiGallery's own state and is removed
+ * inside the request that asked for it ({@link eraseLocalFaceData}, {@link anonymiseUserInLogs});
+ * the crops follow right after the commit ({@link finishLocalErasure}). The remote half (clearing
+ * a legacy person's name in Immich) can fail - Immich down, slow or refusing - so it is written to
  * the `face_erasures` journal in the SAME transaction as the local half, and
  * {@link runFaceErasures} drives it to completion.
  *
@@ -24,8 +25,7 @@
  * the row; any row still pending 24 hours after it was requested is logged as an error on every
  * run, by id, until it completes.
  *
- * WHAT THIS DOES NOT REACH: the cluster's faces and embeddings, and the backups - see
- * docs/wiki/photos-cv.md#erasure.
+ * WHAT THIS DOES NOT REACH: the faces store, and the backups - see docs/wiki/photos-cv.md#erasure.
  */
 
 import { env } from '#lib/server/env.ts';
@@ -86,8 +86,9 @@ export interface LocalErasure {
 /**
  * The local half for `userId`, inside the caller's transaction: drop the face link and profile
  * photo pointer, the grants the member GAVE (the ones on their own face photos - grants others
- * gave them are about other people's faces and stay), close the consent record, delete the sealed reference embeddings, and journal the
- * Immich half when there is a person to clear. The file side (crops, the run) is NOT done here: a
+ * gave them are about other people's faces and stay), close the consent record, delete the sealed
+ * reference templates and every match row, and journal the Immich half when there is a person to
+ * clear. The file side (crops, the run) is NOT done here: a
  * file error must not roll a withdrawal back, so the caller runs {@link finishLocalErasure} after
  * its COMMIT. Called for a withdrawal, an account deletion, an admin unlink and a RELINK - the
  * old person's grants and consent never carry over to a different person.
