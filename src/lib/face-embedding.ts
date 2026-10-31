@@ -26,6 +26,16 @@ export const FACE_AUTO_MAX_DISTANCE = 0.5;
  */
 export const FACE_SUGGEST_MAX_DISTANCE = 0.62;
 
+/**
+ * Margin under which the runner-up member makes a face ambiguous: an `auto` face whose next member
+ * is closer than this to it is only `suggested`. Measured on the members' own links: no `auto` face
+ * had a runner-up within 0.05 (docs/wiki/face-matching-option-c.md, section 2.2).
+ */
+export const FACE_AMBIGUITY_MARGIN = 0.05;
+
+/** Detector score a face needs to be stored, and a selfie's one face to become a reference. */
+export const FACE_DETECTION_MIN_SCORE = 0.7;
+
 /** What a distance means: `auto` is accepted, `suggested` needs the member's confirmation. */
 export type FaceBand = 'auto' | 'suggested' | 'none';
 
@@ -127,12 +137,29 @@ export function decodeEmbedding(bytes: Uint8Array): Float32Array {
       `encoded embedding has ${bytes.length} bytes, expected ${FACE_EMBEDDING_DIM * 2}`
     );
   }
+  const lut = halfTable();
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const out = new Float32Array(FACE_EMBEDDING_DIM);
   for (let i = 0; i < out.length; i++) {
-    out[i] = halfToFloat(view.getUint16(i * 2, true));
+    out[i] = lut[view.getUint16(i * 2, true)];
   }
   return out;
+}
+
+let halfLut: Float32Array | null = null;
+
+/**
+ * Every half's value, built once (256 KB): a store scan decodes hundreds of thousands of vectors,
+ * and a table lookup is several times faster than {@link halfToFloat}, from which it is built.
+ */
+function halfTable(): Float32Array {
+  if (!halfLut) {
+    halfLut = new Float32Array(65536);
+    for (let h = 0; h < 65536; h++) {
+      halfLut[h] = halfToFloat(h);
+    }
+  }
+  return halfLut;
 }
 
 /**

@@ -25,4 +25,8 @@ export const variables = defineEnvVars({
   MICONNECT_CLIENT_ID: optional('OIDC client id'),
   MICONNECT_CLIENT_SECRET: optional('OIDC client secret'),
   AVATAR_SIGNING_KEY: optional('HMAC key of the signed avatar URLs'),
+  FACE_STORE_KEY: optional(
+    'Face store sealing key, 64 hex characters (src/lib/server/face-seal.ts)'
+  ),
+  FACE_ML_URL: optional('Base URL of the face model service (Immich machine learning)'),
 });
