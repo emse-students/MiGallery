@@ -122,6 +122,8 @@ let listed: string[] = [];
 let mlDown = false;
 let immichGarbled = false;
 let mlGarbage = false;
+/** A status the fake model answers instead of a result (null: it answers). */
+let mlStatus: number | null = null;
 let missingPreview = new Set<string>();
 const searchBodies: Array<Record<string, unknown>> = [];
 
@@ -147,6 +149,7 @@ const fakeFetch = (async (url: string, init?: RequestInit) => {
   }
   if (u.pathname === '/predict') {
     if (mlDown) throw new TypeError('connect ECONNREFUSED');
+    if (mlStatus !== null) return new Response('{}', { status: mlStatus });
     const id = await ((init!.body as FormData).get('image') as Blob).text();
     if (mlGarbage) {
       return Response.json({ imageWidth: 10, imageHeight: 10, 'facial-recognition': [{}] });
@@ -188,6 +191,7 @@ beforeEach(() => {
   mlDown = false;
   immichGarbled = false;
   mlGarbage = false;
+  mlStatus = null;
   missingPreview = new Set();
   searchBodies.length = 0;
 });
@@ -281,6 +285,29 @@ describe('ingestion (A3)', () => {
         .prepare("SELECT COUNT(*) AS n FROM face_assets WHERE state = 'pending' AND attempts = 0")
         .get()
     ).toEqual({ n: 2 });
+  });
+
+  it('counts an attempt of the asset, and goes on, when the model refuses the image itself', async () => {
+    seeded();
+    mlStatus = 422;
+    const result = await ingestAll(['p1', 'p2']);
+    expect(result).toMatchObject({ retry: 2, stopped: null });
+    expect(
+      faceDb()
+        .prepare('SELECT asset_id, attempts, last_error FROM face_assets ORDER BY asset_id')
+        .all()
+    ).toEqual([
+      { asset_id: 'p1', attempts: 1, last_error: 'image_refused: 422' },
+      { asset_id: 'p2', attempts: 1, last_error: 'image_refused: 422' },
+    ]);
+  });
+
+  it('stops the pass and blames no asset on a status that says the service did not serve it', async () => {
+    seeded();
+    mlStatus = 404; // a wrong FACE_ML_URL path: not the image's fault
+    const result = await ingestAll(['p1']);
+    expect(result.stopped).toBe('ml_unavailable');
+    expect(faceDb().prepare('SELECT attempts FROM face_assets').get()).toEqual({ attempts: 0 });
   });
 
   it('fails an asset after the attempts on an answer it cannot trust, and reports the cause', async () => {
@@ -832,6 +859,33 @@ describe('enrolment and answers (A5)', () => {
     expect(openConsents('alice')).toBe(1);
   });
 
+  it("closes an open legacy consent and opens the member's own, with the reference", async () => {
+    const { TERMS_VERSION } = await import('#lib/legal.ts');
+    addUser('alice');
+    db()
+      .prepare(
+        "INSERT INTO face_consents (user_id, created_at, version, source) VALUES ('alice', 1, 'legacy', 'legacy')"
+      )
+      .run();
+    // One transaction: a reference that cannot be written leaves the consent as it was.
+    expect(() => enrolment.enrolMember(engine(), 'alice', new Float32Array(3), 4000)).toThrow();
+    expect(
+      db().prepare("SELECT source, withdrawn_at FROM face_consents WHERE user_id = 'alice'").all()
+    ).toEqual([{ source: 'legacy', withdrawn_at: null }]);
+    enrolment.enrolMember(engine(), 'alice', ALICE, 5000);
+    expect(
+      db()
+        .prepare(
+          "SELECT source, version, created_at, withdrawn_at FROM face_consents WHERE user_id = 'alice' ORDER BY id"
+        )
+        .all()
+    ).toEqual([
+      { source: 'legacy', version: 'legacy', created_at: 1, withdrawn_at: 5000 },
+      { source: 'selfie', version: TERMS_VERSION, created_at: 5000, withdrawn_at: null },
+    ]);
+    expect(refRows('alice')).toEqual([{ source: 'selfie' }]);
+  });
+
   it('makes room by the oldest reference when the member holds the maximum without a selfie', () => {
     enrol('alice', ALICE, 5);
     const ids = () =>
@@ -872,10 +926,11 @@ describe('enrolment and answers (A5)', () => {
     expect(matches()[0].state).toBe('confirmed');
   });
 
-  it('re-matches the store with what it learned', async () => {
+  it('re-matches the store with what it learned, in the background', async () => {
     addUser('alice');
     enrolment.enrolMember(engine(), 'alice', ALICE);
-    const p1 = atDistance(ALICE, synthetic(7), 0.55);
+    // Within the auto distance of the selfie, but `suggested`: one reference is a thin enrolment.
+    const p1 = atDistance(ALICE, synthetic(7), 0.45);
     // p2 sits beside p1 and AWAY from the selfie: only the learned reference reaches it.
     const p2 = atDistance(
       p1,
@@ -887,11 +942,74 @@ describe('enrolment and answers (A5)', () => {
     library.set('p2', [p2]);
     await ingestAll(['p1', 'p2']);
     expect(matches().map((m) => m.asset_id)).toEqual(['p1']);
-    await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'confirm');
+    // The answer is queued first, then a job that holds the engine until released: the re-match
+    // the answer queues lands BEHIND it. The answer must resolve without it (no scan awaited in
+    // the request), and the store is re-matched once the engine is free.
+    const answered = enrolment.answerFace(
+      engine(),
+      'alice',
+      { assetId: 'p1', faceIndex: 0 },
+      'confirm'
+    );
+    let release: (() => void) | null = null;
+    const held = engineMod.runExclusive(
+      () =>
+        new Promise<void>((r) => {
+          release = r;
+        })
+    );
+    expect(await answered).toBe('learned');
+    while (!release) await new Promise((r) => setImmediate(r));
+    expect(matches().map((m) => [m.asset_id, m.state])).toEqual([['p1', 'confirmed']]);
+    (release as unknown as () => void)();
+    await held;
+    await engineMod.runExclusive(() => undefined);
     expect(matches().map((m) => [m.asset_id, m.state])).toEqual([
       ['p1', 'confirmed'],
       ['p2', 'pending'],
     ]);
+  });
+
+  it('confirms a face in the suggested band, shows it, and never learns it', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    await storeOne('p1', atDistance(ALICE, synthetic(7), 0.55));
+    expect(matches()).toEqual([
+      { asset_id: 'p1', face_index: 0, user_id: 'alice', band: 'suggested', state: 'pending' },
+    ]);
+    const outcome = await enrolment.answerFace(
+      engine(),
+      'alice',
+      { assetId: 'p1', faceIndex: 0 },
+      'confirm'
+    );
+    expect(outcome).toBe('confirmed');
+    expect(refRows('alice').map((r) => r.source)).toEqual(['selfie']);
+    expect(matches()[0].state).toBe('confirmed');
+  });
+
+  it("learns only within the auto distance, the matcher's own bound, inclusive", async () => {
+    const { FACE_AUTO_MAX_DISTANCE } = await import('#lib/face-embedding.ts');
+    expect(enrolment.learnable(FACE_AUTO_MAX_DISTANCE)).toBe(true);
+    // The next double above the bound.
+    const above = FACE_AUTO_MAX_DISTANCE + Number.EPSILON * FACE_AUTO_MAX_DISTANCE;
+    expect(above).toBeGreaterThan(FACE_AUTO_MAX_DISTANCE);
+    expect(enrolment.learnable(above)).toBe(false);
+    expect(enrolment.learnable(Number.NaN)).toBe(false);
+    // Through the store (float16 round-trips), either side of the bound.
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    seeded();
+    library.set('near', [atDistance(ALICE, synthetic(7), FACE_AUTO_MAX_DISTANCE - 0.01)]);
+    library.set('far', [atDistance(ALICE, synthetic(8), FACE_AUTO_MAX_DISTANCE + 0.01)]);
+    await ingestAll(['near', 'far']);
+    expect(matches().map((m) => m.asset_id)).toEqual(['far', 'near']);
+    const answer = (assetId: string) =>
+      enrolment.answerFace(engine(), 'alice', { assetId, faceIndex: 0 }, 'confirm');
+    expect(await answer('far')).toBe('confirmed');
+    expect(await answer('near')).toBe('learned');
+    await engineMod.runExclusive(() => undefined);
+    expect(refRows('alice').map((r) => r.source)).toEqual(['selfie', 'photo']);
   });
 
   it('confirms without learning once the member holds the maximum', async () => {
@@ -947,5 +1065,91 @@ describe('enrolment and answers (A5)', () => {
     expect(refRows('alice')).toHaveLength(0);
     expect(matches()).toHaveLength(0);
     expect(result.local?.erasure).toBeNull();
+  });
+});
+
+describe('background re-matches, coalesced per member (A5)', () => {
+  /** A queue whose runs are counted per key and held until released. */
+  function harness() {
+    const errors: unknown[] = [];
+    const queue = new engineMod.CoalescingQueue('test', (e) => errors.push(e));
+    const runs: string[] = [];
+    let release: (() => void) | null = null;
+    const run = (key: string) => () =>
+      new Promise<void>((resolve) => {
+        runs.push(key);
+        release = resolve;
+      });
+    const finish = () => {
+      const r = release;
+      release = null;
+      r?.();
+    };
+    return { queue, runs, run, finish, errors };
+  }
+  const settle = () => engineMod.runExclusive(() => undefined);
+
+  it('runs N requests queued together once', async () => {
+    const h = harness();
+    const promises = Array.from({ length: 5 }, () => h.queue.request('alice', h.run('alice')));
+    expect(new Set(promises).size).toBe(1);
+    expect(h.queue.isQueued('alice')).toBe(true);
+    await Promise.resolve();
+    await new Promise((r) => setImmediate(r));
+    h.finish();
+    await promises[0];
+    expect(h.runs).toEqual(['alice']);
+    expect(h.queue.isQueued('alice')).toBe(false);
+  });
+
+  it('runs exactly once more for requests arriving while a run is in progress', async () => {
+    const h = harness();
+    const first = h.queue.request('alice', h.run('alice'));
+    // Wait until the run has started (it is holding the engine).
+    while (h.runs.length === 0) await new Promise((r) => setImmediate(r));
+    expect(h.queue.isQueued('alice')).toBe(false);
+    const during = Array.from({ length: 4 }, () => h.queue.request('alice', h.run('alice')));
+    expect(new Set(during).size).toBe(1);
+    h.finish();
+    await first;
+    while (h.runs.length === 1) await new Promise((r) => setImmediate(r));
+    h.finish();
+    await during[0];
+    await settle();
+    expect(h.runs).toEqual(['alice', 'alice']);
+    expect(h.errors).toEqual([]);
+  });
+
+  it('keeps members apart, and reports a failed run without rejecting', async () => {
+    const h = harness();
+    const a = h.queue.request('alice', async () => {
+      h.runs.push('alice');
+      throw new Error('boom');
+    });
+    const b = h.queue.request('bob', async () => {
+      h.runs.push('bob');
+    });
+    await expect(a).resolves.toBeUndefined();
+    await b;
+    expect(h.runs).toEqual(['alice', 'bob']);
+    expect(h.errors).toHaveLength(1);
+  });
+
+  it('joins every re-match of one member requested while the engine is busy into one', async () => {
+    const enrolment = await import('#lib/server/face-enrolment.ts');
+    enrol('alice', ALICE);
+    let release: (() => void) | null = null;
+    const held = engineMod.runExclusive(
+      () =>
+        new Promise<void>((r) => {
+          release = r;
+        })
+    );
+    while (!release) await new Promise((r) => setImmediate(r));
+    const requests = Array.from({ length: 20 }, () => enrolment.scheduleRematch(engine(), 'alice'));
+    expect(new Set(requests).size).toBe(1);
+    (release as unknown as () => void)();
+    await held;
+    await Promise.all(requests);
   });
 });

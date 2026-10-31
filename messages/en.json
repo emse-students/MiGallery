@@ -874,6 +874,8 @@
   "face_enrol_too_large": "This photo is too large. Take a selfie or choose a lighter photo.",
   "face_enrol_no_face": "No face found. Take a clear photo of your face, from the front.",
   "face_enrol_several_faces": "Several faces found. Take a photo where you are alone.",
+  "face_enrol_unreadable": "This photo could not be read. Take a new selfie or choose another photo.",
+  "face_enrol_too_many": "Too many photos sent in a short time. Please try again later.",
   "param_face_consent_before": "I agree that MiGallery recognises my face in the library's photos, as described in the",
   "param_face_consent_link": "terms of use",
   "param_face_consent_after": ".",

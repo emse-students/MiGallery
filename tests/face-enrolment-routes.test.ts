@@ -47,10 +47,15 @@ function vector(seed: number): number[] {
 /** What the fake model service answers next: faces as [score, seed], or a transport failure. */
 let modelFaces: Array<[number, number]> = [];
 let modelDown = false;
+/** A status the fake model answers instead of a result (null: it answers). */
+let modelStatus: number | null = null;
+let modelCalls = 0;
 
 const modelFetch = (async (url: string) => {
   if (!String(url).endsWith('/predict')) return new Response('unexpected', { status: 599 });
+  modelCalls++;
   if (modelDown) throw new TypeError('connect ECONNREFUSED');
+  if (modelStatus !== null) return new Response('{}', { status: modelStatus });
   return Response.json({
     imageWidth: 640,
     imageHeight: 480,
@@ -65,6 +70,7 @@ const modelFetch = (async (url: string) => {
 let database: typeof import('#lib/db/database.ts');
 let faceDatabase: typeof import('#lib/db/face-database.ts');
 let engineMod: typeof import('#lib/server/face-engine.ts');
+let enrolmentMod: typeof import('#lib/server/face-enrolment.ts');
 let enrolRoute: typeof import('../src/routes/api/users/me/face/enrolment/+server');
 let matchRoute: typeof import('../src/routes/api/users/me/face/matches/+server');
 let dbDir: string;
@@ -109,6 +115,7 @@ beforeAll(async () => {
   database = await import('#lib/db/database.ts');
   faceDatabase = await import('#lib/db/face-database.ts');
   engineMod = await import('#lib/server/face-engine.ts');
+  enrolmentMod = await import('#lib/server/face-enrolment.ts');
   enrolRoute = await import('../src/routes/api/users/me/face/enrolment/+server');
   matchRoute = await import('../src/routes/api/users/me/face/matches/+server');
 });
@@ -128,6 +135,9 @@ beforeEach(() => {
   state.impersonating = false;
   modelFaces = [[0.95, 1]];
   modelDown = false;
+  modelStatus = null;
+  modelCalls = 0;
+  enrolmentMod.enrolLimiter.reset();
 });
 
 describe('POST /api/users/me/face/enrolment', () => {
@@ -174,6 +184,44 @@ describe('POST /api/users/me/face/enrolment', () => {
     expect(res.status).toBe(503);
     expect(references()).toBe(0);
     expect(consents()).toEqual([]);
+  });
+
+  it("answers 422 when the model refuses the picture itself (the client's), and stores nothing", async () => {
+    for (const status of [400, 413, 415, 422]) {
+      modelStatus = status;
+      const res = await enrol({ selfie: selfie(), consent: 'true' });
+      expect(res.status).toBe(422);
+      expect((res.body as { error: string }).error).toBe('selfie_unreadable');
+    }
+    expect(references()).toBe(0);
+    expect(consents()).toEqual([]);
+  });
+
+  it('says the service is unavailable on a 5xx, or a 4xx that is not about the picture', async () => {
+    for (const status of [500, 502, 404, 429]) {
+      modelStatus = status;
+      const res = await enrol({ selfie: selfie(), consent: 'true' });
+      expect(res.status).toBe(503);
+      expect((res.body as { error: string }).error).toBe('face_unavailable');
+    }
+    expect(references()).toBe(0);
+  });
+
+  it('answers 429 past the hourly limit of a member, before the model is called', async () => {
+    for (let i = 0; i < enrolmentMod.ENROL_LIMIT_PER_HOUR; i++) {
+      expect((await enrol({ selfie: selfie(), consent: 'true' })).status).toBe(200);
+    }
+    expect(modelCalls).toBe(enrolmentMod.ENROL_LIMIT_PER_HOUR);
+    const res = await enrol({ selfie: selfie(), consent: 'true' });
+    expect(res.status).toBe(429);
+    expect((res.body as { error: string; message: string }).error).toBe('too_many_requests');
+    expect((res.body as { message: string }).message.length).toBeGreaterThan(0);
+    expect(modelCalls).toBe(enrolmentMod.ENROL_LIMIT_PER_HOUR);
+    // Another member keeps their own window.
+    db().prepare("INSERT INTO users (id_user, name) VALUES ('m2', 'm2')").run();
+    state.user = { id_user: 'm2', role: 'user' };
+    expect((await enrol({ selfie: selfie(), consent: 'true' })).status).toBe(200);
+    await idle();
   });
 
   it('refuses a picture over the size cap before the model sees it', async () => {

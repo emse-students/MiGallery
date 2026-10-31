@@ -17,7 +17,8 @@ const log = createLogger('face-matches-route');
  * Body: { asset_id: string, face_index: number, verdict: 'confirm' | 'reject' }
  *
  * 404 when the face is not theirs to answer. A confirmation may teach the store a reference
- * (face-enrolment.ts); a rejection hands the face to the next member.
+ * (face-enrolment.ts), whose re-match of the store runs in the background, never in this request;
+ * a rejection hands the face to the next member.
  */
 export const POST: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');

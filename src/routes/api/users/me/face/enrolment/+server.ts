@@ -7,8 +7,15 @@ import { createLogger } from '#lib/server/logger.ts';
 import { readFormBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
-import { enrolMember, referenceCount, scheduleRematch } from '#lib/server/face-enrolment.ts';
 import {
+  ENROL_LIMIT_PER_HOUR,
+  enrolLimiter,
+  enrolMember,
+  referenceCount,
+  scheduleRematch,
+} from '#lib/server/face-enrolment.ts';
+import {
+  FaceMlImageRefusedError,
   FaceMlUnavailableError,
   SelfieRefusedError,
   selfieEmbedding,
@@ -86,6 +93,18 @@ export const POST: RequestHandler = async (event) => {
     log.info('face enrolment refused: selfie too large', { bytes: selfie.size });
     return json({ error: 'selfie_too_large', message: m.face_enrol_too_large() }, { status: 413 });
   }
+  // Counted before the model is called: every selfie that reaches it costs an inference.
+  const rate = enrolLimiter.take(userId);
+  if (!rate.allowed) {
+    log.warn('face enrolment refused: too many selfies', {
+      limit: ENROL_LIMIT_PER_HOUR,
+      retryAfterSeconds: rate.retryAfterSeconds,
+    });
+    return json(
+      { error: 'too_many_requests', message: m.face_enrol_too_many() },
+      { status: 429, headers: { 'Retry-After': String(rate.retryAfterSeconds) } }
+    );
+  }
 
   let embedding: Float32Array;
   try {
@@ -97,6 +116,14 @@ export const POST: RequestHandler = async (event) => {
           error: e.reason,
           message: e.reason === 'no_face' ? m.face_enrol_no_face() : m.face_enrol_several_faces(),
         },
+        { status: 422 }
+      );
+    }
+    if (e instanceof FaceMlImageRefusedError) {
+      // The service answered and refused the picture itself: the client's, not the service's.
+      log.warn('face enrolment: the model refused the picture', { status: e.status });
+      return json(
+        { error: 'selfie_unreadable', message: m.face_enrol_unreadable() },
         { status: 422 }
       );
     }
