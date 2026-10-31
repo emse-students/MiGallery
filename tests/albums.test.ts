@@ -9,6 +9,7 @@ import {
   teardownTestAuth,
   globalTestContext,
   testPermissions,
+  TEST_CONFIG,
 } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
@@ -638,7 +639,7 @@ describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        add: ['dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'],
+        add: [TEST_CONFIG.TEST_ADMIN_ID],
         remove: [],
       }),
     });
@@ -661,7 +662,7 @@ describe('Albums API - POST /api/albums/[id]/permissions/users', () => {
           headers: getAuthHeaders(),
           body: JSON.stringify({
             add: [],
-            remove: ['dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'],
+            remove: [TEST_CONFIG.TEST_ADMIN_ID],
           }),
         }
       );

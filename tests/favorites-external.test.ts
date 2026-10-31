@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
+import { setupTestAuth, teardownTestAuth, globalTestContext, TEST_CONFIG } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const testAssetId = 'test-asset-123';
@@ -238,7 +238,7 @@ describe('Change User API - POST /api/change-user', () => {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        userId: 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782',
+        userId: TEST_CONFIG.TEST_ADMIN_ID,
       }),
     });
 

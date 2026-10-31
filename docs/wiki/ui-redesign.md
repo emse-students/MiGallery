@@ -148,11 +148,11 @@ same recording on the fix: the edge stays at 2090-2093 throughout.
 
 ## Open question from the same session
 
-- **`gallery.mitv.fr` answered Cloudflare error 1033 once, at 12:19:46 UTC (Ray `a409faa66e68078b`)**,
-  and 200 on every probe a minute later. `cloudflared` was `active` and `migallery-migallery-1`
-  `Up 17 minutes (healthy)`, so it had restarted around 12:03 UTC. The `cloudflared` journal for that
-  minute was not read (the agent was not permitted to); it is what separates a tunnel reconnect from
-  something else.
+- **`gallery.mitv.fr` answered Cloudflare error 1033 (the tunnel had no healthy connector) once**,
+  and 200 on every probe a minute later. The tunnel connector was running and the app container was
+  healthy, but had restarted about a quarter of an hour earlier. The tunnel connector's log for that
+  minute was not read; it is what separates a tunnel reconnect from something else, and it is the
+  first thing to read if a 1033 is seen again.
 
 ## The home page no longer repaints itself on load (2026-09-26)
 

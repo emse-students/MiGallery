@@ -30,7 +30,7 @@ const source = readFileSync(PROXY_HANDLER, 'utf-8');
 describe('Memory invariants - Immich proxy upload path', () => {
   it('never allocates a raw buffer of arbitrary size (no Buffer.alloc)', () => {
     // Buffer.alloc(n) is the classic way to reintroduce a RAM blow-up on a
-    // large upload. CLAUDE.md bans it outright on the upload path.
+    // large upload. This test bans it outright on the upload path.
     expect(source).not.toMatch(/Buffer\.alloc\b/);
   });
 

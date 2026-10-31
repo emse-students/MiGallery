@@ -17,6 +17,8 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test
+# The backup destinations, written by the deploy (scripts/backup-config.sh).
+scripts/backup.env
 
 # Vite
 vite.config.js.timestamp-*

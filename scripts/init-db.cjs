@@ -2,8 +2,6 @@
 const fs = require('fs');
 const path = require('path');
 
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
-
 const { Database } = require('bun:sqlite');
 
 console.log('🚀 Initialisation de la base de données...');
@@ -71,10 +69,9 @@ async function main() {
     const schema = fs.readFileSync(schemaPath, 'utf8');
     db.exec(schema);
 
-    db.prepare(
-      'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, photos_id, role, promo) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', null, 'admin', null);
-    console.log(`✅ Utilisateur système admin créé: ${SYSTEM_USER_ID}`);
+    // No account is created here: the first admin signs in once through MiConnect, then is
+    // promoted by hand (README, "First administrator").
+    console.log('ℹ️  Aucun compte créé : voir README, section "First administrator".');
 
     const base = process.env.IMMICH_BASE_URL;
     const apiKey = process.env.IMMICH_API_KEY;

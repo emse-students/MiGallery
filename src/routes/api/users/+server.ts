@@ -13,7 +13,6 @@ import { applyFaceLink } from '#lib/server/face-link.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
@@ -31,10 +30,9 @@ export const GET: RequestHandler = async (event) => {
 				promo,
 				formation
 			FROM users
-			WHERE id_user != ?
 			ORDER BY promo DESC, name, first_name`
     )
-    .all(SYSTEM_USER_ID) as UserRow[];
+    .all() as UserRow[];
   return json({ success: true, users: rows });
 };
 
@@ -86,13 +84,12 @@ export const POST: RequestHandler = async (event) => {
     const insert = db.prepare(
       'INSERT INTO users (id_user, name, first_name, last_name, role, promo, formation) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
-    const effectiveRole = id_user === SYSTEM_USER_ID ? 'admin' : role;
     // The row and its link are written together or not at all, the link through applyFaceLink
     // like every other. A consent row left open by an earlier account of the same id would make
     // recordFaceConsent skip the admin consent, so it is closed first.
     const info = inTransaction(db, () => {
       withdrawFaceConsent(db, id_user);
-      const run = insert.run(id_user, name, first_name, last_name, effectiveRole, promo, formation);
+      const run = insert.run(id_user, name, first_name, last_name, role, promo, formation);
       if (photos_id) {
         applyFaceLink(db, id_user, photos_id, { source: 'admin', unlinkReason: 'admin_unlink' });
       }

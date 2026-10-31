@@ -7,7 +7,6 @@ const { Database } = require('bun:sqlite');
 
 const DB_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'migallery.db');
 const REPAIR_MODE = process.argv.includes('--repair');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 console.log('🔍 Inspection de la base de données...');
 console.log('📍 Emplacement:', DB_PATH);
@@ -25,7 +24,7 @@ const errors = [];
 // Inspection
 let db;
 try {
-  db = new Database(DB_PATH, REPAIR_MODE ? { readwrite: true } : { readonly: true });
+  db = new Database(DB_PATH, { readonly: true });
 } catch (e) {
   console.error(`❌ Impossible d'ouvrir la base de données: ${e.message}`);
   process.exit(1);
@@ -100,34 +99,13 @@ try {
     errors.push('fk_check_error');
   }
 
-  console.log("\n5. Vérification de l'utilisateur système...");
-  try {
-    const systemAdmin = db.prepare('SELECT * FROM users WHERE id_user = ?').get(SYSTEM_USER_ID);
-    if (systemAdmin) {
-      console.log('   ✅ Utilisateur système présent:', systemAdmin.name || systemAdmin.id_user);
-      if (systemAdmin.role !== 'admin') {
-        console.warn("   ⚠️  Rôle incorrect pour l'utilisateur système (devrait être admin)");
-        hasErrors = true;
-        errors.push('system_user_wrong_role');
-      }
-    } else {
-      console.error(`   ❌ Utilisateur système manquant (${SYSTEM_USER_ID})`);
-      hasErrors = true;
-      errors.push('system_user_missing');
-    }
-  } catch (e) {
-    console.error('   ❌ Erreur lors de la vérification:', e.message);
-    hasErrors = true;
-    errors.push('system_user_check_error');
-  }
-
-  console.log('\n6. Exemples de données (premiers résultats):');
+  console.log('\n5. Exemples de données (premiers résultats):');
   try {
     console.log('\n   Utilisateurs (5 premiers):');
     const users = db.prepare('SELECT id_user, name, role, promo FROM users LIMIT 5').all();
     users.forEach((u) =>
       console.log(
-        `      - ${u.id_user} (${u.name}) [${u.role}] ${u.promo ? `Promo ${u.promo}` : 'Système'}`
+        `      - ${u.id_user} (${u.name}) [${u.role}] ${u.promo ? `Promo ${u.promo}` : 'sans promo'}`
       )
     );
 
@@ -165,43 +143,10 @@ if (!hasErrors) {
     console.log('\n🔧 MODE RÉPARATION ACTIVÉ');
     console.log('\nTentative de réparation...');
 
-    try {
-      const dbWrite = new Database(DB_PATH);
-      dbWrite.exec('PRAGMA foreign_keys = ON');
-      // Repair never deletes a user today; if it ever does, face_references must cascade AND be overwritten.
-      dbWrite.exec('PRAGMA secure_delete = ON');
-
-      let repaired = false;
-
-      if (errors.includes('system_user_missing')) {
-        console.log("   - Création de l'utilisateur système...");
-        dbWrite
-          .prepare(
-            'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, photos_id, role, promo) VALUES (?, ?, ?, ?, ?, ?, ?)'
-          )
-          .run(SYSTEM_USER_ID, 'System Admin', 'System', 'Admin', null, 'admin', null);
-        repaired = true;
-      }
-
-      if (errors.includes('system_user_wrong_role')) {
-        console.log("   - Correction du rôle de l'utilisateur système...");
-        dbWrite.prepare("UPDATE users SET role = 'admin' WHERE id_user = ?").run(SYSTEM_USER_ID);
-        repaired = true;
-      }
-
-      dbWrite.close();
-
-      if (repaired) {
-        console.log('\n✅ Réparations appliquées !');
-        console.log("💡 Relancez l'inspection pour vérifier.");
-      } else {
-        console.log('\n⚠️  Aucune réparation automatique disponible pour ces erreurs.');
-        suggestBackupAndReset();
-      }
-    } catch (error) {
-      console.error('\n❌ Erreur lors de la réparation:', error.message);
-      suggestBackupAndReset();
-    }
+    // The only automatic repair this script had recreated an obsolete system account; none of the
+    // errors above has one, so a repair run says so and points at the backup-and-reset path.
+    console.log('\n⚠️  Aucune réparation automatique disponible pour ces erreurs.');
+    suggestBackupAndReset();
   } else {
     console.log('\n💡 Pour tenter une réparation automatique:');
     console.log('   bun run db:inspect -- --repair');

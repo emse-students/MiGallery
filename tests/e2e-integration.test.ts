@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '#lib/types/api.ts';
-import { deleteOrThrow } from './test-helpers';
+import { deleteOrThrow, loginAsTestAdmin } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let sessionCookie = '';
@@ -21,25 +21,9 @@ let testReadApiKeyId: string | null = null;
 // ========================================
 
 beforeAll(async () => {
-  console.debug('🚀 Starting end-to-end integration tests'); // Attempting to log in as the system user
+  console.debug('🚀 Starting end-to-end integration tests');
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
-      {
-        redirect: 'manual',
-      }
-    );
-
-    if (response.status === 303 || response.status === 302) {
-      const cookies = response.headers.get('set-cookie');
-      if (cookies) {
-        const match = cookies.match(/migallery_session=([^;]+)/);
-        if (match) {
-          sessionCookie = `migallery_session=${match[1]}`;
-          console.debug('✅ Authenticated with session cookie');
-        }
-      }
-    }
+    sessionCookie = await loginAsTestAdmin();
 
     // Create an admin API key for the tests
     if (sessionCookie) {
