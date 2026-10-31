@@ -2,7 +2,7 @@
  * The sealed face store, read side (lot A2, docs/wiki/face-matching-option-c.md): the key, every
  * member's references, and a full scan of `face_embeddings`.
  *
- * THE STORE IS STREAMED, NEVER HELD. A scan reads the table row by row, opens each blob, compares
+ * THE STORE IS STREAMED, NEVER HELD. A scan reads the table chunk by chunk, opens each blob, compares
  * it and drops it: the measured cost of a full scan of 600k faces is seconds, while holding the
  * decoded store resident would keep about 0.6 GB of third parties' templates in the server's
  * memory for the sake of an enrolment a day (measurements on the wiki page). Nothing here caches
@@ -68,37 +68,55 @@ export interface FaceKey {
   faceIndex: number;
 }
 
+/** Rows read per chunk of a scan; the event loop gets the hand back between two chunks. */
+export const SCAN_CHUNK = 2000;
+
 /**
  * Visit every stored face of the current model with its opened embedding, in physical order.
  * A blob that fails to open is counted and skipped (face-seal logs it). Returns how many faces
  * were visited and how many failed.
+ *
+ * ASYNC ON PURPOSE. `bun:sqlite` is synchronous and a full scan is seconds (6.5 s for 600,000
+ * faces): read in one go it would freeze every request of the server for that long. It reads
+ * {@link SCAN_CHUNK} rows by rowid, then yields, so a page load waits one chunk at most.
  */
-export function scanFaceStore(
+export async function scanFaceStore(
   db: Db,
   key: Buffer,
   visit: (face: FaceKey, embedding: Float32Array) => void
-): { visited: number; failed: number } {
-  const rows = db.prepare(
-    'SELECT asset_id, face_index, sealed FROM face_embeddings WHERE model = ?'
+): Promise<{ visited: number; failed: number }> {
+  const chunk = db.prepare(
+    `SELECT rowid AS rid, asset_id, face_index, sealed FROM face_embeddings
+      WHERE model = ? AND rowid > ? ORDER BY rowid LIMIT ?`
   );
   let visited = 0;
   let failed = 0;
-  for (const row of rows.iterate(FACE_MODEL) as IterableIterator<{
-    asset_id: string;
-    face_index: number;
-    sealed: Uint8Array;
-  }>) {
-    let embedding: Float32Array;
-    try {
-      embedding = decodeEmbedding(
-        unseal(key, embeddingContext(row.asset_id, row.face_index, FACE_MODEL), row.sealed)
-      );
-    } catch {
-      failed++;
-      continue;
+  let after = 0;
+  for (;;) {
+    const rows = chunk.all(FACE_MODEL, after, SCAN_CHUNK) as Array<{
+      rid: number;
+      asset_id: string;
+      face_index: number;
+      sealed: Uint8Array;
+    }>;
+    for (const row of rows) {
+      let embedding: Float32Array;
+      try {
+        embedding = decodeEmbedding(
+          unseal(key, embeddingContext(row.asset_id, row.face_index, FACE_MODEL), row.sealed)
+        );
+      } catch {
+        failed++;
+        continue;
+      }
+      visited++;
+      visit({ assetId: row.asset_id, faceIndex: row.face_index }, embedding);
     }
-    visited++;
-    visit({ assetId: row.asset_id, faceIndex: row.face_index }, embedding);
+    if (rows.length < SCAN_CHUNK) {
+      break;
+    }
+    after = rows[rows.length - 1].rid;
+    await new Promise<void>((resolve) => setImmediate(resolve));
   }
   if (failed > 0) {
     log.error('stored faces failed to open during a scan', { failed, visited });

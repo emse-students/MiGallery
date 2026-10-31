@@ -17,8 +17,6 @@ type Statement = {
   get: (...params: unknown[]) => unknown;
   all: (...params: unknown[]) => unknown[];
   run: (...params: unknown[]) => { changes: number; lastInsertRowid: number };
-  /** Rows one at a time, never the whole result in memory (the face store scan reads 600k rows). */
-  iterate: (...params: unknown[]) => IterableIterator<unknown>;
 };
 
 type DatabaseInstance = {
@@ -94,10 +92,6 @@ function guardStatement(sql: string, stmt: Statement): Statement {
     run: (...params: unknown[]) => {
       assertNoBareKeyedBind(sql, params);
       return stmt.run(...params);
-    },
-    iterate: (...params: unknown[]) => {
-      assertNoBareKeyedBind(sql, params);
-      return stmt.iterate(...params);
     },
   };
 }

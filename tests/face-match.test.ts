@@ -384,17 +384,40 @@ describe('the store scan', () => {
     expect(store.faceStoreConfigured()).toBe(false);
   });
 
-  it('visits every face it can open and counts the ones it cannot', () => {
+  it('visits every face it can open and counts the ones it cannot', async () => {
     storeFace('a1', 0, synthetic(1));
     storeFace('a1', 1, synthetic(2));
     storeFace('a2', 0, synthetic(3), otherKey);
     const seen: string[] = [];
-    const result = store.scanFaceStore(db(), key, (f, v) => {
+    const result = await store.scanFaceStore(db(), key, (f, v) => {
       seen.push(`${f.assetId}/${f.faceIndex}`);
       expect(v).toHaveLength(FACE_EMBEDDING_DIM);
     });
     expect(result).toEqual({ visited: 2, failed: 1 });
     expect(seen.sort()).toEqual(['a1/0', 'a1/1']);
+  });
+
+  it('reads past a chunk boundary and yields between chunks', async () => {
+    const n = store.SCAN_CHUNK * 2 + 3;
+    const sealedOne = (asset: string) =>
+      seal(key, embeddingContext(asset, 0, FACE_MODEL), encodeEmbedding(synthetic(9)));
+    db().exec('BEGIN');
+    for (let i = 0; i < n; i++) {
+      db()
+        .prepare(
+          `INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h,
+             score, sealed, created_at) VALUES (?, 0, ?, 0, 0, 1, 1, 10, 10, 0.9, ?, 0)`
+        )
+        .run(`c${i}`, FACE_MODEL, sealedOne(`c${i}`));
+    }
+    db().exec('COMMIT');
+    const seen = new Set<string>();
+    let yielded = false;
+    setImmediate(() => (yielded = true));
+    const result = await store.scanFaceStore(db(), key, (f) => seen.add(f.assetId));
+    expect(result).toEqual({ visited: n, failed: 0 });
+    expect(seen.size).toBe(n);
+    expect(yielded).toBe(true);
   });
 
   it('opens chosen faces only, leaving out the missing and the unopenable', () => {
