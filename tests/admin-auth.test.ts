@@ -304,7 +304,8 @@ describe('Admin Database - POST /api/admin/db-import', () => {
       headers: getAuthHeaders(),
     });
 
-    expect([400, 401, 403, 500]).toContain(response.status);
+    // A body the client sent wrong is a 400, never a server fault (route-errors.ts).
+    expect([400, 401, 403]).toContain(response.status);
   });
 
   it('should reject import of non-SQLite file', async () => {
@@ -357,7 +358,8 @@ describe('Admin Database - POST /api/admin/db-restore', () => {
       headers: getAuthHeaders(),
     });
 
-    expect([400, 401, 403, 500]).toContain(response.status);
+    // A body the client sent wrong is a 400, never a server fault (route-errors.ts).
+    expect([400, 401, 403]).toContain(response.status);
   });
 
   it('should reject restore of invalid file', async () => {
@@ -373,7 +375,8 @@ describe('Admin Database - POST /api/admin/db-restore', () => {
       body: formData,
     });
 
-    expect([400, 401, 403, 500]).toContain(response.status);
+    // A body the client sent wrong is a 400, never a server fault (route-errors.ts).
+    expect([400, 401, 403]).toContain(response.status);
   });
 });
 

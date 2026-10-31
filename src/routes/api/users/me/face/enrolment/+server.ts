@@ -4,6 +4,7 @@ import { getDatabase } from '#lib/db/database.ts';
 import { requireScope } from '#lib/server/permissions.ts';
 import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { readFormBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
 import { enrolMember, referenceCount, scheduleRematch } from '#lib/server/face-enrolment.ts';
@@ -69,12 +70,7 @@ export const POST: RequestHandler = async (event) => {
     );
   }
 
-  let form: FormData;
-  try {
-    form = await event.request.formData();
-  } catch {
-    return json({ error: 'a multipart body is required' }, { status: 400 });
-  }
+  const form = await readFormBody(event.request);
   if (form.get('consent') !== 'true') {
     log.info('face enrolment refused: no consent');
     return json(

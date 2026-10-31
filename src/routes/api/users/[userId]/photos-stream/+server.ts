@@ -5,6 +5,8 @@ import { requireMemberPhotosAccess } from '#lib/server/face-access.ts';
 import { memberPhotoAssets, type MemberPhotoScope } from '#lib/server/face-photos.ts';
 import { assetsNdjsonResponse } from '#lib/server/asset-ndjson.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { logRouteFailure } from '#lib/server/route-errors.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 
 const log = createLogger('users-userId-photos-stream');
 
@@ -32,11 +34,14 @@ export const GET: RequestHandler = async (event) => {
     const assets = await memberPhotoAssets(event.fetch, getDatabase(), ownerId, scope);
     return assetsNdjsonResponse(assets, event.request);
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      // Said once at info by requireImmichBaseUrl; nothing failed.
+      throw error(503, e.message);
+    }
+    logRouteFailure(log, 'member photos could not be read', e);
     if (isHttpError(e)) {
-      log.error('member photos could not be read', { status: e.status });
       throw e;
     }
-    log.error('member photos could not be read', (e as Error).message);
     throw error(500, 'Photos could not be read');
   }
 };

@@ -398,6 +398,12 @@ describe('POST /api/admin/faces/seed', () => {
       (await call({ phase: 'faces', faces: [{ ...face('a', null, ALICE), x1: 1.5 }] })).status
     ).toBe(400);
     expect((await call({ phase: 'nope' })).status).toBe(400);
+    const notJson = await Promise.resolve()
+      .then(() =>
+        route.POST({ request: new Request('http://x/', { method: 'POST', body: '{' }) } as never)
+      )
+      .catch((e: { status?: number }) => ({ status: e.status ?? 500 }));
+    expect(notJson.status).toBe(400);
     auth.impersonating = true;
     expect((await call({ phase: 'begin' })).status).toBe(403);
     auth.impersonating = false;

@@ -36,7 +36,7 @@ its own faces, persons and embeddings as well.
   `private | authenticated | unlisted`; `visible` toggles listing.
 - `album_permissions(album_id, kind, value)` - unified permissions table,
   `PRIMARY KEY (album_id, kind, value)`. `kind` is one of `user | tag | formation
-| promo` and `value` holds the corresponding id/tag/formation name/promo year
+  | promo` and `value` holds the corresponding id/tag/formation name/promo year
   (promo stored as text). Replaces four legacy tables
   (`album_user_permissions`, `album_formation_permissions`,
   `album_promo_permissions`, `album_tag_permissions`), which were backfilled into

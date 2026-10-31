@@ -3,6 +3,7 @@ import type { ImmichAlbum } from '#lib/types/api.ts';
 import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 import { requirePhotoCvManager } from '#lib/server/face-access.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
@@ -33,6 +34,9 @@ export const GET: RequestHandler = async (event) => {
       assetCount: albumData.assetCount || 0,
     });
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
+    }
     const err = ensureError(e);
     log.error('Error in /api/people/album/info GET:', err);
     throw error(500, err.message);
