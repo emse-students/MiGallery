@@ -1,6 +1,6 @@
-import { env } from '$env/dynamic/private';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { env } from '#lib/server/env.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('immich-album-delete');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL ?? '';

@@ -5,8 +5,8 @@
   import Spinner from './Spinner.svelte';
   import EmptyState from './EmptyState.svelte';
   import Modal from './Modal.svelte';
-  import type { ImmichAsset } from '$lib/types/api';
-  import { m } from '$lib/paraglide/messages';
+  import type { ImmichAsset } from '#lib/types/api.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     currentPhotoUrl?: string;

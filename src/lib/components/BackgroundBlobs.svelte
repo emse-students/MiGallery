@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { blobsFor } from '$lib/first-paint';
+  import { blobsFor } from '#lib/first-paint.ts';
 
   // Drawn from the layout's seed, not from `Math.random()` here: the server render and the hydration
   // each drew their own set, and the background visibly jumped to the second one on load.

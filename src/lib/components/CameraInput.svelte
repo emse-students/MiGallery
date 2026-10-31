@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { CircleAlert, Camera, X, Upload } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     onPhoto: (file: File) => void;

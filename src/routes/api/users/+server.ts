@@ -1,14 +1,18 @@
 import { json } from '@sveltejs/kit';
-import type { UserRow } from '$lib/types/api';
+import type { UserRow } from '#lib/types/api.ts';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { logEvent } from '$lib/server/logs';
-import { requireScope } from '$lib/server/permissions';
+import { getDatabase } from '#lib/db/database.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { resolveAdminPersonLink } from '#lib/server/face-access.ts';
+import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
+import { inTransaction } from '#lib/server/face-erasure.ts';
+import { applyFaceLink } from '#lib/server/face-link.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
@@ -26,15 +30,18 @@ export const GET: RequestHandler = async (event) => {
 				promo,
 				formation
 			FROM users
-			WHERE id_user != ?
 			ORDER BY promo DESC, name, first_name`
     )
-    .all(SYSTEM_USER_ID) as UserRow[];
+    .all() as UserRow[];
   return json({ success: true, users: rows });
 };
 
 export const POST: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
+  // Creating a member can bind a face: not in the name of an account only being acted as.
+  if (isImpersonating(event)) {
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
 
   try {
     const body = (await event.request.json()) as {
@@ -55,7 +62,14 @@ export const POST: RequestHandler = async (event) => {
     const name = body.name ?? (legacyName || null);
     const role = body.role ?? 'user';
     const promo = body.promo ?? null;
-    const photos_id = body.photos_id ?? null;
+    // One spelling of a person id, never one another member holds (face-access.ts).
+    const link = resolveAdminPersonLink(body.photos_id, id_user ?? '');
+    if (!link.ok) {
+      return link.reason === 'invalid'
+        ? json({ error: 'photos_id must be a string or null' }, { status: 400 })
+        : json({ error: 'photos_id belongs to another member' }, { status: 409 });
+    }
+    const photos_id = link.personId ?? null;
     const formation = body.formation ?? null;
 
     if (!id_user || !name) {
@@ -68,19 +82,19 @@ export const POST: RequestHandler = async (event) => {
 
     const db = getDatabase();
     const insert = db.prepare(
-      'INSERT INTO users (id_user, name, first_name, last_name, role, promo, photos_id, formation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users (id_user, name, first_name, last_name, role, promo, formation) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
-    const effectiveRole = id_user === SYSTEM_USER_ID ? 'admin' : role;
-    const info = insert.run(
-      id_user,
-      name,
-      first_name,
-      last_name,
-      effectiveRole,
-      promo,
-      photos_id,
-      formation
-    );
+    // The row and its link are written together or not at all, the link through applyFaceLink
+    // like every other. A consent row left open by an earlier account of the same id would make
+    // recordFaceConsent skip the admin consent, so it is closed first.
+    const info = inTransaction(db, () => {
+      withdrawFaceConsent(db, id_user);
+      const run = insert.run(id_user, name, first_name, last_name, role, promo, formation);
+      if (photos_id) {
+        applyFaceLink(db, id_user, photos_id, { source: 'admin', unlinkReason: 'admin_unlink' });
+      }
+      return run;
+    });
     const created = db
       .prepare(
         `SELECT
@@ -105,6 +119,12 @@ export const POST: RequestHandler = async (event) => {
   } catch (e) {
     const err = e as Error;
     log.error('POST /api/users error', err);
+    if (err.message.includes('users.photos_id')) {
+      return json(
+        { success: false, error: 'photos_id belongs to another member' },
+        { status: 409 }
+      );
+    }
     if (
       err.message.includes('UNIQUE constraint failed') ||
       err.message.includes('SQLITE_CONSTRAINT_UNIQUE')

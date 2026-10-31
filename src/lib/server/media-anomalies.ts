@@ -1,11 +1,11 @@
 import path from 'node:path';
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
-import { createLogger } from '$lib/server/logger';
-import { searchAssetPage } from '$lib/server/immich-search';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import type { ImmichAlbum, ImmichAsset } from '$lib/types/api';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '#lib/server/disk-cache.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { searchAssetPage } from '#lib/server/immich-search.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import type { ImmichAlbum, ImmichAsset } from '#lib/types/api.ts';
 
 const log = createLogger('media-anomalies');
 

@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS logs (
     details TEXT,
     ip TEXT
 );
+-- The 90-day purge and the admin log view both filter on the timestamp.
+CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(timestamp);
 
 -- Sessions: the server-side half of the login cookie. The cookie carries an
 -- opaque token and NOTHING else, so a session is a row we own: it can be
@@ -117,4 +119,100 @@ CREATE TABLE IF NOT EXISTS api_keys (
     scopes TEXT,
     revoked INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
+);
+
+-- Avatar link revocations: a random salt per user whose signed avatar links were revoked
+-- (src/lib/server/avatar-signature.ts). Keyed by id_user and deliberately NOT a foreign key: the
+-- revocation must survive the deletion of the account, or a user recreated at their next sign-in
+-- (same id_user) would re-validate every URL ever issued.
+CREATE TABLE IF NOT EXISTS avatar_revocations (
+    id_user TEXT PRIMARY KEY,
+    salt TEXT NOT NULL,
+    revoked_at INTEGER NOT NULL
+);
+
+-- Face erasures: the durable journal of a face withdrawal or an account deletion whose Immich
+-- half (removing the person's name and birth date; the anonymous cluster stays) is still owed.
+-- The local half (the link, the crops, the grants, the log ids) is done in the request itself;
+-- this row is what makes the remote half survive a restart and an Immich outage. It names the
+-- Immich person only - never the member - and that id is cleared once the erasure is done (see
+-- src/lib/server/face-erasure.ts).
+CREATE TABLE IF NOT EXISTS face_erasures (
+    id INTEGER PRIMARY KEY,
+    person_id TEXT,
+    -- reason: 'withdrawal' | 'account_deletion' | 'relink' | 'admin_unlink'
+    reason TEXT NOT NULL,
+    requested_at INTEGER NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_attempt_at INTEGER,
+    last_error TEXT,
+    done_at INTEGER,
+    -- outcome: 'erased' (the name and birth date are gone from Immich) | 'relinked' (the person now belongs to a member: nothing touched) | 'absent' (Immich no
+    -- longer had the person)
+    outcome TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_face_erasures_pending ON face_erasures(done_at);
+
+-- Face consents: the record that a member agreed to link their face to their account, with when,
+-- under which version of the terms (src/lib/legal.ts TERMS_VERSION) and HOW. source:
+-- 'selfie' (the member linked a person from their own selfie), 'admin' (an admin linked it for
+-- them) or 'legacy' (the link existed before this table: the consent was obtained by another
+-- means, the owner keeps that proof, and created_at is the backfill date, NOT the consent date).
+-- A withdrawal sets withdrawn_at and keeps the row; an account deletion takes it by cascade.
+CREATE TABLE IF NOT EXISTS face_consents (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    version TEXT NOT NULL,
+    source TEXT NOT NULL,
+    withdrawn_at INTEGER,
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
+
+-- Face store, option C (docs/wiki/face-store.md). Both tables hold BIOMETRIC TEMPLATES, so every
+-- vector is sealed (AES-256-GCM, src/lib/server/face-seal.ts) and bound by its authenticated
+-- context: a reference to its member AND model (referenceContext), an embedding to its asset, face
+-- index and model (embeddingContext) - a ciphertext copied elsewhere fails to open. A member's own
+-- references are NOT told apart from one another. Nothing reads or writes them yet (lot A1); `secure_delete`
+-- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
+--
+-- face_references: the 3-5 reference embeddings of a consenting member (source: 'selfie' |
+-- 'photo' | 'admin'). The trigger holds the cap at FACE_MAX_REFERENCES (5) per member AND model
+-- whoever inserts (a test pins the number against the constant). An
+-- account deletion takes them by cascade.
+CREATE TABLE IF NOT EXISTS face_references (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    source TEXT NOT NULL,
+    sealed BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_face_references_user ON face_references(user_id);
+CREATE TRIGGER IF NOT EXISTS trg_face_references_cap
+BEFORE INSERT ON face_references
+WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= 5
+BEGIN
+    SELECT RAISE(ABORT, 'face_references: at most 5 per member and model');
+END;
+
+-- face_embeddings: one sealed float16 512-d embedding per detected face, with its box. `model`
+-- tags the network that produced it, so a vector of another model is never compared; it is part of
+-- the key so a re-embedding by a new model can sit beside the old rows during a migration.
+CREATE TABLE IF NOT EXISTS face_embeddings (
+    asset_id TEXT NOT NULL,
+    face_index INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    x1 REAL NOT NULL,
+    y1 REAL NOT NULL,
+    x2 REAL NOT NULL,
+    y2 REAL NOT NULL,
+    img_w INTEGER NOT NULL,
+    img_h INTEGER NOT NULL,
+    score REAL NOT NULL,
+    sealed BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(asset_id, face_index, model)
 );

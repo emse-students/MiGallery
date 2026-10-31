@@ -47,7 +47,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════════════════════════
   preflight:
     name: May this release start?
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       checks: read
@@ -70,7 +70,7 @@ jobs:
           set -euo pipefail
           if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
             SHA="$(git rev-parse origin/main)"
-            VERSION="$(node -p "require('./package.json').version")"
+            VERSION="$(jq -r .version package.json)"
             echo "A hand re-deploy of main at ${SHA:0:8}, version $VERSION."
           else
             SHA="$(git rev-list -n1 '${{ github.event.release.tag_name }}')"
@@ -126,7 +126,7 @@ jobs:
   assets:
     name: Package and attach
     needs: preflight
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:

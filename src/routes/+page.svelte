@@ -1,19 +1,19 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import type { User } from '$lib/types/api';
+  import type { User } from '#lib/types/api.ts';
   import { LogIn, UserPlus } from '@lucide/svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import { fade, fly } from 'svelte/transition';
-  import { m } from '$lib/paraglide/messages';
-  import { loginUrlWithRedirect, REDIRECT_PARAM } from '$lib/auth-redirect';
-  import { greetingAt } from '$lib/first-paint';
+  import { m } from '#lib/paraglide/messages.js';
+  import { loginUrlWithRedirect, REDIRECT_PARAM } from '#lib/auth-redirect.ts';
+  import { greetingAt } from '#lib/first-paint.ts';
 
   let user = $derived(page.data.session?.user as User | undefined);
   let isAuthenticated = $derived(!!user);
   let hasIdPhotos = $derived(!!user?.photos_id);
 
   // Read from the layout's one draw, never from `new Date()`: the server's clock and the browser's
-  // used to disagree, and the greeting flipped once the page hydrated (see `$lib/first-paint`).
+  // used to disagree, and the greeting flipped once the page hydrated (see `#lib/first-paint.ts`).
   let greeting = $derived.by(() => {
     const name = user?.first_name || user?.name || '';
     const g = greetingAt(page.data.firstPaint.at);
@@ -58,6 +58,7 @@
         <div class="card surface">
           <h2>{m.home_welcome_title()}</h2>
           <p>{m.home_welcome_sub()}</p>
+          <p>{m.home_about()}</p>
           <button type="button" onclick={handleSignIn} class="btn primary">
             <LogIn size={20} />
             {m.home_signin()}

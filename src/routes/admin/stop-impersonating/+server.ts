@@ -1,6 +1,6 @@
-import { canStopImpersonating } from '$lib/server/auth';
-import { getSessionToken } from '$lib/session';
-import { setSessionImpersonation } from '$lib/db/sessions';
+import { canStopImpersonating } from '#lib/server/auth.ts';
+import { getSessionToken } from '#lib/session.ts';
+import { setSessionImpersonation } from '#lib/db/sessions.ts';
 import type { RequestHandler } from './$types';
 import { redirect } from '@sveltejs/kit';
 

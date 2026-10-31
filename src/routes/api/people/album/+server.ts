@@ -1,19 +1,19 @@
 import { json, error } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { env } from '#lib/server/env.ts';
+import { requirePhotoCvManager } from '#lib/server/face-access.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
+import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
 
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('people-album');
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read');
+  await requirePhotoCvManager(event);
   try {
     const { fetch, url } = event;
     const page = parseInt(url.searchParams.get('page') ?? '1', 10);

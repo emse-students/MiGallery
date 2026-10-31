@@ -1,16 +1,30 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import type { Handle } from '@sveltejs/kit';
+import { isRedirect } from '@sveltejs/kit';
+import type { Handle } from '@sveltejs/kit/hooks';
 import {
   getSessionUser,
   LEGACY_IMPERSONATION_COOKIES,
   LEGACY_SESSION_COOKIE_NAME,
-} from '$lib/session';
-import { startBackupScheduler } from '$lib/server/backup';
-import { paraglideMiddleware } from '$lib/paraglide/server';
-import { cookieName as LOCALE_COOKIE, isLocale } from '$lib/paraglide/runtime';
+} from '#lib/session.ts';
+import { startBackupScheduler } from '#lib/server/backup.ts';
+import { startFaceErasureWorker } from '#lib/server/face-erasure.ts';
+import { installShutdownListener } from '#lib/server/shutdown.ts';
+
+import { startLogRetention } from '#lib/server/logs.ts';
+import { paraglideMiddleware } from '#lib/paraglide/server.js';
+import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js';
+import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
+
+// adapter-bun drains on SIGTERM but never exits: this listener stops the timers below and exits
+installShutdownListener();
 
 // Start the daily automatic backup as soon as the server starts
 startBackupScheduler();
+// Drive the Immich half of face erasures that a restart or an Immich outage left pending
+startFaceErasureWorker();
+
+// Keep the audit log to its retention (90 days)
+startLogRetention();
 
 /**
  * List of allowed domains for CORS.
@@ -172,12 +186,42 @@ const paraglideHandler: Handle = ({ event, resolve }) => {
   if (event.url.pathname.startsWith('/api/')) {
     return resolve(event);
   }
-  return paraglideMiddleware(event.request, ({ request, locale }) => {
-    event.request = request;
+  // Kit 3 made `event.request` read-only. The usual `event.request = request` hand-back only
+  // matters for the URL locale strategy, which this app does not use (cookie, Accept-Language,
+  // base locale): the request paraglide hands back is the one it was given.
+  return paraglideMiddleware(event.request, ({ locale }) => {
     return resolve(event, {
       transformPageChunk: ({ html }) => html.replace('%paraglide.lang%', locale),
     });
   });
 };
 
-export const handle = sequence(paraglideHandler, corsAndCsrfHandler, sessionHandler);
+/**
+ * Tells a search engine that nothing but the home page may be indexed - photographs, albums, the API
+ * and the login chain included. `robots.txt` says it first; this is the second voice, for an engine
+ * that never fetched the file or already knows a URL. A shared album link is UNFURLED by chat clients,
+ * which read neither: the header does not touch that.
+ *
+ * A thrown `redirect()` does not come back through `resolve`, it travels up as an exception, so it is
+ * turned into the response it would have become before it is stamped.
+ */
+const robotsHandler: Handle = async ({ event, resolve }) => {
+  let response: Response;
+  try {
+    response = await resolve(event);
+  } catch (thrown) {
+    if (!isRedirect(thrown)) {
+      throw thrown;
+    }
+    response = new Response(null, {
+      status: thrown.status,
+      headers: { location: thrown.location },
+    });
+  }
+  if (!isIndexable(event.url.pathname)) {
+    response.headers.set('X-Robots-Tag', NOINDEX_HEADER);
+  }
+  return response;
+};
+
+export const handle = sequence(robotsHandler, paraglideHandler, corsAndCsrfHandler, sessionHandler);

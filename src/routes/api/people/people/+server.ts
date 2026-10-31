@@ -1,12 +1,12 @@
 import { json, error } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
-import { fetchAllPeople, ImmichPeopleError } from '$lib/immich/people';
+import { env } from '#lib/server/env.ts';
+import { requireFaceAdmin } from '#lib/server/face-access.ts';
+import { fetchAllPeople, ImmichPeopleError } from '#lib/immich/people.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-people');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -14,10 +14,11 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/people/people
- * Lists every person recognized by Immich, all pages, as `{ people, total }`.
+ * Lists every person recognized by Immich, all pages, as `{ people, total }`. Admin session or
+ * API key only: it names every person Immich clustered, members or not (see face-access.ts).
  */
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read');
+  await requireFaceAdmin(event);
   try {
     if (!IMMICH_BASE_URL) {
       throw error(500, 'IMMICH_BASE_URL not configured');

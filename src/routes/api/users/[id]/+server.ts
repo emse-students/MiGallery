@@ -1,14 +1,23 @@
 import { json, isHttpError } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { logEvent } from '$lib/server/logs';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import {
+  deleteUserAccount,
+  DELETED_ID,
+  finishLocalErasure,
+  inTransaction,
+} from '#lib/server/face-erasure.ts';
+import { resolveAdminPersonLink } from '#lib/server/face-access.ts';
+import { applyFaceLink } from '#lib/server/face-link.ts';
+import { assertAnotherAdminRemains, LastAdminError } from '#lib/server/admin-floor.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-id');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
@@ -47,10 +56,6 @@ export const PUT: RequestHandler = async (event) => {
     return json({ error: 'Bad Request' }, { status: 400 });
   }
 
-  if (targetId === SYSTEM_USER_ID) {
-    return json({ error: 'Cannot modify system user' }, { status: 403 });
-  }
-
   try {
     const body = (await event.request.json()) as {
       name?: string;
@@ -61,13 +66,25 @@ export const PUT: RequestHandler = async (event) => {
       photos_id?: string | null;
       formation?: string | null;
     };
+    // An impersonated session may edit a profile but never move a member's face link: that
+    // erases or re-binds biometric data in the name of an account the admin is only acting as.
+    if (body.photos_id !== undefined && isImpersonating(event)) {
+      return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+    }
     const first_name = body.first_name ?? null;
     const last_name = body.last_name ?? null;
     const legacyName = [first_name, last_name].filter(Boolean).join(' ').trim();
     const name = body.name ?? (legacyName || targetId);
     const role = body.role;
     const promo = body.promo ?? null;
-    const photos_id = body.photos_id ?? null;
+    // One spelling of a person id, never one another member holds (face-access.ts). Absent from
+    // the request means "leave the link alone": the UPDATE below used to null it silently.
+    const link = resolveAdminPersonLink(body.photos_id, targetId);
+    if (!link.ok) {
+      return link.reason === 'invalid'
+        ? json({ error: 'photos_id must be a string or null' }, { status: 400 })
+        : json({ error: 'photos_id belongs to another member' }, { status: 409 });
+    }
     const formation = body.formation ?? null;
 
     // Prevent admin from removing their own admin status
@@ -83,23 +100,39 @@ export const PUT: RequestHandler = async (event) => {
     }
 
     const db = getDatabase();
-    const stmt = db.prepare(
-      'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, photos_id = ?, formation = ? WHERE id_user = ?'
-    );
-    const info = stmt.run(
-      name,
-      first_name,
-      last_name,
-      role || 'user',
-      promo,
-      photos_id,
-      formation,
-      targetId
-    );
-
-    if (info.changes === 0) {
+    // The other columns and the link move in ONE transaction. The link goes through
+    // applyFaceLink (face-link.ts): a changed or cleared person drops the old person's grants,
+    // closes its consent, clears the profile pointer and journals the Immich clearing.
+    const outcome = inTransaction(db, () => {
+      // A role other than admin demotes an admin: refused when it is the last one (admin-floor.ts).
+      if ((role || 'user') !== 'admin') {
+        assertAnotherAdminRemains(db, targetId);
+      }
+      const info = db
+        .prepare(
+          'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, formation = ? WHERE id_user = ?'
+        )
+        .run(name, first_name, last_name, role || 'user', promo, formation, targetId);
+      if (info.changes === 0) {
+        return null;
+      }
+      return link.personId === undefined
+        ? { changes: info.changes, local: null }
+        : {
+            changes: info.changes,
+            local: applyFaceLink(db, targetId, link.personId, {
+              source: 'admin',
+              unlinkReason: 'admin_unlink',
+            }).local,
+          };
+    });
+    if (!outcome) {
       return json({ error: 'User not found' }, { status: 404 });
     }
+    if (outcome.local) {
+      finishLocalErasure(outcome.local);
+    }
+    const info = { changes: outcome.changes };
 
     const updated = db
       .prepare(
@@ -131,7 +164,13 @@ export const PUT: RequestHandler = async (event) => {
     if (isHttpError(e)) {
       throw e;
     }
+    if (e instanceof LastAdminError) {
+      return json({ error: e.message }, { status: 409 });
+    }
     const err = ensureError(e);
+    if (/UNIQUE constraint failed: users\.photos_id|SQLITE_CONSTRAINT_UNIQUE/.test(err.message)) {
+      return json({ error: 'photos_id belongs to another member' }, { status: 409 });
+    }
     log.error('PUT /api/users/[id] error', err);
     return json({ success: false, error: err.message }, { status: 500 });
   }
@@ -142,23 +181,34 @@ export const DELETE: RequestHandler = async (event) => {
 
   const targetId = event.params.id;
 
+  // Account deletion erases face data: never in the name of an account only being acted as.
+  if (isImpersonating(event)) {
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
   if (auth.user && auth.user.id_user === targetId) {
     return json({ error: 'Admins cannot delete their own account' }, { status: 403 });
   }
 
-  if (targetId === SYSTEM_USER_ID) {
-    return json({ error: 'Cannot delete system user' }, { status: 403 });
-  }
-
   const db = getDatabase();
-  const info = db.prepare('DELETE FROM users WHERE id_user = ?').run(targetId);
-  if (info.changes === 0) {
+  // Face data, grants and the audit log's mentions go with the row (face-erasure.ts).
+  let deleted: boolean;
+  try {
+    deleted = deleteUserAccount(db, targetId);
+  } catch (e) {
+    // An API key has no user, so the self-deletion guard above does not cover the last admin.
+    if (e instanceof LastAdminError) {
+      return json({ error: e.message }, { status: 409 });
+    }
+    throw e;
+  }
+  if (!deleted) {
     return json({ error: 'User not found' }, { status: 404 });
   }
   try {
-    await logEvent(event, 'delete', 'user', targetId, null);
+    // The deletion itself stays on record, without the id it just erased.
+    await logEvent(event, 'delete', 'user', DELETED_ID, null);
   } catch (logErr) {
     log.warn('logEvent failed (users DELETE):', logErr);
   }
-  return json({ success: true, changes: info.changes });
+  return json({ success: true, changes: 1 });
 };

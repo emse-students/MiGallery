@@ -2,17 +2,17 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
-  import IconButton from '$lib/components/IconButton.svelte';
+  import PageHeader from '#lib/components/PageHeader.svelte';
+  import IconButton from '#lib/components/IconButton.svelte';
   import { CircleX, Plus, ChevronLeft, ChevronRight } from '@lucide/svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
-  import PhotosGrid from '$lib/components/PhotosGrid.svelte';
-  import UploadZone from '$lib/components/UploadZone.svelte';
-  import { PhotosState } from '$lib/photos.svelte';
-  import { handleAlbumUpload } from '$lib/album-operations';
-  import { m } from '$lib/paraglide/messages';
-  import type { User } from '$lib/types/api';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import PhotosGrid from '#lib/components/PhotosGrid.svelte';
+  import UploadZone from '#lib/components/UploadZone.svelte';
+  import { PhotosState } from '#lib/photos.svelte.ts';
+  import { handleAlbumUpload } from '#lib/album-operations.ts';
+  import { m } from '#lib/paraglide/messages.js';
+  import type { User } from '#lib/types/api.ts';
 
   const myPhotosState = new PhotosState();
   const allPhotosState = new PhotosState();

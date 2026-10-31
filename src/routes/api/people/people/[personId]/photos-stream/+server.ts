@@ -1,11 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { getPersonAssets } from '$lib/photos-cv/handlers';
-import { assetsNdjsonResponse } from '$lib/server/asset-ndjson';
+import { requirePersonAccess } from '#lib/server/face-access.ts';
+import { getPersonAssets } from '#lib/photos-cv/handlers.ts';
+import { assetsNdjsonResponse } from '#lib/server/asset-ndjson.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-people-personId-photos-stream');
 /**
@@ -19,7 +19,7 @@ export const GET: RequestHandler = async (event) => {
   }
   const inAlbum = event.url.searchParams.get('in_album') === 'true';
 
-  await requireScope(event, 'read');
+  await requirePersonAccess(event, personId);
   try {
     // Combined personIds+albumIds search (or person-minus-album) is done in
     // the shared handler.

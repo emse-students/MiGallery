@@ -24,7 +24,7 @@ import {
   containSize,
   clampTranslate,
   isZoomed,
-} from '$lib/viewer-gestures';
+} from '#lib/viewer-gestures.ts';
 
 const sample = (x: number, y: number, t: number) => ({ x, y, t });
 

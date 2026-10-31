@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { mdToHtml } from '$lib/docs/render-md';
-import { requireAdminPage } from '$lib/server/auth';
+import { mdToHtml } from '#lib/docs/render-md.ts';
+import { requireAdminPage } from '#lib/server/auth.ts';
 
 export const load: PageServerLoad = ({ locals, cookies, url }) => {
   requireAdminPage({ locals, cookies }, url);

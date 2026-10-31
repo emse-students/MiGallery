@@ -1,10 +1,11 @@
-import { env } from '$env/dynamic/private';
+import { env } from '#lib/server/env.ts';
+import fs from 'node:fs';
 import path from 'node:path';
-import sharp from '$lib/server/sharp-config';
-import { acquireSharp } from '$lib/server/sharp-limit';
-import { createLogger } from '$lib/server/logger';
-import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import sharp from '#lib/server/sharp-config.ts';
+import { acquireSharp } from '#lib/server/sharp-limit.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '#lib/server/disk-cache.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('face-crop');
 const CACHE_DIR = path.resolve('data/cache/faces');
@@ -201,4 +202,37 @@ function computeSquare(face: ImmichFace | null, sw: number, sh: number): Region 
   top = Math.min(Math.max(0, top), sh - side);
 
   return { left, top, width: side, height: side };
+}
+
+/**
+ * Delete every cached crop of Immich person `personId` (`<assetId>_<personId>.webp`), when that
+ * person's face data is erased (src/lib/server/face-erasure.ts). Plain center crops are not
+ * person-specific and stay. NEVER throws: it runs after a commit and in a worker, where an EPERM or
+ * EBUSY on one file must neither undo a withdrawal nor stop the rest - each failure is logged.
+ * Returns how many files went; a missing cache directory is zero.
+ */
+export function deletePersonFaceCrops(personId: string): number {
+  const suffix = `_${personId}.webp`;
+  let names: string[];
+  try {
+    names = fs.readdirSync(CACHE_DIR);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      log.error('face crop cache could not be listed', (e as Error).message);
+    }
+    return 0;
+  }
+  let deleted = 0;
+  for (const name of names.filter((n) => n.endsWith(suffix))) {
+    try {
+      fs.unlinkSync(path.join(CACHE_DIR, name));
+      deleted++;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+        log.error('face crop could not be deleted', { name, error: (e as Error).message });
+      }
+    }
+  }
+  log.info('face crops deleted for an erased person', { deleted });
+  return deleted;
 }

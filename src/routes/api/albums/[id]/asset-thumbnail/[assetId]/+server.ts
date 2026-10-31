@@ -1,11 +1,10 @@
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
+import { env } from '#lib/server/env.ts';
+import { requireAlbumAssetAccess } from '#lib/server/album-asset-access.ts';
 import { error } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-asset-thumbnail-assetId');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -21,30 +20,7 @@ export const GET: RequestHandler = async (event) => {
       throw error(500, 'IMMICH_BASE_URL not configured');
     }
 
-    let localVisibility: string | undefined = undefined;
-    try {
-      const db = getDatabase();
-      const row = db.prepare('SELECT visibility FROM albums WHERE id = ?').get(albumId) as
-        | { visibility?: string }
-        | undefined;
-      localVisibility = row?.visibility;
-    } catch (dbErr: unknown) {
-      log.warn('failed to read local DB visibility', dbErr);
-    }
-
-    const visibilityHint = (() => {
-      try {
-        return new URL(request.url).searchParams.get('visibility') || null;
-      } catch {
-        return null;
-      }
-    })();
-
-    const isUnlisted = visibilityHint === 'unlisted' || localVisibility === 'unlisted';
-
-    if (!isUnlisted) {
-      await requireScope(event, 'read');
-    }
+    await requireAlbumAssetAccess(event, albumId, assetId);
 
     if (!IMMICH_API_KEY) {
       throw error(500, 'IMMICH_API_KEY not configured on server');

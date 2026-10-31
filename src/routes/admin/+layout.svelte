@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
   import './shared-admin.css';
   import {
     BookOpen,
@@ -12,7 +12,7 @@
     Images,
     Trash2,
     ShieldCheck,
-  } from '$lib/icons';
+  } from '#lib/icons.ts';
 
   const links = [
     { href: '/admin', label: m.adm_nav_docs, icon: BookOpen },

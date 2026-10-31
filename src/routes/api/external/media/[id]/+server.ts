@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
-import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '$lib/server/outbound';
+import { env } from '#lib/server/env.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';

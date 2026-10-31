@@ -54,6 +54,48 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+**Retention: 90 days.** `purgeOldLogs` deletes older rows; `startLogRetention`
+(`hooks.server.ts`) runs it a minute after start, then daily, in-process like the
+backup scheduler. Each row's own `timestamp` decides, so a missed day only makes
+the next run delete more. Pinned by `tests/logs-retention.test.ts`.
+
+**`ip` comes from ONE trusted source**, SvelteKit's `getClientAddress()`. In
+production `docker-compose.prod.yml` sets adapter-bun's
+`ADDRESS_HEADER=cf-connecting-ip`: the reverse proxy in front of the app sets that
+header to the address it was reached from, overwriting any value the client sent.
+`X-Forwarded-For` is never read: its first value is whatever the client chose to
+send, and it used to be stored whole. When no address is available
+(`getClientAddress()` throws) the row records NULL, never a guess, and the fault
+is logged once per process at error level.
+
+**The invariant this rests on: the app must only be reachable through the reverse
+proxy.** A header the proxy sets is only evidence if nothing else can reach the
+listener. `docker-compose.prod.yml` therefore binds the container's port to
+`127.0.0.1` - a property of the file and not of a firewall - and no other service
+of this repository calls the container by a network address.
+
+`avatar_revocations(id_user, salt, revoked_at)` holds the salt of a user whose signed avatar links were
+revoked. It is keyed by id_user with no foreign key ON PURPOSE: it survives the deletion of the account,
+so a user recreated at their next sign-in does not re-validate old URLs. Account deletion rotates the salt in its own transaction; the pseudonymous id then stays here as a tombstone (an id and a random salt, no personal data) while the audit-log scrub removes it everywhere else
+([api-reference.md](api-reference.md#the-signed-avatar-url)).
+
+### `face_consents`
+
+`face_consents(id, user_id, created_at, version, source, withdrawn_at)` - the record that a
+member agreed to link their face: when, under which terms version (`src/lib/legal.ts`
+`TERMS_VERSION`) and how (`selfie`, `admin`, or `legacy` for a link that predates the table,
+backfilled at start; its `created_at` is the backfill date, not the consent date - the owner holds
+that proof). A withdrawal sets `withdrawn_at`; an account deletion cascades. See
+[photos-cv.md](photos-cv.md#consent-record).
+
+### `face_erasures`
+
+`face_erasures(id, person_id, reason, requested_at, attempts, last_attempt_at,
+last_error, done_at, outcome)` - the journal of the Immich half (name removal) of
+a face withdrawal or account deletion (`src/lib/server/face-erasure.ts`, see
+[photos-cv.md](photos-cv.md#erasure)). It names the Immich person, never the
+member, and clears that id once done.
+
 ### `sessions`
 
 `sessions(token, id_user, impersonated_id_user, created_at, expires_at)` - the

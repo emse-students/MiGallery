@@ -3,10 +3,10 @@
   import LazyImage from './LazyImage.svelte';
   import Skeleton from './Skeleton.svelte';
   import OverflowMenu from './OverflowMenu.svelte';
-  import type { Asset } from '$lib/photos.svelte';
-  import type { OverflowMenuItem } from '$lib/overflow-menu';
-  import { assetAspectRatio } from '$lib/photo-grid-layout';
-  import { m } from '$lib/paraglide/messages';
+  import type { Asset } from '#lib/photos.svelte.ts';
+  import type { OverflowMenuItem } from '#lib/overflow-menu.ts';
+  import { assetAspectRatio } from '#lib/photo-grid-layout.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     asset: Asset;

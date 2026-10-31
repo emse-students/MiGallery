@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parsePreference, resolveTheme, THEME_COLORS } from '$lib/theme-preference';
+import { parsePreference, resolveTheme, THEME_COLORS } from '#lib/theme-preference.ts';
 
 describe('parsePreference', () => {
   it('keeps the three known choices', () => {

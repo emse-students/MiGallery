@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Modal from '$lib/components/Modal.svelte';
-  import { confirmStore, resolveConfirm } from '$lib/confirm';
+  import Modal from '#lib/components/Modal.svelte';
+  import { confirmStore, resolveConfirm } from '#lib/confirm.ts';
   import { onDestroy } from 'svelte';
 
   let state = $state({ show: false } as any);

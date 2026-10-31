@@ -15,7 +15,7 @@ import {
   justifyRows,
   visibleBlockRange,
   type JustifiedRow,
-} from '$lib/photo-grid-layout';
+} from '#lib/photo-grid-layout.ts';
 
 const EPS = 1e-6;
 

@@ -10,19 +10,19 @@
     Link as LinkIcon,
     ChevronRight,
   } from '@lucide/svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
-  import LazyImage from '$lib/components/LazyImage.svelte';
-  import AlbumModal from '$lib/components/AlbumModal.svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { getLocale } from '$lib/paraglide/runtime';
-  import { fuzzyMatch } from '$lib/fuzzy';
-  import { albumsView } from '$lib/albums-view-state.svelte';
-  import type { User, Album } from '$lib/types/api';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
+  import LazyImage from '#lib/components/LazyImage.svelte';
+  import AlbumModal from '#lib/components/AlbumModal.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale } from '#lib/paraglide/runtime.js';
+  import { fuzzyMatch } from '#lib/fuzzy.ts';
+  import { albumsView } from '#lib/albums-view-state.svelte.ts';
+  import type { User, Album } from '#lib/types/api.ts';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import PageHeader from '$lib/components/PageHeader.svelte';
-  import IconButton from '$lib/components/IconButton.svelte';
+  import PageHeader from '#lib/components/PageHeader.svelte';
+  import IconButton from '#lib/components/IconButton.svelte';
 
   /**
    * Day of August a school year rolls over on: an album dated on or after

@@ -6,8 +6,8 @@
    * the click does, which is the only thing a reader needs from a control they are about to press.
    */
   import { Moon, Sun } from '@lucide/svelte';
-  import { paintedTheme, theme } from '$lib/theme';
-  import { m } from '$lib/paraglide/messages';
+  import { paintedTheme, theme } from '#lib/theme.ts';
+  import { m } from '#lib/paraglide/messages.js';
 </script>
 
 <button

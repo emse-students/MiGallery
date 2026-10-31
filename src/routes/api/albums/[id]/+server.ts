@@ -1,17 +1,17 @@
 import { json, error } from '@sveltejs/kit';
-import type { ImmichAlbum } from '$lib/types/api';
-import { ensureError } from '$lib/ts-utils';
+import type { ImmichAlbum } from '#lib/types/api.ts';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { logEvent } from '$lib/server/logs';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
-import { deleteOrphanedAlbumAssets } from '$lib/server/immich-album-delete';
-import { getStoredCover, pruneAlbumCovers } from '$lib/server/album-cover';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
+import { deleteOrphanedAlbumAssets } from '#lib/server/immich-album-delete.ts';
+import { getStoredCover, pruneAlbumCovers } from '#lib/server/album-cover.ts';
 
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums-id');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

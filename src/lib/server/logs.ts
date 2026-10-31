@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
-import { getDatabase } from '$lib/db/database';
+import { getDatabase } from '#lib/db/database.ts';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getRequestSession } from '$lib/server/auth';
-import { createLogger } from '$lib/server/logger';
+import { getRequestSession } from '#lib/server/auth.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('audit-log');
+
+/** Set once the missing-address fault has been logged, so it is reported once per process. */
+let addressFaultReported = false;
 
 /**
  * Log an event to the local DB `logs` table.
@@ -50,10 +53,27 @@ export function logEvent(
       actor = (details as any).actor;
     }
 
-    const ip =
-      (event?.request?.headers &&
-        (event.request.headers.get('x-forwarded-for') || event.request.headers.get('x-real-ip'))) ||
-      null;
+    // The client address, from ONE trusted source: SvelteKit's getClientAddress(). In production
+    // adapter-bun reads it from the header named by ADDRESS_HEADER, set to `cf-connecting-ip`
+    // in docker-compose.prod.yml - the only public way in is the Cloudflare tunnel, and Cloudflare
+    // overwrites that header with the address it received the request from. X-Forwarded-For is
+    // never read: its first value is whatever the client chose to send (docs/wiki/data-model.md#logs).
+    let ip: string | null = null;
+    if (event && typeof event.getClientAddress === 'function') {
+      try {
+        ip = event.getClientAddress().slice(0, 64) || null;
+      } catch (e) {
+        // A missing header is a deployment fault that hits EVERY row: say it loudly once per
+        // process, not once per event, so the line stays readable.
+        if (!addressFaultReported) {
+          addressFaultReported = true;
+          log.error(
+            'client address unavailable for the audit log; rows record NULL until fixed',
+            (e as Error).message
+          );
+        }
+      }
+    }
 
     const stmt = db.prepare(
       'INSERT INTO logs (actor, event_type, target_type, target_id, details, ip) VALUES (?, ?, ?, ?, ?, ?)'
@@ -62,4 +82,46 @@ export function logEvent(
   } catch (e) {
     log.warn('logEvent failed', (e as Error).message || e);
   }
+}
+
+/** How long an audit-log row is kept. */
+export const LOG_RETENTION_DAYS = 90;
+const PURGE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Delete audit-log rows older than {@link LOG_RETENTION_DAYS}. `timestamp` is SQLite's
+ * `datetime('now')` text (UTC, `YYYY-MM-DD HH:MM:SS`), which sorts as it reads, so the comparison
+ * is a plain string one. Returns the number of rows deleted.
+ */
+export function purgeOldLogs(): number {
+  const db = getDatabase();
+  const { changes } = db
+    .prepare("DELETE FROM logs WHERE timestamp < datetime('now', ?)")
+    .run(`-${LOG_RETENTION_DAYS} days`);
+  log.info('audit log purged', { deleted: changes, retentionDays: LOG_RETENTION_DAYS });
+  return changes;
+}
+
+let retentionStarted = false;
+
+/**
+ * Run {@link purgeOldLogs} a minute after start, then once a day, in-process (like the backup scheduler). The
+ * timer only decides when; what goes is decided by each row's own timestamp, so a missed day just
+ * means the next run deletes two days' worth.
+ */
+export function startLogRetention(): void {
+  if (retentionStarted) {
+    return;
+  }
+  retentionStarted = true;
+  const run = () => {
+    try {
+      purgeOldLogs();
+    } catch (e) {
+      log.error('audit log purge failed', e);
+    }
+  };
+  // A minute after start rather than during it, and unref'd: neither timer may hold a process open.
+  setTimeout(run, 60_000).unref?.();
+  setInterval(run, PURGE_INTERVAL_MS).unref?.();
 }

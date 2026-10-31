@@ -4,7 +4,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '$lib/types/api';
+import type { ApiKeyResponse, UserCreateResponse, ImmichAlbum } from '#lib/types/api.ts';
+import { deleteOrThrow, loginAsTestAdmin } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let sessionCookie = '';
@@ -20,25 +21,9 @@ let testReadApiKeyId: string | null = null;
 // ========================================
 
 beforeAll(async () => {
-  console.debug('🚀 Starting end-to-end integration tests'); // Attempting to log in as the system user
+  console.debug('🚀 Starting end-to-end integration tests');
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/dev/login-as?u=dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
-      {
-        redirect: 'manual',
-      }
-    );
-
-    if (response.status === 303 || response.status === 302) {
-      const cookies = response.headers.get('set-cookie');
-      if (cookies) {
-        const match = cookies.match(/migallery_session=([^;]+)/);
-        if (match) {
-          sessionCookie = `migallery_session=${match[1]}`;
-          console.debug('✅ Authenticated with session cookie');
-        }
-      }
-    }
+    sessionCookie = await loginAsTestAdmin();
 
     // Create an admin API key for the tests
     if (sessionCookie) {
@@ -89,33 +74,29 @@ beforeAll(async () => {
 afterAll(async () => {
   console.debug('\n🧹 Cleaning up test resources'); // Delete the test user
   if (testUserId && adminApiKey) {
-    await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': adminApiKey },
-    });
+    await deleteOrThrow(`${API_BASE_URL}/api/users/${testUserId}`, { 'x-api-key': adminApiKey });
   }
 
   // Delete the test album
   if (testAlbumId && adminApiKey) {
-    await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
-      method: 'DELETE',
-      headers: { 'x-api-key': adminApiKey },
-    });
+    await deleteOrThrow(
+      `${API_BASE_URL}/api/albums/${testAlbumId}`,
+      { 'x-api-key': adminApiKey },
+      [200, 204, 404, 500]
+    );
   }
 
   // Delete the test API keys
   if (testApiKeyId && sessionCookie) {
-    await fetch(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
-      method: 'DELETE',
-      headers: { Cookie: sessionCookie },
+    await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${testApiKeyId}`, {
+      Cookie: sessionCookie,
     });
   }
 
   // Delete the test read API key
   if (testReadApiKeyId && sessionCookie) {
-    await fetch(`${API_BASE_URL}/api/admin/api-keys/${testReadApiKeyId}`, {
-      method: 'DELETE',
-      headers: { Cookie: sessionCookie },
+    await deleteOrThrow(`${API_BASE_URL}/api/admin/api-keys/${testReadApiKeyId}`, {
+      Cookie: sessionCookie,
     });
   }
 
@@ -181,7 +162,8 @@ describe('E2E - Complete user workflow', () => {
       // 4. Delete the user
       const deleteResponse = await fetch(`${API_BASE_URL}/api/users/${testUserId}`, {
         method: 'DELETE',
-        headers: { 'x-api-key': adminApiKey },
+        // Kit 3 refuses a body-less mutation that carries neither an Origin nor a Content-Type.
+        headers: { 'x-api-key': adminApiKey, 'Content-Type': 'application/json' },
       });
 
       expect([200, 204]).toContain(deleteResponse.status);
@@ -234,7 +216,7 @@ describe('E2E - Complete album workflow', () => {
       // 4. Delete the album
       const deleteResponse = await fetch(`${API_BASE_URL}/api/albums/${testAlbumId}`, {
         method: 'DELETE',
-        headers: { 'x-api-key': adminApiKey },
+        headers: { 'x-api-key': adminApiKey, 'Content-Type': 'application/json' },
       });
 
       expect([200, 204, 404, 500]).toContain(deleteResponse.status);

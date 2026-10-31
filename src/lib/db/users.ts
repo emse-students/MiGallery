@@ -1,4 +1,4 @@
-import { getDatabase } from '$lib/db/database';
+import { getDatabase } from '#lib/db/database.ts';
 
 export interface DBUser {
   id_user: string;
@@ -19,11 +19,17 @@ export function getUserByCasId(casId: string): DBUser | undefined {
   return stmt.get(casId) as DBUser | undefined;
 }
 
-export function createUser(user: DBUser) {
+/**
+ * What a generic write may carry. `photos_id` and `photos_asset_id` are NOT here: the face link
+ * only moves through `applyFaceLink` (face-link.ts), which keeps its consent and grants with it.
+ */
+export type UserWrite = Omit<DBUser, 'photos_id' | 'photos_asset_id'>;
+
+export function createUser(user: UserWrite) {
   const db = getDatabase();
   const stmt = db.prepare(`
-		INSERT INTO users (id_user, name, first_name, last_name, photos_id, role, promo, formation)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO users (id_user, name, first_name, last_name, role, promo, formation)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`);
 
   return stmt.run(
@@ -31,7 +37,6 @@ export function createUser(user: DBUser) {
     user.name,
     user.first_name || null,
     user.last_name || null,
-    user.photos_id || null,
     user.role,
     user.promo || null,
     user.formation || null
@@ -47,16 +52,19 @@ export function createUser(user: DBUser) {
  * SET clause is built from `Object.keys`, which is precisely the shape where that happens.
  * `getDatabase()` refuses bare-keyed object binds for the same reason.
  */
-export function updateUser(user: Partial<DBUser> & { id_user: string }) {
+export function updateUser(user: Partial<UserWrite> & { id_user: string }) {
   const db = getDatabase();
   const keys = Object.keys(user).filter((k) => k !== 'id_user');
+  if (keys.includes('photos_id') || keys.includes('photos_asset_id')) {
+    throw new Error('updateUser: the face link moves only through applyFaceLink');
+  }
   if (keys.length === 0) {
     // No column to write. The alternative is `UPDATE users SET  WHERE ...`, a syntax error.
     return { changes: 0, lastInsertRowid: 0 };
   }
 
   const values = keys.map((k) => {
-    const value = user[k as keyof DBUser];
+    const value = user[k as keyof UserWrite];
     if (value === undefined) {
       // better-sqlite3 threw here and callers were written against that. `bun:sqlite` would bind
       // NULL instead, turning "I forgot to set this field" into "erase this column".

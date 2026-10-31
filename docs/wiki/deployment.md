@@ -14,29 +14,42 @@ database, via Immich's own procedure).
 
 | Element       | Detail                                                                                                     |
 | ------------- | ---------------------------------------------------------------------------------------------------------- |
-| Runtime       | Docker container `migallery` (SvelteKit + Node), port 3000                                                 |
-| Data          | `data/` mounted as a volume (`/home/mitv/MiGallery/data`): SQLite + caches                                 |
+| Runtime       | Docker container `migallery` (SvelteKit 3 on bun, adapter-bun), port 3000                                  |
+| Data          | `data/` mounted as a volume (`<deploy-dir>/data`): SQLite + caches                                         |
 | Image         | `ghcr.io/emse-students/migallery:latest` (built by CD)                                                     |
 | CD            | `release.yml`: preflight -> `deploy.yml` (build-image -> deploy, self-hosted). **A push deploys nothing.** |
-| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to Canari (root cron, 05:00)                                  |
+| Backups       | `scripts/backup-offsite.sh` -> offsite rsync to `<backup-host>` (root cron, 05:00)                         |
 | Photo backend | Immich, separate stack, reachable at `IMMICH_BASE_URL`                                                     |
+
+## The public Host, and how the container stops
+
+The origin is NOT configured: adapter-bun derives it from the request's `Host` header and assumes
+`https`. **The tunnel or proxy in front MUST forward the public Host unchanged** (the OIDC `redirect_uri`,
+the canonical and OG URLs and the CSRF self-origin all come from it). A build never carries a host, so a
+dev, preview or local build points at itself. Pinned by `tests/server-env.test.ts`.
+
+`docker stop` sends SIGTERM: adapter-bun drains the listener and emits `sveltekit:shutdown`, and
+`src/lib/server/shutdown.ts` (the listener adapter-bun does not provide) stops the timers, waits up to 10 s
+for a face-erasure pass and exits 0. `stop_grace_period: 45s` in the compose file covers the 30 s drain
+plus that wait; `scripts/test-with-server.mjs` sends a real SIGTERM on Linux and fails unless the server
+exits 0 within 15 s.
 
 ## Configuration
 
-The CD generates `.env` from GitHub repo secrets. Non-secret values (ORIGIN,
-IMMICH_BASE_URL, MICONNECT_ISSUER, ports) have defaults in
-`docker-compose.prod.yml`.
+The CD generates `.env` from GitHub repo secrets, `IMMICH_BASE_URL` included (the compose file
+refuses to start without it). Non-secret values (MICONNECT_ISSUER, ports) have defaults in
+`docker-compose.prod.yml`. The deploy directory is the `DEPLOY_DIR` secret, and the backup
+destinations (`OFFSITE_HOST`, `IMMICH_BACKUP_DIR`) are secrets the deploy writes into
+`scripts/backup.env` ([Backups](#backups)).
 
 | Variable                                                   | Role                                                 |
 | ---------------------------------------------------------- | ---------------------------------------------------- |
-| `IMMICH_BASE_URL`                                          | Immich API base (e.g. `http://10.0.0.4:2283`)        |
+| `IMMICH_BASE_URL`                                          | Immich API base (`http://<immich-host>:2283`)        |
 | `IMMICH_API_KEY` (secret)                                  | Immich API access; injected server-side by the proxy |
 | `MICONNECT_ISSUER`                                         | Authentik issuer (`.../application/o/migallery`)     |
 | `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` (secret) | OIDC client                                          |
-| `ORIGIN`                                                   | public origin (`https://gallery.mitv.fr`)            |
 | `DATABASE_PATH`                                            | SQLite path (`./data/migallery.db`)                  |
 | `BODY_SIZE_LIMIT`                                          | max upload body (e.g. `20G`)                         |
-| `ENABLE_DEV_ROUTES`                                        | dev-only routes; must be `false` in production       |
 
 ## Dependency updates, and the merge that reaches production
 
@@ -108,8 +121,12 @@ lockfile is an ABSENCE of pull requests, which nobody notices.
 ## Backups
 
 A root cron runs `scripts/backup-offsite.sh` at 05:00 (after Immich's 02:00
-dump), rsyncing the MiGallery SQLite DB offsite to Canari
-(`~/migallery-offsite/`). Restore with `scripts/restore-offsite.sh --yes`. The
+dump), rsyncing the MiGallery SQLite DB and the newest Immich dump offsite to
+`OFFSITE_HOST` (under `OFFSITE_PATH`, default `migallery-offsite/` in that account's home).
+Restore with `scripts/restore-offsite.sh --yes`. Both scripts read `OFFSITE_HOST` and
+`IMMICH_BACKUP_DIR` from `scripts/backup.env`, which the deploy writes from the repository secrets
+of the same names, and refuse to run without them (`scripts/backup-config.sh`); the deploy
+directory is the one the scripts live in. The
 in-app daily backup scheduler (`startBackupScheduler`, kicked off in
 `hooks.server.ts`) produces local DB snapshots under `data/`.
 

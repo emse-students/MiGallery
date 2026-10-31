@@ -6,7 +6,7 @@
 **by MiTV**
 
 [![Built with SvelteKit](https://img.shields.io/badge/Built%20with-SvelteKit-FF3E00?logo=svelte)](https://kit.svelte.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Bun](https://img.shields.io/badge/Bun-1.4-000000?logo=bun&logoColor=white)](https://bun.sh/)
 
 [![CI](https://github.com/emse-students/MiGallery/actions/workflows/ci.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/ci.yml)
 [![Code Analysis](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml/badge.svg)](https://github.com/emse-students/MiGallery/actions/workflows/code-analysis.yml)
@@ -39,10 +39,10 @@ MiGallery is a modern photo gallery web application built with **SvelteKit** run
 - **Node.js** >= 20
 - SQLite (built into the bun runtime, `bun:sqlite`)
 
-Check Node.js:
+Check bun:
 
 ```bash
-node --version
+bun --version
 ```
 
 ### Installation Steps
@@ -88,10 +88,8 @@ AUTH_TRUSTED_HOST=true # Set to true in production
 bun run db:init
 ```
 
-This automatically creates:
-
-- The table structure (users, albums, permissions)
-- A system admin user: **les.roots@etu.emse.fr** (does not appear in the directory)
+This creates the table structure (users, albums, permissions). It creates no account: see
+[First administrator](#-first-administrator).
 
 5. **Start the development server**
 
@@ -319,16 +317,24 @@ MiGallery/
 
 ---
 
-## 👤 System User
+## 👤 First administrator
 
-A system admin user is automatically created during initialization:
+Every account is created by its first MiConnect sign-in, with the role `user`; roles are then
+granted in `/admin/users`. A fresh database therefore has no administrator, and the first one is
+promoted by hand:
 
-- **ID** : `les.roots`
-- **Email** : `les.roots@etu.emse.fr`
-- **Role** : `admin`
-- **Special note** : Does not appear in the directory (promo_year = null)
+1. Sign in once with the MiConnect account `<admin-email>`.
+2. Read that account's `id_user` from `GET /api/users/me`.
+3. On the host, in the running container:
 
-This user is intended for system administration and should not be deleted.
+```bash
+docker exec <container> bun -e "
+  const { Database } = require('bun:sqlite');
+  new Database('/app/data/migallery.db')
+    .prepare(\"UPDATE users SET role = 'admin' WHERE id_user = ?\").run('<admin-id_user>');"
+```
+
+Sign out and back in; every later admin is granted from `/admin/users`.
 
 ---
 
@@ -337,7 +343,7 @@ This user is intended for system administration and should not be deleted.
 - **[SvelteKit](https://kit.svelte.dev/)** - Modern, high-performance web framework
 - **[Svelte 5](https://svelte.dev/)** - Reactive UI framework
 - **[Vite](https://vitejs.dev/)** - Ultra-fast build tool
-- **[Node.js](https://nodejs.org/)** - JavaScript runtime
+- **[Bun](https://bun.sh/)** - JavaScript runtime and package manager
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[bun:sqlite](https://bun.sh/docs/api/sqlite)** - Synchronous SQLite database, built into the runtime
 - **[Auth.js](https://authjs.dev/)** - Flexible authentication
@@ -518,7 +524,7 @@ pip install --upgrade pre-commit
 pre-commit --version
 ```
 
-- `node: command not found` → Install Node.js from <https://nodejs.org>
+- `bun: command not found` → Install bun from <https://bun.sh>
 
 - Hooks not running:
 

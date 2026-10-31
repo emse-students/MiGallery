@@ -1,11 +1,11 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { completeOIDCFlow } from '$lib/auth';
-import { setSessionCookie } from '$lib/session';
-import { createSession, deleteExpiredSessions } from '$lib/db/sessions';
-import { RETURN_COOKIE_NAME, safeRedirectTarget } from '$lib/auth-redirect';
+import { completeOIDCFlow } from '#lib/auth.ts';
+import { setSessionCookie } from '#lib/session.ts';
+import { createSession, deleteExpiredSessions } from '#lib/db/sessions.ts';
+import { RETURN_COOKIE_NAME, safeRedirectTarget } from '#lib/auth-redirect.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('auth-callback');
 export const GET: RequestHandler = async ({ cookies, url }) => {
@@ -34,16 +34,26 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
     throw error(400, 'State validation failed');
   }
 
+  let result: Awaited<ReturnType<typeof completeOIDCFlow>>;
   try {
     // Complete OIDC flow
     const callbackUrl = new URL('/api/auth/callback', url.origin);
-    const result = await completeOIDCFlow(code, callbackUrl.toString());
+    result = await completeOIDCFlow(code, callbackUrl.toString());
+  } catch (e) {
+    log.error('Error during authentication:', e);
+    throw error(500, 'Authentication error');
+  }
 
-    if (!result) {
-      log.error('OIDC flow failed');
-      throw error(500, 'Authentication failed');
-    }
+  // The identity provider refused the code (forged, expired, replayed) or could not be reached:
+  // the OIDC seam cannot tell the two apart and logs the cause. Either way this visitor is not
+  // signed in, which is a 401 and not a server fault. Thrown OUTSIDE the try: it was caught by it
+  // and answered 500 on every bad code.
+  if (!result) {
+    log.error('OIDC flow failed');
+    throw error(401, 'Authentication failed');
+  }
 
+  try {
     // Open a server-side session and hand the browser its token. Login is the
     // one moment we are already writing to `sessions`, so purge the dead rows here.
     deleteExpiredSessions();

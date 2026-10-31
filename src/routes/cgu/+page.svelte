@@ -1,10 +1,30 @@
 <!-- These localized legal messages intentionally contain trusted inline HTML. -->
 <!-- eslint-disable svelte/no-at-html-tags -->
 <script lang="ts">
-  import { Book, Server, ScanEye, Database, Copyright, Info } from '@lucide/svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { getLocale } from '$lib/paraglide/runtime';
+  import {
+    Book,
+    Building,
+    Server,
+    ScanEye,
+    Database,
+    Scale,
+    Baby,
+    Copyright,
+    Info,
+  } from '@lucide/svelte';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale } from '#lib/paraglide/runtime.js';
+  import { TERMS_VERSION } from '#lib/legal.ts';
+
+  // The version is a date (src/lib/legal.ts), written once, never "today": a member's consent
+  // row keeps the version they agreed to. UTC so the day does not shift with the reader's zone.
+  const versionDate = new Date(TERMS_VERSION).toLocaleDateString(getLocale(), {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 </script>
 
 <svelte:head>
@@ -20,18 +40,18 @@
     <header class="cgu-header">
       <h1>{m.cgu_title()}</h1>
       <p class="subtitle">{m.cgu_subtitle()}</p>
-      <p class="last-update">
-        {m.cgu_last_update({ date: new Date().toLocaleDateString(getLocale()) })}
-      </p>
+      <p class="last-update">{m.cgu_last_update({ date: versionDate })}</p>
     </header>
 
     <nav class="toc">
       <a href="#definitions">{m.cgu_toc_definitions()}</a>
+      <a href="#responsable">{m.cgu_toc_controller()}</a>
       <a href="#acces">{m.cgu_toc_access()}</a>
       <a href="#biometrie">{m.cgu_toc_biometrics()}</a>
       <a href="#donnees">{m.cgu_toc_data()}</a>
+      <a href="#droits">{m.cgu_toc_rights()}</a>
+      <a href="#age">{m.cgu_toc_age()}</a>
       <a href="#propriete">{m.cgu_toc_property()}</a>
-      <a href="#responsabilite">{m.cgu_toc_liability()}</a>
       <a href="#contact">{m.cgu_toc_contact()}</a>
     </nav>
 
@@ -43,58 +63,82 @@
           <li>{@html m.cgu_s1_service()}</li>
           <li>{@html m.cgu_s1_editor()}</li>
           <li>{@html m.cgu_s1_user()}</li>
+          <li>{@html m.cgu_s1_miconnect()}</li>
           <li>{@html m.cgu_s1_immich()}</li>
         </ul>
       </section>
 
+      <section id="responsable" class="section">
+        <h2><Building size={24} /> {m.cgu_s2_title()}</h2>
+        <p>{@html m.cgu_s2_body()}</p>
+      </section>
+
       <section id="acces" class="section">
-        <h2><Server size={24} /> {m.cgu_s2_title()}</h2>
-        <h3>{m.cgu_s2_auth_title()}</h3>
-        <p>{m.cgu_s2_auth_body()}</p>
-        <h3>{m.cgu_s2_hosting_title()}</h3>
-        <p>{@html m.cgu_s2_hosting_body()}</p>
-        <h3>{m.cgu_s2_avail_title()}</h3>
-        <p>{m.cgu_s2_avail_body()}</p>
+        <h2><Server size={24} /> {m.cgu_s3_title()}</h2>
+        <h3>{m.cgu_s3_auth_title()}</h3>
+        <p>{m.cgu_s3_auth_body()}</p>
+        <h3>{m.cgu_s3_hosting_title()}</h3>
+        <p>{@html m.cgu_s3_hosting_body()}</p>
+        <h3>{m.cgu_s3_recipients_title()}</h3>
+        <p>{m.cgu_s3_recipients_body()}</p>
+        <h3>{m.cgu_s3_avail_title()}</h3>
+        <p>{m.cgu_s3_avail_body()}</p>
       </section>
 
       <section id="biometrie" class="section">
-        <h2><ScanEye size={24} /> {m.cgu_s3_title()}</h2>
-        <p>{@html m.cgu_s3_intro()}</p>
+        <h2><ScanEye size={24} /> {m.cgu_s4_title()}</h2>
+        <p>{@html m.cgu_s4_intro()}</p>
 
-        <h3>{m.cgu_s3_tech_title()}</h3>
+        <h3>{m.cgu_s4_tech_title()}</h3>
         <ul>
-          <li>{@html m.cgu_s3_init()}</li>
-          <li>{@html m.cgu_s3_verify()}</li>
-          <li>{@html m.cgu_s3_process()}</li>
-          <li>{@html m.cgu_s3_delete()}</li>
+          <li>{@html m.cgu_s4_cluster()}</li>
+          <li>{@html m.cgu_s4_init()}</li>
+          <li>{@html m.cgu_s4_selfie()}</li>
         </ul>
 
-        <h3>{m.cgu_s3_myphotos_title()}</h3>
-        <p>{m.cgu_s3_myphotos_body()}</p>
-        <p>{@html m.cgu_s3_spectator()}</p>
+        <h3>{m.cgu_s4_myphotos_title()}</h3>
+        <p>{m.cgu_s4_myphotos_body()}</p>
+        <p>{@html m.cgu_s4_spectator()}</p>
 
-        <h3>{m.cgu_s3_revoke_title()}</h3>
-        <p>{@html m.cgu_s3_revoke_body()}</p>
+        <h3>{m.cgu_s4_revoke_title()}</h3>
+        <p>{@html m.cgu_s4_revoke_body()}</p>
       </section>
 
       <section id="donnees" class="section">
-        <h2><Database size={24} /> {m.cgu_s4_title()}</h2>
-        <h3>{m.cgu_s4_retention_title()}</h3>
-        <p>{@html m.cgu_s4_retention_body()}</p>
-        <h3>{m.cgu_s4_logs_title()}</h3>
-        <p>{m.cgu_s4_logs_body()}</p>
-        <h3>{m.cgu_s4_rights_title()}</h3>
+        <h2><Database size={24} /> {m.cgu_s5_title()}</h2>
+        <h3>{m.cgu_s5_items_title()}</h3>
         <ul>
-          <li>{@html m.cgu_s4_right_access()}</li>
-          <li>{@html m.cgu_s4_right_rectif()}</li>
-          <li>{@html m.cgu_s4_right_forget()}</li>
+          <li>{@html m.cgu_s5_item_account()}</li>
+          <li>{@html m.cgu_s5_item_photos()}</li>
+          <li>{@html m.cgu_s5_item_face()}</li>
+          <li>{@html m.cgu_s5_item_logs()}</li>
         </ul>
+        <h3>{m.cgu_s5_retention_title()}</h3>
+        <ul>
+          <li>{@html m.cgu_s5_retention_photos()}</li>
+          <li>{@html m.cgu_s5_retention_account()}</li>
+          <li>{@html m.cgu_s5_retention_logs()}</li>
+        </ul>
+        <h3>{m.cgu_s5_backups_title()}</h3>
+        <p>{m.cgu_s5_backups_body()}</p>
+      </section>
+
+      <section id="droits" class="section">
+        <h2><Scale size={24} /> {m.cgu_s6_title()}</h2>
+        <p>{m.cgu_s6_intro()}</p>
+        <p>{@html m.cgu_s6_how()}</p>
+        <p>{@html m.cgu_s6_cnil()}</p>
+      </section>
+
+      <section id="age" class="section">
+        <h2><Baby size={24} /> {m.cgu_s7_title()}</h2>
+        <p>{@html m.cgu_s7_body()}</p>
       </section>
 
       <section id="propriete" class="section">
-        <h2><Copyright size={24} /> {m.cgu_s5_title()}</h2>
-        <p>{m.cgu_s5_body1()}</p>
-        <p>{m.cgu_s5_body2()}</p>
+        <h2><Copyright size={24} /> {m.cgu_s8_title()}</h2>
+        <p>{m.cgu_s8_body1()}</p>
+        <p>{m.cgu_s8_body2()}</p>
       </section>
 
       <section id="contact" class="section footer-section">

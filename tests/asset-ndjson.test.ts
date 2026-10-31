@@ -8,8 +8,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { assetsNdjsonResponse, slimAsset } from '$lib/server/asset-ndjson';
-import type { ImmichAsset } from '$lib/types/api';
+import { assetsNdjsonResponse, slimAsset } from '#lib/server/asset-ndjson.ts';
+import type { ImmichAsset } from '#lib/types/api.ts';
 
 const searchResult = {
   id: 'a1',

@@ -1,16 +1,20 @@
-# MiGallery is a private photo gallery. Every crawler is refused, and that is
-# deliberate and permanent: the content is photographs of named students.
+# MiGallery is a private photo gallery of named students. ONLY the home page may be indexed (user
+# decision, 2026-10-06): a presentation and a sign-in button, never a photo, an album or a name.
 #
-# There is deliberately NO sitemap. A sitemap exists to hand a crawler a link
-# graph, and there is no crawler here to hand one to. Publishing one would be a
-# list of album URLs, in a file anybody can fetch, for an audience that has
-# already been told to go away.
+# `Allow: /$` matches the root alone (`$` anchors the end) and the longer rule wins over `Disallow: /`
+# in Google's matching, so every album, every API route and every other page stays refused - an
+# allowlist of one, where a list of named prefixes would let a NEW route through.
+# `X-Robots-Tag: noindex` on every other response is the second voice (see `hooks.server.ts`).
 #
-# This does NOT make the Open Graph tags in the pages dead weight. An unfurler -
-# Discord, Slack, WhatsApp, Canari's own link preview - is not a crawler: it
-# fetches the exact URL somebody pasted and never reads this file. Sharing an
-# album link is a supported action, so the card it produces is part of the
-# product. See docs/wiki/seo.md.
+# There is deliberately NO sitemap. A sitemap exists to hand a crawler a link graph, and the only
+# page worth a crawler's time is the one it already finds. Publishing one would risk being a list of
+# album URLs in a file anybody can fetch.
+#
+# This does NOT make the Open Graph tags dead weight. An unfurler - Discord, Slack, WhatsApp,
+# Canari's own link preview - is not a crawler: it fetches the exact URL somebody pasted and never
+# reads this file. Sharing an album link is a supported action, so the card it produces is part of
+# the product. See docs/wiki/seo.md.
 
 User-agent: *
+Allow: /$
 Disallow: /

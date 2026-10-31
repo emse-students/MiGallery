@@ -3,7 +3,7 @@
   "lang_label": "Language",
   "lang_french": "Français",
   "lang_english": "English",
-  "app_meta_description": "MiGallery - EMSE students photo gallery",
+  "app_meta_description": "MiGallery, the photo library of the students of the École des Mines de Saint-Étienne, by MiTV. Members of the school only, through MiConnect.",
   "nav_albums": "Albums",
   "nav_my_photos": "My photos",
   "nav_photos_cv": "CV photos",
@@ -22,7 +22,7 @@
   "nav_op_body_cancelled": "If you leave now, these operations will be cancelled.",
   "nav_op_body_confirm": "Do you really want to leave?",
   "op_beforeunload": "Operations are in progress. Are you sure you want to leave?",
-  "home_page_title": "MiGallery - Home",
+  "home_page_title": "MiGallery - Mines Saint-Étienne photo library",
   "greeting_day": "Hello {name}!",
   "greeting_evening": "Good evening {name}!",
   "greeting_night_0": "Still up, {name}?",
@@ -30,6 +30,7 @@
   "greeting_night_2": "Still here at this hour, {name}?",
   "home_welcome_title": "Welcome to MiGallery",
   "home_welcome_sub": "Sign in to access your photos.",
+  "home_about": "The photo library of the students of the École des Mines de Saint-Étienne, by MiTV. Members of the school only, through MiConnect.",
   "home_signin": "Sign in",
   "home_finish_profile": "To get the most out of MiGallery, please finish setting up your profile.",
   "home_configure_profile": "Set up my profile",
@@ -57,7 +58,10 @@
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "{count} album", "countPlural=*": "{count} albums" }
+      "match": {
+        "countPlural=one": "{count} album",
+        "countPlural=*": "{count} albums"
+      }
     }
   ],
   "albums_visibility_private": "Visibility: private",
@@ -148,7 +152,10 @@
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "{count} photo", "countPlural=*": "{count} photos" }
+      "match": {
+        "countPlural=one": "{count} photo",
+        "countPlural=*": "{count} photos"
+      }
     }
   ],
   "albumd_add_photos": "Add photos",
@@ -255,14 +262,20 @@
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "{count} error", "countPlural=*": "{count} errors" }
+      "match": {
+        "countPlural=one": "{count} error",
+        "countPlural=*": "{count} errors"
+      }
     }
   ],
   "uz_duplicate_count": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "{count} duplicate", "countPlural=*": "{count} duplicates" }
+      "match": {
+        "countPlural=one": "{count} duplicate",
+        "countPlural=*": "{count} duplicates"
+      }
     }
   ],
   "uz_pending_count": "{count} pending",
@@ -295,9 +308,9 @@
   "param_face_title": "Face recognition",
   "param_account_title": "Account",
   "param_face_sub": "To enable the \"My photos\" feature",
-  "param_face_note_before": "This photo is only used to generate your biometric signature. It will be",
-  "param_face_note_strong": "automatically deleted within 24h",
-  "param_face_note_after": "after processing.",
+  "param_face_note_before": "This selfie is only used to find your face among the photos. Your browser",
+  "param_face_note_strong": "deletes it as soon as detection is done.",
+  "param_face_note_after": "Your agreement is recorded with the date and the terms version.",
   "param_face_ok": "Face set up successfully!",
   "param_face_multi": "Error: Multiple faces detected.",
   "param_share_title": "Sharing my photos",
@@ -310,7 +323,7 @@
   "param_shared_sub": "Access the photos of friends who authorized you",
   "param_no_shared": "No one has shared access to their photos with you yet.",
   "param_unlink_face": "Unlink my face",
-  "param_unlink_face_desc": "Removes your biometric signature. You will lose access to \"My photos\".",
+  "param_unlink_face_desc": "Undoes the link with your account and erases your name in Immich. You will lose access to \"My photos\".",
   "param_delete_account": "Delete my account",
   "param_delete_account_desc": "Permanently deletes your data, preferences and access.",
   "param_delete_account_title": "Delete your account",
@@ -318,6 +331,7 @@
   "param_type_confirm_placeholder": "Type CONFIRMATION",
   "param_unlink_confirm": "You will lose access to the \"My photos\" page. Your account stays active.",
   "face_already_assigned_msg": "This face has already been assigned to another account. If it is not yours, please contact bureau@mitv.fr",
+  "face_selfie_proof_msg": "Your face can only be linked from a selfie you have just taken, showing you alone. Please take a new selfie.",
   "param_face_taken_title": "Face already linked",
   "param_face_taken_body": "This face is already assigned to another account. Contact the MiTV office if this is a mistake.",
   "param_no_immich_link": "You are not linked to an Immich person.",
@@ -381,7 +395,10 @@
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "item in the trash", "countPlural=*": "items in the trash" }
+      "match": {
+        "countPlural=one": "item in the trash",
+        "countPlural=*": "items in the trash"
+      }
     }
   ],
   "trash_select": "Select",
@@ -482,6 +499,7 @@
   "mp_portrait_alt": "User portrait",
   "mp_viewing_badge": "Viewing allowed",
   "mp_loading": "Loading photos…",
+  "mp_person_unnamed": "Unnamed",
   "mp_incite_title": "Complete your profile",
   "mp_incite_body": "Add a profile photo to find every photo you appear in.",
   "mp_incite_cta": "Add my photo",
@@ -492,62 +510,77 @@
   "pcv_upload_title": "Add portraits",
   "pcv_upload_desc": "Photos will be added to the \"Photos CV\" system album",
   "pcv_loading_all": "Loading the database…",
-  "cgu_page_title": "Terms of Service - MiGallery",
-  "cgu_meta_desc": "MiGallery's Terms of Service and Privacy Policy, the photo gallery of the MiTV Association.",
-  "cgu_title": "Terms of Service",
-  "cgu_subtitle": "MiGallery - Photo gallery of the MiTV Association",
-  "cgu_last_update": "Last updated: {date}",
+  "cgu_page_title": "Terms of Use - MiGallery",
+  "cgu_meta_desc": "Terms of use and privacy policy of MiGallery, the photo library of the MiTV association: controller, legal bases, retention, rights.",
+  "cgu_title": "Terms of Use",
+  "cgu_subtitle": "MiGallery - the MiTV association photo library",
+  "cgu_last_update": "Version of {date}",
   "cgu_toc_definitions": "Definitions",
+  "cgu_toc_controller": "Controller",
   "cgu_toc_access": "Access & Hosting",
-  "cgu_toc_biometrics": "Biometrics",
-  "cgu_toc_data": "Data & Archiving",
+  "cgu_toc_biometrics": "Face recognition",
+  "cgu_toc_data": "Data & Retention",
+  "cgu_toc_rights": "Your rights",
+  "cgu_toc_age": "Minimum age",
   "cgu_toc_property": "Property",
-  "cgu_toc_liability": "Liability",
   "cgu_toc_contact": "Contact",
   "cgu_s1_title": "1. Definitions",
-  "cgu_s1_intro": "For a clear understanding of these terms:",
-  "cgu_s1_service": "<strong>The Service:</strong> Refers to the MiGallery application and its API.",
-  "cgu_s1_editor": "<strong>The Publisher:</strong> The MiTV student association.",
-  "cgu_s1_user": "<strong>The User:</strong> Any person holding an account linked to the École des Mines de Saint-Étienne (EMSE).",
-  "cgu_s1_immich": "<strong>Immich:</strong> The open-source software solution used as the \"backend\" for photo storage and analysis.",
-  "cgu_s2_title": "2. Access and Hosting",
-  "cgu_s2_auth_title": "Authentication",
-  "cgu_s2_auth_body": "Access is provided through the École des Mines single sign-on portal (OIDC / CAS). MiGallery neither processes nor stores any password.",
-  "cgu_s2_hosting_title": "Physical Hosting",
-  "cgu_s2_hosting_body": "Data is hosted on a private server managed by the MiTV association, physically located at the <strong>Maison des Élèves, 20 Boulevard Alexandre de Fraissinette, 42100 Saint-Étienne</strong>. No photo data is stored on public clouds.",
-  "cgu_s2_avail_title": "Availability",
-  "cgu_s2_avail_body": "The service is provided \"as is\". Interruptions for maintenance or network failure may occur.",
-  "cgu_s3_title": "3. Facial Recognition (Biometrics)",
-  "cgu_s3_intro": "MiGallery uses facial recognition technology to make photo sorting easier. This processing of <strong>biometric data</strong> relies strictly on your <strong>explicit consent</strong>.",
-  "cgu_s3_tech_title": "How it works",
-  "cgu_s3_init": "<strong>Initialization:</strong> The user voluntarily uploads a reference photo (selfie).",
-  "cgu_s3_verify": "<strong>Verification:</strong> The system checks the uniqueness of the face.",
-  "cgu_s3_process": "<strong>Processing:</strong> The photo is analyzed by the <em>buffalo_l</em> AI model (via Immich) to generate a biometric vector.",
-  "cgu_s3_delete": "<strong>Source deletion:</strong> The reference photo is <strong>automatically deleted within 24h</strong>. Only the encrypted biometric vector is kept.",
-  "cgu_s3_myphotos_title": "\"My Photos\" Feature and Sharing",
-  "cgu_s3_myphotos_body": "Enabling it grants access to the \"My Photos\" tab, visible by default only to you and administrators.",
-  "cgu_s3_spectator": "<strong>Viewer Mode:</strong> You may allow other users to see your identified photos. This is your responsibility and can be revoked at any time.",
-  "cgu_s3_revoke_title": "Revocation",
-  "cgu_s3_revoke_body": "You can withdraw your consent via <a href=\"/parametres\">Settings → Danger zone</a>. This triggers the <strong>immediate deletion</strong> of your biometric vector.",
-  "cgu_s4_title": "4. Personal Data and Archiving",
-  "cgu_s4_retention_title": "Retention",
-  "cgu_s4_retention_body": "MiGallery archives student life. Photos are kept for an <strong>indefinite duration</strong> for historical and heritage purposes.",
-  "cgu_s4_logs_title": "Logs",
-  "cgu_s4_logs_body": "Technical logs (IP, timestamp) are kept temporarily for security, without storing any password.",
-  "cgu_s4_rights_title": "Your rights",
-  "cgu_s4_right_access": "<strong>Right of access:</strong> View all photos associated with your profile.",
-  "cgu_s4_right_rectif": "<strong>Rectification/Deletion:</strong> Request the blurring or removal of a harmful photo by contacting <a href=\"mailto:bureau@mitv.fr\">bureau@mitv.fr</a>.",
-  "cgu_s4_right_forget": "<strong>Right to be forgotten:</strong> Deleting your account erases your preferences and biometric data.",
-  "cgu_s5_title": "5. Intellectual Property",
-  "cgu_s5_body1": "Only MiTV members can upload albums. The association retains the exploitation rights.",
-  "cgu_s5_body2": "It is forbidden to scrape the content, use it for commercial purposes, or deceive the facial recognition system.",
-  "cgu_contact_title": "Contact and Legal Notice",
-  "cgu_contact_editor_title": "Publisher",
-  "cgu_contact_editor_body": "MiTV Association (Mines TV)<br /> 20 Bd Alexandre de Fraissinette<br /> 42100 Saint-Étienne",
-  "cgu_contact_gdpr_title": "GDPR Contact",
+  "cgu_s1_intro": "For a proper understanding of these terms:",
+  "cgu_s1_service": "<strong>The Service:</strong> the MiGallery application and its API.",
+  "cgu_s1_editor": "<strong>The Publisher:</strong> the student association MiTV.",
+  "cgu_s1_user": "<strong>The User:</strong> anyone with a MiConnect account giving access to MiGallery, that is, a member of the École des Mines de Saint-Étienne (EMSE).",
+  "cgu_s1_miconnect": "<strong>MiConnect:</strong> the single sign-on service (OIDC) used to sign in to MiGallery and the association's other services.",
+  "cgu_s1_immich": "<strong>Immich:</strong> the open-source software that stores and analyses the photos, installed on the MiGallery server.",
+  "cgu_s2_title": "2. Data controller",
+  "cgu_s2_body": "The data controller is the association <strong>MiTV (Mines TV)</strong>, Maison des Élèves, 20 Boulevard Alexandre de Fraissinette, 42100 Saint-Étienne, France. For any question or request: <a href=\"mailto:bureau@mitv.fr\">bureau@mitv.fr</a>.",
+  "cgu_s3_title": "3. Access and hosting",
+  "cgu_s3_auth_title": "Authentication",
+  "cgu_s3_auth_body": "You sign in through MiConnect. MiGallery never sees a password: it receives from MiConnect an identifier, your last name, first name, class year and programme.",
+  "cgu_s3_hosting_title": "Hosting and processors",
+  "cgu_s3_hosting_body": "The photos and the database are on a server of the MiTV association; no photo is stored with a cloud provider. Three technical parties are worth knowing: <strong>MiConnect</strong>, the sign-in service, which is separate from MiGallery and whose hosting is covered by its own terms; <strong>Cloudflare</strong>, through which connections to the site pass (it relays the traffic, so it sees IP addresses and the exchanges while they transit; we entrust it with no storage); and the <strong>Canari project's server</strong>, on the same local network, which receives the backup copies (see retention).",
+  "cgu_s3_recipients_title": "Who sees what",
+  "cgu_s3_recipients_body": "Your profile photo may be shown in other services of the association and the School (Canari, Sky, MinoWiki, Archives des Mines). <strong>API keys</strong> (machine credentials issued by an administrator) read face-linked photo sets, as administrators do. An <strong>unlisted album</strong> is open to anyone who has its link, and <strong>album cover images</strong> are public, private albums included. No data is sold or used for advertising.",
+  "cgu_s3_avail_title": "Availability",
+  "cgu_s3_avail_body": "The Service is provided \"as is\". Interruptions for maintenance or outages may occur.",
+  "cgu_s4_title": "4. Face recognition",
+  "cgu_s4_intro": "Face recognition processes <strong>biometric data</strong>, a special category of data. Its legal basis is your <strong>explicit consent</strong> (GDPR article 9.2.a): you are free to refuse or withdraw it, and the rest of the Service keeps working.",
+  "cgu_s4_tech_title": "What happens, precisely",
+  "cgu_s4_cluster": "<strong>For every photo, with no action on your part:</strong> Immich detects the faces in each photo of the library (<em>buffalo_l</em> model) and groups them into anonymous, unnamed groups. These groups stay inside Immich, are never shown to users and are linked to no account unless the person agreed. This processing concerns anyone appearing in a photo, member or not: to object, write to us (see Your rights).",
+  "cgu_s4_init": "<strong>Your agreement:</strong> usually you link a group to your account by uploading a selfie yourself, and MiGallery records the date, the version of these terms and how you agreed (<em>selfie</em>). An administrator can also create or correct a link (the origin is then <em>administrator</em>); links made before this record existed were collected by another means and are marked <em>legacy</em>.",
+  "cgu_s4_selfie": "<strong>The selfie:</strong> your browser deletes it as soon as detection is done. If you close the tab midway it may stay in Immich: write to us and we delete it.",
+  "cgu_s4_myphotos_title": "My Photos and sharing",
+  "cgu_s4_myphotos_body": "The link opens the \"My Photos\" tab, visible to you, to the library administrators and to the people you open it to.",
+  "cgu_s4_spectator": "<strong>Spectator mode:</strong> you may allow other users to see your identified photos. This is your choice and can be revoked at any time.",
+  "cgu_s4_revoke_title": "Withdrawing your consent",
+  "cgu_s4_revoke_body": "You can withdraw in <a href=\"/parametres\">Settings → Danger zone</a>, or by deleting your account. Immediately, MiGallery undoes the link with your account, removes the sharing permissions you had given and your profile photo, and erases your name in Immich. <strong>The anonymous face group stays in Immich</strong>, unnamed and linked to nobody; it is deleted on request if you write to us, like your photos. Backups keep the previous state until they rotate out (see below).",
+  "cgu_s5_title": "5. Data, legal bases and retention",
+  "cgu_s5_items_title": "Which data, what for, on what basis",
+  "cgu_s5_item_account": "<strong>Account</strong> (identifier, last name, first name, class year, programme, role, language, favourites): to recognise you and manage access. Basis: performance of the service you request.",
+  "cgu_s5_item_photos": "<strong>Student-life photos:</strong> to archive them and show them to members. Basis: the association's legitimate interest in keeping the memory of life at the School; you may object, or ask for a photo to be blurred or deleted (see Your rights).",
+  "cgu_s5_item_face": "<strong>Link with your face</strong> (face group linked to your account, profile photo, consent record): the \"My Photos\" feature. Basis: your explicit consent.",
+  "cgu_s5_item_logs": "<strong>Technical logs</strong> (action, date, IP address): security and traceability of administration actions. Basis: the legitimate interest in protecting the Service.",
+  "cgu_s5_retention_title": "Retention",
+  "cgu_s5_retention_photos": "<strong>Photos:</strong> without time limit, for historical and heritage purposes, unless an erasure request removes them.",
+  "cgu_s5_retention_account": "<strong>Account, favourites, face link, consent record:</strong> as long as your account exists, deleted with it. A withdrawal keeps the record of the withdrawal (date, version) until the account is deleted.",
+  "cgu_s5_retention_logs": "<strong>Logs:</strong> 90 days at most. When an account is deleted, its identifier is removed from the logs we keep, along with the IP address of the actions it performed.",
+  "cgu_s5_backups_title": "Backups: an erasure does not reach them at once",
+  "cgu_s5_backups_body": "A deletion or a withdrawal of consent stays visible in backups until they rotate out: the last 10 daily copies on the server, the MiGallery database copies on the Canari project's server (about 14 days) and the Immich database copies (about 7 days, plus Immich's own local backups, whose duration is an Immich setting). These copies are not consulted day to day and only serve to restore the service.",
+  "cgu_s6_title": "6. Your rights",
+  "cgu_s6_intro": "You may ask for access to your data, its rectification, erasure, restriction of processing and portability, withdraw your consent at any time, and object to processing based on legitimate interest (photos, logs).",
+  "cgu_s6_how": "Write to <a href=\"mailto:bureau@mitv.fr\">bureau@mitv.fr</a>: we reply within one month. Withdrawing consent to face recognition and deleting your account can also be done yourself in the <a href=\"/parametres\">settings</a>.",
+  "cgu_s6_cnil": "If you believe your rights are not respected, you may lodge a complaint with the CNIL (<a href=\"https://www.cnil.fr\" target=\"_blank\" rel=\"noopener\">cnil.fr</a>).",
+  "cgu_s7_title": "7. Minimum age",
+  "cgu_s7_body": "The Service is reserved for members of the School. In France a minor may consent alone to the processing of their data from the age of <strong>15</strong>; below that, the agreement of a holder of parental authority is required, which MiGallery cannot collect. Do not enable face recognition if you are under 15.",
+  "cgu_s8_title": "8. Intellectual property",
+  "cgu_s8_body1": "Only MiTV members may upload albums. The association keeps the exploitation rights.",
+  "cgu_s8_body2": "Scraping the content, using it commercially, or tricking the face recognition system is forbidden.",
+  "cgu_contact_title": "Contact and legal notice",
+  "cgu_contact_editor_title": "Publisher and data controller",
+  "cgu_contact_editor_body": "Association MiTV (Mines TV)<br /> Maison des Élèves<br /> 20 Bd Alexandre de Fraissinette<br /> 42100 Saint-Étienne",
+  "cgu_contact_gdpr_title": "GDPR contact",
   "cgu_contact_gdpr_body": "For any request:<br /> <a href=\"mailto:bureau@mitv.fr\" class=\"mail-link\">bureau@mitv.fr</a>",
   "cgu_credits": "Developed by <a href=\"https://github.com/DeMASKe\" target=\"_blank\" rel=\"noopener\">Jolan BOUDIN</a> and <a href=\"https://github.com/gd-pnjj\" target=\"_blank\" rel=\"noopener\">Gabriel DUPONT</a>.",
-  "cgu_tech_stack": "Powered by Immich • Hosted at the ME",
+  "cgu_tech_stack": "Powered by Immich",
   "common_refresh": "Refresh",
   "common_fail_detail": "Failed: {error}",
   "adm_page_title": "Admin - MiGallery",
@@ -610,7 +643,10 @@
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "{count} user", "countPlural=*": "{count} users" }
+      "match": {
+        "countPlural=one": "{count} user",
+        "countPlural=*": "{count} users"
+      }
     }
   ],
   "usr_search_ph": "Search (name, promo, program, role)…",
@@ -842,7 +878,10 @@
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
-      "match": { "countPlural=one": "{count} photo", "countPlural=*": "{count} photos" }
+      "match": {
+        "countPlural=one": "{count} photo",
+        "countPlural=*": "{count} photos"
+      }
     }
   ],
   "pg_select_day": "Select this day's photos: {day}",

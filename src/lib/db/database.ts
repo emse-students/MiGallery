@@ -1,7 +1,8 @@
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { createRequire } from 'module';
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
+import { backfillLegacyConsents } from '#lib/server/face-consent.ts';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
 const log = createLogger('db');
@@ -198,6 +199,41 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
     if (!cols.includes('photos_asset_id')) {
       dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_asset_id TEXT').run();
     }
+    // One spelling of an Immich person id, lowercase (face-access.ts normalisePersonId): SQLite's
+    // `=` is case-sensitive, Immich is not, so a second spelling would be a second owner.
+    const respelled = dbInstance
+      .prepare(
+        'UPDATE users SET photos_id = lower(photos_id) WHERE photos_id IS NOT NULL AND photos_id != lower(photos_id)'
+      )
+      .run().changes;
+    if (respelled > 0) {
+      log.info('person ids normalised to lowercase', { rows: respelled });
+    }
+    // One person, one member - now that there is one spelling, the database says so itself, which
+    // also closes the read-then-write race of two links at once. A pre-existing duplicate is NOT
+    // resolved here (which member it belongs to is a human's call): it is reported, by person
+    // id, and the index waits until it is gone.
+    try {
+      const duplicates = dbInstance
+        .prepare(
+          'SELECT photos_id, COUNT(*) AS n FROM users WHERE photos_id IS NOT NULL GROUP BY photos_id HAVING n > 1'
+        )
+        .all() as Array<{ photos_id: string; n: number }>;
+      if (duplicates.length > 0) {
+        log.error('a person is linked to several members; the unique index is NOT created', {
+          persons: duplicates.map((d) => d.photos_id),
+        });
+      } else {
+        dbInstance.exec(
+          'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_photos_id_unique ON users(photos_id) WHERE photos_id IS NOT NULL'
+        );
+      }
+    } catch (e) {
+      log.error('unique index on users.photos_id failed', (e as Error).message);
+    }
+    // Links that predate the consent table were consented to by another means (owner decision
+    // 2026-10-16): one `legacy` row each, the owner keeps the proof.
+    backfillLegacyConsents(dbInstance as never);
     try {
       const acols = dbInstance
         .prepare('PRAGMA table_info(albums)')
@@ -346,8 +382,17 @@ export function getDatabase(): DatabaseInstance {
 
     try {
       dbInstance.exec('PRAGMA foreign_keys = ON');
-    } catch {
-      void 0;
+    } catch (e) {
+      // The cascade that erases face_references (sealed templates) on an account deletion depends on it.
+      log.error('foreign_keys could not be enabled; cascades will NOT run', (e as Error).message);
+    }
+
+    // Deleted pages are overwritten with zeros: a withdrawn member's face data must not linger
+    // in the file's free pages (face_references, face_embeddings; docs/wiki/face-store.md).
+    try {
+      dbInstance.exec('PRAGMA secure_delete = ON');
+    } catch (e) {
+      log.error('secure_delete could not be enabled', (e as Error).message);
     }
 
     ensureSchema(dbInstance);

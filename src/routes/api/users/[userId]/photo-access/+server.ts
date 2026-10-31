@@ -1,9 +1,10 @@
 import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireSession } from '$lib/server/permissions';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireSession } from '#lib/server/permissions.ts';
+import { faceAccessReason } from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-userId-photo-access');
 interface UserInfo {
@@ -17,12 +18,14 @@ interface UserInfo {
 
 /**
  * GET /api/users/[userId]/photo-access
- * Checks if the logged-in user has access to the specified user's photos
+ * Whether the logged-in user may view the specified user's face-linked photos. The answer comes
+ * from `faceAccessReason` (face-access.ts), the same rule every photo route enforces, so what this
+ * says and what those routes serve cannot disagree.
  *
  * Returns:
- * - hasAccess: boolean (true if admin, or if the user granted permission)
- * - reason: string (explanation of the access)
- * - user: { id_user, name, first_name, last_name, photos_id } si hasAccess est true
+ * - hasAccess: boolean
+ * - reason: 'own_photos' | 'admin' | 'granted' | 'not_authorized'
+ * - user: { id_user, name, first_name, last_name, photos_id, photos_asset_id } when hasAccess
  */
 export const GET: RequestHandler = async (event) => {
   const user = await requireSession(event);
@@ -33,55 +36,18 @@ export const GET: RequestHandler = async (event) => {
   }
 
   try {
-    const db = getDatabase();
-
-    const getTargetUser = (): UserInfo | null => {
-      return db
-        .prepare(
-          'SELECT id_user, name, first_name, last_name, photos_id, photos_asset_id FROM users WHERE id_user = ?'
-        )
-        .get(targetUserId) as UserInfo | null;
-    };
-
-    if (targetUserId === user.id_user) {
-      const targetUser = getTargetUser();
-      return json({
-        success: true,
-        hasAccess: true,
-        reason: 'own_photos',
-        user: targetUser,
-      });
+    const reason = faceAccessReason(user, targetUserId);
+    if (!reason) {
+      return json({ success: true, hasAccess: false, reason: 'not_authorized' });
     }
 
-    if (user.role === 'admin') {
-      const targetUser = getTargetUser();
-      return json({
-        success: true,
-        hasAccess: true,
-        reason: 'admin',
-        user: targetUser,
-      });
-    }
+    const targetUser = getDatabase()
+      .prepare(
+        'SELECT id_user, name, first_name, last_name, photos_id, photos_asset_id FROM users WHERE id_user = ?'
+      )
+      .get(targetUserId) as UserInfo | null;
 
-    const permission = db
-      .prepare('SELECT 1 FROM photo_access_permissions WHERE owner_id = ? AND authorized_id = ?')
-      .get(targetUserId, user.id_user);
-
-    if (permission) {
-      const targetUser = getTargetUser();
-      return json({
-        success: true,
-        hasAccess: true,
-        reason: 'granted',
-        user: targetUser,
-      });
-    }
-
-    return json({
-      success: true,
-      hasAccess: false,
-      reason: 'not_authorized',
-    });
+    return json({ success: true, hasAccess: true, reason, user: targetUser });
   } catch (e) {
     if (isHttpError(e)) {
       throw e;

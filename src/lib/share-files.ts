@@ -5,9 +5,9 @@
  * selection Share (`PhotosGrid.svelte`) - see `docs/wiki/viewer.md`. Browser-only: every
  * function here touches `navigator` or `fetch` and is called from an event handler or `onMount`.
  */
-import type { Asset } from '$lib/photos.svelte';
-import { toast } from '$lib/toast';
-import { m } from '$lib/paraglide/messages';
+import type { Asset } from '#lib/photos.svelte.ts';
+import { toast } from '#lib/toast.ts';
+import { m } from '#lib/paraglide/messages.js';
 
 /** Where the originals come from: an unlisted album's visitor goes through the album's route. */
 export interface OriginalSource {

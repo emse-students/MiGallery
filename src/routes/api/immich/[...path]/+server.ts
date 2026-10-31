@@ -1,11 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
-import { logEvent } from '$lib/server/logs';
-import { createLogger } from '$lib/server/logger';
-import { env } from '$env/dynamic/private';
-import { requireScope } from '$lib/server/permissions';
-import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
-import { getDatabase } from '$lib/db/database';
+import { ensureError } from '#lib/ts-utils.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { env } from '#lib/server/env.ts';
+import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
+import { assertProxiedFaceAccess, classifyProxiedBody } from '#lib/server/face-access.ts';
+import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
+import { getDatabase } from '#lib/db/database.ts';
 
 const log = createLogger('immich-proxy');
 
@@ -20,7 +21,7 @@ const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
-import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '$lib/server/outbound';
+import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 /**
  * Cleans a header value to ensure it contains only Latin-1 characters.
@@ -602,6 +603,9 @@ const handle: RequestHandler = async function (event) {
   const request = event.request;
   const pathParam = (event.params.path as string) || '';
   const search = event.url.search || '';
+  // The caller, once authenticated. It stays null only for the two keyless ways in: the server's
+  // own internal key and a public (unlisted) asset - neither of which reaches a face-linked path.
+  let auth: AuthResult | null = null;
 
   if (['GET', 'HEAD'].includes(request.method)) {
     const internalKey = request.headers.get('x-internal-immich-key') || undefined;
@@ -609,7 +613,7 @@ const handle: RequestHandler = async function (event) {
       void 0;
     } else {
       try {
-        await requireScope(event, 'read');
+        auth = await requireScope(event, 'read');
       } catch (err) {
         const assetMatch = pathParam.match(
           /^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
@@ -652,7 +656,7 @@ const handle: RequestHandler = async function (event) {
 
   if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
     try {
-      await requireScope(event, 'write');
+      auth = await requireScope(event, 'write');
     } catch (err) {
       const isDownload =
         pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
@@ -688,17 +692,55 @@ const handle: RequestHandler = async function (event) {
     }
   }
 
-  let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
-  if (base && !/^https?:\/\//i.test(base)) {
-    base = `http://${base}`;
-  }
-
   // Prevent path traversal
   if (pathParam.includes('..') || pathParam.includes('\0')) {
     return new Response(JSON.stringify({ error: 'Invalid path' }), {
       status: 400,
       headers: { 'content-type': 'application/json' },
     });
+  }
+
+  // Face-linked paths (people, faces, a search naming a person) obey the same consent rule as the
+  // dedicated /api/people routes. A JSON body is judged and then forwarded AS JUDGED - the text
+  // read here, re-labelled `application/json` - so Immich can never parse a body (another case of
+  // content type, another charset) that differs from the one this check saw.
+  let judgedJsonBody: string | undefined;
+  if (auth) {
+    const kind = classifyProxiedBody(
+      request.method,
+      pathParam,
+      request.headers.get('content-type'),
+      request.headers.has('x-chunk-index') && request.headers.has('x-file-id')
+    );
+    if (kind === 'refused') {
+      log.warn('proxied body of a type the proxy cannot judge refused', {
+        path: pathParam,
+        contentType: request.headers.get('content-type'),
+      });
+      return new Response(JSON.stringify({ error: 'Unsupported body type' }), {
+        status: 415,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    let jsonBody: unknown = null;
+    if (kind === 'json') {
+      judgedJsonBody = await request.text();
+      try {
+        jsonBody = judgedJsonBody ? JSON.parse(judgedJsonBody) : null;
+      } catch {
+        log.warn('proxied JSON body that does not parse refused', { path: pathParam });
+        return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+    }
+    assertProxiedFaceAccess(auth, request.method, pathParam, event.url.searchParams, jsonBody);
+  }
+
+  let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
+  if (base && !/^https?:\/\//i.test(base)) {
+    base = `http://${base}`;
   }
 
   const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
@@ -775,7 +817,11 @@ const handle: RequestHandler = async function (event) {
   const contentType = request.headers.get('content-type');
 
   let bodyToForward: BodyInit | undefined = undefined;
-  if (!['GET', 'HEAD'].includes(request.method)) {
+  if (judgedJsonBody !== undefined) {
+    // Already read and judged above: forward exactly that text.
+    outgoingHeaders['content-type'] = 'application/json';
+    bodyToForward = judgedJsonBody;
+  } else if (!['GET', 'HEAD'].includes(request.method)) {
     try {
       if (contentType) {
         outgoingHeaders['content-type'] = contentType;
@@ -1098,7 +1144,13 @@ async function finishImmichUpload(
             }
           }
           if (assetId) {
-            await logEvent(event, 'import', 'asset', assetId, { originalName, proxied: true });
+            // `duplicate` is read by selfieProves (face-access.ts): a re-upload of a known file
+            // proves nothing about who is in it.
+            await logEvent(event, 'import', 'asset', assetId, {
+              originalName,
+              proxied: true,
+              duplicate: respData.status === 'duplicate',
+            });
           }
         } catch (e) {
           log.warn('failed to log upload', e);

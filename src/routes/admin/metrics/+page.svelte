@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { RefreshCw, Activity, Cpu } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import AdminPage from '$lib/components/AdminPage.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import AdminPage from '#lib/components/AdminPage.svelte';
 
   interface Metrics {
     timestamp: number;

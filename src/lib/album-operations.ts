@@ -1,8 +1,8 @@
-import { activeOperations } from '$lib/operations';
-import { toast } from '$lib/toast';
-import { m } from '$lib/paraglide/messages';
-import type { PhotosState } from '$lib/photos.svelte';
-import { buildImmichUploadFormData } from '$lib/immich/upload';
+import { activeOperations } from '#lib/operations.ts';
+import { toast } from '#lib/toast.ts';
+import { m } from '#lib/paraglide/messages.js';
+import type { PhotosState } from '#lib/photos.svelte.ts';
+import { buildImmichUploadFormData } from '#lib/immich/upload.ts';
 
 const CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
 const SIMPLE_UPLOAD_THRESHOLD = 1024 * 1024 * 10; // 10MB

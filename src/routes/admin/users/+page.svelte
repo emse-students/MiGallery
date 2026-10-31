@@ -13,18 +13,18 @@
     Check,
   } from '@lucide/svelte';
   import { fade, fly } from 'svelte/transition';
-  import { invalidateAll } from '$app/navigation';
-  import Avatar from '$lib/components/Avatar.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
-  import Modal from '$lib/components/Modal.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { fuzzySearch } from '$lib/fuzzy';
-  import { toast } from '$lib/toast';
-  import { uploadFileChunked } from '$lib/album-operations';
+  import { refreshAll } from '$app/navigation';
+  import Avatar from '#lib/components/Avatar.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
+  import Modal from '#lib/components/Modal.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { fuzzySearch } from '#lib/fuzzy.ts';
+  import { toast } from '#lib/toast.ts';
+  import { uploadFileChunked } from '#lib/album-operations.ts';
   import jsPDF from 'jspdf';
-  import { m } from '$lib/paraglide/messages';
+  import { m } from '#lib/paraglide/messages.js';
   import type { PageData } from './$types';
-  import type { UserRow } from '$lib/types/api';
+  import type { UserRow } from '#lib/types/api.ts';
 
   let { data } = $props<{ data: PageData }>();
 
@@ -355,7 +355,7 @@
 
       if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
 
-      await invalidateAll();
+      await refreshAll();
       showPhotoModal = false;
       photoTarget = null;
       uploadPhotoFile = null;
@@ -388,7 +388,7 @@
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       toast.success(m.usr_role_updated({ name: user.name }));
-      await invalidateAll();
+      await refreshAll();
     } catch (e) {
       toast.error(m.common_fail_detail({ error: (e as Error).message }));
     } finally {
@@ -414,7 +414,7 @@
         throw new Error(err.error || `HTTP ${res.status}`);
       }
       toast.success(m.usr_deleted({ name: user.name }));
-      await invalidateAll();
+      await refreshAll();
     } catch (e) {
       toast.error(m.common_fail_detail({ error: (e as Error).message }));
     } finally {

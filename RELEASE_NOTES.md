@@ -1,3 +1,44 @@
+# MiGallery v2.17.0
+
+**Date**: October 25, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+SvelteKit 3 on `@sveltejs/adapter-bun`, which clears the last advisories (`bun audit` ends at zero), and the first tables of the sealed face store.
+
+## Changes
+
+- Deps: SvelteKit 3.1 replaces 2.x and `@sveltejs/adapter-bun` replaces adapter-node; the build is `bun --bun vite build` and the server still runs as `bun build/index.js` (#406).
+- Contract: every `POST`/`PUT`/`PATCH`/`DELETE` an API-key client makes MUST carry a `Content-Type` (`application/json` is enough, also on a body-less call). Kit 3 answers `403 Cross-site DELETE form submissions are forbidden` to a mutation with neither an `Origin` nor a `Content-Type`, before any route runs, and offers no per-route opt-out. This binds `DELETE /api/external/media/[id]`, `DELETE /api/admin/api-keys/[id]` and `DELETE /api/albums/[id]`. Sky, Portail-etu, Le Cercle and Canari only `GET`.
+- Deploy: the public origin is no longer configured (`ORIGIN` is gone): it comes from the `Host` header with https assumed, so the proxy or tunnel must forward `gallery.mitv.fr` unchanged. The OIDC `redirect_uri` and canonical URLs follow it.
+- Deploy: `docker stop` now exits 0 within seconds (SIGTERM stops the timers and waits for a face erasure) instead of being killed after 10 s; the compose file sets `stop_grace_period: 45s`.
+- Config: the server reads only the variables declared in `src/env.ts` (Immich, MiConnect, avatar signing key).
+- New: the sealed face store tables, reference vectors, erasure and link (A1, #404); `FACE_STORE_KEY` has no reader yet.
+- Fixed: the sign-in redirect to the identity provider is allow-listed to the issuer's origin, as kit 3 requires.
+- Fixed: a callback whose code the identity provider refuses (forged, expired, replayed) answers `401` instead of `500`.
+
+# MiGallery v2.16.0
+
+**Date**: October 18, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+Privacy and access fixes across albums, faces and logs, revocable signed avatar links, and one request to learn which users have a photo.
+
+## Changes
+
+- New: `GET /api/users/avatar-presence?ids=a,b` answers which of up to 100 users have a photo in one request, so Canari no longer collects one 404 per face (#387).
+- New: each user has a salt behind their signed avatar links, so those links can be revoked; deleting an account rotates it, and a signed link is refused while impersonating (#394).
+- Security: an unlisted album serves only its own photos, and its visibility is never read from the request (#388).
+- Fixed: an empty album listing is no longer cached, and visibility is compared case-insensitively (#389).
+- Privacy: the face-photo consent rule is enforced on the server (#390).
+- Privacy: withdrawing a face or deleting an account erases the face data (#392).
+- Privacy: the audit log is kept 90 days, and the client address is taken from one trusted source (#393).
+- Terms: the CGU name the controller, the legal bases, the retention periods and what erasure leaves (#395).
+- Deploy: the image name comes from the repository and the health is read from the container (#386); the container port is bound to loopback (#396).
+
 # MiGallery v2.15.6
 
 **Date**: September 30, 2026

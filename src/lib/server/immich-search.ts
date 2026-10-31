@@ -1,8 +1,8 @@
 import { error, isHttpError } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import type { ImmichAsset } from '$lib/types/api';
+import { env } from '#lib/server/env.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import type { ImmichAsset } from '#lib/types/api.ts';
 
 const log = createLogger('immich-search');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

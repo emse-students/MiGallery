@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types';
 
 import { json, error } from '@sveltejs/kit';
-import { getPersonAssets } from '$lib/photos-cv/handlers';
-import { requireScope } from '$lib/server/permissions';
+import { getPersonAssets } from '#lib/photos-cv/handlers.ts';
+import { requirePersonAccess } from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people-person-id-album-photos');
 export const GET: RequestHandler = async (event) => {
@@ -13,7 +13,7 @@ export const GET: RequestHandler = async (event) => {
     throw error(400, 'personId is required');
   }
 
-  await requireScope(event, 'read');
+  await requirePersonAccess(event, personId);
 
   try {
     const assets = await getPersonAssets(personId, true, event.fetch);
