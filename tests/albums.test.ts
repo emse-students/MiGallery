@@ -166,7 +166,7 @@ describe('Albums API - POST /api/albums', () => {
       body: JSON.stringify(newAlbum),
     });
 
-    expect([200, 201, 401, 500]).toContain(response.status);
+    expect([200, 201, 401, 503]).toContain(response.status);
 
     if (response.status === 200 || response.status === 201) {
       const album = (await response.json()) as ImmichAlbum;
@@ -211,7 +211,7 @@ describe('Albums API - GET /api/albums/[id]', () => {
       headers: getAuthHeaders(),
     });
 
-    expect([400, 404, 500]).toContain(response.status);
+    expect([400, 404, 503]).toContain(response.status);
   });
 });
 

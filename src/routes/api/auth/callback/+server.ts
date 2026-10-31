@@ -17,19 +17,19 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
   const state = url.searchParams.get('state');
 
   if (!code) {
-    log.error('Missing authorization code');
+    log.warn('GET /api/auth/callback: refused 400, missing authorization code');
     throw error(400, 'Missing authorization code');
   }
 
   if (!state) {
-    log.error('Missing state parameter');
+    log.warn('GET /api/auth/callback: refused 400, missing state parameter');
     throw error(400, 'Missing state parameter');
   }
 
   // Validate state
   const storedState = cookies.get('__oidc_state');
   if (state !== storedState) {
-    log.error('State mismatch');
+    log.warn('GET /api/auth/callback: refused 400, state mismatch');
     cookies.delete(RETURN_COOKIE_NAME, { path: '/' });
     throw error(400, 'State validation failed');
   }
@@ -49,7 +49,9 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
   // signed in, which is a 401 and not a server fault. Thrown OUTSIDE the try: it was caught by it
   // and answered 500 on every bad code.
   if (!result) {
-    log.error('OIDC flow failed');
+    // The CAUSE is logged by the OIDC seam at its own level (a refused code is the client's, an
+    // unreachable provider the server's); this line is the answer, and a 401 is the client's.
+    log.warn('GET /api/auth/callback: refused 401, the sign-in did not complete');
     throw error(401, 'Authentication failed');
   }
 

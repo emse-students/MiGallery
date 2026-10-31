@@ -13,6 +13,7 @@ import { requireScope } from '#lib/server/permissions.ts';
 import { assertPhotoCvManager, requirePhotoCvManager } from '#lib/server/face-access.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 
 const log = createLogger('people');
 /**
@@ -52,6 +53,9 @@ export const GET: RequestHandler = async (event) => {
   } catch (e: unknown) {
     if (isHttpError(e)) {
       throw e;
+    }
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
     }
     const err = ensureError(e);
     log.error('Error in /api/people GET:', err);
@@ -106,6 +110,9 @@ export const POST: RequestHandler = async (event) => {
   } catch (e: unknown) {
     if (isHttpError(e)) {
       throw e;
+    }
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
     }
     const err = ensureError(e);
     log.error('Error in /api/people POST:', err);

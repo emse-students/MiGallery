@@ -163,7 +163,13 @@ async function exchangeCodeForTokens(code: string, redirectUri: string): Promise
 
     if (!response.ok) {
       const errText = await response.text();
-      log.error('token exchange failed', { status: response.status, body: errText });
+      // The provider REFUSED the code (4xx: forged, expired, replayed - the client's) or failed
+      // itself (5xx - a fault worth an error).
+      const refused = response.status < 500;
+      (refused ? log.warn : log.error)('token exchange failed', {
+        status: response.status,
+        body: errText,
+      });
       return null;
     }
 
@@ -375,7 +381,7 @@ export async function completeOIDCFlow(
   // Step 1: Exchange code for tokens
   const tokens = await exchangeCodeForTokens(code, redirectUri);
   if (!tokens) {
-    log.error('OIDC flow failed at token exchange');
+    // Its cause is already logged by exchangeCodeForTokens, at the level the cause deserves.
     return null;
   }
 

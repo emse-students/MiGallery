@@ -222,6 +222,19 @@ describe('POST /api/users/me/face/matches', () => {
     expect((await answer({ face_index: 0, verdict: 'reject' })).status).toBe(400);
   });
 
+  it('refuses a body that is not JSON, and an enrolment that is not a form, as 400', async () => {
+    const notJson = await call(matchRoute.POST, {
+      request: new Request('http://x.test/', { method: 'POST', body: '{' }),
+    });
+    expect(notJson.status).toBe(400);
+    const notForm = await call(enrolRoute.POST, {
+      request: new Request('http://x.test/', { method: 'POST', body: '{' }),
+      fetch: modelFetch,
+    });
+    expect(notForm.status).toBe(400);
+    expect(references()).toBe(0);
+  });
+
   it('is 404 on a face the member does not hold', async () => {
     expect((await answer({ asset_id: 'a', face_index: 0, verdict: 'confirm' })).status).toBe(404);
   });

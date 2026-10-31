@@ -88,7 +88,7 @@
     </div>
 
     <div class="table-body">
-      {#each logs as log (log.timestamp)}
+      {#each logs as log (log.id)}
         <div class="table-row">
           <div class="cell col-date">{new Date(log.timestamp).toLocaleString()}</div>
           <div class="cell col-actor">
