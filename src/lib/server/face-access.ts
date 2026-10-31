@@ -26,6 +26,7 @@ import { createLogger } from '#lib/server/logger.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
 import { env } from '#lib/server/env.ts';
 import { canonicalProxiedPath } from '#lib/server/immich-proxy-allowlist.ts';
+import { uploadOf } from '#lib/server/asset-uploads.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('face-access');
@@ -249,18 +250,12 @@ export async function selfieProves(
   if (typeof assetId !== 'string' || !/^[0-9a-f-]{36}$/i.test(assetId)) {
     return { ok: false, reason: 'no selfie asset' };
   }
-  // The caller must have uploaded it THEMSELVES, as a new file: every upload reaches Immich with
-  // the one shared key, so only the proxy's own audit row (`import`, written by
-  // finishImmichUpload with the uploader as actor) ties an asset to a member.
-  const uploaded = getDatabase()
-    .prepare(
-      "SELECT details FROM logs WHERE event_type = 'import' AND target_type = 'asset' AND target_id = ? AND actor = ? ORDER BY id DESC"
-    )
-    .get(assetId, callerId) as { details: string | null } | null;
+  // The caller must have uploaded it THEMSELVES, as a new file (asset-uploads.ts).
+  const uploaded = uploadOf(assetId, callerId);
   if (!uploaded) {
     return { ok: false, reason: 'selfie not uploaded by the caller' };
   }
-  if (uploaded.details && (JSON.parse(uploaded.details) as { duplicate?: boolean }).duplicate) {
+  if (uploaded.duplicate) {
     return { ok: false, reason: 'selfie is a duplicate of an existing asset' };
   }
   const base = env.IMMICH_BASE_URL?.replace(/\/$/, '');

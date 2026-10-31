@@ -31,6 +31,27 @@ refused), and ids must be Immich UUIDs. The admin trash routes (`timeline/*`,
 `trash/restore/assets`) also require the admin scope. The consent rule on the person routes
 (`assertProxiedFaceAccess`) still applies on top.
 
+**One path for every decision.** The decoded path is canonicalised ONCE
+(`canonicalProxiedPath`): `.` and `%2e` segments resolved as the URL parser resolves them, case
+folded, slashes collapsed; a path that keeps a `%` after that (a second level of encoding), carries
+its own `?` or `#`, or resolves outside `/api/` is refused (400). That one string is what the
+public-asset exception, the list, the face rule, the body rule, the audit log and the URL sent to
+Immich all read.
+
+**The public exception** serves an anonymous read of exactly
+`assets/<id>/(thumbnail|original|video/playback)` of an asset in an unlisted album, nothing longer.
+
+**Deleting assets** (`DELETE assets`) is allowed to an admin or mitviste session and to an admin
+API key; a member may delete only assets they uploaded themselves as new files (the proxy's own
+`import` audit row, `src/lib/server/asset-uploads.ts`; a duplicate upload does not count).
+
+**Search** (`POST search/metadata`) takes only the profile photo picker's body: `personIds`
+(required, then held to the consent rule), `type`, `page`, `size`.
+
+**An asset's detail** reaches a member without its `people` and `unassignedFaces`; an admin
+session and an API key see them. The settings page's selfie flow reads the people of the member's
+own new upload through `GET /api/users/me/face/selfie/[assetId]` instead (ids only).
+
 A page that needs another Immich route adds it to the list, with the page that uses it and a case
 in `tests/immich-proxy-allowlist.test.ts`; anything MiGallery has to join with its own state
 belongs in a dedicated route instead.

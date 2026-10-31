@@ -5,13 +5,20 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { canonicalProxiedPath, findProxyRule } from '../src/lib/server/immich-proxy-allowlist.ts';
+import {
+  canonicalProxiedPath,
+  findProxyRule,
+  publicAssetId,
+} from '../src/lib/server/immich-proxy-allowlist.ts';
 import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
 
 const ID = '0b1c2d3e-4f50-4617-8899-aabbccddeeff';
 const q = (s = '') => new URLSearchParams(s);
-const allowed = (method: string, path: string, query = '') =>
-  findProxyRule(method, path, q(query)) !== null;
+/** As the proxy decides: the canonical path first, then the list. */
+const allowed = (method: string, path: string, query = '') => {
+  const clean = canonicalProxiedPath(path);
+  return clean !== null && findProxyRule(method, clean, q(query)) !== null;
+};
 
 describe('findProxyRule', () => {
   it('allows every route the pages use', () => {
@@ -41,6 +48,9 @@ describe('findProxyRule', () => {
     for (const [method, path] of [
       ['POST', 'sync/stream'],
       ['POST', 'sync/full-sync'],
+      ['DELETE', `albums/${ID}/assets`],
+      ['POST', `albums/${ID}/assets`],
+      ['GET', `x/timeline/buckets`],
       ['GET', 'people'],
       ['GET', `faces`],
       ['GET', `faces/${ID}`],
@@ -73,6 +83,28 @@ describe('findProxyRule', () => {
     // A decoded `?` or `#` would start a query of its own: refused outright.
     expect(canonicalProxiedPath(`assets/${ID}?x=1`)).toBeNull();
     expect(allowed('GET', `assets/${ID}#x`)).toBe(false);
+  });
+
+  it('resolves encoded dot segments as the forwarded URL would, and refuses a second level of encoding', () => {
+    // The router decodes once: `%252e` arrives here as `%2e`, which the URL parser resolves.
+    expect(canonicalProxiedPath(`assets/${ID}/thumbnail/%2e%2e/%2e%2e/${ID}/original`)).toBe(
+      `assets/${ID}/original`
+    );
+    expect(canonicalProxiedPath(`assets/${ID}/thumbnail/%2E%2e/%2e./%2e%2e/people/${ID}`)).toBe(
+      `people/${ID}`
+    );
+    expect(canonicalProxiedPath(`assets/${ID}/%252e%252e/x`)).toBeNull();
+    expect(canonicalProxiedPath(`assets/${ID}/thumbnail%00`)).toBeNull();
+    // Out of /api/ altogether.
+    expect(canonicalProxiedPath('../../etc/passwd')).toBeNull();
+  });
+
+  it('serves the public exception for one exact asset path only', () => {
+    expect(publicAssetId(`assets/${ID}/thumbnail`)).toBe(ID);
+    expect(publicAssetId(`assets/${ID}/video/playback`)).toBe(ID);
+    expect(publicAssetId(`assets/${ID}/preview`)).toBeNull();
+    expect(publicAssetId(`assets/${ID}/thumbnail/x`)).toBeNull();
+    expect(publicAssetId(`x/assets/${ID}/thumbnail`)).toBeNull();
   });
 
   it('marks the trash routes as admin only', () => {
@@ -112,8 +144,9 @@ describe('the proxy handler', () => {
     expect((await send('GET', 'server/version')).status).toBe(404);
   }, 15000);
 
-  it('still forwards an allowed route (no Immich here: it fails past the allowlist)', async () => {
+  it('takes an allowed route past the list (no Immich here: it stops at the configuration)', async () => {
     const res = await send('GET', `assets/${ID}`);
-    expect(res.status).not.toBe(404);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'Immich is not configured' });
   }, 15000);
 });
