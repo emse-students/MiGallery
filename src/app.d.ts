@@ -1,5 +1,5 @@
-import type { SessionUser } from '$lib/auth';
-import type { FirstPaint } from '$lib/first-paint';
+import type { SessionUser } from '#lib/auth.ts';
+import type { FirstPaint } from '#lib/first-paint.ts';
 
 declare global {
   /** package.json version, injected by vite.config.ts `define`. */
@@ -24,7 +24,7 @@ declare global {
           promo?: number | null;
         } | null;
       } | null;
-      /** Set by the root layout on every page: see `$lib/first-paint`. */
+      /** Set by the root layout on every page: see `#lib/first-paint.ts`. */
       firstPaint: FirstPaint;
     }
   }

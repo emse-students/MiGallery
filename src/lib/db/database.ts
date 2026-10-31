@@ -1,8 +1,8 @@
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { createRequire } from 'module';
-import { createLogger } from '$lib/server/logger';
-import { backfillLegacyConsents } from '$lib/server/face-consent';
+import { createLogger } from '#lib/server/logger.ts';
+import { backfillLegacyConsents } from '#lib/server/face-consent.ts';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
 const log = createLogger('db');
@@ -382,8 +382,17 @@ export function getDatabase(): DatabaseInstance {
 
     try {
       dbInstance.exec('PRAGMA foreign_keys = ON');
-    } catch {
-      void 0;
+    } catch (e) {
+      // The cascade that erases face_references (sealed templates) on an account deletion depends on it.
+      log.error('foreign_keys could not be enabled; cascades will NOT run', (e as Error).message);
+    }
+
+    // Deleted pages are overwritten with zeros: a withdrawn member's face data must not linger
+    // in the file's free pages (face_references, face_embeddings; docs/wiki/face-store.md).
+    try {
+      dbInstance.exec('PRAGMA secure_delete = ON');
+    } catch (e) {
+      log.error('secure_delete could not be enabled', (e as Error).message);
     }
 
     ensureSchema(dbInstance);

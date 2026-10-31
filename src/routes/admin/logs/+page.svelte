@@ -1,9 +1,9 @@
 <script lang="ts">
   import { Activity, Search, ChevronLeft, ChevronRight, RotateCcw } from '@lucide/svelte';
   import { goto } from '$app/navigation';
-  import { m } from '$lib/paraglide/messages';
-  import AdminPage from '$lib/components/AdminPage.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import AdminPage from '#lib/components/AdminPage.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
   import type { PageData } from './$types';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -23,7 +23,7 @@
     if (ev) sp.set('event', ev);
     if (page > 1) sp.set('page', String(page));
     const qs = sp.toString();
-    goto(qs ? `?${qs}` : '?', { keepFocus: true, noScroll: true });
+    goto(qs ? `?${qs}` : '?', { reset: false });
   }
 
   function onSearchInput(e: Event & { currentTarget: HTMLInputElement }) {
@@ -38,7 +38,7 @@
 
   function resetFilters() {
     if (searchTimer) clearTimeout(searchTimer);
-    goto('?', { keepFocus: true, noScroll: true });
+    goto('?', { reset: false });
   }
 
   const hasFilters = $derived(!!(data.filters.q || data.filters.eventType));

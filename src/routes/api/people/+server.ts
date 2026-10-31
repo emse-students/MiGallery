@@ -1,23 +1,23 @@
 import { json, error, isHttpError } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { logEvent } from '$lib/server/logs';
+import { logEvent } from '#lib/server/logs.ts';
 import {
   getPersonAssets,
   getAlbumAssets,
   getAlbumInfo,
   addAssetsToAlbum,
   removeAssetsFromAlbum,
-} from '$lib/photos-cv/handlers';
-import { requireScope } from '$lib/server/permissions';
+} from '#lib/photos-cv/handlers.ts';
+import { requireScope } from '#lib/server/permissions.ts';
 import {
   assertPersonAccess,
   assertPhotoCvManager,
   requirePhotoCvManager,
-} from '$lib/server/face-access';
+} from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('people');
 /**

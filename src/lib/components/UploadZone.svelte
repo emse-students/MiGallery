@@ -12,8 +12,8 @@
     Clock,
   } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
-  import { portal } from '$lib/portal';
-  import { m } from '$lib/paraglide/messages';
+  import { portal } from '#lib/portal.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   interface FileResult {
     file: File;

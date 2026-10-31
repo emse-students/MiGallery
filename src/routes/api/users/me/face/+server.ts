@@ -1,13 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { createLogger } from '$lib/server/logger';
-import { m } from '$lib/paraglide/messages';
-import { finishLocalErasure, inTransaction } from '$lib/server/face-erasure';
-import { applyFaceLink } from '$lib/server/face-link';
-import { isImpersonating } from '$lib/server/auth';
-import { normalisePersonId, selfieProves } from '$lib/server/face-access';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { m } from '#lib/paraglide/messages.js';
+import { finishLocalErasure, inTransaction } from '#lib/server/face-erasure.ts';
+import { applyFaceLink } from '#lib/server/face-link.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { normalisePersonId, selfieProves } from '#lib/server/face-access.ts';
 
 const log = createLogger('user-face');
 

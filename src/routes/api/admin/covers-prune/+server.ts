@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { pruneOrphanCovers, resolveMissingCovers } from '$lib/server/album-cover';
-import { createLogger } from '$lib/server/logger';
+import { requireScope } from '#lib/server/permissions.ts';
+import { pruneOrphanCovers, resolveMissingCovers } from '#lib/server/album-cover.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('admin-covers-prune');
 

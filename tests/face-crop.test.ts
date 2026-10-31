@@ -22,8 +22,8 @@ import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { env } from '$env/dynamic/private';
-import { generateFaceCrop, OUTPUT_SIZE } from '$lib/server/face-crop';
+import { env } from '#lib/server/env.ts';
+import { generateFaceCrop, OUTPUT_SIZE } from '#lib/server/face-crop.ts';
 
 /** The synthetic source: a red frame with one green square standing in for a detected face. */
 const SRC_W = 400;

@@ -1,14 +1,14 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
+import { env } from '#lib/server/env.ts';
 import path from 'node:path';
-import sharp from '$lib/server/sharp-config';
-import { getDatabase } from '$lib/db/database';
-import { resolveCover } from '$lib/server/album-cover';
-import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '$lib/server/disk-cache';
+import sharp from '#lib/server/sharp-config.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { resolveCover } from '#lib/server/album-cover.ts';
+import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '#lib/server/disk-cache.ts';
 
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums-id-og-cover');
 const CACHE_DIR = path.resolve('data/cache/og-covers');

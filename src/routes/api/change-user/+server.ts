@@ -1,14 +1,14 @@
 import { json, isHttpError } from '@sveltejs/kit';
 
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { canStopImpersonating } from '$lib/server/auth';
-import { getSessionToken } from '$lib/session';
-import { setSessionImpersonation } from '$lib/db/sessions';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { canStopImpersonating } from '#lib/server/auth.ts';
+import { getSessionToken } from '#lib/session.ts';
+import { setSessionImpersonation } from '#lib/db/sessions.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('change-user');
 

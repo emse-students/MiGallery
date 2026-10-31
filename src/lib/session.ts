@@ -2,14 +2,14 @@
  * The login cookie.
  *
  * It carries an opaque session token and nothing else - never an identity. The
- * identity is read from the `sessions` table (see `$lib/db/sessions`), so the
+ * identity is read from the `sessions` table (see `#lib/db/sessions.ts`), so the
  * server decides who the caller is instead of being told.
  */
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 import type { Cookies } from '@sveltejs/kit';
-import { resolveSession, type ResolvedSession } from '$lib/db/sessions';
-import type { SessionUser } from '$lib/auth';
-import { createLogger } from '$lib/server/logger';
+import { resolveSession, type ResolvedSession } from '#lib/db/sessions.ts';
+import type { SessionUser } from '#lib/auth.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('session');
 

@@ -1,14 +1,14 @@
 import { json, error as svelteError } from '@sveltejs/kit';
-import type { ImmichAlbum, AlbumRow } from '$lib/types/api';
+import type { ImmichAlbum, AlbumRow } from '#lib/types/api.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { logEvent } from '$lib/server/logs';
-import { requireScope } from '$lib/server/permissions';
-import { ensureError } from '$lib/ts-utils';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { ensureError } from '#lib/ts-utils.ts';
 
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums');
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;

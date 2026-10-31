@@ -1,9 +1,9 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('favorites');
 /**

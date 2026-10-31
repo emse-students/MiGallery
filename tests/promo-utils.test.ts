@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getDefaultPromos, getSchoolYear, parseAlbumDate } from '$lib/promo-utils';
+import { getDefaultPromos, getSchoolYear, parseAlbumDate } from '#lib/promo-utils.ts';
 
 const at = (iso: string) => new Date(`${iso}T12:00:00`);
 

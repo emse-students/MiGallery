@@ -16,12 +16,12 @@ import { tmpdir } from 'node:os';
 import path, { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
 
-vi.mock('$env/dynamic/private', () => ({
+vi.mock('#lib/server/env.ts', () => ({
   env: { IMMICH_BASE_URL: 'http://immich.test', IMMICH_API_KEY: 'k' },
 }));
 
-let erasure: typeof import('$lib/server/face-erasure');
-let database: typeof import('$lib/db/database');
+let erasure: typeof import('#lib/server/face-erasure.ts');
+let database: typeof import('#lib/db/database.ts');
 let dbDir: string;
 
 const PERSON = 'bbbbbbbb-0000-4000-8000-000000000001';
@@ -101,8 +101,8 @@ function journal() {
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-face-erasure-'));
   process.env.DATABASE_PATH = join(dbDir, 'face-erasure.db');
-  database = await import('$lib/db/database');
-  erasure = await import('$lib/server/face-erasure');
+  database = await import('#lib/db/database.ts');
+  erasure = await import('#lib/server/face-erasure.ts');
   // The delete paths kick a run on the global fetch: an Immich that is down, so a kicked run
   // records one refused attempt and never reaches the network.
   vi.stubGlobal('fetch', async () => new Response('down', { status: 503 }));

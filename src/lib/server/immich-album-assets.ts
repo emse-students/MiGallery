@@ -1,8 +1,8 @@
 import { error, isHttpError } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { env } from '#lib/server/env.ts';
+import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('immich-album-assets');
 

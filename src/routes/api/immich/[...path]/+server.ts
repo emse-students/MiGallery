@@ -1,12 +1,12 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
-import { logEvent } from '$lib/server/logs';
-import { createLogger } from '$lib/server/logger';
-import { env } from '$env/dynamic/private';
-import { requireScope, type AuthResult } from '$lib/server/permissions';
-import { assertProxiedFaceAccess, classifyProxiedBody } from '$lib/server/face-access';
-import { restoreAssetsFromTrash } from '$lib/server/immich-trash';
-import { getDatabase } from '$lib/db/database';
+import { ensureError } from '#lib/ts-utils.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { env } from '#lib/server/env.ts';
+import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
+import { assertProxiedFaceAccess, classifyProxiedBody } from '#lib/server/face-access.ts';
+import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
+import { getDatabase } from '#lib/db/database.ts';
 
 const log = createLogger('immich-proxy');
 
@@ -21,7 +21,7 @@ const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
-import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '$lib/server/outbound';
+import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 /**
  * Cleans a header value to ensure it contains only Latin-1 characters.

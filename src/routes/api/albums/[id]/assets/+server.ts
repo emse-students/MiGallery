@@ -1,8 +1,8 @@
 import { json } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { addAlbumAssets, removeAlbumAssets } from '$lib/server/immich-album-assets';
+import { requireScope } from '#lib/server/permissions.ts';
+import { addAlbumAssets, removeAlbumAssets } from '#lib/server/immich-album-assets.ts';
 
 /** Both callers in the app send `{ ids }`; anything else is an empty add. */
 async function readIds(request: Request): Promise<string[]> {

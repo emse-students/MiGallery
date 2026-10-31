@@ -28,15 +28,18 @@
  * docs/wiki/photos-cv.md#erasure.
  */
 
-import { env } from '$env/dynamic/private';
-import { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import { searchAllAssets } from '$lib/server/immich-search';
-import { deletePersonFaceCrops } from '$lib/server/face-crop';
-import { normalisePersonId } from '$lib/server/person-id';
-import { rotateAvatarSalt } from '$lib/server/avatar-revocation';
-import { withdrawFaceConsent } from '$lib/server/face-consent';
+import { env } from '#lib/server/env.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { registerShutdown } from '#lib/server/shutdown.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import { searchAllAssets } from '#lib/server/immich-search.ts';
+import { deletePersonFaceCrops } from '#lib/server/face-crop.ts';
+import { normalisePersonId } from '#lib/server/person-id.ts';
+import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
+import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
+import { eraseFaceReferences } from '#lib/server/face-references.ts';
+import { assertAnotherAdminRemains } from '#lib/server/admin-floor.ts';
 
 const log = createLogger('face-erasure');
 
@@ -47,6 +50,9 @@ export type FaceErasureReason = 'withdrawal' | 'account_deletion' | 'relink' | '
 export const ERASURE_OVERDUE_MS = 24 * 60 * 60 * 1000;
 /** How often the worker retries what is still pending. */
 const RETRY_INTERVAL_MS = 15 * 60 * 1000;
+
+/** How long a shutdown waits for the erasure pass in flight; inside `docker stop`'s grace period. */
+const ERASURE_SHUTDOWN_WAIT_MS = 10_000;
 /** The literal that replaces a deleted member's id in the audit log. */
 export const DELETED_ID = '[deleted]';
 
@@ -71,7 +77,7 @@ export interface LocalErasure {
 /**
  * The local half for `userId`, inside the caller's transaction: drop the face link and profile
  * photo pointer, the grants the member GAVE (the ones on their own face photos - grants others
- * gave them are about other people's faces and stay), close the consent record, and journal the
+ * gave them are about other people's faces and stay), close the consent record, delete the sealed reference embeddings, and journal the
  * Immich half when there is a person to clear. The file side (crops, the run) is NOT done here: a
  * file error must not roll a withdrawal back, so the caller runs {@link finishLocalErasure} after
  * its COMMIT. Called for a withdrawal, an account deletion, an admin unlink and a RELINK - the
@@ -93,6 +99,8 @@ export function eraseLocalFaceData(
   );
   db.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ?').run(userId);
   withdrawFaceConsent(db, userId);
+  // The member's stored face templates go with the consent: withdrawal, unlink and relink all end here.
+  eraseFaceReferences(db, userId);
 
   if (!linked) {
     log.info('face data erased locally, no Immich person was linked', { reason });
@@ -183,7 +191,8 @@ export function inTransaction<T>(db: Db, fn: () => T): T {
  * Immich half journaled), its id and address in the audit log, its per-user album grants, then
  * the row - whose foreign keys take its sessions, favorites and remaining grants with it. Kicks
  * the Immich half when there is one.
- * Returns false when there was no such account.
+ * Returns false when there was no such account; throws LastAdminError, deleting nothing, when it
+ * is the last administrator (admin-floor.ts).
  */
 export function deleteUserAccount(db: Db, userId: string): boolean {
   const result = inTransaction(db, () => {
@@ -193,6 +202,8 @@ export function deleteUserAccount(db: Db, userId: string): boolean {
     if (!row) {
       return null;
     }
+    // Throws LastAdminError, which rolls the whole deletion back (admin-floor.ts).
+    assertAnotherAdminRemains(db, userId);
     const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
     anonymiseUserInLogs(db, userId, normalisePersonId(row.photos_id));
     // A recreated account of the same id must not re-validate the signed avatar URLs issued for
@@ -450,7 +461,28 @@ export function startFaceErasureWorker(): void {
   const tick = () => {
     kickFaceErasures();
   };
-  setTimeout(tick, 30_000);
-  setInterval(tick, RETRY_INTERVAL_MS);
+  const first = setTimeout(tick, 30_000);
+  const interval = setInterval(tick, RETRY_INTERVAL_MS);
+  registerShutdown('face erasure worker', async () => {
+    clearTimeout(first);
+    clearInterval(interval);
+    if (!running) {
+      return;
+    }
+    // A pass in flight is allowed to finish, but not past `docker stop`'s grace period. What it
+    // leaves unfinished is NOT lost: every erasure is journaled and the next boot's first tick
+    // picks the row up again (see runOnce).
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    const finished = await Promise.race([
+      running.then(() => true),
+      new Promise<boolean>((resolve) => {
+        deadline = setTimeout(() => resolve(false), ERASURE_SHUTDOWN_WAIT_MS);
+      }),
+    ]);
+    clearTimeout(deadline);
+    if (!finished) {
+      log.warn('face erasure pass still running at shutdown, left for the next start');
+    }
+  });
   log.info('face erasure worker started');
 }

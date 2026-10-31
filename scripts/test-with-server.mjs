@@ -25,6 +25,8 @@ import { spawn, spawnSync } from 'child_process';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { Database } from 'bun:sqlite';
+import { TEST_CONFIG } from '../tests/test-helpers.ts';
 
 /**
  * The port the suite's own server listens on. 3000 by default (CI); `MIGALLERY_TEST_PORT` moves it
@@ -38,6 +40,23 @@ const HEALTH_URL = `${API_BASE_URL}/api/health`;
 const READINESS_DEADLINE_MS = 60000;
 const READINESS_POLL_MS = 250;
 
+/**
+ * Write the suite's admin row into this run's database. `/dev/login-as` only opens a session for a
+ * user that already exists. The runner owns this disposable database, so it writes the row once,
+ * after /api/health has made the server create the schema; no test writes it.
+ */
+function seedTestAdmin(databasePath) {
+  const db = new Database(databasePath);
+  try {
+    db.prepare(
+      'INSERT OR IGNORE INTO users (id_user, name, first_name, last_name, role) VALUES (?, ?, ?, ?, ?)'
+    ).run(TEST_CONFIG.TEST_ADMIN_ID, 'Test Admin', 'Test', 'Admin', 'admin');
+  } finally {
+    db.close(false);
+  }
+  console.log(`👤 Test admin ${TEST_CONFIG.TEST_ADMIN_ID} written`);
+}
+
 /** Where this run's database lives; created in main(), removed in finish(). */
 let runDir = '';
 /** @type {import('child_process').ChildProcess | null} */
@@ -45,20 +64,24 @@ let server = null;
 
 /**
  * The only environment the server and the tests see, on top of the OS basics inherited from the
- * shell (PATH, TEMP, ...). Mirrors what CI needs: dev routes on (the suite logs in through
- * `/dev/login-as`), no Immich, a trusted host, and this run's own database.
+ * shell (PATH, TEMP, ...). Mirrors what CI needs: no Immich, a trusted host, and this run's own
+ * database. The dev login the suite signs in through (`/dev/login-as`) is not switched on here: it
+ * exists only in the `--mode test` build made below, never in a production build.
  */
 function testEnv(databasePath) {
   return {
     ...process.env,
     NODE_ENV: 'test',
     PORT: TEST_PORT,
-    ORIGIN: API_BASE_URL,
     API_BASE_URL,
-    ENABLE_DEV_ROUTES: 'true',
     AUTH_TRUSTED_HOST: 'true',
     IMMICH_BASE_URL: '',
     IMMICH_API_KEY: '',
+    // Fixed fake provider: tests/server-env.test.ts reads them back through the BUILT server.
+    MICONNECT_ISSUER: 'https://idp.test.invalid/application/o/migallery',
+    MICONNECT_CLIENT_ID: 'test-client-id',
+    MICONNECT_CLIENT_SECRET: 'test-client-secret',
+    AVATAR_SIGNING_KEY: 'test-avatar-signing-key',
     DATABASE_PATH: databasePath,
     // Read by tests/test-helpers.ts `openTestDatabase`, which refuses to open anything else.
     MIGALLERY_TEST_DATABASE: databasePath,
@@ -76,22 +99,53 @@ function runBun(args, env) {
   });
 }
 
+/** How long the server has to leave after a SIGTERM before the run calls that a failure. */
+const GRACEFUL_STOP_DEADLINE_MS = 15000;
+
 /**
- * Kill the server. On Windows child.kill() does not terminate the bun process tree, which leaks
- * a zombie holding port 3000 and breaks the next run; taskkill /T tears down the whole tree.
+ * Stop the server the way `docker stop` does: a real SIGTERM, then wait for it to leave. Resolves
+ * with the exit code, or `'timeout'` when it had to be SIGKILLed - adapter-bun drains and emits
+ * `sveltekit:shutdown` but never exits by itself, so a server with no listener hangs here, which
+ * is exactly what `docker stop` turns into a 137 after its grace period (src/lib/server/shutdown.ts).
+ *
+ * On Windows a signal cannot reach a JS handler (child.kill() terminates abruptly and leaks the
+ * process tree holding the port), so there the tree is torn down with taskkill /T and nothing is
+ * asserted: the graceful path is proven on Linux, which is where it ships.
+ * @returns {Promise<number | 'timeout' | null>} null when there was nothing to stop or no assertion is possible
  */
-function killServer() {
-  if (!server || server.exitCode !== null) return;
+async function stopServer() {
+  if (!server || server.exitCode !== null) return server ? server.exitCode : null;
   if (process.platform === 'win32') {
     spawnSync('taskkill', ['/pid', String(server.pid), '/T', '/F'], { stdio: 'ignore' });
-  } else {
-    server.kill();
+    return null;
   }
+  const exited = new Promise((resolve) => server.once('exit', (code) => resolve(code ?? 1)));
+  server.kill('SIGTERM');
+  let deadline;
+  const timedOut = new Promise((resolve) => {
+    deadline = setTimeout(() => resolve('timeout'), GRACEFUL_STOP_DEADLINE_MS);
+  });
+  const result = await Promise.race([exited, timedOut]);
+  clearTimeout(deadline);
+  if (result === 'timeout') server.kill('SIGKILL');
+  return result;
 }
 
-/** Stop the server and delete this run's database, then exit with `code`. */
-function finish(code) {
-  killServer();
+/** Stop the server, delete this run's database, then exit with `code` (1 if the stop was not clean). */
+async function finish(code) {
+  const stopped = await stopServer();
+  if (stopped === 'timeout' || (typeof stopped === 'number' && stopped !== 0)) {
+    const how =
+      stopped === 'timeout'
+        ? `still running after ${GRACEFUL_STOP_DEADLINE_MS} ms`
+        : `exit code ${stopped}`;
+    console.error(`
+❌ The server did not stop cleanly on SIGTERM (${how}); expected exit code 0.
+`);
+    code = code || 1;
+  } else if (stopped === 0) {
+    console.log('✅ The server exited 0 on SIGTERM');
+  }
   if (runDir) {
     try {
       rmSync(runDir, { recursive: true, force: true });
@@ -144,11 +198,13 @@ async function main() {
   const env = testEnv(join(runDir, 'migallery.db'));
   console.log(`🗄️  Test database: ${env.DATABASE_PATH}`);
 
-  console.log('🔨 Building SvelteKit...\n');
-  const buildCode = await runBun(['run', 'build'], env);
+  // `--mode test` is what compiles `/dev/login-as` into this build (its handler is folded out of
+  // every other build); see src/routes/dev/login-as/+server.ts.
+  console.log('🔨 Building SvelteKit (mode test)...\n');
+  const buildCode = await runBun(['run', 'build', '--mode', 'test'], env);
   if (buildCode !== 0) {
     console.error(`\n❌ Build failed with code ${buildCode}\n`);
-    finish(buildCode);
+    await finish(buildCode);
   }
 
   console.log('🚀 Starting the test server...\n');
@@ -157,23 +213,24 @@ async function main() {
     env,
   });
   await waitForServer();
+  seedTestAdmin(env.DATABASE_PATH);
   console.log(`✅ ${HEALTH_URL} answers\n🧪 Running the tests...\n`);
 
   // vitest is started directly rather than through `bun run test:unit`: that script spawns a
   // nested bun, which would load `.env` again.
   const testCode = await runBun(['--bun', 'vitest', 'run'], env);
   console.log('\n🛑 Stopping the server...');
-  finish(testCode);
+  await finish(testCode);
 }
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => {
+  process.on(signal, async () => {
     console.log(`\n⚠️  ${signal} received, stopping the server...`);
-    finish(1);
+    await finish(1);
   });
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error('\n💥 Error:', error.message);
-  finish(1);
+  await finish(1);
 });

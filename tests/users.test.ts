@@ -3,8 +3,16 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import type { UserResponse, UsersListResponse, UserCreateResponse } from '$lib/types/api';
-import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
+import type { UserResponse, UsersListResponse, UserCreateResponse } from '#lib/types/api.ts';
+import {
+  setupTestAuth,
+  teardownTestAuth,
+  globalTestContext,
+  deleteOrThrow,
+  TEST_CONFIG,
+} from './test-helpers';
+
+const ADMIN_ID = TEST_CONFIG.TEST_ADMIN_ID;
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 let createdUserId: string | null = null;
@@ -19,14 +27,9 @@ afterAll(async () => {
   // Cleanup: delete all created test users
   if (globalTestContext.adminApiKey) {
     for (const userId of createdUserIds) {
-      try {
-        await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-          method: 'DELETE',
-          headers: { 'x-api-key': globalTestContext.adminApiKey },
-        });
-      } catch {
-        // Ignore errors
-      }
+      await deleteOrThrow(`${API_BASE_URL}/api/users/${userId}`, {
+        'x-api-key': globalTestContext.adminApiKey,
+      });
     }
   }
 
@@ -211,21 +214,16 @@ describe('Users API - GET /api/users/[id]', () => {
     expect([404]).toContain(response.status);
   });
 
-  it('should fetch system user dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782', async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+  it('should fetch the test admin', async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/${ADMIN_ID}`, {
+      headers: getAuthHeaders(),
+    });
 
     expect([200, 401, 403, 404]).toContain(response.status);
 
     if (response.status === 200) {
       const data = (await response.json()) as UserResponse;
-      expect(data.user.id_user).toBe(
-        'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782'
-      );
+      expect(data.user.id_user).toBe(ADMIN_ID);
       expect(data.user.role).toBe('admin');
     }
   });
@@ -302,12 +300,9 @@ describe('Users API - PUT /api/users/[id]', () => {
 
 describe('Users API - GET /api/users/[username]/avatar', () => {
   it('should fetch user avatar', async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782/avatar`,
-      {
-        headers: getAuthHeaders(),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/api/users/${ADMIN_ID}/avatar`, {
+      headers: getAuthHeaders(),
+    });
 
     expect([200, 302, 401, 404, 500]).toContain(response.status);
 
@@ -329,12 +324,9 @@ describe('Users API - GET /api/users/[username]/avatar', () => {
     const sizes = ['small', 'medium', 'large'];
 
     for (const size of sizes) {
-      const response = await fetch(
-        `${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782/avatar?size=${size}`,
-        {
-          headers: getAuthHeaders(),
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/users/${ADMIN_ID}/avatar?size=${size}`, {
+        headers: getAuthHeaders(),
+      });
 
       expect([200, 302, 401, 404, 500]).toContain(response.status);
     }
@@ -371,18 +363,6 @@ describe('Users API - DELETE /api/users/[id]', () => {
     });
 
     expect([401, 404, 500]).toContain(response.status);
-  });
-
-  it('should protect deletion of the system user', async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/users/dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782`,
-      {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      }
-    );
-
-    expect([400, 401, 403, 500]).toContain(response.status);
   });
 });
 

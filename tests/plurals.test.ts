@@ -4,7 +4,7 @@ import {
   albumd_photo_count,
   db_covers_prune_done,
   trash_items_in_bin,
-} from '$lib/paraglide/messages';
+} from '#lib/paraglide/messages.js';
 
 /**
  * Counts read as sentences, never "photo(s)": every counted message is a plural variant

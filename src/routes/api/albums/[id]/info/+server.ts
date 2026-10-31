@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
 
-import { getDatabase } from '$lib/db/database';
+import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
-import { requireScope } from '$lib/server/permissions';
+import { requireScope } from '#lib/server/permissions.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-info');
 export const GET: RequestHandler = async (event) => {

@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import { requireScope } from '$lib/server/permissions';
-import { getDatabase } from '$lib/db/database';
+import { requireScope } from '#lib/server/permissions.ts';
+import { getDatabase } from '#lib/db/database.ts';
 import fs from 'fs';
 import path from 'path';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('admin-db-export');
 export const GET: RequestHandler = async (event) => {

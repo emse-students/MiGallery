@@ -1,15 +1,15 @@
 import { json, isHttpError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireSession } from '$lib/server/permissions';
-import { clearSessionCookie } from '$lib/session';
-import { deleteUserAccount } from '$lib/server/face-erasure';
-import { isImpersonating } from '$lib/server/auth';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireSession } from '#lib/server/permissions.ts';
+import { clearSessionCookie } from '#lib/session.ts';
+import { deleteUserAccount } from '#lib/server/face-erasure.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { LastAdminError } from '#lib/server/admin-floor.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-me');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 /**
  * GET /api/users/me
@@ -57,6 +57,7 @@ export const GET: RequestHandler = async (event) => {
  * Deletes the account of the logged-in user
  *
  * This action is irreversible and deletes all data associated with the user.
+ * Refused with 409 when the user is the last administrator (admin-floor.ts).
  * Note: This endpoint requires an active session (not API key) for security reasons.
  */
 export const DELETE: RequestHandler = async (event) => {
@@ -71,10 +72,6 @@ export const DELETE: RequestHandler = async (event) => {
     }
     const db = getDatabase();
 
-    if (user.id_user === SYSTEM_USER_ID) {
-      return json({ error: 'Cannot delete system user' }, { status: 403 });
-    }
-
     // Face data, grants and the audit log's mentions go with the row (face-erasure.ts).
     if (!deleteUserAccount(db, user.id_user)) {
       return json({ error: 'Failed to delete user' }, { status: 500 });
@@ -88,6 +85,9 @@ export const DELETE: RequestHandler = async (event) => {
   } catch (e) {
     if (isHttpError(e)) {
       throw e;
+    }
+    if (e instanceof LastAdminError) {
+      return json({ error: e.message }, { status: 409 });
     }
     const err = e as Error;
     log.error('DELETE /api/users/me error', err);

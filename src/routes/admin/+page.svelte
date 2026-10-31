@@ -3,8 +3,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { BookOpen, List, FileText } from '@lucide/svelte';
-  import { m } from '$lib/paraglide/messages';
-  import AdminPage from '$lib/components/AdminPage.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import AdminPage from '#lib/components/AdminPage.svelte';
 
   interface Doc {
     filename: string;

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { loginBounceTarget, loginUrlWithRedirect, safeRedirectTarget } from '$lib/auth-redirect';
+import { loginBounceTarget, loginUrlWithRedirect, safeRedirectTarget } from '#lib/auth-redirect.ts';
 
 describe('safeRedirectTarget', () => {
   it('accepts an in-app path, query and hash included', () => {

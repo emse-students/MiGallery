@@ -12,10 +12,10 @@
     Copyright,
     Info,
   } from '@lucide/svelte';
-  import BackgroundBlobs from '$lib/components/BackgroundBlobs.svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { getLocale } from '$lib/paraglide/runtime';
-  import { TERMS_VERSION } from '$lib/legal';
+  import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale } from '#lib/paraglide/runtime.js';
+  import { TERMS_VERSION } from '#lib/legal.ts';
 
   // The version is a date (src/lib/legal.ts), written once, never "today": a member's consent
   // row keeps the version they agreed to. UTC so the day does not shift with the reader's zone.

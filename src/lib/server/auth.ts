@@ -2,15 +2,15 @@
  * Resolving who a request is coming from.
  *
  * There is exactly ONE answer to that question - the session row behind the
- * cookie (`$lib/db/sessions`). No cookie is ever trusted for its contents, and
+ * cookie (`#lib/db/sessions.ts`). No cookie is ever trusted for its contents, and
  * there is no fallback chain: a request either carries a live session or it is
  * anonymous.
  */
-import { getSession } from '$lib/session';
-import { createLogger } from '$lib/server/logger';
-import { loginBounceTarget } from '$lib/auth-redirect';
-import type { ResolvedSession } from '$lib/db/sessions';
-import type { UserRow } from '$lib/types/api';
+import { getSession } from '#lib/session.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { loginBounceTarget } from '#lib/auth-redirect.ts';
+import type { ResolvedSession } from '#lib/db/sessions.ts';
+import type { UserRow } from '#lib/types/api.ts';
 import { redirect, type Cookies } from '@sveltejs/kit';
 
 const log = createLogger('auth');

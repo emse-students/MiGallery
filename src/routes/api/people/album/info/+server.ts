@@ -1,12 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import type { ImmichAlbum } from '$lib/types/api';
-import { ensureError } from '$lib/ts-utils';
+import type { ImmichAlbum } from '#lib/types/api.ts';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { getOrCreateSystemAlbum } from '$lib/immich/system-albums';
-import { requirePhotoCvManager } from '$lib/server/face-access';
+import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
+import { requirePhotoCvManager } from '#lib/server/face-access.ts';
 
-import { createLogger } from '$lib/server/logger';
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
+import { createLogger } from '#lib/server/logger.ts';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('people-album-info');
 export const GET: RequestHandler = async (event) => {

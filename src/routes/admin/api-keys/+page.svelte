@@ -10,13 +10,13 @@
     RefreshCw,
     Trash2,
   } from '@lucide/svelte';
-  import AdminPage from '$lib/components/AdminPage.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
-  import LoadingState from '$lib/components/LoadingState.svelte';
-  import Spinner from '$lib/components/Spinner.svelte';
-  import { showConfirm } from '$lib/confirm';
-  import { toast } from '$lib/toast';
-  import { m } from '$lib/paraglide/messages';
+  import AdminPage from '#lib/components/AdminPage.svelte';
+  import EmptyState from '#lib/components/EmptyState.svelte';
+  import LoadingState from '#lib/components/LoadingState.svelte';
+  import Spinner from '#lib/components/Spinner.svelte';
+  import { showConfirm } from '#lib/confirm.ts';
+  import { toast } from '#lib/toast.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   type KeyRow = { id: number; label?: string; scopes?: string | null; created_at: number };
 

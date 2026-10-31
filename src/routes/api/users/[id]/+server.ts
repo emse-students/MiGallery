@@ -1,23 +1,23 @@
 import { json, isHttpError } from '@sveltejs/kit';
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { getDatabase } from '$lib/db/database';
-import { requireScope } from '$lib/server/permissions';
-import { isImpersonating } from '$lib/server/auth';
-import { logEvent } from '$lib/server/logs';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { isImpersonating } from '#lib/server/auth.ts';
+import { logEvent } from '#lib/server/logs.ts';
 import {
   deleteUserAccount,
   DELETED_ID,
   finishLocalErasure,
   inTransaction,
-} from '$lib/server/face-erasure';
-import { resolveAdminPersonLink } from '$lib/server/face-access';
-import { applyFaceLink } from '$lib/server/face-link';
+} from '#lib/server/face-erasure.ts';
+import { resolveAdminPersonLink } from '#lib/server/face-access.ts';
+import { applyFaceLink } from '#lib/server/face-link.ts';
+import { assertAnotherAdminRemains, LastAdminError } from '#lib/server/admin-floor.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-id');
-const SYSTEM_USER_ID = 'dd68bb5b4f7c56878a1bd873593a3e7c3434242c80871e4ead9fe99d3f48a782';
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
@@ -54,10 +54,6 @@ export const PUT: RequestHandler = async (event) => {
   const targetId = event.params.id;
   if (!targetId) {
     return json({ error: 'Bad Request' }, { status: 400 });
-  }
-
-  if (targetId === SYSTEM_USER_ID) {
-    return json({ error: 'Cannot modify system user' }, { status: 403 });
   }
 
   try {
@@ -108,6 +104,10 @@ export const PUT: RequestHandler = async (event) => {
     // applyFaceLink (face-link.ts): a changed or cleared person drops the old person's grants,
     // closes its consent, clears the profile pointer and journals the Immich clearing.
     const outcome = inTransaction(db, () => {
+      // A role other than admin demotes an admin: refused when it is the last one (admin-floor.ts).
+      if ((role || 'user') !== 'admin') {
+        assertAnotherAdminRemains(db, targetId);
+      }
       const info = db
         .prepare(
           'UPDATE users SET name = ?, first_name = ?, last_name = ?, role = ?, promo = ?, formation = ? WHERE id_user = ?'
@@ -164,6 +164,9 @@ export const PUT: RequestHandler = async (event) => {
     if (isHttpError(e)) {
       throw e;
     }
+    if (e instanceof LastAdminError) {
+      return json({ error: e.message }, { status: 409 });
+    }
     const err = ensureError(e);
     if (/UNIQUE constraint failed: users\.photos_id|SQLITE_CONSTRAINT_UNIQUE/.test(err.message)) {
       return json({ error: 'photos_id belongs to another member' }, { status: 409 });
@@ -186,13 +189,19 @@ export const DELETE: RequestHandler = async (event) => {
     return json({ error: 'Admins cannot delete their own account' }, { status: 403 });
   }
 
-  if (targetId === SYSTEM_USER_ID) {
-    return json({ error: 'Cannot delete system user' }, { status: 403 });
-  }
-
   const db = getDatabase();
   // Face data, grants and the audit log's mentions go with the row (face-erasure.ts).
-  if (!deleteUserAccount(db, targetId)) {
+  let deleted: boolean;
+  try {
+    deleted = deleteUserAccount(db, targetId);
+  } catch (e) {
+    // An API key has no user, so the self-deletion guard above does not cover the last admin.
+    if (e instanceof LastAdminError) {
+      return json({ error: e.message }, { status: 409 });
+    }
+    throw e;
+  }
+  if (!deleted) {
     return json({ error: 'User not found' }, { status: 404 });
   }
   try {

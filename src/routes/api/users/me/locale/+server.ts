@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { getDatabase } from '$lib/db/database';
-import { requireSession } from '$lib/server/permissions';
-import { isLocale } from '$lib/paraglide/runtime';
-import { createLogger } from '$lib/server/logger';
+import { getDatabase } from '#lib/db/database.ts';
+import { requireSession } from '#lib/server/permissions.ts';
+import { isLocale } from '#lib/paraglide/runtime.js';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-me-locale');
 

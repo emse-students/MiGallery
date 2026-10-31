@@ -1,14 +1,14 @@
 import { error as svelteError } from '@sveltejs/kit';
-import type { ImmichAsset } from '$lib/types/api';
+import type { ImmichAsset } from '#lib/types/api.ts';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
-import { fetchAlbumAssets } from '$lib/immich/album-assets';
+import { env } from '#lib/server/env.ts';
+import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { requireScope } from '$lib/server/permissions';
+import { requireScope } from '#lib/server/permissions.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-assets-simple');
 /**

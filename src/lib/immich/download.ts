@@ -1,4 +1,4 @@
-import { ensureError } from '$lib/ts-utils';
+import { ensureError } from '#lib/ts-utils.ts';
 
 /** Photos per ZIP archive: a larger download arrives as several archives. */
 export const DOWNLOAD_BATCH_SIZE = 200;

@@ -68,9 +68,12 @@ const backupPath = DB_PATH + '.before-authentik-migration.' + Date.now();
 fs.copyFileSync(DB_PATH, backupPath);
 console.log(`💾 Sauvegarde créée : ${path.basename(backupPath)}\n`);
 
-// Suppression en cascade (les FK en SQLite ne sont pas actives par défaut,
-// on supprime dans le bon ordre)
+// Suppression en cascade (les FK sont activées ci-dessous, on supprime aussi dans le bon ordre)
 try {
+  // foreign_keys makes the delete of users take face_references (sealed templates) by cascade;
+  // secure_delete overwrites them in the file instead of leaving them in free pages.
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec('PRAGMA secure_delete = ON');
   db.exec('BEGIN TRANSACTION');
 
   db.exec('DELETE FROM photo_access_permissions');

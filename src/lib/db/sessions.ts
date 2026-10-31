@@ -9,9 +9,9 @@
  * Same model as Sky (`src/lib/server/session.ts` there), deliberately.
  */
 import { randomUUID } from 'crypto';
-import { getDatabase } from '$lib/db/database';
-import { createLogger } from '$lib/server/logger';
-import type { UserRow } from '$lib/types/api';
+import { getDatabase } from '#lib/db/database.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import type { UserRow } from '#lib/types/api.ts';
 
 const log = createLogger('sessions');
 

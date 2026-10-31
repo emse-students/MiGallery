@@ -1,11 +1,10 @@
 {
   "name": "migallery",
-  "version": "2.16.0",
+  "version": "2.17.0",
   "private": true,
   "description": "MiGallery, by MiTV",
   "keywords": [
     "gallery",
-    "node",
     "svelte",
     "sveltekit",
     "vite"
@@ -23,9 +22,12 @@
     "README.md"
   ],
   "type": "module",
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "dev": "bun --bun vite dev",
-    "build": "vite build",
+    "build": "bun --bun vite build",
     "preview": "bun --bun vite preview",
     "prepare": "husky",
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide",
@@ -61,7 +63,7 @@
     "db:reset-users": "bun ./scripts/reset-users-for-authentik.cjs"
   },
   "dependencies": {
-    "@lucide/svelte": "^1.48.0",
+    "@lucide/svelte": "^1.61.0",
     "form-data": "^4.0.6",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
@@ -69,9 +71,8 @@
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.25.4",
-    "@sveltejs/adapter-auto": "^7.0.1",
-    "@sveltejs/adapter-node": "^5.5.7",
-    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/adapter-bun": "^1.0.0",
+    "@sveltejs/kit": "^3.1.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26",
@@ -89,11 +90,5 @@
     "typescript": "~6",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
-  },
-  "overrides": {
-    "cookie": "^0.7.0"
-  },
-  "engines": {
-    "node": ">=24.0.0"
   }
 }

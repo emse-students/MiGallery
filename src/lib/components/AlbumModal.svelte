@@ -3,9 +3,9 @@
   import { CircleAlert, Search, X, Plus } from '@lucide/svelte';
   import Spinner from './Spinner.svelte';
   import Modal from './Modal.svelte';
-  import { m } from '$lib/paraglide/messages';
-  import { fuzzySearch } from '$lib/fuzzy';
-  import { getDefaultPromos, getSchoolYear, parseAlbumDate } from '$lib/promo-utils';
+  import { m } from '#lib/paraglide/messages.js';
+  import { fuzzySearch } from '#lib/fuzzy.ts';
+  import { getDefaultPromos, getSchoolYear, parseAlbumDate } from '#lib/promo-utils.ts';
 
   interface Props {
     albumId?: string;

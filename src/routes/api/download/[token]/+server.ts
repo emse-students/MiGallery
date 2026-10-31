@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { consumeDownloadToken } from '$lib/server/download-tokens';
-import { env } from '$env/dynamic/private';
-import { ensureError } from '$lib/ts-utils';
-import { fetchWithAnswerDeadline } from '$lib/server/outbound';
+import { consumeDownloadToken } from '#lib/server/download-tokens.ts';
+import { env } from '#lib/server/env.ts';
+import { ensureError } from '#lib/ts-utils.ts';
+import { fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';

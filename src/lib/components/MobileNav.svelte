@@ -6,9 +6,9 @@
 -->
 <script lang="ts">
   import { page } from '$app/state';
-  import type { User } from '$lib/types/api';
-  import { NAV_ITEMS, isNavActive } from '$lib/nav-items';
-  import { m } from '$lib/paraglide/messages';
+  import type { User } from '#lib/types/api.ts';
+  import { NAV_ITEMS, isNavActive } from '#lib/nav-items.ts';
+  import { m } from '#lib/paraglide/messages.js';
 
   let user = $derived(page.data?.session?.user as User | undefined);
   let isAuthenticated = $derived(!!user);

@@ -1,5 +1,5 @@
-import { OUTBOUND_BUDGET_MS } from '$lib/server/outbound';
-import { createLogger } from '$lib/server/logger';
+import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('immich-people');
 

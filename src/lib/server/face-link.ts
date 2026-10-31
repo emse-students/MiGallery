@@ -1,9 +1,9 @@
 /**
  * Changing the face link of an account: the ONE place in the application that writes
  * `users.photos_id`, so the things that must move with it cannot be forgotten by one of its
- * callers. `createUser` / `updateUser` (db/users.ts) refuse the column. The only other writers are
- * dev and seed scripts that insert the system user with a NULL link (`dev/login-as`,
- * `scripts/init-db.cjs`, `scripts/inspect-db.cjs`), which have no consent to record.
+ * callers. `createUser` / `updateUser` (db/users.ts) refuse the column. The only other writer is the
+ * test runner's own admin row (`scripts/test-with-server.mjs`), inserted with a NULL link and so no consent
+ * to record.
  *
  * A link is what `photo_access_permissions` grants, the consent record and the Immich person's
  * name all hang from. So when the person CHANGES - a relink to someone else, an unlink by the
@@ -14,13 +14,14 @@
  * or a consent row without its link, would be an unprovable state.
  */
 
-import type { getDatabase } from '$lib/db/database';
+import type { getDatabase } from '#lib/db/database.ts';
 import {
   eraseLocalFaceData,
   type FaceErasureReason,
   type LocalErasure,
-} from '$lib/server/face-erasure';
-import { recordFaceConsent } from '$lib/server/face-consent';
+} from '#lib/server/face-erasure.ts';
+import { recordFaceConsent } from '#lib/server/face-consent.ts';
+import { eraseFaceReferences } from '#lib/server/face-references.ts';
 
 type Db = ReturnType<typeof getDatabase>;
 
@@ -60,6 +61,9 @@ export function applyFaceLink(
   let local: LocalErasure | null = null;
   if (changed && before !== null) {
     local = eraseLocalFaceData(db, userId, personId === null ? options.unlinkReason : 'relink');
+  } else if (personId === null) {
+    // Already unlinked: a withdrawal must still erase the sealed references, whatever the link state.
+    eraseFaceReferences(db, userId);
   }
   if (personId !== null && changed) {
     db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?').run(personId, userId);

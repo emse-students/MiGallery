@@ -1,12 +1,12 @@
 import type { PageServerLoad } from './$types';
-import type { SeoMeta } from '$lib/seo';
-import { m } from '$lib/paraglide/messages';
-import { getDatabase } from '$lib/db/database';
-import { checkAlbumAccess } from '$lib/albums';
-import type { User, Album } from '$lib/types/api';
+import type { SeoMeta } from '#lib/seo.ts';
+import { m } from '#lib/paraglide/messages.js';
+import { getDatabase } from '#lib/db/database.ts';
+import { checkAlbumAccess } from '#lib/albums.ts';
+import type { User, Album } from '#lib/types/api.ts';
 import { redirect } from '@sveltejs/kit';
-import { loginBounceTarget } from '$lib/auth-redirect';
-import { resolveCover } from '$lib/server/album-cover';
+import { loginBounceTarget } from '#lib/auth-redirect.ts';
+import { resolveCover } from '#lib/server/album-cover.ts';
 
 /** Formate la date et le lieu en description OG lisible (ex. "15 mai 2024 · Paris"). */
 function buildOgDescription(date?: string | null, location?: string | null): string {

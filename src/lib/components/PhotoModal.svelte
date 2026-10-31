@@ -18,18 +18,23 @@
     Aperture,
     MapPin,
   } from '@lucide/svelte';
-  import type { IconComponent } from '$lib/icons';
+  import type { IconComponent } from '#lib/icons.ts';
   import Modal from './Modal.svelte';
   import OverflowMenu from './OverflowMenu.svelte';
   import { page } from '$app/state';
-  import type { ImmichAsset, User } from '$lib/types/api';
-  import type { Asset } from '$lib/photos.svelte';
-  import type { OverflowMenuItem } from '$lib/overflow-menu';
-  import { toast } from '$lib/toast';
-  import { setAlbumCover } from '$lib/immich/albums';
-  import { FileSharer, fetchOriginal, originalFileName, probeFileSharing } from '$lib/share-files';
-  import { m } from '$lib/paraglide/messages';
-  import { getLocale } from '$lib/paraglide/runtime';
+  import type { ImmichAsset, User } from '#lib/types/api.ts';
+  import type { Asset } from '#lib/photos.svelte.ts';
+  import type { OverflowMenuItem } from '#lib/overflow-menu.ts';
+  import { toast } from '#lib/toast.ts';
+  import { setAlbumCover } from '#lib/immich/albums.ts';
+  import {
+    FileSharer,
+    fetchOriginal,
+    originalFileName,
+    probeFileSharing,
+  } from '#lib/share-files.ts';
+  import { m } from '#lib/paraglide/messages.js';
+  import { getLocale } from '#lib/paraglide/runtime.js';
   import {
     cameraName,
     dimensionsLine,
@@ -39,7 +44,7 @@
     formatViewerDateTitle,
     formatViewerFullDate,
     viewerDateOf,
-  } from '$lib/viewer-info';
+  } from '#lib/viewer-info.ts';
   import {
     GESTURE,
     clamp,
@@ -64,7 +69,7 @@
     type Sample,
     type Size,
     type ZoomState,
-  } from '$lib/viewer-gestures';
+  } from '#lib/viewer-gestures.ts';
 
   interface Props {
     assetId: string;
@@ -619,7 +624,7 @@
   let isDownloading = $state(false);
   let isSettingCover = $state(false);
 
-  /** Where the originals come from (`$lib/share-files`, shared with the grid's selection). */
+  /** Where the originals come from (`#lib/share-files.ts`, shared with the grid's selection). */
   let originalSource = $derived({ albumVisibility, albumId });
 
   async function downloadAsset() {
@@ -651,7 +656,7 @@
   /** The ONE share implementation, which keeps a fetched file across a lapsed activation. */
   const sharer = new FileSharer();
 
-  /** Shares the ORIGINAL file, as Google Photos does (`$lib/share-files`). */
+  /** Shares the ORIGINAL file, as Google Photos does (`#lib/share-files.ts`). */
   async function shareAsset() {
     if (!asset || isSharing) return;
     isSharing = true;

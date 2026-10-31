@@ -1,10 +1,10 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
-import { generateAuthorizationUrl } from '$lib/auth';
+import { generateAuthorizationUrl, getIssuerOrigin } from '#lib/auth.ts';
 import { randomBytes } from 'crypto';
-import { REDIRECT_PARAM, RETURN_COOKIE_NAME, safeRedirectTarget } from '$lib/auth-redirect';
+import { REDIRECT_PARAM, RETURN_COOKIE_NAME, safeRedirectTarget } from '#lib/auth-redirect.ts';
 
-import { createLogger } from '$lib/server/logger';
+import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('auth-login');
 const STATE_COOKIE_NAME = '__oidc_state';
@@ -16,6 +16,7 @@ function generateRandomString(length: number): string {
 
 export const GET: RequestHandler = ({ cookies, url }) => {
   let authUrl: string;
+  let issuerOrigin: string;
 
   try {
     // Generate state and nonce
@@ -58,10 +59,11 @@ export const GET: RequestHandler = ({ cookies, url }) => {
     // Determine redirect URI
     const callbackUrl = new URL('/api/auth/callback', url.origin);
     authUrl = generateAuthorizationUrl(callbackUrl.toString(), state, nonce);
+    issuerOrigin = getIssuerOrigin();
   } catch (e) {
     log.error('Error:', e);
     throw error(500, 'Login failed');
   }
 
-  throw redirect(302, authUrl);
+  throw redirect(302, authUrl, { external: [issuerOrigin] });
 };
