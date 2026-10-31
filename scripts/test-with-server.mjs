@@ -220,7 +220,7 @@ async function waitForServer(databasePath) {
     const health = await probeHealth();
     if (health.ready && schemaReady(databasePath)) return;
     const line = health.ready
-      ? `health answered 200 but ${databasePath} has no schema yet`
+      ? `health answered 200 but this run's database has no schema yet`
       : health.line;
     if (!health.line.startsWith('no answer') && line !== lastLogged) {
       console.warn(`⏳ Not ready: ${line}`);
