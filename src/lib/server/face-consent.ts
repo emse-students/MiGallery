@@ -15,8 +15,15 @@ type Db = ReturnType<typeof getDatabase>;
 export type ConsentSource = 'selfie' | 'admin' | 'legacy';
 
 /**
- * Record that `userId` consented to the face link now, under the terms in force. A member who
- * already holds an open (not withdrawn) consent gets no second row.
+ * Record that `userId` consented to the face link now, under the terms in force. MUST run inside
+ * the caller's transaction (the one writing what the consent covers).
+ *
+ * - `selfie` is the MEMBER's own explicit agreement (they ticked it): it SUPERSEDES any other open
+ *   row - a `legacy` or `admin` row, or a `selfie` row on older terms - which is closed and a
+ *   `selfie` row on TERMS_VERSION opened. Only an open `selfie` row already on TERMS_VERSION is
+ *   kept as it is: a re-enrolment under the same terms says nothing new, so no rows churn.
+ * - `admin` is an administrator's link, not the member's agreement: it never replaces an open row
+ *   (above all not the member's own `selfie` one), and opens one only when none is open.
  */
 export function recordFaceConsent(
   db: Db,
@@ -25,10 +32,28 @@ export function recordFaceConsent(
   now: number = Date.now()
 ): void {
   const open = db
-    .prepare('SELECT 1 FROM face_consents WHERE user_id = ? AND withdrawn_at IS NULL')
-    .get(userId);
-  if (open) {
+    .prepare(
+      'SELECT id, source, version FROM face_consents WHERE user_id = ? AND withdrawn_at IS NULL'
+    )
+    .all(userId) as Array<{ id: number; source: string; version: string }>;
+  if (source === 'admin' && open.length > 0) {
+    log.debug('admin link: an open consent is kept', { sources: open.map((r) => r.source) });
     return;
+  }
+  if (source === 'selfie' && open.length > 0) {
+    if (open.every((r) => r.source === 'selfie' && r.version === TERMS_VERSION)) {
+      log.debug('selfie consent already open on the terms in force');
+      return;
+    }
+    const closed = db
+      .prepare(
+        'UPDATE face_consents SET withdrawn_at = ? WHERE user_id = ? AND withdrawn_at IS NULL'
+      )
+      .run(now, userId).changes;
+    log.info("an older consent is superseded by the member's own agreement", {
+      closed,
+      sources: open.map((r) => r.source),
+    });
   }
   db.prepare(
     'INSERT INTO face_consents (user_id, created_at, version, source) VALUES (?, ?, ?, ?)'
