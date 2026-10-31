@@ -88,6 +88,12 @@ backfilled at start; its `created_at` is the backfill date, not the consent date
 that proof). A withdrawal sets `withdrawn_at`; an account deletion cascades. See
 [photos-cv.md](photos-cv.md#consent-record).
 
+### `face_matches` and `face_references`
+
+The face store (option C): a member's sealed reference embeddings and which stored faces were given
+to whom, with the member's answer. Every detected face itself lives in a second file,
+`data/faces.db`, that no backup copies. See [face-matching-option-c](face-matching-option-c.md).
+
 ### `face_erasures`
 
 `face_erasures(id, person_id, reason, requested_at, attempts, last_attempt_at,

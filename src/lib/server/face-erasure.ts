@@ -40,6 +40,11 @@ import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
 import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
 import { eraseFaceReferences } from '#lib/server/face-references.ts';
 import { assertAnotherAdminRemains } from '#lib/server/admin-floor.ts';
+import { inTransaction } from '#lib/db/transaction.ts';
+import { defaultFaceEngine, redecideFaces, runExclusive } from '#lib/server/face-engine.ts';
+import type { FaceKey } from '#lib/server/face-store.ts';
+
+export { inTransaction };
 
 const log = createLogger('face-erasure');
 
@@ -72,6 +77,8 @@ export interface LocalErasure {
   erasure: number | null;
   /** The person whose link was undone, for the crop cleanup. */
   personId: string | null;
+  /** Faces the member held or rejected (lot A4): re-decided after the commit, for someone else. */
+  heldFaces: FaceKey[];
 }
 
 /**
@@ -101,16 +108,19 @@ export function eraseLocalFaceData(
   withdrawFaceConsent(db, userId);
   // The member's stored face templates go with the consent: withdrawal, unlink and relink all end here.
   eraseFaceReferences(db, userId);
+  // And every face given to them, answered or not (lot A4). The faces they held are re-decided
+  // after the commit; the rows go now, in this transaction.
+  const heldFaces = eraseFaceMatches(db, userId);
 
   if (!linked) {
     log.info('face data erased locally, no Immich person was linked', { reason });
-    return { erasure: null, personId: null };
+    return { erasure: null, personId: null, heldFaces };
   }
   const personId = normalisePersonId(linked);
   if (!personId) {
     // A link an admin stored by hand that is not a person id: nothing in Immich can be named.
     log.warn('face link was not a person id; nothing journaled', { reason });
-    return { erasure: null, personId: null };
+    return { erasure: null, personId: null, heldFaces };
   }
 
   const info = db
@@ -120,16 +130,48 @@ export function eraseLocalFaceData(
     erasure: info.lastInsertRowid,
     reason,
   });
-  return { erasure: Number(info.lastInsertRowid), personId };
+  return { erasure: Number(info.lastInsertRowid), personId, heldFaces };
 }
 
-/** After the COMMIT: delete the person's crops (never throws) and kick the Immich half. */
+/**
+ * Delete every match row of `userId` (lot A4) and return every face they named - held, or
+ * rejected (that exclusion goes with them) - for {@link finishLocalErasure} to re-decide. Inside
+ * the caller's transaction.
+ */
+export function eraseFaceMatches(db: Db, userId: string): FaceKey[] {
+  const held = (
+    db
+      .prepare('SELECT asset_id, face_index FROM face_matches WHERE user_id = ?')
+      .all(userId) as Array<{ asset_id: string; face_index: number }>
+  ).map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
+  const deleted = db.prepare('DELETE FROM face_matches WHERE user_id = ?').run(userId).changes;
+  log.info('face matches erased', { deleted, held: held.length });
+  return held;
+}
+
+/**
+ * After the COMMIT: delete the person's crops (never throws), kick the Immich half, and re-decide
+ * the faces the member held so they can go to the next member (best effort, logged: the erasure
+ * itself is already complete).
+ */
 export function finishLocalErasure(local: LocalErasure): void {
   if (local.personId) {
     deletePersonFaceCrops(local.personId);
   }
   if (local.erasure !== null) {
     kickFaceErasures();
+  }
+  if (local.heldFaces.length > 0) {
+    const engine = defaultFaceEngine();
+    if (!engine) {
+      log.warn('face store not configured; held faces left undecided', {
+        faces: local.heldFaces.length,
+      });
+      return;
+    }
+    runExclusive(() => redecideFaces(engine, local.heldFaces)).catch((e: unknown) =>
+      log.error('re-deciding the faces of an erased member failed', e)
+    );
   }
 }
 
@@ -171,19 +213,6 @@ export function anonymiseUserInLogs(db: Db, userId: string, personId: string | n
     inDetails,
     asPerson: person,
   });
-}
-
-/** Run `fn` in one SQLite transaction. */
-export function inTransaction<T>(db: Db, fn: () => T): T {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const result = fn();
-    db.exec('COMMIT');
-    return result;
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
 }
 
 /**

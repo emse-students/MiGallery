@@ -16,6 +16,7 @@
 
 import type { getDatabase } from '#lib/db/database.ts';
 import {
+  eraseFaceMatches,
   eraseLocalFaceData,
   type FaceErasureReason,
   type LocalErasure,
@@ -62,8 +63,13 @@ export function applyFaceLink(
   if (changed && before !== null) {
     local = eraseLocalFaceData(db, userId, personId === null ? options.unlinkReason : 'relink');
   } else if (personId === null) {
-    // Already unlinked: a withdrawal must still erase the sealed references, whatever the link state.
+    // Already unlinked: a withdrawal must still erase the sealed references and the matches,
+    // whatever the link state.
     eraseFaceReferences(db, userId);
+    const heldFaces = eraseFaceMatches(db, userId);
+    if (heldFaces.length > 0) {
+      local = { erasure: null, personId: null, heldFaces };
+    }
   }
   if (personId !== null && changed) {
     db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?').run(personId, userId);

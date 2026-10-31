@@ -170,11 +170,11 @@ CREATE TABLE IF NOT EXISTS face_consents (
 );
 CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
 
--- Face store, option C (docs/wiki/face-matching-option-c.md). Both tables hold BIOMETRIC TEMPLATES, so every
+-- Face store, option C (docs/wiki/face-matching-option-c.md). Templates are BIOMETRIC, so every
 -- vector is sealed (AES-256-GCM, src/lib/server/face-seal.ts) and bound by its authenticated
 -- context: a reference to its member AND model (referenceContext), an embedding to its asset, face
 -- index and model (embeddingContext) - a ciphertext copied elsewhere fails to open. A member's own
--- references are NOT told apart from one another. Nothing reads or writes them yet (lot A1); `secure_delete`
+-- references are NOT told apart from one another. `secure_delete`
 -- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
 --
 -- face_references: the 3-5 reference embeddings of a consenting member (source: 'selfie' |
@@ -198,21 +198,31 @@ BEGIN
     SELECT RAISE(ABORT, 'face_references: at most 5 per member and model');
 END;
 
--- face_embeddings: one sealed float16 512-d embedding per detected face, with its box. `model`
--- tags the network that produced it, so a vector of another model is never compared; it is part of
--- the key so a re-embedding by a new model can sit beside the old rows during a migration.
-CREATE TABLE IF NOT EXISTS face_embeddings (
+-- face_embeddings (every detected face, non-members included) is NOT in this file: it lives in
+-- data/faces.db (src/lib/db/face-database.ts), which no backup copies, because the faces are
+-- recomputed from the photographs. Only what concerns consenting members stays here.
+--
+-- face_matches (lot A4): which member a stored face was given to, by
+-- src/lib/server/face-engine.ts and nothing else. A face has at most ONE holder (a row not
+-- 'rejected', the partial unique index); 'rejected' rows only remember who said "not me", so
+-- the face is never offered to them again. `band` is the matcher's ('auto' shows without a
+-- question, 'suggested' waits for the member), `state` the member's answer. The face itself
+-- (asset_id, face_index, model) is a key of faces.db: no foreign key can cross the two files, so
+-- face-engine.ts deletes the rows of a face it deletes. An account deletion takes them by cascade.
+CREATE TABLE IF NOT EXISTS face_matches (
     asset_id TEXT NOT NULL,
     face_index INTEGER NOT NULL,
     model TEXT NOT NULL,
-    x1 REAL NOT NULL,
-    y1 REAL NOT NULL,
-    x2 REAL NOT NULL,
-    y2 REAL NOT NULL,
-    img_w INTEGER NOT NULL,
-    img_h INTEGER NOT NULL,
-    score REAL NOT NULL,
-    sealed BLOB NOT NULL,
+    user_id TEXT NOT NULL,
+    distance REAL NOT NULL,
+    runner_up REAL,
+    band TEXT NOT NULL CHECK (band IN ('auto', 'suggested')),
+    state TEXT NOT NULL CHECK (state IN ('pending', 'confirmed', 'rejected')),
     created_at INTEGER NOT NULL,
-    PRIMARY KEY(asset_id, face_index, model)
+    decided_at INTEGER,
+    PRIMARY KEY(asset_id, face_index, model, user_id),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_face_matches_holder
+    ON face_matches(asset_id, face_index, model) WHERE state != 'rejected';
+CREATE INDEX IF NOT EXISTS idx_face_matches_user ON face_matches(user_id, state, band);

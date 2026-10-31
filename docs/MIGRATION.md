@@ -34,20 +34,23 @@ install as a service. The runner user must be able to run `docker`
 
 The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 
-| Secret                                            | Role                                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `IMMICH_API_KEY`                                  | access to the Immich API                                                        |
-| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                                  |
-| `AVATAR_SIGNING_KEY`                              | signed avatar URLs                                                              |
-| `IMMICH_BASE_URL`                                 | `http://<immich-host>:2283`, as reached from the container                      |
-| `DEPLOY_DIR`                                      | `<deploy-dir>`, where the runner writes `.env`, the compose file and `scripts/` |
-| `OFFSITE_HOST`                                    | `<backup-account>@<backup-host>`, the offsite backup target                     |
-| `IMMICH_BACKUP_DIR`                               | the directory of Immich's own nightly dumps on the host                         |
+| Secret                                            | Role                                                                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `IMMICH_API_KEY`                                  | access to the Immich API                                                         |
+| `MICONNECT_CLIENT_ID` / `MICONNECT_CLIENT_SECRET` | OIDC Authentik                                                                   |
+| `AVATAR_SIGNING_KEY`                              | signed avatar URLs                                                               |
+| `FACE_STORE_KEY`                                  | seals the face store, 64 hex (`openssl rand -hex 32`); losing it loses the store |
+| `IMMICH_BASE_URL`                                 | `http://<immich-host>:2283`, as reached from the container                       |
+| `DEPLOY_DIR`                                      | `<deploy-dir>`, where the runner writes `.env`, the compose file and `scripts/`  |
+| `OFFSITE_HOST`                                    | `<backup-account>@<backup-host>`, the offsite backup target                      |
+| `IMMICH_BACKUP_DIR`                               | the directory of Immich's own nightly dumps on the host                          |
 
 The deploy refuses to run while any of them is missing. `OFFSITE_HOST` and `IMMICH_BACKUP_DIR`
 never reach `.env`: the deploy writes them into `<deploy-dir>/scripts/backup.env`, which both
 backup scripts read (`scripts/backup-config.sh`). Non-secret values (MICONNECT_ISSUER, ports...)
-have defaults in `docker-compose.prod.yml`, overridable if needed.
+have defaults in `docker-compose.prod.yml`, overridable if needed - among them `FACE_ML_URL` and
+`IMMICH_DOCKER_NETWORK`: the container joins Immich's compose network to reach its model service
+([face-matching-option-c](wiki/face-matching-option-c.md)).
 
 ## 3. SSH access for offsite backup
 

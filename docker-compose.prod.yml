@@ -41,6 +41,12 @@ services:
       # Signe les URL d avatar sans cle que MiConnect donne a MinoWiki et Archives
       # (src/lib/server/avatar-signature.ts). MiConnect en detient la MEME valeur.
       AVATAR_SIGNING_KEY: ${AVATAR_SIGNING_KEY:?AVATAR_SIGNING_KEY requis}
+      # Scelle les empreintes faciales (src/lib/server/face-seal.ts, docs/wiki/face-matching-option-c.md).
+      # 64 hex. La perdre rend data/faces.db et les references illisibles : la cle vit dans les
+      # secrets GitHub, jamais dans une sauvegarde de la base.
+      FACE_STORE_KEY: ${FACE_STORE_KEY:?FACE_STORE_KEY requis}
+      # Le service de modele d Immich, joint par son nom sur le reseau d Immich (ci-dessous).
+      FACE_ML_URL: ${FACE_ML_URL:-http://immich-machine-learning:3003}
       # Aucun secret de session : le cookie ne transporte qu'un jeton opaque et la
       # table `sessions` porte tout le reste - rien a signer, donc rien a tourner.
       # Max request body accepted by adapter-bun. Nothing legitimately needs a big
@@ -53,3 +59,12 @@ services:
       MALLOC_ARENA_MAX: '2'
     volumes:
       - ./data:/app/data
+    networks:
+      - default
+      - immich
+
+networks:
+  # Le reseau du compose d Immich, pour joindre son service de modele (reconnaissance faciale).
+  immich:
+    external: true
+    name: ${IMMICH_DOCKER_NETWORK:-immich_default}

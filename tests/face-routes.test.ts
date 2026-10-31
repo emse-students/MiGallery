@@ -472,7 +472,7 @@ describe('the throw paths of the file and the worker', () => {
     const local = erasure.inTransaction(db(), () =>
       erasure.eraseLocalFaceData(db(), 'member', 'admin_unlink')
     );
-    expect(local).toEqual({ erasure: null, personId: null });
+    expect(local).toEqual({ erasure: null, personId: null, heldFaces: [] });
     expect(journal()).toEqual([]);
   });
 });

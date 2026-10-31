@@ -134,11 +134,12 @@ jobs:
           MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
           MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
           AVATAR_SIGNING_KEY: ${{ secrets.AVATAR_SIGNING_KEY }}
+          FACE_STORE_KEY: ${{ secrets.FACE_STORE_KEY }}
           OFFSITE_HOST: ${{ secrets.OFFSITE_HOST }}
           IMMICH_BACKUP_DIR: ${{ secrets.IMMICH_BACKUP_DIR }}
         run: |
           for v in DEPLOY_DIR IMMICH_API_KEY IMMICH_BASE_URL MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET \
-            AVATAR_SIGNING_KEY OFFSITE_HOST IMMICH_BACKUP_DIR; do
+            AVATAR_SIGNING_KEY FACE_STORE_KEY OFFSITE_HOST IMMICH_BACKUP_DIR; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
             # One KEY=VALUE per line: a newline or CR inside a value would write a second key.
             case "${!v}" in

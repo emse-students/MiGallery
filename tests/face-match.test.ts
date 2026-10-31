@@ -333,6 +333,7 @@ describe('the model client', () => {
 
 describe('the store scan', () => {
   let database: typeof import('#lib/db/database.ts');
+  let faceDatabase: typeof import('#lib/db/face-database.ts');
   let store: typeof import('#lib/server/face-store.ts');
   let refs: typeof import('#lib/server/face-references.ts');
   let dbDir: string;
@@ -343,8 +344,13 @@ describe('the store scan', () => {
     return database.getDatabase();
   }
 
+  /** The face store lives in its own file (faces.db), apart from the members' references. */
+  function fdb() {
+    return faceDatabase.getFaceDatabase();
+  }
+
   function storeFace(assetId: string, index: number, vector: Float32Array, k = key) {
-    db()
+    fdb()
       .prepare(
         `INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h,
            score, sealed, created_at) VALUES (?, ?, ?, 0, 0, 1, 1, 10, 10, 0.9, ?, 0)`
@@ -361,17 +367,20 @@ describe('the store scan', () => {
     dbDir = mkdtempSync(join(tmpdir(), 'migallery-face-match-'));
     process.env.DATABASE_PATH = join(dbDir, 'face-match.db');
     database = await import('#lib/db/database.ts');
+    faceDatabase = await import('#lib/db/face-database.ts');
     store = await import('#lib/server/face-store.ts');
     refs = await import('#lib/server/face-references.ts');
   });
 
   afterAll(() => {
+    faceDatabase.resetFaceDatabase();
     database.resetDatabase();
     removeTempDir(dbDir);
   });
 
   beforeEach(() => {
-    db().exec('DELETE FROM face_embeddings; DELETE FROM face_references; DELETE FROM users;');
+    fdb().exec('DELETE FROM face_embeddings');
+    db().exec('DELETE FROM face_references; DELETE FROM users;');
   });
 
   it('reads the key from the environment and refuses a malformed one', () => {
@@ -389,7 +398,7 @@ describe('the store scan', () => {
     storeFace('a1', 1, synthetic(2));
     storeFace('a2', 0, synthetic(3), otherKey);
     const seen: string[] = [];
-    const result = await store.scanFaceStore(db(), key, (f, v) => {
+    const result = await store.scanFaceStore(fdb(), key, (f, v) => {
       seen.push(`${f.assetId}/${f.faceIndex}`);
       expect(v).toHaveLength(FACE_EMBEDDING_DIM);
     });
@@ -401,20 +410,20 @@ describe('the store scan', () => {
     const n = store.SCAN_CHUNK * 2 + 3;
     const sealedOne = (asset: string) =>
       seal(key, embeddingContext(asset, 0, FACE_MODEL), encodeEmbedding(synthetic(9)));
-    db().exec('BEGIN');
+    fdb().exec('BEGIN');
     for (let i = 0; i < n; i++) {
-      db()
+      fdb()
         .prepare(
           `INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h,
              score, sealed, created_at) VALUES (?, 0, ?, 0, 0, 1, 1, 10, 10, 0.9, ?, 0)`
         )
         .run(`c${i}`, FACE_MODEL, sealedOne(`c${i}`));
     }
-    db().exec('COMMIT');
+    fdb().exec('COMMIT');
     const seen = new Set<string>();
     let yielded = false;
     setImmediate(() => (yielded = true));
-    const result = await store.scanFaceStore(db(), key, (f) => seen.add(f.assetId));
+    const result = await store.scanFaceStore(fdb(), key, (f) => seen.add(f.assetId));
     expect(result).toEqual({ visited: n, failed: 0 });
     expect(seen.size).toBe(n);
     expect(yielded).toBe(true);
@@ -423,7 +432,7 @@ describe('the store scan', () => {
   it('opens chosen faces only, leaving out the missing and the unopenable', () => {
     storeFace('a1', 0, synthetic(1));
     storeFace('a2', 0, synthetic(2), otherKey);
-    const got = store.loadFaceEmbeddings(db(), key, [
+    const got = store.loadFaceEmbeddings(fdb(), key, [
       { assetId: 'a1', faceIndex: 0 },
       { assetId: 'a2', faceIndex: 0 },
       { assetId: 'nope', faceIndex: 0 },

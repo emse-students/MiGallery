@@ -506,15 +506,12 @@ describe('the tables', () => {
     expect(refs.loadFaceReferences(db, key, 'u1')).toHaveLength(0);
   });
 
-  it('has the embedding table, keyed by asset, face and model', () => {
+  it('keeps no embedding table: the faces of everyone photographed live in faces.db', () => {
     const db = database.getDatabase();
-    const insert = db.prepare(
-      "INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h, score, sealed, created_at) VALUES ('s', ?, ?, 0, 0, 1, 1, 10, 10, 0.9, x'00', 0)"
-    );
-    insert.run(0, 'buffalo_l');
-    insert.run(1, 'buffalo_l');
-    expect(() => insert.run(1, 'buffalo_l')).toThrow();
-    insert.run(1, 'next_model'); // a re-embedding sits beside the old row
-    db.exec('DELETE FROM face_embeddings');
+    expect(
+      db
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'face_embeddings'")
+        .get()
+    ).toBeNull();
   });
 });

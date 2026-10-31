@@ -169,6 +169,48 @@ table (256 KB) built once from `halfToFloat`, which made the scan several times 
 `FACE_ML_URL` and `FACE_STORE_KEY` are declared in `src/env.ts`. Nothing calls this code from a
 route or a worker yet; A3 and A5 are its first callers.
 
+### A3 - ingestion into `faces.db`
+
+| File                            | Role                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/db/face-database.ts`   | `data/faces.db` (or `FACE_DATABASE_PATH`), opened like `migallery.db` (`openSqliteFile`: bind guard, foreign keys, `secure_delete`) plus WAL. `face_embeddings` (score NULL for a seeded face), `face_assets` (`pending` / `done` / `failed`, attempts, last error), `face_store_state` (`seeded_at`). No backup copies this file.               |
+| `src/lib/server/face-ingest.ts` | discovery (`createdAfter` the last listing, minus an hour), the daily full reconciliation (every asset, trashed included; removes the faces of an asset Immich no longer has, only from a COMPLETE listing naming at least half of what is known), a pass (the Immich preview through the model, faces sealed, then decided), the hourly report. |
+
+- **A service down stops the pass and blames no asset** (`ml_unavailable`, `immich_unavailable`);
+  an answer that cannot be trusted, or a missing preview, counts one attempt; after 5 the asset is
+  `failed`.
+- **The report** (hourly, `face-ingest`): counts per state, the oldest pending age, the failed
+  grouped by the kind of their last error, and the last stop cause. An error when the store is not
+  seeded, when an asset failed, or when an asset has waited more than a day.
+- **Nothing is ingested before the seed** (`seeded_at`): ingesting first would re-embed the whole
+  archive, about 1.5 days of the model service, for vectors Immich already has.
+- **The worker starts only when `FACE_STORE_KEY` and `FACE_ML_URL` are set**; it ticks every 10
+  minutes. In production the container joins Immich's compose network (`IMMICH_DOCKER_NETWORK`,
+  default `immich_default`) and reaches `http://immich-machine-learning:3003`.
+- The A1 table `face_embeddings` in `migallery.db` (never written) is dropped at start when empty;
+  a non-empty one is left and reported.
+
+### A4 - the match engine
+
+`src/lib/server/face-engine.ts` is the only writer of `face_matches` (in `migallery.db`: it
+concerns members, and is backed up). Every event ends in `recordDecisions`, which re-decides each
+face it is given from scratch: a CONFIRMED face is kept; a member who REJECTED it is excluded; the
+holder row is replaced by `decideFace` among the rest. So the result never depends on the order of
+events.
+
+| Event                          | What the engine does                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| new photo                      | `matchNewFaces`: its faces against every member                                                                                       |
+| enrolment, a reference changes | `rematchMember`: the store scanned for faces within 0.62 of the member, plus the faces they held, all re-decided against every member |
+| a member answers               | `answerMatch` (`confirm` / `reject` on a face they hold), then the face re-decided (it may go to the next member)                     |
+| withdrawal, account deletion   | every row of the member deleted IN the erasure transaction (`eraseFaceMatches`); the faces they held or rejected re-decided after it  |
+| asset gone, asset re-embedded  | `removeAssetFaces`: its embeddings and every row naming them                                                                          |
+| seed, a change of thresholds   | `rematchAll`                                                                                                                          |
+
+Every mutation goes through `runExclusive` (one at a time: a scan yields between chunks), and a
+decision is re-checked in its transaction against the member's CURRENT references, so a
+withdrawal that lands during a scan is never undone by its result.
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                     |
