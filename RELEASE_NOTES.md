@@ -3,7 +3,7 @@
 ## Changes
 
 - Docs: the face matching design (option C) moves here from the Canari repository, with the 2026-10-31 measurements: float16 against float32, the 0.62 threshold on the members' own links, and the store's memory (`docs/wiki/face-matching-option-c.md`).
-- Faces (A2): the client of the face model and the matcher - the nearest member only, the 0.5 / 0.62 bands, a runner-up within 0.05 or fewer than 3 references never accepted without the member, the store streamed rather than held. No route or worker calls it yet.
+- Faces (A2): the client of the face model and the matcher - the nearest member only, the 0.5 / 0.62 bands, a runner-up closer than 0.05 (a member who rejected the face included) or fewer than 3 references never accepted without the member, a selfie refused on any second face, the store streamed rather than held. No route or worker calls it yet.
 - Faces (A3, A4): ingestion of new photos into `data/faces.db` (no backup copies it), with durable per-asset state, retries, a daily reconciliation with Immich and an hourly report; the match engine, sole writer of `face_matches`. Withdrawal and account deletion now also delete the member's matches in the same transaction. Deploy: needs the `FACE_STORE_KEY` secret; the container joins Immich's network to reach its model service. Off until the store is seeded (A7).
 
 # MiGallery v2.17.0

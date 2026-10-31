@@ -14,7 +14,12 @@
 
 import { env } from '#lib/server/env.ts';
 import { createLogger } from '#lib/server/logger.ts';
-import { FACE_DETECTION_MIN_SCORE, FACE_EMBEDDING_DIM, FACE_MODEL } from '#lib/face-embedding.ts';
+import {
+  FACE_DETECTION_MIN_SCORE,
+  FACE_EMBEDDING_DIM,
+  FACE_MODEL,
+  FACE_SELFIE_BYSTANDER_SCORE,
+} from '#lib/face-embedding.ts';
 
 const log = createLogger('face-ml');
 
@@ -111,11 +116,17 @@ function parseEmbedding(raw: unknown): Float32Array {
     );
   }
   const out = new Float32Array(FACE_EMBEDDING_DIM);
+  let nonZero = false;
   for (let i = 0; i < out.length; i++) {
     if (!finite(values[i])) {
       throw new FaceMlResponseError('an embedding holds a non-finite value');
     }
     out[i] = values[i] as number;
+    nonZero ||= out[i] !== 0;
+  }
+  if (!nonZero) {
+    // A zero vector has no direction: every distance to it is NaN. Refused here, at the source.
+    throw new FaceMlResponseError('an embedding is all zeros');
   }
   return out;
 }
@@ -201,9 +212,19 @@ export async function detectFaces(
     log.warn('face model refused the image', { status: res.status });
     throw new FaceMlUnavailableError(`face model answered ${res.status}`, res.status);
   }
+  // Reading the body can fail like the request (a reset, the timeout): that is the service being
+  // unavailable, not a bad answer. Only text that arrived and does not parse is the answer's fault.
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log.warn('face model answer could not be read', { error: message });
+    throw new FaceMlUnavailableError(`face model answer unreadable: ${message}`, null);
+  }
   let body: unknown;
   try {
-    body = await res.json();
+    body = JSON.parse(text);
   } catch {
     throw new FaceMlResponseError('the answer is not JSON');
   }
@@ -217,16 +238,23 @@ export async function detectFaces(
 }
 
 /**
- * The one embedding of a selfie: exactly one face of score >= FACE_DETECTION_MIN_SCORE, or a
- * {@link SelfieRefusedError} naming why. The image and the other faces are dropped here.
+ * The one embedding of a selfie, or a {@link SelfieRefusedError} naming why. The image and the
+ * other faces are dropped here.
+ *
+ * A REFERENCE MUST NEVER BE A BYSTANDER. The detector runs at the low floor
+ * FACE_SELFIE_BYSTANDER_SCORE, so a half-visible face behind the member is SEEN: any second face
+ * refuses the selfie. The one face must then be confident (FACE_DETECTION_MIN_SCORE).
  */
 export async function selfieEmbedding(fetchFn: typeof fetch, image: Blob): Promise<Float32Array> {
-  const result = await detectFaces(fetchFn, image, FACE_DETECTION_MIN_SCORE);
-  const confident = result.faces.filter((f) => f.score >= FACE_DETECTION_MIN_SCORE);
-  if (confident.length !== 1) {
-    const reason: SelfieRefusal = confident.length === 0 ? 'no_face' : 'several_faces';
-    log.info('selfie refused', { reason, faces: confident.length });
-    throw new SelfieRefusedError(reason, confident.length);
+  const result = await detectFaces(fetchFn, image, FACE_SELFIE_BYSTANDER_SCORE);
+  const seen = result.faces.filter((f) => f.score >= FACE_SELFIE_BYSTANDER_SCORE);
+  if (seen.length > 1) {
+    log.info('selfie refused', { reason: 'several_faces', faces: seen.length });
+    throw new SelfieRefusedError('several_faces', seen.length);
   }
-  return confident[0].embedding;
+  if (seen.length === 0 || seen[0].score < FACE_DETECTION_MIN_SCORE) {
+    log.info('selfie refused', { reason: 'no_face', faces: seen.length });
+    throw new SelfieRefusedError('no_face', seen.length);
+  }
+  return seen[0].embedding;
 }

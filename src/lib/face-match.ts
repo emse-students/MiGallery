@@ -8,8 +8,10 @@
  * - A member's distance to a face is the MINIMUM cosine distance to their references.
  * - Only the NEAREST member is ever offered the face: a face is never shown to two people.
  * - `auto` (<= FACE_AUTO_MAX_DISTANCE) is downgraded to `suggested` when the runner-up member is
- *   within FACE_AMBIGUITY_MARGIN, or when the member holds fewer than FACE_MIN_REFERENCES
- *   references: a lookalike or a thin enrolment always goes past a human.
+ *   closer than FACE_AMBIGUITY_MARGIN (strictly), or when the member holds fewer than
+ *   FACE_MIN_REFERENCES references: a lookalike or a thin enrolment always goes past a human.
+ * - A member who REJECTED the face is never offered it, but still counts as the runner-up: a face
+ *   one member rejected at 0.20 is a lookalike case for the next one at 0.40, never `auto`.
  * - Above FACE_SUGGEST_MAX_DISTANCE, nobody.
  */
 
@@ -54,27 +56,56 @@ export function decideBand(
   return 'auto';
 }
 
+/** Where {@link decideFace} reports what it could not use (this module has no logger). */
+export interface DecideReports {
+  /** A member's reference is not a usable vector: the member is skipped for this face. */
+  invalidReference?: (userId: string) => void;
+  /** The face itself is not a usable vector: nobody is matched, reported ONCE. */
+  invalidCandidate?: () => void;
+}
+
+/** Whether every component of a vector is a finite number. */
+function finiteVector(v: ArrayLike<number>): boolean {
+  for (let i = 0; i < v.length; i++) {
+    if (!Number.isFinite(v[i])) {
+      return false;
+    }
+  }
+  return v.length > 0;
+}
+
 /**
  * The decision for one face against every member. `excluded` are members who must not be offered
- * it (they rejected it). A member whose distance is NaN (a corrupt reference) is skipped and
- * reported through `onInvalid`, never matched.
+ * it (they rejected it); they still count as the runner-up. A face that is not a usable vector
+ * matches nobody and is reported once as the face's fault; a member whose distance is NaN (a
+ * corrupt reference) is skipped and reported, never matched.
  */
 export function decideFace(
   candidate: ArrayLike<number>,
   members: ReadonlyArray<MemberReferences>,
   excluded?: ReadonlySet<string>,
-  onInvalid?: (userId: string) => void
+  reports?: DecideReports
 ): FaceDecision | null {
+  if (!finiteVector(candidate)) {
+    reports?.invalidCandidate?.();
+    return null;
+  }
   let best: MemberReferences | null = null;
   let bestD = Infinity;
   let second = Infinity;
+  /** The nearest member who rejected the face: never offered it, but a runner-up all the same. */
+  let nearestExcluded = Infinity;
   for (const member of members) {
-    if (member.refs.length === 0 || excluded?.has(member.userId)) {
+    if (member.refs.length === 0) {
       continue;
     }
     const d = minDistance(member.refs, candidate);
     if (Number.isNaN(d)) {
-      onInvalid?.(member.userId);
+      reports?.invalidReference?.(member.userId);
+      continue;
+    }
+    if (excluded?.has(member.userId)) {
+      nearestExcluded = Math.min(nearestExcluded, d);
       continue;
     }
     if (d < bestD) {
@@ -88,7 +119,8 @@ export function decideFace(
   if (!best) {
     return null;
   }
-  const runnerUp = Number.isFinite(second) ? second : null;
+  const nearestOther = Math.min(second, nearestExcluded);
+  const runnerUp = Number.isFinite(nearestOther) ? nearestOther : null;
   const band = decideBand(bestD, runnerUp, best.refs.length);
   if (band === 'none') {
     return null;
