@@ -91,9 +91,11 @@
 
         <h3>{m.cgu_s4_tech_title()}</h3>
         <ul>
-          <li>{@html m.cgu_s4_cluster()}</li>
+          <li>{@html m.cgu_s4_store()}</li>
           <li>{@html m.cgu_s4_init()}</li>
           <li>{@html m.cgu_s4_selfie()}</li>
+          <li>{@html m.cgu_s4_match()}</li>
+          <li>{@html m.cgu_s4_cutover()}</li>
         </ul>
 
         <h3>{m.cgu_s4_myphotos_title()}</h3>
@@ -111,12 +113,15 @@
           <li>{@html m.cgu_s5_item_account()}</li>
           <li>{@html m.cgu_s5_item_photos()}</li>
           <li>{@html m.cgu_s5_item_face()}</li>
+          <li>{@html m.cgu_s5_item_store()}</li>
           <li>{@html m.cgu_s5_item_logs()}</li>
         </ul>
         <h3>{m.cgu_s5_retention_title()}</h3>
         <ul>
           <li>{@html m.cgu_s5_retention_photos()}</li>
           <li>{@html m.cgu_s5_retention_account()}</li>
+          <li>{@html m.cgu_s5_retention_face()}</li>
+          <li>{@html m.cgu_s5_retention_store()}</li>
           <li>{@html m.cgu_s5_retention_logs()}</li>
         </ul>
         <h3>{m.cgu_s5_backups_title()}</h3>
