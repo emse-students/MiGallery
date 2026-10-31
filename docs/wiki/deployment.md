@@ -133,6 +133,44 @@ in-app daily backup scheduler (`startBackupScheduler`, kicked off in
 Immich has its own dumps and restore procedure (see the Immich docs); MiGallery
 does not manage Immich's data.
 
+`.github/scripts/tests/backup-config.test.sh` (in CI, no network) runs both scripts against fakes
+of `ssh`, `rsync` and `sqlite3`: a missing `backup.env`, an unknown key and an empty value each
+stop before any ssh, the environment wins over the file, the file is read and never executed, and
+no private address is written in the scripts.
+
+### The last restore test
+
+**2026-10-31, read-only, on the MiGallery host**: the newest `migallery-*.db.gz` fetched from the
+offsite target into a scratch directory, `gunzip -t` OK, `PRAGMA integrity_check` `ok`, the
+`users` table counted (non-zero), the scratch copy deleted. The offsite side held 15 MiGallery
+archives (the 14-day retention) and the newest Immich dump passed `gzip -t` over its whole 2 GB.
+The archive holds personal data, so a restore test runs on the host or on the offsite target,
+**never on a workstation**. Repeat it before any change of target and before the old target goes.
+
+### Moving the offsite to another server (WP-MIGALLERY-OFFSITE, decided 2026-10-18)
+
+The copy still lands on the old Canari VM, which is to be wound down; the user decided it goes to
+the Canari project's own offsite server. The target is the `OFFSITE_HOST` repository secret, so the
+move is a secret and a release, not a code change. The server's name stays in the operators'
+private notes. In this order:
+
+1. On the new offsite server: a dedicated account (not Canari's backup account) whose
+   `authorized_keys` entry for the MiGallery host's root key is restricted to rsync into one
+   directory (`rrsync`, `restrict`), and that directory created.
+2. On the MiGallery host: `ssh-keyscan` the new server into root's `known_hosts`, then run
+   `OFFSITE_HOST=<account>@<new-host> scripts/backup-offsite.sh` by hand (the environment wins
+   over `backup.env`) and read the files arriving on the new side.
+3. Set the `OFFSITE_HOST` secret and cut a release: the deploy rewrites `scripts/backup.env`, and
+   the next 05:00 run uses it. The deploy writes no `OFFSITE_PATH` and overwrites the file, so the
+   directory on the new side is `migallery-offsite` in the account's home (the scripts' default). Read `/var/log/migallery-backup.log` the morning after.
+4. **A restore test against the new target**, as above. `DB_DEST=/tmp/...` is not enough:
+   **`restore-offsite.sh` stops and restarts the live container** whatever `DB_DEST` says, so fetch
+   the archive with `rsync` into a scratch directory, `gunzip -t` it and open it with
+   `sqlite3 ... 'PRAGMA integrity_check; SELECT count(*) FROM users;'`.
+5. Only then: the old VM's `migallery-offsite/` is deleted with the VM, and the terms
+   (`cgu_s3_hosting_body`, fr and en: "on the same local network") and their version date change
+   if the new server is not on that network ([terms](terms.md)).
+
 ## Local development
 
 ```bash
