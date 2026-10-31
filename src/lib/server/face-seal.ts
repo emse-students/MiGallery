@@ -74,10 +74,13 @@ function contextTable(context: string): string {
   }
 }
 
-/** Parse the secret: exactly 64 hex characters. Throws otherwise, never falling back to a weaker key. */
+/**
+ * Parse the secret: exactly 64 hex characters. Throws otherwise, never falling back to a weaker
+ * key. It does not log: its caller reports the throw once (`defaultFaceEngine`), and a second line
+ * for the same fault is noise.
+ */
 export function parseSealKey(raw: string | undefined): Buffer {
   if (!raw || !/^[0-9a-fA-F]{64}$/.test(raw)) {
-    log.error('face seal key is missing or not 64 hex characters');
     throw new Error('FACE_STORE_KEY must be 64 hex characters (32 bytes)');
   }
   return Buffer.from(raw, 'hex');

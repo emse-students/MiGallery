@@ -192,6 +192,10 @@ beforeEach(() => {
   searchBodies.length = 0;
 });
 
+/** A listing time, and the spacing after which a second listing counts (face-ingest.ts). */
+const T0 = 1_800_000_000_000;
+const SPACING = 20 * 60 * 60 * 1000;
+
 function seeded() {
   faceDatabase.setFaceStoreState(faceDb(), 'seeded_at', '2026-10-31T00:00:00Z');
 }
@@ -294,13 +298,33 @@ describe('ingestion (A3)', () => {
     expect(report).toMatchObject({ failed: 1, failedCauses: { bad_response: 1 } });
   });
 
-  it('counts a missing preview as an attempt, never as a deletion', async () => {
+  it('leaves an asset with no preview yet pending, counting no attempt, never deleting it', async () => {
     seeded();
     missingPreview.add('p1');
-    const result = await ingestAll(['p1']);
-    expect(result.retry).toBe(1);
-    expect(faceDb().prepare('SELECT state, last_error FROM face_assets').get()).toMatchObject({
+    for (let i = 0; i < ingest.INGEST_MAX_ATTEMPTS + 1; i++) {
+      expect((await ingestAll(['p1'])).retry).toBe(1);
+    }
+    expect(faceDb().prepare('SELECT state, attempts, last_error FROM face_assets').get()).toEqual({
       state: 'pending',
+      attempts: 0,
+      last_error: 'no_preview: Immich has no preview for it yet',
+    });
+    // Once Immich has made the preview, the next pass embeds it.
+    missingPreview.delete('p1');
+    library.set('p1', [ALICE]);
+    expect((await ingest.runIngestPass(fakeFetch, engine())).done).toBe(1);
+  });
+
+  it('takes the least recently tried pending asset first', async () => {
+    seeded();
+    missingPreview.add('old');
+    ingest.addPending(faceDb(), ['old'], 1);
+    ingest.addPending(faceDb(), ['new'], 2);
+    library.set('new', []);
+    await ingest.runIngestPass(fakeFetch, engine(), 1); // tries `old`: no preview, moved behind
+    expect((await ingest.runIngestPass(fakeFetch, engine(), 1)).done).toBe(1);
+    expect(faceDb().prepare("SELECT state FROM face_assets WHERE asset_id = 'new'").get()).toEqual({
+      state: 'done',
     });
   });
 
@@ -330,12 +354,19 @@ describe('ingestion (A3)', () => {
 
     // n1 deleted from Immich, n3 new: n3 is pending; n1 is only marked by ONE listing...
     listed = ['n2', 'n3'];
-    const first = await ingest.reconcile(fakeFetch, engine());
-    expect(first).toMatchObject({ listed: 2, added: 1, marked: 1, removed: 0, refused: null });
+    const first = await ingest.reconcile(fakeFetch, engine(), T0);
+    expect(first).toMatchObject({
+      listed: 2,
+      added: 1,
+      marked: 1,
+      removed: 0,
+      refused: null,
+      counted: true,
+    });
     expect(searchBodies.at(-1)).toMatchObject({ withDeleted: true });
     expect(matches()).toHaveLength(1);
-    // ...and its faces and matches go when the next listing misses it too.
-    const second = await ingest.reconcile(fakeFetch, engine());
+    // ...and its faces and matches go when the next counting listing misses it too.
+    const second = await ingest.reconcile(fakeFetch, engine(), T0 + SPACING);
     expect(second).toMatchObject({ added: 0, marked: 0, removed: 1 });
     expect(matches()).toHaveLength(0);
     expect(
@@ -347,12 +378,58 @@ describe('ingestion (A3)', () => {
     seeded();
     ingest.addPending(faceDb(), ['a', 'b', 'c'], 1);
     listed = ['a', 'b'];
-    expect((await ingest.reconcile(fakeFetch, engine())).marked).toBe(1);
+    expect((await ingest.reconcile(fakeFetch, engine(), T0)).marked).toBe(1);
     listed = ['a', 'b', 'c'];
-    await ingest.reconcile(fakeFetch, engine());
+    await ingest.reconcile(fakeFetch, engine(), T0 + SPACING);
     listed = ['a', 'b'];
     // Missing again, but not from two CONSECUTIVE listings: still only marked.
-    expect(await ingest.reconcile(fakeFetch, engine())).toMatchObject({ marked: 1, removed: 0 });
+    expect(await ingest.reconcile(fakeFetch, engine(), T0 + 2 * SPACING)).toMatchObject({
+      marked: 1,
+      removed: 0,
+    });
+  });
+
+  it('never counts a second witness before the spacing: restarts list, they do not delete', async () => {
+    seeded();
+    ingest.addPending(faceDb(), ['a', 'b', 'c'], 1);
+    listed = ['a', 'b'];
+    expect(await ingest.reconcile(fakeFetch, engine(), T0)).toMatchObject({
+      marked: 1,
+      counted: true,
+    });
+    // Two deploys and a crash loop within the hour: each lists, none counts.
+    for (const at of [T0 + 1, T0 + 60_000, T0 + SPACING - 1]) {
+      expect(await ingest.reconcile(fakeFetch, engine(), at)).toMatchObject({
+        marked: 0,
+        removed: 0,
+        counted: false,
+      });
+    }
+    expect(
+      faceDb().prepare("SELECT absent_listings FROM face_assets WHERE asset_id = 'c'").get()
+    ).toEqual({ absent_listings: 1 });
+    // A listing that does not count still adds the new and clears what it names again.
+    listed = ['a', 'b', 'c', 'd'];
+    expect(await ingest.reconcile(fakeFetch, engine(), T0 + 2)).toMatchObject({
+      added: 1,
+      counted: false,
+    });
+    expect(
+      faceDb().prepare("SELECT absent_listings FROM face_assets WHERE asset_id = 'c'").get()
+    ).toEqual({ absent_listings: 0 });
+    // The spacing is measured from the last listing that COUNTED, stored in the face store.
+    listed = ['a', 'b', 'd'];
+    expect(await ingest.reconcile(fakeFetch, engine(), T0 + SPACING)).toMatchObject({
+      marked: 1,
+      counted: true,
+    });
+    expect(faceDatabase.getFaceStoreState(faceDb(), ingest.LAST_COUNTED_LISTING)).toBe(
+      String(T0 + SPACING)
+    );
+    expect(await ingest.reconcile(fakeFetch, engine(), T0 + 2 * SPACING)).toMatchObject({
+      removed: 1,
+    });
+    expect(ingest.RECONCILE_COUNT_SPACING_MS).toBe(SPACING);
   });
 
   it('removes nothing from a listing that hit its page cap', async () => {
@@ -435,8 +512,8 @@ describe('ingestion (A3)', () => {
     library.set('g1', [ALICE]);
     await ingestAll(['g1', 'k1', 'k2']);
     listed = ['k1', 'k2'];
-    await ingest.reconcile(fakeFetch, engine());
-    await ingest.reconcile(fakeFetch, engine());
+    await ingest.reconcile(fakeFetch, engine(), T0);
+    expect((await ingest.reconcile(fakeFetch, engine(), T0 + SPACING)).removed).toBe(1);
     expect(statSync(`${faceDatabase.faceDatabasePath()}-wal`).size).toBe(0);
   });
 
@@ -449,6 +526,8 @@ describe('ingestion (A3)', () => {
       expect(engineMod.defaultFaceEngine()).toBeNull();
       expect(engineMod.defaultFaceEngine()).toBeNull();
       off = errors.mock.calls.filter((c) => String(c[0]).includes('face feature is OFF')).length;
+      // ONE error line in all: the key parser does not log a fault its caller already reports.
+      expect(errors).toHaveBeenCalledTimes(1);
     } finally {
       env.FACE_STORE_KEY = good;
       errors.mockRestore();
@@ -568,6 +647,39 @@ describe('the match engine (A4)', () => {
         { assetId: 'p9', faceIndex: 0, embedding: ALICE },
       ])
     );
+    expect(matches()).toHaveLength(0);
+  });
+
+  it('never writes a match decided on withdrawn references that a re-enrolment replaced under the same ids', async () => {
+    enrol('alice', ALICE);
+    await store([]);
+    const before = (
+      db()
+        .prepare("SELECT group_concat(id) AS ids FROM face_references WHERE user_id = 'alice'")
+        .get() as {
+        ids: string;
+      }
+    ).ids;
+    const snapshot = engineMod.snapshotMembers(engine());
+    // Withdraw, then enrol again with a different face: INTEGER PRIMARY KEY without
+    // AUTOINCREMENT hands the same ids back, so only the seal tells the two sets apart.
+    refs.eraseFaceReferences(db(), 'alice');
+    for (let i = 0; i < 3; i++)
+      refs.addFaceReference(db(), key, 'alice', 'photo', atDistance(BOB, synthetic(600 + i), 0.2));
+    const after = (
+      db()
+        .prepare("SELECT group_concat(id) AS ids FROM face_references WHERE user_id = 'alice'")
+        .get() as {
+        ids: string;
+      }
+    ).ids;
+    expect(after).toBe(before);
+    await engineMod.runExclusive(() =>
+      engineMod.recordDecisions(engine(), snapshot, [
+        { assetId: 'p9', faceIndex: 0, embedding: ALICE },
+      ])
+    );
+    // Decided against the CURRENT references (Bob's face), Alice's old face matches nobody.
     expect(matches()).toHaveLength(0);
   });
 
