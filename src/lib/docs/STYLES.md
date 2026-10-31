@@ -267,7 +267,7 @@ Write mobile styles first, then add media queries for larger screens.
 For quick modifications, use Tailwind:
 
 ```svelte
-<button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"> Action </button>
+<button class="rounded-lg bg-blue-600 px-4 py-2 hover:bg-blue-700"> Action </button>
 ```
 
 ### 4. Scoped styles in components
