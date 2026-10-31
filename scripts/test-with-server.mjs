@@ -169,20 +169,68 @@ async function portAnswers() {
 }
 
 /**
- * Resolve once /api/health answers. Reject if the server process exits first (port taken,
- * crash on boot) or the deadline passes - a server that is not up is a failed run, never a
- * reason to test against whatever else might be listening.
+ * True when THIS run's database file already holds the schema. It opens read-only so it can never
+ * create the file: `new Database(path)` on a missing path makes an empty one, which is exactly
+ * how a seed against a database nobody initialised fails with `no such table: users`.
  */
-async function waitForServer() {
+function schemaReady(databasePath) {
+  let db;
+  try {
+    db = new Database(databasePath, { readonly: true });
+    db.prepare('SELECT 1 FROM users LIMIT 1').get();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    db?.close(false);
+  }
+}
+
+/**
+ * Describe what /api/health answered, or why it did not, in one line.
+ * @returns {Promise<{ready: boolean, line: string}>}
+ */
+async function probeHealth() {
+  try {
+    const res = await fetch(HEALTH_URL);
+    const body = (await res.text()).slice(0, 200);
+    return { ready: res.status === 200, line: `HTTP ${res.status} ${body}` };
+  } catch (e) {
+    return { ready: false, line: `no answer (${e.message})` };
+  }
+}
+
+/**
+ * Resolve once the server is READY for what the runner does next: /api/health answers 200 AND this
+ * run's own database holds the schema (the seed writes into it). Any HTTP answer used to count,
+ * so a 503, or a listener that is not our server at all, let the seed run on an empty database.
+ * The database check is the proof the answer came from the server we started: it is the only one
+ * that creates this file's schema. Each distinct non-ready state is logged once - that line is the
+ * evidence if a run ever fails here. Reject if the server process exits first (port taken, crash
+ * on boot) or the deadline passes - a server that is not up is a failed run, never a reason to
+ * test against whatever else might be listening.
+ */
+async function waitForServer(databasePath) {
   const deadline = Date.now() + READINESS_DEADLINE_MS;
+  let lastLogged = '';
   while (Date.now() < deadline) {
     if (server.exitCode !== null) {
       throw new Error(`test server exited with code ${server.exitCode} before answering`);
     }
-    if (await portAnswers()) return;
+    const health = await probeHealth();
+    if (health.ready && schemaReady(databasePath)) return;
+    const line = health.ready
+      ? `health answered 200 but ${databasePath} has no schema yet`
+      : health.line;
+    if (!health.line.startsWith('no answer') && line !== lastLogged) {
+      console.warn(`⏳ Not ready: ${line}`);
+      lastLogged = line;
+    }
     await new Promise((r) => setTimeout(r, READINESS_POLL_MS));
   }
-  throw new Error(`test server did not answer ${HEALTH_URL} within ${READINESS_DEADLINE_MS} ms`);
+  throw new Error(
+    `test server did not become ready on ${HEALTH_URL} within ${READINESS_DEADLINE_MS} ms`
+  );
 }
 
 async function main() {
@@ -212,7 +260,7 @@ async function main() {
     stdio: 'inherit',
     env,
   });
-  await waitForServer();
+  await waitForServer(env.DATABASE_PATH);
   seedTestAdmin(env.DATABASE_PATH);
   console.log(`✅ ${HEALTH_URL} answers\n🧪 Running the tests...\n`);
 
