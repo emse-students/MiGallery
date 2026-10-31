@@ -325,7 +325,7 @@
 
     try {
       uploadStatus = m.param_status_fetching();
-      const assetInfoResponse = await fetch(`/api/immich/assets/${assetId}`);
+      const assetInfoResponse = await fetch(`/api/users/me/face/selfie/${assetId}`);
       if (!assetInfoResponse.ok) {
         const errMsg = `Asset fetch error: ${assetInfoResponse.statusText}`;
         throw new Error(errMsg);
@@ -514,7 +514,8 @@
         attempt++;
         uploadStatus = m.param_status_analyzing({ seconds: attempt });
         try {
-          const checkResponse = await fetch(`/api/immich/assets/${assetId}?nocache=${Date.now()}`, {
+          const checkResponse = await fetch(`/api/users/me/face/selfie/${assetId}`, {
+            cache: 'no-store',
             signal,
           });
           if (checkResponse.ok) {
