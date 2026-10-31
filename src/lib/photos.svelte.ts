@@ -101,7 +101,7 @@ export class PhotosState {
   #imageUrl = $state<string | null>(null);
   #_prevImageUrl = $state<string | null>(null);
   #personName = $state<string>('');
-  #peopleId = $state<string>('');
+  #memberId = $state<string>('');
   #isDownloading = $state(false);
   #downloadProgress = $state(0);
   currentDownloadController: AbortController | null = null;
@@ -162,11 +162,12 @@ export class PhotosState {
     this.#personName = value;
   }
 
-  get peopleId() {
-    return this.#peopleId;
+  /** The member whose photos are shown (their user id). */
+  get memberId() {
+    return this.#memberId;
   }
-  set peopleId(value) {
-    this.#peopleId = value;
+  set memberId(value) {
+    this.#memberId = value;
   }
 
   get isDownloading() {
@@ -184,16 +185,15 @@ export class PhotosState {
   }
 
   /**
-   * Loads ALL of a person's photos EXCEPT those in the PhotoCV album
-   * Used by: "Mes photos" page
+   * Loads ALL of a member's photos EXCEPT those in the PhotoCV album (lot A6: their face matches,
+   * read by user id). Used by: "Mes photos" page.
    *
-   * When `profile.userId` is provided, the header photo is served by MiGallery's
-   * own square crop endpoint (/api/users/{id}/avatar) instead of Immich's tightly
-   * hard-coded person thumbnail. `profile.version` (the backing asset id) busts
-   * the browser cache so a freshly changed photo shows immediately.
+   * `profile.version` is the profile photo's asset id: when set, the header shows MiGallery's own
+   * square crop (/api/users/{id}/avatar) and the id busts the browser cache so a freshly changed
+   * photo shows immediately; without one there is no header photo.
    */
-  async loadPerson(id: string, profile?: { userId?: string | null; version?: string | null }) {
-    if (!id) {
+  async loadMember(userId: string, profile?: { name?: string | null; version?: string | null }) {
+    if (!userId) {
       this.error = m.photos_no_profile();
       return;
     }
@@ -202,44 +202,26 @@ export class PhotosState {
     this.error = null;
     this.assets = [];
     this.imageUrl = null;
-    this.personName = '';
-    this.peopleId = id;
+    this.personName = profile?.name ?? '';
+    this.memberId = userId;
 
     try {
       const favoritesPromise = this.loadFavoritesSet();
 
-      const personRes = await fetch(`/api/immich/people/${id}`);
-      if (personRes.ok) {
-        const personData = (await personRes.json()) as { name?: string };
-        this.personName = personData.name || m.mp_person_unnamed();
+      if (this._prevImageUrl) {
+        URL.revokeObjectURL(this._prevImageUrl);
+        this._prevImageUrl = null;
       }
-
-      if (profile?.userId) {
-        // MiGallery's own square crop (see /api/users/[username]/avatar). It is
-        // a plain URL, not a blob, so release any previous blob URL.
-        if (this._prevImageUrl) {
-          URL.revokeObjectURL(this._prevImageUrl);
-          this._prevImageUrl = null;
-        }
-        const v = profile.version ? `?v=${encodeURIComponent(profile.version)}` : '';
-        this.imageUrl = `/api/users/${encodeURIComponent(profile.userId)}/avatar${v}`;
-      } else {
-        const thumb = await fetch(`/api/immich/people/${id}/thumbnail`);
-        if (thumb.ok) {
-          const blob = await thumb.blob();
-          if (this._prevImageUrl) {
-            URL.revokeObjectURL(this._prevImageUrl);
-            this._prevImageUrl = null;
-          }
-          const url = URL.createObjectURL(blob);
-          this.imageUrl = url;
-          this._prevImageUrl = url;
-        }
-      }
+      this.imageUrl = profile?.version
+        ? `/api/users/${encodeURIComponent(userId)}/avatar?v=${encodeURIComponent(profile.version)}`
+        : null;
 
       const res = await fetch(
-        `/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=false`
+        `/api/users/${encodeURIComponent(userId)}/photos-stream?in_album=false`
       );
+      if (!res.ok) {
+        throw new Error(m.photos_error({ message: `HTTP ${res.status}` }));
+      }
 
       // eslint-disable-next-line svelte/prefer-svelte-reactivity
       const assetsMap = new Map<string, Asset>();
@@ -282,11 +264,11 @@ export class PhotosState {
   }
 
   /**
-   * Loads a person's photos IN the PhotoCV album
+   * Loads a member's photos IN the PhotoCV album (their face matches, lot A6).
    * Used by: Photos CV page ("Mes photos CV" tab)
    */
-  async loadMyPhotosCV(id: string): Promise<void> {
-    if (!id) {
+  async loadMyPhotosCV(userId: string): Promise<void> {
+    if (!userId) {
       this.error = m.photos_no_profile();
       return;
     }
@@ -296,12 +278,10 @@ export class PhotosState {
     this.assets = [];
 
     try {
-      // Use the same NDJSON streaming endpoint as /mes-photos (loadPerson),
-      // only with in_album=true to keep the PhotoCV portraits. The former
-      // non-streaming /photos endpoint was the odd one out and stopped
-      // returning after the Immich v3 migration.
+      // The same NDJSON stream as /mes-photos (loadMember), with in_album=true to keep the
+      // PhotoCV portraits.
       const res = await fetch(
-        `/api/people/people/${encodeURIComponent(id)}/photos-stream?in_album=true`
+        `/api/users/${encodeURIComponent(userId)}/photos-stream?in_album=true`
       );
 
       if (!res.ok) {

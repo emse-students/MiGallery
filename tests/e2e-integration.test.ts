@@ -327,7 +327,6 @@ describe('E2E - Health et monitoring', () => {
       { url: '/api/albums', method: 'GET', auth: true },
       { url: '/api/users', method: 'GET', auth: true },
       { url: '/api/favorites', method: 'GET', auth: true },
-      { url: '/api/people/people', method: 'GET', auth: true },
     ];
 
     for (const endpoint of endpoints) {

@@ -186,7 +186,7 @@ the sake of an enrolment a day, and keep every third party's template in the ser
 | A3  | Ingestion: new assets detected and embedded once into `faces.db`, durable per-asset state, retries, an hourly report naming the cause of a backlog.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | building               |
 | A4  | The match engine: on enrolment, withdrawal and new faces, one decision function for every face; confirm and reject state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | building               |
 | A5  | Enrolment and withdrawal: the selfie embedded in memory and never stored; the consent row (`face_consents`) is reused; withdrawal deletes references, matches and the person's crops in one transaction (the A6 thumbnails, once they exist, must go the same way).                                                                                                                                                                                                                                                                                                                                                                    | building               |
-| A6  | Read side: "Mes photos" and the people views read the matches; the suggested band is a confirmation screen; the proxy refuses every person and face call.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | building               |
+| A6  | Read side: "Mes photos" reads the matches (by user id, assets fetched by id); the suggested band is a confirmation screen with server-cut crops served to the holder alone and deleted on withdrawal; the people views are removed; the profile photo is chosen among the member's own photos; the proxy refuses every person and face call, admins included; nothing reads `photos_id`.                                                                                                                                                                                                                                               | building               |
 | A7  | Seed from Immich's vectors (physical order, no recomputation) and migrate the existing links: references and matches per member, calibration, parity measured. Read cost measured 2026-10-24: 10k rows 0.60 s, 50k rows 1.31 s, so 600k is about 16-36 s of database time. **Trap**: ordering the export by id sorted the whole table (77 s for 10k rows); export in physical order.                                                                                                                                                                                                                                                   | building               |
 | A8  | Cutover: an encrypted, verified backup of what is deleted, kept outside the repository and **deleted on a fixed date 30 days later** (owner, 2026-10-31: _"Oui, 30 jours puis supprimée"_); "Mes photos" checked on the new path in production; then Immich's recognition off and its faces, persons and embeddings deleted; the date until which the nightly backups still hold the old data recorded. MiGallery and Immich run on the association's own machine, not on the school's shared host, so **no agreement of the school's IT department is needed**; anything touching the school's shared host would still need it first. | building               |
 | A9  | Tests, wiki, `/cgu`, and the DPIA and register rows (Canari) updated to a stored-template design.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | building               |
@@ -329,13 +329,63 @@ once, as the face's fault.
   person runs `eraseLocalFaceData` for a member enrolled by selfie alone too, so the consent
   closes and the references and matches go in ONE transaction; the faces they held are
   re-decided after the commit. Account deletion is the same path.
-- **Crops**: the crops of a linked Immich person are deleted with the withdrawal (A1). The
-  confirmation thumbnails of A6 do not exist yet; when they do, withdrawal **must delete** them
-  in the same path.
+- **Crops**: the crops of a linked Immich person are deleted with the withdrawal (A1); the A6
+  confirmation pictures are deleted in the same path (see A6).
 - Impersonation can neither enrol, answer nor withdraw.
-- Until A6, "Mes photos" and the profile photo still read the Immich person link: a member
-  enrolled by selfie alone sees their matches only once A6 ships (the whole stack releases
-  together).
+
+### A6 - the read side
+
+**What a member's photos are.** The faces they hold in `face_matches` that are not rejected and
+are `auto` or confirmed by them: `VISIBLE_MATCH_SQL` in `src/lib/server/face-photos.ts`, the one
+spelling every reader uses (the photo list, the profile photo, the avatar, `avatar-presence`).
+A `suggested` face waiting for their answer is not one of their photos until they say yes.
+
+| File                                                                  | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/server/face-photos.ts`                                       | `memberPhotoAssetIds`, `pendingSuggestions`, `holdsFace`, `profileFace`, `faceStatus`, `memberPhotoAssets` (the ids from the matches, the assets from Immich BY ID, the PhotoCV partition, images only, newest first).                                                                                                                                                                                                                                                                                                                                                                          |
+| `src/lib/server/immich-search.ts`                                     | `searchAssetsByIds`: `POST /api/search/metadata` with `filter.or` of `id.eq`, 250 ids per request, size 251. **The answer is checked**: an asset not asked for, or a next page, throws 502 and nothing of the batch is used - an Immich that ignored the filter would otherwise show a member a page of someone else's photos. Every failure is classified there and none is the member's: Immich not configured 503, an Immich error status (a 4xx included: it refuses OUR request) or an unreadable answer 502, no answer in time 504, unreachable 502; Immich's text is logged, never sent. |
+| `src/routes/api/users/[userId]/photos-stream/+server.ts`              | A member's photos as NDJSON (`in_album=false` "Mes photos", `true` "Mes photos CV", none = every photo, for the picker), behind `requireMemberPhotosAccess` (owner, authorised member, admin, API key).                                                                                                                                                                                                                                                                                                                                                                                         |
+| `src/routes/api/users/me/face/matches/+server.ts`                     | `GET`: the faces waiting for the member's answer as `{ asset_id, face_index }` - no distance, band, runner-up or other member. Answered by the A5 `POST`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `src/routes/api/users/me/face/crops/[assetId]/[faceIndex]/+server.ts` | The picture of one face the member holds NOW, cut from the `faces.db` box (`loadFaceBox`) out of the Immich preview; `private, no-store`. 404 for a face they do not hold (whoever does), 403 impersonated, 401 for an API key.                                                                                                                                                                                                                                                                                                                                                                 |
+| `src/lib/server/face-crop.ts`                                         | `generateMemberFaceCrop` caches in `data/cache/faces/members/<sha256(id)[0:32]>/<asset>_<face>.webp` and re-checks, after the write, that the face is still held (a withdrawal racing the cut leaves no file). `deleteMemberFaceCrops` (withdrawal, account deletion) and `deleteMemberFaceCrop` (a "not me") never throw.                                                                                                                                                                                                                                                                      |
+| `src/routes/api/users/me/profile-photo/+server.ts`                    | `PUT { asset_id, user_id? }`: the profile photo, only among the member's own photos (404 otherwise); `user_id` for another member is an admin's (403 otherwise); refused impersonated.                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `src/routes/api/users/[username]/avatar/+server.ts`                   | Cut around the member's lowest visible face in the chosen photo; 404 when there is none (the Immich person thumbnail fallback is gone).                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `src/routes/api/immich/[...path]/+server.ts`                          | `assertNoProxiedFaceCall` for EVERY caller: people/faces/search-person paths and any `personId*` / `withPeople*` query or body key are 403. A JSON answer loses `people` / `unassignedFaces` (`stripFaceFields`); one that names them and does not parse is a 502.                                                                                                                                                                                                                                                                                                                              |
+| `src/routes/mes-photos/+page.svelte`, `mes-photos/confirmer/`         | "Mes photos" by user id (yours, or a member who granted you); an invitation to enrol when you have no face; a banner to the confirmation screen, which shows each face's crop with "C'est moi" / "Pas moi".                                                                                                                                                                                                                                                                                                                                                                                     |
+
+**What each people view became.**
+
+| Before (Immich person)                                                                 | After A6                                                                                        |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `/api/people/people` (the Immich directory)                                            | deleted                                                                                         |
+| `/api/people/people/[personId]/photos`, `/photos-stream`                               | `/api/users/[userId]/photos-stream`                                                             |
+| `/api/people/person/[id]/my-photos`, `/album-photos`, `?action=my-photos/album-photos` | `/api/users/[userId]/photos-stream?in_album=false/true`                                         |
+| `/api/faces/**`, `/api/immich/people/**`, `/api/immich/faces/**`                       | deleted / refused to everyone                                                                   |
+| profile photo picker: the person's photos, `featureFaceAssetId`                        | the member's own photos; `PUT /api/users/me/profile-photo` writes `photos_asset_id` only        |
+| admin users page: upload a photo, link an Immich person                                | "face recognition on/off" (`faceStatus`) and a withdraw button (the `PATCH` with a null person) |
+| `/photos-cv` for a member: their person's CV photos                                    | their own photos in the PhotoCV album; a member who never enrolled is sent to `/mes-photos`     |
+| session `photos_id`                                                                    | session `face_enrolled`                                                                         |
+
+**`photos_id` is read by nothing.** The column and its data stay for A7. Retired as dead code:
+`selfieProves` and the member branch of the person link (a member's `PATCH` naming a person is
+now 400 `person_link_retired`), `findPersonOwner`, `assertPersonAccess`, `assertPersonOwner`,
+`requireFaceAdmin`, the Immich face lookup of the old crop. An admin can still link and, above
+all, unlink or withdraw for a member (the same `PATCH` with `user_id`, `PUT /api/users/[id]`, the
+admin users page); a role change no longer sends `photos_id` at all (it used to send a null,
+which erased a selfie-only member's face data).
+
+**Decisions taken here, conservatively** (none blocked):
+
+- The profile photo picker shows plain thumbnails of the member's photos, not face crops: a
+  crop is cut per face for its holder, and the picker only needs the photo.
+- An admin no longer enrols a member from the admin page (enrolment is the member's own act and
+  consent); the admin keeps the withdrawal.
+- The suggestions list, the crops and the profile photo refuse an impersonated session, like
+  every other face act.
+- A crop of a face the engine later gives to someone else, or to nobody, is deleted from the
+  former holder's directory as soon as that decision is committed (`recordDecisions`); the route
+  also checks the hold on every request. The profile photo is cut into the same file.
+- Videos stay out of "Mes photos", as before (images only).
 
 ### The decided numbers
 
@@ -382,9 +432,19 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
   2.2 derives 2,000-3,200 wrong `suggested` faces and up to about 40 wrong `auto` faces at 600k;
   neither is observed.
 - **The DPIA and the register rows in Canari** must be updated to a stored-template design (A9).
+- **A6 owed**:
+  - **A7 must carry the existing profile photos over.** The avatar now requires the chosen photo
+    to be a visible match of the member; until A7 seeds the matches from the Immich links, members
+    with a `photos_asset_id` from the old path get a 404 avatar (and `avatar-presence` leaves
+    them out). The A6 and A7 lots must ship together.
+  - **The search-by-id syntax** (`filter.or` of `id.eq`) rests on the lead's live measurement
+    against Immich v3; no type in this repository pins it. The answer check makes a wrong syntax
+    a 502, never a leak; it must be read once on the real Immich before release.
+  - **The PhotoCV partition reads the whole album** on every load of "Mes photos": NOT MEASURED.
 
 ## 6. Tests
 
-`tests/face-store.test.ts` (A1) and `tests/face-match.test.ts` (A2 onwards) use **synthetic seeded
-vectors only**: no photo, no real person's data. The measurement scripts under `scripts/faces/`
+`tests/face-store.test.ts` (A1), `tests/face-match.test.ts` (A2 onwards) and
+`tests/face-read-routes.test.ts` (A6: the routes as handlers, the crops on disk) use **synthetic seeded
+vectors and images only**: no photo, no real person's data. The measurement scripts under `scripts/faces/`
 print aggregates only and are the way to re-run section 2.

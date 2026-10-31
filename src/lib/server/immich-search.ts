@@ -2,10 +2,10 @@ import { error, isHttpError } from '@sveltejs/kit';
 import { env } from '#lib/server/env.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import { requireImmichBaseUrl } from '#lib/immich/not-configured.ts';
 import type { ImmichAsset } from '#lib/types/api.ts';
 
 const log = createLogger('immich-search');
-const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
@@ -38,19 +38,25 @@ interface SearchMetadataResponse {
   };
 }
 
-/** Fetch exactly one page of results. */
+/**
+ * Fetch exactly one page of results.
+ *
+ * Every failure is classified HERE, and none of them is the member's: the search is built by this
+ * server. Immich not configured throws `ImmichNotConfiguredError` (the route answers 503). Immich
+ * answering an error status - a 4xx included, since it refuses OUR request - or an answer that is
+ * not JSON is a 502; Immich not answering in time a 504, and not reachable at all a 502. Immich's
+ * own text is logged, never sent to the client.
+ */
 export async function searchAssetPage(
   fetchFn: typeof fetch,
   filter: Record<string, unknown>,
   page: number,
   size: number
 ): Promise<AssetSearchPage> {
-  if (!IMMICH_BASE_URL) {
-    throw error(500, 'IMMICH_BASE_URL not configured');
-  }
+  const base = requireImmichBaseUrl();
 
   try {
-    const res = await fetchFn(`${IMMICH_BASE_URL}/api/search/metadata`, {
+    const res = await fetchFn(`${base}/api/search/metadata`, {
       signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
       method: 'POST',
       headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
@@ -59,16 +65,25 @@ export async function searchAssetPage(
 
     if (!res.ok) {
       const txt = await res.text().catch(() => res.statusText);
-      log.error(`search failed (page ${page}, size ${size}): ${res.status} ${txt}`);
-      // Same status contract as the album mutations: a 4xx is the caller's
-      // problem and travels as-is, anything else is ours and answers 500.
-      throw error(
-        res.status >= 400 && res.status < 500 ? res.status : 500,
-        `Search failed: ${txt}`
-      );
+      log.error('Immich refused the search', {
+        status: res.status,
+        page,
+        size,
+        upstream: txt.slice(0, 300),
+      });
+      throw error(502, 'Immich refused the search');
     }
 
-    const data = (await res.json()) as SearchMetadataResponse;
+    let data: SearchMetadataResponse;
+    try {
+      data = (await res.json()) as SearchMetadataResponse;
+    } catch (e) {
+      log.error('Immich answered the search with something that is not JSON', {
+        page,
+        message: (e as Error).message,
+      });
+      throw error(502, 'Immich answered the search with something unreadable');
+    }
     const items = data.assets?.items ?? [];
     const raw = data.assets?.nextPage;
     const next = raw === null || raw === undefined ? null : Number(raw);
@@ -78,8 +93,21 @@ export async function searchAssetPage(
     if (isHttpError(e)) {
       throw e;
     }
-    log.error(`search failed (page ${page}, size ${size}):`, e);
-    throw error(500, e instanceof Error ? e.message : 'Search failed');
+    // What is left is the transport: fetch rejected. The deadline is told apart by the error's
+    // NAME, the type the abort signal throws, never by its message.
+    const timedOut = e instanceof Error && e.name === 'TimeoutError';
+    log.error(
+      timedOut ? 'Immich did not answer the search in time' : 'Immich could not be reached',
+      {
+        page,
+        size,
+        name: e instanceof Error ? e.name : typeof e,
+        message: e instanceof Error ? e.message : String(e),
+      }
+    );
+    throw timedOut
+      ? error(504, 'Immich did not answer in time')
+      : error(502, 'Immich could not be reached');
   }
 }
 
@@ -123,4 +151,49 @@ export async function searchAllAssets(
   }
 
   return all;
+}
+
+/** Ids asked per request of {@link searchAssetsByIds}: one page each. */
+export const ASSET_ID_BATCH = 250;
+
+/**
+ * The assets of the given ids, fetched BY ID in batches of {@link ASSET_ID_BATCH}: one
+ * `POST /api/search/metadata` per batch with `filter: { or: [{ id: { eq } }, ...] }` (Immich v3).
+ * Assets Immich no longer has (deleted, trashed) are simply absent from the answer.
+ *
+ * THE ANSWER IS CHECKED, NOT TRUSTED. An Immich that ignored the filter would answer an arbitrary
+ * page of the library, and the caller would show a member photos that are not theirs. So every
+ * asset returned must be one that was asked for; one that was not throws (502), classified here,
+ * and nothing of that batch is used. A batch that says it has a next page throws for the same
+ * reason: the filter was not applied as written.
+ */
+export async function searchAssetsByIds(
+  fetchFn: typeof fetch,
+  ids: readonly string[]
+): Promise<ImmichAsset[]> {
+  const out: ImmichAsset[] = [];
+  for (let start = 0; start < ids.length; start += ASSET_ID_BATCH) {
+    const batch = ids.slice(start, start + ASSET_ID_BATCH);
+    const asked = new Set(batch);
+    const page = await searchAssetPage(
+      fetchFn,
+      { filter: { or: batch.map((id) => ({ id: { eq: id } })) } },
+      1,
+      // One more than asked: an honoured answer can never fill the page, so a next page is
+      // never legitimately announced.
+      ASSET_ID_BATCH + 1
+    );
+    const stranger = page.items.find((asset) => !asked.has(asset.id));
+    if (stranger || page.nextPage !== null) {
+      log.error('search by id answered assets that were not asked for: the filter was ignored', {
+        asked: batch.length,
+        answered: page.items.length,
+        nextPage: page.nextPage,
+      });
+      throw error(502, 'Search by id was not honoured');
+    }
+    out.push(...page.items);
+  }
+  log.debug('assets fetched by id', { asked: ids.length, found: out.length });
+  return out;
 }

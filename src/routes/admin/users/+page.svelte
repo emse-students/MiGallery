@@ -3,14 +3,12 @@
     Users,
     Search,
     Trash2,
-    Camera,
     Download,
     Funnel,
     GraduationCap,
     BookOpen,
     CircleCheckBig,
-    CloudUpload,
-    Check,
+    ScanFace,
   } from '@lucide/svelte';
   import { fade, fly } from 'svelte/transition';
   import { refreshAll } from '$app/navigation';
@@ -20,7 +18,7 @@
   import Spinner from '#lib/components/Spinner.svelte';
   import { fuzzySearch } from '#lib/fuzzy.ts';
   import { toast } from '#lib/toast.ts';
-  import { uploadFileChunked } from '#lib/album-operations.ts';
+  import { showConfirm } from '#lib/confirm.ts';
   import jsPDF from 'jspdf';
   import { m } from '#lib/paraglide/messages.js';
   import type { PageData } from './$types';
@@ -28,7 +26,10 @@
 
   let { data } = $props<{ data: PageData }>();
 
-  const users = $derived(data.users as UserRow[]);
+  /** A row of the list, with whether face matching is on for that member (lot A6). */
+  type AdminUserRow = UserRow & { face_enrolled: boolean };
+
+  const users = $derived(data.users as AdminUserRow[]);
   const currentUserId = $derived(data.currentUserId as string);
 
   const ROLE_LABELS: Record<string, string> = {
@@ -269,100 +270,46 @@
     }
   }
 
-  // --- Profile photo editing ---
+  // --- Face matching (lot A6): the admin sees whether it is on, and can withdraw it ---
+  // Enrolment is the member's own act (a selfie and their agreement, /parametres): an admin can no
+  // longer link a face for them. What stays is the withdrawal, the same erasure path as the
+  // member's own.
   let showPhotoModal = $state(false);
-  let photoTarget = $state<UserRow | null>(null);
-  let uploadPhotoFile = $state<File | null>(null);
-  let uploadingPhoto = $state(false);
+  let photoTarget = $state<AdminUserRow | null>(null);
+  let withdrawingFace = $state(false);
 
-  function openPhotoModal(user: UserRow) {
+  function openPhotoModal(user: AdminUserRow) {
     photoTarget = user;
-    uploadPhotoFile = null;
     showPhotoModal = true;
   }
 
-  async function savePhoto() {
+  async function withdrawFace() {
     const target = photoTarget;
     if (!target) return;
-
+    const ok = await showConfirm(
+      m.usr_face_withdraw_confirm({ name: target.name }),
+      m.usr_face_withdraw()
+    );
+    if (!ok) return;
+    withdrawingFace = true;
     try {
-      let finalIdPhotos = target.photos_id;
-
-      if (uploadPhotoFile) {
-        uploadingPhoto = true;
-
-        const uploadRes = await uploadFileChunked(uploadPhotoFile);
-        if (!uploadRes.ok) throw new Error(m.trombi_photo_upload_error());
-
-        const uploadData = (await uploadRes.json()) as { id: string };
-        const assetId = uploadData.id;
-        if (!assetId) throw new Error(m.trombi_photo_upload_error());
-
-        const maxAttempts = 15;
-        let attempt = 0;
-        let faceDetected = false;
-        let people: { id: string }[] = [];
-
-        while (attempt < maxAttempts && !faceDetected) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          attempt++;
-          try {
-            const checkResponse = await fetch(
-              `/api/immich/assets/${assetId}?nocache=${Date.now()}`
-            );
-            if (checkResponse.ok) {
-              const checkData = await checkResponse.json();
-              const checkInfo = checkData as { people?: { id: string }[] };
-              if (checkInfo.people && checkInfo.people.length > 0) {
-                faceDetected = true;
-                people = checkInfo.people;
-                break;
-              }
-            }
-          } catch (pollError) {
-            console.warn('Polling error:', pollError);
-          }
-        }
-
-        if (people.length === 0) {
-          uploadingPhoto = false;
-          toast.error(m.trombi_no_face());
-          return;
-        }
-        if (people.length > 1) {
-          uploadingPhoto = false;
-          toast.error(m.trombi_multiple_faces({ count: people.length }));
-          return;
-        }
-        finalIdPhotos = people[0].id;
-        uploadingPhoto = false;
-      }
-
-      // Round-trip the existing SSO-managed fields; only photos_id changes.
-      const res = await fetch(`/api/users/${encodeURIComponent(target.id_user)}`, {
-        method: 'PUT',
+      const res = await fetch('/api/users/me/face', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: target.name,
-          first_name: target.first_name,
-          last_name: target.last_name,
-          role: target.role,
-          promo: target.promo,
-          photos_id: finalIdPhotos,
-          formation: target.formation,
-        }),
+        body: JSON.stringify({ person_id: null, user_id: target.id_user }),
       });
-
-      if (!res.ok) throw new Error(await res.text().catch(() => res.statusText));
-
+      if (!res.ok) {
+        console.warn('[admin-users] face withdrawal refused', res.status);
+        throw new Error(m.usr_face_withdraw_error());
+      }
       await refreshAll();
       showPhotoModal = false;
       photoTarget = null;
-      uploadPhotoFile = null;
-      toast.success(m.trombi_user_updated());
+      toast.success(m.usr_face_withdrawn());
     } catch (e: unknown) {
-      uploadingPhoto = false;
       toast.error(m.common_error_detail({ error: (e as Error).message }));
+    } finally {
+      withdrawingFace = false;
     }
   }
 
@@ -379,7 +326,6 @@
           last_name: user.last_name,
           role: newRole,
           promo: user.promo,
-          photos_id: user.photos_id,
           formation: user.formation,
         }),
       });
@@ -481,10 +427,11 @@
               type="button"
               class="action-btn-photo"
               disabled={savingId === user.id_user}
-              title={m.trombi_photo_link()}
+              title={m.usr_face_title()}
+              aria-label={m.usr_face_title()}
               onclick={() => openPhotoModal(user)}
             >
-              <Camera size={16} />
+              <ScanFace size={16} />
             </button>
 
             <div class="select-wrapper">
@@ -648,7 +595,7 @@
 {#if showPhotoModal && photoTarget}
   <div
     class="modal-backdrop"
-    onclick={() => !uploadingPhoto && (showPhotoModal = false)}
+    onclick={() => !withdrawingFace && (showPhotoModal = false)}
     role="presentation"
     transition:fade={{ duration: 200 }}
   >
@@ -663,50 +610,35 @@
       transition:fly={{ y: 20, duration: 300 }}
     >
       <div class="modal-header">
-        <h3><Camera size={22} /> {photoTarget.name}</h3>
+        <h3><ScanFace size={22} /> {photoTarget.name}</h3>
       </div>
 
       <div class="modal-body">
         <div class="photo-section">
           <div class="photo-header">
-            <Camera size={18} />
-            {m.trombi_photo_link()}
+            <ScanFace size={18} />
+            {m.usr_face_title()}
           </div>
           <div class="photo-content">
-            {#if photoTarget.photos_id}
+            {#if photoTarget.face_enrolled}
               <div class="photo-status success">
                 <CircleCheckBig size={16} />
-                <span
-                  >{m.trombi_photo_linked_label()}
-                  <code class="code-pill">{photoTarget.photos_id.substring(0, 8)}...</code></span
-                >
+                <span>{m.usr_face_on()}</span>
               </div>
+              <button
+                type="button"
+                class="btn danger"
+                onclick={withdrawFace}
+                disabled={withdrawingFace}
+              >
+                {#if withdrawingFace}<Spinner size={16} />{/if}
+                {m.usr_face_withdraw()}
+              </button>
+            {:else}
+              <p class="photo-status">{m.usr_face_off()}</p>
             {/if}
-            <label class="file-upload-btn {uploadingPhoto ? 'disabled' : ''}">
-              <input
-                type="file"
-                accept="image/*"
-                onchange={(e) => {
-                  const target = e.target as HTMLInputElement;
-                  uploadPhotoFile = target.files?.[0] || null;
-                }}
-                disabled={uploadingPhoto}
-              />
-              {#if uploadingPhoto}
-                <Spinner size={16} /> {m.trombi_analyzing()}
-              {:else}
-                <CloudUpload size={16} />
-                {uploadPhotoFile
-                  ? uploadPhotoFile.name
-                  : photoTarget.photos_id
-                    ? m.trombi_replace_photo()
-                    : m.trombi_upload_photo()}
-              {/if}
-            </label>
           </div>
-          <p class="photo-hint">
-            {m.trombi_photo_hint()}
-          </p>
+          <p class="photo-hint">{m.usr_face_hint()}</p>
         </div>
       </div>
 
@@ -715,21 +647,8 @@
           class="btn-text"
           type="button"
           onclick={() => (showPhotoModal = false)}
-          disabled={uploadingPhoto}>{m.common_cancel()}</button
+          disabled={withdrawingFace}>{m.common_close()}</button
         >
-        <button
-          class="action-pill primary"
-          type="button"
-          onclick={savePhoto}
-          disabled={uploadingPhoto || !uploadPhotoFile}
-        >
-          {#if uploadingPhoto}
-            <Spinner size={16} />
-          {:else}
-            <Check size={16} />
-          {/if}
-          {m.common_save()}
-        </button>
       </div>
     </div>
   </div>
@@ -1235,42 +1154,17 @@
     gap: 1rem;
     flex-wrap: wrap;
   }
+  .photo-status {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
   .photo-status.success {
     color: var(--success);
     font-size: 0.9rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
-  }
-  .code-pill {
-    background: color-mix(in srgb, var(--success) 10%, transparent);
-    padding: 0.2rem 0.4rem;
-    border-radius: 4px;
-    font-family: monospace;
-  }
-  .file-upload-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
-    background: var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-  .file-upload-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--accent);
-  }
-  .file-upload-btn.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-  .file-upload-btn input {
-    display: none;
   }
   .photo-hint {
     font-size: 0.8rem;
@@ -1287,9 +1181,6 @@
     .photo-content {
       flex-direction: column;
       align-items: stretch;
-    }
-    .file-upload-btn {
-      justify-content: center;
     }
   }
 

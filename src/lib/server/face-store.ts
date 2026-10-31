@@ -124,6 +124,35 @@ export async function scanFaceStore(
   return { visited, failed };
 }
 
+/**
+ * The box of one stored face of the current model, in pixels of the frame the detector saw, or
+ * null when the store holds no such face. Never the embedding: a box is what a crop needs, and
+ * opening the sealed vector for it would put a template in memory for nothing.
+ */
+export function loadFaceBox(
+  db: Db,
+  face: FaceKey
+): { x1: number; y1: number; x2: number; y2: number; imgW: number; imgH: number } | null {
+  const row = db
+    .prepare(
+      `SELECT x1, y1, x2, y2, img_w, img_h FROM face_embeddings
+        WHERE asset_id = ? AND face_index = ? AND model = ?`
+    )
+    .get(face.assetId, face.faceIndex, FACE_MODEL) as {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    img_w: number;
+    img_h: number;
+  } | null;
+  if (!row) {
+    log.debug('no stored box for a face');
+    return null;
+  }
+  return { x1: row.x1, y1: row.y1, x2: row.x2, y2: row.y2, imgW: row.img_w, imgH: row.img_h };
+}
+
 /** Open the stored embeddings of the given faces (missing or unopenable ones are left out). */
 export function loadFaceEmbeddings(
   db: Db,

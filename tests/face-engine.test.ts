@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { mkdtempSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
@@ -655,15 +655,58 @@ describe('the match engine (A4)', () => {
     expect(matches().map((m) => [m.asset_id, m.user_id, m.band])).toEqual([['p1', 'near', 'auto']]);
   });
 
+  it("deletes the former holder's crop of a face that moved, and keeps the crop of a face still held", async () => {
+    const { memberCropDir } = await import('#lib/server/face-crop.ts');
+    enrol('far', ALICE, 3, 0.45);
+    enrol('bob', BOB);
+    await store([
+      ['p1', 0, ALICE],
+      ['p2', 0, BOB],
+    ]);
+    // Crops as the confirmation screen caches them, one per held face.
+    const crop = (member: string, file: string) => join(memberCropDir(member), file);
+    for (const [member, file] of [
+      ['far', 'p1_0.webp'],
+      ['bob', 'p2_0.webp'],
+    ]) {
+      mkdirSync(memberCropDir(member), { recursive: true });
+      writeFileSync(crop(member, file), 'crop');
+    }
+    try {
+      enrol('near', ALICE, 3, 0.1);
+      await L.rematchMember(engine(), 'near');
+      expect(matches().map((m) => [m.asset_id, m.user_id])).toEqual([
+        ['p1', 'near'],
+        ['p2', 'bob'],
+      ]);
+      // The face left `far`: its picture of someone else's face goes with it.
+      expect(existsSync(crop('far', 'p1_0.webp'))).toBe(false);
+      expect(existsSync(crop('bob', 'p2_0.webp'))).toBe(true);
+    } finally {
+      for (const member of ['far', 'bob'])
+        rmSync(memberCropDir(member), { recursive: true, force: true });
+    }
+  });
+
   it('drops a held face that a member no longer reaches when their references change', async () => {
     enrol('alice', ALICE, 3, 0.4);
     await store([['p1', 0, ALICE]]);
     expect(matches()).toHaveLength(1);
-    refs.eraseFaceReferences(db(), 'alice');
-    for (let i = 0; i < 3; i++)
-      refs.addFaceReference(db(), key, 'alice', 'photo', synthetic(500 + i));
-    await L.rematchMember(engine(), 'alice');
-    expect(matches()).toHaveLength(0);
+    const { memberCropDir } = await import('#lib/server/face-crop.ts');
+    const crop = join(memberCropDir('alice'), 'p1_0.webp');
+    mkdirSync(memberCropDir('alice'), { recursive: true });
+    writeFileSync(crop, 'crop');
+    try {
+      refs.eraseFaceReferences(db(), 'alice');
+      for (let i = 0; i < 3; i++)
+        refs.addFaceReference(db(), key, 'alice', 'photo', synthetic(500 + i));
+      await L.rematchMember(engine(), 'alice');
+      expect(matches()).toHaveLength(0);
+      // Matched to nobody now: the crop of it goes too.
+      expect(existsSync(crop)).toBe(false);
+    } finally {
+      rmSync(memberCropDir('alice'), { recursive: true, force: true });
+    }
   });
 
   it('never writes a match for a member whose references went during the decision', async () => {

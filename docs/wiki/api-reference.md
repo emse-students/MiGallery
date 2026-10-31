@@ -7,9 +7,9 @@ the effective minimum.
 
 ## Immich proxy
 
-| Path                    | Auth                                                   | Purpose                                                                                                 |
-| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `/api/immich/[...path]` | read (GET) / write (mutations); unlisted assets public | Universal proxy to Immich; chunked uploads; binary passthrough (see [immich-proxy.md](immich-proxy.md)) |
+| Path                    | Auth                                                   | Purpose                                                                                                                  |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/api/immich/[...path]` | read (GET) / write (mutations); unlisted assets public | Proxy to Immich for an allowlist of routes; chunked uploads; binary passthrough (see [immich-proxy.md](immich-proxy.md)) |
 
 ## Albums
 
@@ -28,11 +28,11 @@ the effective minimum.
 
 ## People / CV directory
 
-| Path                                                       | Auth              | Purpose                            |
-| ---------------------------------------------------------- | ----------------- | ---------------------------------- |
-| `/api/people`, `/api/people/people`, `/api/people/album/*` | session           | Trombinoscope people and CV albums |
-| `/api/people/people/[personId]/photos`, `/photos-stream`   | session + consent | A person's photos                  |
-| `/api/people/person/[id]/my-photos`, `/album-photos`       | session + consent | Face-based photo sets              |
+| Path                                                                                             | Auth              | Purpose                                                  |
+| ------------------------------------------------------------------------------------------------ | ----------------- | -------------------------------------------------------- |
+| `/api/people`, `/api/people/album/*`                                                             | session           | CV albums                                                |
+| `/api/users/[userId]/photos-stream`                                                              | session + consent | A member's face-matched photos (A6)                      |
+| `/api/users/me/face/matches`, `/face/crops/[assetId]/[faceIndex]`, `/api/users/me/profile-photo` | the member        | Faces to confirm, their pictures, the profile photo (A6) |
 
 ## Users and photo-access
 
@@ -93,8 +93,9 @@ Admin pages: `/admin`, `/admin/api-keys`, `/admin/database`,
 ## Which users have a photo, asked for a list
 
 `GET /api/users/avatar-presence?ids=<a>,<b>` answers `{ withPhoto: [...] }`: the ids among those
-named whose `users` row has a `photos_id` - exactly the ones `/api/users/<id>/avatar` does not
-answer 404 for (a `photos_id` whose Immich person is gone is the rare exception). At most 100 distinct
+named whose profile photo (`photos_asset_id`) is still one of their own face-matched photos (lot A6) -
+exactly the ones `/api/users/<id>/avatar` does not answer 404 for (a photo Immich no longer serves is
+the rare exception). At most 100 distinct
 ids (`MAX_AVATAR_PRESENCE_IDS`, Canari's profile batch size); a longer or empty list is a 400, never a
 short answer. It exists because Canari learned which members have no photo by being refused once per
 face - 37 404s in one salon walk on 2026-10-13 - for a fact this table already holds

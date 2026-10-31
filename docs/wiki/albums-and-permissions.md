@@ -92,3 +92,11 @@ The album routes (`asset-original`, `asset-thumbnail`, `thumbnail`, `assets-stre
 without a session, so the photo must be a member of the album named in the URL (checked against
 Immich, cached 60 s). The visibility comes from the local DB only; a `visibility` query parameter is
 ignored. Everything else needs a `read` session or key. Pinned by `tests/album-asset-access.test.ts`.
+
+## Faces are not an album permission
+
+Who appears in a photo is never part of the album model. A member's own photos ("Mes photos")
+are read from MiGallery's face matches under the photo-access consent rule
+([photos-cv.md](photos-cv.md)), and since lot A6 an asset's detail reaches the client without the
+`people` Immich found in it: the proxy strips them, and refuses every person and face call
+([immich-proxy.md](immich-proxy.md#no-person-no-face---for-anyone-lot-a6)).

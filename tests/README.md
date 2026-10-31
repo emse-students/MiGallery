@@ -208,11 +208,7 @@ node ./scripts/test-api.cjs
 
 ### ✅ People/Photos-CV (15+ endpoints)
 
-- ✅ `GET /api/people/people` - People list
-- ✅ `GET /api/people/people/:id/photos` - Person's photos
-- ✅ `GET /api/people/people/:id/photos-stream` - Photos (streaming)
-- ✅ `GET /api/people/person/:id/my-photos` - My photos
-- ✅ `GET /api/people/person/:id/album-photos` - Album photos
+- ✅ `GET /api/users/:id/photos-stream` - A member's photos (streaming, lot A6)
 - ✅ `GET /api/people` - People with filters
 - ✅ `POST /api/people` - Person creation
 - ✅ `GET /api/people/album` - PhotoCV album
@@ -286,7 +282,7 @@ node ./scripts/test-api.cjs
 
 ### ✅ Photos-CV
 
-- `GET /api/people/people` - Recognized people
+- `GET /api/people/album/info` - PhotoCV album info
 
 ### ✅ API Keys
 

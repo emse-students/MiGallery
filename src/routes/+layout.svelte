@@ -112,7 +112,7 @@
     {#if u}
       <a href="/mes-photos" class="avatar-link">
         <div class="avatar" title={u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()}>
-          {#if u.photos_id}
+          {#if u.photos_asset_id}
             <img
               src={`/api/users/${encodeURIComponent(u.id_user)}/avatar${u.photos_asset_id ? `?v=${encodeURIComponent(u.photos_asset_id)}` : ''}`}
               alt="avatar"
