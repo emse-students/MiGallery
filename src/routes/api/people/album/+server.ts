@@ -7,6 +7,7 @@ import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
@@ -45,6 +46,9 @@ export const GET: RequestHandler = async (event) => {
 
     return json({ assets, totalCount, currentPage: page, hasMore });
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
+    }
     const err = ensureError(e);
     log.error('Error in /api/people/album GET:', err);
     throw error(500, err.message);
