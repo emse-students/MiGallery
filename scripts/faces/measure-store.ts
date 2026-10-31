@@ -13,6 +13,7 @@ import { rmSync } from 'node:fs';
 import {
   FACE_EMBEDDING_DIM,
   FACE_MODEL,
+  FACE_SUGGEST_MAX_DISTANCE,
   decodeEmbedding,
   encodeEmbedding,
 } from '../../src/lib/face-embedding.ts';
@@ -48,13 +49,9 @@ let t = performance.now();
 const insert = db.prepare(
   'INSERT INTO face_embeddings VALUES (?, ?, ?, 0.1, 0.1, 0.2, 0.2, 1440, 1080, 0.8, ?, 0)'
 );
-const ids: string[] = [];
 db.exec('BEGIN');
 for (let i = 0; i < N; i++) {
   const asset = crypto.randomUUID();
-  if (i < 1000) {
-    ids.push(asset);
-  }
   insert.run(
     asset,
     0,
@@ -98,7 +95,7 @@ for (const row of rows.iterate(FACE_MODEL) as IterableIterator<{
     }
     best = Math.min(best, 1 - dot);
   }
-  if (best <= 0.62) {
+  if (best <= FACE_SUGGEST_MAX_DISTANCE) {
     kept++;
   }
   if (++k % 100_000 === 0) {
@@ -138,11 +135,15 @@ for (const row of rows.iterate(FACE_MODEL) as IterableIterator<{
   halves.set(new Uint16Array(plain.buffer, plain.byteOffset, DIM), j * DIM);
   j++;
 }
-report.inMemory = { loadSeconds: secs(t), rssGrowthMB: mb() - before };
+// The RSS growth includes the garbage each unseal leaves behind; the data held is the array itself.
+report.inMemory = {
+  loadSeconds: secs(t),
+  rssGrowthMB: mb() - before,
+  heldMB: Math.round(halves.byteLength / 1e6),
+};
 
 db.close(true);
 rmSync(path, { force: true });
 rmSync(`${path}-wal`, { force: true });
 rmSync(`${path}-shm`, { force: true });
-void ids;
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');

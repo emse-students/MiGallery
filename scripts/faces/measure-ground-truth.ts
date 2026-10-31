@@ -340,14 +340,13 @@ function summarise(run: Run) {
 }
 
 // ---- at scale: what the suggested band would show from faces nobody linked -------------------
-function scale(seed: number) {
-  const rand = rng(seed);
+function scale() {
   const members = eligible.slice(0, SCALE_MEMBERS);
   const refs = members.map(({ f }) => pickCentroid(f).map((k) => quantise(f[k])));
-  void rand;
   const auto: number[] = Array.from({ length: members.length }, () => 0);
   const suggested: number[] = Array.from({ length: members.length }, () => 0);
-  const ambiguousAuto: number[] = Array.from({ length: members.length }, () => 0);
+  /** Per margin: the `auto` faces whose runner-up member is closer than the margin. */
+  const ambiguousAuto = MARGINS.map(() => Array.from({ length: members.length }, () => 0));
   const cand = new Float32Array(DIM);
   const t = performance.now();
   for (let k = 0; k < unlinkedCount; k++) {
@@ -383,8 +382,12 @@ function scale(seed: number) {
         second = md;
       }
     }
-    if (bestM >= 0 && best <= FACE_AUTO_MAX_DISTANCE && second - best < MARGINS[0]) {
-      ambiguousAuto[bestM]++;
+    if (bestM >= 0 && best <= FACE_AUTO_MAX_DISTANCE) {
+      MARGINS.forEach((margin, i) => {
+        if (second - best < margin) {
+          ambiguousAuto[i][bestM]++;
+        }
+      });
     }
   }
   const dist = (xs: number[]) => {
@@ -402,7 +405,9 @@ function scale(seed: number) {
     seconds: round((performance.now() - t) / 1000, 1),
     autoPerMember: dist(auto),
     suggestedPerMember: dist(suggested),
-    autoWithRunnerUpWithin002: dist(ambiguousAuto),
+    autoWithRunnerUpWithinMargin: Object.fromEntries(
+      MARGINS.map((margin, i) => [String(margin), dist(ambiguousAuto[i])])
+    ),
   };
 }
 
@@ -433,6 +438,6 @@ for (let s = 1; s <= SEEDS; s++) {
 report.randomReferences = random;
 report.centroidReferences = summarise(runProtocol(0, 'centroid'));
 if (process.env.SKIP_SCALE !== '1') {
-  report.scale = scale(0);
+  report.scale = scale();
 }
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');
