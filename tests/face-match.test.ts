@@ -16,6 +16,7 @@ import {
   FACE_EMBEDDING_DIM,
   FACE_MIN_REFERENCES,
   FACE_MODEL,
+  FACE_SELFIE_BYSTANDER_SCORE,
   FACE_SUGGEST_MAX_DISTANCE,
   cosineDistance,
   decodeEmbedding,
@@ -145,12 +146,22 @@ describe('decideFace', () => {
     expect(got?.distance).toBeCloseTo(0.2, 5);
   });
 
-  it('skips an excluded member and offers the face to the next one', () => {
+  it('offers a face to the next member past one who rejected it, never as auto', () => {
     const a = memberAt('a', face, 0.2, 3, 10);
     const b = memberAt('b', face, 0.4, 3, 20);
     const got = decideFace(face, [a, b], new Set(['a']));
     expect(got?.userId).toBe('b');
-    expect(got?.runnerUp).toBeNull();
+    // The member who rejected it is still the runner-up: a lookalike case, past a human.
+    expect(got?.runnerUp).toBeCloseTo(0.2, 5);
+    expect(got?.band).toBe('suggested');
+  });
+
+  it('keeps auto past a rejection that is far from the face', () => {
+    const a = memberAt('a', face, 0.6, 3, 10);
+    const b = memberAt('b', face, 0.3, 3, 20);
+    const got = decideFace(face, [a, b], new Set(['a']));
+    expect(got?.userId).toBe('b');
+    expect(got?.band).toBe('auto');
   });
 
   it('matches nobody beyond the suggested band, and nobody without members', () => {
@@ -167,10 +178,29 @@ describe('decideFace', () => {
       face,
       [{ userId: 'bad', refs: [broken] }, memberAt('ok', face, 0.4)],
       undefined,
-      (u) => reported.push(u)
+      { invalidReference: (u) => reported.push(u) }
     );
     expect(got?.userId).toBe('ok');
     expect(reported).toEqual(['bad']);
+  });
+
+  it('reports a corrupt face once, as the face, and blames no member', () => {
+    const broken = Float32Array.from(face);
+    broken[3] = NaN;
+    const members: string[] = [];
+    let faces = 0;
+    const got = decideFace(
+      broken,
+      [memberAt('a', face, 0.1), memberAt('b', face, 0.3)],
+      undefined,
+      {
+        invalidReference: (u) => members.push(u),
+        invalidCandidate: () => faces++,
+      }
+    );
+    expect(got).toBeNull();
+    expect(faces).toBe(1);
+    expect(members).toEqual([]);
   });
 
   it('gives the same answer through the float16 store as from float32', () => {
@@ -259,6 +289,29 @@ describe('the model client', () => {
       ml.FaceMlResponseError
     );
     expect(() => ml.parsePrediction(null)).toThrow(ml.FaceMlResponseError);
+    const zeros = {
+      ...face(0.9, 3),
+      embedding: JSON.stringify(new Array(FACE_EMBEDDING_DIM).fill(0)),
+    };
+    expect(() => ml.parsePrediction(answer([zeros]))).toThrow(/all zeros/);
+  });
+
+  it('types an answer that cannot be read as unavailable, and one that is not JSON as bad', async () => {
+    const cut = (async () =>
+      new Response(
+        new ReadableStream({
+          start(c) {
+            c.error(new Error('socket hang up'));
+          },
+        })
+      )) as unknown as typeof fetch;
+    await expect(ml.detectFaces(cut, new Blob([]))).rejects.toBeInstanceOf(
+      ml.FaceMlUnavailableError
+    );
+    const garbled = (async () => new Response('<html>')) as unknown as typeof fetch;
+    await expect(ml.detectFaces(garbled, new Blob([]))).rejects.toBeInstanceOf(
+      ml.FaceMlResponseError
+    );
   });
 
   it('types a refusal and an unreachable service as unavailable, never as a result', async () => {
@@ -278,10 +331,23 @@ describe('the model client', () => {
     );
   });
 
-  it('takes a selfie only with exactly one confident face', async () => {
-    const one = fetchReturning(answer([face(0.95, 5), face(FACE_DETECTION_MIN_SCORE - 0.01, 6)]));
+  it('takes a selfie only with exactly one confident face and no bystander', async () => {
+    const one = fetchReturning(
+      answer([face(0.95, 5), face(FACE_SELFIE_BYSTANDER_SCORE - 0.01, 6)])
+    );
     const v = await ml.selfieEmbedding(one.fn, new Blob([]));
     expect(cosineDistance(v, synthetic(5))).toBeLessThan(1e-6);
+    // Searched at the low floor, so a faint face behind the member is seen.
+    const form = one.calls[0].init.body as FormData;
+    expect(
+      JSON.parse(String(form.get('entries')))['facial-recognition'].detection.options.minScore
+    ).toBe(FACE_SELFIE_BYSTANDER_SCORE);
+
+    const bystander = fetchReturning(answer([face(0.95, 5), face(FACE_SELFIE_BYSTANDER_SCORE, 6)]));
+    await expect(ml.selfieEmbedding(bystander.fn, new Blob([]))).rejects.toMatchObject({
+      reason: 'several_faces',
+      faces: 2,
+    });
 
     const none = fetchReturning(answer([]));
     await expect(ml.selfieEmbedding(none.fn, new Blob([]))).rejects.toMatchObject({
