@@ -9,12 +9,16 @@
  * WHAT A HUMAN SAID WINS. A face a member CONFIRMED is never re-decided; a face a member REJECTED
  * is never offered to them again (the face goes to the next member, if any is within the bands).
  *
- * ONE AT A TIME. Every mutation here goes through {@link runExclusive}: a scan is asynchronous
- * (it yields between chunks), and two of them interleaving could each decide on a state the other
- * is changing. A decision is also re-checked inside its transaction against the member's CURRENT
- * references, so a withdrawal that lands during a scan is never undone by its result.
+ * ONE AT A TIME, ENFORCED. Every mutation here must run inside {@link runExclusive}: a scan is
+ * asynchronous (it yields between chunks), and two of them interleaving could each decide on a
+ * state the other is changing. Each mutating function CHECKS that it runs inside the lock and
+ * throws otherwise, so a caller cannot forget it. The one write outside the lock is a member's
+ * erasure (face-erasure.ts), which must be synchronous; so a decision is re-checked inside its
+ * transaction against the references as they are THEN, and a withdrawal that lands during a scan
+ * is never undone by its result.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { getDatabase, type DatabaseInstance } from '#lib/db/database.ts';
 import { getFaceDatabase } from '#lib/db/face-database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
@@ -39,30 +43,72 @@ export interface FaceEngine {
   key: Buffer;
 }
 
-/** The engine over the server's own files, or null when the store is not configured. */
+let keyRefused = false;
+
+/**
+ * The engine over the server's own files, or null when the store is not configured or its key is
+ * malformed. A malformed key turns the face feature OFF with one error line; it never stops the
+ * gallery (a throw here would reach the boot and every withdrawal).
+ */
 export function defaultFaceEngine(): FaceEngine | null {
   if (!faceStoreConfigured()) {
     return null;
   }
-  return { db: getDatabase(), faceDb: getFaceDatabase(), key: faceStoreKey() };
+  let key: Buffer;
+  try {
+    key = faceStoreKey();
+  } catch (e) {
+    if (!keyRefused) {
+      keyRefused = true;
+      log.error('FACE_STORE_KEY is malformed: the face feature is OFF until it is fixed', {
+        message: (e as Error).message,
+      });
+    }
+    return null;
+  }
+  return { db: getDatabase(), faceDb: getFaceDatabase(), key };
 }
 
 /** A face with its opened embedding. Biometric: lives in memory for one decision. */
 export type OpenedFace = FaceKey & { embedding: Float32Array };
 
-/** Faces decided per transaction when a long list is recorded. */
+/** Faces decided per transaction, and held per flush while a scan runs. */
 const RECORD_BATCH = 2000;
 
 let chain: Promise<unknown> = Promise.resolve();
+const lock = new AsyncLocalStorage<true>();
 
 /** Run `fn` after every engine operation already queued, and before the next one. */
 export function runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
-  const next = chain.then(fn, fn);
+  if (lock.getStore()) {
+    // Already inside the lock (a nested engine call): queueing would wait for itself forever.
+    return Promise.resolve().then(fn);
+  }
+  const run = () => lock.run(true, fn);
+  const next = chain.then(run, run);
   chain = next.catch(() => undefined);
   return next;
 }
 
+/** Throw unless the caller holds the engine lock. */
+function assertExclusive(what: string): void {
+  if (!lock.getStore()) {
+    throw new Error(`${what} must run inside runExclusive`);
+  }
+}
+
 const faceKey = (f: FaceKey) => `${f.assetId}\u0000${f.faceIndex}`;
+
+/** Which references each member holds now: the ids, in order, per member. */
+function referenceFingerprint(db: DatabaseInstance): string {
+  const row = db
+    .prepare(
+      `SELECT group_concat(user_id || ':' || id, ',') AS f FROM
+         (SELECT user_id, id FROM face_references WHERE model = ? ORDER BY user_id, id)`
+    )
+    .get(FACE_MODEL) as { f: string | null };
+  return row.f ?? '';
+}
 
 /** Totals of a recording, for the logs. */
 export interface RecordResult {
@@ -72,22 +118,46 @@ export interface RecordResult {
   kept: number;
 }
 
+const emptyResult = (): RecordResult => ({ auto: 0, suggested: 0, none: 0, kept: 0 });
+
+function addResult(total: RecordResult, r: RecordResult): void {
+  total.auto += r.auto;
+  total.suggested += r.suggested;
+  total.none += r.none;
+  total.kept += r.kept;
+}
+
+/** The members, and the fingerprint of the references they were read from (exported for tests). */
+export interface MemberSnapshot {
+  members: MemberReferences[];
+  fingerprint: string;
+}
+
+export function snapshotMembers(engine: FaceEngine): MemberSnapshot {
+  return {
+    fingerprint: referenceFingerprint(engine.db),
+    members: loadAllReferences(engine.db, engine.key),
+  };
+}
+
 /**
  * Re-decide each face and write the result. Inside one transaction per batch: a confirmed face is
  * kept as it is; otherwise its holder row (not a rejection) is replaced by the decision among the
- * members who did not reject it. A member who no longer holds any reference at write time is
- * dropped from the decision (a withdrawal that landed after `members` was read).
+ * members who did not reject it. The decision is taken on the references as they are IN that
+ * transaction: when they changed since `snapshot` was read (a withdrawal, an enrolment landing
+ * during a scan), they are read again first. A holder who keeps the face keeps its `created_at`.
  */
 export function recordDecisions(
   engine: FaceEngine,
-  members: ReadonlyArray<MemberReferences>,
+  snapshot: MemberSnapshot,
   faces: ReadonlyArray<OpenedFace>,
   now: number = Date.now()
 ): RecordResult {
+  assertExclusive('recordDecisions');
   const { db } = engine;
-  const result: RecordResult = { auto: 0, suggested: 0, none: 0, kept: 0 };
+  const result = emptyResult();
   const rowsOf = db.prepare(
-    'SELECT user_id, state FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
+    'SELECT user_id, state, created_at FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
   );
   const clear = db.prepare(
     "DELETE FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ? AND state != 'rejected'"
@@ -96,26 +166,38 @@ export function recordDecisions(
     `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band,
        state, created_at, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL)`
   );
-  const holds = db.prepare('SELECT 1 FROM face_references WHERE user_id = ? AND model = ? LIMIT 1');
 
   for (let start = 0; start < faces.length; start += RECORD_BATCH) {
     const batch = faces.slice(start, start + RECORD_BATCH);
     inTransaction(db, () => {
-      const current = members.filter((m) => holds.get(m.userId, FACE_MODEL));
+      const fingerprint = referenceFingerprint(db);
+      if (fingerprint !== snapshot.fingerprint) {
+        log.info('references changed during the decision; read again');
+        snapshot.members = loadAllReferences(db, engine.key);
+        snapshot.fingerprint = fingerprint;
+      }
       for (const face of batch) {
         const rows = rowsOf.all(face.assetId, face.faceIndex, FACE_MODEL) as Array<{
           user_id: string;
           state: string;
+          created_at: number;
         }>;
         if (rows.some((r) => r.state === 'confirmed')) {
           result.kept++;
           continue;
         }
         const rejected = new Set(rows.filter((r) => r.state === 'rejected').map((r) => r.user_id));
+        const holder = rows.find((r) => r.state === 'pending');
         clear.run(face.assetId, face.faceIndex, FACE_MODEL);
-        const decision = decideFace(face.embedding, current, rejected, (userId) =>
-          log.error('a member reference is not a usable vector; member skipped', { userId })
-        );
+        const decision = decideFace(face.embedding, snapshot.members, rejected, {
+          invalidReference: (userId) =>
+            log.error('a member reference is not a usable vector; member skipped', { userId }),
+          invalidCandidate: () =>
+            log.error('a stored face is not a usable vector; matched to nobody', {
+              assetId: face.assetId,
+              faceIndex: face.faceIndex,
+            }),
+        });
         if (!decision) {
           result.none++;
           continue;
@@ -128,7 +210,7 @@ export function recordDecisions(
           decision.distance,
           decision.runnerUp,
           decision.band,
-          now
+          holder?.user_id === decision.userId ? holder.created_at : now
         );
         result[decision.band]++;
       }
@@ -139,20 +221,21 @@ export function recordDecisions(
 
 /** Decide freshly stored faces (a new photo) against every member. */
 export function matchNewFaces(engine: FaceEngine, faces: ReadonlyArray<OpenedFace>): RecordResult {
+  assertExclusive('matchNewFaces');
   if (faces.length === 0) {
-    return { auto: 0, suggested: 0, none: 0, kept: 0 };
+    return emptyResult();
   }
-  const members = loadAllReferences(engine.db, engine.key);
-  const result = recordDecisions(engine, members, faces);
+  const result = recordDecisions(engine, snapshotMembers(engine), faces);
   log.info('new faces decided', { faces: faces.length, ...result });
   return result;
 }
 
 /** Re-decide chosen faces (after a withdrawal or a rejection), opened from the store. */
 export function redecideFaces(engine: FaceEngine, faces: ReadonlyArray<FaceKey>): RecordResult {
+  assertExclusive('redecideFaces');
+  const snapshot = snapshotMembers(engine);
   const opened = loadFaceEmbeddings(engine.faceDb, engine.key, faces);
-  const members = loadAllReferences(engine.db, engine.key);
-  const result = recordDecisions(engine, members, opened);
+  const result = recordDecisions(engine, snapshot, opened);
   log.info('faces re-decided', { faces: faces.length, opened: opened.length, ...result });
   return result;
 }
@@ -160,11 +243,12 @@ export function redecideFaces(engine: FaceEngine, faces: ReadonlyArray<FaceKey>)
 /**
  * After a member's references changed (an enrolment, a new reference, a withdrawal): scan the
  * store for every face within the suggested band of their references, add the faces they held,
- * and re-decide all of them against every member.
+ * and re-decide all of them against every member, {@link RECORD_BATCH} at a time as the scan goes.
  */
 export async function rematchMember(engine: FaceEngine, userId: string): Promise<RecordResult> {
-  const members = loadAllReferences(engine.db, engine.key);
-  const me = members.find((m) => m.userId === userId);
+  assertExclusive('rematchMember');
+  const snapshot = snapshotMembers(engine);
+  const me = snapshot.members.find((m) => m.userId === userId);
   const held = (
     engine.db
       .prepare(
@@ -173,41 +257,47 @@ export async function rematchMember(engine: FaceEngine, userId: string): Promise
       .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>
   ).map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
 
-  let candidates: OpenedFace[];
+  const total = emptyResult();
   if (me) {
     const heldKeys = new Set(held.map(faceKey));
-    candidates = [];
+    let pending: OpenedFace[] = [];
+    let candidates = 0;
+    const flush = () => {
+      addResult(total, recordDecisions(engine, snapshot, pending));
+      pending = [];
+    };
     const scan = await scanFaceStore(engine.faceDb, engine.key, (face, embedding) => {
       if (
         heldKeys.has(faceKey(face)) ||
         minDistance(me.refs, embedding) <= FACE_SUGGEST_MAX_DISTANCE
       ) {
-        candidates.push({ ...face, embedding });
+        pending.push({ ...face, embedding });
+        candidates++;
+        if (pending.length >= RECORD_BATCH) {
+          flush();
+        }
       }
     });
-    log.info('store scanned for a member', {
-      visited: scan.visited,
-      candidates: candidates.length,
-    });
+    flush();
+    log.info('store scanned for a member', { visited: scan.visited, candidates });
   } else {
-    candidates = loadFaceEmbeddings(engine.faceDb, engine.key, held);
+    addResult(
+      total,
+      recordDecisions(engine, snapshot, loadFaceEmbeddings(engine.faceDb, engine.key, held))
+    );
   }
-  const result = recordDecisions(engine, members, candidates);
-  log.info('member re-matched', { userId, ...result });
-  return result;
+  log.info('member re-matched', { userId, ...total });
+  return total;
 }
 
 /** Decide every stored face against every member (the seed, or a change of thresholds). */
 export async function rematchAll(engine: FaceEngine): Promise<RecordResult> {
-  const members = loadAllReferences(engine.db, engine.key);
-  const total: RecordResult = { auto: 0, suggested: 0, none: 0, kept: 0 };
+  assertExclusive('rematchAll');
+  const snapshot = snapshotMembers(engine);
+  const total = emptyResult();
   let pending: OpenedFace[] = [];
   const flush = () => {
-    const r = recordDecisions(engine, members, pending);
-    total.auto += r.auto;
-    total.suggested += r.suggested;
-    total.none += r.none;
-    total.kept += r.kept;
+    addResult(total, recordDecisions(engine, snapshot, pending));
     pending = [];
   };
   await scanFaceStore(engine.faceDb, engine.key, (face, embedding) => {
@@ -217,7 +307,7 @@ export async function rematchAll(engine: FaceEngine): Promise<RecordResult> {
     }
   });
   flush();
-  log.info('every stored face re-decided', { members: members.length, ...total });
+  log.info('every stored face re-decided', { members: snapshot.members.length, ...total });
   return total;
 }
 
@@ -236,6 +326,7 @@ export function answerMatch(
   verdict: MatchVerdict,
   now: number = Date.now()
 ): boolean {
+  assertExclusive('answerMatch');
   const changes = db
     .prepare(
       `UPDATE face_matches SET state = ?, decided_at = ?
@@ -258,6 +349,7 @@ export function answerMatch(
  * For an asset gone from Immich, and before an asset's faces are written again.
  */
 export function removeAssetFaces(engine: FaceEngine, assetId: string): number {
+  assertExclusive('removeAssetFaces');
   const embeddings = engine.faceDb
     .prepare('DELETE FROM face_embeddings WHERE asset_id = ?')
     .run(assetId).changes;
@@ -266,4 +358,19 @@ export function removeAssetFaces(engine: FaceEngine, assetId: string): number {
     .run(assetId).changes;
   log.debug('asset faces removed', { embeddings, matches });
   return embeddings;
+}
+
+/**
+ * Fold the face store's write-ahead log back into the file and empty it. After faces are deleted:
+ * `secure_delete` overwrites the pages of the database file, but the WAL keeps the old copies
+ * until a checkpoint.
+ */
+export function checkpointFaceStore(engine: FaceEngine): void {
+  try {
+    engine.faceDb.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  } catch (e) {
+    log.error('faces.db WAL checkpoint failed; deleted faces may linger in the WAL', {
+      message: (e as Error).message,
+    });
+  }
 }

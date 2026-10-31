@@ -154,6 +154,7 @@ jobs:
             printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
             printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
             printf 'AVATAR_SIGNING_KEY=%s\n' "$AVATAR_SIGNING_KEY"
+            printf 'FACE_STORE_KEY=%s\n' "$FACE_STORE_KEY"
           } > "$DEPLOY_DIR/.env"
           printf 'OFFSITE_HOST=%s\nIMMICH_BACKUP_DIR=%s\n' "$OFFSITE_HOST" "$IMMICH_BACKUP_DIR" \
             > "$DEPLOY_DIR/scripts/backup.env"
@@ -171,6 +172,26 @@ jobs:
 
       - name: Pull image
         run: $COMPOSE pull
+
+      # The face model network holds TWO containers only: MiGallery and Immich's model service
+      # (docker-compose.prod.yml). Created here when missing, so a fresh host needs no hand step;
+      # the model service is attached by Immich's own compose, and a deploy without it would
+      # leave the face feature failing every pass - so it stops here, saying what to do.
+      - name: Face model network
+        run: |
+          net=migallery-face-ml
+          docker network inspect "$net" >/dev/null 2>&1 || docker network create --internal "$net"
+          members=$(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' "$net")
+          case " $members " in
+            *" immich_machine_learning "*) echo "face model service attached to $net" ;;
+            *) echo "::error::immich_machine_learning is not on $net: add the network to the machine-learning service of Immich's compose (docs/MIGRATION.md)"; exit 1 ;;
+          esac
+          for c in $members; do
+            case "$c" in
+              immich_machine_learning | migallery-migallery-1) ;;
+              *) echo "::error::$c is on $net, which must hold MiGallery and the face model only"; exit 1 ;;
+            esac
+          done
 
       - name: Deploy
         run: $COMPOSE up -d --remove-orphans

@@ -74,6 +74,17 @@ listener. `docker-compose.prod.yml` therefore binds the container's port to
 `127.0.0.1` - a property of the file and not of a firewall - and no other service
 of this repository calls the container by a network address.
 
+**What reaches what, exactly (since the face store, 2026-10-31).** The container is on two
+Docker networks. Its own compose network holds MiGallery alone. `migallery-face-ml` is internal
+(no route out) and holds MiGallery and Immich's model service ONLY, which the deploy checks
+([MIGRATION](../MIGRATION.md)). So:
+
+- MiGallery reaches the model service (`immich-machine-learning:3003`) and nothing else of Immich
+  by network: not its database, not its server (that one only through `IMMICH_BASE_URL`, as before).
+- **The model service can reach MiGallery's listener directly**, without the proxy, and so could
+  send any `cf-connecting-ip` it likes. That is the one exception to the invariant above: it
+  trusts Immich's model container as much as Immich itself is trusted. Nothing else can.
+
 `avatar_revocations(id_user, salt, revoked_at)` holds the salt of a user whose signed avatar links were
 revoked. It is keyed by id_user with no foreign key ON PURPOSE: it survives the deletion of the account,
 so a user recreated at their next sign-in does not re-validate old URLs. Account deletion rotates the salt in its own transaction; the pseudonymous id then stays here as a tombstone (an id and a random salt, no personal data) while the audit-log scrub removes it everywhere else

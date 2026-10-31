@@ -45,7 +45,7 @@ services:
       # 64 hex. La perdre rend data/faces.db et les references illisibles : la cle vit dans les
       # secrets GitHub, jamais dans une sauvegarde de la base.
       FACE_STORE_KEY: ${FACE_STORE_KEY:?FACE_STORE_KEY requis}
-      # Le service de modele d Immich, joint par son nom sur le reseau d Immich (ci-dessous).
+      # Le service de modele d Immich, joint par son nom sur le reseau dedie face-ml (ci-dessous).
       FACE_ML_URL: ${FACE_ML_URL:-http://immich-machine-learning:3003}
       # Aucun secret de session : le cookie ne transporte qu'un jeton opaque et la
       # table `sessions` porte tout le reste - rien a signer, donc rien a tourner.
@@ -61,10 +61,14 @@ services:
       - ./data:/app/data
     networks:
       - default
-      - immich
+      - face-ml
 
 networks:
-  # Le reseau du compose d Immich, pour joindre son service de modele (reconnaissance faciale).
-  immich:
+  # Reseau dedie a DEUX conteneurs seulement : MiGallery et le service de modele d Immich
+  # (decision du proprietaire, 2026-10-31). MiGallery n entre PAS dans le reseau d Immich : il
+  # n y joint ni la base ni le serveur, seulement le modele. Interne (aucune sortie). Le deploiement
+  # le cree s il manque et refuse de continuer si le service de modele n y est pas branche
+  # (.github/workflows/deploy.yml) ; cote Immich, son compose y branche immich-machine-learning.
+  face-ml:
     external: true
-    name: ${IMMICH_DOCKER_NETWORK:-immich_default}
+    name: migallery-face-ml

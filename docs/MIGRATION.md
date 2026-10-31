@@ -48,8 +48,23 @@ The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 The deploy refuses to run while any of them is missing. `OFFSITE_HOST` and `IMMICH_BACKUP_DIR`
 never reach `.env`: the deploy writes them into `<deploy-dir>/scripts/backup.env`, which both
 backup scripts read (`scripts/backup-config.sh`). Non-secret values (MICONNECT_ISSUER, ports...)
-have defaults in `docker-compose.prod.yml`, overridable if needed - among them `FACE_ML_URL` and
-`IMMICH_DOCKER_NETWORK`: the container joins Immich's compose network to reach its model service
+have defaults in `docker-compose.prod.yml`, overridable if needed - among them `FACE_ML_URL`.
+
+**The face model network.** MiGallery reaches Immich's model service, and nothing else of Immich,
+over `migallery-face-ml`: an internal Docker network holding those two containers only (owner,
+2026-10-31). The deploy creates it when missing and refuses to go on unless the model service is
+on it and nobody else is. On the host, Immich's own compose attaches its machine-learning service:
+
+```yaml
+services:
+  immich-machine-learning:
+    networks: [default, migallery-face-ml]
+networks:
+  migallery-face-ml:
+    external: true
+```
+
+then `docker compose up -d immich-machine-learning` in Immich's directory
 ([face-matching-option-c](wiki/face-matching-option-c.md)).
 
 ## 3. SSH access for offsite backup

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
@@ -71,6 +71,18 @@ function engine() {
   return { db: db(), faceDb: faceDb(), key };
 }
 
+/** The engine's mutations, each run inside its lock as the server's callers do. */
+const L = {
+  answerMatch: (...a: Parameters<typeof engineMod.answerMatch>) =>
+    engineMod.runExclusive(() => engineMod.answerMatch(...a)),
+  redecideFaces: (...a: Parameters<typeof engineMod.redecideFaces>) =>
+    engineMod.runExclusive(() => engineMod.redecideFaces(...a)),
+  rematchMember: (...a: Parameters<typeof engineMod.rematchMember>) =>
+    engineMod.runExclusive(() => engineMod.rematchMember(...a)),
+  rematchAll: (...a: Parameters<typeof engineMod.rematchAll>) =>
+    engineMod.runExclusive(() => engineMod.rematchAll(...a)),
+};
+
 function addUser(id: string) {
   db().prepare('INSERT INTO users (id_user, name) VALUES (?, ?)').run(id, id);
 }
@@ -108,6 +120,7 @@ const library = new Map<string, Float32Array[]>();
 /** Assets the fake Immich lists, in order. */
 let listed: string[] = [];
 let mlDown = false;
+let immichGarbled = false;
 let mlGarbage = false;
 let missingPreview = new Set<string>();
 const searchBodies: Array<Record<string, unknown>> = [];
@@ -115,6 +128,7 @@ const searchBodies: Array<Record<string, unknown>> = [];
 const fakeFetch = (async (url: string, init?: RequestInit) => {
   const u = new URL(url);
   if (u.pathname === '/api/search/metadata') {
+    if (immichGarbled) return new Response('<html>proxy error</html>');
     const body = JSON.parse(String(init?.body)) as Record<string, unknown> & {
       page: number;
       size: number;
@@ -172,6 +186,7 @@ beforeEach(() => {
   library.clear();
   listed = [];
   mlDown = false;
+  immichGarbled = false;
   mlGarbage = false;
   missingPreview = new Set();
   searchBodies.length = 0;
@@ -313,15 +328,48 @@ describe('ingestion (A3)', () => {
     await ingest.runIngestPass(fakeFetch, engine());
     expect(matches()).toHaveLength(1);
 
-    // n1 deleted from Immich, n3 new: n1's faces and matches go, n3 is pending.
+    // n1 deleted from Immich, n3 new: n3 is pending; n1 is only marked by ONE listing...
     listed = ['n2', 'n3'];
-    const result = await ingest.reconcile(fakeFetch, engine());
-    expect(result).toMatchObject({ listed: 2, added: 1, removed: 1, refused: null });
+    const first = await ingest.reconcile(fakeFetch, engine());
+    expect(first).toMatchObject({ listed: 2, added: 1, marked: 1, removed: 0, refused: null });
     expect(searchBodies.at(-1)).toMatchObject({ withDeleted: true });
+    expect(matches()).toHaveLength(1);
+    // ...and its faces and matches go when the next listing misses it too.
+    const second = await ingest.reconcile(fakeFetch, engine());
+    expect(second).toMatchObject({ added: 0, marked: 0, removed: 1 });
     expect(matches()).toHaveLength(0);
     expect(
       faceDb().prepare("SELECT COUNT(*) AS n FROM face_embeddings WHERE asset_id = 'n1'").get()
     ).toEqual({ n: 0 });
+  });
+
+  it('forgets a mark when the asset is listed again', async () => {
+    seeded();
+    ingest.addPending(faceDb(), ['a', 'b', 'c'], 1);
+    listed = ['a', 'b'];
+    expect((await ingest.reconcile(fakeFetch, engine())).marked).toBe(1);
+    listed = ['a', 'b', 'c'];
+    await ingest.reconcile(fakeFetch, engine());
+    listed = ['a', 'b'];
+    // Missing again, but not from two CONSECUTIVE listings: still only marked.
+    expect(await ingest.reconcile(fakeFetch, engine())).toMatchObject({ marked: 1, removed: 0 });
+  });
+
+  it('removes nothing from a listing that hit its page cap', async () => {
+    seeded();
+    ingest.addPending(faceDb(), ['a', 'b', 'c'], 1);
+    listed = Array.from({ length: 1001 }, (_, i) => `x${i}`); // two pages of 1000
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const result = await ingest.reconcile(fakeFetch, engine(), Date.now(), 1);
+    errors.mockRestore();
+    expect(result).toMatchObject({
+      marked: 0,
+      removed: 0,
+      refused: 'the listing hit its page cap',
+    });
+    expect(faceDb().prepare('SELECT SUM(absent_listings) AS n FROM face_assets').get()).toEqual({
+      n: 0,
+    });
   });
 
   it('removes nothing on a listing that names under half of what it knows', async () => {
@@ -333,16 +381,92 @@ describe('ingestion (A3)', () => {
     expect(faceDb().prepare('SELECT COUNT(*) AS n FROM face_assets').get()).toEqual({ n: 5 });
   });
 
-  it('reports an unseeded store and an overdue backlog as errors with their cause', () => {
+  it('stops on a listing that is not JSON, as Immich unavailable, blaming no asset', async () => {
+    seeded();
+    immichGarbled = true;
+    await expect(
+      ingest.discoverNew(fakeFetch, faceDb(), '2026-10-30T00:00:00Z')
+    ).rejects.toBeInstanceOf(ingest.ImmichUnavailableError);
+  });
+
+  it('counts an unexpected failure against its asset, leaves it pending, and goes on', async () => {
+    seeded();
+    enrol('alice', ALICE);
+    library.set('a1', [ALICE]);
+    library.set('a2', [BOB]);
+    ingest.addPending(faceDb(), ['a1', 'a2'], 1);
+    // The decision cannot be written: the faces are, the asset must NOT be done.
+    db().exec('ALTER TABLE face_matches RENAME TO face_matches_hidden');
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let result;
+    try {
+      result = await ingest.runIngestPass(fakeFetch, engine());
+    } finally {
+      db().exec('ALTER TABLE face_matches_hidden RENAME TO face_matches');
+      errors.mockRestore();
+    }
+    expect(result).toMatchObject({ done: 0, retry: 2, stopped: null });
+    const rows = faceDb()
+      .prepare('SELECT asset_id, state, attempts, last_error FROM face_assets ORDER BY asset_id')
+      .all() as Array<{ state: string; attempts: number; last_error: string }>;
+    expect(rows.map((r) => [r.state, r.attempts])).toEqual([
+      ['pending', 1],
+      ['pending', 1],
+    ]);
+    expect(rows[0].last_error).toMatch(/^error: /);
+    // The next pass writes and decides it again.
+    expect((await ingest.runIngestPass(fakeFetch, engine())).done).toBe(2);
+    expect(matches().map((m) => m.asset_id)).toEqual(['a1']);
+  });
+
+  it('decides at ingestion on the stored float16 vector, so a rescan changes nothing', async () => {
+    seeded();
+    enrol('alice', ALICE);
+    library.set('p1', [atDistance(ALICE, synthetic(3), 0.3)]);
+    await ingestAll(['p1']);
+    const before = db().prepare('SELECT distance, created_at FROM face_matches').get();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await L.rematchAll(engine());
+    expect(db().prepare('SELECT distance, created_at FROM face_matches').get()).toEqual(before);
+  });
+
+  it('empties the WAL after removing faces', async () => {
+    seeded();
+    library.set('g1', [ALICE]);
+    await ingestAll(['g1', 'k1', 'k2']);
+    listed = ['k1', 'k2'];
+    await ingest.reconcile(fakeFetch, engine());
+    await ingest.reconcile(fakeFetch, engine());
+    expect(statSync(`${faceDatabase.faceDatabasePath()}-wal`).size).toBe(0);
+  });
+
+  it('turns the feature off on a malformed key, with one error, never a throw', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const good = env.FACE_STORE_KEY;
+    env.FACE_STORE_KEY = 'not-a-key';
+    let off: number;
+    try {
+      expect(engineMod.defaultFaceEngine()).toBeNull();
+      expect(engineMod.defaultFaceEngine()).toBeNull();
+      off = errors.mock.calls.filter((c) => String(c[0]).includes('face feature is OFF')).length;
+    } finally {
+      env.FACE_STORE_KEY = good;
+      errors.mockRestore();
+    }
+    expect(off).toBe(1);
+    expect(engineMod.defaultFaceEngine()).not.toBeNull();
+  });
+
+  it('says an unseeded store without accusing it, and reports an overdue backlog with its cause', () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     expect(ingest.reportIngest(faceDb(), null).seeded).toBe(false);
-    expect(errors).toHaveBeenCalledTimes(1);
+    expect(errors).toHaveBeenCalledTimes(0); // planned until the seed (A7)
     seeded();
     ingest.addPending(faceDb(), ['x'], 0);
     ingest.reportIngest(faceDb(), null, ingest.INGEST_OVERDUE_MS - 1);
-    expect(errors).toHaveBeenCalledTimes(1); // a day-old backlog is not yet an error
+    expect(errors).toHaveBeenCalledTimes(0); // a day-old backlog is not yet an error
     const report = ingest.reportIngest(faceDb(), 'ml_unavailable', ingest.INGEST_OVERDUE_MS + 1);
-    expect(errors).toHaveBeenCalledTimes(2);
+    expect(errors).toHaveBeenCalledTimes(1);
     errors.mockRestore();
     expect(report).toMatchObject({ pending: 1, lastStop: 'ml_unavailable' });
     expect(report.oldestPendingMs).toBeGreaterThan(ingest.INGEST_OVERDUE_MS);
@@ -368,12 +492,12 @@ describe('the match engine (A4)', () => {
   it('keeps a confirmed face, whoever comes later', async () => {
     enrol('alice', ALICE);
     await store([['p1', 0, atDistance(ALICE, synthetic(7), 0.3)]]);
-    expect(engineMod.answerMatch(db(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'confirm')).toBe(
+    expect(await L.answerMatch(db(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'confirm')).toBe(
       true
     );
     // A later, nearer member: a human's answer is not re-decided.
     enrol('clone', ALICE, 3, 0.01);
-    await engineMod.rematchMember(engine(), 'clone');
+    await L.rematchMember(engine(), 'clone');
     expect(matches()).toEqual([
       { asset_id: 'p1', face_index: 0, user_id: 'alice', band: 'auto', state: 'confirmed' },
     ]);
@@ -384,16 +508,17 @@ describe('the match engine (A4)', () => {
     enrol('twin', ALICE, 3, 0.35);
     await store([['p1', 0, ALICE]]);
     expect(matches()[0].user_id).toBe('alice');
-    expect(engineMod.answerMatch(db(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject')).toBe(
+    expect(await L.answerMatch(db(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject')).toBe(
       true
     );
-    engineMod.redecideFaces(engine(), [{ assetId: 'p1', faceIndex: 0 }]);
+    await L.redecideFaces(engine(), [{ assetId: 'p1', faceIndex: 0 }]);
     expect(matches()).toEqual([
       { asset_id: 'p1', face_index: 0, user_id: 'alice', band: 'auto', state: 'rejected' },
-      { asset_id: 'p1', face_index: 0, user_id: 'twin', band: 'auto', state: 'pending' },
+      // The one who rejected it is still the runner-up, closer than the margin: past a human.
+      { asset_id: 'p1', face_index: 0, user_id: 'twin', band: 'suggested', state: 'pending' },
     ]);
     // A re-decision later (a new member, a new reference) still leaves alice out.
-    await engineMod.rematchMember(engine(), 'alice');
+    await L.rematchMember(engine(), 'alice');
     expect(
       matches()
         .filter((m) => m.state === 'pending')
@@ -405,7 +530,7 @@ describe('the match engine (A4)', () => {
     enrol('alice', ALICE);
     enrol('bob', BOB);
     await store([['p1', 0, ALICE]]);
-    expect(engineMod.answerMatch(db(), 'bob', { assetId: 'p1', faceIndex: 0 }, 'confirm')).toBe(
+    expect(await L.answerMatch(db(), 'bob', { assetId: 'p1', faceIndex: 0 }, 'confirm')).toBe(
       false
     );
   });
@@ -418,7 +543,7 @@ describe('the match engine (A4)', () => {
     ]);
     expect(matches().map((m) => m.user_id)).toEqual(['far']);
     enrol('near', ALICE, 3, 0.1);
-    await engineMod.rematchMember(engine(), 'near');
+    await L.rematchMember(engine(), 'near');
     expect(matches().map((m) => [m.asset_id, m.user_id, m.band])).toEqual([['p1', 'near', 'auto']]);
   });
 
@@ -429,19 +554,35 @@ describe('the match engine (A4)', () => {
     refs.eraseFaceReferences(db(), 'alice');
     for (let i = 0; i < 3; i++)
       refs.addFaceReference(db(), key, 'alice', 'photo', synthetic(500 + i));
-    await engineMod.rematchMember(engine(), 'alice');
+    await L.rematchMember(engine(), 'alice');
     expect(matches()).toHaveLength(0);
   });
 
   it('never writes a match for a member whose references went during the decision', async () => {
     enrol('alice', ALICE);
     await store([]);
-    const members = (await import('#lib/server/face-store.ts')).loadAllReferences(db(), key);
+    const snapshot = engineMod.snapshotMembers(engine());
     refs.eraseFaceReferences(db(), 'alice');
-    engineMod.recordDecisions(engine(), members, [
-      { assetId: 'p9', faceIndex: 0, embedding: ALICE },
-    ]);
+    await engineMod.runExclusive(() =>
+      engineMod.recordDecisions(engine(), snapshot, [
+        { assetId: 'p9', faceIndex: 0, embedding: ALICE },
+      ])
+    );
     expect(matches()).toHaveLength(0);
+  });
+
+  it('refuses every mutation outside the lock', async () => {
+    enrol('alice', ALICE);
+    expect(() => engineMod.redecideFaces(engine(), [])).toThrow(/runExclusive/);
+    expect(() => engineMod.removeAssetFaces(engine(), 'p1')).toThrow(/runExclusive/);
+    expect(() =>
+      engineMod.answerMatch(db(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'confirm')
+    ).toThrow(/runExclusive/);
+    await expect(engineMod.rematchAll(engine())).rejects.toThrow(/runExclusive/);
+    // Nested inside the lock, an engine call runs at once instead of waiting for itself.
+    await engineMod.runExclusive(() =>
+      engineMod.runExclusive(() => engineMod.rematchAll(engine()))
+    );
   });
 
   it('suggests, never auto-accepts, on fewer than three references', async () => {
@@ -458,7 +599,7 @@ describe('the match engine (A4)', () => {
     ]);
     enrol('alice', ALICE, 3, 0.05);
     enrol('bob', BOB, 3, 0.05);
-    const result = await engineMod.rematchAll(engine());
+    const result = await L.rematchAll(engine());
     expect(result).toMatchObject({ auto: 3, none: 0 });
     expect(matches().map((m) => [m.asset_id, m.user_id])).toEqual([
       ['p1', 'alice'],
@@ -493,7 +634,7 @@ describe('erasure of matches (A4 into the A1 path)', () => {
     library.set('p1', [ALICE]);
     library.set('p2', [atDistance(ALICE, synthetic(3), 0.1)]);
     await ingestAll(['p1', 'p2']);
-    engineMod.answerMatch(db(), 'alice', { assetId: 'p2', faceIndex: 0 }, 'reject');
+    await L.answerMatch(db(), 'alice', { assetId: 'p2', faceIndex: 0 }, 'reject');
     const local = erasure.inTransaction(db(), () =>
       erasure.eraseLocalFaceData(db(), 'alice', 'withdrawal')
     );

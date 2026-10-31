@@ -7,24 +7,35 @@
  * new assets is only discovery: the daily full reconciliation is what proves nothing is missed,
  * and it is also what notices an asset deleted from Immich and removes its faces.
  *
- * WHAT STOPS A PASS AND WHAT COUNTS AGAINST AN ASSET. The model service or Immich unreachable is a
- * fact about the service, not the asset: the pass stops, no attempt is counted, the report names
- * the cause. An answer the client cannot trust is a fact about the asset: one attempt, and after
- * INGEST_MAX_ATTEMPTS the asset is `failed`, reported every hour until someone looks.
+ * WHAT STOPS A PASS AND WHAT COUNTS AGAINST AN ASSET. Every failure is classified where it is
+ * thrown, as a type. The model service or Immich unreachable (a refusal, a transport failure, a
+ * timeout, a body that cannot be read or parsed) is a fact about the service, not the asset: the
+ * pass stops, no attempt is counted, the report names the cause. An answer the client cannot
+ * trust, a missing preview, or any other error on one asset is a fact about the asset: one
+ * attempt, the pass moves on, and after INGEST_MAX_ATTEMPTS the asset is `failed`, reported every
+ * hour until someone looks.
+ *
+ * `done` MEANS DECIDED. An asset is marked `done` only after its faces are written AND decided; a
+ * decision that throws leaves it pending, and the next pass writes and decides it again.
+ *
+ * DELETION NEEDS TWO WITNESSES. An asset missing from ONE full listing is only marked; its faces
+ * go when it is missing from two consecutive complete listings (a day apart), never on a single
+ * answer.
  *
  * NOT BEFORE THE SEED. Until `face_store_state.seeded_at` exists, nothing is ingested: the seed
  * (A7) imports the faces Immich already computed, and ingesting first would re-embed the whole
- * archive (about 1.5 days of the model service) for nothing.
+ * archive (about 22 hours of the model service) for nothing.
  */
 
 import type { DatabaseInstance } from '#lib/db/database.ts';
 import { getFaceStoreState } from '#lib/db/face-database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
 import { env } from '#lib/server/env.ts';
-import { FACE_MODEL, encodeEmbedding, normalizeEmbedding } from '#lib/face-embedding.ts';
+import { FACE_MODEL, decodeEmbedding, encodeEmbedding } from '#lib/face-embedding.ts';
 import { embeddingContext, seal } from '#lib/server/face-seal.ts';
 import { detectFaces, FaceMlResponseError, FaceMlUnavailableError } from '#lib/server/face-ml.ts';
 import {
+  checkpointFaceStore,
   defaultFaceEngine,
   matchNewFaces,
   removeAssetFaces,
@@ -47,7 +58,9 @@ export const INGEST_OVERDUE_MS = 24 * 60 * 60 * 1000;
 /** Search page size of a listing. */
 const LIST_PAGE = 1000;
 /** Pages a full listing may read before it is called incomplete (5 million assets). */
-const LIST_MAX_PAGES = 5000;
+export const LIST_MAX_PAGES = 5000;
+/** Consecutive complete listings an asset must be missing from before its faces are removed. */
+export const RECONCILE_ABSENT_LISTINGS = 2;
 /**
  * A full listing that names fewer than this share of the assets already known is not believed:
  * nothing is removed on its word. Immich losing half its library in a day is not a case to act on
@@ -55,12 +68,33 @@ const LIST_MAX_PAGES = 5000;
  */
 const RECONCILE_MIN_SHARE = 0.5;
 
-/** Why a pass stopped before its end. */
-export type IngestStop = 'ml_unavailable' | 'immich_unavailable' | 'not_seeded' | null;
+/** Why a pass (or a tick) stopped before its end. `error`: an unexpected failure, logged. */
+export type IngestStop = 'ml_unavailable' | 'immich_unavailable' | 'not_seeded' | 'error' | null;
 
-/** The service that answered nothing usable: the pass stops, the asset is not blamed. */
-class ImmichUnavailableError extends Error {
+/** Immich answered nothing usable: the pass stops, the asset is not blamed. */
+export class ImmichUnavailableError extends Error {
   readonly kind = 'immich_unavailable';
+  constructor(message: string) {
+    super(message);
+    this.name = 'ImmichUnavailableError';
+  }
+}
+
+/** Read an Immich answer's JSON; a body that cannot be read or parsed is Immich unavailable. */
+async function immichJson(res: Response, what: string): Promise<unknown> {
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (e) {
+    throw new ImmichUnavailableError(
+      `${what}: the answer could not be read: ${(e as Error).message}`
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ImmichUnavailableError(`${what}: the answer is not JSON`);
+  }
 }
 
 function immich(): { base: string; key: string } {
@@ -81,13 +115,14 @@ interface ListedAsset {
  */
 async function listAssetIds(
   fetchFn: typeof fetch,
-  filter: Record<string, unknown>
+  filter: Record<string, unknown>,
+  maxPages: number = LIST_MAX_PAGES
 ): Promise<{ ids: string[]; complete: boolean }> {
   const { base, key } = immich();
   const ids: string[] = [];
   let page: number | null = 1;
   let pages = 0;
-  while (page !== null && pages < LIST_MAX_PAGES) {
+  while (page !== null && pages < maxPages) {
     let res: Response;
     try {
       res = await fetchFn(`${base}/api/search/metadata`, {
@@ -103,7 +138,7 @@ async function listAssetIds(
       await res.body?.cancel().catch(() => undefined);
       throw new ImmichUnavailableError(`asset listing answered ${res.status}`);
     }
-    const data = (await res.json()) as {
+    const data = (await immichJson(res, 'asset listing')) as {
       assets?: { items?: ListedAsset[]; nextPage?: string | number | null };
     };
     const items = data.assets?.items ?? [];
@@ -154,6 +189,8 @@ export async function discoverNew(
 export interface ReconcileResult {
   listed: number;
   added: number;
+  /** Missing from this listing for the first time: counted, not removed. */
+  marked: number;
   removed: number;
   /** Set when removal was refused, with why. */
   refused: string | null;
@@ -161,22 +198,24 @@ export interface ReconcileResult {
 
 /**
  * The full reconciliation: list EVERY asset Immich has (trashed ones included: a trashed photo can
- * be restored and keeps its faces), add the unknown as pending, and remove the faces of every
- * asset Immich no longer has - only from a complete listing that names at least half of what the
- * store knows.
+ * be restored and keeps its faces), add the unknown as pending, and count, per known asset, the
+ * consecutive complete listings it was missing from. The faces of an asset go once it was missing
+ * from {@link RECONCILE_ABSENT_LISTINGS} of them in a row - and only from a complete listing that
+ * names at least half of what the store knows. `maxPages` is the page cap (tests).
  */
 export async function reconcile(
   fetchFn: typeof fetch,
   engine: FaceEngine,
-  now: number = Date.now()
+  now: number = Date.now(),
+  maxPages: number = LIST_MAX_PAGES
 ): Promise<ReconcileResult> {
-  const { ids, complete } = await listAssetIds(fetchFn, { withDeleted: true });
+  const { ids, complete } = await listAssetIds(fetchFn, { withDeleted: true }, maxPages);
   const added = addPending(engine.faceDb, ids, now);
   const known = engine.faceDb
-    .prepare('SELECT asset_id FROM face_assets WHERE model = ?')
-    .all(FACE_MODEL) as Array<{ asset_id: string }>;
+    .prepare('SELECT asset_id, absent_listings FROM face_assets WHERE model = ?')
+    .all(FACE_MODEL) as Array<{ asset_id: string; absent_listings: number }>;
   const present = new Set(ids);
-  const gone = known.map((r) => r.asset_id).filter((id) => !present.has(id));
+  const missing = known.filter((r) => !present.has(r.asset_id));
 
   let refused: string | null = null;
   if (!complete) {
@@ -185,15 +224,34 @@ export async function reconcile(
     refused = `the listing names ${ids.length} assets against ${known.length} known`;
   }
   let removed = 0;
+  let marked = 0;
   if (refused) {
-    if (gone.length > 0) {
-      log.error('assets missing from Immich NOT removed: the listing is not believed', {
-        gone: gone.length,
+    if (missing.length > 0) {
+      log.error('assets missing from Immich NOT counted: the listing is not believed', {
+        missing: missing.length,
         refused,
       });
     }
   } else {
-    for (const assetId of gone) {
+    // A believed listing: whatever it names is present again, whatever it misses is one step
+    // nearer removal.
+    inTransaction(engine.faceDb, () => {
+      const reset = engine.faceDb.prepare(
+        'UPDATE face_assets SET absent_listings = 0 WHERE asset_id = ? AND model = ? AND absent_listings > 0'
+      );
+      for (const id of ids) {
+        reset.run(id, FACE_MODEL);
+      }
+      const mark = engine.faceDb.prepare(
+        'UPDATE face_assets SET absent_listings = absent_listings + 1 WHERE asset_id = ? AND model = ?'
+      );
+      for (const row of missing) {
+        mark.run(row.asset_id, FACE_MODEL);
+      }
+    });
+    const gone = missing.filter((r) => r.absent_listings + 1 >= RECONCILE_ABSENT_LISTINGS);
+    marked = missing.length - gone.length;
+    for (const { asset_id: assetId } of gone) {
       await runExclusive(() => {
         removeAssetFaces(engine, assetId);
         engine.faceDb
@@ -202,9 +260,12 @@ export async function reconcile(
       });
       removed++;
     }
+    if (removed > 0) {
+      checkpointFaceStore(engine);
+    }
   }
-  log.info('store reconciled with Immich', { listed: ids.length, added, removed, refused });
-  return { listed: ids.length, added, removed, refused };
+  log.info('store reconciled with Immich', { listed: ids.length, added, marked, removed, refused });
+  return { listed: ids.length, added, marked, removed, refused };
 }
 
 /** The image the model sees: Immich's preview, the same file Immich's own detection read. */
@@ -230,7 +291,11 @@ async function fetchPreview(fetchFn: typeof fetch, assetId: string): Promise<Blo
     await res.body?.cancel().catch(() => undefined);
     throw new ImmichUnavailableError(`preview answered ${res.status}`);
   }
-  return res.blob();
+  try {
+    return await res.blob();
+  } catch (e) {
+    throw new ImmichUnavailableError(`preview could not be read: ${(e as Error).message}`);
+  }
 }
 
 /** Outcome of one asset. */
@@ -280,10 +345,13 @@ export async function ingestAsset(
     throw e;
   }
 
-  const faces: OpenedFace[] = detected.faces.map((face, faceIndex) => ({
+  // Decided on the float16 round-trip, the exact vector every later re-decision reads from the
+  // store: a face decides the same at ingestion and at any rescan.
+  const encoded = detected.faces.map((face) => encodeEmbedding(face.embedding));
+  const faces: OpenedFace[] = encoded.map((bytes, faceIndex) => ({
     assetId,
     faceIndex,
-    embedding: normalizeEmbedding(face.embedding),
+    embedding: decodeEmbedding(bytes),
   }));
   await runExclusive(() => {
     // Faces written again replace the old ones and every decision on them: an index may now name
@@ -306,22 +374,19 @@ export async function ingestAsset(
           detected.imageWidth,
           detected.imageHeight,
           face.score,
-          seal(
-            engine.key,
-            embeddingContext(assetId, faceIndex, FACE_MODEL),
-            encodeEmbedding(face.embedding)
-          ),
+          seal(engine.key, embeddingContext(assetId, faceIndex, FACE_MODEL), encoded[faceIndex]),
           now
         );
       });
-      engine.faceDb
-        .prepare(
-          `UPDATE face_assets SET state = 'done', source = 'ml', faces = ?, last_error = NULL,
-             attempts = attempts + 1, updated_at = ? WHERE asset_id = ? AND model = ?`
-        )
-        .run(detected.faces.length, now, assetId, FACE_MODEL);
     });
     matchNewFaces(engine, faces);
+    // Only now: the faces are written AND decided. A throw above leaves the asset pending.
+    engine.faceDb
+      .prepare(
+        `UPDATE face_assets SET state = 'done', source = 'ml', faces = ?, last_error = NULL,
+           attempts = attempts + 1, updated_at = ? WHERE asset_id = ? AND model = ?`
+      )
+      .run(detected.faces.length, now, assetId, FACE_MODEL);
   });
   return 'done';
 }
@@ -354,18 +419,18 @@ export async function runIngestPass(
     try {
       result[await ingestAsset(fetchFn, engine, asset_id)]++;
     } catch (e) {
-      if (e instanceof FaceMlUnavailableError) {
-        result.stopped = 'ml_unavailable';
-      } else if (e instanceof ImmichUnavailableError) {
-        result.stopped = 'immich_unavailable';
-      } else {
-        throw e;
+      if (e instanceof FaceMlUnavailableError || e instanceof ImmichUnavailableError) {
+        result.stopped =
+          e instanceof FaceMlUnavailableError ? 'ml_unavailable' : 'immich_unavailable';
+        log.warn('ingest pass stopped: a service is down; no asset is blamed', {
+          stopped: result.stopped,
+          error: e.message,
+        });
+        break;
       }
-      log.warn('ingest pass stopped: a service is down; no asset is blamed', {
-        stopped: result.stopped,
-        error: (e as Error).message,
-      });
-      break;
+      // Anything else is this asset's: one attempt, and the pass goes on.
+      log.error('an asset failed to ingest', e);
+      result[countAttempt(engine, asset_id, `error: ${(e as Error).message}`, Date.now())]++;
     }
   }
   if (pending.length > 0) {
@@ -420,7 +485,8 @@ export function reportIngest(
     lastStop,
   };
   if (!report.seeded) {
-    log.error('face store NOT SEEDED: nothing is ingested until the seed runs (lot A7)', report);
+    // A planned state until lot A7 seeds the store, not a fault: said, never accused.
+    log.info('face store not seeded yet: nothing is ingested until the seed (lot A7)', report);
   } else if (
     report.failed > 0 ||
     (report.oldestPendingMs !== null && report.oldestPendingMs > INGEST_OVERDUE_MS)
@@ -483,8 +549,13 @@ export function startFaceIngestWorker(fetchFn: typeof fetch = fetch): void {
       }
       lastStop = (await runIngestPass(fetchFn, engine)).stopped;
     } catch (e) {
-      lastStop = e instanceof ImmichUnavailableError ? 'immich_unavailable' : lastStop;
-      log.error('face ingest tick failed', e);
+      if (e instanceof ImmichUnavailableError) {
+        lastStop = 'immich_unavailable';
+        log.warn('face ingest tick stopped: Immich is unavailable', { error: e.message });
+      } else {
+        lastStop = 'error';
+        log.error('face ingest tick failed', e);
+      }
     } finally {
       running = false;
     }

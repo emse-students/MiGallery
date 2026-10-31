@@ -11,7 +11,8 @@
  *
  * Losing this file loses nothing that cannot be recomputed: `face_store_state` goes with it, so
  * ingestion stops ("not seeded") until the store is seeded again or marked empty, after which every
- * asset is embedded again by the model.
+ * asset is embedded again by the model: about 22 hours of the model service once Immich no longer
+ * holds the vectors (after A8).
  */
 
 import { join, dirname } from 'path';
@@ -31,7 +32,8 @@ const log = createLogger('face-db');
  *
  * face_assets: the durable ingestion state of each asset: `pending` (to embed), `done` (its faces
  * are in face_embeddings, `faces` of them, written by `source`), `failed` (gave up after the
- * attempts; reported every hour until someone looks).
+ * attempts; reported every hour until someone looks). `absent_listings` counts the consecutive
+ * complete Immich listings the asset was missing from; its faces go at two.
  *
  * face_store_state: a few named facts (`seeded_at`).
  */
@@ -59,6 +61,7 @@ CREATE TABLE IF NOT EXISTS face_assets (
     faces INTEGER,
     attempts INTEGER NOT NULL DEFAULT 0,
     last_error TEXT,
+    absent_listings INTEGER NOT NULL DEFAULT 0,
     discovered_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     PRIMARY KEY(asset_id, model)

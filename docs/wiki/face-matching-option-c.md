@@ -220,22 +220,42 @@ Nothing calls this code from a route or a worker yet; A3 and A5 are its first ca
 
 ### A3 - ingestion into `faces.db`
 
-| File                            | Role                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/lib/db/face-database.ts`   | `data/faces.db` (or `FACE_DATABASE_PATH`), opened like `migallery.db` (`openSqliteFile`: bind guard, foreign keys, `secure_delete`) plus WAL. `face_embeddings` (score NULL for a seeded face), `face_assets` (`pending` / `done` / `failed`, attempts, last error), `face_store_state` (`seeded_at`). No backup copies this file.               |
-| `src/lib/server/face-ingest.ts` | discovery (`createdAfter` the last listing, minus an hour), the daily full reconciliation (every asset, trashed included; removes the faces of an asset Immich no longer has, only from a COMPLETE listing naming at least half of what is known), a pass (the Immich preview through the model, faces sealed, then decided), the hourly report. |
+| File                            | Role                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/db/face-database.ts`   | `data/faces.db` (or `FACE_DATABASE_PATH`), opened like `migallery.db` (`openSqliteFile`: bind guard, foreign keys, `secure_delete`) plus WAL. `face_embeddings` (score NULL for a seeded face), `face_assets` (`pending` / `done` / `failed`, attempts, last error), `face_store_state` (`seeded_at`). No backup copies this file.                              |
+| `src/lib/server/face-ingest.ts` | discovery (`createdAfter` the last listing, minus an hour), the daily full reconciliation (every asset, trashed included; an asset's faces go once it is missing from TWO consecutive complete listings naming at least half of what is known), a pass (the Immich preview through the model, faces sealed, decided, THEN the asset `done`), the hourly report. |
 
-- **A service down stops the pass and blames no asset** (`ml_unavailable`, `immich_unavailable`);
-  an answer that cannot be trusted, or a missing preview, counts one attempt; after 5 the asset is
-  `failed`.
+- **Every failure is classified where it is thrown.** A service down - a refusal, a transport
+  failure, a timeout, a body that cannot be read or parsed, from Immich or the model - stops the
+  pass and blames no asset (`ml_unavailable`, `immich_unavailable`). An answer that cannot be
+  trusted (an all-zero vector included), a missing preview, or any other error on one asset
+  counts one attempt and the pass goes on; after 5 the asset is `failed`. A tick that fails
+  otherwise reports `error`.
+- **`done` means decided**: an asset is marked `done` after its faces are written AND decided; a
+  decision that throws leaves it pending, written and decided again by the next pass.
+- **A face is decided on the vector the store holds** (the float16 round-trip), so ingestion and
+  any later rescan give the same distance.
+- **Deletion needs two witnesses.** One complete listing that misses an asset only marks it
+  (`absent_listings`); a listing that names it again clears the mark; its faces go when two
+  consecutive complete listings miss it, then the WAL of `faces.db` is checkpointed (TRUNCATE) so
+  the deleted vectors do not linger there. A listing that hit its page cap, or names under half of
+  what is known, counts nothing.
+- **What the listing covers, checked on the live server (read-only, 2026-10-31)**: the library
+  has ONE owner, the key's; `search/metadata` with `withDeleted` lists every asset, the trashed
+  ones included (172,614 + 3). Items in the LOCKED folder need an elevated session and are not
+  listed (0 today): a locked asset is treated as gone and its faces go, which matches what locking
+  means. A second Immich user's assets would never be listed, so never ingested and never removed.
 - **The report** (hourly, `face-ingest`): counts per state, the oldest pending age, the failed
-  grouped by the kind of their last error, and the last stop cause. An error when the store is not
-  seeded, when an asset failed, or when an asset has waited more than a day.
+  grouped by the kind of their last error, and the last stop cause. An error when an asset failed
+  or an asset has waited more than a day. An unseeded store is said at info: it is the planned
+  state until A7.
 - **Nothing is ingested before the seed** (`seeded_at`): ingesting first would re-embed the whole
-  archive, about 1.5 days of the model service, for vectors Immich already has.
-- **The worker starts only when `FACE_STORE_KEY` and `FACE_ML_URL` are set**; it ticks every 10
-  minutes. In production the container joins Immich's compose network (`IMMICH_DOCKER_NETWORK`,
-  default `immich_default`) and reaches `http://immich-machine-learning:3003`.
+  archive, about 22 hours of the model service, for vectors Immich already has.
+- **The worker starts only when `FACE_STORE_KEY` and `FACE_ML_URL` are set**; a malformed key turns
+  the feature off with one error and never stops the gallery. It ticks every 10 minutes. In
+  production MiGallery reaches `http://immich-machine-learning:3003` over `migallery-face-ml`, an
+  internal network holding those two containers only (owner, 2026-10-31: _"Réseau dédié à deux"_;
+  what that exposes is in [data-model](data-model.md); the host side in `docs/MIGRATION.md`).
 - The A1 table `face_embeddings` in `migallery.db` (never written) is dropped at start when empty;
   a non-empty one is left and reported.
 
@@ -256,9 +276,13 @@ events.
 | asset gone, asset re-embedded  | `removeAssetFaces`: its embeddings and every row naming them                                                                          |
 | seed, a change of thresholds   | `rematchAll`                                                                                                                          |
 
-Every mutation goes through `runExclusive` (one at a time: a scan yields between chunks), and a
-decision is re-checked in its transaction against the member's CURRENT references, so a
-withdrawal that lands during a scan is never undone by its result.
+Every mutation runs inside `runExclusive` (one at a time: a scan yields between chunks), and each
+mutating function CHECKS it holds the lock and throws otherwise. The one write outside it is a
+member's erasure, which must be synchronous; so each batch of decisions re-reads the references
+when they changed since the decision began (a fingerprint of their ids), and a withdrawal that
+lands during a scan is never undone by its result. Scans decide in flushes of 2,000 faces. A
+member who keeps a face keeps its `created_at`. A face that is not a usable vector is reported
+once, as the face's fault.
 
 ### The decided numbers
 

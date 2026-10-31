@@ -161,10 +161,14 @@ export function finishLocalErasure(local: LocalErasure): void {
   if (local.erasure !== null) {
     kickFaceErasures();
   }
-  if (local.heldFaces.length > 0) {
+  if (local.heldFaces.length === 0) {
+    return;
+  }
+  // The erasure is committed: nothing after it may turn the member's request into an error.
+  try {
     const engine = defaultFaceEngine();
     if (!engine) {
-      log.warn('face store not configured; held faces left undecided', {
+      log.error('face store unavailable; the faces of an erased member are left undecided', {
         faces: local.heldFaces.length,
       });
       return;
@@ -172,6 +176,8 @@ export function finishLocalErasure(local: LocalErasure): void {
     runExclusive(() => redecideFaces(engine, local.heldFaces)).catch((e: unknown) =>
       log.error('re-deciding the faces of an erased member failed', e)
     );
+  } catch (e) {
+    log.error('re-deciding the faces of an erased member could not start', e);
   }
 }
 
