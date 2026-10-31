@@ -99,12 +99,18 @@ function assertExclusive(what: string): void {
 
 const faceKey = (f: FaceKey) => `${f.assetId}\u0000${f.faceIndex}`;
 
-/** Which references each member holds now: the ids, in order, per member. */
+/**
+ * Which references each member holds now: per reference, its member, its id AND its seal nonce.
+ * The id alone is not an identity: `face_references.id` is an INTEGER PRIMARY KEY without
+ * AUTOINCREMENT, so a withdrawal followed by a new enrolment can reuse the same ids, and a
+ * snapshot taken before would pass for current while holding the withdrawn templates. The nonce
+ * (bytes 1-12 of the sealed blob, fresh random for every seal) differs on any new reference.
+ */
 function referenceFingerprint(db: DatabaseInstance): string {
   const row = db
     .prepare(
-      `SELECT group_concat(user_id || ':' || id, ',') AS f FROM
-         (SELECT user_id, id FROM face_references WHERE model = ? ORDER BY user_id, id)`
+      `SELECT group_concat(user_id || ':' || id || ':' || hex(substr(sealed, 2, 12)), ',') AS f FROM
+         (SELECT user_id, id, sealed FROM face_references WHERE model = ? ORDER BY user_id, id)`
     )
     .get(FACE_MODEL) as { f: string | null };
   return row.f ?? '';

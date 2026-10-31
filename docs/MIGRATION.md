@@ -52,8 +52,9 @@ have defaults in `docker-compose.prod.yml`, overridable if needed - among them `
 
 **The face model network.** MiGallery reaches Immich's model service, and nothing else of Immich,
 over `migallery-face-ml`: an internal Docker network holding those two containers only (owner,
-2026-10-31). The deploy creates it when missing and refuses to go on unless the model service is
-on it and nobody else is. On the host, Immich's own compose attaches its machine-learning service:
+2026-10-31). The deploy creates it when missing and refuses to go on unless it is internal, the
+model service is on it, and no other container is - stopped containers included, since a stopped
+container keeps its networks and would rejoin on its next start. On the host, Immich's own compose attaches its machine-learning service:
 
 ```yaml
 services:

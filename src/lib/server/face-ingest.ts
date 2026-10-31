@@ -13,14 +13,17 @@
  * pass stops, no attempt is counted, the report names the cause. An answer the client cannot
  * trust, a missing preview, or any other error on one asset is a fact about the asset: one
  * attempt, the pass moves on, and after INGEST_MAX_ATTEMPTS the asset is `failed`, reported every
- * hour until someone looks.
+ * hour until someone looks. A preview Immich has not made yet is no attempt: the asset stays
+ * pending (Immich's thumbnail queue lags behind uploads).
  *
  * `done` MEANS DECIDED. An asset is marked `done` only after its faces are written AND decided; a
  * decision that throws leaves it pending, and the next pass writes and decides it again.
  *
- * DELETION NEEDS TWO WITNESSES. An asset missing from ONE full listing is only marked; its faces
- * go when it is missing from two consecutive complete listings (a day apart), never on a single
- * answer.
+ * DELETION NEEDS TWO WITNESSES, AT LEAST 20 HOURS APART. An asset missing from ONE full listing
+ * is only marked; its faces go when it is missing from two consecutive COUNTING listings, never on
+ * a single answer. A listing counts only when `face_store_state.last_counted_listing_at` is at
+ * least {@link RECONCILE_COUNT_SPACING_MS} old: durable state, so two deploys or a crash loop
+ * (each process start lists in full) add new assets and clear marks, but never count twice.
  *
  * NOT BEFORE THE SEED. Until `face_store_state.seeded_at` exists, nothing is ingested: the seed
  * (A7) imports the faces Immich already computed, and ingesting first would re-embed the whole
@@ -28,7 +31,7 @@
  */
 
 import type { DatabaseInstance } from '#lib/db/database.ts';
-import { getFaceStoreState } from '#lib/db/face-database.ts';
+import { getFaceStoreState, setFaceStoreState } from '#lib/db/face-database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
 import { env } from '#lib/server/env.ts';
 import { FACE_MODEL, decodeEmbedding, encodeEmbedding } from '#lib/face-embedding.ts';
@@ -61,6 +64,13 @@ const LIST_PAGE = 1000;
 export const LIST_MAX_PAGES = 5000;
 /** Consecutive complete listings an asset must be missing from before its faces are removed. */
 export const RECONCILE_ABSENT_LISTINGS = 2;
+/**
+ * A full listing counts absences only when the last listing that counted is at least this old.
+ * Listings are daily; 20 hours rather than 24 leaves room for a tick that starts a little early.
+ */
+export const RECONCILE_COUNT_SPACING_MS = 20 * 60 * 60 * 1000;
+/** The `face_store_state` key holding when (epoch ms) a listing last counted absences. */
+export const LAST_COUNTED_LISTING = 'last_counted_listing_at';
 /**
  * A full listing that names fewer than this share of the assets already known is not believed:
  * nothing is removed on its word. Immich losing half its library in a day is not a case to act on
@@ -194,14 +204,18 @@ export interface ReconcileResult {
   removed: number;
   /** Set when removal was refused, with why. */
   refused: string | null;
+  /** Whether this listing counted absences (false: refused, or too soon after the last that did). */
+  counted: boolean;
 }
 
 /**
  * The full reconciliation: list EVERY asset Immich has (trashed ones included: a trashed photo can
  * be restored and keeps its faces), add the unknown as pending, and count, per known asset, the
- * consecutive complete listings it was missing from. The faces of an asset go once it was missing
+ * consecutive COUNTING listings it was missing from. The faces of an asset go once it was missing
  * from {@link RECONCILE_ABSENT_LISTINGS} of them in a row - and only from a complete listing that
- * names at least half of what the store knows. `maxPages` is the page cap (tests).
+ * names at least half of what the store knows. A believed listing always clears the marks of what
+ * it names; it counts absences only {@link RECONCILE_COUNT_SPACING_MS} after the last one that
+ * counted, read from durable state. `maxPages` is the page cap (tests).
  */
 export async function reconcile(
   fetchFn: typeof fetch,
@@ -225,6 +239,7 @@ export async function reconcile(
   }
   let removed = 0;
   let marked = 0;
+  let counted = false;
   if (refused) {
     if (missing.length > 0) {
       log.error('assets missing from Immich NOT counted: the listing is not believed', {
@@ -233,8 +248,11 @@ export async function reconcile(
       });
     }
   } else {
-    // A believed listing: whatever it names is present again, whatever it misses is one step
-    // nearer removal.
+    // A believed listing: whatever it names is present again. Whatever it misses is one step
+    // nearer removal, but only if the last counting listing is old enough: a second listing the
+    // same hour (a restart) is the same witness, not a second one.
+    const last = Number(getFaceStoreState(engine.faceDb, LAST_COUNTED_LISTING) ?? Number.NaN);
+    counted = Number.isNaN(last) || now - last >= RECONCILE_COUNT_SPACING_MS;
     inTransaction(engine.faceDb, () => {
       const reset = engine.faceDb.prepare(
         'UPDATE face_assets SET absent_listings = 0 WHERE asset_id = ? AND model = ? AND absent_listings > 0'
@@ -242,15 +260,27 @@ export async function reconcile(
       for (const id of ids) {
         reset.run(id, FACE_MODEL);
       }
+      if (!counted) {
+        return;
+      }
       const mark = engine.faceDb.prepare(
         'UPDATE face_assets SET absent_listings = absent_listings + 1 WHERE asset_id = ? AND model = ?'
       );
       for (const row of missing) {
         mark.run(row.asset_id, FACE_MODEL);
       }
+      setFaceStoreState(engine.faceDb, LAST_COUNTED_LISTING, String(now));
     });
-    const gone = missing.filter((r) => r.absent_listings + 1 >= RECONCILE_ABSENT_LISTINGS);
-    marked = missing.length - gone.length;
+    if (!counted) {
+      log.info('listing too soon after the last counted one: absences not counted', {
+        missing: missing.length,
+        lastCountedMsAgo: now - last,
+      });
+    }
+    const gone = counted
+      ? missing.filter((r) => r.absent_listings + 1 >= RECONCILE_ABSENT_LISTINGS)
+      : [];
+    marked = counted ? missing.length - gone.length : 0;
     for (const { asset_id: assetId } of gone) {
       await runExclusive(() => {
         removeAssetFaces(engine, assetId);
@@ -264,8 +294,15 @@ export async function reconcile(
       checkpointFaceStore(engine);
     }
   }
-  log.info('store reconciled with Immich', { listed: ids.length, added, marked, removed, refused });
-  return { listed: ids.length, added, marked, removed, refused };
+  log.info('store reconciled with Immich', {
+    listed: ids.length,
+    added,
+    marked,
+    removed,
+    refused,
+    counted,
+  });
+  return { listed: ids.length, added, marked, removed, refused, counted };
 }
 
 /** The image the model sees: Immich's preview, the same file Immich's own detection read. */
@@ -281,8 +318,10 @@ async function fetchPreview(fetchFn: typeof fetch, assetId: string): Promise<Blo
     throw new ImmichUnavailableError(`preview fetch failed: ${(e as Error).message}`);
   }
   // Immich answers 400 for an id it does not know (and 404 from anything in between): the asset
-  // has no preview to embed, now. It counts as an attempt (a preview may still be generating); a
-  // DELETED asset's row and faces are removed by the reconciliation, never on this status alone.
+  // has no preview to embed NOW. That is no fault of the asset (Immich's thumbnail queue lags
+  // behind an upload), so it counts no attempt and stays pending; a DELETED asset's row and faces
+  // are removed by the reconciliation, never on this status alone, and an asset that never gets a
+  // preview shows in the hourly report as an overdue pending one.
   if (res.status === 404 || res.status === 400) {
     await res.body?.cancel().catch(() => undefined);
     return 'missing';
@@ -333,7 +372,15 @@ export async function ingestAsset(
 ): Promise<IngestOutcome> {
   const preview = await fetchPreview(fetchFn, assetId);
   if (preview === 'missing') {
-    return countAttempt(engine, assetId, 'no_preview: Immich has no preview for it', now);
+    // Pending, no attempt counted; `updated_at` moves so the pass takes the others first.
+    engine.faceDb
+      .prepare(
+        `UPDATE face_assets SET last_error = 'no_preview: Immich has no preview for it yet',
+           updated_at = ? WHERE asset_id = ? AND model = ?`
+      )
+      .run(now, assetId, FACE_MODEL);
+    log.info('an asset has no preview yet: left pending', { assetId });
+    return 'retry';
   }
   let detected;
   try {
@@ -399,7 +446,11 @@ export interface PassResult {
   stopped: IngestStop;
 }
 
-/** Embed up to `limit` pending assets, oldest first. */
+/**
+ * Embed up to `limit` pending assets, the least recently tried first: an asset just tried (no
+ * preview yet, an attempt counted) goes behind the others, so a few assets that cannot be embedded
+ * now never take the whole pass.
+ */
 export async function runIngestPass(
   fetchFn: typeof fetch,
   engine: FaceEngine,
@@ -412,7 +463,7 @@ export async function runIngestPass(
   }
   const pending = engine.faceDb
     .prepare(
-      "SELECT asset_id FROM face_assets WHERE state = 'pending' AND model = ? ORDER BY discovered_at LIMIT ?"
+      "SELECT asset_id FROM face_assets WHERE state = 'pending' AND model = ? ORDER BY updated_at, discovered_at LIMIT ?"
     )
     .all(FACE_MODEL, limit) as Array<{ asset_id: string }>;
   for (const { asset_id } of pending) {

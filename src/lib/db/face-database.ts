@@ -35,7 +35,7 @@ const log = createLogger('face-db');
  * attempts; reported every hour until someone looks). `absent_listings` counts the consecutive
  * complete Immich listings the asset was missing from; its faces go at two.
  *
- * face_store_state: a few named facts (`seeded_at`).
+ * face_store_state: a few named facts (`seeded_at`, `last_counted_listing_at`).
  */
 const FACE_SCHEMA = `
 CREATE TABLE IF NOT EXISTS face_embeddings (
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS face_assets (
     updated_at INTEGER NOT NULL,
     PRIMARY KEY(asset_id, model)
 );
-CREATE INDEX IF NOT EXISTS idx_face_assets_state ON face_assets(state, discovered_at);
+CREATE INDEX IF NOT EXISTS idx_face_assets_pending ON face_assets(state, updated_at, discovered_at);
 CREATE TABLE IF NOT EXISTS face_store_state (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
