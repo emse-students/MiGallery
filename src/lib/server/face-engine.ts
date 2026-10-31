@@ -22,7 +22,12 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { getDatabase, type DatabaseInstance } from '#lib/db/database.ts';
 import { getFaceDatabase } from '#lib/db/face-database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
-import { FACE_MODEL, FACE_SUGGEST_MAX_DISTANCE, minDistance } from '#lib/face-embedding.ts';
+import {
+  FACE_AUTO_MAX_DISTANCE,
+  FACE_MODEL,
+  FACE_SUGGEST_MAX_DISTANCE,
+  minDistance,
+} from '#lib/face-embedding.ts';
 import { decideFace, type MemberReferences } from '#lib/face-match.ts';
 import {
   faceStoreConfigured,
@@ -348,6 +353,73 @@ export function answerMatch(
     ).changes;
   log.info('match answered', { verdict, recorded: changes > 0 });
   return changes > 0;
+}
+
+/** What {@link claimFace} did. */
+export type ClaimOutcome =
+  | 'claimed'
+  | 'already_confirmed'
+  | 'confirmed_by_other'
+  | 'rejected_by_member'
+  | 'no_references';
+
+/**
+ * Make `userId` the CONFIRMED holder of a face they designated as their own by another act than an
+ * answer on the matching screen - today, the seed (lot A7): the face is in the person they linked
+ * to their account AND it is the photo they chose as their profile picture. It replaces a pending
+ * holder (a decision the engine would make again is not an answer anyone gave); it never overrides
+ * an answer: a face another member CONFIRMED, or one this member REJECTED, is left as it is.
+ * The row carries the face's real distance to the member's references.
+ */
+export function claimFace(
+  engine: FaceEngine,
+  userId: string,
+  face: OpenedFace,
+  now: number = Date.now()
+): ClaimOutcome {
+  assertExclusive('claimFace');
+  const { db } = engine;
+  return inTransaction(db, () => {
+    const rows = db
+      .prepare(
+        'SELECT user_id, state FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
+      )
+      .all(face.assetId, face.faceIndex, FACE_MODEL) as Array<{ user_id: string; state: string }>;
+    const own = rows.find((r) => r.user_id === userId);
+    if (own?.state === 'confirmed') {
+      return 'already_confirmed';
+    }
+    if (own?.state === 'rejected') {
+      return 'rejected_by_member';
+    }
+    if (rows.some((r) => r.state === 'confirmed')) {
+      return 'confirmed_by_other';
+    }
+    const refs = loadAllReferences(db, engine.key).find((m) => m.userId === userId)?.refs ?? [];
+    const distance = refs.length > 0 ? minDistance(refs, face.embedding) : Number.NaN;
+    if (!Number.isFinite(distance)) {
+      // No reference, or none usable (loadAllReferences drops a member whose blob fails to open).
+      return 'no_references';
+    }
+    db.prepare(
+      "DELETE FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ? AND state = 'pending'"
+    ).run(face.assetId, face.faceIndex, FACE_MODEL);
+    db.prepare(
+      `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band,
+         state, created_at, decided_at) VALUES (?, ?, ?, ?, ?, NULL, ?, 'confirmed', ?, ?)`
+    ).run(
+      face.assetId,
+      face.faceIndex,
+      FACE_MODEL,
+      userId,
+      distance,
+      distance <= FACE_AUTO_MAX_DISTANCE ? 'auto' : 'suggested',
+      now,
+      now
+    );
+    log.info('face claimed by its member', { replacedPending: rows.length > 0 });
+    return 'claimed';
+  });
 }
 
 /**

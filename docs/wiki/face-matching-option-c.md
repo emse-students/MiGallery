@@ -187,7 +187,7 @@ the sake of an enrolment a day, and keep every third party's template in the ser
 | A4  | The match engine: on enrolment, withdrawal and new faces, one decision function for every face; confirm and reject state.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | building               |
 | A5  | Enrolment and withdrawal: the selfie embedded in memory and never stored; the consent row (`face_consents`) is reused; withdrawal deletes references, matches and the person's crops in one transaction (the A6 thumbnails, once they exist, must go the same way).                                                                                                                                                                                                                                                                                                                                                                    | building               |
 | A6  | Read side: "Mes photos" reads the matches (by user id, assets fetched by id); the suggested band is a confirmation screen with server-cut crops served to the holder alone and deleted on withdrawal; the people views are removed; the profile photo is chosen among the member's own photos; the proxy refuses every person and face call, admins included; nothing reads `photos_id`.                                                                                                                                                                                                                                               | building               |
-| A7  | Seed from Immich's vectors (physical order, no recomputation) and migrate the existing links: references and matches per member, calibration, parity measured. Read cost measured 2026-10-24: 10k rows 0.60 s, 50k rows 1.31 s, so 600k is about 16-36 s of database time. **Trap**: ordering the export by id sorted the whole table (77 s for 10k rows); export in physical order.                                                                                                                                                                                                                                                   | building               |
+| A7  | Seed from Immich's vectors (physical order, no recomputation) and migrate the existing links: references and matches per member, calibration, parity measured. Read cost measured 2026-10-24: 10k rows 0.60 s, 50k rows 1.31 s, so 600k is about 16-36 s of database time. **Trap**: ordering the export by id sorted the whole table (77 s for 10k rows); export in physical order.                                                                                                                                                                                                                                                   | built (not yet run)    |
 | A8  | Cutover: an encrypted, verified backup of what is deleted, kept outside the repository and **deleted on a fixed date 30 days later** (owner, 2026-10-31: _"Oui, 30 jours puis supprimée"_); "Mes photos" checked on the new path in production; then Immich's recognition off and its faces, persons and embeddings deleted; the date until which the nightly backups still hold the old data recorded. MiGallery and Immich run on the association's own machine, not on the school's shared host, so **no agreement of the school's IT department is needed**; anything touching the school's shared host would still need it first. | building               |
 | A9  | Tests, wiki, `/cgu`, and the DPIA and register rows (Canari) updated to a stored-template design.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | building               |
 
@@ -380,6 +380,48 @@ which erased a selfie-only member's face data).
   me" on it.
 - Videos stay out of "Mes photos", as before (images only).
 
+### A7 - the seed
+
+| File                                         | Role                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/server/face-seed.ts`                | the four phases. `begin` refuses a seeded store (`seeded_at`) and wipes a partial run; `assets` writes every asset face recognition ran on `done` (source `seed`, 0 faces); `faces` seals each face under the next index of its asset (score NULL) and notes a face of a LINKED person in the working table `face_seed_links`; `finish` does the rest, then drops the table and writes `seeded_at`. |
+| `src/routes/api/admin/faces/seed/+server.ts` | `POST`, admin scope, never an impersonated session, every field checked; at most 2,000 faces or 20,000 asset ids a request; a refusal is a 409 naming the reason. Answers counts only.                                                                                                                                                                                                              |
+| `scripts/faces/seed-client.mjs`              | reads the two COPY exports on stdin and posts them in batches; prints the report. Nothing touches the disk unsealed.                                                                                                                                                                                                                                                                                |
+| `claimFace` in `face-engine.ts`              | makes a member the CONFIRMED holder of a face they designated by another act than an answer; replaces a pending holder, never an answer (a face another member confirmed, one this member rejected), and needs usable references.                                                                                                                                                                   |
+
+`finish`, in order:
+
+1. **References from the links.** Two streamed scans of the store: the centroid of each linked
+   person, then the 5 faces nearest it. A member gets them as `photo` references in a transaction
+   that re-reads, at that moment, that they are still linked to that person AND hold an open
+   consent: a withdrawal during the seed (synchronous, outside the engine lock) is never undone.
+   A member who enrolled by selfie keeps it; the cap fills the rest.
+2. **Every face decided** (`rematchAll`).
+3. **The profile photos carried over**: a member whose chosen `photos_asset_id` holds a face of
+   their own linked person gets that face `confirmed` (`claimFace`), so the A6 avatar keeps
+   working. A face of someone else's person on that photo is left alone (`not_their_face`).
+4. **Parity, aggregates only**: each linked person's faces against the decision (shown, offered,
+   given to another member, matched to nobody) and the per-member share shown (p10/p50/p90). No id
+   leaves the server, in the log or the answer.
+
+**The run** (as root on the host, once the release carrying A1-A7 is deployed; an admin API key in
+`MIGALLERY_ADMIN_KEY`, created with `scripts/create-api-key.cjs` and revoked afterwards):
+
+```sh
+docker exec immich_postgres psql -U postgres -d immich -At \
+  -c "COPY (SELECT 'A', \"assetId\" FROM asset_job_status WHERE \"facesRecognizedAt\" IS NOT NULL) TO STDOUT" \
+  -c "COPY (SELECT 'F', f.\"assetId\", f.\"personGroupId\", f.\"imageWidth\", f.\"imageHeight\",
+              f.\"boundingBoxX1\", f.\"boundingBoxY1\", f.\"boundingBoxX2\", f.\"boundingBoxY2\", s.embedding
+            FROM asset_face f JOIN face_search s ON s.\"faceId\" = f.id
+            WHERE f.\"deletedAt\" IS NULL AND f.\"isVisible\") TO STDOUT" \
+| docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> bun scripts/faces/seed-client.mjs
+```
+
+No `ORDER BY`: it would sort the whole table (section 3, A7 row). Read on the live server
+(read-only, 2026-10-31): 172,617 assets, 172,612 with face recognition run (the other 5 are
+ingested by the worker once seeded), 600,003 visible faces; the person column is
+`personGroupId` in Immich v3. A failed run is run again from the start (`begin` wipes it).
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                       |
@@ -415,6 +457,9 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
 
 ## 5. Open and owed
 
+- **A7 has not run.** It runs once, in production, after the release carrying A1-A7, and before
+  A8. Its report (aggregates) is to be written here when it has.
+
 - **The DPO's answer** on a standing store of third parties' templates (DPIA R1) is still awaited;
   the owner went ahead without it on 2026-10-31. A negative answer would undo the store itself:
   delete `faces.db` (or rotate `FACE_STORE_KEY`), stop ingestion, and fall back to a match-only
@@ -426,10 +471,10 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
   neither is observed.
 - **The DPIA and the register rows in Canari** must be updated to a stored-template design (A9).
 - **A6 owed**:
-  - **A7 must carry the existing profile photos over.** The avatar now requires the chosen photo
-    to be a visible match of the member; until A7 seeds the matches from the Immich links, members
-    with a `photos_asset_id` from the old path get a 404 avatar (and `avatar-presence` leaves
-    them out). The A6 and A7 lots must ship together.
+  - **A6 and A7 ship together.** The avatar requires the chosen photo to be a visible match of
+    the member; A7's `finish` claims each profile photo that is a face of the member's own person.
+    A profile photo that is NOT (the member chose a photo of someone else, or one Immich never put
+    in their person) still 404s after the seed: the report counts them (`not_their_face`).
   - **The search-by-id syntax** (`filter.or` of `id.eq`) rests on the lead's live measurement
     against Immich v3; no type in this repository pins it. The answer check makes a wrong syntax
     a 500, never a leak; it must be read once on the real Immich before release.
