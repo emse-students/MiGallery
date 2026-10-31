@@ -5,14 +5,24 @@
  * endpoint, or one MiGallery never needed, stays out until it is added on purpose with its test
  * (tests/immich-proxy-allowlist.test.ts). No person, face or search route is listed (lot A6):
  * face-access.ts refuses those for everyone on top, and every JSON answer loses its face fields.
+ *
+ * ONE PATH FOR EVERY DECISION. The proxy computes {@link canonicalProxiedPath} once, and that one
+ * string is what the public-asset exception, this list, the face rule, the audit
+ * and the URL sent to Immich all read. A check on one spelling and a request on another is how a
+ * dot segment (`%2e%2e`, decoded once by the router and resolved by the URL parser) would walk out
+ * of a path that was judged.
  */
 
+import { error } from '@sveltejs/kit';
 import { createLogger } from '#lib/server/logger.ts';
+import type { AuthResult } from '#lib/server/permissions.ts';
+import { uploadedAllOf } from '#lib/server/asset-uploads.ts';
 
 const log = createLogger('immich-proxy-allowlist');
 
 /** An Immich id: the proxy forwards no other shape of id in a path. */
-const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+export const IMMICH_ID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+const UUID = IMMICH_ID;
 
 /** One allowed route. `admin`: the caller must also hold the admin scope. */
 export interface ProxyRule {
@@ -31,7 +41,8 @@ export const PROXY_ALLOWLIST: readonly ProxyRule[] = [
     methods: ['GET', 'HEAD'],
     path: new RegExp(`^assets/${UUID}/(thumbnail|original|video/playback)$`),
   },
-  // Uploads (simple and chunked), the resume probe of a chunked upload, and bulk deletion.
+  // Uploads (simple and chunked), the resume probe of a chunked upload, and bulk deletion (who may
+  // delete what is decided by the proxy: assertProxiedDeleteAllowed).
   { methods: ['POST', 'DELETE'], path: /^assets$/ },
   { methods: ['GET'], path: /^assets$/, query: (q) => q.has('chunk-status') },
   // An album's own record (src/lib/immich/albums.ts).
@@ -42,32 +53,36 @@ export const PROXY_ALLOWLIST: readonly ProxyRule[] = [
 ];
 
 /**
- * The path Immich will actually route for the decoded proxy path `path`: the URL the proxy
- * builds resolves `.` segments, and Immich's router is case-insensitive and tolerant of repeated
- * slashes. Null when the path carries a `?` or `#` of its own (decoded from `%3F` / `%23`), which
- * would start a query or fragment the checks never see.
+ * The path Immich will actually route for the decoded proxy path `path`, the ONE string every
+ * decision of the proxy reads: `.` and `%2e` segments resolved as the URL parser resolves them,
+ * case folded and repeated slashes collapsed as Immich's router does. Null - refused - when the
+ * path carries a `?` or `#` of its own (decoded from `%3F` / `%23`), a `%` after resolution (a
+ * second level of encoding, which no page sends and which the forwarded URL would read
+ * differently), or resolves outside `/api/`.
  */
 export function canonicalProxiedPath(path: string): string | null {
   if (/[?#]/.test(path)) {
     return null;
   }
-  return new URL(`/api/${path}`, 'http://immich.invalid').pathname
-    .replace(/\/{2,}/g, '/')
-    .replace(/^\/api\//, '')
-    .toLowerCase();
-}
-
-/** The rule allowing `method` on `path` with `query`, or null when the proxy must refuse it. */
-export function findProxyRule(
-  method: string,
-  path: string,
-  query: URLSearchParams
-): ProxyRule | null {
-  const clean = canonicalProxiedPath(path);
-  if (clean === null) {
-    log.warn('proxied path carrying a query or fragment refused', { path });
+  const resolved = new URL(`/api/${path}`, 'http://immich.invalid').pathname.replace(
+    /\/{2,}/g,
+    '/'
+  );
+  if (!resolved.startsWith('/api/') || resolved.includes('%')) {
     return null;
   }
+  return resolved.slice('/api/'.length).toLowerCase();
+}
+
+/**
+ * The rule allowing `method` on the CANONICAL path `clean` with `query`, or null when the proxy
+ * must refuse it.
+ */
+export function findProxyRule(
+  method: string,
+  clean: string,
+  query: URLSearchParams
+): ProxyRule | null {
   const rule = PROXY_ALLOWLIST.find(
     (r) => r.methods.includes(method) && r.path.test(clean) && (!r.query || r.query(query))
   );
@@ -76,4 +91,42 @@ export function findProxyRule(
     return null;
   }
   return rule;
+}
+
+/** The public-asset exception: an anonymous read of one asset's picture, file or video. */
+const PUBLIC_ASSET = new RegExp(`^assets/(${UUID})/(thumbnail|original|video/playback)$`);
+
+/** The asset id of a canonical path the public exception may serve, or null. */
+export function publicAssetId(clean: string): string | null {
+  return PUBLIC_ASSET.exec(clean)?.[1] ?? null;
+}
+
+/**
+ * Throws unless `auth` may delete every asset of the `DELETE assets` body `body` (`{ ids: [...] }`):
+ * an admin or mitviste session, an admin API key, or a member deleting only assets they uploaded
+ * themselves (asset-uploads.ts - the settings page's selfie cleanup). Anyone else is refused (403),
+ * and a body without ids is a 400.
+ */
+export function assertProxiedDeleteAllowed(auth: AuthResult, body: unknown): void {
+  const ids = (body as { ids?: unknown } | null)?.ids;
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id) => typeof id === 'string')) {
+    log.warn('proxied asset deletion refused: no ids');
+    throw error(400, 'ids required');
+  }
+  const role = auth.user?.role;
+  if (
+    (auth.viaApiKey && auth.grantedScope === 'admin') ||
+    (!auth.viaApiKey && (role === 'admin' || role === 'mitviste'))
+  ) {
+    return;
+  }
+  if (auth.user && uploadedAllOf(ids as string[], auth.user.id_user)) {
+    log.debug('member deletes their own uploads', { count: ids.length });
+    return;
+  }
+  log.warn('proxied asset deletion refused', {
+    viewer: auth.user?.id_user ?? null,
+    count: ids.length,
+  });
+  throw error(403, 'Not allowed to delete these assets');
 }

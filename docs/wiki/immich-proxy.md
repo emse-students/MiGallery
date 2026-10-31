@@ -31,6 +31,20 @@ refused), and ids must be Immich UUIDs. The admin trash routes (`timeline/*`,
 `trash/restore/assets`) also require the admin scope. No person, face or search route is on
 the list since lot A6, and the refusal below still applies on top of it.
 
+**One path for every decision.** The decoded path is canonicalised ONCE
+(`canonicalProxiedPath`): `.` and `%2e` segments resolved as the URL parser resolves them, case
+folded, slashes collapsed; a path that keeps a `%` after that (a second level of encoding), carries
+its own `?` or `#`, or resolves outside `/api/` is refused (400). That one string is what the
+public-asset exception, the list, the face rule, the audit log and the URL sent to
+Immich all read.
+
+**The public exception** serves an anonymous read of exactly
+`assets/<id>/(thumbnail|original|video/playback)` of an asset in an unlisted album, nothing longer.
+
+**Deleting assets** (`DELETE assets`) is allowed to an admin or mitviste session and to an admin
+API key; a member may delete only assets they uploaded themselves as new files (the proxy's own
+`import` audit row, `src/lib/server/asset-uploads.ts`; a duplicate upload does not count).
+
 A page that needs another Immich route adds it to the list, with the page that uses it and a case
 in `tests/immich-proxy-allowlist.test.ts`; anything MiGallery has to join with its own state
 belongs in a dedicated route instead.
