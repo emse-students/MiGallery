@@ -3,8 +3,12 @@ import { ensureError } from '#lib/ts-utils.ts';
 import { logEvent } from '#lib/server/logs.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { env } from '#lib/server/env.ts';
-import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
-import { assertProxiedFaceAccess, classifyProxiedBody } from '#lib/server/face-access.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import {
+  assertNoProxiedFaceCall,
+  classifyProxiedBody,
+  stripFaceFields,
+} from '#lib/server/face-access.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
 import { getDatabase } from '#lib/db/database.ts';
 
@@ -603,9 +607,6 @@ const handle: RequestHandler = async function (event) {
   const request = event.request;
   const pathParam = (event.params.path as string) || '';
   const search = event.url.search || '';
-  // The caller, once authenticated. It stays null only for the two keyless ways in: the server's
-  // own internal key and a public (unlisted) asset - neither of which reaches a face-linked path.
-  let auth: AuthResult | null = null;
 
   if (['GET', 'HEAD'].includes(request.method)) {
     const internalKey = request.headers.get('x-internal-immich-key') || undefined;
@@ -613,7 +614,7 @@ const handle: RequestHandler = async function (event) {
       void 0;
     } else {
       try {
-        auth = await requireScope(event, 'read');
+        await requireScope(event, 'read');
       } catch (err) {
         const assetMatch = pathParam.match(
           /^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
@@ -656,7 +657,7 @@ const handle: RequestHandler = async function (event) {
 
   if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
     try {
-      auth = await requireScope(event, 'write');
+      await requireScope(event, 'write');
     } catch (err) {
       const isDownload =
         pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
@@ -700,12 +701,13 @@ const handle: RequestHandler = async function (event) {
     });
   }
 
-  // Face-linked paths (people, faces, a search naming a person) obey the same consent rule as the
-  // dedicated /api/people routes. A JSON body is judged and then forwarded AS JUDGED - the text
-  // read here, re-labelled `application/json` - so Immich can never parse a body (another case of
-  // content type, another charset) that differs from the one this check saw.
+  // Person and face calls (people, faces, a search naming or listing people) are refused for
+  // EVERYONE, whatever the credential - the keyless ways in included (face-access.ts, lot A6). A
+  // JSON body is judged and then forwarded AS JUDGED - the text read here, re-labelled
+  // `application/json` - so Immich can never parse a body (another case of content type, another
+  // charset) that differs from the one this check saw.
   let judgedJsonBody: string | undefined;
-  if (auth) {
+  {
     const kind = classifyProxiedBody(
       request.method,
       pathParam,
@@ -735,7 +737,7 @@ const handle: RequestHandler = async function (event) {
         });
       }
     }
-    assertProxiedFaceAccess(auth, request.method, pathParam, event.url.searchParams, jsonBody);
+    assertNoProxiedFaceCall(request.method, pathParam, event.url.searchParams, jsonBody);
   }
 
   let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
@@ -949,7 +951,6 @@ const handle: RequestHandler = async function (event) {
       try {
         const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
         const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
-        const personIdMatch = pathParam.match(/people\/([^/]+)/);
 
         if (request.method === 'DELETE') {
           if (pathParam === 'assets') {
@@ -970,8 +971,6 @@ const handle: RequestHandler = async function (event) {
             await logEvent(event, 'delete', 'asset', assetIdMatch[1], { proxied: true });
           } else if (albumIdMatch) {
             await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
-          } else if (personIdMatch) {
-            await logEvent(event, 'delete', 'person', personIdMatch[1], { proxied: true });
           }
         } else if (request.method === 'POST') {
           if (pathParam === 'albums') {
@@ -1029,7 +1028,14 @@ const handle: RequestHandler = async function (event) {
     if (res.status === 204) {
       return new Response(null, { status: 204, headers });
     }
-    return new Response(textBody, { status: res.status, headers });
+    const forwarded = withoutFaceFields(textBody, resContentType, headers);
+    if (forwarded === null) {
+      return new Response(JSON.stringify({ error: 'Unreadable upstream answer' }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response(forwarded, { status: res.status, headers });
   } catch (err: unknown) {
     const _err = ensureError(err);
     return new Response(JSON.stringify({ error: _err.message }), {
@@ -1038,6 +1044,39 @@ const handle: RequestHandler = async function (event) {
     });
   }
 };
+
+/**
+ * The JSON answer without the people and faces Immich puts in it (`GET /api/assets/:id` carries
+ * `people` and their face boxes until lot A8 deletes them): a biometric field never reaches a
+ * client through the gallery. Only a JSON text that names one of those fields is parsed; the
+ * length header goes when the body changed. `null` when such a text does not parse: it cannot be
+ * cleaned, so it is not forwarded.
+ */
+function withoutFaceFields(textBody: string, contentType: string, headers: Headers): string | null {
+  if (
+    !contentType.includes('json') ||
+    (!textBody.includes('"people"') && !textBody.includes('"unassignedFaces"'))
+  ) {
+    return textBody;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(textBody);
+  } catch (e) {
+    log.error(
+      'proxied JSON answer naming people does not parse; not forwarded',
+      (e as Error).message
+    );
+    return null;
+  }
+  const removed = stripFaceFields(parsed);
+  if (removed === 0) {
+    return textBody;
+  }
+  log.info('people and faces removed from a proxied answer', { removed });
+  headers.delete('content-length');
+  return JSON.stringify(parsed);
+}
 
 export const GET = handle;
 export const POST = handle;
@@ -1134,8 +1173,7 @@ async function finishImmichUpload(
             }
           }
           if (assetId) {
-            // `duplicate` is read by selfieProves (face-access.ts): a re-upload of a known file
-            // proves nothing about who is in it.
+            // `duplicate` says the upload was a re-import of a known file, not a new photo.
             await logEvent(event, 'import', 'asset', assetId, {
               originalName,
               proxied: true,

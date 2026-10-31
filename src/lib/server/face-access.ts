@@ -1,22 +1,20 @@
 /**
- * Who may read a face-linked photo set: the ONE server-side rule.
+ * Who may read a member's face-matched photos, and what the Immich proxy refuses: the ONE
+ * server-side rule (lot A6, docs/wiki/face-matching-option-c.md).
  *
- * A face-linked set ("every photo in which person X appears") is built from Immich's face
- * recognition, so it is biometric-derived personal data. It is visible to:
+ * A member's photos ("every photo in which member X appears") come from face matching, so they are
+ * biometric-derived personal data. They are keyed by the OWNER's user id (`face_matches.user_id`)
+ * and visible to:
  *
- * - its OWNER: the member whose `users.photos_id` is that Immich person;
+ * - the OWNER;
  * - a member the owner AUTHORISED: a `photo_access_permissions(owner_id, authorized_id)` row;
- * - an ADMIN session (moderation and support, as before this rule was enforced);
+ * - an ADMIN session (moderation and support, as before);
  * - an API KEY: keys are machine credentials issued by an admin (`/admin/api-keys`), carry no
  *   user, and were already the only external callers of these routes.
  *
- * A person that no member has linked (a non-member, or a member who never linked a selfie) has no
- * owner, so only an admin or an API key may read it. The directory of every Immich person is an
- * admin-only listing for the same reason.
- *
- * Every route that serves a face-linked set calls one of the `require*` guards below, so the rule
- * lives here and nowhere else. The UI still asks `/api/users/[userId]/photo-access` first, for
- * its own messages, and that endpoint answers from {@link faceAccessReason} as well.
+ * Immich's people and faces are reachable through NOTHING in the gallery: the generic proxy
+ * refuses every person and face call for everyone, admins and API keys included
+ * ({@link assertNoProxiedFaceCall}). Lot A8 deletes them from Immich.
  */
 
 import { error, type RequestEvent } from '@sveltejs/kit';
@@ -24,14 +22,12 @@ import { getDatabase } from '#lib/db/database.ts';
 import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
-import { env } from '#lib/server/env.ts';
-import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('face-access');
 
 export { normalisePersonId };
 
-/** Why a viewer may read an owner's face-linked photos. `null` = they may not. */
+/** Why a viewer may read an owner's face-matched photos. `null` = they may not. */
 export type FaceAccessReason = 'admin' | 'own_photos' | 'granted';
 
 /** The part of a viewer the rule reads. */
@@ -40,37 +36,13 @@ export interface FaceViewer {
   role?: string | null;
 }
 
-/**
- * The member who owns an Immich person, i.e. whose `photos_id` it is, or `null` when no member
- * has linked it (or the id is not a person id at all).
- */
-export function findPersonOwner(personId: string): string | null {
-  const id = normalisePersonId(personId);
-  if (!id) {
-    return null;
-  }
-  const row = getDatabase().prepare('SELECT id_user FROM users WHERE photos_id = ?').get(id) as {
-    id_user: string;
-  } | null;
-  return row?.id_user ?? null;
-}
-
-/**
- * The rule itself, without a request: may `viewer` read the face-linked photos of `ownerId`?
- * `ownerId` null means the person is linked to nobody, which only an admin may read.
- */
-export function faceAccessReason(
-  viewer: FaceViewer,
-  ownerId: string | null
-): FaceAccessReason | null {
-  if (ownerId && ownerId === viewer.id_user) {
+/** The rule itself, without a request: may `viewer` read the face-matched photos of `ownerId`? */
+export function faceAccessReason(viewer: FaceViewer, ownerId: string): FaceAccessReason | null {
+  if (ownerId === viewer.id_user) {
     return 'own_photos';
   }
   if (viewer.role === 'admin') {
     return 'admin';
-  }
-  if (!ownerId) {
-    return null;
   }
   const granted = getDatabase()
     .prepare('SELECT 1 FROM photo_access_permissions WHERE owner_id = ? AND authorized_id = ?')
@@ -78,78 +50,42 @@ export function faceAccessReason(
   return granted ? 'granted' : null;
 }
 
-function refuse(auth: AuthResult, what: string, id: string): never {
-  log.warn('face-linked photos refused', { viewer: auth.user?.id_user ?? null, what, id });
+function refuse(auth: AuthResult, what: string): never {
+  log.warn('face-matched photos refused', { viewer: auth.user?.id_user ?? null, what });
   throw error(403, 'Not authorised to view these photos');
 }
 
-function isAdminOrKey(auth: AuthResult): boolean {
-  return auth.viaApiKey || auth.user?.role === 'admin';
-}
-
-/** Throws 403 unless `auth` may read the photos of Immich person `personId`. */
-export function assertPersonAccess(auth: AuthResult, personId: string): void {
-  if (isAdminOrKey(auth)) {
+/** Throws 403 unless `auth` may read the photos of member `ownerId`. */
+export function assertMemberPhotosAccess(auth: AuthResult, ownerId: string): void {
+  if (auth.viaApiKey) {
+    log.debug('member photos read with an API key');
     return;
   }
-  if (!auth.user || !faceAccessReason(auth.user, findPersonOwner(personId))) {
-    refuse(auth, 'person', personId);
+  if (!auth.user || !faceAccessReason(auth.user, ownerId)) {
+    refuse(auth, 'member-photos');
   }
 }
 
-/**
- * Throws 403 unless `auth` may CHANGE Immich person `personId` (its name, its featured face): its
- * owner, an admin or an API key - an authorised viewer may look, never edit.
- */
-export function assertPersonOwner(auth: AuthResult, personId: string): void {
-  if (isAdminOrKey(auth)) {
-    return;
-  }
-  if (!auth.user || findPersonOwner(personId) !== auth.user.id_user) {
-    refuse(auth, 'person-edit', personId);
-  }
-}
-
-/**
- * Throws 403 unless `auth` may read EVERY person or every face at once (the Immich directory, raw
- * face records, a person search): an admin session or an API key.
- */
-export function assertFaceAdmin(auth: AuthResult, what: string): void {
-  if (!isAdminOrKey(auth)) {
-    refuse(auth, 'face-directory', what);
-  }
+/** Route guard: authenticate (`read`), then {@link assertMemberPhotosAccess}. */
+export async function requireMemberPhotosAccess(
+  event: RequestEvent,
+  ownerId: string
+): Promise<AuthResult> {
+  const auth = await requireScope(event, 'read');
+  assertMemberPhotosAccess(auth, ownerId);
+  return auth;
 }
 
 /**
  * Throws 403 unless `auth` manages the PhotoCV album as a whole (every member's CV portrait):
  * `admin`, `mitviste`, or an API key. A member reads their OWN CV portraits through
- * {@link assertPersonAccess} instead.
+ * {@link assertMemberPhotosAccess} instead.
  */
 export function assertPhotoCvManager(auth: AuthResult, what: string): void {
   if (auth.viaApiKey || auth.user?.role === 'admin' || auth.user?.role === 'mitviste') {
     return;
   }
-  refuse(auth, 'photocv-album', what);
-}
-
-/** Route guard: authenticate (`read`), then {@link assertPersonAccess}. */
-export async function requirePersonAccess(
-  event: RequestEvent,
-  personId: string
-): Promise<AuthResult> {
-  const auth = await requireScope(event, 'read');
-  assertPersonAccess(auth, personId);
-  return auth;
-}
-
-/** Route guard: authenticate, then {@link assertFaceAdmin}. */
-export async function requireFaceAdmin(
-  event: RequestEvent,
-  scope: 'read' | 'write' = 'read'
-): Promise<AuthResult> {
-  const auth = await requireScope(event, scope);
-  assertFaceAdmin(auth, event.url.pathname);
-  return auth;
+  refuse(auth, `photocv-album ${what}`);
 }
 
 /** Route guard: authenticate, then {@link assertPhotoCvManager}. */
@@ -162,13 +98,26 @@ export async function requirePhotoCvManager(
   return auth;
 }
 
+function refuseFaceCall(what: string): never {
+  log.warn('proxied person or face call refused', { what });
+  throw error(403, 'Person and face data are not available');
+}
+
+/** A key that names people, whatever its spelling: `personId`, `personIds[]`, `withPeople`... */
+function namesPeople(key: string): boolean {
+  const lower = key.toLowerCase();
+  return lower.startsWith('personid') || lower.startsWith('withpeople');
+}
+
 /**
- * The generic Immich proxy forwards any path, so the face-linked ones are recognised here and
- * held to the same rule as the dedicated routes. `body` is the parsed JSON body of the request
- * when it has one, because a search names its people there. Paths that carry no person pass.
+ * The generic Immich proxy forwards any path, so every call that would reach Immich's people or
+ * faces is recognised HERE and refused, whoever asks - a member, an admin, an API key, the
+ * server's internal key: `people` and everything under it, `faces` and everything under it,
+ * `search/person`, and any query key or JSON body key a parser could map to `personId(s)` or
+ * `withPeople`, whatever its value. `body` is the parsed JSON body when there is one. A call
+ * naming no person passes.
  */
-export function assertProxiedFaceAccess(
-  auth: AuthResult,
+export function assertNoProxiedFaceCall(
   method: string,
   path: string,
   query: URLSearchParams,
@@ -186,108 +135,83 @@ export function assertProxiedFaceAccess(
     .replace(/\/{2,}/g, '/')
     .replace(/^\/api\//, '')
     .toLowerCase();
-  const person = clean.match(/^people\/([^/]+)(\/.*)?$/);
-  if (person) {
-    const [, personId, rest] = person;
-    if (method === 'GET' || method === 'HEAD') {
-      assertPersonAccess(auth, personId);
-    } else if ((method === 'PUT' || method === 'PATCH') && !rest) {
-      assertPersonOwner(auth, personId);
-    } else {
-      assertFaceAdmin(auth, clean);
-    }
-  } else if (/^(people|faces|search\/person)(\/|$)/.test(clean)) {
-    assertFaceAdmin(auth, clean);
+  if (/^(people|faces|search\/person)(\/|$)/.test(clean)) {
+    refuseFaceCall(`${method} ${clean}`);
   }
 
-  // Every spelling of the key a query parser could map to personId(s): `personIds[]`, `PersonId`...
-  for (const [key, value] of query) {
-    if (key.toLowerCase() === 'withpeople') {
-      assertFaceAdmin(auth, `${clean} withPeople`);
-    }
-    if (key.toLowerCase().startsWith('personid')) {
-      for (const id of value.split(',').filter(Boolean)) {
-        assertPersonAccess(auth, id);
-      }
+  for (const key of query.keys()) {
+    if (namesPeople(key)) {
+      refuseFaceCall(`${clean} query ${key}`);
     }
   }
 
-  if (body && typeof body === 'object') {
-    const { personIds, personId, withPeople } = body as {
-      personIds?: unknown;
-      personId?: unknown;
-      withPeople?: unknown;
-    };
-    // Whatever shape the value has - an array, one id, a comma list - every id in it is checked;
-    // whether Immich would accept that shape is not this check's to assume.
-    const asIds = (v: unknown): unknown[] =>
-      Array.isArray(v) ? v : typeof v === 'string' ? v.split(',').filter(Boolean) : v ? [v] : [];
-    const ids = [...asIds(personIds), ...asIds(personId)];
-    for (const id of ids) {
-      assertPersonAccess(auth, String(id));
-    }
-    // A search asked to list the people in EVERY result would hand back the whole face graph,
-    // from which any person's set can be rebuilt.
-    if (withPeople) {
-      assertFaceAdmin(auth, `${clean} withPeople`);
-    }
+  // Whatever the value - an id, a list, an empty list, false - the KEY is refused, at ANY depth
+  // (Immich v3 nests its search conditions under `filter`): no request that names people has a
+  // reason to pass through the gallery.
+  const named = bodyKeyNamingPeople(body, 0);
+  if (named !== null) {
+    refuseFaceCall(`${clean} body ${named}`);
   }
+  log.debug('proxied call names no person', { method });
 }
 
-/** How fresh the selfie must be: the detection flow links within about a minute of uploading. */
-export const SELFIE_MAX_AGE_MS = 30 * 60 * 1000;
+/** Deeper than this a JSON body is refused as unjudgeable rather than walked. */
+const MAX_BODY_DEPTH = 32;
+
+/** The first key of `value`, at any depth, that names people; `null` when none does. */
+function bodyKeyNamingPeople(value: unknown, depth: number): string | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  if (depth > MAX_BODY_DEPTH) {
+    log.warn('proxied JSON body too deep to judge refused', { depth });
+    throw error(400, 'Invalid JSON body');
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const named = bodyKeyNamingPeople(item, depth + 1);
+      if (named !== null) return named;
+    }
+    return null;
+  }
+  for (const [key, inner] of Object.entries(value)) {
+    if (namesPeople(key)) return key;
+    const named = bodyKeyNamingPeople(inner, depth + 1);
+    if (named !== null) return named;
+  }
+  return null;
+}
+
+/** The keys of an Immich answer that carry people or faces, removed by {@link stripFaceFields}. */
+const FACE_FIELDS = ['people', 'unassignedFaces'];
 
 /**
- * Whether Immich asset `assetId` passes the selfie checks for `personId` (a speed bump, NOT proof
- * that the face is the caller's - see docs/wiki/photos-cv.md): uploaded by `callerId`
- * through this proxy as a new file (not a duplicate), within
- * {@link SELFIE_MAX_AGE_MS}, and showing exactly one person, that one. Read server-side from
- * Immich, so the client cannot assert it.
+ * Remove the people and faces Immich puts inside an answer (`GET /api/assets/:id` carries
+ * `people` with their face boxes until lot A8 deletes them), at any depth up to 6, in place.
+ * Returns how many fields went, for the log.
  */
-export async function selfieProves(
-  fetchFn: typeof fetch,
-  assetId: unknown,
-  personId: string,
-  callerId: string
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  if (typeof assetId !== 'string' || !/^[0-9a-f-]{36}$/i.test(assetId)) {
-    return { ok: false, reason: 'no selfie asset' };
+export function stripFaceFields(value: unknown, depth = 0): number {
+  if (depth > 6 || !value || typeof value !== 'object') {
+    return 0;
   }
-  // The caller must have uploaded it THEMSELVES, as a new file: every upload reaches Immich with
-  // the one shared key, so only the proxy's own audit row (`import`, written by
-  // finishImmichUpload with the uploader as actor) ties an asset to a member.
-  const uploaded = getDatabase()
-    .prepare(
-      "SELECT details FROM logs WHERE event_type = 'import' AND target_type = 'asset' AND target_id = ? AND actor = ? ORDER BY id DESC"
-    )
-    .get(assetId, callerId) as { details: string | null } | null;
-  if (!uploaded) {
-    return { ok: false, reason: 'selfie not uploaded by the caller' };
+  let removed = 0;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      removed += stripFaceFields(item, depth + 1);
+    }
+    return removed;
   }
-  if (uploaded.details && (JSON.parse(uploaded.details) as { duplicate?: boolean }).duplicate) {
-    return { ok: false, reason: 'selfie is a duplicate of an existing asset' };
+  const record = value as Record<string, unknown>;
+  for (const field of FACE_FIELDS) {
+    if (field in record) {
+      delete record[field];
+      removed++;
+    }
   }
-  const base = env.IMMICH_BASE_URL?.replace(/\/$/, '');
-  if (!base) {
-    return { ok: false, reason: 'IMMICH_BASE_URL not configured' };
+  for (const child of Object.values(record)) {
+    removed += stripFaceFields(child, depth + 1);
   }
-  const res = await fetchFn(`${base}/api/assets/${assetId}`, {
-    signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-    headers: { 'x-api-key': env.IMMICH_API_KEY ?? '', Accept: 'application/json' },
-  });
-  if (!res.ok) {
-    return { ok: false, reason: `asset lookup ${res.status}` };
-  }
-  const asset = (await res.json()) as { createdAt?: string; people?: Array<{ id?: string }> };
-  const age = Date.now() - Date.parse(asset.createdAt ?? '');
-  if (!(age >= -60_000 && age <= SELFIE_MAX_AGE_MS)) {
-    return { ok: false, reason: 'selfie not freshly uploaded' };
-  }
-  const people = asset.people ?? [];
-  if (people.length !== 1 || normalisePersonId(people[0].id) !== personId) {
-    return { ok: false, reason: 'selfie does not show exactly that person' };
-  }
-  return { ok: true };
+  return removed;
 }
 
 /** What the proxy may do with a request body: nothing to judge, judge it as JSON, or refuse it. */
@@ -296,7 +220,7 @@ export type ProxiedBodyKind = 'none' | 'json' | 'upload' | 'refused';
 /**
  * Classify the body of a proxied request by its media type, BEFORE anything is forwarded. Immich
  * parses JSON and urlencoded bodies alike, so a body type this proxy cannot judge would carry a
- * search's `personIds` past {@link assertProxiedFaceAccess}. Only three kinds go through: JSON
+ * search's `personIds` past {@link assertNoProxiedFaceCall}. Only three kinds go through: JSON
  * (judged), the multipart upload of `POST assets`, and an `application/octet-stream` chunk of the
  * chunked upload. Everything else is refused. A body with no content type is not parsed by Immich
  * and is left alone.

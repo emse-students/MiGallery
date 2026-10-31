@@ -1,21 +1,22 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Image as ImageIcon, CircleAlert, CircleCheckBig } from '@lucide/svelte';
-  import FaceCropThumb from './FaceCropThumb.svelte';
   import Spinner from './Spinner.svelte';
   import EmptyState from './EmptyState.svelte';
   import Modal from './Modal.svelte';
   import type { ImmichAsset } from '#lib/types/api.ts';
+  import { consumeNDJSONStream } from '#lib/streaming.ts';
   import { m } from '#lib/paraglide/messages.js';
 
   interface Props {
     currentPhotoUrl?: string;
     onClose: () => void;
     onPhotoSelected?: (assetId: string) => void;
-    peopleId?: string;
+    /** The member whose profile photo changes: it is chosen among THEIR photos (lot A6). */
+    memberId?: string;
   }
 
-  let { currentPhotoUrl, onClose, onPhotoSelected, peopleId }: Props = $props();
+  let { currentPhotoUrl, onClose, onPhotoSelected, memberId }: Props = $props();
 
   let show = $state(true);
   let selectedAssetId = $state<string | null>(null);
@@ -24,8 +25,9 @@
   let loadingAssets = $state(true);
   let error = $state<string | null>(null);
 
+  /** The member's own photos (their face matches), every one of them, as the picker's choices. */
   async function loadUserPhotos() {
-    if (!peopleId) {
+    if (!memberId) {
       error = m.changephoto_no_user();
       loadingAssets = false;
       return;
@@ -34,26 +36,15 @@
     try {
       loadingAssets = true;
       error = null;
-
-      const res = await fetch('/api/immich/search/metadata', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ personIds: [peopleId], type: 'IMAGE', page: 1, size: 1000 }),
+      const res = await fetch(`/api/users/${encodeURIComponent(memberId)}/photos-stream`);
+      const found: ImmichAsset[] = [];
+      await consumeNDJSONStream<{ asset: ImmichAsset }>(res, ({ asset }) => {
+        found.push(asset);
       });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => res.statusText);
-        throw new Error(txt || 'Error loading photos');
-      }
-
-      const data = (await res.json()) as { assets: { items: ImmichAsset[] } };
-      const items = data?.assets?.items || [];
-      assets = items.map((it) => ({
-        ...it,
-        _raw: it,
-      }));
+      assets = found;
     } catch (e: unknown) {
-      console.error('Error loading photos:', e);
-      error = (e as Error).message;
+      console.error('[change-photo] the member photos could not be loaded', e);
+      error = m.cpm_load_error();
     } finally {
       loadingAssets = false;
     }
@@ -137,12 +128,14 @@
           class="photo-item {selectedAssetId === asset.id ? 'selected' : ''}"
           onclick={() => handlePhotoSelect(asset.id)}
           ondblclick={confirmSelection}
-          title={asset.originalFileName || 'Photo'}
+          title={asset.originalFileName || m.cpm_photo_alt()}
         >
-          <FaceCropThumb
-            assetId={asset.id}
-            personId={peopleId ?? ''}
-            alt={asset.originalFileName || 'Photo'}
+          <img
+            class="photo-thumb"
+            src={`/api/immich/assets/${encodeURIComponent(asset.id)}/thumbnail?size=thumbnail`}
+            alt={m.cpm_photo_alt()}
+            loading="lazy"
+            decoding="async"
           />
           {#if selectedAssetId === asset.id}
             <div class="selected-overlay">
@@ -246,6 +239,12 @@
   .photo-item.selected {
     border-color: var(--accent);
     outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+
+  .photo-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .selected-overlay {

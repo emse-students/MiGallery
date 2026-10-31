@@ -18,7 +18,8 @@ declare global {
           first_name?: string | null;
           last_name?: string | null;
           formation?: string | null;
-          photos_id: string | null;
+          /** Face matching is on for them: enrolled, or holding photos (lot A6). */
+          face_enrolled: boolean;
           photos_asset_id?: string | null;
           role?: 'admin' | 'mitviste' | 'user';
           promo?: number | null;

@@ -21,6 +21,23 @@ Immich REST API with the server-side `IMMICH_API_KEY` after checking access.
   to `checkPublicAssetAccess`. Browsing a public shared album would otherwise
   re-fetch the same asset/album metadata from Immich once per image.
 
+## No person, no face - for anyone (lot A6)
+
+The proxy refuses (403), BEFORE anything is forwarded and whoever asks, admins and API keys
+included, every call Immich would answer from its face recognition: any `people/...`,
+`faces/...` or `search/person` path, and any query or JSON body key starting with `personId` or
+`withPeople` (any spelling, any value, empty included, at any depth of the body: Immich v3 nests
+its search conditions under `filter`). One function decides it,
+`assertNoProxiedFaceCall` in `src/lib/server/face-access.ts`; it judges the path Immich will
+route (`.` segments resolved, slashes collapsed, case folded) and refuses a path carrying its own
+`?` or `#` (400). On the way back, a JSON answer of any other call loses its `people` and
+`unassignedFaces` fields (`stripFaceFields`, an asset's detail is the case that carries them); a
+JSON answer that names them and cannot be parsed is refused (502) rather than forwarded. A
+member's photos come from MiGallery's own matches instead
+([face-matching-option-c.md](face-matching-option-c.md#a6---the-read-side)). Pinned by
+`tests/face-access.test.ts` (the rule) and `tests/immich-proxy-faces.test.ts` (the handler, an admin
+session and an API key refused, Immich never asked).
+
 ## Public (unlisted) assets
 
 Albums can be `unlisted` (shared by link, see

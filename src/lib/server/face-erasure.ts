@@ -34,7 +34,7 @@ import { createLogger } from '#lib/server/logger.ts';
 import { registerShutdown } from '#lib/server/shutdown.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 import { searchAllAssets } from '#lib/server/immich-search.ts';
-import { deletePersonFaceCrops } from '#lib/server/face-crop.ts';
+import { deleteMemberFaceCrops, deletePersonFaceCrops } from '#lib/server/face-crop.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
 import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
 import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
@@ -73,6 +73,8 @@ interface ErasureRow {
 
 /** What {@link eraseLocalFaceData} decided, for the caller to finish AFTER its commit. */
 export interface LocalErasure {
+  /** The member whose face data went: their face crops (lot A6) are deleted after the commit. */
+  userId: string;
   /** The journal row, or null when no Immich person was linked (or its id is not a person id). */
   erasure: number | null;
   /** The person whose link was undone, for the crop cleanup. */
@@ -114,13 +116,13 @@ export function eraseLocalFaceData(
 
   if (!linked) {
     log.info('face data erased locally, no Immich person was linked', { reason });
-    return { erasure: null, personId: null, heldFaces };
+    return { userId, erasure: null, personId: null, heldFaces };
   }
   const personId = normalisePersonId(linked);
   if (!personId) {
     // A link an admin stored by hand that is not a person id: nothing in Immich can be named.
     log.warn('face link was not a person id; nothing journaled', { reason });
-    return { erasure: null, personId: null, heldFaces };
+    return { userId, erasure: null, personId: null, heldFaces };
   }
 
   const info = db
@@ -130,7 +132,7 @@ export function eraseLocalFaceData(
     erasure: info.lastInsertRowid,
     reason,
   });
-  return { erasure: Number(info.lastInsertRowid), personId, heldFaces };
+  return { userId, erasure: Number(info.lastInsertRowid), personId, heldFaces };
 }
 
 /**
@@ -150,11 +152,14 @@ export function eraseFaceMatches(db: Db, userId: string): FaceKey[] {
 }
 
 /**
- * After the COMMIT: delete the person's crops (never throws), kick the Immich half, and re-decide
+ * After the COMMIT: delete the member's face crops - the confirmation thumbnails and the profile
+ * photo of lot A6 - and the old Immich person's (never throws), kick the Immich half, and re-decide
  * the faces the member held so they can go to the next member (best effort, logged: the erasure
- * itself is already complete).
+ * itself is already complete). Every path that erases a member's face data ends here, so no crop
+ * of theirs survives a withdrawal, an unlink or an account deletion.
  */
 export function finishLocalErasure(local: LocalErasure): void {
+  deleteMemberFaceCrops(local.userId);
   if (local.personId) {
     deletePersonFaceCrops(local.personId);
   }

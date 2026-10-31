@@ -27,6 +27,7 @@ import {
   type MatchVerdict,
 } from '#lib/server/face-engine.ts';
 import { addFaceReference } from '#lib/server/face-references.ts';
+import { deleteMemberFaceCrop } from '#lib/server/face-crop.ts';
 import { loadFaceEmbeddings, type FaceKey } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -93,7 +94,8 @@ export type AnswerOutcome = 'not_held' | 'confirmed' | 'learned' | 'rejected';
  * queue so no scan sees half of it:
  * - `confirm`: the face is theirs for good. While they hold fewer than the maximum, its embedding
  *   becomes a reference and the store is re-matched for them (`learned`).
- * - `reject`: the face is never offered to them again and is re-decided for everyone else.
+ * - `reject`: the face is never offered to them again and is re-decided for everyone else; its
+ *   crop, if one was cut for their confirmation screen, is deleted from their cache.
  * `not_held` when the face is not theirs to answer (never decided for them, or already answered).
  */
 export function answerFace(
@@ -108,6 +110,7 @@ export function answerFace(
       return 'not_held';
     }
     if (verdict === 'reject') {
+      deleteMemberFaceCrop(userId, face);
       redecideFaces(engine, [face]);
       return 'rejected';
     }

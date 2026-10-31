@@ -324,15 +324,13 @@ describe('Users CRUD (Admin)', () => {
 // ========================================
 
 describe('Photos-CV API', () => {
-  it('should list people', async () => {
+  it('no longer serves the Immich people list (lot A6): the route is gone', async () => {
     const response = await fetch(`${API_BASE_URL}/api/people/people`, {
       headers: getAuthHeaders(),
       signal: AbortSignal.timeout(10000),
     });
 
-    // No Immich in `bun run test`: the route's contract here is exactly this 500. The
-    // Immich v3 list shape is pinned by tests/immich-people.test.ts.
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(404);
   }, 15000);
 });
 

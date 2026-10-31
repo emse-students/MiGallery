@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { Lock, ArrowLeft, Camera, Eye } from '@lucide/svelte';
+  import { Lock, ArrowLeft, Camera, Eye, ChevronRight, ScanFace } from '@lucide/svelte';
   import LoadingState from '#lib/components/LoadingState.svelte';
   import ErrorState from '#lib/components/ErrorState.svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
@@ -13,18 +13,23 @@
   import { toast } from '#lib/toast.ts';
   import { m } from '#lib/paraglide/messages.js';
   import type { User } from '#lib/types/api.ts';
+  import type { PageData } from './$types';
+
+  let { data }: { data: PageData } = $props();
 
   const photosState = new PhotosState();
 
   let showChangePhotoModal = $state(false);
-  let targetUserId = $state<string | null>(null); // Store target user ID
-  let targetUserName = $state<string | null>(null);
+  /** The member whose photos are shown: the viewer, or the one named by `?userId=`. */
+  let memberId = $state<string | null>(null);
   let isViewingOwnPhotos = $state(true);
   let isAdmin = $state(false);
   let accessDenied = $state(false);
   let showProfileIncitation = $state(false);
 
   let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
+  /** How many photos wait for the viewer's yes or no (their own view only). */
+  let toConfirm = $derived(isViewingOwnPhotos ? (data.ownFace?.toConfirm ?? 0) : 0);
 
   function openChangePhotoModal() {
     showChangePhotoModal = true;
@@ -34,141 +39,74 @@
     showChangePhotoModal = false;
   }
 
+  /** The profile photo, chosen among the member's own photos (lot A6). */
   async function handlePhotoSelected(assetId: string) {
-    const targetIdPhotos = photosState.peopleId;
-    if (!targetIdPhotos) throw new Error(m.mp_user_not_configured());
-
-    const updateRes = await fetch(`/api/immich/people/${targetIdPhotos}`, {
+    if (!memberId) throw new Error(m.mp_user_not_configured());
+    const res = await fetch('/api/users/me/profile-photo', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ featureFaceAssetId: assetId }),
+      body: JSON.stringify(
+        isViewingOwnPhotos ? { asset_id: assetId } : { asset_id: assetId, user_id: memberId }
+      ),
     });
-    if (!updateRes.ok) {
-      const txt = await updateRes.text().catch(() => updateRes.statusText);
-      throw new Error(txt || m.mp_photo_update_error());
+    if (!res.ok) {
+      console.warn('[mes-photos] profile photo refused', res.status);
+      throw new Error(m.mp_photo_update_error());
     }
-
-    // Persist the backing asset id so /api/users/{id}/avatar serves our own
-    // square crop instead of Immich's. Best-effort: a failure just means the
-    // avatar falls back to the Immich thumbnail we just set above.
-    try {
-      const faceBody: { person_id: string; photos_asset_id: string; user_id?: string } = {
-        person_id: targetIdPhotos,
-        photos_asset_id: assetId,
-      };
-      if (targetUserId) faceBody.user_id = targetUserId;
-      await fetch('/api/users/me/face', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(faceBody),
-      });
-    } catch (e) {
-      console.warn('Failed to persist profile asset id', e);
-    }
-
     toast.success(m.mp_photo_updated());
     window.location.reload();
+  }
+
+  /** The other member's page: shown only when they authorised the viewer (or to an admin). */
+  async function openOtherMember(userId: string) {
+    try {
+      const accessRes = await fetch(`/api/users/${encodeURIComponent(userId)}/photo-access`);
+      const accessData = (await accessRes.json()) as {
+        success?: boolean;
+        hasAccess?: boolean;
+        user?: { id_user: string; name: string; photos_asset_id?: string | null } | null;
+      };
+      if (!accessData.success || !accessData.hasAccess) {
+        accessDenied = true;
+        return;
+      }
+      if (!accessData.user) {
+        goto('/');
+        return;
+      }
+      memberId = accessData.user.id_user;
+      photosState.loadMember(accessData.user.id_user, {
+        name: accessData.user.name,
+        version: accessData.user.photos_asset_id,
+      });
+    } catch (e) {
+      console.warn('[mes-photos] access check failed', e);
+      accessDenied = true;
+    }
   }
 
   onDestroy(() => photosState.cleanup());
 
   onMount(async () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const userIdParam = urlParams.get('userId');
-
+    const userIdParam = new URLSearchParams(window.location.search).get('userId');
     const user = page.data.session?.user as User;
     isAdmin = user?.role === 'admin';
 
-    if (userIdParam) {
-      if (userIdParam === user?.id_user) {
-        isViewingOwnPhotos = true;
-      } else {
-        isViewingOwnPhotos = false;
-        try {
-          const accessRes = await fetch(
-            `/api/users/${encodeURIComponent(userIdParam)}/photo-access`
-          );
-          const accessData = (await accessRes.json()) as {
-            success?: boolean;
-            hasAccess?: boolean;
-            reason?: string;
-            user?: {
-              id_user: string;
-              name: string;
-              first_name: string | null;
-              last_name: string | null;
-              photos_id: string | null;
-              photos_asset_id?: string | null;
-            };
-          };
-
-          if (!accessData.success || !accessData.hasAccess) {
-            accessDenied = true;
-            return;
-          }
-
-          if (accessData.user?.photos_id) {
-            targetUserId = userIdParam;
-            photosState.peopleId = accessData.user.photos_id;
-            targetUserName = accessData.user.name;
-            photosState.loadPerson(accessData.user.photos_id, {
-              userId: accessData.user.id_user,
-              version: accessData.user.photos_asset_id,
-            });
-          } else {
-            goto('/');
-          }
-          return;
-        } catch {
-          accessDenied = true;
-          return;
-        }
-      }
-
-      targetUserId = userIdParam;
-      try {
-        const accessRes = await fetch(`/api/users/${encodeURIComponent(userIdParam)}/photo-access`);
-        const accessData = (await accessRes.json()) as {
-          success?: boolean;
-          user?: {
-            id_user: string;
-            name: string;
-            first_name: string | null;
-            last_name: string | null;
-            photos_id: string | null;
-            photos_asset_id?: string | null;
-          };
-        };
-
-        if (accessData.success && accessData.user?.photos_id) {
-          photosState.peopleId = accessData.user.photos_id;
-          targetUserName = accessData.user.name;
-          photosState.loadPerson(accessData.user.photos_id, {
-            userId: accessData.user.id_user,
-            version: accessData.user.photos_asset_id,
-          });
-        } else {
-          goto('/');
-        }
-      } catch {
-        goto('/');
-      }
+    if (userIdParam && userIdParam !== user?.id_user) {
+      isViewingOwnPhotos = false;
+      await openOtherMember(userIdParam);
       return;
     }
 
-    targetUserId = null;
     isViewingOwnPhotos = true;
-    if (!user?.photos_id) {
-      // No linked face yet: prompt the user to complete their profile
-      // instead of bouncing them back to the home page.
+    if (!data.ownFace?.enrolled) {
+      // Face matching is off for them: say how to turn it on instead of an empty grid.
       showProfileIncitation = true;
       return;
     }
-    targetUserName = user?.name || null;
-
-    photosState.peopleId = user.photos_id;
-    photosState.loadPerson(user.photos_id, {
-      userId: user.id_user,
+    memberId = user.id_user;
+    photosState.loadMember(user.id_user, {
+      name: user.name,
       version: user.photos_asset_id,
     });
   });
@@ -239,11 +177,19 @@
       </PageHeader>
     {/if}
 
+    {#if toConfirm > 0}
+      <a href="/mes-photos/confirmer" class="confirm-banner">
+        <span class="confirm-icon"><ScanFace size={20} /></span>
+        <span class="confirm-text">{m.mp_confirm_banner({ count: toConfirm })}</span>
+        <ChevronRight size={18} />
+      </a>
+    {/if}
+
     {#if photosState.error}
       <ErrorState
         title={photosState.error}
         onRetry={() => {
-          if (photosState.peopleId != null) photosState.loadPerson(photosState.peopleId);
+          if (photosState.memberId) photosState.loadMember(photosState.memberId);
         }}
       />
     {/if}
@@ -258,7 +204,7 @@
   {#if showChangePhotoModal}
     <ChangePhotoModal
       currentPhotoUrl={photosState.imageUrl || undefined}
-      peopleId={photosState.peopleId ?? undefined}
+      memberId={memberId ?? undefined}
       onPhotoSelected={handlePhotoSelected}
       onClose={closeChangePhotoModal}
     />
@@ -270,6 +216,34 @@
     min-height: 100vh;
     padding-bottom: 4rem;
     position: relative;
+  }
+
+  /* The photos waiting for the member's answer: one flat row above the grid. */
+  .confirm-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .confirm-banner:hover {
+    background: var(--bg-tertiary);
+  }
+
+  .confirm-icon {
+    display: flex;
+    color: var(--accent);
+  }
+
+  .confirm-text {
+    flex: 1;
+    font-size: 0.875rem;
   }
 
   .viewing-badge {

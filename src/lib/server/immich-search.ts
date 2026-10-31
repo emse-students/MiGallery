@@ -124,3 +124,48 @@ export async function searchAllAssets(
 
   return all;
 }
+
+/** Ids asked per request of {@link searchAssetsByIds}: one page each. */
+export const ASSET_ID_BATCH = 250;
+
+/**
+ * The assets of the given ids, fetched BY ID in batches of {@link ASSET_ID_BATCH}: one
+ * `POST /api/search/metadata` per batch with `filter: { or: [{ id: { eq } }, ...] }` (Immich v3).
+ * Assets Immich no longer has (deleted, trashed) are simply absent from the answer.
+ *
+ * THE ANSWER IS CHECKED, NOT TRUSTED. An Immich that ignored the filter would answer an arbitrary
+ * page of the library, and the caller would show a member photos that are not theirs. So every
+ * asset returned must be one that was asked for; one that was not throws (500), classified here,
+ * and nothing of that batch is used. A batch that says it has a next page throws for the same
+ * reason: the filter was not applied as written.
+ */
+export async function searchAssetsByIds(
+  fetchFn: typeof fetch,
+  ids: readonly string[]
+): Promise<ImmichAsset[]> {
+  const out: ImmichAsset[] = [];
+  for (let start = 0; start < ids.length; start += ASSET_ID_BATCH) {
+    const batch = ids.slice(start, start + ASSET_ID_BATCH);
+    const asked = new Set(batch);
+    const page = await searchAssetPage(
+      fetchFn,
+      { filter: { or: batch.map((id) => ({ id: { eq: id } })) } },
+      1,
+      // One more than asked: an honoured answer can never fill the page, so a next page is
+      // never legitimately announced.
+      ASSET_ID_BATCH + 1
+    );
+    const stranger = page.items.find((asset) => !asked.has(asset.id));
+    if (stranger || page.nextPage !== null) {
+      log.error('search by id answered assets that were not asked for: the filter was ignored', {
+        asked: batch.length,
+        answered: page.items.length,
+        nextPage: page.nextPage,
+      });
+      throw error(500, 'Search by id was not honoured');
+    }
+    out.push(...page.items);
+  }
+  log.debug('assets fetched by id', { asked: ids.length, found: out.length });
+  return out;
+}

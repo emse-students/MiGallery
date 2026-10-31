@@ -293,7 +293,7 @@
   "ci_no_camera": "No camera detected on this device.",
   "cpm_title": "Change profile picture",
   "cpm_current": "Current profile picture",
-  "cpm_pick": "Pick a face below to set it as your profile picture",
+  "cpm_pick": "Pick one of your photos to make it your profile picture",
   "cpm_updating": "Updating…",
   "cpm_loading": "Loading your photos…",
   "common_retry": "Retry",
@@ -330,8 +330,6 @@
   "param_type_confirm_placeholder": "Type CONFIRMATION",
   "param_unlink_confirm": "You will lose access to the \"My photos\" page. Your account stays active.",
   "face_already_assigned_msg": "This face has already been assigned to another account. If it is not yours, please contact bureau@mitv.fr",
-  "face_selfie_proof_msg": "Your face can only be linked from a selfie you have just taken, showing you alone. Please take a new selfie.",
-  "param_no_immich_link": "You are not linked to an Immich person.",
   "param_photo_update_error": "Failed to update the photo",
   "param_photo_updated": "Profile picture updated!",
   "param_select_user": "Please select a user",
@@ -443,21 +441,11 @@
     }
   ],
   "trombi_export": "Export",
-  "trombi_photo_link": "Photo link (Immich)",
-  "trombi_photo_linked_label": "Linked:",
-  "trombi_analyzing": "Analyzing…",
-  "trombi_replace_photo": "Replace photo",
-  "trombi_upload_photo": "Upload photo",
-  "trombi_photo_hint": "Uploading triggers face recognition to link the profile.",
   "trombi_no_users_export": "No user to export",
   "trombi_pdf_generating": "Generating PDF…",
   "trombi_pdf_title": "MiGallery Directory",
   "trombi_pdf_downloaded": "PDF downloaded!",
   "trombi_pdf_error": "PDF generation failed",
-  "trombi_photo_upload_error": "Photo upload failed",
-  "trombi_no_face": "No person detected. Choose a photo with a visible face.",
-  "trombi_multiple_faces": "Multiple people detected ({count}). Choose a photo with a single person.",
-  "trombi_user_updated": "User updated",
   "common_previous": "Previous",
   "common_next": "Next",
   "common_page": "Page {page}",
@@ -473,10 +461,9 @@
   "mp_portrait_alt": "User portrait",
   "mp_viewing_badge": "Viewing allowed",
   "mp_loading": "Loading photos…",
-  "mp_person_unnamed": "Unnamed",
   "mp_incite_title": "Complete your profile",
-  "mp_incite_body": "Add a profile photo to find every photo you appear in.",
-  "mp_incite_cta": "Add my photo",
+  "mp_incite_body": "Turn on face recognition with a selfie to find every photo you appear in.",
+  "mp_incite_cta": "Turn on with a selfie",
   "pcv_page_title": "CV Photos - MiGallery",
   "pcv_subtitle": "Professional and institutional portraits",
   "pcv_tab_all": "Everyone",
@@ -877,5 +864,48 @@
   "param_face_consent_before": "I agree that MiGallery recognises my face in the library's photos, as described in the",
   "param_face_consent_link": "terms of use",
   "param_face_consent_after": ".",
-  "param_status_analyzing_short": "Analysing your face…"
+  "param_status_analyzing_short": "Analysing your face…",
+  "face_person_link_retired": "Face recognition is now turned on with a selfie, from your settings.",
+  "mp_confirm_banner": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo is waiting for your answer",
+        "countPlural=*": "{count} photos are waiting for your answer"
+      }
+    }
+  ],
+  "mpc_page_title": "Photos to confirm - MiGallery",
+  "mpc_title": "Is this you?",
+  "mpc_subtitle": "These photos look like you. Tell us if it is you: they will join your photos, or will not be offered to you again.",
+  "mpc_loading": "Loading…",
+  "mpc_load_error": "The photos to confirm could not be loaded.",
+  "mpc_empty_title": "All done",
+  "mpc_empty_body": "No photo is waiting for your answer.",
+  "mpc_back": "Back to my photos",
+  "mpc_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo to confirm",
+        "countPlural=*": "{count} photos to confirm"
+      }
+    }
+  ],
+  "mpc_face_alt": "Face to confirm",
+  "mpc_me": "It's me",
+  "mpc_not_me": "Not me",
+  "mpc_answer_error": "Your answer could not be saved. Try again.",
+  "cpm_load_error": "Your photos could not be loaded.",
+  "cpm_photo_alt": "Photo",
+  "usr_face_title": "Face recognition",
+  "usr_face_on": "Turned on by the member",
+  "usr_face_off": "Not turned on",
+  "usr_face_hint": "Members turn it on themselves with a selfie, from their settings. Withdrawing deletes their face data and their recognised photos.",
+  "usr_face_withdraw": "Withdraw recognition",
+  "usr_face_withdraw_confirm": "Withdraw face recognition for {name}? Their face data and recognised photos will be deleted.",
+  "usr_face_withdraw_error": "The withdrawal failed.",
+  "usr_face_withdrawn": "Face recognition withdrawn"
 }

@@ -4,20 +4,21 @@ import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
 import { env } from '#lib/server/env.ts';
 import { requireScope } from '#lib/server/permissions.ts';
-import { generateFaceCrop } from '#lib/server/face-crop.ts';
+import { generateMemberFaceCrop } from '#lib/server/face-crop.ts';
+import { getFaceDatabase } from '#lib/db/face-database.ts';
+import { profileFace } from '#lib/server/face-photos.ts';
+import { loadFaceBox } from '#lib/server/face-store.ts';
 import { isAvatarSignatureValid } from '#lib/server/avatar-signature.ts';
 import { avatarSaltOf } from '#lib/server/avatar-revocation.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
-import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('users-username-avatar');
-const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
-const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 /**
  * GET /api/users/[username]/avatar
- * Gets a user's profile photo by their id_user
+ * A member's profile photo by their id_user: their own face, cut from the photo they chose among
+ * their photos (lot A6). 404 when they chose none, or the photo is no longer one of theirs.
  * Requires: authentication (session cookie, auth provider, or API key with 'read' scope), OR a
  * `?sig=` that signs THIS id_user - the keyless URL MiConnect hands to MinoWiki and Archives
  * ($lib/server/avatar-signature).
@@ -44,83 +45,72 @@ export const GET: RequestHandler = async (event) => {
   }
   try {
     const { username } = event.params;
-    const { fetch } = event;
     if (!username) {
       return svelteError(400, 'Missing username');
     }
 
     const db = getDatabase();
-
-    const userStmt = db.prepare('SELECT photos_id, photos_asset_id FROM users WHERE id_user = ?');
-    const user = userStmt.get(username) as
-      | { photos_id?: string | null; photos_asset_id?: string | null }
-      | undefined;
-
+    const user = db
+      .prepare('SELECT photos_asset_id FROM users WHERE id_user = ?')
+      .get(username) as {
+      photos_asset_id: string | null;
+    } | null;
     if (!user) {
       return svelteError(404, 'User not found');
     }
-
-    const userId = user.photos_id;
-    if (!userId || typeof userId !== 'string') {
-      return svelteError(404, 'User has no photos_id');
-    }
-
-    // Prefer MiGallery's own square crop over Immich's tightly hard-coded person
-    // thumbnail. When the URL carries a ?v cache-buster (keyed on the asset id)
-    // the crop is immutable, so it can be cached for a long time; otherwise the
-    // URL is stable per user, so keep a moderate cache. On any crop failure
-    // (busy/notfound/config) fall through to the Immich proxy below.
     const assetId = user.photos_asset_id;
-    if (assetId && typeof assetId === 'string') {
-      const busted = event.url.searchParams.has('v');
-      // The crop is fully determined by (assetId, userId), so the asset id is a
-      // natural ETag. Busted URLs (?v=assetId) are immutable; unbusted URLs (e.g.
-      // the shared Avatar component) are stable, so they must revalidate to avoid
-      // serving a stale crop after a photo change.
-      // PRIVATE, never public: the route is session-gated, and a shared cache
-      // (the Cloudflare edge) would hand a face to anyone holding the URL.
-      const etag = `"${assetId}"`;
-      if (!busted && event.request.headers.get('if-none-match') === etag) {
-        return new Response(null, {
-          status: 304,
-          headers: { ETag: etag, 'Cache-Control': 'no-cache' },
-        });
-      }
-      const crop = await generateFaceCrop(assetId, userId, fetch);
-      if (crop.ok) {
-        return new Response(new Uint8Array(crop.buffer), {
-          headers: {
-            'Content-Type': 'image/webp',
-            ETag: etag,
-            'Cache-Control': busted ? 'private, max-age=15552000, immutable' : 'no-cache',
-          },
-        });
-      }
+    if (!assetId) {
+      return svelteError(404, 'User has no profile photo');
     }
 
-    if (!IMMICH_BASE_URL) {
-      return svelteError(500, 'IMMICH_BASE_URL not configured');
+    // The profile photo is cut around the member's OWN face in the photo they chose (lot A6): a
+    // photo that is no longer one of theirs - rejected, given to someone else, withdrawn - has no
+    // avatar any more, rather than a crop of whoever is in it.
+    const face = profileFace(db, username, assetId);
+    if (!face) {
+      log.info('avatar asked for a photo that is no longer one of the member photos');
+      return svelteError(404, 'User has no profile photo');
+    }
+    const box = loadFaceBox(getFaceDatabase(), face);
+    if (!box) {
+      log.warn('avatar: the member face has no box in the store');
+      return svelteError(404, 'User has no profile photo');
     }
 
-    const res = await fetch(`${IMMICH_BASE_URL}/api/people/${userId}/thumbnail`, {
-      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-      headers: {
-        'x-api-key': IMMICH_API_KEY,
-      },
-    });
-
-    if (!res.ok) {
-      return svelteError(res.status, 'Photo not found');
+    // The crop is fully determined by the face, so the asset id is a natural ETag. Busted URLs
+    // (?v=assetId) are immutable; unbusted URLs (e.g. the shared Avatar component) are stable, so
+    // they must revalidate to avoid serving a stale crop after a photo change.
+    // PRIVATE, never public: the route is session-gated, and a shared cache (the Cloudflare edge)
+    // would hand a face to anyone holding the URL.
+    const busted = event.url.searchParams.has('v');
+    const etag = `"${assetId}"`;
+    if (!busted && event.request.headers.get('if-none-match') === etag) {
+      return new Response(null, {
+        status: 304,
+        headers: { ETag: etag, 'Cache-Control': 'no-cache' },
+      });
     }
-
-    const blob = await res.blob();
-
-    return new Response(blob, {
-      headers: {
-        'Content-Type': res.headers.get('content-type') || 'image/jpeg',
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    const crop = await generateMemberFaceCrop(
+      username,
+      face,
+      box,
+      event.fetch,
+      () => profileFace(db, username, assetId) !== null
+    );
+    if (crop.ok) {
+      return new Response(new Uint8Array(crop.buffer), {
+        headers: {
+          'Content-Type': 'image/webp',
+          ETag: etag,
+          'Cache-Control': busted ? 'private, max-age=15552000, immutable' : 'no-cache',
+        },
+      });
+    }
+    log.warn('avatar crop failed', { reason: crop.reason });
+    if (crop.reason === 'busy') {
+      return new Response(null, { status: 503, headers: { 'Retry-After': '2' } });
+    }
+    return svelteError(crop.reason === 'notfound' ? 404 : 500, 'Photo not available');
   } catch (err: unknown) {
     if (isHttpError(err)) {
       throw err;

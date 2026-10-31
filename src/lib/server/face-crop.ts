@@ -1,32 +1,60 @@
+/**
+ * Square crops of ONE matched face (lot A6, docs/wiki/face-matching-option-c.md).
+ *
+ * A crop is cut from the Immich preview of the photo, centred on the box the face store holds for
+ * that face (`faces.db` `face_embeddings`: x1, y1, x2, y2 in the frame `img_w` x `img_h` the
+ * detector saw). Nothing here asks Immich where a face is: Immich's people and faces are deleted
+ * by lot A8, and the box the store holds is the one the match was decided on.
+ *
+ * WHOSE CROPS. A crop is cached in the directory of the MEMBER who holds the face
+ * (`data/cache/faces/members/<hash of the member id>/<asset>_<face>.webp`), and only for a member:
+ * the confirmation screen and the profile photo are the two readers, and both are served to that
+ * member alone (the avatar is the member's own choice of photo). So a withdrawal deletes the whole
+ * directory ({@link deleteMemberFaceCrops}) in the same path that deletes the matches, and an
+ * answer of "not me" deletes that one crop ({@link deleteMemberFaceCrop}).
+ *
+ * The older crops of A1, keyed by an Immich person (`data/cache/faces/<asset>_<person>.webp`), are
+ * no longer generated; {@link deletePersonFaceCrops} still removes them when a linked person is
+ * erased, until lot A8 deletes the persons themselves.
+ */
+
 import { env } from '#lib/server/env.ts';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import sharp from '#lib/server/sharp-config.ts';
 import { acquireSharp } from '#lib/server/sharp-limit.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { ensureCacheDir, readCacheFile, writeCacheFileAtomic } from '#lib/server/disk-cache.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import type { FaceKey } from '#lib/server/face-store.ts';
 
 const log = createLogger('face-crop');
 const CACHE_DIR = path.resolve('data/cache/faces');
+const MEMBERS_DIR = path.join(CACHE_DIR, 'members');
 
 // Square edge (px) of the generated face thumbnail. Fixed server-side so every
-// consumer (picker grid, avatar, external API) gets a consistent size instead of
+// consumer (confirmation screen, avatar) gets a consistent size instead of
 // relying on CSS.
 export const OUTPUT_SIZE = 320;
-// The face box should fill ~62% of the square, leaving some context/margin. This
-// is deliberately wider than Immich's tightly hard-coded person thumbnail.
+// The face box should fill ~62% of the square, leaving some context/margin.
 const FACE_TARGET = 0.62;
 const WEBP_QUALITY = 68;
 
-interface ImmichFace {
-  boundingBoxX1?: number;
-  boundingBoxY1?: number;
-  boundingBoxX2?: number;
-  boundingBoxY2?: number;
-  imageWidth?: number;
-  imageHeight?: number;
-  person?: { id?: string } | null;
+/** An asset id as it may appear in a cache file name: Immich ids are UUIDs. */
+const SAFE_ASSET_ID = /^[\w-]{1,64}$/;
+
+/**
+ * A face box in pixels of the image the detector saw (`imgW` x `imgH`), as the face store keeps
+ * it. Scaled to the preview actually downloaded before cropping, so the two frames may differ.
+ */
+export interface FaceBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  imgW: number;
+  imgH: number;
 }
 
 type Region = { left: number; top: number; width: number; height: number };
@@ -34,121 +62,115 @@ type Region = { left: number; top: number; width: number; height: number };
 type FetchFn = typeof fetch;
 
 /**
- * Result of generateFaceCrop. On failure, `reason` lets the caller pick an HTTP
- * response: 'busy' -> degrade to a proxied thumbnail; 'notfound' -> 404;
- * 'config' -> 500 (missing Immich env); 'error' -> 500 (unexpected).
+ * Result of a crop. On failure, `reason` lets the caller pick an HTTP response: 'busy' -> 503 (the
+ * Sharp pool is full); 'notfound' -> 404; 'config' -> 500 (missing Immich env); 'error' -> 500.
  */
 export type FaceCropResult =
   | { ok: true; buffer: Buffer }
   | { ok: false; reason: 'busy' | 'notfound' | 'config' | 'error' };
 
 /**
- * Generate (or read from disk cache) a square WebP cropped and centered on the
- * given person's face in an Immich asset. Immich stores no pre-cropped face
- * images: it only exposes face bounding boxes (via /api/faces) plus the full
- * image, so we crop server-side with Sharp and cache the result on disk. When no
- * matching face is found the whole image is center-cropped instead. Pass
- * "center" as personId to force a plain center crop.
- *
- * Shared by /api/faces (picker grid) and /api/users/[username]/avatar so both
- * serve the exact same crop and hit the same cache.
+ * The cache directory of one member. Named by a hash of the id so an id that is not a safe file
+ * name (a dot, a slash) can never escape the cache root.
  */
-export async function generateFaceCrop(
-  assetId: string,
-  personId: string,
-  fetchFn: FetchFn
+export function memberCropDir(userId: string): string {
+  const digest = createHash('sha256').update(userId).digest('hex').slice(0, 32);
+  return path.join(MEMBERS_DIR, digest);
+}
+
+function memberCropFile(userId: string, face: FaceKey): string {
+  return path.join(memberCropDir(userId), `${face.assetId}_${face.faceIndex}.webp`);
+}
+
+/**
+ * Generate (or read from the member's cache) a square WebP of one face, centred on its stored
+ * box. The CALLER has checked that `userId` holds that face; `stillHeld` is asked again after a
+ * fresh crop is written, and a face that left the member meanwhile (a withdrawal, an answer, a
+ * re-decision) has its file deleted at once, so a crop never outlives the match it was made for in
+ * the member's directory because of a race.
+ */
+export async function generateMemberFaceCrop(
+  userId: string,
+  face: FaceKey,
+  box: FaceBox,
+  fetchFn: FetchFn,
+  stillHeld: () => boolean
 ): Promise<FaceCropResult> {
+  log.debug('member face crop asked', { faceIndex: face.faceIndex });
   const apiKey = env.IMMICH_API_KEY;
   const baseUrl = env.IMMICH_BASE_URL?.replace(/\/$/, '');
   if (!apiKey || !baseUrl) {
+    log.error('face crop asked while Immich is not configured');
     return { ok: false, reason: 'config' };
   }
+  if (!SAFE_ASSET_ID.test(face.assetId) || !Number.isInteger(face.faceIndex)) {
+    log.warn('face crop refused: not a usable face key');
+    return { ok: false, reason: 'notfound' };
+  }
 
-  // One square per (asset, person): a single photo yields a different crop per
-  // detected face.
-  const cacheFile = path.join(CACHE_DIR, `${assetId}_${personId}.webp`);
+  const cacheFile = memberCropFile(userId, face);
   try {
     const cached = readCacheFile(cacheFile);
     if (cached) {
       return { ok: true, buffer: cached };
     }
   } catch (e) {
-    log.warn('Face cache read failed, regenerating', e);
-  }
-
-  // Look up the face box BEFORE taking a Sharp slot: it is a cheap JSON call.
-  let face: ImmichFace | null = null;
-  if (personId && personId !== 'center') {
-    try {
-      const facesRes = await fetchFn(`${baseUrl}/api/faces?id=${assetId}`, {
-        signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-        headers: { 'x-api-key': apiKey, accept: 'application/json' },
-      });
-      if (facesRes.ok) {
-        const faces = (await facesRes.json()) as ImmichFace[];
-        if (Array.isArray(faces)) {
-          face = faces.find((f) => f.person?.id === personId) ?? null;
-        }
-      }
-    } catch (e) {
-      log.warn('face lookup failed, will center-crop', e);
-    }
+    log.warn('face crop cache read failed, regenerating', (e as Error).message);
   }
 
   // Acquire the Sharp slot BEFORE downloading the source so concurrent requests
   // do not each materialize a preview buffer in native RAM (see sharp-limit).
   const release = await acquireSharp();
   if (!release) {
+    log.warn('face crop refused: the Sharp pool is full');
     return { ok: false, reason: 'busy' };
   }
 
   try {
-    // Source = "preview" thumbnail (a few hundred KB), never the full-resolution
-    // original: enough pixels for a 320px square without a large native buffer.
-    // Deadline as everywhere else, and it counts double here: the Sharp slot is
-    // already held, so a hung download starves the pool rather than one request.
-    const previewUrl = `${baseUrl}/api/assets/${assetId}/thumbnail?size=preview`;
-    const previewRes = await fetchFn(previewUrl, {
-      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-      headers: { 'x-api-key': apiKey },
-    });
+    // Source = "preview" thumbnail (a few hundred KB), never the full-resolution original. The
+    // Sharp slot is already held, so a hung download would starve the pool: same deadline as
+    // every outbound call.
+    const previewRes = await fetchFn(
+      `${baseUrl}/api/assets/${encodeURIComponent(face.assetId)}/thumbnail?size=preview`,
+      { signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS), headers: { 'x-api-key': apiKey } }
+    );
     if (!previewRes.ok) {
+      log.warn('face crop: the preview was not served', { status: previewRes.status });
+      await previewRes.body?.cancel().catch(() => undefined);
       return { ok: false, reason: 'notfound' };
     }
 
-    const srcBuf = Buffer.from(await previewRes.arrayBuffer());
-    const image = sharp(srcBuf);
+    const image = sharp(Buffer.from(await previewRes.arrayBuffer()));
     const meta = await image.metadata();
     const sw = meta.width ?? 0;
     const sh = meta.height ?? 0;
     if (!sw || !sh) {
+      log.error('face crop: the preview has no dimensions');
       return { ok: false, reason: 'error' };
     }
 
-    const region = computeSquare(face, sw, sh);
     const processed = await image
-      .extract(region)
+      .extract(computeSquare(box, sw, sh))
       .resize(OUTPUT_SIZE, OUTPUT_SIZE, { fit: 'cover' })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();
 
     try {
-      // `ensureCacheDir` HERE, not once at import. `mkdir -p` is a no-op when the directory is
-      // already there, so the cost is nothing, and it is the only version that survives the
-      // directory going away under a running process - a volume remount, a cleanup job, a
-      // `data/` wiped by hand. Doing it at import instead means the write throws for the rest of
-      // the process's life and every request re-downloads and re-processes an image that was
-      // already computed, with nothing but a log line to say so. `media-anomalies.ts` was already
-      // written this way; these three were not. Found while writing `tests/face-crop.test.ts`.
-      ensureCacheDir(CACHE_DIR);
+      // `ensureCacheDir` HERE, not once at import: it survives the directory going away under a
+      // running process (a withdrawal removes it on purpose).
+      ensureCacheDir(memberCropDir(userId));
       writeCacheFileAtomic(cacheFile, processed);
+      if (!stillHeld()) {
+        log.info('face crop written for a face the member no longer holds; deleted');
+        deleteMemberFaceCrop(userId, face);
+      }
     } catch (e) {
-      log.error('Face cache write failed', e);
+      log.error('face crop cache write failed', (e as Error).message);
     }
 
     return { ok: true, buffer: processed };
   } catch (e) {
-    log.error('Error generating face crop:', e);
+    log.error('error generating a face crop', (e as Error).message);
     return { ok: false, reason: 'error' };
   } finally {
     release();
@@ -156,43 +178,34 @@ export async function generateFaceCrop(
 }
 
 /**
- * Compute an integer square crop region (for sharp.extract) centered on the face
- * box, scaled from the face-detection reference frame (face.imageWidth/Height)
- * to the actual source pixels. Falls back to a centered square of the whole
- * image when no usable face box is available.
+ * An integer square crop region (for sharp.extract) centred on the face box, scaled from the
+ * detector's frame to the actual source pixels, so the face fills about {@link FACE_TARGET} of
+ * the square, then clamped so the square never leaves the image. A box with no usable frame
+ * centre-crops the whole image (exported for tests).
  */
-function computeSquare(face: ImmichFace | null, sw: number, sh: number): Region {
+export function computeSquare(box: FaceBox, sw: number, sh: number): Region {
   const maxSquare = Math.min(sw, sh);
-
-  if (
-    !face ||
-    !face.imageWidth ||
-    !face.imageHeight ||
-    !face.boundingBoxX2 ||
-    !face.boundingBoxY2
-  ) {
-    const side = maxSquare;
+  if (!(box.imgW > 0) || !(box.imgH > 0) || !(box.x2 > box.x1) || !(box.y2 > box.y1)) {
+    log.warn('face box unusable; centre crop');
     return {
-      left: Math.round((sw - side) / 2),
-      top: Math.round((sh - side) / 2),
-      width: side,
-      height: side,
+      left: Math.round((sw - maxSquare) / 2),
+      top: Math.round((sh - maxSquare) / 2),
+      width: maxSquare,
+      height: maxSquare,
     };
   }
 
-  const sx = sw / face.imageWidth;
-  const sy = sh / face.imageHeight;
-  const x1 = (face.boundingBoxX1 ?? 0) * sx;
-  const y1 = (face.boundingBoxY1 ?? 0) * sy;
-  const x2 = face.boundingBoxX2 * sx;
-  const y2 = face.boundingBoxY2 * sy;
+  const sx = sw / box.imgW;
+  const sy = sh / box.imgH;
+  const x1 = box.x1 * sx;
+  const y1 = box.y1 * sy;
+  const x2 = box.x2 * sx;
+  const y2 = box.y2 * sy;
 
   const cx = (x1 + x2) / 2;
   const cy = (y1 + y2) / 2;
   const faceSize = Math.max(x2 - x1, y2 - y1);
 
-  // Enlarge so the face fills ~FACE_TARGET of the square, then clamp so the
-  // square never exceeds the image and stays fully inside it.
   let side = Math.round(Math.min(faceSize / FACE_TARGET, maxSquare));
   side = Math.max(1, side);
 
@@ -205,11 +218,46 @@ function computeSquare(face: ImmichFace | null, sw: number, sh: number): Region 
 }
 
 /**
- * Delete every cached crop of Immich person `personId` (`<assetId>_<personId>.webp`), when that
- * person's face data is erased (src/lib/server/face-erasure.ts). Plain center crops are not
- * person-specific and stay. NEVER throws: it runs after a commit and in a worker, where an EPERM or
- * EBUSY on one file must neither undo a withdrawal nor stop the rest - each failure is logged.
- * Returns how many files went; a missing cache directory is zero.
+ * Delete every crop cached for member `userId` (their whole directory): the withdrawal and the
+ * account deletion call it in the path that deletes their matches (face-erasure.ts). NEVER throws
+ * - it runs after a commit, where a file error must not turn a completed withdrawal into an error -
+ * and logs every failure. Returns whether a directory was there.
+ */
+export function deleteMemberFaceCrops(userId: string): boolean {
+  const dir = memberCropDir(userId);
+  try {
+    const existed = fs.existsSync(dir);
+    fs.rmSync(dir, { recursive: true, force: true });
+    log.info('member face crops deleted', { existed });
+    return existed;
+  } catch (e) {
+    log.error('member face crops could not be deleted', (e as Error).message);
+    return false;
+  }
+}
+
+/** Delete one cached crop of `userId` (an answer of "not me"). Never throws; logs a failure. */
+export function deleteMemberFaceCrop(userId: string, face: FaceKey): void {
+  if (!SAFE_ASSET_ID.test(face.assetId)) {
+    log.warn('member face crop delete skipped: not a usable face key');
+    return;
+  }
+  try {
+    fs.unlinkSync(memberCropFile(userId, face));
+    log.debug('member face crop deleted');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      log.error('member face crop could not be deleted', (e as Error).message);
+    }
+  }
+}
+
+/**
+ * Delete every cached crop of Immich person `personId` (`<assetId>_<personId>.webp`, the A1
+ * layout), when that person's face data is erased (src/lib/server/face-erasure.ts). NEVER throws:
+ * it runs after a commit and in a worker, where an EPERM or EBUSY on one file must neither undo a
+ * withdrawal nor stop the rest - each failure is logged. Returns how many files went; a missing
+ * cache directory is zero.
  */
 export function deletePersonFaceCrops(personId: string): number {
   const suffix = `_${personId}.webp`;
