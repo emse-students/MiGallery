@@ -21,7 +21,8 @@ describe('sign-in', () => {
 
     expect(response.status).toBe(302);
     const location = new URL(response.headers.get('location') ?? '');
-    expect(location.origin).toBe('https://idp.test.invalid');
+    // The run's fake provider (scripts/test-with-server.mjs).
+    expect(location.origin).toBe(new URL(process.env.MICONNECT_ISSUER ?? '').origin);
     expect(location.searchParams.get('redirect_uri')).toBe(
       `https://${PUBLIC_HOST}/api/auth/callback`
     );

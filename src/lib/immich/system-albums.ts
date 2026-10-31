@@ -1,4 +1,5 @@
 import { env } from '#lib/server/env.ts';
+import { requireImmichBaseUrl } from '#lib/immich/not-configured.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import type { ImmichAlbum } from '#lib/types/api.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
@@ -11,9 +12,6 @@ const albumIdCache: Record<string, { id: string; updatedAt: number }> = {};
 const ALBUM_CACHE_TTL = 60 * 1000; // 1 minute
 
 async function fetchAlbums(fetchFn: typeof fetch): Promise<ImmichAlbum[]> {
-  if (!IMMICH_BASE_URL) {
-    throw new Error('IMMICH_BASE_URL not configured');
-  }
   const res = await fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
     signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
     headers: {
@@ -27,10 +25,17 @@ async function fetchAlbums(fetchFn: typeof fetch): Promise<ImmichAlbum[]> {
   return (await res.json()) as ImmichAlbum[];
 }
 
+/**
+ * The id of the system album `albumName`, created in Immich when missing (cached a minute).
+ * Throws `ImmichNotConfiguredError` when Immich is not configured (said once, at info), and logs
+ * any other failure as an error before rethrowing it.
+ */
 export async function getOrCreateSystemAlbum(
   fetchFn: typeof fetch,
   albumName: string
 ): Promise<string> {
+  // Immich not configured is a state, not a failure: typed, said once at info, never logged here.
+  requireImmichBaseUrl();
   if (albumIdCache[albumName] && Date.now() - albumIdCache[albumName].updatedAt < ALBUM_CACHE_TTL) {
     return albumIdCache[albumName].id;
   }

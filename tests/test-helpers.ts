@@ -534,7 +534,9 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
     // Read should accept if requiredScope = 'public' or 'read'
     const shouldAccept = requiredScope === 'public' || requiredScope === 'read';
     result.read.passed = shouldAccept
-      ? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
+      ? (response.status >= 200 && response.status < 300) ||
+        response.status === 500 ||
+        response.status === 503 // Tolerate 500, and 503 (Immich not configured), in CI
       : response.status === 401 || response.status === 403;
   } catch {
     result.read.status = 0;
@@ -556,7 +558,9 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
     const shouldAccept =
       requiredScope === 'public' || requiredScope === 'read' || requiredScope === 'write';
     result.write.passed = shouldAccept
-      ? (response.status >= 200 && response.status < 300) || response.status === 500 // Tolerate 500 in CI
+      ? (response.status >= 200 && response.status < 300) ||
+        response.status === 500 ||
+        response.status === 503 // Tolerate 500, and 503 (Immich not configured), in CI
       : response.status === 401 || response.status === 403;
   } catch {
     result.write.status = 0;
@@ -576,7 +580,9 @@ export async function testPermissions(config: PermissionTestConfig): Promise<Per
     result.admin.status = response.status;
     // Admin should always accept (unless the endpoint doesn't exist = 404)
     result.admin.passed =
-      (response.status >= 200 && response.status < 300) || response.status === 500; // Tolerate 500 in CI
+      (response.status >= 200 && response.status < 300) ||
+      response.status === 500 ||
+      response.status === 503; // Tolerate 500, and 503 (Immich not configured), in CI
   } catch {
     result.admin.status = 0;
     result.admin.passed = false;

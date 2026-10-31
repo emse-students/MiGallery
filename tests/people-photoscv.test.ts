@@ -153,7 +153,7 @@ describe('People Album API - GET /api/people/album', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
 
     if (response.status === 200) {
       const data = (await response.json()) as {
@@ -183,7 +183,7 @@ describe('People Album API - GET /api/people/album/info', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
 
     if (response.status === 200) {
       const info = (await response.json()) as { id: string };
@@ -279,7 +279,7 @@ describe('People Album API - PUT /api/people/album/assets (bulk)', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 
@@ -295,7 +295,7 @@ describe('People Album API - DELETE /api/people/album/assets (bulk)', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 

@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError } from '@sveltejs/kit';
 import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { requireScope } from '#lib/server/permissions.ts';
@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { logRouteFailure, readFormBody } from '#lib/server/route-errors.ts';
 
 const log = createLogger('admin-db-import');
 export const POST: RequestHandler = async (event) => {
@@ -15,7 +16,7 @@ export const POST: RequestHandler = async (event) => {
   const { request } = event;
 
   try {
-    const formData = await request.formData();
+    const formData = await readFormBody(request);
     const file = formData.get('file') as File | null;
 
     if (!file) {
@@ -52,8 +53,12 @@ export const POST: RequestHandler = async (event) => {
       backup: BACKUP_PATH,
     });
   } catch (e: unknown) {
+    logRouteFailure(log, 'POST /api/admin/db-import', e);
+    if (isHttpError(e)) {
+      throw e;
+    }
+    // The file was accepted and could not be written: the server's fault, not the client's.
     const err = ensureError(e);
-    log.error('Error importing database:', err);
-    return error(400, 'Invalid file. The database could not be imported.');
+    return error(500, `The database could not be imported: ${err.message}`);
   }
 };
