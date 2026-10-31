@@ -8,6 +8,7 @@ import {
 } from '#lib/session.ts';
 import { startBackupScheduler } from '#lib/server/backup.ts';
 import { startFaceErasureWorker } from '#lib/server/face-erasure.ts';
+import { startFaceIngestWorker } from '#lib/server/face-ingest.ts';
 import { installShutdownListener } from '#lib/server/shutdown.ts';
 
 import { startLogRetention } from '#lib/server/logs.ts';
@@ -22,6 +23,8 @@ installShutdownListener();
 startBackupScheduler();
 // Drive the Immich half of face erasures that a restart or an Immich outage left pending
 startFaceErasureWorker();
+// Embed new photos into the face store and decide their faces (off until the store is configured)
+startFaceIngestWorker();
 
 // Keep the audit log to its retention (90 days)
 startLogRetention();

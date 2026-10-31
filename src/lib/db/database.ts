@@ -19,7 +19,7 @@ type Statement = {
   run: (...params: unknown[]) => { changes: number; lastInsertRowid: number };
 };
 
-type DatabaseInstance = {
+export type DatabaseInstance = {
   prepare: (sql: string) => Statement;
   exec: (sql: string) => void;
   run?: (sql: string) => void;
@@ -103,10 +103,40 @@ function guardStatement(sql: string, stmt: Statement): Statement {
  * Shared by getDatabase() (first-init) and the admin repair endpoint so the
  * two never drift apart.
  */
+/**
+ * Lot A1 created `face_embeddings` in this file; since lot A3 it lives in the face store's own
+ * file (face-database.ts), which no backup copies. The A1 table was never written, so it is
+ * dropped when EMPTY. A non-empty one is never dropped here: that would delete data this code did
+ * not write, so it is reported, every start, until someone looks.
+ */
+function moveFaceEmbeddingsOut(dbInstance: DatabaseInstance): void {
+  const exists = dbInstance
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'face_embeddings'")
+    .get();
+  if (!exists) {
+    return;
+  }
+  const rows = (
+    dbInstance.prepare('SELECT COUNT(*) AS n FROM face_embeddings').get() as { n: number }
+  ).n;
+  if (rows > 0) {
+    log.error(
+      'face_embeddings in migallery.db holds rows; it belongs in faces.db, left untouched',
+      {
+        rows,
+      }
+    );
+    return;
+  }
+  dbInstance.exec('DROP TABLE face_embeddings');
+  log.info('the empty A1 face_embeddings table left migallery.db for faces.db');
+}
+
 export function ensureSchema(dbInstance: DatabaseInstance): void {
   const schemaPath = join(process.cwd(), 'src/lib/db/schema.sql');
   const schema = readFileSync(schemaPath, 'utf-8');
   dbInstance.exec(schema);
+  moveFaceEmbeddingsOut(dbInstance);
 
   try {
     const cols = dbInstance
@@ -356,47 +386,53 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
   }
 }
 
+/**
+ * Open a SQLite file the way every database of this server is opened: the bind guard on every
+ * statement, foreign keys on, and `secure_delete` on so a deleted row is overwritten in the file
+ * (a withdrawn member's face data must not linger in free pages). Used for `migallery.db` and for
+ * the face store's own file (face-database.ts).
+ */
+export function openSqliteFile(path: string): DatabaseInstance {
+  const dir = dirname(path);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  // `createRequire` rather than a static import: `bun:sqlite` is a runtime builtin with no file
+  // on disk, and a static import would make vite try to resolve and bundle it at build time.
+  // Requiring it keeps the resolution where it belongs - in the runtime that provides it.
+  const require = createRequire(import.meta.url);
+  const { Database } = require('bun:sqlite') as {
+    Database: new (path: string) => DatabaseInstance;
+  };
+  const driver: DatabaseInstance = new Database(path) as DatabaseInstance;
+  // Every statement in the app is prepared through here, so the bind guard has no way around it.
+  const instance: DatabaseInstance = {
+    ...driver,
+    prepare: (sql: string) => guardStatement(sql, driver.prepare(sql)),
+    exec: (sql: string) => driver.exec(sql),
+    close: (throwOnError?: boolean) => driver.close?.(throwOnError ?? true),
+  };
+
+  try {
+    instance.exec('PRAGMA foreign_keys = ON');
+  } catch (e) {
+    // The cascade that erases face_references (sealed templates) on an account deletion depends on it.
+    log.error('foreign_keys could not be enabled; cascades will NOT run', (e as Error).message);
+  }
+
+  try {
+    instance.exec('PRAGMA secure_delete = ON');
+  } catch (e) {
+    log.error('secure_delete could not be enabled', (e as Error).message);
+  }
+  return instance;
+}
+
 export function getDatabase(): DatabaseInstance {
   if (!db) {
-    const dir = dirname(DB_PATH);
-
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-
-    // `createRequire` rather than a static import: `bun:sqlite` is a runtime builtin with no file
-    // on disk, and a static import would make vite try to resolve and bundle it at build time.
-    // Requiring it keeps the resolution where it belongs - in the runtime that provides it.
-    const require = createRequire(import.meta.url);
-    const { Database } = require('bun:sqlite') as {
-      Database: new (path: string) => DatabaseInstance;
-    };
-    const driver: DatabaseInstance = new Database(DB_PATH) as DatabaseInstance;
-    // Every statement in the app is prepared through here, so the bind guard has no way around it.
-    const dbInstance: DatabaseInstance = {
-      ...driver,
-      prepare: (sql: string) => guardStatement(sql, driver.prepare(sql)),
-      exec: (sql: string) => driver.exec(sql),
-      close: (throwOnError?: boolean) => driver.close?.(throwOnError ?? true),
-    };
-
-    try {
-      dbInstance.exec('PRAGMA foreign_keys = ON');
-    } catch (e) {
-      // The cascade that erases face_references (sealed templates) on an account deletion depends on it.
-      log.error('foreign_keys could not be enabled; cascades will NOT run', (e as Error).message);
-    }
-
-    // Deleted pages are overwritten with zeros: a withdrawn member's face data must not linger
-    // in the file's free pages (face_references, face_embeddings; docs/wiki/face-matching-option-c.md).
-    try {
-      dbInstance.exec('PRAGMA secure_delete = ON');
-    } catch (e) {
-      log.error('secure_delete could not be enabled', (e as Error).message);
-    }
-
+    const dbInstance = openSqliteFile(DB_PATH);
     ensureSchema(dbInstance);
-
     db = dbInstance;
   }
 

@@ -134,11 +134,12 @@ jobs:
           MICONNECT_CLIENT_ID: ${{ secrets.MICONNECT_CLIENT_ID }}
           MICONNECT_CLIENT_SECRET: ${{ secrets.MICONNECT_CLIENT_SECRET }}
           AVATAR_SIGNING_KEY: ${{ secrets.AVATAR_SIGNING_KEY }}
+          FACE_STORE_KEY: ${{ secrets.FACE_STORE_KEY }}
           OFFSITE_HOST: ${{ secrets.OFFSITE_HOST }}
           IMMICH_BACKUP_DIR: ${{ secrets.IMMICH_BACKUP_DIR }}
         run: |
           for v in DEPLOY_DIR IMMICH_API_KEY IMMICH_BASE_URL MICONNECT_CLIENT_ID MICONNECT_CLIENT_SECRET \
-            AVATAR_SIGNING_KEY OFFSITE_HOST IMMICH_BACKUP_DIR; do
+            AVATAR_SIGNING_KEY FACE_STORE_KEY OFFSITE_HOST IMMICH_BACKUP_DIR; do
             if [ -z "${!v}" ]; then echo "::error::Secret GitHub manquant: $v"; exit 1; fi
             # One KEY=VALUE per line: a newline or CR inside a value would write a second key.
             case "${!v}" in
@@ -153,6 +154,7 @@ jobs:
             printf 'MICONNECT_CLIENT_ID=%s\n' "$MICONNECT_CLIENT_ID"
             printf 'MICONNECT_CLIENT_SECRET=%s\n' "$MICONNECT_CLIENT_SECRET"
             printf 'AVATAR_SIGNING_KEY=%s\n' "$AVATAR_SIGNING_KEY"
+            printf 'FACE_STORE_KEY=%s\n' "$FACE_STORE_KEY"
           } > "$DEPLOY_DIR/.env"
           printf 'OFFSITE_HOST=%s\nIMMICH_BACKUP_DIR=%s\n' "$OFFSITE_HOST" "$IMMICH_BACKUP_DIR" \
             > "$DEPLOY_DIR/scripts/backup.env"
@@ -170,6 +172,43 @@ jobs:
 
       - name: Pull image
         run: $COMPOSE pull
+
+      # The face model network holds TWO containers only: MiGallery and Immich's model service
+      # (docker-compose.prod.yml), and it is INTERNAL (no route out). Created here when missing,
+      # so a fresh host needs no hand step; the model service is attached by Immich's own compose,
+      # and a deploy without it would leave the face feature failing every pass - so it stops
+      # here, saying what to do.
+      #
+      # Membership is read from EVERY container, stopped ones included (`docker ps -a`, and each
+      # container's own network settings, which a stopped container keeps), never from the
+      # network's `.Containers`, which lists running endpoints only: a stopped model service must
+      # not refuse the deploy, and a stopped foreign container must not pass. MiGallery's own
+      # containers are named by compose (`ps -aq migallery`), never by a hardcoded name.
+      - name: Face model network
+        run: |
+          net=migallery-face-ml
+          docker network inspect "$net" >/dev/null 2>&1 || docker network create --internal "$net"
+          if [ "$(docker network inspect -f '{{.Internal}}' "$net")" != "true" ]; then
+            echo "::error::$net is not an internal network: recreate it with --internal (docs/MIGRATION.md)"
+            exit 1
+          fi
+          ours=" $($COMPOSE ps -aq migallery | xargs -r docker inspect -f '{{.Id}}' | tr '\n' ' ') "
+          ml=no
+          for id in $(docker ps -aq --no-trunc); do
+            nets=" $(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$id") "
+            case "$nets" in *" $net "*) ;; *) continue ;; esac
+            name=$(docker inspect -f '{{.Name}}' "$id")
+            name=${name#/}
+            if [ "$name" = immich_machine_learning ]; then ml=yes; continue; fi
+            case "$ours" in *" $id "*) continue ;; esac
+            echo "::error::$name is on $net, which must hold MiGallery and the face model only"
+            exit 1
+          done
+          if [ "$ml" != yes ]; then
+            echo "::error::immich_machine_learning is not on $net: add the network to the machine-learning service of Immich's compose (docs/MIGRATION.md)"
+            exit 1
+          fi
+          echo "face model network: internal, the model service attached, no other member"
 
       - name: Deploy
         run: $COMPOSE up -d --remove-orphans

@@ -216,7 +216,100 @@ table has never held a row (no code path writes it), so its guarded step drops i
 | `src/lib/face-match.ts`        | `decideBand` and `decideFace`, pure: nearest member only; `auto` downgraded on a runner-up closer than the margin (strictly) or on fewer than 3 references; a member who REJECTED the face is never offered it but still counts as the runner-up, so a face one member rejected at 0.20 never goes `auto` to the next at 0.40; a member with a corrupt reference skipped and reported; a face that is not a usable vector matches nobody and is reported ONCE, as the face's fault. Every path that decides a face calls `decideFace`.                                                                                                                                                                                                         |
 | `src/lib/server/face-store.ts` | the key from `FACE_STORE_KEY`; every member's references opened (a member whose blob fails to open is not matched at all, never on a partial set); `scanFaceStore`, which streams `face_embeddings` 2,000 rows at a time and yields to the event loop between chunks (`bun:sqlite` is synchronous: a 6.5 s scan read in one go would freeze every request); `loadFaceEmbeddings` for chosen faces. The float16 decoder reads a 65,536-entry table (256 KB) built once from `halfToFloat`: measured on 50,000 vectors (2026-10-31, a development machine), 66-135 ms against 597-816 ms.                                                                                                                                                        |
 
-Nothing calls this code from a route or a worker yet; A3 and A5 are its first callers.
+Its callers are the ingestion worker (A3), the match engine (A4) and enrolment (A5).
+
+- **The margin's floating-point edge.** The test is `runnerUp - distance < 0.05` on doubles. At a
+  gap of exactly 0.05 the subtraction may round either way, by about 1e-17: below, the face is
+  downgraded to `suggested` (the member is asked, the safe side); above, it stays `auto` on a gap
+  that differs from the margin by far less than the float16 store's own precision (about 1e-3).
+  No decision rests on that last digit.
+- **A member whose reference fails to open is dropped from the whole decision**, as the nearest
+  AND as the runner-up: a face that member would have made ambiguous can then go `auto` to the
+  next one. The failure is reported (`invalidReference`, one error line per member) and is a
+  fault of the store or its key, to be fixed there, never decided around.
+
+### A3 - ingestion into `faces.db`
+
+| File                            | Role                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/db/face-database.ts`   | `data/faces.db` (or `FACE_DATABASE_PATH`), opened like `migallery.db` (`openSqliteFile`: bind guard, foreign keys, `secure_delete`) plus WAL. `face_embeddings` (score NULL for a seeded face), `face_assets` (`pending` / `done` / `failed`, attempts, last error), `face_store_state` (`seeded_at`). No backup copies this file.                              |
+| `src/lib/server/face-ingest.ts` | discovery (`createdAfter` the last listing, minus an hour), the daily full reconciliation (every asset, trashed included; an asset's faces go once it is missing from TWO consecutive complete listings naming at least half of what is known), a pass (the Immich preview through the model, faces sealed, decided, THEN the asset `done`), the hourly report. |
+
+- **Every failure is classified where it is thrown.** A service down - a refusal, a transport
+  failure, a timeout, a body that cannot be read or parsed, from Immich or the model - stops the
+  pass and blames no asset (`ml_unavailable`, `immich_unavailable`). An answer that cannot be
+  trusted (an all-zero vector included), or any other error on one asset, counts one attempt and
+  the pass goes on; after 5 the asset is `failed`. A tick that fails otherwise reports `error`.
+- **A missing preview is no attempt.** Immich makes previews in a queue that lags behind uploads,
+  so a 404/400 on the preview leaves the asset pending, counts nothing and only moves its
+  `updated_at`; a pass takes the least recently tried assets first, so such assets never take a
+  whole pass. One that never gets a preview shows in the hourly report as pending for over a day,
+  and an asset DELETED from Immich goes through the reconciliation, never on this status.
+- **`done` means decided**: an asset is marked `done` after its faces are written AND decided; a
+  decision that throws leaves it pending, written and decided again by the next pass.
+- **A face is decided on the vector the store holds** (the float16 round-trip), so ingestion and
+  any later rescan give the same distance.
+- **Deletion needs two witnesses, at least 20 hours apart.** One complete listing that misses an
+  asset only marks it (`absent_listings`); a listing that names it again clears the mark; its
+  faces go when two consecutive COUNTING listings miss it, then the WAL of `faces.db` is
+  checkpointed (TRUNCATE) so the deleted vectors do not linger there. A listing counts absences
+  only when `face_store_state.last_counted_listing_at` is at least 20 hours old - durable state,
+  not the process's memory: every process start lists in full, so two deploys or a crash loop
+  would otherwise be two witnesses within minutes. A listing that does not count still adds the
+  new assets and clears the marks of what it names. A listing that hit its page cap, or names
+  under half of what is known, counts nothing.
+- **What the listing covers, checked on the live server (read-only, 2026-10-31)**: the library
+  has ONE owner, the key's; `search/metadata` with `withDeleted` lists every asset, the trashed
+  ones included (172,614 + 3). Items in the LOCKED folder need an elevated session and are not
+  listed (0 today): a locked asset is treated as gone and its faces go, which matches what locking
+  means. A second Immich user's assets would never be listed, so never ingested and never removed.
+- **The report** (hourly, `face-ingest`): counts per state, the oldest pending age, the failed
+  grouped by the kind of their last error, the pending ones already tried grouped the same way
+  (`no_preview` names an asset Immich never made a preview for, which no attempt count would), and
+  the last stop cause. An error when an asset failed
+  or an asset has waited more than a day. An unseeded store is said at info: it is the planned
+  state until A7.
+- **Nothing is ingested before the seed** (`seeded_at`): ingesting first would re-embed the whole
+  archive, about 22 hours of the model service, for vectors Immich already has.
+- **The worker starts only when `FACE_STORE_KEY` and `FACE_ML_URL` are set**; a malformed key turns
+  the feature off with one error and never stops the gallery. It ticks every 10 minutes. In
+  production MiGallery reaches `http://immich-machine-learning:3003` over `migallery-face-ml`, an
+  internal network holding those two containers only (owner, 2026-10-31: _"Réseau dédié à deux"_;
+  what that exposes is in [data-model](data-model.md); the host side in `docs/MIGRATION.md`).
+- The A1 table `face_embeddings` in `migallery.db` (never written) is dropped at start when empty;
+  a non-empty one is left and reported.
+
+### A4 - the match engine
+
+`src/lib/server/face-engine.ts` is the only writer of `face_matches` (in `migallery.db`: it
+concerns members, and is backed up). Every event ends in `recordDecisions`, which re-decides each
+face it is given from scratch: a CONFIRMED face is kept; a member who REJECTED it is excluded; the
+holder row is replaced by `decideFace` among the rest. So the result never depends on the order of
+events.
+
+| Event                          | What the engine does                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| new photo                      | `matchNewFaces`: its faces against every member                                                                                       |
+| enrolment, a reference changes | `rematchMember`: the store scanned for faces within 0.62 of the member, plus the faces they held, all re-decided against every member |
+| a member answers               | `answerMatch` (`confirm` / `reject` on a face they hold), then the face re-decided (it may go to the next member)                     |
+| withdrawal, account deletion   | every row of the member deleted IN the erasure transaction (`eraseFaceMatches`); the faces they held or rejected re-decided after it  |
+| asset gone, asset re-embedded  | `removeAssetFaces`: its embeddings and every row naming them                                                                          |
+| seed, a change of thresholds   | `rematchAll`                                                                                                                          |
+
+Every mutation runs inside `runExclusive` (one at a time: a scan yields between chunks), and each
+mutating function CHECKS it holds the lock and throws otherwise. The one write outside it is a
+member's erasure, which must be synchronous; so each batch of decisions re-reads the references
+when they changed since the decision began (a fingerprint of each reference's member, id AND seal
+nonce: ids are reused after a withdrawal, a nonce never is), and a withdrawal that lands during a
+scan is never undone by its result.
+
+A withdrawal re-decides only the faces that have a row of the member: those they HELD, and those
+they REJECTED (that exclusion goes with them). A face where they were only the RUNNER-UP has no
+row of theirs and keeps its holder's decision as it was: if their closeness had downgraded it to
+`suggested`, it stays `suggested` (the holder is asked, the safe side) until the next re-decision
+of that face (the holder's enrolment changing, the face re-embedded, or a `rematchAll`). Scans decide in flushes of 2,000 faces. A
+member who keeps a face keeps its `created_at`. A face that is not a usable vector is reported
+once, as the face's fault.
 
 ### The decided numbers
 
