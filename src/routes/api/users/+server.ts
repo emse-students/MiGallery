@@ -11,6 +11,7 @@ import { inTransaction } from '#lib/server/face-erasure.ts';
 import { applyFaceLink } from '#lib/server/face-link.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { isUniqueViolation } from '#lib/server/route-errors.ts';
 
 const log = createLogger('users');
 
@@ -118,17 +119,19 @@ export const POST: RequestHandler = async (event) => {
     return json({ success: true, created, changes: info.changes });
   } catch (e) {
     const err = e as Error;
-    log.error('POST /api/users error', err);
+    // A duplicate is the client's (409, a warning); anything else is the server's (500, an error).
+    if (isUniqueViolation(e)) {
+      log.warn('POST /api/users: refused 409', { message: err.message });
+    } else {
+      log.error('POST /api/users error', err);
+    }
     if (err.message.includes('users.photos_id')) {
       return json(
         { success: false, error: 'photos_id belongs to another member' },
         { status: 409 }
       );
     }
-    if (
-      err.message.includes('UNIQUE constraint failed') ||
-      err.message.includes('SQLITE_CONSTRAINT_UNIQUE')
-    ) {
+    if (isUniqueViolation(e)) {
       return json({ success: false, error: 'User already exists' }, { status: 409 });
     }
     return json({ success: false, error: err.message }, { status: 500 });

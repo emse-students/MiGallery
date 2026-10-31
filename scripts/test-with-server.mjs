@@ -68,7 +68,7 @@ let server = null;
  * database. The dev login the suite signs in through (`/dev/login-as`) is not switched on here: it
  * exists only in the `--mode test` build made below, never in a production build.
  */
-function testEnv(databasePath) {
+function testEnv(databasePath, issuer) {
   return {
     ...process.env,
     NODE_ENV: 'test',
@@ -77,8 +77,9 @@ function testEnv(databasePath) {
     AUTH_TRUSTED_HOST: 'true',
     IMMICH_BASE_URL: '',
     IMMICH_API_KEY: '',
-    // Fixed fake provider: tests/server-env.test.ts reads them back through the BUILT server.
-    MICONNECT_ISSUER: 'https://idp.test.invalid/application/o/migallery',
+    // This run's fake provider (startFakeProvider): tests/server-env.test.ts reads them back
+    // through the BUILT server.
+    MICONNECT_ISSUER: issuer,
     MICONNECT_CLIENT_ID: 'test-client-id',
     MICONNECT_CLIENT_SECRET: 'test-client-secret',
     AVATAR_SIGNING_KEY: 'test-avatar-signing-key',
@@ -233,6 +234,31 @@ async function waitForServer(databasePath) {
   );
 }
 
+/**
+ * A fake identity provider on a free local port. Its token endpoint REFUSES every code (400
+ * `invalid_grant`), which is what a real provider answers to a forged or replayed code - the case
+ * the suite exercises. Before it, the issuer was an unresolvable `.invalid` host: every callback
+ * test reached a DNS failure, which the server rightly logs as an ERROR (a provider it cannot
+ * reach), so the suite printed a server fault on every run for a case that is the client's.
+ * @returns {{ issuer: string, stop: () => void }}
+ */
+function startFakeProvider() {
+  const provider = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    fetch(request) {
+      if (new URL(request.url).pathname === '/application/o/token/') {
+        return Response.json({ error: 'invalid_grant' }, { status: 400 });
+      }
+      return new Response('not found', { status: 404 });
+    },
+  });
+  return {
+    issuer: `http://127.0.0.1:${provider.port}/application/o/migallery`,
+    stop: () => provider.stop(true),
+  };
+}
+
 async function main() {
   if (await portAnswers()) {
     console.error(
@@ -243,7 +269,9 @@ async function main() {
   }
 
   runDir = mkdtempSync(join(tmpdir(), 'migallery-test-'));
-  const env = testEnv(join(runDir, 'migallery.db'));
+  const provider = startFakeProvider();
+  process.on('exit', provider.stop);
+  const env = testEnv(join(runDir, 'migallery.db'), provider.issuer);
   console.log(`🗄️  Test database: ${env.DATABASE_PATH}`);
 
   // `--mode test` is what compiles `/dev/login-as` into this build (its handler is folded out of
