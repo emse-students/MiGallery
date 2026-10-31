@@ -8,10 +8,11 @@ import { requireScope } from '#lib/server/permissions.ts';
 import { ensureError } from '#lib/ts-utils.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { logRouteFailure } from '#lib/server/route-errors.ts';
+import { ImmichNotConfiguredError, requireImmichBaseUrl } from '#lib/immich/not-configured.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums');
-const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 function normalizePromos(values: unknown[] | undefined): number[] {
@@ -128,11 +129,7 @@ export const POST: RequestHandler = async (event) => {
       throw svelteError(400, 'albumName is required');
     }
 
-    if (!IMMICH_BASE_URL) {
-      throw svelteError(500, 'IMMICH_BASE_URL not configured');
-    }
-
-    const immichRes = await event.fetch(`${IMMICH_BASE_URL}/api/albums`, {
+    const immichRes = await event.fetch(`${requireImmichBaseUrl()}/api/albums`, {
       signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
       method: 'POST',
       headers: {
@@ -225,7 +222,10 @@ export const POST: RequestHandler = async (event) => {
     return json({ ...immichAlbum, id: albumId });
   } catch (err) {
     const e = err as Error;
-    log.error('Error in POST /api/albums:', e);
+    if (err instanceof ImmichNotConfiguredError) {
+      throw svelteError(503, err.message);
+    }
+    logRouteFailure(log, 'POST /api/albums', e);
     if (e && typeof e === 'object' && 'status' in e) {
       throw e;
     }

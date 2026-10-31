@@ -68,7 +68,7 @@ let server = null;
  * database. The dev login the suite signs in through (`/dev/login-as`) is not switched on here: it
  * exists only in the `--mode test` build made below, never in a production build.
  */
-function testEnv(databasePath) {
+function testEnv(databasePath, issuer) {
   return {
     ...process.env,
     NODE_ENV: 'test',
@@ -77,8 +77,9 @@ function testEnv(databasePath) {
     AUTH_TRUSTED_HOST: 'true',
     IMMICH_BASE_URL: '',
     IMMICH_API_KEY: '',
-    // Fixed fake provider: tests/server-env.test.ts reads them back through the BUILT server.
-    MICONNECT_ISSUER: 'https://idp.test.invalid/application/o/migallery',
+    // This run's fake provider (startFakeProvider): tests/server-env.test.ts reads them back
+    // through the BUILT server.
+    MICONNECT_ISSUER: issuer,
     MICONNECT_CLIENT_ID: 'test-client-id',
     MICONNECT_CLIENT_SECRET: 'test-client-secret',
     AVATAR_SIGNING_KEY: 'test-avatar-signing-key',
@@ -169,20 +170,93 @@ async function portAnswers() {
 }
 
 /**
- * Resolve once /api/health answers. Reject if the server process exits first (port taken,
- * crash on boot) or the deadline passes - a server that is not up is a failed run, never a
- * reason to test against whatever else might be listening.
+ * True when THIS run's database file already holds the schema. It opens read-only so it can never
+ * create the file: `new Database(path)` on a missing path makes an empty one, which is exactly
+ * how a seed against a database nobody initialised fails with `no such table: users`.
  */
-async function waitForServer() {
+function schemaReady(databasePath) {
+  let db;
+  try {
+    db = new Database(databasePath, { readonly: true });
+    db.prepare('SELECT 1 FROM users LIMIT 1').get();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    db?.close(false);
+  }
+}
+
+/**
+ * Describe what /api/health answered, or why it did not, in one line.
+ * @returns {Promise<{ready: boolean, line: string}>}
+ */
+async function probeHealth() {
+  try {
+    const res = await fetch(HEALTH_URL);
+    const body = (await res.text()).slice(0, 200);
+    return { ready: res.status === 200, line: `HTTP ${res.status} ${body}` };
+  } catch (e) {
+    return { ready: false, line: `no answer (${e.message})` };
+  }
+}
+
+/**
+ * Resolve once the server is READY for what the runner does next: /api/health answers 200 AND this
+ * run's own database holds the schema (the seed writes into it). Any HTTP answer used to count,
+ * so a 503, or a listener that is not our server at all, let the seed run on an empty database.
+ * The database check is the proof the answer came from the server we started: it is the only one
+ * that creates this file's schema. Each distinct non-ready state is logged once - that line is the
+ * evidence if a run ever fails here. Reject if the server process exits first (port taken, crash
+ * on boot) or the deadline passes - a server that is not up is a failed run, never a reason to
+ * test against whatever else might be listening.
+ */
+async function waitForServer(databasePath) {
   const deadline = Date.now() + READINESS_DEADLINE_MS;
+  let lastLogged = '';
   while (Date.now() < deadline) {
     if (server.exitCode !== null) {
       throw new Error(`test server exited with code ${server.exitCode} before answering`);
     }
-    if (await portAnswers()) return;
+    const health = await probeHealth();
+    if (health.ready && schemaReady(databasePath)) return;
+    const line = health.ready
+      ? `health answered 200 but this run's database has no schema yet`
+      : health.line;
+    if (!health.line.startsWith('no answer') && line !== lastLogged) {
+      console.warn(`⏳ Not ready: ${line}`);
+      lastLogged = line;
+    }
     await new Promise((r) => setTimeout(r, READINESS_POLL_MS));
   }
-  throw new Error(`test server did not answer ${HEALTH_URL} within ${READINESS_DEADLINE_MS} ms`);
+  throw new Error(
+    `test server did not become ready on ${HEALTH_URL} within ${READINESS_DEADLINE_MS} ms`
+  );
+}
+
+/**
+ * A fake identity provider on a free local port. Its token endpoint REFUSES every code (400
+ * `invalid_grant`), which is what a real provider answers to a forged or replayed code - the case
+ * the suite exercises. Before it, the issuer was an unresolvable `.invalid` host: every callback
+ * test reached a DNS failure, which the server rightly logs as an ERROR (a provider it cannot
+ * reach), so the suite printed a server fault on every run for a case that is the client's.
+ * @returns {{ issuer: string, stop: () => void }}
+ */
+function startFakeProvider() {
+  const provider = Bun.serve({
+    hostname: '127.0.0.1',
+    port: 0,
+    fetch(request) {
+      if (new URL(request.url).pathname === '/application/o/token/') {
+        return Response.json({ error: 'invalid_grant' }, { status: 400 });
+      }
+      return new Response('not found', { status: 404 });
+    },
+  });
+  return {
+    issuer: `http://127.0.0.1:${provider.port}/application/o/migallery`,
+    stop: () => provider.stop(true),
+  };
 }
 
 async function main() {
@@ -195,7 +269,9 @@ async function main() {
   }
 
   runDir = mkdtempSync(join(tmpdir(), 'migallery-test-'));
-  const env = testEnv(join(runDir, 'migallery.db'));
+  const provider = startFakeProvider();
+  process.on('exit', provider.stop);
+  const env = testEnv(join(runDir, 'migallery.db'), provider.issuer);
   console.log(`🗄️  Test database: ${env.DATABASE_PATH}`);
 
   // `--mode test` is what compiles `/dev/login-as` into this build (its handler is folded out of
@@ -212,7 +288,7 @@ async function main() {
     stdio: 'inherit',
     env,
   });
-  await waitForServer();
+  await waitForServer(env.DATABASE_PATH);
   seedTestAdmin(env.DATABASE_PATH);
   console.log(`✅ ${HEALTH_URL} answers\n🧪 Running the tests...\n`);
 

@@ -3,6 +3,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { requireScope } from '#lib/server/permissions.ts';
 import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { readJsonBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
 import { answerFace } from '#lib/server/face-enrolment.ts';
@@ -37,12 +38,9 @@ export const POST: RequestHandler = async (event) => {
     );
   }
 
-  let body: { asset_id?: unknown; face_index?: unknown; verdict?: unknown };
-  try {
-    body = (await event.request.json()) as typeof body;
-  } catch {
-    return json({ error: 'a JSON body is required' }, { status: 400 });
-  }
+  const body = await readJsonBody<{ asset_id?: unknown; face_index?: unknown; verdict?: unknown }>(
+    event.request
+  );
   const { asset_id: assetId, face_index: faceIndex, verdict } = body;
   if (
     typeof assetId !== 'string' ||

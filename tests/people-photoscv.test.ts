@@ -39,15 +39,15 @@ describe('People API - GET /api/people/people', () => {
     });
 
     // `bun run test` runs with no Immich (IMMICH_BASE_URL is empty, see
-    // tests/README.md), so the route's contract HERE is exactly this 500. It
+    // tests/README.md), so the route's contract HERE is exactly this 503. It
     // used to accept five statuses and assert the body only on a 200 that this
     // run can never produce - which is how the route shipped answering
     // `{ people: { people: [...] } }` against Immich v3 with this test green.
     // Reading Immich's `PeopleResponseDto` (object, paginated) is pinned by
     // tests/immich-people.test.ts against a mock of that shape.
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(503);
     const body = (await response.json()) as { message: string };
-    expect(body.message).toBe('IMMICH_BASE_URL not configured');
+    expect(body.message).toBe('Immich is not configured (IMMICH_BASE_URL is empty)');
   }, 15000);
 
   it('should reject access without authentication', async () => {
@@ -68,7 +68,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
 
     if (response.status === 200) {
       // `{ assets: [...] }`, not a bare array.
@@ -86,7 +86,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
       }
     );
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 
   it('should return 404 for a nonexistent person', async () => {
@@ -94,7 +94,7 @@ describe('People API - GET /api/people/people/[personId]/photos', () => {
       headers: getAuthHeaders(),
     });
 
-    expect([404, 500]).toContain(response.status);
+    expect([404, 503]).toContain(response.status);
   });
 });
 
@@ -108,7 +108,7 @@ describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
       }
     );
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
 
     if (response.status === 200) {
       const contentType = response.headers.get('content-type');
@@ -125,7 +125,7 @@ describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
       }
     );
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 
@@ -136,7 +136,7 @@ describe('People API - GET /api/people/person/[id]/my-photos', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 
@@ -147,7 +147,7 @@ describe('People API - GET /api/people/person/[id]/album-photos', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 
@@ -260,7 +260,7 @@ describe('People Album API - GET /api/people/album', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
 
     if (response.status === 200) {
       const data = (await response.json()) as {
@@ -290,7 +290,7 @@ describe('People Album API - GET /api/people/album/info', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
 
     if (response.status === 200) {
       const info = (await response.json()) as { id: string };
@@ -386,7 +386,7 @@ describe('People Album API - PUT /api/people/album/assets (bulk)', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 
@@ -402,7 +402,7 @@ describe('People Album API - DELETE /api/people/album/assets (bulk)', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    expect([200, 400, 401, 404, 500]).toContain(response.status);
+    expect([200, 400, 401, 404, 503]).toContain(response.status);
   }, 15000);
 });
 

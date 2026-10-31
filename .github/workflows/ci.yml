@@ -77,6 +77,12 @@ jobs:
       - name: Test the release gates
         run: bash .github/scripts/tests/release-preflight.test.sh
 
+      # AND WHERE THE BACKUPS GO. `backup-config.sh` is the one place the offsite target is read,
+      # and the 05:00 cron that would meet its failure is read by nobody: a missing file, an
+      # unknown key and an empty value must each STOP before any ssh. Fakes on `PATH`, no network.
+      - name: Test the offsite backup config
+        run: bash .github/scripts/tests/backup-config.test.sh
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:

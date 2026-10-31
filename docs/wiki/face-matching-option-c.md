@@ -144,18 +144,18 @@ of a different age or light than the archive; videos; recognition without re-det
 directory of mode 700, deleted at the end; nothing leaves the host but the aggregates):
 
 1. Build the script: `bun build scripts/faces/measure-ground-truth.ts --target=bun --outfile
-measure.js`, and copy it to `/dev/shm/fm/`.
+   measure.js`, and copy it to `/dev/shm/fm/`.
 2. The ids file - the person ids members linked themselves, read-only from MiGallery's own
    database inside its container:
    `docker exec <migallery container> bun -e '<open /app/data/migallery.db readonly; print SELECT
-photos_id FROM users WHERE photos_id IS NOT NULL>' > /dev/shm/fm/ids`, then `chmod 600`.
+   photos_id FROM users WHERE photos_id IS NOT NULL>' > /dev/shm/fm/ids`, then `chmod 600`.
 3. The vectors, in PHYSICAL order (an `ORDER BY` sorts the whole table, section A7), piped
    straight into a throwaway container with no network:
    `docker exec immich_postgres psql -U postgres -d immich -At -c 'COPY (SELECT
-f."personGroupId", s.embedding FROM asset_face f JOIN face_search s ON s."faceId" = f.id WHERE
-f."deletedAt" IS NULL AND f."isVisible") TO STDOUT' | docker run --rm -i --network none --memory
-2500m --cpus 2 -e LINKED_IDS_FILE=/m/ids -e SEEDS=3 -v /dev/shm/fm:/m:ro --entrypoint bun
-<the MiGallery image> /m/measure.js > result.json`
+   f."personGroupId", s.embedding FROM asset_face f JOIN face_search s ON s."faceId" = f.id WHERE
+   f."deletedAt" IS NULL AND f."isVisible") TO STDOUT' | docker run --rm -i --network none --memory
+   2500m --cpus 2 -e LINKED_IDS_FILE=/m/ids -e SEEDS=3 -v /dev/shm/fm:/m:ro --entrypoint bun
+   <the MiGallery image> /m/measure.js > result.json`
 4. `rm -rf /dev/shm/fm`. **Done after both runs of 2026-10-31; the directory was checked absent
    afterwards.**
 
@@ -264,7 +264,9 @@ Its callers are the ingestion worker (A3), the match engine (A4) and enrolment (
   listed (0 today): a locked asset is treated as gone and its faces go, which matches what locking
   means. A second Immich user's assets would never be listed, so never ingested and never removed.
 - **The report** (hourly, `face-ingest`): counts per state, the oldest pending age, the failed
-  grouped by the kind of their last error, and the last stop cause. An error when an asset failed
+  grouped by the kind of their last error, the pending ones already tried grouped the same way
+  (`no_preview` names an asset Immich never made a preview for, which no attempt count would), and
+  the last stop cause. An error when an asset failed
   or an asset has waited more than a day. An unseeded store is said at info: it is the planned
   state until A7.
 - **Nothing is ingested before the seed** (`seeded_at`): ingesting first would re-embed the whole

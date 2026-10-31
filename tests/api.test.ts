@@ -330,9 +330,9 @@ describe('Photos-CV API', () => {
       signal: AbortSignal.timeout(10000),
     });
 
-    // No Immich in `bun run test`: the route's contract here is exactly this 500. The
-    // Immich v3 list shape is pinned by tests/immich-people.test.ts.
-    expect(response.status).toBe(500);
+    // No Immich in `bun run test`: the route's contract here is exactly this 503 (Immich not
+    // configured). The Immich v3 list shape is pinned by tests/immich-people.test.ts.
+    expect(response.status).toBe(503);
   }, 15000);
 });
 

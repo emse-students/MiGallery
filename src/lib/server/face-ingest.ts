@@ -498,6 +498,12 @@ export interface IngestReport {
   failed: number;
   oldestPendingMs: number | null;
   failedCauses: Record<string, number>;
+  /**
+   * Pending assets that were already tried, grouped by the kind of their last error: `no_preview`
+   * (Immich has not made the preview; no attempt counted, so such an asset never becomes `failed`
+   * and this count is what names it), or an attempt that will be retried.
+   */
+  pendingCauses: Record<string, number>;
   lastStop: IngestStop;
 }
 
@@ -505,6 +511,8 @@ export interface IngestReport {
  * The hourly report. An error when an asset failed, when an asset waits more than a day, or when
  * the store is not seeded; it NAMES the cause (the last stop of a pass, and the failed assets
  * grouped by the kind of their last error), because a backlog with no cause is found by hand.
+ * The pending assets already tried are grouped the same way, so an asset that never gets a preview
+ * is named by its cause and not only by the age alarm.
  */
 export function reportIngest(
   faceDb: DatabaseInstance,
@@ -520,19 +528,26 @@ export function reportIngest(
       "SELECT MIN(discovered_at) AS t FROM face_assets WHERE state = 'pending' AND model = ?"
     )
     .get(FACE_MODEL) as { t: number | null };
-  const causes = faceDb
-    .prepare(
-      `SELECT substr(last_error, 1, instr(last_error || ':', ':') - 1) AS kind, COUNT(*) AS n
-         FROM face_assets WHERE state = 'failed' AND model = ? GROUP BY kind`
-    )
-    .all(FACE_MODEL) as Array<{ kind: string; n: number }>;
+  const causesOf = (state: 'failed' | 'pending') =>
+    Object.fromEntries(
+      (
+        faceDb
+          .prepare(
+            `SELECT substr(last_error, 1, instr(last_error || ':', ':') - 1) AS kind, COUNT(*) AS n
+               FROM face_assets WHERE state = ? AND model = ? AND last_error IS NOT NULL
+               GROUP BY kind`
+          )
+          .all(state, FACE_MODEL) as Array<{ kind: string; n: number }>
+      ).map((c) => [c.kind || 'unknown', c.n])
+    );
   const report: IngestReport = {
     seeded: !!getFaceStoreState(faceDb, 'seeded_at'),
     pending: n('pending'),
     done: n('done'),
     failed: n('failed'),
     oldestPendingMs: oldest.t === null ? null : now - oldest.t,
-    failedCauses: Object.fromEntries(causes.map((c) => [c.kind || 'unknown', c.n])),
+    failedCauses: causesOf('failed'),
+    pendingCauses: causesOf('pending'),
     lastStop,
   };
   if (!report.seeded) {

@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError } from '@sveltejs/kit';
 import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { requireScope } from '#lib/server/permissions.ts';
@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { logRouteFailure, readJsonBody } from '#lib/server/route-errors.ts';
 
 const log = createLogger('admin-db-restore');
 export const POST: RequestHandler = async (event) => {
@@ -15,7 +16,7 @@ export const POST: RequestHandler = async (event) => {
   const { request } = event;
 
   try {
-    const { filename } = (await request.json()) as { filename?: string };
+    const { filename } = await readJsonBody<{ filename?: string }>(request);
 
     if (!filename) {
       throw error(400, 'Missing filename');
@@ -52,8 +53,12 @@ export const POST: RequestHandler = async (event) => {
       safetyBackup: SAFETY_BACKUP,
     });
   } catch (e: unknown) {
+    logRouteFailure(log, 'POST /api/admin/db-restore', e);
+    // A refusal (400 no filename, 403 outside the backups, 404 no such file) keeps its status.
+    if (isHttpError(e)) {
+      throw e;
+    }
     const err = ensureError(e);
-    log.error('Error restoring backup:', err);
     throw error(500, err.message || 'Error during restore');
   }
 };

@@ -84,7 +84,9 @@ run is **hermetic whatever your `.env` says**:
   database is never opened, so a run leaves nothing behind and the next run starts from the same
   empty state.
 - **Immich**: `IMMICH_BASE_URL` is empty, as in CI. The suite's contract is "no Immich"; tests that
-  reach Immich accept the resulting 500. A dev `.env` pointing at a tunnel to the production Immich
+  reach Immich accept the resulting 500, or 503 where the route classifies the cause
+  (`ImmichNotConfiguredError`, `src/lib/immich/not-configured.ts`: the PhotoCV and people routes),
+  which is said once at info and never logged as an error. A dev `.env` pointing at a tunnel to the production Immich
   used to make the suite create real `[TEST]` albums there, and fail the tests whose assertions only
   run when Immich answers.
 - A `--mode test` build: the only build that carries `/dev/login-as` (production builds fold it
@@ -345,7 +347,8 @@ A server-backed test file was run bare with `bunx vitest run`. Run it through `b
 
 ### Timeouts on Immich tests
 
-The suite runs without Immich on purpose; tests that reach it accept the 500.
+The suite runs without Immich on purpose; tests that reach it accept the 500 (503 where the route
+classifies Immich as not configured).
 
 ## 📊 Example Output
 
