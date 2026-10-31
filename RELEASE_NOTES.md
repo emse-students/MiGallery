@@ -3,6 +3,7 @@
 ## Changes
 
 - Docs: the face matching design (option C) moves here from the Canari repository, with the 2026-10-31 measurements: float16 against float32, the 0.62 threshold on the members' own links, and the store's memory (`docs/wiki/face-matching-option-c.md`).
+- Faces (A2): the client of the face model and the matcher - the nearest member only, the 0.5 / 0.62 bands, a runner-up closer than 0.05 (a member who rejected the face included) or fewer than 3 references never accepted without the member, a selfie refused on any second face, the store streamed rather than held. No route or worker calls it yet.
 
 # MiGallery v2.17.0
 
