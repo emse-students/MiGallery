@@ -10,8 +10,11 @@
  * (`data/cache/faces/members/<hash of the member id>/<asset>_<face>.webp`), and only for a member:
  * the confirmation screen and the profile photo are the two readers, and both are served to that
  * member alone (the avatar is the member's own choice of photo). So a withdrawal deletes the whole
- * directory ({@link deleteMemberFaceCrops}) in the same path that deletes the matches, and an
- * answer of "not me" deletes that one crop ({@link deleteMemberFaceCrop}).
+ * directory ({@link deleteMemberFaceCrops}) in the same path that deletes the matches, an
+ * answer of "not me" deletes that one crop ({@link deleteMemberFaceCrop}), and a face the engine
+ * gives to another member, or to nobody, loses the former holder's crop as soon as that decision is
+ * committed (`recordDecisions` in face-engine.ts). The profile photo is cut into the same file, so
+ * the same three paths cover it.
  *
  * The older crops of A1, keyed by an Immich person (`data/cache/faces/<asset>_<person>.webp`), are
  * no longer generated; {@link deletePersonFaceCrops} still removes them when a linked person is

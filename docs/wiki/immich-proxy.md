@@ -21,6 +21,20 @@ Immich REST API with the server-side `IMMICH_API_KEY` after checking access.
   to `checkPublicAssetAccess`. Browsing a public shared album would otherwise
   re-fetch the same asset/album metadata from Immich once per image.
 
+## Only listed routes are forwarded
+
+The proxy speaks to Immich with the server's key, so it forwards an ALLOWLIST of methods and
+paths - the ones MiGallery's own pages use - and answers 404 to everything else, whoever asks,
+admin keys included (`src/lib/server/immich-proxy-allowlist.ts`). The path is judged as Immich
+will route it (`.` segments resolved, case and repeated slashes folded, a decoded `?` or `#`
+refused), and ids must be Immich UUIDs. The admin trash routes (`timeline/*`,
+`trash/restore/assets`) also require the admin scope. No person, face or search route is on
+the list since lot A6, and the refusal below still applies on top of it.
+
+A page that needs another Immich route adds it to the list, with the page that uses it and a case
+in `tests/immich-proxy-allowlist.test.ts`; anything MiGallery has to join with its own state
+belongs in a dedicated route instead.
+
 ## No person, no face - for anyone (lot A6)
 
 The proxy refuses (403), BEFORE anything is forwarded and whoever asks, admins and API keys

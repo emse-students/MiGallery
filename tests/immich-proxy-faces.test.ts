@@ -23,7 +23,9 @@ vi.mock('#lib/server/permissions.ts', () => ({
 }));
 vi.mock('#lib/server/logs.ts', () => ({ logEvent: async () => undefined }));
 
-const PERSON = '6f1c0a52-0d5e-4c8e-9a43-3d2b1f0e9a77';
+// Synthetic ids, shaped like Immich's: no real person or asset.
+const PERSON = '00000000-0000-4000-8000-0000000000a1';
+const ASSET = '00000000-0000-4000-8000-0000000000b2';
 
 /** Every URL the fake Immich was asked, and what it answers next. */
 let asked: string[] = [];
@@ -69,7 +71,8 @@ async function send(method: string, path: string, query = '', body?: unknown) {
 }
 
 describe('the proxy refuses every person and face call, to everyone', () => {
-  const calls: Array<[string, string, string, unknown?]> = [
+  // Not on the allowlist at all (immich-proxy-allowlist.ts): 404, whoever asks.
+  const unlisted: Array<[string, string, string, unknown?]> = [
     ['GET', 'people', ''],
     ['GET', `people/${PERSON}`, ''],
     ['GET', `people/${PERSON}/thumbnail`, ''],
@@ -77,30 +80,37 @@ describe('the proxy refuses every person and face call, to everyone', () => {
     ['DELETE', `faces/${PERSON}`, ''],
     ['GET', 'faces', `?id=${PERSON}`],
     ['GET', 'search/person', '?name=a'],
+    ['POST', 'search/metadata', '', { type: 'IMAGE' }],
+    ['POST', 'sync/stream', '', { types: ['PeopleV1', 'AssetFacesV1'] }],
+    ['GET', 'server/version', ''],
+  ];
+  // Listed routes that name people: refused by face-access.ts on top of the list.
+  const naming: Array<[string, string, string, unknown?]> = [
     ['GET', 'timeline/buckets', `?personId=${PERSON}`],
-    ['POST', 'search/metadata', '', { personIds: [PERSON] }],
-    ['POST', 'search/metadata', '', { withPeople: true }],
+    ['GET', 'timeline/bucket', '?withPeople=true'],
+    ['DELETE', 'assets', '', { ids: [ASSET], personIds: [PERSON] }],
   ];
 
-  it('an admin session gets 403 and Immich is never asked', async () => {
-    for (const [method, path, query, body] of calls) {
-      expect((await send(method, path, query, body)).status).toBe(403);
-    }
-    expect(asked).toEqual([]);
-  });
+  for (const [who, auth] of [
+    ['an admin session', { user: { id_user: 'boss', role: 'admin' }, viaApiKey: false }],
+    ['an API key', { user: null, viaApiKey: true }],
+  ] as const) {
+    it(`${who}: an unlisted route is 404, one naming people 403, and Immich is never asked`, async () => {
+      state.auth = { ...auth, grantedScope: 'admin' };
+      for (const [method, path, query, body] of unlisted) {
+        expect((await send(method, path, query, body)).status, `${method} ${path}`).toBe(404);
+      }
+      for (const [method, path, query, body] of naming) {
+        expect((await send(method, path, query, body)).status, `${method} ${path}`).toBe(403);
+      }
+      expect(asked).toEqual([]);
+    });
+  }
 
-  it('an API key gets 403 and Immich is never asked', async () => {
-    state.auth = { user: null, grantedScope: 'admin', viaApiKey: true };
-    for (const [method, path, query, body] of calls) {
-      expect((await send(method, path, query, body)).status).toBe(403);
-    }
-    expect(asked).toEqual([]);
-  });
-
-  it('a call naming no person is forwarded', async () => {
-    const res = await send('POST', 'search/metadata', '', { type: 'IMAGE' });
+  it('a listed call naming no person is forwarded', async () => {
+    const res = await send('GET', `assets/${ASSET}`);
     expect(res.status).toBe(200);
-    expect(asked).toEqual(['http://immich.test/api/search/metadata']);
+    expect(asked).toEqual([`http://immich.test/api/assets/${ASSET}`]);
   });
 });
 
@@ -113,7 +123,7 @@ describe('an answer reaches the client without the people Immich found', () => {
         unassignedFaces: [{ boundingBoxX1: 2 }],
         exifInfo: { make: 'x' },
       });
-    const res = await send('GET', 'assets/a1');
+    const res = await send('GET', `assets/${ASSET}`);
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(JSON.parse(text)).toEqual({ id: 'a1', exifInfo: { make: 'x' } });
@@ -125,14 +135,14 @@ describe('an answer reaches the client without the people Immich found', () => {
       new Response(`{"id":"a1","people":[{"id":"${PERSON}"}`, {
         headers: { 'content-type': 'application/json' },
       });
-    const res = await send('GET', 'assets/a1');
+    const res = await send('GET', `assets/${ASSET}`);
     expect(res.status).toBe(502);
     expect(await res.text()).not.toContain(PERSON);
   });
 
   it('an answer without people is forwarded as it came', async () => {
     answer = () => Response.json({ id: 'a1', exifInfo: { make: 'x' } });
-    const res = await send('GET', 'assets/a1');
+    const res = await send('GET', `assets/${ASSET}`);
     expect(await res.json()).toEqual({ id: 'a1', exifInfo: { make: 'x' } });
   });
 });

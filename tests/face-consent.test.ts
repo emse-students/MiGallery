@@ -99,6 +99,66 @@ describe('a new consent', () => {
     ]);
   });
 
+  it("closes an open legacy or admin row on the member's own agreement, and opens a selfie row", () => {
+    const db = database.getDatabase();
+    for (const older of ['legacy', 'admin'] as const) {
+      db.exec('DELETE FROM face_consents; DELETE FROM users;');
+      addUser('member', PERSON);
+      if (older === 'legacy') {
+        consent.backfillLegacyConsents(db, 100);
+      } else {
+        consent.recordFaceConsent(db, 'member', 'admin', 100);
+      }
+      consent.recordFaceConsent(db, 'member', 'selfie', 200);
+      expect(rows()).toEqual([
+        {
+          user_id: 'member',
+          version: older === 'legacy' ? legal.LEGACY_CONSENT_VERSION : legal.TERMS_VERSION,
+          source: older,
+          withdrawn_at: 200,
+        },
+        { user_id: 'member', version: legal.TERMS_VERSION, source: 'selfie', withdrawn_at: null },
+      ]);
+    }
+  });
+
+  it('keeps an open selfie row on the terms in force: a second enrolment churns nothing', () => {
+    addUser('member', null);
+    const db = database.getDatabase();
+    consent.recordFaceConsent(db, 'member', 'selfie', 100);
+    const before = db.prepare('SELECT * FROM face_consents').all();
+    consent.recordFaceConsent(db, 'member', 'selfie', 200);
+    expect(db.prepare('SELECT * FROM face_consents').all()).toEqual(before);
+  });
+
+  it('replaces an open selfie row on older terms: the member agreed to the terms in force', () => {
+    addUser('member', null);
+    const db = database.getDatabase();
+    db.prepare(
+      "INSERT INTO face_consents (user_id, created_at, version, source) VALUES ('member', 1, '2000-01-01', 'selfie')"
+    ).run();
+    consent.recordFaceConsent(db, 'member', 'selfie', 200);
+    expect(rows()).toEqual([
+      { user_id: 'member', version: '2000-01-01', source: 'selfie', withdrawn_at: 200 },
+      { user_id: 'member', version: legal.TERMS_VERSION, source: 'selfie', withdrawn_at: null },
+    ]);
+  });
+
+  it('never lets an admin link replace an open row', () => {
+    addUser('member', PERSON);
+    const db = database.getDatabase();
+    consent.backfillLegacyConsents(db, 100);
+    consent.recordFaceConsent(db, 'member', 'admin', 200);
+    expect(rows()).toEqual([
+      {
+        user_id: 'member',
+        version: legal.LEGACY_CONSENT_VERSION,
+        source: 'legacy',
+        withdrawn_at: null,
+      },
+    ]);
+  });
+
   it('a withdrawal closes the row, keeps it, and a later link opens a new one', () => {
     addUser('member', PERSON);
     const db = database.getDatabase();

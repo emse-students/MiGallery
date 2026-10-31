@@ -72,6 +72,26 @@ export class FaceMlResponseError extends Error {
   }
 }
 
+/**
+ * The statuses by which the service refuses THE IMAGE it was sent (unreadable, too large, not an
+ * image, or the request carrying it malformed): the sender's fault, not the service being down.
+ * Every other 4xx (401/403/404/405: a wrong URL or credentials; 408/429: the service is busy) is
+ * the service not answering, and stays {@link FaceMlUnavailableError}.
+ */
+const IMAGE_REFUSED_STATUSES: ReadonlySet<number> = new Set([400, 413, 415, 422]);
+
+/**
+ * The service answered, and refused the image itself ({@link IMAGE_REFUSED_STATUSES}): another
+ * picture is needed, retrying the same one is pointless. Classified here, at the throw.
+ */
+export class FaceMlImageRefusedError extends Error {
+  readonly kind = 'ml_image_refused';
+  constructor(readonly status: number) {
+    super(`face model refused the image: ${status}`);
+    this.name = 'FaceMlImageRefusedError';
+  }
+}
+
 /** Why a selfie cannot become a reference: the member is asked for another photo. */
 export type SelfieRefusal = 'no_face' | 'several_faces';
 
@@ -171,8 +191,9 @@ export function parsePrediction(body: unknown): DetectedImage {
 
 /**
  * Detect and embed every face of `image` scoring at least `minScore`. Throws
- * {@link FaceMlUnavailableError} on a transport failure or a refusal, {@link FaceMlResponseError}
- * on an answer that cannot be trusted.
+ * {@link FaceMlUnavailableError} on a transport failure or a status saying the service did not
+ * serve the request, {@link FaceMlImageRefusedError} when it refused the image itself, and
+ * {@link FaceMlResponseError} on an answer that cannot be trusted.
  */
 export async function detectFaces(
   fetchFn: typeof fetch,
@@ -209,7 +230,11 @@ export async function detectFaces(
   if (!res.ok) {
     // The body is not read into the error: it may echo the request.
     await res.body?.cancel().catch(() => undefined);
-    log.warn('face model refused the image', { status: res.status });
+    if (IMAGE_REFUSED_STATUSES.has(res.status)) {
+      log.warn('face model refused the image', { status: res.status });
+      throw new FaceMlImageRefusedError(res.status);
+    }
+    log.warn('face model did not answer', { status: res.status });
     throw new FaceMlUnavailableError(`face model answered ${res.status}`, res.status);
   }
   // Reading the body can fail like the request (a reset, the timeout): that is the service being
