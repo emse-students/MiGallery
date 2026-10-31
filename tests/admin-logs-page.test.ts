@@ -13,16 +13,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
 
-vi.mock('$lib/server/auth', () => ({ requireAdminPage: () => ({}) }));
+vi.mock('#lib/server/auth.ts', () => ({ requireAdminPage: () => ({}) }));
 
-let database: typeof import('$lib/db/database');
+let database: typeof import('#lib/db/database.ts');
 let load: typeof import('../src/routes/admin/logs/+page.server').load;
 let dbDir: string;
 
 beforeAll(async () => {
   dbDir = mkdtempSync(join(tmpdir(), 'migallery-admin-logs-'));
   process.env.DATABASE_PATH = join(dbDir, 'logs.db');
-  database = await import('$lib/db/database');
+  database = await import('#lib/db/database.ts');
   ({ load } = await import('../src/routes/admin/logs/+page.server'));
 });
 
