@@ -12,6 +12,7 @@ import { getStoredCover, pruneAlbumCovers } from '#lib/server/album-cover.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 import { logRouteFailure } from '#lib/server/route-errors.ts';
+import { ImmichNotConfiguredError, requireImmichBaseUrl } from '#lib/immich/not-configured.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums-id');
@@ -57,10 +58,7 @@ export const GET: RequestHandler = async (event) => {
     await requireScope(event, 'read');
     const { fetch } = event;
 
-    if (!IMMICH_BASE_URL) {
-      throw error(500, 'IMMICH_BASE_URL not configured');
-    }
-    const res = await fetch(`${IMMICH_BASE_URL}/api/albums/${id}`, {
+    const res = await fetch(`${requireImmichBaseUrl()}/api/albums/${id}`, {
       signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
       headers: {
         'x-api-key': IMMICH_API_KEY,
@@ -77,6 +75,9 @@ export const GET: RequestHandler = async (event) => {
     const assetList = await fetchAlbumAssets(fetch, IMMICH_BASE_URL, IMMICH_API_KEY, id);
     return json({ ...album, assets: assetList });
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
+    }
     const err = ensureError(e);
     logRouteFailure(log, `GET /api/albums/${id}`, e);
     if (e && typeof e === 'object' && 'status' in e) {
