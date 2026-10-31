@@ -291,7 +291,7 @@ describe('the model client', () => {
     expect(() => ml.parsePrediction(null)).toThrow(ml.FaceMlResponseError);
     const zeros = {
       ...face(0.9, 3),
-      embedding: JSON.stringify(new Array(FACE_EMBEDDING_DIM).fill(0)),
+      embedding: JSON.stringify(Array.from({ length: FACE_EMBEDDING_DIM }, () => 0)),
     };
     expect(() => ml.parsePrediction(answer([zeros]))).toThrow(/all zeros/);
   });
