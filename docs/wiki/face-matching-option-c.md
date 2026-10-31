@@ -264,7 +264,9 @@ Its callers are the ingestion worker (A3), the match engine (A4) and enrolment (
   listed (0 today): a locked asset is treated as gone and its faces go, which matches what locking
   means. A second Immich user's assets would never be listed, so never ingested and never removed.
 - **The report** (hourly, `face-ingest`): counts per state, the oldest pending age, the failed
-  grouped by the kind of their last error, and the last stop cause. An error when an asset failed
+  grouped by the kind of their last error, the pending ones already tried grouped the same way
+  (`no_preview` names an asset Immich never made a preview for, which no attempt count would), and
+  the last stop cause. An error when an asset failed
   or an asset has waited more than a day. An unseeded store is said at info: it is the planned
   state until A7.
 - **Nothing is ingested before the seed** (`seeded_at`): ingesting first would re-embed the whole

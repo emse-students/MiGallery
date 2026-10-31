@@ -309,6 +309,8 @@ describe('ingestion (A3)', () => {
       attempts: 0,
       last_error: 'no_preview: Immich has no preview for it yet',
     });
+    // The hourly report names the cause, not only the age.
+    expect(ingest.reportIngest(faceDb(), null).pendingCauses).toEqual({ no_preview: 1 });
     // Once Immich has made the preview, the next pass embeds it.
     missingPreview.delete('p1');
     library.set('p1', [ALICE]);
