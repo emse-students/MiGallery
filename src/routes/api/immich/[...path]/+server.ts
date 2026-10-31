@@ -4,6 +4,7 @@ import { logEvent } from '#lib/server/logs.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { env } from '#lib/server/env.ts';
 import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
+import { findProxyRule } from '#lib/server/immich-proxy-allowlist.ts';
 import { assertProxiedFaceAccess, classifyProxiedBody } from '#lib/server/face-access.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
 import { getDatabase } from '#lib/db/database.ts';
@@ -690,6 +691,19 @@ const handle: RequestHandler = async function (event) {
         throw err;
       }
     }
+  }
+
+  // Only the routes MiGallery's pages use are forwarded (immich-proxy-allowlist.ts), judged once
+  // the caller is known so an anonymous request learns nothing about which routes exist.
+  const rule = findProxyRule(request.method, pathParam, event.url.searchParams);
+  if (!rule) {
+    return new Response(JSON.stringify({ error: 'Not available through this proxy' }), {
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  if (rule.admin) {
+    await requireScope(event, 'admin');
   }
 
   // Prevent path traversal

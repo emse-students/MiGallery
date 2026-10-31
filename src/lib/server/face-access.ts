@@ -25,6 +25,7 @@ import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
 import { env } from '#lib/server/env.ts';
+import { canonicalProxiedPath } from '#lib/server/immich-proxy-allowlist.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('face-access');
@@ -174,18 +175,13 @@ export function assertProxiedFaceAccess(
   query: URLSearchParams,
   body: unknown
 ): void {
-  // The path param arrives DECODED, so an encoded `?` or `#` in it would start a query (or a
-  // fragment) of its own in the URL the proxy builds - one this check would never see.
-  if (/[?#]/.test(path)) {
+  // Judge the path Immich will actually route (immich-proxy-allowlist.ts). The path param arrives
+  // DECODED, so an encoded `?` or `#` in it would start a query of its own: refused.
+  const clean = canonicalProxiedPath(path);
+  if (clean === null) {
     log.warn('proxied path carrying a query or fragment refused', { path });
     throw error(400, 'Invalid path');
   }
-  // Judge the path Immich will actually route: the URL the proxy builds resolves `.` segments,
-  // and Immich's router is case-insensitive and tolerant of repeated slashes.
-  const clean = new URL(`/api/${path}`, 'http://immich.invalid').pathname
-    .replace(/\/{2,}/g, '/')
-    .replace(/^\/api\//, '')
-    .toLowerCase();
   const person = clean.match(/^people\/([^/]+)(\/.*)?$/);
   if (person) {
     const [, personId, rest] = person;
