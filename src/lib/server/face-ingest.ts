@@ -36,7 +36,12 @@ import { inTransaction } from '#lib/db/transaction.ts';
 import { env } from '#lib/server/env.ts';
 import { FACE_MODEL, decodeEmbedding, encodeEmbedding } from '#lib/face-embedding.ts';
 import { embeddingContext, seal } from '#lib/server/face-seal.ts';
-import { detectFaces, FaceMlResponseError, FaceMlUnavailableError } from '#lib/server/face-ml.ts';
+import {
+  detectFaces,
+  FaceMlImageRefusedError,
+  FaceMlResponseError,
+  FaceMlUnavailableError,
+} from '#lib/server/face-ml.ts';
 import {
   checkpointFaceStore,
   defaultFaceEngine,
@@ -362,7 +367,8 @@ function countAttempt(
 
 /**
  * Embed one asset and write its faces, then decide them. Throws FaceMlUnavailableError or
- * ImmichUnavailableError when a service is down (the caller stops the pass).
+ * ImmichUnavailableError when a service is down (the caller stops the pass); an answer that cannot
+ * be trusted, or the model refusing the preview itself, counts one attempt of this asset.
  */
 export async function ingestAsset(
   fetchFn: typeof fetch,
@@ -388,6 +394,10 @@ export async function ingestAsset(
   } catch (e) {
     if (e instanceof FaceMlResponseError) {
       return countAttempt(engine, assetId, `bad_response: ${e.message}`, now);
+    }
+    if (e instanceof FaceMlImageRefusedError) {
+      // The service answered and refused THIS preview: the asset's attempt, the pass goes on.
+      return countAttempt(engine, assetId, `image_refused: ${e.status}`, now);
     }
     throw e;
   }

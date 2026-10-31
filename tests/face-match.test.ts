@@ -314,6 +314,21 @@ describe('the model client', () => {
     );
   });
 
+  it('types a refusal of the image itself apart from the service being down, by status', async () => {
+    for (const status of [400, 413, 415, 422]) {
+      const refused = fetchReturning({ detail: 'x' }, status);
+      const e = await ml.detectFaces(refused.fn, new Blob([])).catch((err: unknown) => err);
+      expect(e).toBeInstanceOf(ml.FaceMlImageRefusedError);
+      expect((e as InstanceType<typeof ml.FaceMlImageRefusedError>).status).toBe(status);
+    }
+    for (const status of [401, 403, 404, 405, 408, 429, 500, 503]) {
+      const down = fetchReturning({ detail: 'x' }, status);
+      await expect(ml.detectFaces(down.fn, new Blob([]))).rejects.toBeInstanceOf(
+        ml.FaceMlUnavailableError
+      );
+    }
+  });
+
   it('types a refusal and an unreachable service as unavailable, never as a result', async () => {
     const refused = fetchReturning({ detail: 'x' }, 500);
     await expect(ml.detectFaces(refused.fn, new Blob([]))).rejects.toBeInstanceOf(
