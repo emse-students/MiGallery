@@ -678,3 +678,160 @@ describe('erasure of matches (A4 into the A1 path)', () => {
     expect(matches()).toHaveLength(0);
   });
 });
+
+describe('enrolment and answers (A5)', () => {
+  let enrolment: typeof import('#lib/server/face-enrolment.ts');
+
+  beforeAll(async () => {
+    enrolment = await import('#lib/server/face-enrolment.ts');
+  });
+  beforeEach(() => {
+    db().exec('DELETE FROM face_consents;');
+  });
+
+  function refRows(id: string) {
+    return db()
+      .prepare('SELECT source FROM face_references WHERE user_id = ? ORDER BY id')
+      .all(id) as Array<{ source: string }>;
+  }
+  function openConsents(id: string) {
+    return (
+      db()
+        .prepare(
+          'SELECT COUNT(*) AS n FROM face_consents WHERE user_id = ? AND withdrawn_at IS NULL'
+        )
+        .get(id) as { n: number }
+    ).n;
+  }
+  async function storeOne(assetId: string, v: Float32Array) {
+    seeded();
+    library.set(assetId, [v]);
+    await ingestAll([assetId]);
+  }
+
+  it('records the consent and the selfie, and a new selfie replaces the old one', () => {
+    addUser('alice');
+    expect(enrolment.enrolMember(engine(), 'alice', ALICE)).toBe(1);
+    expect(openConsents('alice')).toBe(1);
+    expect(enrolment.enrolMember(engine(), 'alice', atDistance(ALICE, synthetic(5), 0.1))).toBe(1);
+    expect(refRows('alice')).toEqual([{ source: 'selfie' }]);
+    expect(openConsents('alice')).toBe(1);
+  });
+
+  it('makes room by the oldest reference when the member holds the maximum without a selfie', () => {
+    enrol('alice', ALICE, 5);
+    const ids = () =>
+      (
+        db()
+          .prepare('SELECT id FROM face_references WHERE user_id = ? ORDER BY id')
+          .all('alice') as Array<{
+          id: number;
+        }>
+      ).map((r) => r.id);
+    const before = ids();
+    expect(enrolment.enrolMember(engine(), 'alice', ALICE)).toBe(5);
+    expect(ids().slice(0, 4)).toEqual(before.slice(1));
+    expect(refRows('alice').map((r) => r.source)).toEqual([
+      'photo',
+      'photo',
+      'photo',
+      'photo',
+      'selfie',
+    ]);
+  });
+
+  it('learns a confirmed face as a reference and re-matches the member', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    await storeOne('p1', atDistance(ALICE, synthetic(7), 0.3));
+    expect(matches()).toEqual([
+      { asset_id: 'p1', face_index: 0, user_id: 'alice', band: 'suggested', state: 'pending' },
+    ]);
+    const outcome = await enrolment.answerFace(
+      engine(),
+      'alice',
+      { assetId: 'p1', faceIndex: 0 },
+      'confirm'
+    );
+    expect(outcome).toBe('learned');
+    expect(refRows('alice').map((r) => r.source)).toEqual(['selfie', 'photo']);
+    expect(matches()[0].state).toBe('confirmed');
+  });
+
+  it('re-matches the store with what it learned', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    const p1 = atDistance(ALICE, synthetic(7), 0.55);
+    // p2 sits beside p1 and AWAY from the selfie: only the learned reference reaches it.
+    const p2 = atDistance(
+      p1,
+      Float32Array.from(ALICE, (v) => -v),
+      0.1
+    );
+    seeded();
+    library.set('p1', [p1]);
+    library.set('p2', [p2]);
+    await ingestAll(['p1', 'p2']);
+    expect(matches().map((m) => m.asset_id)).toEqual(['p1']);
+    await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'confirm');
+    expect(matches().map((m) => [m.asset_id, m.state])).toEqual([
+      ['p1', 'confirmed'],
+      ['p2', 'pending'],
+    ]);
+  });
+
+  it('confirms without learning once the member holds the maximum', async () => {
+    enrol('alice', ALICE, 5);
+    await storeOne('p1', ALICE);
+    const outcome = await enrolment.answerFace(
+      engine(),
+      'alice',
+      { assetId: 'p1', faceIndex: 0 },
+      'confirm'
+    );
+    expect(outcome).toBe('confirmed');
+    expect(refRows('alice')).toHaveLength(5);
+  });
+
+  it('hands a rejected face to the next member at once', async () => {
+    enrol('alice', ALICE, 3, 0.2);
+    enrol('twin', ALICE, 3, 0.35);
+    await storeOne('p1', ALICE);
+    const outcome = await enrolment.answerFace(
+      engine(),
+      'alice',
+      { assetId: 'p1', faceIndex: 0 },
+      'reject'
+    );
+    expect(outcome).toBe('rejected');
+    expect(matches().map((m) => [m.user_id, m.state])).toEqual([
+      ['alice', 'rejected'],
+      ['twin', 'pending'],
+    ]);
+  });
+
+  it('refuses an answer on a face the member does not hold, and on one already answered', async () => {
+    enrol('alice', ALICE);
+    enrol('bob', BOB);
+    await storeOne('p1', ALICE);
+    const face = { assetId: 'p1', faceIndex: 0 };
+    expect(await enrolment.answerFace(engine(), 'bob', face, 'confirm')).toBe('not_held');
+    expect(await enrolment.answerFace(engine(), 'alice', face, 'reject')).toBe('rejected');
+    expect(await enrolment.answerFace(engine(), 'alice', face, 'confirm')).toBe('not_held');
+  });
+
+  it('withdraws a member enrolled by selfie alone: consent, references and matches, at once', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    await storeOne('p1', ALICE);
+    expect(matches()).toHaveLength(1);
+    const link = await import('#lib/server/face-link.ts');
+    const result = erasure.inTransaction(db(), () =>
+      link.applyFaceLink(db(), 'alice', null, { source: 'selfie', unlinkReason: 'withdrawal' })
+    );
+    expect(openConsents('alice')).toBe(0);
+    expect(refRows('alice')).toHaveLength(0);
+    expect(matches()).toHaveLength(0);
+    expect(result.local?.erasure).toBeNull();
+  });
+});

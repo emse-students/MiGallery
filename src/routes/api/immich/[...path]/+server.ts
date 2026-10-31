@@ -928,16 +928,6 @@ const handle: RequestHandler = async function (event) {
     const headers = new Headers();
 
     if (!res.ok) {
-      if (request.method === 'DELETE') {
-        const assetMatch = pathParam.match(/assets\/([^/]+)/);
-        const isFacePairingCleanup = request.headers.get('X-Face-Pairing-Cleanup') === 'true';
-        if (isFacePairingCleanup) {
-          log.error('face-pairing: failed to delete Immich photo', {
-            asset: assetMatch ? assetMatch[1] : pathParam,
-            status: res.status,
-          });
-        }
-      }
       if (resContentType.includes('text/html')) {
         headers.set('content-type', 'application/json');
         return new Response(JSON.stringify({ error: `Upstream error ${res.status}` }), {
