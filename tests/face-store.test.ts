@@ -1,5 +1,5 @@
 /**
- * Lot A1 of the face store (docs/wiki/face-store.md): the float16 codec, the distance and its
+ * Lot A1 of the face store (docs/wiki/face-matching-option-c.md): the float16 codec, the distance and its
  * bands, the sealing, and the two tables. SYNTHETIC vectors only: seeded pseudo-random numbers, no
  * photo and no real person anywhere.
  */

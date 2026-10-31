@@ -1,9 +1,11 @@
 /**
- * Face embeddings, option C (docs/wiki/face-store.md): the float16 codec, the cosine distance and
+ * Face embeddings, option C (docs/wiki/face-matching-option-c.md): the float16 codec, the cosine distance and
  * the thresholds. Pure functions, no I/O, safe on the client and the server.
  *
  * Why float16: a 512-d vector is 1 KB, so 600k stored faces are about 0.6 GB instead of 1.2 GB.
- * The recall cost of the quantisation is NOT MEASURED yet (docs/wiki/face-store.md, "owed").
+ * Measured against float32 on the members' own links: of about 14.5 million member-face
+ * distances, ONE changed band (largest difference 7.8e-5; docs/wiki/face-matching-option-c.md,
+ * section 2.2).
  */
 
 /** The only model whose embeddings are stored and compared. Every stored vector carries its tag. */

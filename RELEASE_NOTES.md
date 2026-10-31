@@ -1,3 +1,9 @@
+# MiGallery - unreleased
+
+## Changes
+
+- Docs: the face matching design (option C) moves here from the Canari repository, with the 2026-10-31 measurements: float16 against float32, the 0.62 threshold on the members' own links, and the store's memory (`docs/wiki/face-matching-option-c.md`).
+
 # MiGallery v2.17.0
 
 **Date**: October 25, 2026
