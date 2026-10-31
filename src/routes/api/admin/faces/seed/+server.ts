@@ -12,6 +12,7 @@ import {
   type SeedFace,
 } from '#lib/server/face-seed.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { readJsonBody } from '#lib/server/route-errors.ts';
 
 const log = createLogger('face-seed-route');
 
@@ -59,12 +60,7 @@ export const POST: RequestHandler = async (event) => {
   if (!engine) {
     throw error(503, 'the face store is not configured');
   }
-  let body: Body;
-  try {
-    body = (await event.request.json()) as Body;
-  } catch {
-    throw error(400, 'the body is not JSON');
-  }
+  const body = await readJsonBody<Body>(event.request);
   try {
     switch (body?.phase) {
       case 'begin':
