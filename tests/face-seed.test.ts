@@ -158,11 +158,17 @@ const matches = () =>
     state: string;
   }>;
 
+/** Begin, send the assets and the faces; returns the run token and what the faces phase said. */
+async function stream(faces: ReturnType<typeof face>[], assets: string[] = []) {
+  const run = await seedMod.beginSeed(engine());
+  await seedMod.seedAssets(engine(), run, assets);
+  const written = await seedMod.seedFaces(engine(), run, faces);
+  return { run, written, expected: { assets: assets.length, faces: faces.length } };
+}
+
 async function seed(faces: ReturnType<typeof face>[], assets: string[] = []) {
-  await seedMod.beginSeed(engine());
-  await seedMod.seedAssets(engine(), assets);
-  const written = await seedMod.seedFaces(engine(), faces);
-  return { written, report: await seedMod.finishSeed(engine()) };
+  const { run, written, expected } = await stream(faces, assets);
+  return { run, written, report: await seedMod.finishSeed(engine(), run, expected) };
 }
 
 describe('the seed', () => {
@@ -196,7 +202,7 @@ describe('the seed', () => {
     for (const r of aliceRefs) expect(cosineDistance(r, ALICE)).toBeLessThan(0.3);
     expect(refs.loadFaceReferences(db(), key, 'bob')).toHaveLength(2);
     expect(db().prepare('SELECT DISTINCT source FROM face_references').all()).toEqual([
-      { source: 'photo' },
+      { source: 'seed' },
     ]);
 
     // Every face decided; the stranger matches nobody.
@@ -281,10 +287,10 @@ describe('the seed', () => {
 
   it('stores no face that is not a usable vector, and counts it', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    await seedMod.beginSeed(engine());
+    const run = await seedMod.beginSeed(engine());
     const zero = face('z', null, new Float32Array(FACE_EMBEDDING_DIM));
     const short = { ...face('s', null, ALICE), embedding: [1, 2, 3] };
-    const result = await seedMod.seedFaces(engine(), [zero, short, face('ok', null, ALICE)]);
+    const result = await seedMod.seedFaces(engine(), run, [zero, short, face('ok', null, ALICE)]);
     errors.mockRestore();
     expect(result).toEqual({ written: 1, linked: 0, unusable: 2 });
     expect(faceDb().prepare('SELECT asset_id FROM face_embeddings').all()).toEqual([
@@ -293,25 +299,170 @@ describe('the seed', () => {
   });
 
   it('is refused once seeded, and before it has begun', async () => {
-    await expect(seedMod.seedFaces(engine(), [])).rejects.toMatchObject({ reason: 'not_begun' });
-    await seed([]);
+    await expect(seedMod.seedFaces(engine(), 'r', [])).rejects.toMatchObject({
+      reason: 'not_begun',
+    });
+    const { run } = await seed([]);
     await expect(seedMod.beginSeed(engine())).rejects.toMatchObject({ reason: 'already_seeded' });
-    await expect(seedMod.seedAssets(engine(), ['a'])).rejects.toMatchObject({
+    await expect(seedMod.seedAssets(engine(), run, ['a'])).rejects.toMatchObject({
       reason: 'already_seeded',
     });
   });
 
   it('starts again from nothing after a partial run', async () => {
-    await seedMod.beginSeed(engine());
-    await seedMod.seedFaces(engine(), [face('half', null, ALICE)]);
-    await seedMod.beginSeed(engine());
-    await seedMod.seedFaces(engine(), [face('whole', null, BOB)]);
+    const first = await seedMod.beginSeed(engine());
+    await seedMod.seedFaces(engine(), first, [face('half', null, ALICE)]);
+    const second = await seedMod.beginSeed(engine());
+    await seedMod.seedFaces(engine(), second, [face('whole', null, BOB)]);
     expect(faceDb().prepare('SELECT asset_id, face_index FROM face_embeddings').all()).toEqual([
       { asset_id: 'whole', face_index: 0 },
     ]);
     expect(faceDb().prepare('SELECT asset_id FROM face_assets').all()).toEqual([
       { asset_id: 'whole' },
     ]);
+  });
+});
+
+describe('the seed guards', () => {
+  /** Every row of the tables a finish may write, to compare before and after. */
+  const snapshot = () => ({
+    embeddings: faceDb()
+      .prepare('SELECT * FROM face_embeddings ORDER BY asset_id, face_index')
+      .all(),
+    assets: faceDb().prepare('SELECT * FROM face_assets ORDER BY asset_id').all(),
+    links: faceDb().prepare('SELECT * FROM face_seed_links ORDER BY asset_id, face_index').all(),
+    state: faceDb()
+      .prepare("SELECT * FROM face_store_state WHERE key != 'seed_finish' ORDER BY key")
+      .all(),
+    references: db().prepare('SELECT * FROM face_references ORDER BY id').all(),
+    matches: db().prepare('SELECT * FROM face_matches ORDER BY asset_id, face_index').all(),
+    consents: db().prepare('SELECT * FROM face_consents ORDER BY user_id').all(),
+  });
+
+  it('refuses to seal an export that did not arrive whole, and a rerun from begin works', async () => {
+    member('alice', 'pA', true, 'al2');
+    const { run, expected } = await stream(aliceFaces(), ['al0', 'empty']);
+    const before = snapshot();
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    // The second COPY failed half-way: Immich counted more faces than arrived.
+    await expect(
+      seedMod.finishSeed(engine(), run, { ...expected, faces: expected.faces + 1 })
+    ).rejects.toMatchObject({ reason: 'incomplete' });
+    await expect(
+      seedMod.finishSeed(engine(), run, { ...expected, assets: expected.assets + 1 })
+    ).rejects.toMatchObject({ reason: 'incomplete' });
+    await expect(
+      seedMod.dryRunSeed(engine(), run, { ...expected, faces: expected.faces - 1 })
+    ).rejects.toMatchObject({ reason: 'incomplete' });
+    errors.mockRestore();
+    expect(snapshot()).toEqual(before);
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).toBeNull();
+
+    const again = await seed(aliceFaces(), ['al0', 'empty']);
+    expect(again.report).toMatchObject({ faces: 6, referencedMembers: 1, unusable: 0 });
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).not.toBeNull();
+  });
+
+  it('counts an unusable face durably as received, so the export still balances', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const zero = face('z', null, new Float32Array(FACE_EMBEDDING_DIM));
+    const { report } = await seed([zero, face('ok', null, ALICE)]);
+    errors.mockRestore();
+    expect(report).toMatchObject({ faces: 1, unusable: 1 });
+  });
+
+  it('refuses every phase of a run a later begin replaced', async () => {
+    const first = await seedMod.beginSeed(engine());
+    await seedMod.seedFaces(engine(), first, [face('a', null, ALICE)]);
+    const second = await seedMod.beginSeed(engine());
+    await expect(seedMod.seedAssets(engine(), first, ['x'])).rejects.toMatchObject({
+      reason: 'stale_run',
+    });
+    await expect(seedMod.seedFaces(engine(), first, [face('b', null, BOB)])).rejects.toMatchObject({
+      reason: 'stale_run',
+    });
+    await expect(
+      seedMod.finishSeed(engine(), first, { assets: 0, faces: 0 })
+    ).rejects.toMatchObject({ reason: 'stale_run' });
+    await expect(
+      seedMod.dryRunSeed(engine(), first, { assets: 0, faces: 0 })
+    ).rejects.toMatchObject({ reason: 'stale_run' });
+    expect(() => seedMod.readSeedFinish(engine(), first)).toThrow(seedMod.SeedRefusedError);
+    expect(faceDb().prepare('SELECT COUNT(*) AS n FROM face_embeddings').get()).toEqual({ n: 0 });
+    // The current run seals; the replaced one never could.
+    await seedMod.finishSeed(engine(), second, { assets: 0, faces: 0 });
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).not.toBeNull();
+  });
+
+  it('dry-runs the finish without writing anything, and the real finish follows', async () => {
+    member('alice', 'pA', true, 'al2');
+    member('bob', 'pB');
+    member('carol', 'pC', false);
+    const { run, expected } = await stream(
+      [
+        ...aliceFaces(),
+        ...[0.1, 0.12].map((d, i) => face(`bo${i}`, 'pB', atDistance(BOB, synthetic(20 + i), d))),
+        face('ca0', 'pC', CAROL),
+      ],
+      ['empty']
+    );
+    // Bob already holds four references of his own: the dry run counts only the room left.
+    for (let i = 0; i < 4; i++) refs.addFaceReference(db(), key, 'bob', 'photo', BOB);
+    const before = snapshot();
+    const plan = await seedMod.dryRunSeed(engine(), run, expected);
+    expect(snapshot()).toEqual(before);
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).toBeNull();
+    expect(plan).toEqual({
+      faces: 9,
+      assets: 10,
+      unusable: 0,
+      linkedMembers: 3,
+      consentingMembers: 2,
+      referencedMembers: 2,
+      skipped: { noConsent: 1, noFaces: 0 },
+      referencesPerMember: { 5: 1, 1: 1 },
+    });
+    expect(seedMod.readSeedFinish(engine(), run)).toEqual({
+      status: 'done',
+      dryRun: true,
+      report: plan,
+    });
+
+    const report = await seedMod.finishSeed(engine(), run, expected);
+    expect(report).toMatchObject({
+      consentingMembers: 2,
+      referencedMembers: 2,
+      referencesPerMember: { 5: 1, 1: 1 },
+    });
+    expect(seedMod.readSeedFinish(engine(), run)).toMatchObject({ status: 'done', dryRun: false });
+  });
+
+  it('starts a dry run in the background: done, and still nothing written', async () => {
+    member('alice', 'pA');
+    const { run, expected } = await stream(aliceFaces());
+    const before = snapshot();
+    const { settled } = await seedMod.startSeedFinish(engine(), run, expected, true);
+    expect(await settled).toMatchObject({ status: 'done', dryRun: true });
+    expect(snapshot()).toEqual(before);
+  });
+
+  it('begin wipes the references a failed finish wrote, and only those', async () => {
+    member('alice', 'pA');
+    await stream(aliceFaces());
+    // What a finish that failed after its references leaves: the seed's, beside the member's own.
+    refs.addFaceReference(db(), key, 'alice', 'seed', ALICE);
+    refs.addFaceReference(db(), key, 'alice', 'seed', ALICE);
+    refs.addFaceReference(db(), key, 'alice', 'photo', ALICE);
+    refs.addFaceReference(db(), key, 'alice', 'selfie', ALICE);
+    await seedMod.beginSeed(engine());
+    expect(db().prepare('SELECT source FROM face_references ORDER BY source').all()).toEqual([
+      { source: 'photo' },
+      { source: 'selfie' },
+    ]);
+
+    // So a rerun's histogram counts the seed's own references afresh, the member's kept.
+    const { report } = await seed(aliceFaces());
+    expect(report.referencesPerMember).toEqual({ 3: 1 });
   });
 });
 
@@ -374,28 +525,168 @@ describe('POST /api/admin/faces/seed', () => {
     }
   };
 
-  it('runs the four phases and answers counts only', async () => {
+  const poll = async (run: string | null) => {
+    try {
+      const url = new URL('http://x/api/admin/faces/seed');
+      if (run !== null) url.searchParams.set('run', run);
+      const res = await route.GET({ url } as never);
+      return { status: res.status, body: (await res.json()) as Record<string, unknown> };
+    } catch (e) {
+      return { status: (e as { status?: number }).status ?? 500, body: null };
+    }
+  };
+  /** Every queued engine operation, the background finish included, has run. */
+  const drained = () => engineMod.runExclusive(() => undefined);
+  /** Hold the engine lock until released: queued work waits behind it, deterministically. */
+  const hold = () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    void engineMod.runExclusive(() => gate);
+    return release;
+  };
+  /**
+   * Start a finish whose background work is still waiting when this returns: the finish queues
+   * its check synchronously, a hold is queued right behind it, so the work lands behind the hold.
+   * Returns the release of the hold.
+   */
+  const finishHeld = async (
+    run: string,
+    expected: { assets: number; faces: number },
+    dryRun: boolean
+  ) => {
+    const started = seedMod.startSeedFinish(engine(), run, expected, dryRun);
+    const release = hold();
+    await started;
+    return release;
+  };
+
+  it('runs the phases, answers the finish at once, and the poll returns counts only', async () => {
     member('alice', 'pA');
-    expect((await call({ phase: 'begin' })).status).toBe(200);
-    expect(await call({ phase: 'assets', ids: ['al0'] })).toEqual({
+    const begun = await call({ phase: 'begin' });
+    expect(begun.status).toBe(200);
+    const run = begun.body?.run as string;
+    expect(run).toMatch(/^[0-9a-f]{48}$/);
+    expect(await call({ phase: 'assets', run, ids: ['al0'] })).toEqual({
       status: 200,
       body: { success: true, added: 1 },
     });
-    expect(await call({ phase: 'faces', faces: aliceFaces() })).toEqual({
+    expect(await call({ phase: 'faces', run, faces: aliceFaces() })).toEqual({
       status: 200,
       body: { success: true, written: 6, linked: 6, unusable: 0 },
     });
-    const done = await call({ phase: 'finish' });
-    expect(done.status).toBe(200);
+    expect(await poll(run)).toEqual({ status: 200, body: { success: true, status: 'none' } });
+    const expected = { assets: 1, faces: 6 };
+    expect(await call({ phase: 'finish', run, expected })).toEqual({
+      status: 202,
+      body: { success: true, status: 'running', dryRun: false },
+    });
+    await drained();
+    const done = await poll(run);
+    expect(done.body).toMatchObject({
+      success: true,
+      status: 'done',
+      dryRun: false,
+      report: { faces: 6, assets: 6, linkedMembers: 1, referencedMembers: 1 },
+    });
     expect(JSON.stringify(done.body)).not.toMatch(/alice|pA|al0/);
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).not.toBeNull();
     expect((await call({ phase: 'begin' })).status).toBe(409);
   });
 
-  it('refuses a malformed face, a non-admin and an impersonated session', async () => {
-    await call({ phase: 'begin' });
-    expect((await call({ phase: 'faces', faces: [{ assetId: 'a' }] })).status).toBe(400);
+  it('refuses a phase without its run token, or with a replaced one', async () => {
+    const first = (await call({ phase: 'begin' })).body?.run as string;
+    expect((await call({ phase: 'assets', ids: ['a'] })).status).toBe(400);
+    expect((await call({ phase: 'finish', expected: { assets: 0, faces: 0 } })).status).toBe(400);
+    expect((await poll(null)).status).toBe(400);
+    const second = (await call({ phase: 'begin' })).body?.run as string;
+    expect(second).not.toBe(first);
+    expect((await call({ phase: 'assets', run: first, ids: ['a'] })).status).toBe(409);
+    expect((await call({ phase: 'faces', run: first, faces: [] })).status).toBe(409);
     expect(
-      (await call({ phase: 'faces', faces: [{ ...face('a', null, ALICE), x1: 1.5 }] })).status
+      (await call({ phase: 'finish', run: first, expected: { assets: 0, faces: 0 } })).status
+    ).toBe(409);
+    expect((await poll(first)).status).toBe(409);
+    expect((await call({ phase: 'assets', run: second, ids: ['a'] })).status).toBe(200);
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seed_finish')).toBeNull();
+  });
+
+  it('refuses a finish without the expected counts, and one whose counts differ', async () => {
+    const run = (await call({ phase: 'begin' })).body?.run as string;
+    await call({ phase: 'faces', run, faces: [face('a', null, ALICE)] });
+    expect((await call({ phase: 'finish', run })).status).toBe(400);
+    expect((await call({ phase: 'finish', run, expected: { assets: 0, faces: -1 } })).status).toBe(
+      400
+    );
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const short = await call({ phase: 'finish', run, expected: { assets: 0, faces: 2 } });
+    errors.mockRestore();
+    expect(short.status).toBe(409);
+    expect(await poll(run)).toEqual({ status: 200, body: { success: true, status: 'none' } });
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).toBeNull();
+  });
+
+  it('says running while a finish runs, and refuses a begin or a second finish meanwhile', async () => {
+    const run = (await call({ phase: 'begin' })).body?.run as string;
+    await call({ phase: 'faces', run, faces: [face('a', null, ALICE)] });
+    const expected = { assets: 0, faces: 1 };
+    const release = await finishHeld(run, expected, true);
+    expect((await poll(run)).body).toEqual({ success: true, status: 'running', dryRun: true });
+    expect((await call({ phase: 'begin' })).status).toBe(409);
+    expect((await call({ phase: 'finish', run, expected })).status).toBe(409);
+    release();
+    await drained();
+    expect((await poll(run)).body).toMatchObject({ status: 'done', dryRun: true });
+  });
+
+  it('reports a finish a restart cut as interrupted, and records it', async () => {
+    const run = (await call({ phase: 'begin' })).body?.run as string;
+    faceDatabase.setFaceStoreState(
+      faceDb(),
+      'seed_finish',
+      JSON.stringify({ status: 'running', dryRun: false, run, process: 'a-process-gone' })
+    );
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect((await poll(run)).body).toEqual({
+      success: true,
+      status: 'failed',
+      dryRun: false,
+      reason: 'interrupted',
+    });
+    errors.mockRestore();
+    expect(
+      JSON.parse(faceDatabase.getFaceStoreState(faceDb(), 'seed_finish') as string)
+    ).toMatchObject({ status: 'failed', reason: 'interrupted' });
+    // Not a finish of this process: a new begin is not blocked by it.
+    expect((await call({ phase: 'begin' })).status).toBe(200);
+  });
+
+  it('records a finish that failed under the lock as failed, and seals nothing', async () => {
+    member('alice', 'pA');
+    const run = (await call({ phase: 'begin' })).body?.run as string;
+    await call({ phase: 'faces', run, faces: aliceFaces() });
+    // A broken store: the working table is gone, so the finish throws once it reads it.
+    faceDb().exec('DROP TABLE face_seed_links');
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect((await call({ phase: 'finish', run, expected: { assets: 0, faces: 6 } })).status).toBe(
+      202
+    );
+    await drained();
+    errors.mockRestore();
+    expect((await poll(run)).body).toEqual({
+      success: true,
+      status: 'failed',
+      dryRun: false,
+      reason: 'error',
+    });
+    expect(faceDatabase.getFaceStoreState(faceDb(), 'seeded_at')).toBeNull();
+    expect((await call({ phase: 'begin' })).status).toBe(200);
+  });
+
+  it('refuses a malformed face, a non-admin and an impersonated session', async () => {
+    const run = (await call({ phase: 'begin' })).body?.run as string;
+    expect((await call({ phase: 'faces', run, faces: [{ assetId: 'a' }] })).status).toBe(400);
+    expect(
+      (await call({ phase: 'faces', run, faces: [{ ...face('a', null, ALICE), x1: 1.5 }] })).status
     ).toBe(400);
     expect((await call({ phase: 'nope' })).status).toBe(400);
     const notJson = await Promise.resolve()
@@ -406,9 +697,11 @@ describe('POST /api/admin/faces/seed', () => {
     expect(notJson.status).toBe(400);
     auth.impersonating = true;
     expect((await call({ phase: 'begin' })).status).toBe(403);
+    expect((await poll(run)).status).toBe(403);
     auth.impersonating = false;
     auth.admin = false;
     expect((await call({ phase: 'begin' })).status).toBe(403);
+    expect((await poll(run)).status).toBe(403);
     expect(faceDb().prepare('SELECT COUNT(*) AS n FROM face_embeddings').get()).toEqual({ n: 0 });
   });
 });
@@ -424,5 +717,14 @@ describe('seed-client line parsing', () => {
     expect(() => parseFaceLine(['F', 'a', 'p', 'w', '1', '1', '1', '1', '1', vector])).toThrow(
       /integer/
     );
+  });
+
+  it('reads the count line, and refuses anything else as the first line', async () => {
+    const { parseCountLine } = await import('../scripts/faces/seed-client.mjs');
+    expect(parseCountLine(['C', '172612', '600003'])).toEqual({ assets: 172612, faces: 600003 });
+    expect(() => parseCountLine(['A', 'a1'])).toThrow(/count line/);
+    expect(() => parseCountLine(['C', '1'])).toThrow(/count line/);
+    expect(() => parseCountLine(['C', '1', '-2'])).toThrow(/whole number/);
+    expect(() => parseCountLine(['C', '1.5', '2'])).toThrow(/whole number/);
   });
 });

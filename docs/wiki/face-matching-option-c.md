@@ -384,20 +384,57 @@ which erased a selfie-only member's face data).
 
 ### A7 - the seed
 
-| File                                         | Role                                                                                                                                                                                                                                                                                                                                                                                                |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/server/face-seed.ts`                | the four phases. `begin` refuses a seeded store (`seeded_at`) and wipes a partial run; `assets` writes every asset face recognition ran on `done` (source `seed`, 0 faces); `faces` seals each face under the next index of its asset (score NULL) and notes a face of a LINKED person in the working table `face_seed_links`; `finish` does the rest, then drops the table and writes `seeded_at`. |
-| `src/routes/api/admin/faces/seed/+server.ts` | `POST`, admin scope, never an impersonated session, every field checked; at most 2,000 faces or 20,000 asset ids a request; a refusal is a 409 naming the reason. Answers counts only.                                                                                                                                                                                                              |
-| `scripts/faces/seed-client.mjs`              | reads the two COPY exports on stdin and posts them in batches; prints the report. Nothing touches the disk unsealed.                                                                                                                                                                                                                                                                                |
-| `claimFace` in `face-engine.ts`              | makes a member the CONFIRMED holder of a face they designated by another act than an answer; replaces a pending holder, never an answer (a face another member confirmed, one this member rejected), and needs usable references.                                                                                                                                                                   |
+| File                                         | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/server/face-seed.ts`                | the phases. `begin` refuses a seeded store (`seeded_at`), wipes a partial run (its faces, assets, matches, the references a failed finish wrote, its counters) and returns a fresh RUN TOKEN; `assets` writes every asset face recognition ran on `done` (source `seed`, 0 faces) and counts them durably; `faces` seals each face under the next index of its asset (score NULL), notes a face of a LINKED person in the working table `face_seed_links`, and counts a face that is not a usable vector durably; `finish` checks the export arrived whole, does the rest, then drops the table and writes `seeded_at`. Its dry run writes nothing. |
+| `src/routes/api/admin/faces/seed/+server.ts` | `POST`, admin scope, never an impersonated session, every field checked; at most 2,000 faces or 20,000 asset ids a request; `finish` answers 202 at once. `GET ?run=<token>` polls the finish, same access. A refusal is a 409 naming the reason. Answers counts only.                                                                                                                                                                                                                                                                                                                                                                              |
+| `scripts/faces/seed-client.mjs`              | reads the count line and the two COPY exports on stdin, posts them in batches, runs the dry run and prints its report, then (without `--dry-run`) the real finish and its report. Nothing touches the disk unsealed.                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `claimFace` in `face-engine.ts`              | makes a member the CONFIRMED holder of a face they designated by another act than an answer; replaces a pending holder, never an answer (a face another member confirmed, one this member rejected), and needs usable references.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+
+**One run, one token.** `begin` writes a random token in `face_store_state` (`seed_run`) and
+answers it; `assets`, `faces`, `finish` and the poll carry it. A phase with another token is
+refused `stale_run` (none at all is a 400), so a second `begin` - another operator, a client
+restarted - cuts the first client off: its later batches cannot land in the new run, and it can
+never seal a partial seed.
+
+**A truncated export is never sealed.** The export's FIRST line is `C <assets> <faces>`, counted
+by Immich in the same read-only REPEATABLE READ transaction as the two COPYs, so the three see one
+snapshot. The client sends those counts with `finish`, which is refused `incomplete` (409, nothing
+written, `seeded_at` unset, so a rerun from `begin` works) unless they equal what the server
+durably received: the asset ids of the `assets` phase (`seed_assets_received`), and the faces
+stored plus the faces refused as unusable (`seed_unusable`). A COPY that fails half-way ends the
+stream early: the counts differ, and nothing is sealed. A stream without its `C` line makes the
+client exit non-zero before any finish. The received assets are a counter rather than a count of
+`seed` rows, because the `faces` phase also writes the row of an asset it meets without one.
+
+**The finish runs in the background.** It takes minutes (two scans of 600,000 faces, then
+`rematchAll`), longer than the server keeps an idle connection open (Bun's default `idleTimeout`,
+10 s, which the production compose does not raise). `POST finish` checks the run and the counts,
+records `running` in `face_store_state` (`seed_finish`, with the run token and the id of the
+process running it) and answers 202; the work runs under the engine lock and writes its end inside
+the lock: `done` with the aggregate report (in the same transaction as `seeded_at` for the real
+finish), or `failed` with a classified reason (a refusal's reason, or `error`). The client polls
+`GET ?run=<token>` every 5 s until `done` or `failed`. A `running` status recorded by ANOTHER
+process id was cut by a restart - nothing in this process can end it - so the poll reports and
+records it `failed` / `interrupted`: a poll always ends, and nothing was sealed. While a finish
+runs, `begin` and a second `finish` are refused `finish_running` (taking the lock would wait out
+the whole finish).
+
+**The dry run** (`finish` with `dryRun: true`) makes the same checks and the same reference
+selection, and reports the faces, the assets, the unusable faces, the linked members, how many of
+them hold an open consent, how many would get references and the histogram of how many each would
+get (within the room left under the cap of 5). It writes no reference, no match, no claim, no
+`seeded_at`, keeps the working table, and records only its own status, so the real finish can
+follow on the same run.
 
 `finish`, in order:
 
 1. **References from the links.** Two streamed scans of the store: the centroid of each linked
-   person, then the 5 faces nearest it. A member gets them as `photo` references in a transaction
-   that re-reads, at that moment, that they are still linked to that person AND hold an open
-   consent: a withdrawal during the seed (synchronous, outside the engine lock) is never undone.
-   A member who enrolled by selfie keeps it; the cap fills the rest.
+   person, then the 5 faces nearest it. A member gets them as `seed` references (told apart from
+   `photo`, a face the member confirmed, so a failed finish's are wiped by the next `begin` and no
+   member's are) in a transaction that re-reads, at that moment, that they are still linked to
+   that person AND hold an open consent: a withdrawal during the seed (synchronous, outside the
+   engine lock) is never undone. A member who enrolled by selfie keeps it; the cap fills the rest.
 2. **Every face decided** (`rematchAll`).
 3. **The profile photos carried over**: a member whose chosen `photos_asset_id` holds a face of
    their own linked person gets that face `confirmed` (`claimFace`), so the A6 avatar keeps
@@ -406,18 +443,32 @@ which erased a selfie-only member's face data).
    given to another member, matched to nobody) and the per-member share shown (p10/p50/p90). No id
    leaves the server, in the log or the answer.
 
-**The run** (as root on the host, once the release carrying A1-A7 is deployed; an admin API key in
-`MIGALLERY_ADMIN_KEY`, created with `scripts/create-api-key.cjs` and revoked afterwards):
+**The run** (as root on the host, in bash, once the release carrying A1-A7 is deployed; an admin
+API key in `MIGALLERY_ADMIN_KEY`, created with `scripts/create-api-key.cjs` and revoked
+afterwards). First with `--dry-run`, whose report is read; then the same command without it, which
+streams again, prints the dry run's report again, then seals and prints the final report:
 
 ```sh
-docker exec immich_postgres psql -U postgres -d immich -At \
+set -o pipefail
+docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1 -1 \
+  -c "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" \
+  -c "COPY (SELECT 'C',
+              (SELECT count(*) FROM asset_job_status WHERE \"facesRecognizedAt\" IS NOT NULL),
+              (SELECT count(*) FROM asset_face f JOIN face_search s ON s.\"faceId\" = f.id
+                 WHERE f.\"deletedAt\" IS NULL AND f.\"isVisible\")) TO STDOUT" \
   -c "COPY (SELECT 'A', \"assetId\" FROM asset_job_status WHERE \"facesRecognizedAt\" IS NOT NULL) TO STDOUT" \
   -c "COPY (SELECT 'F', f.\"assetId\", f.\"personGroupId\", f.\"imageWidth\", f.\"imageHeight\",
               f.\"boundingBoxX1\", f.\"boundingBoxY1\", f.\"boundingBoxX2\", f.\"boundingBoxY2\", s.embedding
             FROM asset_face f JOIN face_search s ON s.\"faceId\" = f.id
             WHERE f.\"deletedAt\" IS NULL AND f.\"isVisible\") TO STDOUT" \
-| docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> bun scripts/faces/seed-client.mjs
+| docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> bun scripts/faces/seed-client.mjs --dry-run
+echo "exit: $?"
 ```
+
+`set -o pipefail` makes the pipeline fail when psql fails, not only when the client does; the
+server's count check is what keeps a truncated export unsealed either way. `-q` keeps psql's
+command tags (`SET`, `COPY n`) out of the stream: the client refuses any line that is not `C`, `A`
+or `F`, and a first line that is not `C`.
 
 No `ORDER BY`: it would sort the whole table (section 3, A7 row). Read on the live server
 (read-only, 2026-10-31): 172,617 assets, 172,612 with face recognition run (the other 5 are
