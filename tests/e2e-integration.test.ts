@@ -340,7 +340,7 @@ describe('E2E - Health et monitoring', () => {
       });
 
       // Endpoints must be accessible (even if Immich is down)
-      expect([200, 401, 404, 500, 502]).toContain(response.status);
+      expect([200, 401, 404, 500, 502, 503]).toContain(response.status);
     }
   }, 60000);
 });

@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { getPersonAssets } from '#lib/photos-cv/handlers.ts';
 import { requirePersonAccess } from '#lib/server/face-access.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -19,6 +20,9 @@ export const GET: RequestHandler = async (event) => {
     const assets = await getPersonAssets(personId, false, event.fetch);
     return json({ assets });
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
+    }
     log.error('GET /api/people/person/[id]/my-photos error', e);
     throw error(500, e instanceof Error ? e.message : 'Internal');
   }

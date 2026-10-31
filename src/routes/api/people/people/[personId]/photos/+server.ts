@@ -8,6 +8,7 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 import { getPersonAssets as getPersonAlbumAssets } from '#lib/photos-cv/handlers.ts';
 import { requirePersonAccess } from '#lib/server/face-access.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -54,6 +55,9 @@ export const GET: RequestHandler = async (event) => {
     const assets = await getPersonAssets(personId, inAlbum, event.fetch);
     return json({ assets });
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
+    }
     const err = ensureError(e);
     log.error('Error in /api/people/people/[personId]/photos GET:', err);
     throw error(500, err.message);
