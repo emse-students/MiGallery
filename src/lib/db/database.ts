@@ -388,7 +388,7 @@ export function getDatabase(): DatabaseInstance {
     }
 
     // Deleted pages are overwritten with zeros: a withdrawn member's face data must not linger
-    // in the file's free pages (face_references, face_embeddings; docs/wiki/face-store.md).
+    // in the file's free pages (face_references, face_embeddings; docs/wiki/face-matching-option-c.md).
     try {
       dbInstance.exec('PRAGMA secure_delete = ON');
     } catch (e) {

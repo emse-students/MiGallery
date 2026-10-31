@@ -37,7 +37,7 @@ the page is a bug.
 | [immich-proxy.md](immich-proxy.md)                     | The universal `/api/immich/*` proxy, chunked uploads, public assets, caching                  |
 | [albums-and-permissions.md](albums-and-permissions.md) | Album visibility and the four permission dimensions                                           |
 | [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent                              |
-| [face-store.md](face-store.md)                         | Option C face store, lot A1: float16 embeddings, sealing, references, thresholds              |
+| [face-matching-option-c.md](face-matching-option-c.md) | Face matching option C: the sealed embedding store, measurements, lots A1-A9                  |
 | [terms.md](terms.md)                                   | The /cgu page: one version value, claims the code must back                                   |
 | [downloads.md](downloads.md)                           | Token-based archive download (native browser save)                                            |
 | [search.md](search.md)                                 | Typo-, accent- and word-order-tolerant search, and how a result is ranked                     |

@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS face_consents (
 );
 CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
 
--- Face store, option C (docs/wiki/face-store.md). Both tables hold BIOMETRIC TEMPLATES, so every
+-- Face store, option C (docs/wiki/face-matching-option-c.md). Both tables hold BIOMETRIC TEMPLATES, so every
 -- vector is sealed (AES-256-GCM, src/lib/server/face-seal.ts) and bound by its authenticated
 -- context: a reference to its member AND model (referenceContext), an embedding to its asset, face
 -- index and model (embeddingContext) - a ciphertext copied elsewhere fails to open. A member's own
