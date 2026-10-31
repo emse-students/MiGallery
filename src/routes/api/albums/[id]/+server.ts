@@ -11,6 +11,7 @@ import { deleteOrphanedAlbumAssets } from '#lib/server/immich-album-delete.ts';
 import { getStoredCover, pruneAlbumCovers } from '#lib/server/album-cover.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { logRouteFailure } from '#lib/server/route-errors.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums-id');
@@ -77,7 +78,7 @@ export const GET: RequestHandler = async (event) => {
     return json({ ...album, assets: assetList });
   } catch (e: unknown) {
     const err = ensureError(e);
-    log.error(`Error in /api/albums/${id} GET:`, err);
+    logRouteFailure(log, `GET /api/albums/${id}`, e);
     if (e && typeof e === 'object' && 'status' in e) {
       throw e;
     }
@@ -195,7 +196,7 @@ export const DELETE: RequestHandler = async (event) => {
     });
   } catch (e: unknown) {
     const err = ensureError(e);
-    log.error(`Error in /api/albums/${event.params.id} DELETE:`, err);
+    logRouteFailure(log, `DELETE /api/albums/${event.params.id}`, e);
     if (e && typeof e === 'object' && 'status' in e) {
       throw e;
     }
@@ -398,7 +399,7 @@ export const PATCH: RequestHandler = async (event) => {
     });
   } catch (e: unknown) {
     const err = ensureError(e);
-    log.error(`Error in /api/albums/${event.params.id} PATCH:`, err);
+    logRouteFailure(log, `PATCH /api/albums/${event.params.id}`, e);
     if (e && typeof e === 'object' && 'status' in e) {
       throw e;
     }

@@ -8,6 +8,7 @@ import { requireScope } from '#lib/server/permissions.ts';
 import { ensureError } from '#lib/ts-utils.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
+import { logRouteFailure } from '#lib/server/route-errors.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('albums');
@@ -225,7 +226,7 @@ export const POST: RequestHandler = async (event) => {
     return json({ ...immichAlbum, id: albumId });
   } catch (err) {
     const e = err as Error;
-    log.error('Error in POST /api/albums:', e);
+    logRouteFailure(log, 'POST /api/albums', e);
     if (e && typeof e === 'object' && 'status' in e) {
       throw e;
     }

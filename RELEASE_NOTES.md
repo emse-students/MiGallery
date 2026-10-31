@@ -5,6 +5,7 @@
 - Docs: the face matching design (option C) moves here from the Canari repository, with the 2026-10-31 measurements: float16 against float32, the 0.62 threshold on the members' own links, and the store's memory (`docs/wiki/face-matching-option-c.md`).
 - Faces (A2): the client of the face model and the matcher - the nearest member only, the 0.5 / 0.62 bands, a runner-up closer than 0.05 (a member who rejected the face included) or fewer than 3 references never accepted without the member, a selfie refused on any second face, the store streamed rather than held. No route or worker calls it yet.
 - Logs: with no Immich configured, the PhotoCV and people routes answer 503 and say it once at info, instead of two error lines per request; a real failure to resolve a system album is still an error.
+- Logs: a request the client got wrong (a 4xx: no session, a missing field, a forged sign-in state, a duplicate user, a body that is not JSON or a form) is logged as a warning with its route and status; a server fault stays an error. A missing backup or a malformed body on the database restore and import now answers 4xx instead of 500.
 
 # MiGallery v2.17.0
 
