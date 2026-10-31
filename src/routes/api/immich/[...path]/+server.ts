@@ -9,6 +9,7 @@ import {
   classifyProxiedBody,
   stripFaceFields,
 } from '#lib/server/face-access.ts';
+import { findProxyRule } from '#lib/server/immich-proxy-allowlist.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
 import { getDatabase } from '#lib/db/database.ts';
 
@@ -693,6 +694,19 @@ const handle: RequestHandler = async function (event) {
     }
   }
 
+  // Only the routes MiGallery's pages use are forwarded (immich-proxy-allowlist.ts), judged once
+  // the caller is known so an anonymous request learns nothing about which routes exist.
+  const rule = findProxyRule(request.method, pathParam, event.url.searchParams);
+  if (!rule) {
+    return new Response(JSON.stringify({ error: 'Not available through this proxy' }), {
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  if (rule.admin) {
+    await requireScope(event, 'admin');
+  }
+
   // Prevent path traversal
   if (pathParam.includes('..') || pathParam.includes('\0')) {
     return new Response(JSON.stringify({ error: 'Invalid path' }), {
@@ -898,30 +912,6 @@ const handle: RequestHandler = async function (event) {
       }
       if (res.status === 204 || request.method === 'HEAD') {
         return new Response(null, { status: res.status, headers });
-      }
-      return new Response(res.body, { status: res.status, headers });
-    }
-
-    // Search responses (search/*): potentially large (v3 metadata),
-    // never cached, and whose body we don't inspect here. We stream them
-    // directly instead of materializing all JSON via res.text(), which
-    // avoids a native `external` spike proportional to the response size.
-    if (res.ok && pathParam.startsWith('search/') && resContentType.includes('application/json')) {
-      const headers = new Headers();
-      headers.set('content-type', resContentType);
-      const safeForward = [
-        'etag',
-        'cache-control',
-        'expires',
-        'x-immich-cid',
-        'content-length',
-        'last-modified',
-      ];
-      for (const h of safeForward) {
-        const v = res.headers.get(h);
-        if (v) {
-          headers.set(h, v);
-        }
       }
       return new Response(res.body, { status: res.status, headers });
     }

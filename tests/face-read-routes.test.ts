@@ -34,9 +34,15 @@ const state = vi.hoisted(() => ({
   cvAlbum: [] as string[],
 }));
 
+const env = vi.hoisted(() => ({
+  IMMICH_BASE_URL: 'http://immich.test' as string | undefined,
+}));
+
 vi.mock('#lib/server/env.ts', () => ({
   env: {
-    IMMICH_BASE_URL: 'http://immich.test',
+    get IMMICH_BASE_URL() {
+      return env.IMMICH_BASE_URL;
+    },
     IMMICH_API_KEY: 'k',
     FACE_ML_URL: 'http://ml.test',
     FACE_STORE_KEY: 'ab'.repeat(32),
@@ -110,11 +116,16 @@ let immichCalls: string[] = [];
 let library: Record<string, { id: string; type: string; fileCreatedAt: string }> = {};
 /** When set, the faked search ignores its filter and answers this page instead. */
 let ignoreFilter: string[] | null = null;
+/** When set, the faked search answers (or throws) this instead. */
+let searchFails: (() => Response) | null = null;
 
 const immich = (async (url: string, init?: RequestInit) => {
   const u = new URL(String(url));
   immichCalls.push(`${init?.method ?? 'GET'} ${u.pathname}`);
   if (u.pathname === '/api/search/metadata') {
+    if (searchFails) {
+      return searchFails();
+    }
     const body = JSON.parse(String(init?.body)) as {
       filter: { or: Array<{ id: { eq: string } }> };
       size: number;
@@ -230,6 +241,8 @@ beforeEach(() => {
   state.cvAlbum = [];
   immichCalls = [];
   library = {};
+  searchFails = null;
+  env.IMMICH_BASE_URL = 'http://immich.test';
   ignoreFilter = null;
 });
 
@@ -353,7 +366,39 @@ describe('GET /api/users/[userId]/photos-stream', () => {
   it('refuses an Immich answer that ignored the filter rather than show photos not asked for', async () => {
     photo('stranger', '2025-07-01T00:00:00Z');
     ignoreFilter = ['new', 'stranger'];
-    expect(await streamOf('m1')).toEqual({ status: 500, ids: null });
+    expect(await streamOf('m1')).toEqual({ status: 502, ids: null });
+  });
+
+  it("answers Immich's refusal of OUR search as 502, without Immich's text", async () => {
+    searchFails = () => new Response('secret upstream detail', { status: 400 });
+    const res = await call(streamRoute.GET, {
+      params: { userId: 'm1' },
+      url: new URL('http://x.test/api/users/m1/photos-stream'),
+      request: new Request('http://x.test/'),
+      fetch: immich,
+    });
+    expect(res.status).toBe(502);
+    expect(await res.text()).not.toContain('secret upstream detail');
+  });
+
+  it('classifies the transport: unreachable 502, too slow 504', async () => {
+    searchFails = () => {
+      throw new TypeError('fetch failed');
+    };
+    expect((await streamOf('m1')).status).toBe(502);
+    searchFails = () => {
+      throw new DOMException('The operation timed out.', 'TimeoutError');
+    };
+    expect((await streamOf('m1')).status).toBe(504);
+    searchFails = () => new Response('<html>', { headers: { 'content-type': 'text/html' } });
+    expect((await streamOf('m1')).status).toBe(502);
+  });
+
+  it('answers 503 when Immich is not configured, without asking anything', async () => {
+    env.IMMICH_BASE_URL = '';
+    expect((await streamOf('m1', '?in_album=false')).status).toBe(503);
+    expect((await streamOf('m1')).status).toBe(503);
+    expect(immichCalls).toEqual([]);
   });
 
   it('asks in batches of the declared size', async () => {

@@ -33,6 +33,7 @@ import {
   type FaceKey,
 } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { deleteMemberFaceCrop } from '#lib/server/face-crop.ts';
 
 const log = createLogger('face-engine');
 
@@ -175,6 +176,8 @@ export function recordDecisions(
 
   for (let start = 0; start < faces.length; start += RECORD_BATCH) {
     const batch = faces.slice(start, start + RECORD_BATCH);
+    // Faces whose pending holder lost them in this batch: their crop goes after the COMMIT.
+    const lost: Array<{ userId: string; face: FaceKey }> = [];
     inTransaction(db, () => {
       const fingerprint = referenceFingerprint(db);
       if (fingerprint !== snapshot.fingerprint) {
@@ -204,6 +207,12 @@ export function recordDecisions(
               faceIndex: face.faceIndex,
             }),
         });
+        if (holder && holder.user_id !== decision?.userId) {
+          lost.push({
+            userId: holder.user_id,
+            face: { assetId: face.assetId, faceIndex: face.faceIndex },
+          });
+        }
         if (!decision) {
           result.none++;
           continue;
@@ -221,8 +230,24 @@ export function recordDecisions(
         result[decision.band]++;
       }
     });
+    dropLostFaceCrops(lost);
   }
   return result;
+}
+
+/**
+ * Delete the crop a member had of a face that is no longer theirs (it went to another member, or
+ * to nobody). The crop sits in the FORMER holder's directory, which no later erasure of the new
+ * holder reaches, so it goes as soon as the decision is committed. deleteMemberFaceCrop logs a
+ * file error itself; the decision stands.
+ */
+function dropLostFaceCrops(lost: ReadonlyArray<{ userId: string; face: FaceKey }>): void {
+  for (const { userId, face } of lost) {
+    deleteMemberFaceCrop(userId, face);
+  }
+  if (lost.length > 0) {
+    log.debug('crops of faces that changed holder deleted', { faces: lost.length });
+  }
 }
 
 /** Decide freshly stored faces (a new photo) against every member. */
