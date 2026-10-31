@@ -22,7 +22,7 @@ sequence(corsAndCsrfHandler, sessionHandler)
      these authenticate by `x-api-key`, not cookies, so CSRF does not apply.
    - Sets `Cache-Control` per asset type (hashed `/_app/` and images are
      immutable for 2 days; HTML and non-API routes are `max-age=0,
-must-revalidate`) and the CORS headers on API responses.
+     must-revalidate`) and the CORS headers on API responses.
 
 2. **`sessionHandler`** resolves the current user (`getSessionUser`) into
    `event.locals.user` (or `null`) and opportunistically deletes legacy-format
