@@ -457,7 +457,9 @@ export function claimFace(
 ): ClaimOutcome {
   assertExclusive('claimFace');
   const { db } = engine;
-  return inTransaction(db, () => {
+  // The pending holders this claim displaces: their crop goes after the COMMIT.
+  const lost: Array<{ userId: string; face: FaceKey }> = [];
+  const outcome = inTransaction(db, (): ClaimOutcome => {
     const rows = db
       .prepare(
         'SELECT user_id, state FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
@@ -495,9 +497,19 @@ export function claimFace(
       now,
       now
     );
+    for (const r of rows) {
+      if (r.state === 'pending' && r.user_id !== userId) {
+        lost.push({
+          userId: r.user_id,
+          face: { assetId: face.assetId, faceIndex: face.faceIndex },
+        });
+      }
+    }
     log.info('face claimed by its member', { replacedPending: rows.length > 0 });
     return 'claimed';
   });
+  dropLostFaceCrops(lost);
+  return outcome;
 }
 
 /**
@@ -509,9 +521,18 @@ export function removeAssetFaces(engine: FaceEngine, assetId: string): number {
   const embeddings = engine.faceDb
     .prepare('DELETE FROM face_embeddings WHERE asset_id = ?')
     .run(assetId).changes;
+  // Every member who held one of these faces loses its crop with the match.
+  const holders = engine.db
+    .prepare(
+      "SELECT user_id, face_index FROM face_matches WHERE asset_id = ? AND state != 'rejected'"
+    )
+    .all(assetId) as Array<{ user_id: string; face_index: number }>;
   const matches = engine.db
     .prepare('DELETE FROM face_matches WHERE asset_id = ?')
     .run(assetId).changes;
+  dropLostFaceCrops(
+    holders.map((h) => ({ userId: h.user_id, face: { assetId, faceIndex: h.face_index } }))
+  );
   log.debug('asset faces removed', { embeddings, matches });
   return embeddings;
 }

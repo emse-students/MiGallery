@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
@@ -510,6 +510,38 @@ describe('claimFace', () => {
       'no_references'
     );
     expect(() => engineMod.claimFace(engine(), 'bob', f)).toThrow(/runExclusive/);
+  });
+
+  it("deletes the displaced holder's crop of a face it claims", async () => {
+    await stored();
+    const { memberCropDir } = await import('#lib/server/face-crop.ts');
+    const crop = join(memberCropDir('alice'), 'al1_0.webp');
+    mkdirSync(memberCropDir('alice'), { recursive: true });
+    writeFileSync(crop, 'crop');
+    try {
+      const f = await opened('al1');
+      expect(await engineMod.runExclusive(() => engineMod.claimFace(engine(), 'bob', f))).toBe(
+        'claimed'
+      );
+      expect(existsSync(crop)).toBe(false);
+    } finally {
+      rmSync(memberCropDir('alice'), { recursive: true, force: true });
+    }
+  });
+
+  it('deletes the crops of the faces of an asset it forgets', async () => {
+    await stored();
+    const { memberCropDir } = await import('#lib/server/face-crop.ts');
+    const crop = join(memberCropDir('alice'), 'al2_0.webp');
+    mkdirSync(memberCropDir('alice'), { recursive: true });
+    writeFileSync(crop, 'crop');
+    try {
+      await engineMod.runExclusive(() => engineMod.removeAssetFaces(engine(), 'al2'));
+      expect(matches().filter((m) => m.asset_id === 'al2')).toEqual([]);
+      expect(existsSync(crop)).toBe(false);
+    } finally {
+      rmSync(memberCropDir('alice'), { recursive: true, force: true });
+    }
   });
 });
 
