@@ -178,7 +178,7 @@ CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
 -- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
 --
 -- face_references: the 3-5 reference embeddings of a consenting member (source: 'selfie' |
--- 'photo' | 'admin'). The trigger holds the cap at FACE_MAX_REFERENCES (5) per member AND model
+-- 'photo' | 'admin' | 'seed', the last written only by the A7 seed). The trigger holds the cap at FACE_MAX_REFERENCES (5) per member AND model
 -- whoever inserts (a test pins the number against the constant). An
 -- account deletion takes them by cascade.
 CREATE TABLE IF NOT EXISTS face_references (

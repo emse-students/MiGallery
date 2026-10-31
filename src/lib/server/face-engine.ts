@@ -38,6 +38,7 @@ import {
   type FaceKey,
 } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { deleteMemberFaceCrop } from '#lib/server/face-crop.ts';
 
 const log = createLogger('face-engine');
 
@@ -89,10 +90,63 @@ export function runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
     // Already inside the lock (a nested engine call): queueing would wait for itself forever.
     return Promise.resolve().then(fn);
   }
+  return queueExclusive(fn);
+}
+
+/**
+ * Append `fn` to the engine's queue, ALWAYS at the end, even when called from inside the lock: for
+ * work nobody waits for inside the lock (a background re-match). Awaiting it from inside the lock
+ * would wait for itself forever; {@link runExclusive} is the call for nested work.
+ */
+function queueExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
   const run = () => lock.run(true, fn);
   const next = chain.then(run, run);
   chain = next.catch(() => undefined);
   return next;
+}
+
+/**
+ * Background engine work, AT MOST ONE QUEUED PER KEY (a member). A request while a run for the
+ * key is queued and not started joins it: that run starts later, so it reads the references as
+ * they are then, the newest ones included. A request while the run is RUNNING queues exactly one
+ * more after it (the run in progress may have read the references before the change), and every
+ * further request joins that one. So N requests cost at most two runs, never N, and the last
+ * change is always matched. The state is the queued promise itself, cleared when its run starts.
+ */
+export class CoalescingQueue {
+  private readonly queued = new Map<string, Promise<void>>();
+
+  /** @param name for the logs; @param onError how a run's failure is reported (never rejects). */
+  constructor(
+    private readonly name: string,
+    private readonly onError: (e: unknown) => void
+  ) {}
+
+  /** Queue `run` for `key` unless one is already queued and not started; resolves after it. */
+  request(key: string, run: () => Promise<unknown>): Promise<void> {
+    const waiting = this.queued.get(key);
+    if (waiting) {
+      log.debug('engine work coalesced into the queued run', { queue: this.name });
+      return waiting;
+    }
+    const next = queueExclusive(async () => {
+      // Started: a request from now on must queue a new run, as this one may read stale state.
+      this.queued.delete(key);
+      await run();
+    }).then(
+      () => undefined,
+      (e: unknown) => {
+        this.onError(e);
+      }
+    );
+    this.queued.set(key, next);
+    return next;
+  }
+
+  /** Whether a run for `key` is queued and not started (for the tests). */
+  isQueued(key: string): boolean {
+    return this.queued.has(key);
+  }
 }
 
 /** Throw unless the caller holds the engine lock. */
@@ -180,6 +234,8 @@ export function recordDecisions(
 
   for (let start = 0; start < faces.length; start += RECORD_BATCH) {
     const batch = faces.slice(start, start + RECORD_BATCH);
+    // Faces whose pending holder lost them in this batch: their crop goes after the COMMIT.
+    const lost: Array<{ userId: string; face: FaceKey }> = [];
     inTransaction(db, () => {
       const fingerprint = referenceFingerprint(db);
       if (fingerprint !== snapshot.fingerprint) {
@@ -209,6 +265,12 @@ export function recordDecisions(
               faceIndex: face.faceIndex,
             }),
         });
+        if (holder && holder.user_id !== decision?.userId) {
+          lost.push({
+            userId: holder.user_id,
+            face: { assetId: face.assetId, faceIndex: face.faceIndex },
+          });
+        }
         if (!decision) {
           result.none++;
           continue;
@@ -226,8 +288,24 @@ export function recordDecisions(
         result[decision.band]++;
       }
     });
+    dropLostFaceCrops(lost);
   }
   return result;
+}
+
+/**
+ * Delete the crop a member had of a face that is no longer theirs (it went to another member, or
+ * to nobody). The crop sits in the FORMER holder's directory, which no later erasure of the new
+ * holder reaches, so it goes as soon as the decision is committed. deleteMemberFaceCrop logs a
+ * file error itself; the decision stands.
+ */
+function dropLostFaceCrops(lost: ReadonlyArray<{ userId: string; face: FaceKey }>): void {
+  for (const { userId, face } of lost) {
+    deleteMemberFaceCrop(userId, face);
+  }
+  if (lost.length > 0) {
+    log.debug('crops of faces that changed holder deleted', { faces: lost.length });
+  }
 }
 
 /** Decide freshly stored faces (a new photo) against every member. */
@@ -379,7 +457,9 @@ export function claimFace(
 ): ClaimOutcome {
   assertExclusive('claimFace');
   const { db } = engine;
-  return inTransaction(db, () => {
+  // The pending holders this claim displaces: their crop goes after the COMMIT.
+  const lost: Array<{ userId: string; face: FaceKey }> = [];
+  const outcome = inTransaction(db, (): ClaimOutcome => {
     const rows = db
       .prepare(
         'SELECT user_id, state FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
@@ -417,9 +497,19 @@ export function claimFace(
       now,
       now
     );
+    for (const r of rows) {
+      if (r.state === 'pending' && r.user_id !== userId) {
+        lost.push({
+          userId: r.user_id,
+          face: { assetId: face.assetId, faceIndex: face.faceIndex },
+        });
+      }
+    }
     log.info('face claimed by its member', { replacedPending: rows.length > 0 });
     return 'claimed';
   });
+  dropLostFaceCrops(lost);
+  return outcome;
 }
 
 /**
@@ -431,9 +521,18 @@ export function removeAssetFaces(engine: FaceEngine, assetId: string): number {
   const embeddings = engine.faceDb
     .prepare('DELETE FROM face_embeddings WHERE asset_id = ?')
     .run(assetId).changes;
+  // Every member who held one of these faces loses its crop with the match.
+  const holders = engine.db
+    .prepare(
+      "SELECT user_id, face_index FROM face_matches WHERE asset_id = ? AND state != 'rejected'"
+    )
+    .all(assetId) as Array<{ user_id: string; face_index: number }>;
   const matches = engine.db
     .prepare('DELETE FROM face_matches WHERE asset_id = ?')
     .run(assetId).changes;
+  dropLostFaceCrops(
+    holders.map((h) => ({ userId: h.user_id, face: { assetId, faceIndex: h.face_index } }))
+  );
   log.debug('asset faces removed', { embeddings, matches });
   return embeddings;
 }

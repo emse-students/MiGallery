@@ -46,13 +46,13 @@ describe('Immich Proxy - GET requests', () => {
     expect([200, 401, 404, 500, 502]).toContain(response.status);
   }, 15000);
 
-  it('refuses the people request, even to an admin API key (lot A6)', async () => {
+  it('refuses the people request, even to an admin API key (lot A6: not on the allowlist)', async () => {
     const response = await fetch(`${API_BASE_URL}/api/immich/people`, {
       headers: getAuthHeaders(),
       signal: AbortSignal.timeout(10000),
     });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
   }, 15000);
 
   it('should proxy requests with query parameters', async () => {

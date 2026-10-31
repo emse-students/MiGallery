@@ -7,9 +7,9 @@ the effective minimum.
 
 ## Immich proxy
 
-| Path                    | Auth                                                   | Purpose                                                                                                 |
-| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `/api/immich/[...path]` | read (GET) / write (mutations); unlisted assets public | Universal proxy to Immich; chunked uploads; binary passthrough (see [immich-proxy.md](immich-proxy.md)) |
+| Path                    | Auth                                                   | Purpose                                                                                                                  |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/api/immich/[...path]` | read (GET) / write (mutations); unlisted assets public | Proxy to Immich for an allowlist of routes; chunked uploads; binary passthrough (see [immich-proxy.md](immich-proxy.md)) |
 
 ## Albums
 
