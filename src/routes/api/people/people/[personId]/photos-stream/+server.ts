@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { requirePersonAccess } from '#lib/server/face-access.ts';
+import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 import { getPersonAssets } from '#lib/photos-cv/handlers.ts';
 import { assetsNdjsonResponse } from '#lib/server/asset-ndjson.ts';
 
@@ -26,6 +27,9 @@ export const GET: RequestHandler = async (event) => {
     const assets = await getPersonAssets(personId, inAlbum, event.fetch);
     return assetsNdjsonResponse(assets, event.request);
   } catch (e: unknown) {
+    if (e instanceof ImmichNotConfiguredError) {
+      throw error(503, e.message);
+    }
     const err = ensureError(e);
     log.error('Error in /api/people/people/[personId]/photos-stream GET:', err);
     throw error(500, err.message);
