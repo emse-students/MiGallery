@@ -3,13 +3,18 @@ import { ensureError } from '#lib/ts-utils.ts';
 import { logEvent } from '#lib/server/logs.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { env } from '#lib/server/env.ts';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
+import {
+  assertProxiedDeleteAllowed,
+  canonicalProxiedPath,
+  findProxyRule,
+  publicAssetId,
+} from '#lib/server/immich-proxy-allowlist.ts';
 import {
   assertNoProxiedFaceCall,
   classifyProxiedBody,
   stripFaceFields,
 } from '#lib/server/face-access.ts';
-import { findProxyRule } from '#lib/server/immich-proxy-allowlist.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
 import { getDatabase } from '#lib/db/database.ts';
 
@@ -204,28 +209,6 @@ async function checkPublicAssetAccess(
     log.error('error checking album visibility in DB', e);
     return false;
   }
-}
-
-/**
- * Checks if a list of assets is publicly accessible (all must be in unlisted albums).
- */
-async function checkPublicAssetsAccess(
-  assetIds: string[],
-  baseUrl: string,
-  apiKey: string,
-  referer?: string | null
-): Promise<boolean> {
-  if (!assetIds || !Array.isArray(assetIds) || assetIds.length === 0) {
-    return false;
-  }
-
-  for (const id of assetIds) {
-    const allowed = await checkPublicAssetAccess(id, baseUrl, apiKey, referer);
-    if (!allowed) {
-      return false;
-    }
-  }
-  return true;
 }
 
 // Must match CHUNK_SIZE in src/lib/album-operations.ts: used only to sanity-check
@@ -608,6 +591,20 @@ const handle: RequestHandler = async function (event) {
   const request = event.request;
   const pathParam = (event.params.path as string) || '';
   const search = event.url.search || '';
+  // The ONE path every decision below reads, and the one sent to Immich (immich-proxy-allowlist.ts).
+  const clean = canonicalProxiedPath(pathParam);
+  if (clean === null) {
+    log.warn('proxied path refused: it does not resolve to one plain Immich path', {
+      path: pathParam,
+    });
+    return new Response(JSON.stringify({ error: 'Invalid path' }), {
+      status: 400,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  // The caller, once authenticated. It stays null only for the two keyless ways in: the server's
+  // own internal key and a public (unlisted) asset - neither of which reaches a face-linked path.
+  let auth: AuthResult | null = null;
 
   if (['GET', 'HEAD'].includes(request.method)) {
     const internalKey = request.headers.get('x-internal-immich-key') || undefined;
@@ -615,14 +612,11 @@ const handle: RequestHandler = async function (event) {
       void 0;
     } else {
       try {
-        await requireScope(event, 'read');
+        auth = await requireScope(event, 'read');
       } catch (err) {
-        const assetMatch = pathParam.match(
-          /^assets\/([a-f0-9-]{36})\/(thumbnail|original|preview|video\/playback)/i
-        );
+        const assetId = publicAssetId(clean);
 
-        if (assetMatch) {
-          const assetId = assetMatch[1];
+        if (assetId) {
           const isPublic = await checkPublicAssetAccess(
             assetId,
             baseUrlFromEnv || '',
@@ -657,46 +651,12 @@ const handle: RequestHandler = async function (event) {
   }
 
   if (['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method)) {
-    try {
-      await requireScope(event, 'write');
-    } catch (err) {
-      const isDownload =
-        pathParam === 'download/archive' || pathParam.includes('download/downloadArchive');
-
-      if (request.method === 'POST' && isDownload) {
-        try {
-          const clone = request.clone();
-          const body = (await clone.json()) as { assetIds?: string[]; ids?: string[] };
-          const assetIds = body.assetIds || body.ids || [];
-
-          if (
-            Array.isArray(assetIds) &&
-            assetIds.length > 0 &&
-            (await checkPublicAssetsAccess(
-              assetIds,
-              baseUrlFromEnv || '',
-              apiKey,
-              request.headers.get('referer')
-            ))
-          ) {
-            void 0;
-          } else {
-            log.warn('access denied for download (not all assets public)');
-            throw err;
-          }
-        } catch (e) {
-          log.error('error checking public download access', e);
-          throw err;
-        }
-      } else {
-        throw err;
-      }
-    }
+    auth = await requireScope(event, 'write');
   }
 
   // Only the routes MiGallery's pages use are forwarded (immich-proxy-allowlist.ts), judged once
   // the caller is known so an anonymous request learns nothing about which routes exist.
-  const rule = findProxyRule(request.method, pathParam, event.url.searchParams);
+  const rule = findProxyRule(request.method, clean, event.url.searchParams);
   if (!rule) {
     return new Response(JSON.stringify({ error: 'Not available through this proxy' }), {
       status: 404,
@@ -705,14 +665,6 @@ const handle: RequestHandler = async function (event) {
   }
   if (rule.admin) {
     await requireScope(event, 'admin');
-  }
-
-  // Prevent path traversal
-  if (pathParam.includes('..') || pathParam.includes('\0')) {
-    return new Response(JSON.stringify({ error: 'Invalid path' }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    });
   }
 
   // Person and face calls (people, faces, a search naming or listing people) are refused for
@@ -724,7 +676,7 @@ const handle: RequestHandler = async function (event) {
   {
     const kind = classifyProxiedBody(
       request.method,
-      pathParam,
+      clean,
       request.headers.get('content-type'),
       request.headers.has('x-chunk-index') && request.headers.has('x-file-id')
     );
@@ -751,7 +703,19 @@ const handle: RequestHandler = async function (event) {
         });
       }
     }
-    assertNoProxiedFaceCall(request.method, pathParam, event.url.searchParams, jsonBody);
+    assertNoProxiedFaceCall(request.method, clean, event.url.searchParams, jsonBody);
+    if (request.method === 'DELETE' && clean === 'assets') {
+      // A mutation always passed requireScope('write') above; no caller is no deletion.
+      if (!auth) {
+        log.error('asset deletion reached the body rule without a caller; refused');
+        return new Response(JSON.stringify({ error: 'Authentication required' }), {
+          status: 401,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      // Judged on the JSON body only: a body Immich would not parse as JSON names no ids here.
+      assertProxiedDeleteAllowed(auth, kind === 'json' ? jsonBody : null);
+    }
   }
 
   let base = baseUrlFromEnv?.replace(/\/$/, '') || '';
@@ -759,11 +723,11 @@ const handle: RequestHandler = async function (event) {
     base = `http://${base}`;
   }
 
-  const resolvedRemoteUrl = `${base}/api/${pathParam}${search}`;
+  const resolvedRemoteUrl = `${base}/api/${clean}${search}`;
 
   if (!baseUrlFromEnv) {
-    return new Response(JSON.stringify({ error: 'IMMICH_BASE_URL not set on server' }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: 'Immich is not configured' }), {
+      status: 503,
       headers: { 'content-type': 'application/json' },
     });
   }
@@ -788,7 +752,7 @@ const handle: RequestHandler = async function (event) {
   // than forwarding the request stream to fetch().
   if (
     request.method === 'POST' &&
-    pathParam === 'assets' &&
+    clean === 'assets' &&
     (request.headers.get('content-type') || '').includes('multipart/form-data')
   ) {
     return handleSimpleUpload(event, base);
@@ -883,7 +847,6 @@ const handle: RequestHandler = async function (event) {
     const resContentType = res.headers.get('content-type') || 'application/json';
 
     const isBinary =
-      pathParam.includes('download') ||
       resContentType.startsWith('image/') ||
       resContentType.startsWith('video/') ||
       resContentType.startsWith('application/octet-stream') ||
@@ -939,11 +902,11 @@ const handle: RequestHandler = async function (event) {
 
     if (res.ok) {
       try {
-        const assetIdMatch = pathParam.match(/assets\/([^/]+)/);
-        const albumIdMatch = pathParam.match(/albums\/([^/]+)/);
+        const assetIdMatch = clean.match(/assets\/([^/]+)/);
+        const albumIdMatch = clean.match(/albums\/([^/]+)/);
 
         if (request.method === 'DELETE') {
-          if (pathParam === 'assets') {
+          if (clean === 'assets') {
             try {
               if (bodyToForward && typeof bodyToForward === 'string') {
                 const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
@@ -963,7 +926,7 @@ const handle: RequestHandler = async function (event) {
             await logEvent(event, 'delete', 'album', albumIdMatch[1], { proxied: true });
           }
         } else if (request.method === 'POST') {
-          if (pathParam === 'albums') {
+          if (clean === 'albums') {
             try {
               const respData = JSON.parse(textBody) as ImmichAlbumResponse;
               if (respData.id) {
@@ -972,7 +935,7 @@ const handle: RequestHandler = async function (event) {
             } catch {
               /* ignore */
             }
-          } else if (albumIdMatch && pathParam.endsWith('/assets')) {
+          } else if (albumIdMatch && clean.endsWith('/assets')) {
             try {
               if (bodyToForward && typeof bodyToForward === 'string') {
                 const parsed = JSON.parse(bodyToForward) as BulkDeleteRequest;
@@ -1038,9 +1001,9 @@ const handle: RequestHandler = async function (event) {
 /**
  * The JSON answer without the people and faces Immich puts in it (`GET /api/assets/:id` carries
  * `people` and their face boxes until lot A8 deletes them): a biometric field never reaches a
- * client through the gallery. Only a JSON text that names one of those fields is parsed; the
- * length header goes when the body changed. `null` when such a text does not parse: it cannot be
- * cleaned, so it is not forwarded.
+ * client through the gallery, whoever asks. Only a JSON text that names one of those fields is
+ * parsed; the length header goes when the body changed. `null` when such a text does not parse:
+ * it cannot be cleaned, so it is not forwarded.
  */
 function withoutFaceFields(textBody: string, contentType: string, headers: Headers): string | null {
   if (
@@ -1163,7 +1126,8 @@ async function finishImmichUpload(
             }
           }
           if (assetId) {
-            // `duplicate` says the upload was a re-import of a known file, not a new photo.
+            // `duplicate` is read by asset-uploads.ts: a re-import of a known file does not make
+            // it the member's to delete.
             await logEvent(event, 'import', 'asset', assetId, {
               originalName,
               proxied: true,
