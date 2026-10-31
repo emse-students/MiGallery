@@ -595,7 +595,9 @@ function seesFaces(auth: AuthResult | null): boolean {
 
 /**
  * `textBody` (an asset's detail) without its `people` and `unassignedFaces`, which would let any
- * member rebuild who appears in which photo; `headers` lose a stale content-length. Null when the
+ * member rebuild who appears in which photo. `headers` lose what described Immich's FULL body - its
+ * content-length, and the `etag` and `last-modified` validators, which would otherwise name a body
+ * this member never received and let a conditional request compare against it. Null when the
  * answer names them and does not parse: it is then refused rather than forwarded.
  */
 function withoutFaceFields(textBody: string, headers: Headers): string | null {
@@ -611,7 +613,9 @@ function withoutFaceFields(textBody: string, headers: Headers): string | null {
   }
   delete parsed.people;
   delete parsed.unassignedFaces;
-  headers.delete('content-length');
+  for (const h of ['content-length', 'etag', 'last-modified']) {
+    headers.delete(h);
+  }
   return JSON.stringify(parsed);
 }
 
@@ -806,13 +810,16 @@ const handle: RequestHandler = async function (event) {
     outgoingHeaders['if-range'] = sanitizeHeaderValue(ifRange) || '';
   }
 
+  // An asset detail this caller gets without its people (withoutFaceFields) is answered from a
+  // body Immich never validated, so it carries no validator out and takes no conditional in.
+  const stripsFaces = request.method === 'GET' && ASSET_DETAIL.test(clean) && !seesFaces(auth);
   // Forward cache validation headers
   const ifNoneMatch = request.headers.get('if-none-match');
-  if (ifNoneMatch) {
+  if (ifNoneMatch && !stripsFaces) {
     outgoingHeaders['if-none-match'] = sanitizeHeaderValue(ifNoneMatch) || '';
   }
   const ifModifiedSince = request.headers.get('if-modified-since');
-  if (ifModifiedSince) {
+  if (ifModifiedSince && !stripsFaces) {
     outgoingHeaders['if-modified-since'] = sanitizeHeaderValue(ifModifiedSince) || '';
   }
 
@@ -1040,7 +1047,7 @@ const handle: RequestHandler = async function (event) {
     if (res.status === 204) {
       return new Response(null, { status: 204, headers });
     }
-    if (res.ok && request.method === 'GET' && ASSET_DETAIL.test(clean) && !seesFaces(auth)) {
+    if (res.ok && stripsFaces) {
       const forwarded = withoutFaceFields(textBody, headers);
       if (forwarded === null) {
         return new Response(JSON.stringify({ error: 'Unreadable upstream answer' }), {
@@ -1164,7 +1171,8 @@ async function finishImmichUpload(
             });
           }
         } catch (e) {
-          log.warn('failed to log upload', e);
+          // No `import` row means the member does not own this upload (asset-uploads.ts).
+          log.error('the upload answer could not be recorded; its ownership is lost', e);
         } finally {
           cleanup();
         }

@@ -41,7 +41,7 @@ the effective minimum.
 | `GET /api/users`, `/api/users/[id]`                         | admin / self    | User management                                                                                                              |
 | `/api/users/me`                                             | session         | Current user                                                                                                                 |
 | `/api/users/me/face`                                        | session         | Own reference face                                                                                                           |
-| `GET /api/users/me/face/selfie/[assetId]`                   | session         | People ids on the member's own new upload (the selfie flow)                                                                  |
+| `GET /api/users/me/face/selfie/[assetId]`                   | session         | `{ count, personId }` for the member's own upload of the last 30 min (the selfie flow)                                       |
 | `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session         | RGPD photo-access consent                                                                                                    |
 | `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                              |
 | `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below              |

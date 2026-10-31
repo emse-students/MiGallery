@@ -8,6 +8,7 @@
 - Logs: with no Immich configured, the PhotoCV and people routes answer 503 and say it once at info, instead of two error lines per request; a real failure to resolve a system album is still an error.
 - Logs: a request the client got wrong (a 4xx: no session, a missing field, a forged sign-in state, a duplicate user, a body that is not JSON or a form) is logged as a warning with its route and status; a server fault stays an error. A missing backup or a malformed body on the database restore and import now answers 4xx instead of 500.
 - Immich proxy: forwards only the routes MiGallery's pages use (an allowlist of methods and paths, `src/lib/server/immich-proxy-allowlist.ts`) and answers 404 to any other; every decision reads one canonical path; the trash routes require the admin scope; deleting assets is for admins, mitvistes and a member's own uploads; search takes the profile photo picker's body only; an asset's detail reaches a member without its people (the settings page's selfie flow reads them through `GET /api/users/me/face/selfie/[assetId]`); Immich not configured answers 503.
+- Immich proxy: the selfie read answers only a count, and a person id when exactly one person is found, for an upload of the last 30 minutes; a member's asset detail without its people leaves without Immich's `etag`/`last-modified`; a failed write of an upload's audit row is logged at error. The upload ownership rules (latest row, 90 days, impersonation) are written down in `docs/wiki/immich-proxy.md`.
 
 # MiGallery v2.17.0
 

@@ -223,6 +223,41 @@ describe('a member session', () => {
   });
 });
 
+describe("a member's stripped asset detail", () => {
+  it("carries none of Immich's validators out, and takes no conditional in", async () => {
+    let conditional: string | null = 'unset';
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      asked.push(String(url));
+      conditional = new Headers(init?.headers).get('if-none-match');
+      return Response.json(
+        { id: VICTIM, people: [{ id: PERSON }] },
+        { headers: { etag: 'W/"full"', 'last-modified': 'Thu, 01 Jan 2026 00:00:00 GMT' } }
+      );
+    });
+    const ask = async () => {
+      const url = new URL(`http://x.test/api/immich/assets/${VICTIM}`);
+      const request = new Request(url, { headers: { 'if-none-match': 'W/"full"' } });
+      return proxy.GET({ request, url, params: { path: `assets/${VICTIM}` }, fetch } as never);
+    };
+    try {
+      const res = await ask();
+      expect(res.headers.get('etag')).toBeNull();
+      expect(res.headers.get('last-modified')).toBeNull();
+      expect(conditional).toBeNull();
+
+      state.auth = member('boss', 'admin');
+      const full = await ask();
+      expect(full.headers.get('etag')).toBe('W/"full"');
+      expect(conditional).toBe('W/"full"');
+    } finally {
+      vi.stubGlobal('fetch', async (url: string) => {
+        asked.push(String(url));
+        return answer(String(url));
+      });
+    }
+  });
+});
+
 describe('GET /api/users/me/face/selfie/[assetId] (the settings page linking flow)', () => {
   const read = async (assetId: string) => {
     const route = await import('../src/routes/api/users/me/face/selfie/[assetId]/+server');
@@ -233,11 +268,40 @@ describe('GET /api/users/me/face/selfie/[assetId] (the settings page linking flo
     }
   };
 
-  it("answers the people ids of the member's own new upload, and nothing else of the asset", async () => {
-    answer = () => Response.json({ id: OWN, people: [{ id: PERSON, name: 'Someone' }] });
+  const fresh = () => new Date(Date.now() - 60_000).toISOString();
+
+  it("names the one person on the member's fresh upload, and nothing else of the asset", async () => {
+    answer = () =>
+      Response.json({ id: OWN, createdAt: fresh(), people: [{ id: PERSON, name: 'Someone' }] });
     const res = await read(OWN);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ people: [{ id: PERSON }] });
+    expect(await res.json()).toEqual({ count: 1, personId: PERSON });
+  });
+
+  it('only counts the people of a photo showing several, or none', async () => {
+    answer = () =>
+      Response.json({ id: OWN, createdAt: fresh(), people: [{ id: PERSON }, { id: VICTIM }] });
+    const res = await read(OWN);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ count: 2, personId: null });
+    expect(text).not.toContain(PERSON);
+    answer = () => Response.json({ id: OWN, createdAt: fresh(), people: [] });
+    expect(await (await read(OWN)).json()).toEqual({ count: 0, personId: null });
+  });
+
+  it('refuses an upload outside the selfie window, or with no upload date', async () => {
+    // Imported here, not at the top: face-access.ts opens the database, whose path beforeAll sets.
+    const { SELFIE_MAX_AGE_MS } = await import('#lib/server/face-access.ts');
+    const stale = new Date(Date.now() - SELFIE_MAX_AGE_MS - 60_000).toISOString();
+    answer = () => Response.json({ id: OWN, createdAt: stale, people: [{ id: PERSON }] });
+    expect((await read(OWN)).status).toBe(403);
+    answer = () => Response.json({ id: OWN, people: [{ id: PERSON }] });
+    expect((await read(OWN)).status).toBe(403);
+    // More than the minute of allowed clock skew in the future is no upload date either.
+    const ahead = new Date(Date.now() + 5 * 60_000).toISOString();
+    answer = () => Response.json({ id: OWN, createdAt: ahead, people: [{ id: PERSON }] });
+    expect((await read(OWN)).status).toBe(403);
   });
 
   it("refuses someone else's asset, a re-uploaded copy, and an API key", async () => {

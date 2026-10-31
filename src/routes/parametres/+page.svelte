@@ -55,6 +55,8 @@
   let tagOpStatus = $state<string>('');
   let assetDescription = $state<string>('');
   let personId = $state<string | null>(null);
+  /** What /api/users/me/face/selfie/[assetId] answers: a person id only when exactly one is found. */
+  type SelfieRead = { count: number; personId: string | null };
 
   let isProcessing = $state<boolean>(false);
   let needsNewPhoto = $state<boolean>(false);
@@ -330,14 +332,12 @@
         const errMsg = `Asset fetch error: ${assetInfoResponse.statusText}`;
         throw new Error(errMsg);
       }
-      const assetInfoData = await assetInfoResponse.json();
-      const assetInfo = assetInfoData as { people?: Array<{ id: string }> };
-      const people = assetInfo.people || [];
+      const selfie = (await assetInfoResponse.json()) as SelfieRead;
 
-      uploadStatus = m.param_status_detected_count({ count: people.length });
+      uploadStatus = m.param_status_detected_count({ count: selfie.count });
 
-      if (people.length === 1) {
-        personId = people[0].id;
+      if (selfie.count === 1 && selfie.personId) {
+        personId = selfie.personId;
         uploadStatus = m.param_status_saving();
 
         const updateResponse = await fetch('/api/users/me/face', {
@@ -393,7 +393,7 @@
             }
           }
         }
-      } else if (people.length === 0) {
+      } else if (selfie.count === 0) {
         // Distinguish actual "no face" vs "timeout"
         if (isTimeoutCheck) {
           uploadStatus = m.param_status_timeout();
@@ -409,7 +409,7 @@
           }
         }
       } else {
-        uploadStatus = m.param_status_multi_count({ count: people.length });
+        uploadStatus = m.param_status_multi_count({ count: selfie.count });
         needsNewPhoto = true;
         if (shouldCleanup) {
           try {
@@ -519,8 +519,8 @@
             signal,
           });
           if (checkResponse.ok) {
-            const checkData = await checkResponse.json();
-            if (checkData.people && checkData.people.length > 0) {
+            const checkData = (await checkResponse.json()) as SelfieRead;
+            if (checkData.count > 0) {
               faceDetected = true;
               break;
             }

@@ -16,7 +16,10 @@ Immich REST API with the server-side `IMMICH_API_KEY` after checking access.
 - **Stream binary responses** (images, videos, thumbnails, archives) straight
   back to the client without buffering. Media caching is delegated to HTTP: the
   proxy forwards `etag`/`cache-control`/`last-modified`, so the browser and the
-  reverse proxy hold thumbnails, not the Node process.
+  reverse proxy hold thumbnails, not the Node process. The one exception is an
+  asset's detail stripped of its people (below): it leaves without Immich's
+  validators and the proxy forwards no conditional header for it, since they
+  describe a body the member never received.
 - **Memoize public-access metadata** with a tiny in-process TTL map, scoped only
   to `checkPublicAssetAccess`. Browsing a public shared album would otherwise
   re-fetch the same asset/album metadata from Immich once per image.
@@ -45,12 +48,38 @@ Immich all read.
 API key; a member may delete only assets they uploaded themselves as new files (the proxy's own
 `import` audit row, `src/lib/server/asset-uploads.ts`; a duplicate upload does not count).
 
+**Who uploaded an asset is read from the audit log, so the log's rules are its rules:**
+
+- **The latest row wins.** `uploadOf` reads the most recent `import` row for that asset and that
+  member (`ORDER BY id DESC`). A member who uploads a file and later uploads the same file again
+  (Immich answers `duplicate`) is judged on that later row, which does not count: the newest answer
+  is the one believed, not the first.
+- **Ninety days.** `purgeOldLogs` deletes audit rows older than `LOG_RETENTION_DAYS` (90,
+  `src/lib/server/logs.ts`). After that an upload is no longer the member's for this purpose: they
+  cannot delete it through the proxy, and an admin or mitviste has to. The selfie flow is not
+  affected (it only reads uploads younger than half an hour).
+- **Impersonation.** An audit row names the account that ACTED, so an upload made while an admin
+  impersonates a member is recorded under the admin. Acting as the member, that upload is not
+  theirs: deleting it, or reading it as a selfie, answers 403. Linking a face is refused outright
+  while impersonating (`/api/users/me/face`).
+- **A lost row is an error.** The `import` row is authorisation state, so a failed write of it is
+  logged at error, not swallowed as a warning (`AUTHORISING_EVENTS` in `logs.ts`), and so is an
+  upload answer the proxy could not read to record.
+
 **Search** (`POST search/metadata`) takes only the profile photo picker's body: `personIds`
 (required, then held to the consent rule), `type`, `page`, `size`.
 
 **An asset's detail** reaches a member without its `people` and `unassignedFaces`; an admin
-session and an API key see them. The settings page's selfie flow reads the people of the member's
-own new upload through `GET /api/users/me/face/selfie/[assetId]` instead (ids only).
+session and an API key see them. The settings page's selfie flow reads what Immich found on the
+member's own new upload through `GET /api/users/me/face/selfie/[assetId]` instead: a count, and a
+person id only when exactly one person is found, and only for an upload within the selfie window
+(`isFreshSelfie`, half an hour from when Immich received the file, `face-access.ts`); anything older
+answers 403. `selfieProves`, which the link `PATCH` runs, applies the same window.
+
+**An album's detail** (`GET albums/<id>`) carries no people to strip: measured 2026-10-31 on
+the Immich in production (v3.3.3), it no longer lists the album's assets at all, with or without
+`withoutAssets=false`. Re-measure on an Immich upgrade; if assets come back with `people`, strip
+them as the asset detail is.
 
 A page that needs another Immich route adds it to the list, with the page that uses it and a case
 in `tests/immich-proxy-allowlist.test.ts`; anything MiGallery has to join with its own state

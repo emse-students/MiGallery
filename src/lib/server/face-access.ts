@@ -235,6 +235,17 @@ export function assertProxiedFaceAccess(
 export const SELFIE_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
+ * Whether an Immich asset's `createdAt` (when Immich RECEIVED the file, not when it was shot) falls
+ * within {@link SELFIE_MAX_AGE_MS} of now, a minute of clock skew allowed. The one freshness rule
+ * of the selfie flow, read by {@link selfieProves} and by the selfie route alike, so an old upload
+ * of the caller's tells nothing about who is in it.
+ */
+export function isFreshSelfie(createdAt: unknown, now = Date.now()): boolean {
+  const age = now - Date.parse(typeof createdAt === 'string' ? createdAt : '');
+  return age >= -60_000 && age <= SELFIE_MAX_AGE_MS;
+}
+
+/**
  * Whether Immich asset `assetId` passes the selfie checks for `personId` (a speed bump, NOT proof
  * that the face is the caller's - see docs/wiki/photos-cv.md): uploaded by `callerId`
  * through this proxy as a new file (not a duplicate), within
@@ -270,8 +281,7 @@ export async function selfieProves(
     return { ok: false, reason: `asset lookup ${res.status}` };
   }
   const asset = (await res.json()) as { createdAt?: string; people?: Array<{ id?: string }> };
-  const age = Date.now() - Date.parse(asset.createdAt ?? '');
-  if (!(age >= -60_000 && age <= SELFIE_MAX_AGE_MS)) {
+  if (!isFreshSelfie(asset.createdAt)) {
     return { ok: false, reason: 'selfie not freshly uploaded' };
   }
   const people = asset.people ?? [];
