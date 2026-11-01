@@ -77,17 +77,20 @@ export const GET: RequestHandler = async (event) => {
       return svelteError(404, 'User has no profile photo');
     }
 
-    // The crop is fully determined by the face, so the asset id is a natural ETag. Busted URLs
-    // (?v=assetId) are immutable; unbusted URLs (e.g. the shared Avatar component) are stable, so
-    // they must revalidate to avoid serving a stale crop after a photo change.
+    // The crop is fully determined by the face, so the asset id is a natural ETag. NOTHING is
+    // immutable: the avatar is a crop of the member's face, and a withdrawal (or the face going to
+    // someone else) must reach the viewers' browsers too. A busted URL (?v=assetId) is fresh for
+    // an hour, an unbusted one (e.g. the shared Avatar component) revalidates every time; both
+    // revalidate against the ETag, answered only after the face was re-checked above.
     // PRIVATE, never public: the route is session-gated, and a shared cache (the Cloudflare edge)
     // would hand a face to anyone holding the URL.
     const busted = event.url.searchParams.has('v');
+    const cacheControl = busted ? 'private, max-age=3600' : 'private, no-cache';
     const etag = `"${assetId}"`;
-    if (!busted && event.request.headers.get('if-none-match') === etag) {
+    if (event.request.headers.get('if-none-match') === etag) {
       return new Response(null, {
         status: 304,
-        headers: { ETag: etag, 'Cache-Control': 'no-cache' },
+        headers: { ETag: etag, 'Cache-Control': cacheControl },
       });
     }
     const crop = await generateMemberFaceCrop(
@@ -102,7 +105,7 @@ export const GET: RequestHandler = async (event) => {
         headers: {
           'Content-Type': 'image/webp',
           ETag: etag,
-          'Cache-Control': busted ? 'private, max-age=15552000, immutable' : 'no-cache',
+          'Cache-Control': cacheControl,
         },
       });
     }

@@ -114,7 +114,10 @@ MiConnect computes the same value in its `avatar` property mapping, the only oth
 key; `tests/avatar-signature.test.ts` pins a vector produced by the PYTHON expression, since the
 two sides share no code. No expiry, deliberately (a relying party stores the URL it was given);
 rotating the key is the revocation, and it invalidates every URL at once. The response stays
-`private`, like every avatar: a shared cache must never hold a face.
+`private`, like every avatar: a shared cache must never hold a face. And no avatar is
+`immutable`: a `?v=` URL is fresh for an hour (`private, max-age=3600`), an unbusted one
+revalidates every time, and a revalidation gets its 304 only while the face is still the member's
+profile face - so a withdrawal reaches the viewers' browsers within the hour.
 
 **Revoking one user's links.** Each revoked user has a salt in `avatar_revocations` (keyed by id_user, surviving the account's
 deletion; no row until a revocation). No row signs the bare id, what MiConnect computes today; once set, the signed message is

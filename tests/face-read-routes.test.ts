@@ -329,6 +329,17 @@ describe('GET /api/users/[userId]/photos-stream', () => {
     expect(immichCalls).toEqual(['POST /api/search/metadata']);
   });
 
+  it('is never cached: the list is derived from face matches', async () => {
+    const res = await call(streamRoute.GET, {
+      params: { userId: 'm1' },
+      url: new URL('http://x.test/api/users/m1/photos-stream'),
+      request: new Request('http://x.test/'),
+      fetch: immich,
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+  });
+
   it('partitions on the PhotoCV album', async () => {
     expect((await streamOf('m1', '?in_album=false')).ids).toEqual(['new', 'old']);
     expect((await streamOf('m1', '?in_album=true')).ids).toEqual(['cv']);
@@ -552,6 +563,30 @@ describe('GET /api/users/[username]/avatar', () => {
     expect(res.headers.get('etag')).toBe('"a"');
     expect(cachedCrops('m1')).toEqual(['a_0.webp']);
     expect(immichCalls).toEqual(['GET /api/assets/a/thumbnail']);
+  });
+
+  it('is never immutable, and a revalidation is answered only while the face is still theirs', async () => {
+    match('m1', 'a', 'auto', 'pending');
+    box('a');
+    db().prepare("UPDATE users SET photos_asset_id = 'a' WHERE id_user = 'm1'").run();
+    state.auth = member('m2');
+    const get = (query: string, etag?: string) =>
+      call(avatarRoute.GET, {
+        params: { username: 'm1' },
+        url: new URL(`http://x.test/api/users/m1/avatar${query}`),
+        request: new Request('http://x.test/', {
+          headers: etag ? { 'if-none-match': etag } : {},
+        }),
+        fetch: immich,
+      });
+    expect((await get('?v=a')).headers.get('cache-control')).toBe('private, max-age=3600');
+    expect((await get('')).headers.get('cache-control')).toBe('private, no-cache');
+    const revalidated = await get('?v=a', '"a"');
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get('cache-control')).toBe('private, max-age=3600');
+    // The face went (a withdrawal clears the pointer): the same validator gets no 304.
+    db().prepare("UPDATE users SET photos_asset_id = NULL WHERE id_user = 'm1'").run();
+    expect((await get('?v=a', '"a"')).status).toBe(404);
   });
 
   it("answers 404 with no photo chosen, or a photo no longer the member's, and cuts nothing", async () => {

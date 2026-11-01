@@ -14,6 +14,7 @@ import {
   assertNoProxiedFaceCall,
   classifyProxiedBody,
   stripFaceFields,
+  FaceFieldsTooDeepError,
 } from '#lib/server/face-access.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
 import { getDatabase } from '#lib/db/database.ts';
@@ -1022,7 +1023,18 @@ function withoutFaceFields(textBody: string, contentType: string, headers: Heade
     );
     return null;
   }
-  const removed = stripFaceFields(parsed);
+  let removed: number;
+  try {
+    removed = stripFaceFields(parsed);
+  } catch (e) {
+    if (!(e instanceof FaceFieldsTooDeepError)) {
+      throw e;
+    }
+    log.error('proxied JSON answer naming people is too deep to clean; not forwarded', {
+      depth: e.depth,
+    });
+    return null;
+  }
   if (removed === 0) {
     return textBody;
   }
