@@ -213,6 +213,7 @@
           }),
           page: (page, total) => m.trombi_pdf_page({ page, total }),
           count: (count) => m.trombi_pdf_members({ count }),
+          continued: (label) => m.trombi_pdf_continued({ label }),
         },
         'trombinoscope'
       );

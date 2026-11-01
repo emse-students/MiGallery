@@ -463,6 +463,7 @@
       }
     }
   ],
+  "trombi_pdf_continued": "{label} (suite)",
   "trombi_pdf_page": "Page {page} / {total}",
   "trombi_pdf_downloaded": "PDF téléchargé !",
   "trombi_pdf_error": "Erreur lors de la génération du PDF",

@@ -37,6 +37,7 @@ const texts: TrombiTexts = {
   date: '1 novembre 2026',
   page: (p, t) => `Page ${p} / ${t}`,
   count: (n) => `${n} membres`,
+  continued: (l) => `${l} (suite)`,
 };
 
 /** Every page of a sheet, joined: the tests read the markup as one string. */
@@ -201,7 +202,7 @@ describe('layoutTrombi', () => {
   });
 
   it('keeps a band on the page of its first row', () => {
-    for (const b of placed.filter((p) => p.kind === 'band')) {
+    for (const b of placed.filter((p) => p.kind === 'band' && !p.continued)) {
       const first = placed.find(
         (p) => p.kind === 'cell' && p.section === b.section && p.member === 0
       );
@@ -220,6 +221,36 @@ describe('layoutTrombi', () => {
     const cellB = out.find((p) => p.kind === 'cell' && p.section === 1);
     expect(bandB?.page).toBe(cellB?.page);
     expect(bandB?.page).toBe(2);
+  });
+
+  it('repeats the band at the top of a page that continues a section', () => {
+    const out = layoutTrombi([{ label: 'A', count: 200 }]);
+    const pages = Math.max(...out.map((p) => p.page));
+    expect(pages).toBeGreaterThan(2);
+    for (let page = 2; page <= pages; page++) {
+      const first = out.filter((p) => p.page === page).sort((a, b) => a.y - b.y)[0];
+      expect(first.kind).toBe('band');
+      expect(first.kind === 'band' && first.continued).toBe(true);
+      expect(first.y).toBe(G.margin + G.headerHeight);
+    }
+    // The first page has the ordinary band, and nothing runs past the bottom margin.
+    expect(out[0]).toMatchObject({ kind: 'band', page: 1 });
+    expect(out[0].kind === 'band' && out[0].continued).toBeFalsy();
+    for (const p of out) {
+      expect(p.y + (p.kind === 'cell' ? rowHeight() : G.bandHeight)).toBeLessThanOrEqual(
+        bottom + 1e-9
+      );
+    }
+  });
+
+  it('writes the continued label on that page, and the plain label on the first', () => {
+    const members = Array.from({ length: 200 }, (_, i) => member({ id: String(i) }));
+    const sections = [{ label: 'Promo 2026', members }];
+    const plan = planTrombi(sections);
+    const first = buildTrombiPage(sections, texts, plan, 1);
+    const second = buildTrombiPage(sections, texts, plan, 2);
+    expect(first).toContain('>Promo 2026</span>');
+    expect(second).toContain('Promo 2026 (suite)');
   });
 
   it('skips an empty section', () => {

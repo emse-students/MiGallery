@@ -63,7 +63,7 @@ export interface TrombiSection {
 
 /** Something to place: a section band, or the cell of the n-th member of a section. */
 export type Placement =
-  | { kind: 'band'; page: number; y: number; section: number }
+  | { kind: 'band'; page: number; y: number; section: number; continued?: boolean }
   | { kind: 'cell'; page: number; x: number; y: number; section: number; member: number };
 
 /**
@@ -93,8 +93,11 @@ export function layoutTrombi(
     y += g.bandHeight + g.bandGap;
     for (let i = 0; i < section.count; i += g.columns) {
       if (y + rh > bottom) {
+        // The section runs on: its band is repeated, so a page never opens on unlabelled rows.
         page++;
         y = top;
+        out.push({ kind: 'band', page, y, section: s, continued: true });
+        y += g.bandHeight + g.bandGap;
       }
       for (let c = 0; c < g.columns && i + c < section.count; c++) {
         out.push({ kind: 'cell', page, x: g.margin + c * cw, y, section: s, member: i + c });
@@ -130,6 +133,8 @@ export interface TrombiTexts {
   date: string;
   page: (page: number, total: number) => string;
   count: (n: number) => string;
+  /** The band of a section that continues from the previous page: "Promo 2026 (suite)". */
+  continued: (label: string) => string;
 }
 
 const collator = new Intl.Collator('fr', { sensitivity: 'base' });
@@ -239,8 +244,8 @@ export function buildTrombiPage(
       const section = sections[p.section];
       if (p.kind === 'band') {
         return `<div style="position:absolute;left:${g.margin}px;right:${g.margin}px;top:${p.y}px;height:${g.bandHeight}px;border-radius:10px;background:${TROMBI_COLORS.accentLight};">
-          <span data-pdf-text style="position:absolute;left:16px;top:7px;font:700 16px/20px ${FONT_DISPLAY};color:${TROMBI_COLORS.accent};">${safe(section.label)}</span>
-          <span data-pdf-text style="position:absolute;right:16px;top:9px;text-align:right;font:400 11px/16px ${FONT_BODY};color:${TROMBI_COLORS.muted};">${safe(texts.count(section.members.length))}</span>
+          <span data-pdf-text style="position:absolute;left:16px;top:7px;font:700 16px/20px ${FONT_DISPLAY};color:${TROMBI_COLORS.accent};">${safe(p.continued ? texts.continued(section.label) : section.label)}</span>
+          ${p.continued ? '' : `<span data-pdf-text style="position:absolute;right:16px;top:9px;text-align:right;font:400 11px/16px ${FONT_BODY};color:${TROMBI_COLORS.muted};">${safe(texts.count(section.members.length))}</span>`}
         </div>`;
       }
       const member = section.members[p.member];

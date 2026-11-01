@@ -454,6 +454,7 @@
       }
     }
   ],
+  "trombi_pdf_continued": "{label} (continued)",
   "trombi_pdf_page": "Page {page} of {total}",
   "trombi_pdf_downloaded": "PDF downloaded!",
   "trombi_pdf_error": "PDF generation failed",
