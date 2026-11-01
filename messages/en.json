@@ -137,6 +137,7 @@
   "upload_error_long": "Upload error: {message}",
   "photos_none_selected": "No image selected",
   "photos_error": "Error: {message}",
+  "photos_upstream_busy": "The photo server is busy right now. Please try again in a moment.",
   "download_error_long": "Download failed: {error}",
   "delete_error_long": "Delete failed: {error}",
   "albumd_download_done": "Download complete",
