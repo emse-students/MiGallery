@@ -559,6 +559,7 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
   avatar answers 404 until the member picks another photo, as A6 says), 0 in every other
   bucket. A member's view of these numbers is still owed (section 2.2's false-match estimates
   are not observed by this report).
+
 - **Owed on or after 2026-11-08 (owner, 2026-11-01): delete the two pre-A7-seed backups next to
   the database.** Until then they are the only undo of the A7 seed (the rollback above restores
   one of them); the owner chose to keep them 7 days, then delete them.
