@@ -2,6 +2,8 @@
 
 ## Changes
 
+- Faces: a member who never chose a profile photo has one again (A6 had dropped Immich's person thumbnail, so every such member showed initials): the face Immich featured for their old person when it is theirs (claimed for them like the seed's profile photos, never over another member's confirmation), else the best of their own photos (confirmed, nearer, larger, single-face, recent). A photo the member chose is never replaced while it is theirs; one Immich no longer serves is. A one-off admin run applies it to every member (`scripts/faces/default-photos-client.mjs`, dry run first). The picker shows the member's face in each of their photos, newest first, the current one marked, and fits a phone screen. The confirmation screen's empty tiles are fixed: crops are asked three at a time instead of all at once, which overflowed the server's shared image pool, and a tile that fails offers a retry.
+
 # MiGallery v2.18.0
 
 **Date**: November 1, 2026

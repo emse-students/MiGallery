@@ -229,6 +229,18 @@ export function ensureSchema(dbInstance: DatabaseInstance): void {
     if (!cols.includes('photos_asset_id')) {
       dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_asset_id TEXT').run();
     }
+    // Whether the profile photo was CHOSEN by the member (or an admin for them) or picked by
+    // default (profile-photo-default.ts): a default may be replaced by a better one, a choice never.
+    // Every photo set before this column existed was a choice.
+    if (!cols.includes('photos_asset_source')) {
+      dbInstance.prepare('ALTER TABLE users ADD COLUMN photos_asset_source TEXT').run();
+      const chosen = dbInstance
+        .prepare(
+          "UPDATE users SET photos_asset_source = 'chosen' WHERE photos_asset_id IS NOT NULL AND photos_asset_id != ''"
+        )
+        .run().changes;
+      log.info('profile photo source column added', { chosen });
+    }
     // One spelling of an Immich person id, lowercase (face-access.ts normalisePersonId): SQLite's
     // `=` is case-sensitive, Immich is not, so a second spelling would be a second owner.
     const respelled = dbInstance

@@ -205,6 +205,7 @@
     <ChangePhotoModal
       currentPhotoUrl={photosState.imageUrl || undefined}
       memberId={memberId ?? undefined}
+      ownFace={isViewingOwnPhotos}
       onPhotoSelected={handlePhotoSelected}
       onClose={closeChangePhotoModal}
     />

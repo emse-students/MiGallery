@@ -227,6 +227,9 @@
     background: transparent;
     max-width: 90vw;
     max-height: 90vh;
+    /* The VISIBLE viewport on a phone: 90vh counts the hidden address bar, which pushed the
+       actions below the screen while the body scrolled under them. */
+    max-height: 90dvh;
     position: fixed;
     top: 50%;
     left: 50%;
@@ -259,6 +262,9 @@
     display: flex;
     flex-direction: column;
     max-height: 90vh;
+    /* The VISIBLE viewport on a phone: 90vh counts the hidden address bar, which pushed the
+       actions below the screen while the body scrolled under them. */
+    max-height: 90dvh;
   }
 
   /* No per-theme override: one used to set a 78%-opaque background in the dark theme, which let

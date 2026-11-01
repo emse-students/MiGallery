@@ -104,9 +104,9 @@ export function eraseLocalFaceData(
   } | null;
   const linked = row?.photos_id ?? null;
 
-  db.prepare('UPDATE users SET photos_id = NULL, photos_asset_id = NULL WHERE id_user = ?').run(
-    userId
-  );
+  db.prepare(
+    'UPDATE users SET photos_id = NULL, photos_asset_id = NULL, photos_asset_source = NULL WHERE id_user = ?'
+  ).run(userId);
   db.prepare('DELETE FROM photo_access_permissions WHERE owner_id = ?').run(userId);
   withdrawFaceConsent(db, userId);
   // The member's stored face templates go with the consent: withdrawal, unlink and relink all end here.

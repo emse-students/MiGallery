@@ -4,6 +4,7 @@
   import Spinner from './Spinner.svelte';
   import EmptyState from './EmptyState.svelte';
   import Modal from './Modal.svelte';
+  import FaceCropThumb from './FaceCropThumb.svelte';
   import type { ImmichAsset } from '#lib/types/api.ts';
   import { consumeNDJSONStream } from '#lib/streaming.ts';
   import { m } from '#lib/paraglide/messages.js';
@@ -14,9 +15,18 @@
     onPhotoSelected?: (assetId: string) => void;
     /** The member whose profile photo changes: it is chosen among THEIR photos (lot A6). */
     memberId?: string;
+    /**
+     * The member picks for themselves: each tile is THEIR FACE, cut as on the confirmation screen
+     * (a crop is served to its holder alone, so an admin picking for someone else sees the photos).
+     */
+    ownFace?: boolean;
   }
 
-  let { currentPhotoUrl, onClose, onPhotoSelected, memberId }: Props = $props();
+  let { currentPhotoUrl, onClose, onPhotoSelected, memberId, ownFace = false }: Props = $props();
+
+  /** For each photo, the member's face a tile shows; and the current photo and how it was set. */
+  let faces = $state<Record<string, number>>({});
+  let current = $state<{ asset_id: string; source: 'chosen' | 'default' | null } | null>(null);
 
   let show = $state(true);
   let selectedAssetId = $state<string | null>(null);
@@ -36,10 +46,24 @@
     try {
       loadingAssets = true;
       error = null;
+      // The member's faces and current photo, then the photos IN THEIR ORDER (newest first, as the
+      // stream gives them): the picker is chronological, never ranked (owner, 2026-11-01).
+      const query = ownFace ? '' : `?user_id=${encodeURIComponent(memberId)}`;
+      const infoRes = await fetch(`/api/users/me/profile-photo${query}`);
+      if (!infoRes.ok) {
+        throw new Error(`profile photo read refused (${infoRes.status})`);
+      }
+      const info = (await infoRes.json()) as {
+        faces?: Record<string, number>;
+        current?: { asset_id: string; source: 'chosen' | 'default' | null } | null;
+      };
+      faces = info.faces ?? {};
+      current = info.current ?? null;
       const res = await fetch(`/api/users/${encodeURIComponent(memberId)}/photos-stream`);
       const found: ImmichAsset[] = [];
       await consumeNDJSONStream<{ asset: ImmichAsset }>(res, ({ asset }) => {
-        found.push(asset);
+        // Only a photo with a visible face of theirs can be cut into an avatar.
+        if (faces[asset.id] !== undefined) found.push(asset);
       });
       assets = found;
     } catch (e: unknown) {
@@ -124,25 +148,37 @@
   {:else if assets.length > 0}
     <div class="photos-grid">
       {#each assets as asset (asset.id)}
-        <button
-          class="photo-item {selectedAssetId === asset.id ? 'selected' : ''}"
-          onclick={() => handlePhotoSelect(asset.id)}
-          ondblclick={confirmSelection}
-          title={asset.originalFileName || m.cpm_photo_alt()}
-        >
-          <img
-            class="photo-thumb"
-            src={`/api/immich/assets/${encodeURIComponent(asset.id)}/thumbnail?size=thumbnail`}
-            alt={m.cpm_photo_alt()}
-            loading="lazy"
-            decoding="async"
-          />
+        <div class="photo-item" class:selected={selectedAssetId === asset.id}>
+          {#if ownFace}
+            <FaceCropThumb assetId={asset.id} faceIndex={faces[asset.id]} alt={m.cpm_face_alt()} />
+          {:else}
+            <img
+              class="photo-thumb"
+              src={`/api/immich/assets/${encodeURIComponent(asset.id)}/thumbnail?size=thumbnail`}
+              alt={m.cpm_photo_alt()}
+              loading="lazy"
+              decoding="async"
+            />
+          {/if}
+          <button
+            type="button"
+            class="photo-pick"
+            aria-pressed={selectedAssetId === asset.id}
+            aria-label={current?.asset_id === asset.id ? m.cpm_current() : m.cpm_photo_alt()}
+            onclick={() => handlePhotoSelect(asset.id)}
+            ondblclick={confirmSelection}
+          ></button>
+          {#if current?.asset_id === asset.id}
+            <span class="current-badge">
+              {current.source === 'default' ? m.cpm_default_badge() : m.cpm_current_badge()}
+            </span>
+          {/if}
           {#if selectedAssetId === asset.id}
             <div class="selected-overlay">
               <CircleCheckBig size={32} />
             </div>
           {/if}
-        </button>
+        </div>
       {/each}
     </div>
   {:else}
@@ -220,6 +256,7 @@
 
   .photo-item {
     position: relative;
+    display: block;
     aspect-ratio: 1;
     border-radius: var(--radius-xs);
     overflow: hidden;
@@ -247,7 +284,37 @@
     object-fit: cover;
   }
 
+  /* The whole tile picks; FaceCropThumb's retry sits above it (z-index 2). */
+  .photo-pick {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .current-badge {
+    position: absolute;
+    left: 0.35rem;
+    bottom: 0.35rem;
+    z-index: 1;
+    max-width: calc(100% - 0.7rem);
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+    color: var(--text-primary);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
   .selected-overlay {
+    pointer-events: none;
     position: absolute;
     inset: 0;
     background: color-mix(in srgb, var(--accent) 30%, transparent);
@@ -270,13 +337,31 @@
 
   @media (max-width: 768px) {
     .photos-grid {
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    /* A phone keeps the grid in view: the current photo shrinks and sits beside the hint. */
+    .current-photo-section {
+      display: flex;
+      align-items: center;
       gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .current-photo {
+      margin-bottom: 0;
     }
 
     .current-photo img {
-      width: 100px;
-      height: 100px;
+      width: 64px;
+      height: 64px;
+      margin-bottom: 0.25rem;
+    }
+
+    .instructions {
+      padding: 0.6rem 0.75rem;
     }
   }
 </style>

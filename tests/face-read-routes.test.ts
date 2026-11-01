@@ -637,3 +637,250 @@ describe('the crop directory never escapes a member', () => {
     expect(cachedCrops('m2')).toEqual([]);
   });
 });
+
+describe('the default profile photo (owner, 2026-11-01)', () => {
+  let defaults: typeof import('#lib/server/profile-photo-default.ts');
+  let refs: typeof import('#lib/server/face-references.ts');
+  let seal: typeof import('#lib/server/face-seal.ts');
+  let emb: typeof import('#lib/face-embedding.ts');
+  const key = Buffer.from('ab'.repeat(32), 'hex');
+  const engine = () => ({ db: db(), faceDb: faceDb(), key });
+
+  /** A unit vector along axis `i` (synthetic, never a face). */
+  const axis = (i: number) => {
+    const v = new Float32Array(512);
+    v[i] = 1;
+    return v;
+  };
+
+  beforeAll(async () => {
+    defaults = await import('#lib/server/profile-photo-default.ts');
+    refs = await import('#lib/server/face-references.ts');
+    seal = await import('#lib/server/face-seal.ts');
+    emb = await import('#lib/face-embedding.ts');
+  });
+
+  /** A face in the store with a real sealed vector and a box `side` px wide in a 400x300 frame. */
+  function storeFace(asset: string, face: number, v: Float32Array, side = 80) {
+    faceDb()
+      .prepare(
+        `INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h, score, sealed, created_at)
+         VALUES (?, ?, ?, 40, 30, ?, ?, 400, 300, 0.9, ?, 1)`
+      )
+      .run(
+        asset,
+        face,
+        FACE_MODEL,
+        40 + side,
+        30 + side,
+        seal.seal(key, seal.embeddingContext(asset, face, FACE_MODEL), emb.encodeEmbedding(v))
+      );
+  }
+
+  /** One match row of `user` on `asset`, visible by default (auto, pending). */
+  function held(
+    user: string,
+    asset: string,
+    opts: {
+      band?: 'auto' | 'suggested';
+      state?: 'pending' | 'confirmed';
+      distance?: number;
+      face?: number;
+    } = {}
+  ) {
+    db()
+      .prepare(
+        `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band, state, created_at)
+         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 1)`
+      )
+      .run(
+        asset,
+        opts.face ?? 0,
+        FACE_MODEL,
+        user,
+        opts.distance ?? 0.3,
+        opts.band ?? 'auto',
+        opts.state ?? 'pending'
+      );
+  }
+
+  const pointer = (id: string) =>
+    db()
+      .prepare('SELECT photos_asset_id AS a, photos_asset_source AS s FROM users WHERE id_user = ?')
+      .get(id) as { a: string | null; s: string | null };
+
+  const run = (
+    user: string,
+    featured?: import('#lib/server/profile-photo-default.ts').FeaturedFace,
+    dryRun = false
+  ) => defaults.ensureDefaultProfilePhoto(engine(), user, immich, { featured, dryRun });
+
+  it('gives a member with none the best of their own photos: confirmed, then nearer, then larger', async () => {
+    for (const [a, side] of [
+      ['near-small', 40],
+      ['near-big', 120],
+      ['far', 200],
+      ['conf', 30],
+    ] as const) {
+      storeFace(a, 0, axis(1), side);
+      photo(a, '2026-01-01T00:00:00Z');
+    }
+    held('m1', 'near-small', { distance: 0.21 });
+    held('m1', 'near-big', { distance: 0.22 });
+    held('m1', 'far', { distance: 0.45 });
+    expect(await run('m1')).toBe('set_scored');
+    // Same closeness step: the larger face wins over the nearer-by-a-hair small one.
+    expect(pointer('m1')).toEqual({ a: 'near-big', s: 'default' });
+    // A confirmed face outranks every auto one, whatever its size.
+    held('m1', 'conf', { state: 'confirmed', band: 'suggested', distance: 0.55 });
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'conf', s: 'default' });
+  });
+
+  it('skips a photo Immich no longer serves (trashed or deleted)', async () => {
+    storeFace('gone', 0, axis(1), 200);
+    storeFace('kept', 0, axis(1), 40);
+    photo('kept', '2026-01-01T00:00:00Z');
+    held('m1', 'gone', { distance: 0.1 });
+    held('m1', 'kept', { distance: 0.4 });
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'kept', s: 'default' });
+  });
+
+  it("never overwrites a member's valid choice; replaces a choice whose photo is gone", async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // The chosen photo is trashed in Immich: there is nothing left to keep.
+    delete library.mine;
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'better', s: 'default' });
+  });
+
+  it('replaces a default by a better default, and keeps it when nothing better came', async () => {
+    storeFace('first', 0, axis(1), 40);
+    photo('first', '2026-01-01T00:00:00Z');
+    held('m1', 'first', { distance: 0.3 });
+    await run('m1');
+    expect(pointer('m1')).toEqual({ a: 'first', s: 'default' });
+    expect(await run('m1')).toBe('kept_default');
+    storeFace('second', 0, axis(1), 40);
+    photo('second', '2026-01-01T00:00:00Z');
+    held('m1', 'second', { state: 'confirmed', distance: 0.3 });
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'second', s: 'default' });
+  });
+
+  it('prefers the face Immich featured for their old person, the photo they had before A6', async () => {
+    storeFace('best', 0, axis(1), 200);
+    storeFace('feat', 0, axis(2), 40);
+    storeFace('feat', 1, axis(1), 40);
+    // Face 1 of 'feat' sits elsewhere in the frame: the featured box names face 1, not face 0.
+    faceDb()
+      .prepare(
+        "UPDATE face_embeddings SET x1 = 200, y1 = 150, x2 = 280, y2 = 230 WHERE asset_id = 'feat' AND face_index = 1"
+      )
+      .run();
+    photo('best', '2026-01-01T00:00:00Z');
+    photo('feat', '2026-01-01T00:00:00Z');
+    held('m1', 'best', { distance: 0.1 });
+    held('m1', 'feat', { distance: 0.4, face: 1 });
+    // The featured box, in a frame twice as large: found by overlap, not by equality.
+    const featured = { assetId: 'feat', x1: 400, y1: 300, x2: 560, y2: 460, imgW: 800, imgH: 600 };
+    expect(await run('m1', featured)).toBe('set_featured');
+    expect(pointer('m1')).toEqual({ a: 'feat', s: 'default' });
+  });
+
+  it('claims the featured face for them when it waits for their answer, never over another member', async () => {
+    refs.addFaceReference(db(), key, 'm1', 'seed', axis(1));
+    refs.addFaceReference(db(), key, 'm2', 'seed', axis(1));
+    storeFace('feat', 0, axis(1), 40);
+    storeFace('other', 0, axis(1), 40);
+    photo('feat', '2026-01-01T00:00:00Z');
+    photo('other', '2026-01-01T00:00:00Z');
+    held('m1', 'feat', { band: 'suggested', distance: 0.55 });
+    const featured = { assetId: 'feat', x1: 40, y1: 30, x2: 80, y2: 70, imgW: 400, imgH: 300 };
+    expect(await run('m1', featured)).toBe('set_featured_claimed');
+    expect(
+      db().prepare("SELECT user_id, state FROM face_matches WHERE asset_id = 'feat'").all()
+    ).toEqual([{ user_id: 'm1', state: 'confirmed' }]);
+    // m1 confirmed it as theirs: m2 is never given it, and gets one of their own photos.
+    held('m2', 'other', { distance: 0.3 });
+    expect(await run('m2', featured)).toBe('set_scored');
+    expect(pointer('m2')).toEqual({ a: 'other', s: 'default' });
+  });
+
+  it('a run over every member: counts by outcome, idempotent, a gone group ranked from matches, a dry run writes nothing', async () => {
+    storeFace('a1', 0, axis(1), 40);
+    photo('a1', '2026-01-01T00:00:00Z');
+    held('m1', 'a1');
+    storeFace('b1', 0, axis(1), 40);
+    photo('b1', '2026-01-01T00:00:00Z');
+    held('m2', 'b1');
+    // m2's old person has no featured face (the group is gone): ranked from their matches.
+    db()
+      .prepare(
+        "UPDATE users SET photos_id = '11111111-1111-4111-8111-111111111111' WHERE id_user = 'm2'"
+      )
+      .run();
+    // m3 is enrolled and holds no photo at all.
+    refs.addFaceReference(db(), key, 'm3', 'seed', axis(1));
+    const dry = await defaults.runDefaultProfilePhotos(engine(), immich, new Map(), true);
+    expect(dry).toMatchObject({ members: 3, set_scored: 2, none: 1, failed: 0 });
+    expect(pointer('m1')).toEqual({ a: null, s: null });
+    const first = await defaults.runDefaultProfilePhotos(engine(), immich, new Map(), false);
+    expect(first).toMatchObject({ members: 3, set_scored: 2, none: 1, featuredGiven: 0 });
+    const second = await defaults.runDefaultProfilePhotos(engine(), immich, new Map(), false);
+    expect(second).toMatchObject({ members: 3, kept_default: 2, none: 1, set_scored: 0 });
+  });
+
+  it('the avatar of a member with no photo finds one in the background; the next request is served', async () => {
+    storeFace('a1', 0, axis(1), 40);
+    photo('a1', '2026-01-01T00:00:00Z');
+    held('m1', 'a1');
+    state.auth = member('m2');
+    expect((await avatar('m1')).status).toBe(404);
+    for (let i = 0; i < 100 && !pointer('m1').a; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    expect(pointer('m1')).toEqual({ a: 'a1', s: 'default' });
+    expect((await avatar('m1')).status).toBe(200);
+  });
+
+  it('end to end: a choice is stored, served as the avatar, and read back by the picker', async () => {
+    storeFace('p', 0, axis(1), 40);
+    storeFace('q', 2, axis(1), 40);
+    photo('p', '2026-01-01T00:00:00Z');
+    held('m1', 'p');
+    held('m1', 'q', { face: 2 });
+    expect((await choose({ asset_id: 'q' })).status).toBe(200);
+    const read = await call(profileRoute.GET, {
+      url: new URL('http://x.test/api/users/me/profile-photo'),
+    });
+    expect(await read.json()).toEqual({
+      success: true,
+      current: { asset_id: 'q', source: 'chosen' },
+      faces: { p: 0, q: 2 },
+    });
+    state.auth = member('m2');
+    expect((await avatar('m1')).status).toBe(200);
+    expect(cachedCrops('m1')).toEqual(['q_2.webp']);
+    // The admin path: a member cannot read another's, an admin reads and sets it.
+    const other = () =>
+      call(profileRoute.GET, {
+        url: new URL('http://x.test/api/users/me/profile-photo?user_id=m1'),
+      });
+    expect((await other()).status).toBe(403);
+    state.auth = member('boss', 'admin');
+    expect((await other()).status).toBe(200);
+    expect((await choose({ asset_id: 'p', user_id: 'm1' })).status).toBe(200);
+    expect(pointer('m1')).toEqual({ a: 'p', s: 'chosen' });
+  });
+});
