@@ -24,7 +24,7 @@
   import type { PageData } from './$types';
   import type { UserRow } from '#lib/types/api.ts';
 
-  let { data } = $props<{ data: PageData }>();
+  let { data }: { data: PageData } = $props();
 
   /** A row of the list, with whether face matching is on for that member (lot A6). */
   type AdminUserRow = UserRow & { face_enrolled: boolean };

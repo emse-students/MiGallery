@@ -34,6 +34,7 @@ the page is a bug.
 | ------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | [architecture.md](architecture.md)                     | Request lifecycle, hooks, CORS/CSRF, repo layout                                              |
 | [authentication.md](authentication.md)                 | OIDC login, session cookies, roles, scopes, API keys, impersonation                           |
+| [type-checking.md](type-checking.md)                   | Why `bun run check` must not use `--tsgo` (template identifiers go unchecked)                 |
 | [immich-proxy.md](immich-proxy.md)                     | The universal `/api/immich/*` proxy, chunked uploads, public assets, caching                  |
 | [albums-and-permissions.md](albums-and-permissions.md) | Album visibility and the four permission dimensions                                           |
 | [photos-cv.md](photos-cv.md)                           | Trombinoscope, face-based "my photos", RGPD photo-access consent                              |
