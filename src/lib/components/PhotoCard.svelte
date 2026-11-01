@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Heart, Download, Trash2, Check } from '@lucide/svelte';
+  import { Heart, Download, Trash2, Check, UserX } from '@lucide/svelte';
   import LazyImage from './LazyImage.svelte';
   import Skeleton from './Skeleton.svelte';
   import OverflowMenu from './OverflowMenu.svelte';
@@ -21,6 +21,11 @@
     /** A long-press on a touch screen: enters selection mode with this tile picked (D9). */
     onLongPress?: (assetId: string) => void;
     onFavoriteToggle?: (assetId: string, event: Event) => void;
+    /**
+     * "Ce n'est pas moi" on the member's own photos (owner, 2026-11-01): a discreet button beside
+     * the heart. Absent, no button.
+     */
+    onNotMe?: (assetId: string) => void;
     albumVisibility?: string;
     albumId?: string;
     /**
@@ -44,6 +49,7 @@
     onSelectionToggle,
     onLongPress,
     onFavoriteToggle,
+    onNotMe,
     albumVisibility,
     albumId,
     x,
@@ -128,6 +134,11 @@
     if (onFavoriteToggle) {
       onFavoriteToggle(asset.id, e);
     }
+  }
+
+  function handleNotMeClick(e: Event) {
+    e.stopPropagation();
+    onNotMe?.(asset.id);
   }
 
   let fileName = $derived(asset.originalFileName || asset._raw?.originalFileName || asset.id);
@@ -221,6 +232,20 @@
         aria-label={isFavorite ? m.pm_fav_remove() : m.pm_fav_add()}
       >
         <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+      </button>
+    {/if}
+
+    <!-- "Ce n'est pas moi", beside the heart and revealed with it -->
+    {#if onNotMe && !isSelecting}
+      <button
+        type="button"
+        class="not-me-btn"
+        class:after-favorite={showFavorite}
+        title={m.mp_not_me_action()}
+        aria-label={m.mp_not_me_action()}
+        onclick={handleNotMeClick}
+      >
+        <UserX size={18} />
       </button>
     {/if}
 
@@ -344,7 +369,8 @@
     display: flex;
   }
 
-  .favorite-btn {
+  .favorite-btn,
+  .not-me-btn {
     position: absolute;
     bottom: 0.625rem;
     left: 0.625rem;
@@ -369,6 +395,11 @@
     justify-content: center;
   }
 
+  /* Beside the heart: one button width and a gap further right. */
+  .not-me-btn.after-favorite {
+    left: calc(0.625rem + 36px + 0.375rem);
+  }
+
   .favorite-btn.active {
     color: white;
     background: var(--error);
@@ -387,7 +418,8 @@
     transition: opacity 0.2s ease;
   }
 
-  .favorite-btn {
+  .favorite-btn,
+  .not-me-btn {
     pointer-events: none;
   }
 
@@ -421,7 +453,9 @@
 
   /* Same for the favourite button: the tile's keyboard focus makes it reachable by Tab. */
   .photo-card:focus-visible .favorite-btn,
-  .favorite-btn:focus-visible {
+  .favorite-btn:focus-visible,
+  .photo-card:focus-visible .not-me-btn,
+  .not-me-btn:focus-visible {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
@@ -448,6 +482,7 @@
     }
 
     .photo-card:hover .favorite-btn,
+    .photo-card:hover .not-me-btn,
     .photo-card:hover .tile-menu {
       opacity: 1;
       visibility: visible;
@@ -457,6 +492,10 @@
     .favorite-btn:hover {
       background: color-mix(in srgb, var(--error) 30%, transparent);
       color: var(--error);
+      transform: scale(1.1);
+    }
+
+    .not-me-btn:hover {
       transform: scale(1.1);
     }
   }

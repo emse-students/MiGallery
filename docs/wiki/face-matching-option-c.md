@@ -342,7 +342,7 @@ A `suggested` face waiting for their answer is not one of their photos until the
 
 | File                                                                  | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/server/face-photos.ts`                                       | `memberPhotoAssetIds`, `pendingSuggestions`, `shownFaces`, `holdsFace`, `profileFace`, `faceStatus`, `memberPhotoAssets` (the ids from the matches, the assets from Immich BY ID, the PhotoCV partition, images only, newest first).                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `src/lib/server/face-photos.ts`                                       | `memberPhotoAssetIds`, `pendingSuggestions`, `rejectedFaces`, `holdsFace`, `mayViewFaceCrop`, `profileFace`, `faceStatus`, `memberPhotoAssets` (the ids from the matches, the assets from Immich BY ID, the PhotoCV partition, images only, newest first).                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `src/lib/server/immich-search.ts`                                     | `searchAssetsByIds`: `POST /api/search/metadata` with `filter.or` of `id.eq`, 250 ids per request, size 251, no `page` (Immich refuses one with a `filter`). **The answer is checked**: an asset not asked for, or more results announced (`nextCursor`, `nextPage`), throws 502 and nothing of the batch is used - an Immich that ignored the filter would otherwise show a member a page of someone else's photos. Every failure is classified there and none is the member's: Immich not configured 503, an Immich error status (a 4xx included: it refuses OUR request) or an unreadable answer 502, no answer in time 504, unreachable 502; Immich's text is logged, never sent. |
 | `src/routes/api/users/[userId]/photos-stream/+server.ts`              | A member's photos as NDJSON (`in_album=false` "Mes photos", `true` "Mes photos CV", none = every photo, for the picker), behind `requireMemberPhotosAccess` (owner, authorised member, admin, API key).                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `src/routes/api/users/me/face/matches/+server.ts`                     | `GET`: the faces waiting for the member's answer as `{ asset_id, face_index }` - no distance, band, runner-up or other member. Answered by the A5 `POST`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -351,7 +351,7 @@ A `suggested` face waiting for their answer is not one of their photos until the
 | `src/routes/api/users/me/profile-photo/+server.ts`                    | `PUT { asset_id, user_id? }`: the profile photo, only among the member's own photos (404 otherwise); `user_id` for another member is an admin's (403 otherwise); refused impersonated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `src/routes/api/users/[username]/avatar/+server.ts`                   | Cut around the member's lowest visible face in the chosen photo; 404 when there is none (the Immich person thumbnail fallback is gone).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `src/routes/api/immich/[...path]/+server.ts`                          | `assertNoProxiedFaceCall` for EVERY caller: people/faces/search-person paths and any `personId*` / `withPeople*` query or body key are 403. A JSON answer loses `people` / `unassignedFaces` (`stripFaceFields`); one that names them and does not parse is a 502.                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `src/routes/mes-photos/+page.svelte`, `mes-photos/confirmer/`         | "Mes photos" by user id (yours, or a member who granted you); an invitation to enrol when you have no face; a banner to the confirmation screen, which shows each face's crop with "C'est moi" / "Pas moi"; a link to the same screen with `?list=shown`, "Pas moi" alone on the faces shown without a question.                                                                                                                                                                                                                                                                                                                                                                      |
+| `src/routes/mes-photos/+page.svelte`, `mes-photos/confirmer/`         | "Mes photos" by user id (yours, or a member who granted you); an invitation to enrol when you have no face; a banner to the confirmation screen, which shows each face's crop with "C'est moi" / "Pas moi"; "Ce n'est pas moi" on every photo (see faces v2).                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 **What each people view became.**
 
@@ -692,17 +692,31 @@ taken knowingly: a false `auto` stays until the member says "Pas moi"; their neg
 its `suggested` lookalikes from them (a negative is not consulted past the suggested band, so
 another `auto` lookalike stays until its own "Pas moi").
 
-**"Pas moi" from "Mes photos"** (the sticky rule's way out). "Mes photos" carries a quiet link
-under the confirmation banner, shown on the member's own view once they have photos, to
-`/mes-photos/confirmer?list=shown`: the SAME screen, card and answer route
-(`POST /api/users/me/face/matches`, verdict `reject`), listing the faces shown WITHOUT a question
-that the member has not answered (`band = 'auto' AND state = 'pending'`, `shownFaces`), LEAST
-SURE FIRST (distance descending; the order is the only trace of it). Each card has "Pas moi" alone:
-no "C'est moi", no "Jusqu'ici", and the keyboard's yes keys do nothing there. A face they confirmed
-is not listed (they already said yes). The answer is the one a doubtful face gets: the row becomes
-`rejected`, the face is kept as a negative example and handed to the next member, its cached crop
-is deleted, and a DEFAULT profile photo is looked at again in the background (a chosen one is never
-touched; on the global fetch, the work outliving the request).
+**"Ce n'est pas moi" on every photo, and "Photos écartées"** (the owner's decision of
+2026-11-01, the sticky rule's way out). Each photo of the member's OWN "Mes photos" carries a
+discreet UserX button beside the favourites heart (the tile, revealed with the heart; the viewer's
+toolbar), automatic or confirmed alike. It asks once (`showConfirm`: the photo leaves "Mes photos"
+and is found again under Paramètres -> "Photos écartées"), with no undo toast, then
+`POST /api/users/me/face/rejections { asset_id }` (`removeMemberPhoto`): every visible face of
+theirs on that asset becomes `rejected` and follows the ONE rejection path (`afterRejection`, the
+same as "Pas moi" on the confirmation screen): its crop deleted, kept as a negative example,
+re-decided for everyone else, the member's waiting faces re-decided against the new negative
+(`released`). **Any reference learned from a rejected face is deleted** (never the selfie), on every
+rejection path - a face the member says is not them never stays a reference - and a deleted one
+queues the member's background re-match, as a learned one does. A DEFAULT profile photo is looked
+at again in the background (a chosen one is never touched while it is theirs). The former
+`?list=shown` mode of the confirmation screen is gone; the screen keeps the doubtful faces only.
+
+"Photos écartées" is a folded row of the settings' face section (`#photos-ecartees`):
+`GET /api/users/me/face/rejections` lists the member's `rejected` rows, latest answer first, each
+shown by its crop (`mayViewFaceCrop`: served to the member who rejected it while no other member
+has CONFIRMED it - then it is that member's face, 404). "En fait, c'est moi" is
+`DELETE /api/users/me/face/rejections/[assetId]/[faceIndex]` (`restoreRejectedFace`, one
+transaction in the engine lock): refused 409 `confirmed_by_other` when another member confirmed the
+face (nothing changes), else the negative goes, a PENDING holder loses the face (as a confirmation
+takes it), the member's row becomes `confirmed`, and their re-match is queued (the negative no
+longer withholds lookalikes). The face is not learned as a reference. Both routes refuse an
+impersonated session, like the answer route; `tests/face-not-me-routes.test.ts`.
 
 **5. The confirmation screen** (`src/routes/mes-photos/confirmer/+page.svelte`,
 `src/lib/face-confirm-list.ts`). Sorted nearest first (`pendingSuggestions` orders by distance; no
@@ -836,7 +850,8 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
   the owner. Owed: that re-assessment, and the merge.
 - **`/cgu` describes the current system only** (owner, 2026-11-01): no former design, no cutover,
   no seed from Immich's groups, no legacy consent sources - that history lives here and in the
-  release notes, never in the terms. Read before A8 runs: the terms no longer name Immich's own
+  release notes, never in the terms. They say a member may remove any photo from "Mes photos" and
+  undo a "Pas moi" from "Photos écartées". Read before A8 runs: the terms no longer name Immich's own
   face groups, nor the Immich database backups that hold them.
 - **A6 owed**:
   - **A6 and A7 ship together.** The avatar requires the chosen photo to be a visible match of

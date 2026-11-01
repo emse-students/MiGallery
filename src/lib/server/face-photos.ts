@@ -31,8 +31,6 @@ export const VISIBLE_MATCH_SQL = "state != 'rejected' AND (band = 'auto' OR stat
 const VISIBLE = VISIBLE_MATCH_SQL;
 /** The SQL condition of a face waiting for its holder's answer. */
 const TO_CONFIRM = "band = 'suggested' AND state = 'pending'";
-/** The SQL condition of a face shown without a question that its holder may still refuse. */
-const SHOWN = "band = 'auto' AND state = 'pending'";
 
 /** The distinct assets of `userId`'s visible faces, oldest match first. */
 export function memberPhotoAssetIds(db: DatabaseInstance, userId: string): string[] {
@@ -61,24 +59,23 @@ export function pendingSuggestions(db: DatabaseInstance, userId: string): FaceKe
 }
 
 /**
- * The faces given to `userId` WITHOUT a question that they have not answered (`auto`, pending),
- * LEAST SURE FIRST (faces v2, "Pas moi" from Mes photos): auto is sticky, so a stranger shown as
- * theirs leaves only by their "not me", and the faces likeliest to be wrong are at the top. A face
- * they confirmed is not listed (they already said yes). Ties by the face's key; never the distance.
+ * The faces `userId` rejected ("Photos écartées", owner 2026-11-01), the latest answer first, ties
+ * by the face's key: what "En fait, c'est moi" may take back. Only their own rows leave; whether
+ * another member holds the face now is not said (the restore answers it when asked).
  */
-export function shownFaces(db: DatabaseInstance, userId: string): FaceKey[] {
+export function rejectedFaces(db: DatabaseInstance, userId: string): FaceKey[] {
   const rows = db
     .prepare(
-      `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ? AND ${SHOWN}
-        ORDER BY distance DESC, asset_id, face_index`
+      `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ?
+        AND state = 'rejected' ORDER BY decided_at DESC, asset_id, face_index`
     )
     .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
   return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
 }
 
 /**
- * Whether `userId` holds `face` now - shown or waiting for their answer - which is the ONLY
- * condition under which its crop may be served to them. A face they rejected is not held.
+ * Whether `userId` holds `face` now - shown or waiting for their answer. A face they rejected is
+ * not held. Its crop is served under {@link mayViewFaceCrop}.
  */
 export function holdsFace(db: DatabaseInstance, userId: string, face: FaceKey): boolean {
   const row = db
@@ -88,6 +85,28 @@ export function holdsFace(db: DatabaseInstance, userId: string, face: FaceKey): 
     )
     .get(face.assetId, face.faceIndex, FACE_MODEL, userId);
   return row != null;
+}
+
+/**
+ * Whether `userId` may see the crop of `face`: they hold it ({@link holdsFace}), or they rejected
+ * it and no other member has CONFIRMED it since - the face they once answered on, shown in their
+ * "Photos écartées" so they can take the answer back. A face another member confirmed is that
+ * member's: its picture is no longer served to the one who said it was not them.
+ */
+export function mayViewFaceCrop(db: DatabaseInstance, userId: string, face: FaceKey): boolean {
+  const rows = db
+    .prepare(
+      `SELECT user_id, state FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?`
+    )
+    .all(face.assetId, face.faceIndex, FACE_MODEL) as Array<{ user_id: string; state: string }>;
+  const own = rows.find((r) => r.user_id === userId);
+  if (!own) {
+    return false;
+  }
+  if (own.state !== 'rejected') {
+    return true;
+  }
+  return !rows.some((r) => r.user_id !== userId && r.state === 'confirmed');
 }
 
 /**

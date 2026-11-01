@@ -5,7 +5,7 @@ import { getFaceDatabase } from '#lib/db/face-database.ts';
 import { requireScope } from '#lib/server/permissions.ts';
 import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
-import { holdsFace } from '#lib/server/face-photos.ts';
+import { mayViewFaceCrop } from '#lib/server/face-photos.ts';
 import { loadFaceBox } from '#lib/server/face-store.ts';
 import { generateMemberFaceCrop } from '#lib/server/face-crop.ts';
 
@@ -17,8 +17,9 @@ const log = createLogger('face-crop-route');
  * Cut server-side from the box the face store holds, cached in the member's own directory, which a
  * withdrawal deletes (face-crop.ts).
  *
- * Served ONLY to the member who holds that face now - shown, or waiting for their answer. Anyone
- * else, an API key and an impersonated session get no picture: 404 when the face is not theirs
+ * Served ONLY to the member who holds that face now - shown, or waiting for their answer - or who
+ * rejected it while no other member has confirmed it (their "Photos écartées", `mayViewFaceCrop`).
+ * Anyone else, an API key and an impersonated session get no picture: 404 when the face is not theirs
  * (the same answer whether it exists or not), 403 for an impersonation. `private, no-store`: a
  * face that leaves the member must not stay readable from a cache.
  */
@@ -41,8 +42,8 @@ export const GET: RequestHandler = async (event) => {
   const face = { assetId, faceIndex };
 
   const db = getDatabase();
-  if (!holdsFace(db, userId, face)) {
-    log.info('face crop refused: not a face the member holds');
+  if (!mayViewFaceCrop(db, userId, face)) {
+    log.info('face crop refused: not a face the member holds or rejected');
     return json({ error: 'not_found' }, { status: 404 });
   }
   const box = loadFaceBox(getFaceDatabase(), face);
@@ -52,7 +53,7 @@ export const GET: RequestHandler = async (event) => {
   }
 
   const crop = await generateMemberFaceCrop(userId, face, box, event.fetch, () =>
-    holdsFace(db, userId, face)
+    mayViewFaceCrop(db, userId, face)
   );
   if (crop.ok) {
     return new Response(new Uint8Array(crop.buffer), {

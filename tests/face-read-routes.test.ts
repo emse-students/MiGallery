@@ -499,28 +499,6 @@ describe('GET /api/users/me/face/matches', () => {
     expect(JSON.stringify(body)).not.toMatch(/distance|runner|band|m2|0\.42/);
   });
 
-  it('with ?list=shown, lists the faces shown without a question that "Pas moi" may still refuse, least sure first', async () => {
-    match('m1', 'sure', 'auto', 'pending', { distance: 0.2 });
-    match('m1', 'doubt', 'auto', 'pending', { distance: 0.38 });
-    match('m1', 'said-yes', 'auto', 'confirmed', { distance: 0.4 });
-    match('m1', 'asked', 'suggested', 'pending', { distance: 0.5 });
-    match('m1', 'said-no', 'auto', 'rejected', { distance: 0.3 });
-    match('m2', 'theirs', 'auto', 'pending', { distance: 0.39 });
-    const res = await call(matchRoute.GET, {
-      url: new URL('http://x.test/api/users/me/face/matches?list=shown'),
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual({
-      success: true,
-      suggestions: [
-        { asset_id: 'doubt', face_index: 0 },
-        { asset_id: 'sure', face_index: 0 },
-      ],
-    });
-    expect(JSON.stringify(body)).not.toMatch(/distance|band|m2|0\.38/);
-  });
-
   it('refuses an impersonated session and a caller with no member', async () => {
     state.impersonating = true;
     expect(
@@ -565,10 +543,11 @@ describe('GET /api/users/me/face/crops/[assetId]/[faceIndex]', () => {
     expect(cachedCrops('m1')).toEqual(['a_0.webp']);
   });
 
-  it("answers 404 for another member's face, a rejected one or a face with no box - and cuts nothing", async () => {
+  it("answers 404 for another member's face, one they rejected that another member confirmed, or a face with no box - and cuts nothing", async () => {
     match('m2', 'o', 'suggested', 'pending');
     box('o');
     match('m1', 'r', 'suggested', 'rejected');
+    match('m2', 'r', 'auto', 'confirmed');
     box('r');
     match('m1', 'n', 'suggested', 'pending');
     for (const asset of ['o', 'r', 'n', 'missing']) {
@@ -577,6 +556,16 @@ describe('GET /api/users/me/face/crops/[assetId]/[faceIndex]', () => {
     expect(cachedCrops('m1')).toEqual([]);
     expect(cachedCrops('m2')).toEqual([]);
     expect(immichCalls).toEqual([]);
+  });
+
+  it('serves a face the member rejected while no other member confirmed it ("Photos écartées")', async () => {
+    match('m1', 'r', 'auto', 'rejected');
+    match('m2', 'r', 'auto', 'pending');
+    box('r');
+    expect((await crop('r')).status).toBe(200);
+    expect(cachedCrops('m1')).toEqual(['r_0.webp']);
+    db().prepare("UPDATE face_matches SET state = 'confirmed' WHERE user_id = 'm2'").run();
+    expect((await crop('r')).status).toBe(404);
   });
 
   it('refuses an impersonated session, an API key and a malformed face', async () => {

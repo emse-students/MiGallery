@@ -132,6 +132,18 @@ export function negativeCount(db: Db, userId: string): number {
   ).n;
 }
 
+/**
+ * Delete the negative `userId` kept for `face` (their "not me" taken back), inside the caller's
+ * transaction. Returns how many rows went: 0 when none was kept (the cap had dropped it).
+ */
+export function deleteFaceNegative(db: Db, userId: string, face: FaceKey): number {
+  return db
+    .prepare(
+      'DELETE FROM face_negatives WHERE user_id = ? AND model = ? AND asset_id = ? AND face_index = ?'
+    )
+    .run(userId, FACE_MODEL, face.assetId, face.faceIndex).changes;
+}
+
 /** Delete every negative of the member (withdrawal). Returns how many rows went. */
 export function eraseFaceNegatives(db: Db, userId: string): number {
   const changes = db.prepare('DELETE FROM face_negatives WHERE user_id = ?').run(userId).changes;

@@ -9,7 +9,7 @@ import { defaultFaceEngine } from '#lib/server/face-engine.ts';
 import { answerFace } from '#lib/server/face-enrolment.ts';
 import { scheduleDefaultProfilePhoto } from '#lib/server/profile-photo-default.ts';
 import { getDatabase } from '#lib/db/database.ts';
-import { assetCaptureTimes, pendingSuggestions, shownFaces } from '#lib/server/face-photos.ts';
+import { assetCaptureTimes, pendingSuggestions } from '#lib/server/face-photos.ts';
 import type { FaceKey } from '#lib/server/face-store.ts';
 
 const log = createLogger('face-matches-route');
@@ -19,9 +19,6 @@ const log = createLogger('face-matches-route');
  * The faces given to the member that wait for their answer (the `suggested` band, lot A6), NEAREST
  * first (faces v2): `{ suggestions: [{ asset_id, face_index }] }`. Nothing else: no distance, no
  * band, no other member - the order is the only trace of the distance. Each one's picture is `GET /api/users/me/face/crops/[assetId]/[faceIndex]`.
- * With `?list=shown`: the faces shown as theirs WITHOUT a question that they have not answered,
- * least sure first, in the same shape - what "Pas moi" from Mes photos answers (auto is sticky,
- * so the member's "not me" is the only way a stranger leaves their photos).
  * Refused to an impersonated session, like the answer itself.
  */
 export const GET: RequestHandler = async (event) => {
@@ -34,15 +31,11 @@ export const GET: RequestHandler = async (event) => {
   if (!userId) {
     return json({ error: 'Unauthorized - no user identified' }, { status: 401 });
   }
-  const shown = event.url.searchParams.get('list') === 'shown';
-  const faces = shown
-    ? shownFaces(getDatabase(), userId)
-    : pendingSuggestions(getDatabase(), userId);
-  const suggestions = faces.map((face) => ({
+  const suggestions = pendingSuggestions(getDatabase(), userId).map((face) => ({
     asset_id: face.assetId,
     face_index: face.faceIndex,
   }));
-  log.debug('face suggestions read', { shown, count: suggestions.length });
+  log.debug('face suggestions read', { count: suggestions.length });
   return json({ success: true, suggestions });
 };
 

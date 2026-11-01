@@ -20,6 +20,7 @@
   import Modal from '#lib/components/Modal.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import CameraInput from '#lib/components/CameraInput.svelte';
+  import FaceCropThumb from '#lib/components/FaceCropThumb.svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import ChangePhotoModal from '#lib/components/ChangePhotoModal.svelte';
   import Avatar from '#lib/components/Avatar.svelte';
@@ -146,6 +147,78 @@
     }
     toast.success(m.param_photo_updated());
     window.location.reload();
+  }
+
+  /** A face the member rejected, as the rejections route lists it. */
+  interface RejectedFace {
+    asset_id: string;
+    face_index: number;
+  }
+
+  /** "Photos écartées": folded until asked, then listed once. */
+  let rejectedOpen = $state(false);
+  let rejected = $state<RejectedFace[] | null>(null);
+  let rejectedFailed = $state(false);
+  /** The faces whose "En fait, c'est moi" is on its way, so a double tap answers once. */
+  let restoring = $state<string[]>([]);
+
+  const rejectedKey = (f: RejectedFace) => `${f.asset_id}:${f.face_index}`;
+
+  /** Open or fold the list; the first opening reads it. */
+  async function toggleRejected() {
+    rejectedOpen = !rejectedOpen;
+    if (rejectedOpen && rejected === null) await loadRejected();
+  }
+
+  async function loadRejected() {
+    rejectedFailed = false;
+    try {
+      const res = await fetch('/api/users/me/face/rejections');
+      if (!res.ok) {
+        console.warn('[parametres] rejected faces refused', res.status);
+        rejectedFailed = true;
+        return;
+      }
+      const body = (await res.json()) as { rejections?: RejectedFace[] };
+      rejected = body.rejections ?? [];
+    } catch (e) {
+      console.warn('[parametres] rejected faces could not be read', e);
+      rejectedFailed = true;
+    }
+  }
+
+  /**
+   * "En fait, c'est moi": the face goes back to the member's photos, confirmed. 409 means another
+   * member confirmed it since: the face stays here and the toast says why. 404: it is no longer a
+   * rejection of theirs, so it leaves the list.
+   */
+  async function restoreRejected(face: RejectedFace) {
+    const key = rejectedKey(face);
+    if (restoring.includes(key)) return;
+    restoring = [...restoring, key];
+    try {
+      const res = await fetch(
+        `/api/users/me/face/rejections/${encodeURIComponent(face.asset_id)}/${face.face_index}`,
+        { method: 'DELETE' }
+      );
+      if (res.ok || res.status === 404) {
+        rejected = (rejected ?? []).filter((f) => rejectedKey(f) !== key);
+        if (res.ok) toast.success(m.param_rejected_restored());
+        return;
+      }
+      if (res.status === 409) {
+        console.info('[parametres] a rejected face is confirmed by another member');
+        toast.error(m.param_rejected_taken());
+        return;
+      }
+      console.warn('[parametres] the restore was refused', res.status);
+      toast.error(m.param_rejected_error());
+    } catch (e) {
+      console.warn('[parametres] the restore could not be sent', e);
+      toast.error(m.param_rejected_error());
+    } finally {
+      restoring = restoring.filter((k) => k !== key);
+    }
   }
 
   /** Whether face matching is on for the member, and how many photos wait for their answer. */
@@ -486,14 +559,53 @@ alone sets the width and the gutter, which this page used to add a second time (
           />
         {/if}
 
-        <!-- The photos added without a question: the member's way to say "Pas moi" on one of them
-             (a later scan never detaches an automatic match). -->
+        <!-- The faces the member said were not them ("Ce n'est pas moi" on a photo, "Pas moi" on
+             the confirmation screen): folded, each with its way back. -->
         {#if currentUserHasFace}
-          <SettingsRow
-            icon={UserX}
-            title={m.mp_not_me_link()}
-            href="/mes-photos/confirmer?list=shown"
-          />
+          <div id="photos-ecartees" class="rejected-anchor">
+            <SettingsRow
+              icon={UserX}
+              title={m.param_rejected_title()}
+              description={m.param_rejected_desc()}
+              onclick={toggleRejected}
+            />
+          </div>
+          {#if rejectedOpen}
+            <div class="step">
+              {#if rejectedFailed}
+                <p class="group-empty">{m.param_rejected_load_error()}</p>
+                <button type="button" class="retry-link" onclick={loadRejected}>
+                  {m.common_retry()}
+                </button>
+              {:else if rejected === null}
+                <Spinner size={20} />
+              {:else if rejected.length === 0}
+                <p class="group-empty">{m.param_rejected_empty()}</p>
+              {:else}
+                <ul class="rejected-grid">
+                  {#each rejected as face (rejectedKey(face))}
+                    <li class="rejected-item">
+                      <div class="rejected-face">
+                        <FaceCropThumb
+                          assetId={face.asset_id}
+                          faceIndex={face.face_index}
+                          alt={m.param_rejected_face_alt()}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        class="rejected-restore"
+                        disabled={restoring.includes(rejectedKey(face))}
+                        onclick={() => restoreRejected(face)}
+                      >
+                        {m.param_rejected_restore()}
+                      </button>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            </div>
+          {/if}
         {/if}
 
         <!-- Step 4, the way out, next to what it undoes. -->
@@ -784,6 +896,60 @@ alone sets the width and the gutter, which this page used to add a second time (
   .group-card > .step + :global(.settings-row),
   .group-card > .step + .step {
     border-top: 1px solid var(--border);
+  }
+
+  /* The rejected list's row wraps a SettingsRow for its anchor; the hairline follows it. */
+  .group-card > .step + .rejected-anchor,
+  .group-card > :global(.settings-row + .rejected-anchor),
+  .group-card > .rejected-anchor + .step,
+  .group-card > .rejected-anchor + :global(.settings-row) {
+    border-top: 1px solid var(--border);
+  }
+
+  /* "Photos écartées": small faces, each over its way back. */
+  .rejected-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .rejected-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .rejected-face {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: var(--radius-xs);
+  }
+
+  .rejected-restore {
+    padding: 0.25rem;
+    border: none;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .rejected-restore:hover:not(:disabled) {
+    color: var(--accent-hover);
+    text-decoration: underline;
+  }
+
+  .rejected-restore:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   /* One spacing scale inside a card's content: 1rem of padding, 1rem between blocks. */

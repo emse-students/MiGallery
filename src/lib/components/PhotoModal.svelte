@@ -17,6 +17,7 @@
     Calendar,
     Aperture,
     MapPin,
+    UserX,
   } from '@lucide/svelte';
   import type { IconComponent } from '#lib/icons.ts';
   import Modal from './Modal.svelte';
@@ -80,6 +81,11 @@
     albumId?: string;
     showFavorite?: boolean;
     onFavoriteToggle?: (assetId: string) => Promise<void>;
+    /**
+     * "Ce n'est pas moi" (the member's own "Mes photos"): asks and removes, resolving whether the
+     * photo left them; the viewer then moves on as after a deletion. Absent, no button.
+     */
+    onNotMe?: (assetId: string) => Promise<boolean>;
   }
 
   let {
@@ -91,6 +97,7 @@
     albumId,
     showFavorite = false,
     onFavoriteToggle,
+    onNotMe,
   }: Props = $props();
 
   /** Zooming past this scale upgrades the preview to the original (docs/wiki/bandwidth.md). */
@@ -762,6 +769,20 @@
     }
   }
 
+  /**
+   * "Ce n'est pas moi" on the photo on screen. The neighbour is read BEFORE the question: once
+   * the photo left the member, the host drops it from `assets` and its index is gone.
+   */
+  async function notMeCurrent() {
+    if (!onNotMe || !asset) return;
+    const id = asset.id;
+    const nextIndex = currentIndex < assets.length - 1 ? currentIndex + 1 : currentIndex - 1;
+    const nextId = nextIndex >= 0 && nextIndex < assets.length ? assets[nextIndex].id : null;
+    if (!(await onNotMe(id))) return;
+    if (nextId && nextId !== id) assetId = nextId;
+    else onClose();
+  }
+
   async function deleteCurrentAsset(skipConfirmation = false) {
     if (!canManagePhotos || !assetId) return;
     const performDelete = async () => {
@@ -1022,6 +1043,17 @@
           aria-pressed={asset.isFavorite}
         >
           <Heart size={22} fill={asset.isFavorite ? 'currentColor' : 'none'} />
+        </button>
+      {/if}
+      {#if asset && onNotMe}
+        <button
+          type="button"
+          class="bar-icon"
+          onclick={notMeCurrent}
+          title={m.mp_not_me_action()}
+          aria-label={m.mp_not_me_action()}
+        >
+          <UserX size={22} />
         </button>
       {/if}
       <OverflowMenu items={overflowItems} variant="toolbar" iconSize={22} />
