@@ -11,6 +11,7 @@
   import ChangePhotoModal from '#lib/components/ChangePhotoModal.svelte';
   import { PhotosState } from '#lib/photos.svelte.ts';
   import { toast } from '#lib/toast.ts';
+  import { removeFromMyPhotos } from '#lib/face-not-me.ts';
   import { m } from '#lib/paraglide/messages.js';
   import type { User } from '#lib/types/api.ts';
   import type { PageData } from './$types';
@@ -198,7 +199,13 @@
       <LoadingState label={m.mp_loading()} />
     {/if}
 
-    <PhotosGrid state={photosState} showFavorites={isViewingOwnPhotos} />
+    <!-- "Ce n'est pas moi" on every photo, their own view only: an automatic match is never
+         detached by a later scan, so the member's answer is the way out of a mistake. -->
+    <PhotosGrid
+      state={photosState}
+      showFavorites={isViewingOwnPhotos}
+      onNotMe={isViewingOwnPhotos ? removeFromMyPhotos : undefined}
+    />
   {/if}
 
   {#if showChangePhotoModal}

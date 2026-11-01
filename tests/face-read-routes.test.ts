@@ -90,14 +90,14 @@ function match(
   asset: string,
   band: 'auto' | 'suggested',
   st: 'pending' | 'confirmed' | 'rejected',
-  { face = 0, created = 1, model = FACE_MODEL } = {}
+  { face = 0, created = 1, model = FACE_MODEL, distance = 0.42 } = {}
 ) {
   db()
     .prepare(
       `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band, state, created_at)
-       VALUES (?, ?, ?, ?, 0.42, 0.9, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, 0.9, ?, ?, ?)`
     )
-    .run(asset, face, model, user, band, st, created);
+    .run(asset, face, model, user, distance, band, st, created);
 }
 
 /** The stored box of a face, in the frame of the synthetic preview. */
@@ -313,15 +313,18 @@ describe("which faces are a member's photos (face-photos.ts)", () => {
     expect(photos.faceStatus(db(), 'm1')).toEqual({ enrolled: true, photos: 1, toConfirm: 0 });
   });
 
-  it('the faces to confirm are the pending suggested ones only', () => {
-    match('m1', 'a', 'suggested', 'pending', { created: 3 });
-    match('m1', 'b', 'suggested', 'pending', { face: 2, created: 1 });
+  it('the faces to confirm are the pending suggested ones only, NEAREST first (faces v2)', () => {
+    // The nearer face is the NEWER match: an order by age would put it last.
+    match('m1', 'a', 'suggested', 'pending', { created: 1, distance: 0.6 });
+    match('m1', 'z', 'suggested', 'pending', { created: 2, distance: 0.55 });
+    match('m1', 'b', 'suggested', 'pending', { face: 2, created: 3, distance: 0.51 });
     match('m1', 'c', 'suggested', 'confirmed');
     match('m1', 'd', 'auto', 'pending');
     match('m1', 'e', 'suggested', 'rejected');
     match('m2', 'f', 'suggested', 'pending');
     expect(photos.pendingSuggestions(db(), 'm1')).toEqual([
       { assetId: 'b', faceIndex: 2 },
+      { assetId: 'z', faceIndex: 0 },
       { assetId: 'a', faceIndex: 0 },
     ]);
   });
@@ -487,7 +490,9 @@ describe('GET /api/users/me/face/matches', () => {
     match('m1', 'a', 'suggested', 'pending');
     match('m1', 'b', 'auto', 'pending');
     match('m2', 'c', 'suggested', 'pending');
-    const res = await call(matchRoute.GET, {});
+    const res = await call(matchRoute.GET, {
+      url: new URL('http://x.test/api/users/me/face/matches'),
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ success: true, suggestions: [{ asset_id: 'a', face_index: 0 }] });
@@ -496,10 +501,16 @@ describe('GET /api/users/me/face/matches', () => {
 
   it('refuses an impersonated session and a caller with no member', async () => {
     state.impersonating = true;
-    expect((await call(matchRoute.GET, {})).status).toBe(403);
+    expect(
+      (await call(matchRoute.GET, { url: new URL('http://x.test/api/users/me/face/matches') }))
+        .status
+    ).toBe(403);
     state.impersonating = false;
     state.auth = API_KEY;
-    expect((await call(matchRoute.GET, {})).status).toBe(401);
+    expect(
+      (await call(matchRoute.GET, { url: new URL('http://x.test/api/users/me/face/matches') }))
+        .status
+    ).toBe(401);
   });
 
   it('a "not me" deletes the cached picture of that face', async () => {
@@ -532,10 +543,11 @@ describe('GET /api/users/me/face/crops/[assetId]/[faceIndex]', () => {
     expect(cachedCrops('m1')).toEqual(['a_0.webp']);
   });
 
-  it("answers 404 for another member's face, a rejected one or a face with no box - and cuts nothing", async () => {
+  it("answers 404 for another member's face, one they rejected that another member confirmed, or a face with no box - and cuts nothing", async () => {
     match('m2', 'o', 'suggested', 'pending');
     box('o');
     match('m1', 'r', 'suggested', 'rejected');
+    match('m2', 'r', 'auto', 'confirmed');
     box('r');
     match('m1', 'n', 'suggested', 'pending');
     for (const asset of ['o', 'r', 'n', 'missing']) {
@@ -544,6 +556,16 @@ describe('GET /api/users/me/face/crops/[assetId]/[faceIndex]', () => {
     expect(cachedCrops('m1')).toEqual([]);
     expect(cachedCrops('m2')).toEqual([]);
     expect(immichCalls).toEqual([]);
+  });
+
+  it('serves a face the member rejected while no other member confirmed it ("Photos écartées")', async () => {
+    match('m1', 'r', 'auto', 'rejected');
+    match('m2', 'r', 'auto', 'pending');
+    box('r');
+    expect((await crop('r')).status).toBe(200);
+    expect(cachedCrops('m1')).toEqual(['r_0.webp']);
+    db().prepare("UPDATE face_matches SET state = 'confirmed' WHERE user_id = 'm2'").run();
+    expect((await crop('r')).status).toBe(404);
   });
 
   it('refuses an impersonated session, an API key and a malformed face', async () => {

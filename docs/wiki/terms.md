@@ -29,17 +29,17 @@ alike, in no backup and grouped by no person (the face store,
 [face-matching-option-c.md](face-matching-option-c.md)). A face is tied to someone only
 by comparison with the references of a member who agreed. The page states it, offers
 objection by e-mail to anyone in a photo, and says that withdrawing consent erases the
-member's references, matches, answers and crops at once (`cgu_s4_store`,
-`cgu_s4_match`, `cgu_s4_revoke_body`).
+member's references, negative examples, matches, answers and crops at once
+(`cgu_s4_store`, `cgu_s4_match`, `cgu_s4_revoke_body`).
 
-**Immich no longer groups faces.** Until 2026-11-01 it clustered every face into
-anonymous groups that a member linked to their account. At the cutover (lot A8) its
-recognition was switched off and its faces, groups and prints were deleted, after an
-encrypted copy kept until 2026-12-01; the nightly Immich backups taken before hold
-them until 2026-11-09 (offsite) and 2026-11-15 (Immich's own). `cgu_s4_cutover` and
-`cgu_s5_backups_body` state those dates; they are facts about the past, so they move
-only if the record in [face-matching-option-c.md](face-matching-option-c.md) (section 5)
-is corrected.
+**The page describes the current system only** (owner, 2026-11-01): no former design,
+no cutover, no seed from Immich's groups, no legacy consent sources. Immich no longer
+groups faces: until 2026-11-01 it clustered every face into anonymous groups a member
+linked to their account, and at the cutover (lot A8) its recognition was switched off
+and its faces, groups and prints deleted. That history, its encrypted copy (deleted
+2026-12-01) and the dates the old Immich backups stop holding it are told in
+[face-matching-option-c.md](face-matching-option-c.md) (section 5) and the release
+notes, never on the page.
 
 UI strings repeat these claims and must move with them: `param_face_note_*` (what
 happens to the selfie) and `param_unlink_face_desc` (what unlinking does).

@@ -39,6 +39,7 @@ import { normalisePersonId } from '#lib/server/person-id.ts';
 import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
 import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
 import { eraseFaceReferences } from '#lib/server/face-references.ts';
+import { eraseFaceNegatives } from '#lib/server/face-negatives.ts';
 import { assertAnotherAdminRemains } from '#lib/server/admin-floor.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
 import { defaultFaceEngine, redecideFaces, runExclusive } from '#lib/server/face-engine.ts';
@@ -111,6 +112,8 @@ export function eraseLocalFaceData(
   withdrawFaceConsent(db, userId);
   // The member's stored face templates go with the consent: withdrawal, unlink and relink all end here.
   eraseFaceReferences(db, userId);
+  // And their negative examples (faces v2): a "not me" is about their face too.
+  eraseFaceNegatives(db, userId);
   // And every face given to them, answered or not (lot A4). The faces they held are re-decided
   // after the commit; the rows go now, in this transaction.
   const heldFaces = eraseFaceMatches(db, userId);

@@ -279,7 +279,7 @@ describe('distance and bands', () => {
   it('keeps the decided numbers', () => {
     expect(FACE_AUTO_MAX_DISTANCE).toBe(0.5);
     expect(FACE_SUGGEST_MAX_DISTANCE).toBe(0.62);
-    expect(FACE_MAX_REFERENCES).toBe(5);
+    expect(FACE_MAX_REFERENCES).toBe(15);
   });
 });
 
@@ -427,7 +427,7 @@ describe('the tables', () => {
     expect(cosineDistance(v, back)).toBeLessThan(1e-5);
   });
 
-  it('holds the cap of five, in the helper and in the table', () => {
+  it('holds the cap of fifteen, in the helper and in the table', () => {
     addUser('m2');
     const db = database.getDatabase();
     for (let i = 0; i < FACE_MAX_REFERENCES; i++) {
@@ -440,8 +440,8 @@ describe('the tables', () => {
           "INSERT INTO face_references (user_id, model, source, sealed, created_at) VALUES ('m2', 'buffalo_l', 'admin', x'00', 0)"
         )
         .run()
-    ).toThrow(/at most 5/);
-    expect(count('face_references')).toBe(5);
+    ).toThrow(new RegExp(`at most ${FACE_MAX_REFERENCES} `));
+    expect(count('face_references')).toBe(FACE_MAX_REFERENCES);
   });
 
   it('refuses a reference copied onto another member', () => {
@@ -473,12 +473,42 @@ describe('the tables', () => {
     for (let i = 0; i < FACE_MAX_REFERENCES; i++) insert.run('old_model');
     // A full set of another model must not block the current model's references.
     expect(refs.addFaceReference(db, key, 'm3', 'photo', synthetic(70))).toBe(true);
-    expect(() => insert.run('old_model')).toThrow(/at most 5/);
+    expect(() => insert.run('old_model')).toThrow(new RegExp(`at most ${FACE_MAX_REFERENCES} `));
     const trigger = db
       .prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_face_references_cap'")
       .get() as { sql: string };
     expect(trigger.sql).toContain(`>= ${FACE_MAX_REFERENCES}`);
     expect(trigger.sql).toContain('NEW.model');
+  });
+
+  it('upgrades a v1 store: the cap trigger of five becomes fifteen, the origin columns are added', () => {
+    const db = database.getDatabase();
+    // A v1 file: the trigger of five, and no origin columns.
+    db.exec('DROP TRIGGER trg_face_references_cap');
+    db.exec(`CREATE TRIGGER trg_face_references_cap
+BEFORE INSERT ON face_references
+WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= 5
+BEGIN
+    SELECT RAISE(ABORT, 'face_references: at most 5 per member and model');
+END`);
+    for (const column of ['asset_id', 'face_index', 'taken_at'])
+      db.exec(`ALTER TABLE face_references DROP COLUMN ${column}`);
+    database.ensureSchema(db);
+    const columns = (
+      db.prepare('PRAGMA table_info(face_references)').all() as Array<{ name: string }>
+    ).map((c) => c.name);
+    expect(columns).toEqual(expect.arrayContaining(['asset_id', 'face_index', 'taken_at']));
+    const trigger = db
+      .prepare("SELECT sql FROM sqlite_master WHERE name = 'trg_face_references_cap'")
+      .get() as { sql: string };
+    expect(trigger.sql).toContain(`>= ${FACE_MAX_REFERENCES}`);
+    addUser('m4');
+    for (let i = 0; i < FACE_MAX_REFERENCES; i++) {
+      expect(refs.addFaceReference(db, key, 'm4', 'photo', synthetic(140 + i))).toBe(true);
+    }
+    // Run again: nothing to do, nothing breaks.
+    database.ensureSchema(db);
+    expect(count('face_references')).toBe(FACE_MAX_REFERENCES);
   });
 
   it('erases references when consent is withdrawn, unlinked or relinked', () => {

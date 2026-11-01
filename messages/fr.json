@@ -137,6 +137,7 @@
   "upload_error_long": "Erreur lors de l'upload : {message}",
   "photos_none_selected": "Aucune image sélectionnée",
   "photos_error": "Erreur : {message}",
+  "photos_upstream_busy": "Le serveur de photos est occupé en ce moment. Réessayez dans un instant.",
   "download_error_long": "Erreur lors du téléchargement: {error}",
   "delete_error_long": "Erreur lors de la suppression: {error}",
   "albumd_download_done": "Téléchargement terminé",
@@ -527,21 +528,20 @@
   "cgu_s4_title": "4. Reconnaissance faciale",
   "cgu_s4_intro": "La reconnaissance faciale traite des <strong>données biométriques</strong>, une catégorie particulière de données. Sa base légale est ton <strong>consentement explicite</strong> (article 9.2.a du RGPD) : tu es libre de le refuser ou de le retirer, et tout le reste du Service continue de fonctionner.",
   "cgu_s4_tech_title": "Ce qui se passe, précisément",
-  "cgu_s4_store": "<strong>Pour toutes les photos, sans action de ta part :</strong> chaque visage détecté sur une photo de la photothèque (modèle <em>buffalo_l</em>) est transformé en une <strong>empreinte numérique du visage</strong> : une suite de nombres calculée par un modèle mathématique, pas une photo. MiGallery garde une empreinte, chiffrée, pour chaque visage de la photothèque, <strong>membre ou non</strong>. Ces empreintes ne portent aucun nom et ne sont pas regroupées par personne : un visage n'est relié à quelqu'un que par la comparaison avec les références d'un membre qui a donné son accord (voir plus bas). Une seule exception, une seule fois, lors de la mise en place de ce fonctionnement : les visages qu'Immich avait déjà reliés au compte d'un membre sont regroupés le temps de calculer les références de ce membre (une liste de travail et une moyenne de ces visages, toutes deux effacées à la fin de cette étape). L'analyse est faite sur le même serveur que les photos, par le service d'analyse d'Immich, que MiGallery joint par un réseau interne réservé aux deux ; aucun prestataire extérieur n'intervient. Ce traitement concerne toute personne présente sur une photo, membre ou non : pour t'y opposer, écris-nous (voir Tes droits).",
-  "cgu_s4_init": "<strong>Ton accord et tes références :</strong> tu actives la reconnaissance toi-même, dans les <a href=\"/parametres\">paramètres</a>, en cochant la case d'accord puis en prenant un selfie. Son empreinte devient ta première <strong>référence</strong>, et MiGallery enregistre la date, la version de ces conditions et l'origine de l'accord (<em>selfie</em>). Un visage que tu confirmes ensuite devient aussi une référence, jusqu'à 5, seulement s'il ressemble de près à une référence que tu as déjà : un visage confirmé avec une ressemblance plus faible entre dans \"Mes Photos\" mais ne sert jamais de référence. Si ton compte était déjà relié à un groupe de visages d'Immich (l'ancien fonctionnement, voir plus bas), tes références ont été prises parmi les visages de ce groupe, donc dans tes propres photos, et seulement si tu n'avais pas retiré ton accord ; l'origine enregistrée à l'époque est gardée jusqu'à ton premier selfie, dont l'accord la remplace (<em>selfie</em>, <em>administrateur</em>, ou <em>ancien</em> pour les liens antérieurs à ce registre, recueillis par un autre moyen).",
+  "cgu_s4_store": "<strong>Pour toutes les photos, sans action de ta part :</strong> chaque visage détecté sur une photo de la photothèque (modèle <em>buffalo_l</em>) est transformé en une <strong>empreinte numérique du visage</strong> : une suite de nombres calculée par un modèle mathématique, pas une photo. MiGallery garde une empreinte, chiffrée, pour chaque visage de la photothèque, <strong>membre ou non</strong>. Ces empreintes ne portent aucun nom et ne sont pas regroupées par personne : un visage n'est relié à quelqu'un que par la comparaison avec les références d'un membre qui a donné son accord (voir plus bas). L'analyse est faite sur le même serveur que les photos, par le service d'analyse d'Immich, que MiGallery joint par un réseau interne réservé aux deux ; aucun prestataire extérieur n'intervient. Ce traitement concerne toute personne présente sur une photo, membre ou non : pour t'y opposer, écris-nous (voir Tes droits).",
+  "cgu_s4_init": "<strong>Ton accord et tes références :</strong> tu actives la reconnaissance toi-même, dans les <a href=\"/parametres\">paramètres</a>, en cochant la case d'accord puis en prenant un selfie. Son empreinte devient ta première <strong>référence</strong>, et MiGallery enregistre la date, la version de ces conditions et l'origine de l'accord (<em>selfie</em>). Un visage que tu confirmes ensuite peut devenir aussi une référence, seulement s'il ressemble de près à une référence que tu as déjà : un visage confirmé avec une ressemblance plus faible entre dans \"Mes Photos\" mais ne sert jamais de référence. Tu as au plus <strong>15 références</strong>, choisies pour être <strong>variées</strong> (des angles, des lumières, des âges différents) plutôt que semblables entre elles ; une fois les 15 atteintes, des deux références les plus semblables, la plus ancienne d'après la date de prise de vue des photos laisse sa place à la nouvelle, de sorte que tes références suivent l'évolution de ton visage. Ton selfie reste toujours une référence. Les photos que la comparaison t'a déjà attribuées avec une très forte ressemblance peuvent aussi servir de références, selon la même règle.",
   "cgu_s4_selfie": "<strong>Le selfie :</strong> il est analysé en mémoire par le serveur puis oublié ; il n'est jamais enregistré, ni dans MiGallery ni dans Immich. Seule son empreinte est gardée. Un selfie qui montre plus d'un visage est refusé, et rien n'en est gardé.",
-  "cgu_s4_match": "<strong>Comment tes photos sont trouvées :</strong> chaque visage de la photothèque est comparé aux références des membres qui ont donné leur accord, et ne peut revenir qu'à <strong>un seul</strong> membre, celui qui lui ressemble le plus. Quand la ressemblance est forte, la photo entre directement dans \"Mes Photos\". Quand elle l'est moins, quand un autre membre ressemble presque autant, ou tant que tu as moins de 3 références, le visage t'est d'abord <strong>proposé</strong> sur un écran de confirmation, avec une image du visage découpée pour toi seul·e : il n'entre dans \"Mes Photos\" que si tu réponds \"C'est moi\" ; \"Pas moi\" l'écarte, il ne te sera plus proposé et peut revenir à un autre membre. Une erreur reste possible : une photo qui n'est pas de toi peut t'être montrée ou proposée.",
-  "cgu_s4_cutover": "<strong>L'ancien fonctionnement :</strong> jusqu'au 1er novembre 2026, Immich regroupait lui-même les visages en groupes anonymes, et un membre reliait un groupe à son compte. Le 1er novembre 2026, à la bascule vers le fonctionnement décrit ici, la reconnaissance des visages d'Immich a été désactivée et ces groupes ont été supprimés d'Immich, avec leurs visages et leurs empreintes ; une copie chiffrée de ce qui a été supprimé est gardée jusqu'au 1er décembre 2026, puis supprimée.",
+  "cgu_s4_match": "<strong>Comment tes photos sont trouvées :</strong> chaque visage de la photothèque est comparé aux références des membres qui ont donné leur accord, et ne peut revenir qu'à <strong>un seul</strong> membre, celui qui lui ressemble le plus. Quand la ressemblance est forte, la photo entre directement dans \"Mes Photos\". Quand elle l'est moins, quand un autre membre ressemble presque autant, ou tant que tu as moins de 3 références, le visage t'est d'abord <strong>proposé</strong> sur un écran de confirmation, avec une image du visage découpée pour toi seul·e : il n'entre dans \"Mes Photos\" que si tu réponds \"C'est moi\" ; \"Pas moi\" l'écarte, il ne te sera plus proposé et peut revenir à un autre membre ; son empreinte est gardée, chiffrée, comme <strong>exemple négatif</strong> pour toi seul·e (au plus 30) : un visage qui lui ressemble plus qu'à tes références ne t'est plus proposé. Tes exemples négatifs ne changent rien pour les autres membres. Une photo entrée dans \"Mes Photos\" y reste : une nouvelle comparaison peut t'en ajouter, jamais t'en retirer. Tu peux retirer toi-même n'importe quelle photo de \"Mes Photos\", ajoutée automatiquement ou confirmée par toi (\"Ce n'est pas moi\") : c'est un \"Pas moi\", et une référence tirée de ce visage est supprimée. Seuls ce choix, ou la confirmation de ce visage par un autre membre, sortent une photo de \"Mes Photos\". Tu peux annuler un \"Pas moi\" dans les <a href=\"/parametres#photos-ecartees\">paramètres</a> (\"Photos écartées\") : son exemple négatif est supprimé et la photo te revient, confirmée, sauf si un autre membre a confirmé entre-temps que ce visage est le sien. Une erreur reste possible : une photo qui n'est pas de toi peut t'être montrée ou proposée.",
   "cgu_s4_myphotos_title": "Mes photos et partage",
-  "cgu_s4_myphotos_body": "\"Mes Photos\" est visible par toi, par les administrateurs de la photothèque et par les personnes à qui tu l'ouvres. Les visages qui te sont proposés, et leurs images découpées, ne sont montrés qu'à toi.",
+  "cgu_s4_myphotos_body": "\"Mes Photos\" est visible par toi, par les administrateurs de la photothèque et par les personnes à qui tu l'ouvres. Les visages qui te sont proposés et ceux que tu as écartés, et leurs images découpées, ne sont montrés qu'à toi ; un visage écarté qu'un autre membre a confirmé comme le sien ne t'est plus montré.",
   "cgu_s4_spectator": "<strong>Mode spectateur :</strong> tu peux autoriser d'autres utilisateurs à voir tes photos identifiées. Cet ajout est ton choix et se révoque à tout moment.",
   "cgu_s4_revoke_title": "Retirer ton consentement",
-  "cgu_s4_revoke_body": "Tu peux retirer ton accord dans <a href=\"/parametres\">Paramètres → Zone de danger</a>, ou en supprimant ton compte. Immédiatement, MiGallery supprime tes références, la liste des photos qui t'avaient été attribuées et tes réponses, les images de visage découpées pour toi, ta photo de profil et les autorisations de partage que tu avais données ; la trace de ton accord est close à la date du retrait. Les visages qui t'étaient attribués peuvent ensuite revenir à un autre membre qui leur ressemble. <strong>Le retrait ne touche pas les empreintes de tous les visages de la photothèque</strong>, les tiens compris : sans nom et sans référence, elles ne sont reliées à personne, et elles disparaissent avec leur photo (pour faire retirer une photo, écris-nous). Jusqu'à la bascule, MiGallery efface aussi ton nom dans le groupe anonyme d'Immich qui était relié à ton compte. Les sauvegardes gardent l'ancien état jusqu'à leur rotation (voir plus bas).",
+  "cgu_s4_revoke_body": "Tu peux retirer ton accord dans <a href=\"/parametres\">Paramètres → Zone de danger</a>, ou en supprimant ton compte. Immédiatement, MiGallery supprime tes références, tes exemples négatifs, la liste des photos qui t'avaient été attribuées et tes réponses, les images de visage découpées pour toi, ta photo de profil et les autorisations de partage que tu avais données ; la trace de ton accord est close à la date du retrait. Les visages qui t'étaient attribués peuvent ensuite revenir à un autre membre qui leur ressemble. <strong>Le retrait ne touche pas les empreintes de tous les visages de la photothèque</strong>, les tiens compris : sans nom et sans référence, elles ne sont reliées à personne, et elles disparaissent avec leur photo (pour faire retirer une photo, écris-nous). Les sauvegardes gardent les données supprimées jusqu'à leur rotation (voir plus bas).",
   "cgu_s5_title": "5. Données, bases légales et conservation",
   "cgu_s5_items_title": "Quelles données, pour quoi, sur quelle base",
   "cgu_s5_item_account": "<strong>Compte</strong> (identifiant, nom, prénom, promotion, formation, rôle, langue, favoris) : te reconnaître et gérer les accès. Base : l'exécution du service que tu demandes.",
   "cgu_s5_item_photos": "<strong>Photos de la vie étudiante :</strong> les archiver et les montrer aux membres. Base : l'intérêt légitime de l'association de garder la mémoire de la vie de l'École ; tu peux t'y opposer ou demander le floutage ou la suppression d'une photo (voir Tes droits).",
-  "cgu_s5_item_face": "<strong>Ton visage</strong> (tes références, les photos qui t'ont été attribuées et tes réponses, les images de visage découpées pour toi, ta photo de profil, la trace du consentement) : fonctionnalité \"Mes Photos\". Base : ton consentement explicite.",
+  "cgu_s5_item_face": "<strong>Ton visage</strong> (tes références, tes exemples négatifs, les photos qui t'ont été attribuées et tes réponses, les images de visage découpées pour toi, ta photo de profil, la trace du consentement) : fonctionnalité \"Mes Photos\". Base : ton consentement explicite.",
   "cgu_s5_item_store": "<strong>Empreintes de tous les visages de la photothèque</strong> (une par visage détecté, membre ou non, chiffrée, sans nom) : retrouver les photos des membres qui l'ont demandé (voir la section 4).",
   "cgu_s5_item_logs": "<strong>Journaux techniques</strong> (action, date, adresse IP) : sécurité et traçabilité des actions d'administration. Base : l'intérêt légitime de protéger le Service.",
   "cgu_s5_retention_title": "Durées de conservation",
@@ -551,7 +551,7 @@
   "cgu_s5_retention_store": "<strong>Empreintes des visages de la photothèque :</strong> tant que la photo existe. Une photo placée dans la corbeille d'Immich existe encore (elle peut en être restaurée) : ses empreintes sont gardées jusqu'à ce que la corbeille soit vidée. Une fois la photo réellement supprimée, ses empreintes sont effacées quand deux vérifications de la photothèque, faites à au moins 20 heures d'écart, ont toutes deux constaté son absence ; en pratique, dans les jours qui suivent.",
   "cgu_s5_retention_logs": "<strong>Journaux :</strong> 90 jours au plus. Quand un compte est supprimé, son identifiant est retiré des journaux conservés, ainsi que l'adresse IP des actions qu'il avait faites.",
   "cgu_s5_backups_title": "Sauvegardes : un effacement ne les atteint pas tout de suite",
-  "cgu_s5_backups_body": "Une suppression ou un retrait de consentement reste visible dans les sauvegardes jusqu'à leur rotation. Les 10 dernières copies quotidiennes de la base de MiGallery sur le serveur, et ses copies sur le serveur du projet Canari (environ 14 jours), contiennent tes références, les photos qui t'ont été attribuées et tes réponses. Les copies de la base d'Immich faites avant la bascule du 1er novembre 2026 contiennent les anciens groupes de visages d'Immich, jusqu'à leur rotation : celles du serveur du projet Canari (environ 7 jours) disparaissent au plus tard le 9 novembre 2026, et les sauvegardes locales d'Immich (ses 14 dernières copies quotidiennes) au plus tard le 15 novembre 2026 ; la copie chiffrée faite à la bascule est supprimée le 1er décembre 2026. Les empreintes de tous les visages de la photothèque ne sont dans aucune sauvegarde : si elles sont perdues, elles sont recalculées à partir des photos. Ces copies ne sont pas consultées au quotidien et ne servent qu'à restaurer le service.",
+  "cgu_s5_backups_body": "Une suppression ou un retrait de consentement reste visible dans les sauvegardes jusqu'à leur rotation. Les 10 dernières copies quotidiennes de la base de MiGallery sur le serveur, et ses copies sur le serveur du projet Canari (environ 14 jours), contiennent tes références, les photos qui t'ont été attribuées et tes réponses. Les empreintes de tous les visages de la photothèque ne sont dans aucune sauvegarde : si elles sont perdues, elles sont recalculées à partir des photos. Ces copies ne sont pas consultées au quotidien et ne servent qu'à restaurer le service.",
   "cgu_s6_title": "6. Tes droits",
   "cgu_s6_intro": "Tu peux demander l'accès à tes données, leur rectification, leur effacement, la limitation du traitement et leur portabilité, retirer ton consentement à tout moment, et t'opposer aux traitements fondés sur l'intérêt légitime (photos, journaux).",
   "cgu_s6_how": "Écris à <a href=\"mailto:bureau@mitv.fr\">bureau@mitv.fr</a> : nous répondons sous un mois. Le retrait du consentement à la reconnaissance faciale et la suppression du compte se font aussi seul·e dans les <a href=\"/parametres\">paramètres</a>.",
@@ -935,9 +935,60 @@
   "mpc_me": "C'est moi",
   "mpc_not_me": "Pas moi",
   "mpc_answer_error": "Votre réponse n'a pas pu être enregistrée. Réessayez.",
+  "mpc_order_hint": "Les plus ressemblantes en premier.",
+  "mpc_keys_hint": "Clavier : O ou Entrée pour « C'est moi », N ou Suppr pour « Pas moi », flèches pour naviguer.",
+  "mpc_card_label": "Photo {index} sur {total}",
+  "mpc_confirm_up_to": "Jusqu'ici",
+  "mpc_confirm_up_to_label": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Confirmer cette photo et celle du dessus",
+        "countPlural=*": "Confirmer cette photo et les {count} du dessus"
+      }
+    }
+  ],
+  "mpc_confirm_up_to_title": "Tout confirmer jusqu'ici ?",
+  "mpc_confirm_up_to_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Cette photo rejoindra vos photos.",
+        "countPlural=*": "Ces {count} photos rejoindront vos photos. Vérifiez qu'il s'agit bien de vous sur chacune."
+      }
+    }
+  ],
+  "mpc_confirm_up_to_action": "Tout confirmer",
+  "mpc_bulk_progress": "Confirmation… {done}/{total}",
+  "mpc_released": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Une autre photo semblable ne vous est plus proposée.",
+        "countPlural=*": "{count} autres photos semblables ne vous sont plus proposées."
+      }
+    }
+  ],
   "mpc_crop_missing": "Image indisponible",
   "mpc_crop_failed": "Image non chargée",
   "mpc_crop_retry": "Réessayer",
+  "mp_not_me_action": "Ce n'est pas moi",
+  "mp_not_me_confirm_title": "Ce n'est pas vous ?",
+  "mp_not_me_confirm_body": "Cette photo quitte « Mes photos ». Vous pourrez la retrouver dans Paramètres → « Photos écartées ».",
+  "mp_not_me_confirm_action": "Retirer",
+  "mp_not_me_error": "La photo n'a pas pu être retirée. Réessayez.",
+  "param_rejected_title": "Photos écartées",
+  "param_rejected_desc": "Les photos que vous avez retirées. Si c'était bien vous, rendez-les à « Mes photos ».",
+  "param_rejected_empty": "Aucune photo écartée.",
+  "param_rejected_load_error": "Impossible de charger les photos écartées.",
+  "param_rejected_face_alt": "Un visage que vous avez écarté",
+  "param_rejected_restore": "En fait, c'est moi",
+  "param_rejected_restored": "La photo est de retour dans « Mes photos ».",
+  "param_rejected_taken": "Un autre membre a confirmé que ce visage est le sien : la photo ne peut pas vous être rendue.",
+  "param_rejected_error": "La photo n'a pas pu vous être rendue. Réessayez.",
   "cpm_load_error": "Impossible de charger vos photos.",
   "cpm_photo_alt": "Photo",
   "cpm_current_badge": "Actuelle",

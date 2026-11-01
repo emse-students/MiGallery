@@ -56,6 +56,11 @@
     albumId?: string;
     showFavorites?: boolean;
     /**
+     * "Ce n'est pas moi" on each photo (the member's own "Mes photos"): asks, removes, and resolves
+     * whether the photo left them; the grid and the viewer then drop it. Absent, no button.
+     */
+    onNotMe?: (assetId: string) => Promise<boolean>;
+    /**
      * Shows the photo count above the grid. A host whose header already carries it (the album
      * page) turns it off, so the count is said once (audit #13).
      */
@@ -68,8 +73,17 @@
     visibility,
     albumId,
     showFavorites = false,
+    onNotMe,
     showCount = true,
   }: Props = $props();
+
+  /** Ask, then drop the photo from the grid once it left the member. */
+  async function handleNotMe(assetId: string): Promise<boolean> {
+    if (!onNotMe || !(await onNotMe(assetId))) return false;
+    photosState.assets = photosState.assets.filter((a) => a.id !== assetId);
+    hasChanges = true;
+    return true;
+  }
 
   let userRole = $derived((page.data.session?.user as User)?.role || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
@@ -712,6 +726,7 @@
               {albumId}
               showFavorite={showFavorites}
               onFavoriteToggle={() => handleFavoriteToggle(a.id)}
+              onNotMe={onNotMe ? (id) => void handleNotMe(id) : undefined}
               onCardClick={() => handlePhotoCardClick(a.id)}
               onDownload={() => handleDownloadSingle(a.id)}
               onDelete={() => handleDeleteAsset(a.id)}
@@ -737,6 +752,7 @@
     {albumId}
     showFavorite={showFavorites}
     onFavoriteToggle={handleFavoriteToggle}
+    onNotMe={onNotMe ? handleNotMe : undefined}
     onClose={() => {
       if (history.state?.modalOpen) {
         history.back();

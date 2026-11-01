@@ -28,11 +28,12 @@ the effective minimum.
 
 ## People / CV directory
 
-| Path                                                                                             | Auth              | Purpose                                                  |
-| ------------------------------------------------------------------------------------------------ | ----------------- | -------------------------------------------------------- |
-| `/api/people`, `/api/people/album/*`                                                             | session           | CV albums                                                |
-| `/api/users/[userId]/photos-stream`                                                              | session + consent | A member's face-matched photos (A6)                      |
-| `/api/users/me/face/matches`, `/face/crops/[assetId]/[faceIndex]`, `/api/users/me/profile-photo` | the member        | Faces to confirm, their pictures, the profile photo (A6) |
+| Path                                                                                             | Auth                           | Purpose                                                                           |
+| ------------------------------------------------------------------------------------------------ | ------------------------------ | --------------------------------------------------------------------------------- |
+| `/api/people`, `/api/people/album/*`                                                             | session                        | CV albums                                                                         |
+| `/api/users/[userId]/photos-stream`                                                              | session + consent              | A member's face-matched photos (A6)                                               |
+| `/api/users/me/face/matches`, `/face/crops/[assetId]/[faceIndex]`, `/api/users/me/profile-photo` | the member                     | Faces to confirm, their pictures, the profile photo (A6)                          |
+| `/api/users/me/face/rejections` (GET, POST), `/face/rejections/[assetId]/[faceIndex]` (DELETE)   | the member, never impersonated | "Photos écartées", "Ce n'est pas moi" on a photo, "En fait, c'est moi" (faces v2) |
 
 ## Users and photo-access
 

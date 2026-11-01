@@ -283,6 +283,14 @@
     z-index: 1;
   }
 
+  /* The pick button covers the tile, so the tile carries its keyboard focus ring. */
+  .photo-item:has(.photo-pick:focus-visible) {
+    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    z-index: 1;
+  }
+
   /* Flat: the pick is a solid ring, not a coloured shadow (ui-redesign #25). */
   .photo-item.selected {
     border-color: var(--accent);

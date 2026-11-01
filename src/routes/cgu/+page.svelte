@@ -94,7 +94,6 @@
           <li><RichText text={m.cgu_s4_init()} /></li>
           <li><RichText text={m.cgu_s4_selfie()} /></li>
           <li><RichText text={m.cgu_s4_match()} /></li>
-          <li><RichText text={m.cgu_s4_cutover()} /></li>
         </ul>
 
         <h3>{m.cgu_s4_myphotos_title()}</h3>

@@ -16,8 +16,37 @@ export const FACE_EMBEDDING_DIM = 512;
 
 /** Reference embeddings per member: at least this many are wanted, never more than the cap. */
 export const FACE_MIN_REFERENCES = 3;
-/** The cap. schema.sql holds the same number in `trg_face_references_cap` (a test pins both). */
-export const FACE_MAX_REFERENCES = 5;
+/**
+ * The cap (owner, 2026-11-01: up to 15, chosen for VARIETY, docs/wiki/face-matching-option-c.md
+ * "The decided numbers"). schema.sql holds the same number in `trg_face_references_cap` (a test pins both).
+ * The matcher's cost grows linearly in it: every face it decides is compared with every reference
+ * of every member.
+ */
+export const FACE_MAX_REFERENCES = 15;
+
+/** References the one-shot A7 seed took per linked member (the faces nearest their centroid). */
+export const FACE_SEED_REFERENCES = 5;
+
+/**
+ * Negative examples kept per member (a face they answered "not me" on). schema.sql holds the same
+ * number in `trg_face_negatives_cap` (a test pins both).
+ */
+export const FACE_MAX_NEGATIVES = 30;
+
+/**
+ * Distance to the member's CURRENT references within which an `auto` face (no human answered it)
+ * counts as PROVEN theirs and may become a reference when their references are re-selected. A
+ * margin of 0.1 under the `auto` bound: the auto faces most likely to be wrong are the ones nearest
+ * that bound, and they never teach.
+ */
+export const FACE_PROVEN_AUTO_DISTANCE = 0.4;
+
+/**
+ * The version of the reference selection a member's references were last chosen by
+ * (`face_reference_selection`). 2: up to 15 varied references from the proven faces (2026-11-01).
+ * A member below it is re-selected once, in the background.
+ */
+export const FACE_REFERENCE_SELECTION_VERSION = 2;
 
 /** Cosine distance up to which a face is accepted without a human (Immich's own value). */
 export const FACE_AUTO_MAX_DISTANCE = 0.5;

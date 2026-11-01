@@ -643,8 +643,9 @@ describe('the match engine (A4)', () => {
     );
   });
 
-  it('moves the faces of a new, nearer member to them on their enrolment', async () => {
-    enrol('far', ALICE, 3, 0.45);
+  it('moves a suggested face of a new, nearer member to them on their enrolment', async () => {
+    // 0.55: the suggested band, which a re-match may still re-decide.
+    enrol('far', ALICE, 3, 0.55);
     await store([
       ['p1', 0, ALICE],
       ['p2', 0, BOB],
@@ -655,9 +656,38 @@ describe('the match engine (A4)', () => {
     expect(matches().map((m) => [m.asset_id, m.user_id, m.band])).toEqual([['p1', 'near', 'auto']]);
   });
 
+  it('keeps an auto face with its member when a nearer member enrols (sticky auto, owner 2026-11-01)', async () => {
+    // 0.45: the auto band. "Une fois qu'un visage est attaché, il n'est pas détaché par un nouveau scan."
+    enrol('far', ALICE, 3, 0.45);
+    await store([['p1', 0, ALICE]]);
+    expect(matches().map((m) => [m.user_id, m.band, m.state])).toEqual([
+      ['far', 'auto', 'pending'],
+    ]);
+    enrol('near', ALICE, 3, 0.1);
+    await L.rematchMember(engine(), 'near');
+    await L.rematchAll(engine());
+    expect(matches().map((m) => [m.user_id, m.band, m.state])).toEqual([
+      ['far', 'auto', 'pending'],
+    ]);
+  });
+
+  it('lets a sticky auto face go on "not me", and the nearer member then gets it', async () => {
+    enrol('far', ALICE, 3, 0.45);
+    await store([['p1', 0, ALICE]]);
+    enrol('near', ALICE, 3, 0.1);
+    await L.rematchMember(engine(), 'near');
+    expect(await L.answerMatch(db(), 'far', { assetId: 'p1', faceIndex: 0 }, 'reject')).toBe(true);
+    await L.redecideFaces(engine(), [{ assetId: 'p1', faceIndex: 0 }]);
+    expect(matches().map((m) => [m.user_id, m.state])).toEqual([
+      ['far', 'rejected'],
+      ['near', 'pending'],
+    ]);
+  });
+
   it("deletes the former holder's crop of a face that moved, and keeps the crop of a face still held", async () => {
     const { memberCropDir } = await import('#lib/server/face-crop.ts');
-    enrol('far', ALICE, 3, 0.45);
+    // The suggested band: an auto face would be sticky and never move.
+    enrol('far', ALICE, 3, 0.55);
     enrol('bob', BOB);
     await store([
       ['p1', 0, ALICE],
@@ -688,8 +718,21 @@ describe('the match engine (A4)', () => {
     }
   });
 
-  it('drops a held face that a member no longer reaches when their references change', async () => {
+  it('keeps an auto face its member no longer reaches when their references change (sticky)', async () => {
     enrol('alice', ALICE, 3, 0.4);
+    await store([['p1', 0, ALICE]]);
+    expect(matches().map((m) => m.band)).toEqual(['auto']);
+    refs.eraseFaceReferences(db(), 'alice');
+    for (let i = 0; i < 3; i++)
+      refs.addFaceReference(db(), key, 'alice', 'photo', synthetic(500 + i));
+    await L.rematchMember(engine(), 'alice');
+    expect(matches().map((m) => [m.user_id, m.band, m.state])).toEqual([
+      ['alice', 'auto', 'pending'],
+    ]);
+  });
+
+  it('drops a suggested face that a member no longer reaches when their references change', async () => {
+    enrol('alice', ALICE, 3, 0.55);
     await store([['p1', 0, ALICE]]);
     expect(matches()).toHaveLength(1);
     const { memberCropDir } = await import('#lib/server/face-crop.ts');
@@ -929,26 +972,30 @@ describe('enrolment and answers (A5)', () => {
     expect(refRows('alice')).toEqual([{ source: 'selfie' }]);
   });
 
-  it('makes room by the oldest reference when the member holds the maximum without a selfie', () => {
-    enrol('alice', ALICE, 5);
+  it('makes room for a selfie at the cap by the older of the two most redundant references', async () => {
+    const { FACE_MAX_REFERENCES } = await import('#lib/face-embedding.ts');
+    addUser('alice');
+    const varied = (i: number) => atDistance(ALICE, synthetic(300 + i), 0.2);
+    // A cap of varied references, one of which (row 4) a newer near-copy duplicates.
+    for (let i = 0; i < FACE_MAX_REFERENCES - 1; i++)
+      refs.addFaceReference(db(), key, 'alice', 'photo', varied(i), 1000 + i, {
+        takenAt: 1000 + i,
+      });
+    refs.addFaceReference(db(), key, 'alice', 'photo', atDistance(varied(4), ALICE, 0.01), 5000, {
+      takenAt: 5000,
+    });
     const ids = () =>
       (
         db()
-          .prepare('SELECT id FROM face_references WHERE user_id = ? ORDER BY id')
-          .all('alice') as Array<{
-          id: number;
-        }>
-      ).map((r) => r.id);
-    const before = ids();
-    expect(enrolment.enrolMember(engine(), 'alice', ALICE)).toBe(5);
-    expect(ids().slice(0, 4)).toEqual(before.slice(1));
-    expect(refRows('alice').map((r) => r.source)).toEqual([
-      'photo',
-      'photo',
-      'photo',
-      'photo',
-      'selfie',
-    ]);
+          .prepare('SELECT id, taken_at FROM face_references WHERE user_id = ? ORDER BY id')
+          .all('alice') as Array<{ id: number; taken_at: number }>
+      ).map((r) => r.taken_at);
+    expect(enrolment.enrolMember(engine(), 'alice', ALICE)).toBe(FACE_MAX_REFERENCES);
+    // The older of the closest pair went (1004); its newer copy (5000) stayed; nothing else moved.
+    expect(ids()).not.toContain(1004);
+    expect(ids()).toContain(5000);
+    expect(ids()).toHaveLength(FACE_MAX_REFERENCES);
+    expect(refRows('alice').at(-1)?.source).toBe('selfie');
   });
 
   it('learns a confirmed face as a reference and re-matches the member', async () => {
@@ -1055,17 +1102,37 @@ describe('enrolment and answers (A5)', () => {
     expect(refRows('alice').map((r) => r.source)).toEqual(['selfie', 'photo']);
   });
 
-  it('confirms without learning once the member holds the maximum', async () => {
-    enrol('alice', ALICE, 5);
-    await storeOne('p1', ALICE);
-    const outcome = await enrolment.answerFace(
-      engine(),
-      'alice',
-      { assetId: 'p1', faceIndex: 0 },
-      'confirm'
-    );
-    expect(outcome).toBe('confirmed');
-    expect(refRows('alice')).toHaveLength(5);
+  it('at the cap, renews toward a recent photo and does not learn an old duplicate', async () => {
+    const { FACE_MAX_REFERENCES } = await import('#lib/face-embedding.ts');
+    addUser('alice');
+    const varied = (i: number) => atDistance(ALICE, synthetic(300 + i), 0.2);
+    for (let i = 0; i < FACE_MAX_REFERENCES; i++)
+      refs.addFaceReference(db(), key, 'alice', 'photo', varied(i), 1000 + i, {
+        takenAt: 1000 + i,
+      });
+    const takenAts = () =>
+      (
+        db()
+          .prepare('SELECT taken_at FROM face_references WHERE user_id = ? ORDER BY taken_at')
+          .all('alice') as Array<{ taken_at: number }>
+      ).map((r) => r.taken_at);
+    // Near-copies of reference 3: the new face and reference 3 are the closest pair.
+    seeded();
+    library.set('old', [atDistance(varied(3), ALICE, 0.01)]);
+    library.set('new', [atDistance(varied(3), ALICE, 0.012)]);
+    await ingestAll(['old', 'new']);
+    const answer = (assetId: string, takenAt: number) =>
+      enrolment.answerFace(engine(), 'alice', { assetId, faceIndex: 0 }, 'confirm', { takenAt });
+    // An OLD photo duplicating a reference: it would be the one dropped, so nothing changes.
+    expect(await answer('old', 10)).toBe('confirmed');
+    expect(takenAts()).toHaveLength(FACE_MAX_REFERENCES);
+    expect(takenAts()).not.toContain(10);
+    // A RECENT one replaces the older of the pair: the set moves toward the newer photo.
+    expect(await answer('new', 9000)).toBe('learned');
+    await engineMod.runExclusive(() => undefined);
+    expect(takenAts()).toHaveLength(FACE_MAX_REFERENCES);
+    expect(takenAts()).toContain(9000);
+    expect(takenAts()).not.toContain(1003);
   });
 
   it('hands a rejected face to the next member at once', async () => {
@@ -1194,5 +1261,276 @@ describe('background re-matches, coalesced per member (A5)', () => {
     (release as unknown as () => void)();
     await held;
     await Promise.all(requests);
+  });
+});
+
+describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-01)', () => {
+  let enrolment: typeof import('#lib/server/face-enrolment.ts');
+  let negatives: typeof import('#lib/server/face-negatives.ts');
+  let upgrade: typeof import('#lib/server/face-reference-upgrade.ts');
+  let embedding: typeof import('#lib/face-embedding.ts');
+
+  beforeAll(async () => {
+    enrolment = await import('#lib/server/face-enrolment.ts');
+    negatives = await import('#lib/server/face-negatives.ts');
+    upgrade = await import('#lib/server/face-reference-upgrade.ts');
+    embedding = await import('#lib/face-embedding.ts');
+  });
+  beforeEach(() => {
+    db().exec(
+      'DELETE FROM face_negatives; DELETE FROM face_reference_selection; DELETE FROM face_consents;'
+    );
+  });
+
+  async function storeFaces(faces: Record<string, Float32Array>) {
+    seeded();
+    for (const [assetId, v] of Object.entries(faces)) library.set(assetId, [v]);
+    await ingestAll(Object.keys(faces));
+  }
+
+  it('keeps "not me" as a sealed negative and withholds its waiting lookalike, reported as released', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    const p1 = atDistance(ALICE, synthetic(7), 0.55);
+    await storeFaces({
+      p1,
+      // Beside p1, as far from the selfie: the same stranger, in another photo.
+      p2: atDistance(p1, synthetic(8), 0.02),
+      // Another face in the band, nowhere near p1: still asked.
+      p3: atDistance(ALICE, synthetic(9), 0.56),
+    });
+    expect(matches().map((m) => [m.asset_id, m.band])).toEqual([
+      ['p1', 'suggested'],
+      ['p2', 'suggested'],
+      ['p3', 'suggested'],
+    ]);
+    const released: Array<{ assetId: string; faceIndex: number }> = [];
+    expect(
+      await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject', {
+        released,
+      })
+    ).toBe('rejected');
+    expect(released).toEqual([{ assetId: 'p2', faceIndex: 0 }]);
+    expect(matches().map((m) => [m.asset_id, m.state])).toEqual([
+      ['p1', 'rejected'],
+      ['p3', 'pending'],
+    ]);
+    expect(negatives.negativeCount(db(), 'alice')).toBe(1);
+    // Sealed under its own context: it never opens as one of her references.
+    const { sealed } = db().prepare('SELECT sealed FROM face_negatives').get() as {
+      sealed: Uint8Array;
+    };
+    const seal = await import('#lib/server/face-seal.ts');
+    expect(() =>
+      seal.unseal(key, seal.referenceContext('alice', embedding.FACE_MODEL), sealed)
+    ).toThrow();
+  });
+
+  it('"Pas moi" on a face shown WITHOUT a question: it leaves her photos, kept as a negative, the other auto faces stay', async () => {
+    // Three references near her: the auto band needs more than a lone selfie.
+    enrol('alice', ALICE, 3, 0.1);
+    await storeFaces({
+      p1: atDistance(ALICE, synthetic(7), 0.1),
+      p2: atDistance(ALICE, synthetic(11), 0.1),
+    });
+    expect(matches().map((m) => [m.asset_id, m.band, m.state])).toEqual([
+      ['p1', 'auto', 'pending'],
+      ['p2', 'auto', 'pending'],
+    ]);
+    expect(
+      await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject')
+    ).toBe('rejected');
+    expect(matches().map((m) => [m.asset_id, m.band, m.state])).toEqual([
+      ['p1', 'auto', 'rejected'],
+      ['p2', 'auto', 'pending'],
+    ]);
+    expect(negatives.negativeCount(db(), 'alice')).toBe(1);
+    // Never offered again: a full re-match keeps her answer.
+    await L.rematchMember(engine(), 'alice');
+    expect(matches().map((m) => [m.asset_id, m.state])).toEqual([
+      ['p1', 'rejected'],
+      ['p2', 'pending'],
+    ]);
+  });
+
+  it('never withholds a face from another member on the negative of someone else', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    const p1 = atDistance(ALICE, synthetic(7), 0.55);
+    await storeFaces({ p1 });
+    await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject');
+    // Carol enrols near the stranger; her face p2 sits beside the negative of alice.
+    enrol('carol', p1, 3, 0.2);
+    await storeFaces({ p2: atDistance(p1, synthetic(8), 0.02) });
+    await L.rematchMember(engine(), 'carol');
+    expect(
+      matches()
+        .filter((m) => m.asset_id === 'p2')
+        .map((m) => m.user_id)
+    ).toEqual(['carol']);
+  });
+
+  it('deletes the negatives and the selection marker on withdrawal', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    await storeFaces({ p1: atDistance(ALICE, synthetic(7), 0.55) });
+    await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject');
+    db()
+      .prepare(
+        'INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, 2, 0)'
+      )
+      .run('alice', embedding.FACE_MODEL);
+    expect(negatives.negativeCount(db(), 'alice')).toBe(1);
+    erasure.eraseLocalFaceData(db(), 'alice', 'withdrawal');
+    expect(negatives.negativeCount(db(), 'alice')).toBe(0);
+    expect(db().prepare('SELECT COUNT(*) AS n FROM face_reference_selection').get()).toEqual({
+      n: 0,
+    });
+  });
+
+  it('holds thirty negatives, dropping the older of the two closest', () => {
+    addUser('alice');
+    const cap = embedding.FACE_MAX_NEGATIVES;
+    expect(cap).toBe(30);
+    const face = (i: number) => ({ assetId: `n${i}`, faceIndex: 0 });
+    for (let i = 0; i < cap; i++)
+      expect(negatives.addFaceNegative(db(), key, 'alice', face(i), synthetic(600 + i), i)).toBe(
+        true
+      );
+    // A newer near-copy of negative 5: negative 5 goes.
+    expect(
+      negatives.addFaceNegative(
+        db(),
+        key,
+        'alice',
+        face(100),
+        atDistance(synthetic(605), ALICE, 0.01),
+        1000
+      )
+    ).toBe(true);
+    const kept = () =>
+      (
+        db().prepare('SELECT asset_id FROM face_negatives ORDER BY id').all() as Array<{
+          asset_id: string;
+        }>
+      ).map((r) => r.asset_id);
+    expect(kept()).toHaveLength(cap);
+    expect(kept()).not.toContain('n5');
+    expect(kept()).toContain('n100');
+    // An OLDER near-copy of negative 7 would itself be the one dropped: not kept.
+    expect(
+      negatives.addFaceNegative(
+        db(),
+        key,
+        'alice',
+        face(101),
+        atDistance(synthetic(607), ALICE, 0.01),
+        -1
+      )
+    ).toBe(false);
+    expect(kept()).toHaveLength(cap);
+  });
+
+  it('lets a sticky auto face go when another member confirms it (claimFace)', async () => {
+    enrol('far', ALICE, 3, 0.45);
+    await storeFaces({ p1: ALICE });
+    enrol('near', ALICE, 3, 0.1);
+    await L.rematchMember(engine(), 'near');
+    expect(matches().map((m) => m.user_id)).toEqual(['far']);
+    const outcome = await engineMod.runExclusive(() =>
+      engineMod.claimFace(engine(), 'near', { assetId: 'p1', faceIndex: 0, embedding: ALICE })
+    );
+    expect(outcome).toBe('claimed');
+    expect(matches().map((m) => [m.user_id, m.state])).toEqual([['near', 'confirmed']]);
+  });
+
+  describe('the re-selection of existing members', () => {
+    const refsOf = () =>
+      db()
+        .prepare(
+          "SELECT source, asset_id, taken_at FROM face_references WHERE user_id = 'alice' ORDER BY id"
+        )
+        .all() as Array<{ source: string; asset_id: string | null; taken_at: number | null }>;
+
+    /** Alice as the A7 seed left her: five near-identical references. */
+    function seededAlice(): Float32Array[] {
+      addUser('alice');
+      const held = Array.from({ length: 5 }, (_, i) => atDistance(ALICE, synthetic(800 + i), 0.2));
+      for (const v of held) refs.addFaceReference(db(), key, 'alice', 'seed', v);
+      return held;
+    }
+
+    function setRow(assetId: string, band: string, state: string) {
+      db().prepare('DELETE FROM face_matches WHERE asset_id = ? AND face_index = 0').run(assetId);
+      db()
+        .prepare(
+          `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band,
+             state, created_at, decided_at) VALUES (?, 0, ?, 'alice', 0.3, NULL, ?, ?, 1, NULL)`
+        )
+        .run(assetId, embedding.FACE_MODEL, band, state);
+    }
+
+    it('learns only proven faces, with their source and capture date, once', async () => {
+      const held = seededAlice();
+      await storeFaces({
+        conf45: atDistance(held[0], synthetic(901), 0.45),
+        auto45: atDistance(held[1], synthetic(902), 0.45),
+        auto35: atDistance(held[2], synthetic(903), 0.35),
+        sugg30: atDistance(held[3], synthetic(904), 0.3),
+        conf60: atDistance(held[4], synthetic(905), 0.6),
+      });
+      setRow('conf45', 'suggested', 'confirmed');
+      setRow('auto45', 'auto', 'pending');
+      setRow('auto35', 'auto', 'pending');
+      setRow('sugg30', 'suggested', 'pending');
+      setRow('conf60', 'suggested', 'confirmed');
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      const result = upgrade.reselectReferences(engine(), 'alice', new Map([['conf45', 5000]]), 9);
+      expect(result).toMatchObject({ outcome: 'upgraded', added: 2, dropped: 0, references: 7 });
+      // A confirmed face within 0.5 and an auto face within 0.4; not the auto at 0.45, not the
+      // pending suggestion, not the confirmed lookalike at 0.6. The photo of auto35 has no date.
+      expect(
+        refsOf()
+          .filter((r) => r.asset_id !== null)
+          .sort((a, b) => String(a.asset_id).localeCompare(String(b.asset_id)))
+      ).toEqual([
+        { source: 'matched', asset_id: 'auto35', taken_at: null },
+        { source: 'photo', asset_id: 'conf45', taken_at: 5000 },
+      ]);
+      expect(upgrade.reselectReferences(engine(), 'alice', new Map()).outcome).toBe('already');
+      expect(upgrade.membersToUpgrade(db())).toEqual([]);
+    });
+
+    it('skips a member with no reference, and keeps the selfie whatever the cap', async () => {
+      addUser('bob');
+      expect(upgrade.reselectReferences(engine(), 'bob', new Map()).outcome).toBe('no_references');
+      expect(upgrade.membersToUpgrade(db())).toEqual([]);
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      const faces: Record<string, Float32Array> = {};
+      for (let i = 0; i < 20; i++) faces[`a${i}`] = atDistance(ALICE, synthetic(700 + i), 0.3);
+      await storeFaces(faces);
+      for (const id of Object.keys(faces)) setRow(id, 'auto', 'pending');
+      const result = upgrade.reselectReferences(engine(), 'alice', new Map());
+      expect(result.references).toBe(embedding.FACE_MAX_REFERENCES);
+      expect(refsOf().filter((r) => r.source === 'selfie')).toHaveLength(1);
+    });
+
+    it('turns a suggestion beside a proven face into an auto match', async () => {
+      const held = seededAlice();
+      const proven = atDistance(held[0], synthetic(901), 0.38);
+      // Moved straight AWAY from the reference it is proven by: 0.55 from it, 0.02 from proven.
+      const beside = atDistance(
+        proven,
+        Float32Array.from(held[0], (v) => -v),
+        0.02
+      );
+      await storeFaces({ proven, beside });
+      setRow('proven', 'auto', 'pending');
+      expect(matches().find((m) => m.asset_id === 'beside')?.band).toBe('suggested');
+      upgrade.reselectReferences(engine(), 'alice', new Map());
+      await L.rematchMember(engine(), 'alice');
+      expect(matches().find((m) => m.asset_id === 'beside')?.band).toBe('auto');
+    });
   });
 });

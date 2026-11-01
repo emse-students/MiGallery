@@ -346,6 +346,11 @@
     flex-shrink: 0;
   }
 
+  /* A full touch target for the dialog's answers (the global .btn is 30px tall). */
+  .modal-actions .btn {
+    min-height: 2.75rem;
+  }
+
   @media (max-width: 640px) {
     .modal-content,
     .modal-content-wide {

@@ -54,6 +54,7 @@ import {
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 import { registerShutdown } from '#lib/server/shutdown.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { runReferenceUpgrades } from '#lib/server/face-reference-upgrade.ts';
 
 const log = createLogger('face-ingest');
 
@@ -624,6 +625,12 @@ export function startFaceIngestWorker(fetchFn: typeof fetch = fetch): void {
         lastListing = now;
       }
       lastStop = (await runIngestPass(fetchFn, engine)).stopped;
+      // Faces v2: members whose references predate the varied selection are re-selected in the
+      // background (not awaited: a pass over every member is minutes of engine time, and this
+      // tick must not wait for it; runReferenceUpgrades refuses a second concurrent pass).
+      void runReferenceUpgrades(engine, fetchFn).catch((e: unknown) =>
+        log.error('reference re-selection pass failed', e)
+      );
     } catch (e) {
       if (e instanceof ImmichUnavailableError) {
         lastStop = 'immich_unavailable';
