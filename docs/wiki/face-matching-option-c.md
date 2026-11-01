@@ -560,6 +560,10 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
   bucket. A member's view of these numbers is still owed (section 2.2's false-match estimates
   are not observed by this report).
 
+- **Owed on or after 2026-11-08 (owner, 2026-11-01): delete the two pre-A7-seed backups next to
+  the database.** Until then they are the only undo of the A7 seed (the rollback above restores
+  one of them); the owner chose to keep them 7 days, then delete them.
+
 - **The DPO's answer** on a standing store of third parties' templates (DPIA R1) is still awaited;
   the owner went ahead without it on 2026-10-31. A negative answer would undo the store itself:
   delete `faces.db` (or rotate `FACE_STORE_KEY`), stop ingestion, and fall back to a match-only
