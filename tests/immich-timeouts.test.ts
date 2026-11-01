@@ -23,6 +23,8 @@ vi.mock('#lib/server/logger.ts', () => ({
 
 import { getOrCreateSystemAlbum, forgetSystemAlbum } from '../src/lib/immich/system-albums';
 import { fetchAlbumAssets } from '../src/lib/immich/album-assets';
+import { error } from '@sveltejs/kit';
+import { withSystemAlbum } from '../src/lib/immich/system-albums';
 import { immichCall } from '../src/lib/server/outbound';
 import { photosFailureMessage } from '../src/lib/photos-failure';
 
@@ -99,5 +101,68 @@ describe('what the member reads', () => {
     const busy = photosFailureMessage(504, 'x');
     expect(photosFailureMessage(502, 'x')).toBe(busy);
     expect(photosFailureMessage(500, 'boom')).not.toBe(busy);
+  });
+});
+
+describe('a stored id that Immich no longer honours', () => {
+  it('withSystemAlbum forgets a 404 id and retries once with the resolved one', async () => {
+    rows.set('PhotoCV', 'stale');
+    const fetchFn = vi.fn(async () => json([{ id: 'fresh', albumName: 'PhotoCV' }]));
+    const seen: string[] = [];
+    const out = await withSystemAlbum(fetchFn as never, 'PhotoCV', async (id) => {
+      seen.push(id);
+      if (id === 'stale') throw error(404, 'Album not found');
+      return id;
+    });
+    expect(out).toBe('fresh');
+    expect(seen).toEqual(['stale', 'fresh']);
+    expect(rows.get('PhotoCV')).toBe('fresh');
+  });
+
+  it('a renamed album still answering 200 is refused as a 404 by its name', async () => {
+    const renamed = vi.fn(async () =>
+      json({ id: 'x', albumName: 'Holidays', assets: [{ id: 'a' }] })
+    );
+    const failure = await fetchAlbumAssets(renamed as never, 'http://i', 'k', 'x', 'PhotoCV').catch(
+      (e) => e
+    );
+    expect(failure.status).toBe(404);
+  });
+});
+
+describe('the body is under the deadline too', () => {
+  it('a timeout while reading the album body is a 504, not a bare 500', async () => {
+    const slowBody = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => {
+            throw timeout();
+          },
+        }) as unknown as Response
+    );
+    const failure = await fetchAlbumAssets(slowBody as never, 'http://i', 'k', 'x').catch((e) => e);
+    expect(failure.status).toBe(504);
+  });
+});
+
+describe('concurrent first resolutions', () => {
+  it('two requests with no stored id create the album once', async () => {
+    let posts = 0;
+    const fetchFn = vi.fn(async (_u: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        posts++;
+        await new Promise((r) => setTimeout(r, 5));
+        return json({ id: 'new' });
+      }
+      return json([]);
+    });
+    const ids = await Promise.all([
+      getOrCreateSystemAlbum(fetchFn as never, 'PhotoCV'),
+      getOrCreateSystemAlbum(fetchFn as never, 'PhotoCV'),
+    ]);
+    expect(ids).toEqual(['new', 'new']);
+    expect(posts).toBe(1);
   });
 });

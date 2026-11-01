@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import { env } from '#lib/server/env.ts';
 import { getDatabase, type DatabaseInstance } from '#lib/db/database.ts';
 import { requireImmichBaseUrl } from '#lib/immich/not-configured.ts';
@@ -16,14 +16,9 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  * (`GET /api/albums` answers EVERY album - 534 on prod - and is what timed out under Immich load
  * on 2026-11-01). Immich is asked only the first time, or after {@link forgetSystemAlbum}.
  */
-let tableReady = false;
 function albumTable(): DatabaseInstance {
-  const db = getDatabase();
-  if (!tableReady) {
-    db.exec('CREATE TABLE IF NOT EXISTS system_albums (name TEXT PRIMARY KEY, id TEXT NOT NULL)');
-    tableReady = true;
-  }
-  return db;
+  // The table is part of schema.sql, which ensureSchema applies on every open of the database.
+  return getDatabase();
 }
 
 function storedAlbumId(albumName: string): string | null {
@@ -71,7 +66,41 @@ export async function getOrCreateSystemAlbum(
 ): Promise<string> {
   // Immich not configured is a state, not a failure: typed, said once at info, never logged here.
   requireImmichBaseUrl();
-  return storedAlbumId(albumName) ?? (await resolveSystemAlbum(fetchFn, albumName));
+  const stored = storedAlbumId(albumName);
+  if (stored) {
+    return stored;
+  }
+  // Two requests that both find no stored id share ONE resolution: otherwise both would create the
+  // album in Immich and one of them would be orphaned.
+  let pending = resolving.get(albumName);
+  if (!pending) {
+    pending = resolveSystemAlbum(fetchFn, albumName).finally(() => resolving.delete(albumName));
+    resolving.set(albumName, pending);
+  }
+  return pending;
+}
+
+const resolving = new Map<string, Promise<string>>();
+
+/**
+ * Run `run` against the stored id of `albumName`. When Immich answers 404 on it (the album was
+ * deleted, or renamed: see `expectedName` in `fetchAlbumAssets`), the id is forgotten and the call
+ * is retried ONCE with a freshly resolved id, so the member never sees the stale id's failure.
+ */
+export async function withSystemAlbum<T>(
+  fetchFn: typeof fetch,
+  albumName: string,
+  run: (albumId: string) => Promise<T>
+): Promise<T> {
+  try {
+    return await run(await getOrCreateSystemAlbum(fetchFn, albumName));
+  } catch (e: unknown) {
+    if (!isHttpError(e) || e.status !== 404) {
+      throw e;
+    }
+    forgetSystemAlbum(albumName);
+    return run(await getOrCreateSystemAlbum(fetchFn, albumName));
+  }
 }
 
 async function resolveSystemAlbum(fetchFn: typeof fetch, albumName: string): Promise<string> {
@@ -82,26 +111,25 @@ async function resolveSystemAlbum(fetchFn: typeof fetch, albumName: string): Pro
     return existing.id;
   }
 
-  const createRes = await immichCall(log, 'POST /api/albums', () =>
-    fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
+  // The body is read INSIDE the call: the deadline also covers it, and a timeout there must be a 504.
+  const newAlbum = await immichCall(log, 'POST /api/albums', async () => {
+    const createRes = await fetchFn(`${IMMICH_BASE_URL}/api/albums`, {
       signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
       method: 'POST',
       headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ albumName, description: `System album ${albumName}` }),
-    })
-  );
-
-  if (!createRes.ok) {
-    const txt = await createRes.text().catch(() => createRes.statusText);
-    log.error('Immich refused to create the system album', {
-      albumName,
-      status: createRes.status,
-      upstream: txt.slice(0, 300),
     });
-    throw error(502, 'Immich refused to create the system album');
-  }
-
-  const newAlbum = (await createRes.json()) as ImmichAlbum;
+    if (!createRes.ok) {
+      const txt = await createRes.text().catch(() => createRes.statusText);
+      log.error('Immich refused to create the system album', {
+        albumName,
+        status: createRes.status,
+        upstream: txt.slice(0, 300),
+      });
+      throw error(502, 'Immich refused to create the system album');
+    }
+    return (await createRes.json()) as ImmichAlbum;
+  });
   storeAlbumId(albumName, newAlbum.id);
   return newAlbum.id;
 }

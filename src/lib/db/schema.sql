@@ -57,6 +57,13 @@ CREATE TABLE IF NOT EXISTS album_permissions (
     FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE
 );
 
+-- Immich ids of the system albums (PhotoCV): durable, read per request instead of listing every
+-- Immich album. A row is dropped when Immich answers 404 on it or the album under it was renamed.
+CREATE TABLE IF NOT EXISTS system_albums (
+    name TEXT PRIMARY KEY,
+    id TEXT NOT NULL
+);
+
 -- User favorites: stores favorite photos per user (not shared with Immich)
 CREATE TABLE IF NOT EXISTS user_favorites (
     user_id TEXT NOT NULL,
