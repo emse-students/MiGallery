@@ -535,8 +535,30 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
 
 ## 5. Open and owed
 
-- **A7 has not run.** It runs once, in production, after the release carrying A1-A7, and before
-  A8. Its report (aggregates) is to be written here when it has.
+- **A7 ran on 2026-11-01**, in production, on v2.18.0, straight after its deploy (the release
+  carrying A1-A7 and the search-by-id fix, #427). A `migallery.db` copy was taken right before
+  the real run (`PRAGMA integrity_check` ok). Aggregates only:
+
+  | Measure                                                | Dry run           | Real run           |
+  | ------------------------------------------------------ | ----------------- | ------------------ |
+  | Assets / faces (Immich's own count: 172,612 / 600,003) | 172,612 / 600,003 | 172,612 / 600,003  |
+  | Unusable faces                                         | 0                 | 0                  |
+  | Linked / consenting / referenced members               | 316 / 316 / 312   | 316 / 316 / 312    |
+  | Skipped: no consent / no faces                         | 0 / 4             | 0 / 4              |
+  | References per member                                  | 5 for 312         | 5 for 311, 0 for 1 |
+  | Duration (stream + finish)                             | 63 min            | 65 min             |
+
+  The 4 `noFaces` are linked persons that hold no face at all in Immich (read read-only: 316
+  linked, 4 with no face row): stale links, not a loss of the seed. The one member given 0 in the
+  real run already held the cap of 5 by then (references of their own), so nothing was added.
+
+  The real finish: decisions `auto` 94,202, `suggested` 17,379, `none` 488,256, `kept` 166.
+  Parity against the 109,654 faces of the linked persons: shown 93,551 (85.3 %), suggested
+  12,854 (11.7 %), given to another member 9, matched to nobody 3,240 (3.0 %); per-member share
+  shown p10 0.78, p50 0.87, p90 0.95. Profile photos: 96 claimed, 14 `not_their_face` (their
+  avatar answers 404 until the member picks another photo, as A6 says), 0 in every other
+  bucket. A member's view of these numbers is still owed (section 2.2's false-match estimates
+  are not observed by this report).
 
 - **The DPO's answer** on a standing store of third parties' templates (DPIA R1) is still awaited;
   the owner went ahead without it on 2026-10-31. A negative answer would undo the store itself:
