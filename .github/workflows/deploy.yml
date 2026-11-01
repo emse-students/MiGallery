@@ -88,6 +88,18 @@ jobs:
         id: bun
         run: echo "version=$(cat .bun-version)" >> "$GITHUB_OUTPUT"
 
+      # THE IMAGE REPORTS THE VERSION IT WAS RELEASED AS. The admin panel shows `__APP_VERSION__`,
+      # which vite reads from package.json at build time, and this repository never bumps the
+      # manifest: before 2026-11-01 only the tarball job synced it, so every image since v2.18.0
+      # said 2.17.0. Written into the build context only, never committed.
+      - name: Sync the image's package.json with the released version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          echo "The image reports version $(jq -r .version package.json)."
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
