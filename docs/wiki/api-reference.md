@@ -7,9 +7,9 @@ the effective minimum.
 
 ## Immich proxy
 
-| Path                    | Auth                                                   | Purpose                                                                                                 |
-| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `/api/immich/[...path]` | read (GET) / write (mutations); unlisted assets public | Universal proxy to Immich; chunked uploads; binary passthrough (see [immich-proxy.md](immich-proxy.md)) |
+| Path                    | Auth                                                   | Purpose                                                                                                                  |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/api/immich/[...path]` | read (GET) / write (mutations); unlisted assets public | Proxy to Immich for an allowlist of routes; chunked uploads; binary passthrough (see [immich-proxy.md](immich-proxy.md)) |
 
 ## Albums
 
@@ -41,6 +41,7 @@ the effective minimum.
 | `GET /api/users`, `/api/users/[id]`                         | admin / self    | User management                                                                                                              |
 | `/api/users/me`                                             | session         | Current user                                                                                                                 |
 | `/api/users/me/face`                                        | session         | Own reference face                                                                                                           |
+| `GET /api/users/me/face/selfie/[assetId]`                   | session         | People ids on the member's own new upload (the selfie flow)                                                                  |
 | `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session         | RGPD photo-access consent                                                                                                    |
 | `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                              |
 | `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below              |
