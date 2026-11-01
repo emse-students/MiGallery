@@ -10,15 +10,31 @@ import { profileFace } from '#lib/server/face-photos.ts';
 import { loadFaceBox } from '#lib/server/face-store.ts';
 import { isAvatarSignatureValid } from '#lib/server/avatar-signature.ts';
 import { avatarSaltOf } from '#lib/server/avatar-revocation.ts';
+import { defaultFaceEngine } from '#lib/server/face-engine.ts';
+import { scheduleDefaultProfilePhoto } from '#lib/server/profile-photo-default.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-username-avatar');
 
 /**
+ * A member with no valid photo: a default is looked for in the background, when faces are on. The
+ * GLOBAL fetch, as the admin run uses: the work outlives this request, and the request-scoped
+ * `event.fetch` is not meant to be called after the response is sent.
+ */
+function lookForDefault(userId: string): void {
+  const engine = defaultFaceEngine();
+  if (engine) {
+    scheduleDefaultProfilePhoto(engine, userId, fetch);
+  }
+}
+
+/**
  * GET /api/users/[username]/avatar
  * A member's profile photo by their id_user: their own face, cut from the photo they chose among
- * their photos (lot A6). 404 when they chose none, or the photo is no longer one of theirs.
+ * their photos (lot A6), or picked by default (profile-photo-default.ts). 404 when they have none,
+ * or the photo is no longer one of theirs - and then a default is looked for in the background
+ * (never awaited), so the next request finds one.
  * Requires: authentication (session cookie, auth provider, or API key with 'read' scope), OR a
  * `?sig=` that signs THIS id_user - the keyless URL MiConnect hands to MinoWiki and Archives
  * ($lib/server/avatar-signature).
@@ -60,6 +76,7 @@ export const GET: RequestHandler = async (event) => {
     }
     const assetId = user.photos_asset_id;
     if (!assetId) {
+      lookForDefault(username);
       return svelteError(404, 'User has no profile photo');
     }
 
@@ -69,6 +86,7 @@ export const GET: RequestHandler = async (event) => {
     const face = profileFace(db, username, assetId);
     if (!face) {
       log.info('avatar asked for a photo that is no longer one of the member photos');
+      lookForDefault(username);
       return svelteError(404, 'User has no profile photo');
     }
     const box = loadFaceBox(getFaceDatabase(), face);
@@ -110,6 +128,10 @@ export const GET: RequestHandler = async (event) => {
       });
     }
     log.warn('avatar crop failed', { reason: crop.reason });
+    if (crop.reason === 'notfound') {
+      // Immich no longer serves the photo (trashed, deleted): look for another.
+      lookForDefault(username);
+    }
     if (crop.reason === 'busy') {
       return new Response(null, { status: 503, headers: { 'Retry-After': '2' } });
     }

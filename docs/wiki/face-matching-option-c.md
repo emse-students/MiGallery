@@ -500,6 +500,134 @@ ingested by the worker once seeded), 600,003 visible faces; the person column is
   `faces.db` with its `-wal` and `-shm` (it is recreated empty and unseeded) - which also drops whatever members did since
   the copy, so it is for a parity report that is plainly wrong, read before anyone uses the pages.
 
+### The default profile photo (hotfix, 2026-11-01)
+
+**The regression.** Before A6 a member who never picked a profile photo still had an avatar: the
+avatar route fell back to Immich's thumbnail of their person (`/api/people/<photos_id>/thumbnail`),
+the face Immich FEATURED for it. A6 removed every person call, so every member who never chose
+showed initials. In production only 110 members had `photos_asset_id` set (96 carried over by the
+A7 seed as `claimed`, 14 whose photo Immich no longer serves).
+
+**The rule** (owner, 2026-11-01), in `src/lib/server/profile-photo-default.ts`:
+
+- A profile photo is VALID while it is a visible match of the member's (`profileFace`) AND Immich
+  still has the asset. A CHOSEN photo is replaced only when it is KNOWN to be gone:
+  - **in the one-off run**, from Immich's own table: the export lists every asset Immich still
+    holds (`P` lines: not deleted, not in the trash, LOCKED INCLUDED); a chosen photo absent from
+    it is gone, one present is kept;
+  - **elsewhere** (the avatar route's background look, an answer on the matching screen), from a
+    direct read (`assetPresence`, `GET /api/assets/{id}`) after the search missed it: only
+    `isTrashed` is gone. Immich 3.3.3 checks access first and answers the SAME 400 ("Not found or
+    no asset.read access") for an asset deleted for good, one the key's user cannot see, and a
+    LOCKED one (an API key never holds the elevated session locked assets need), so a 400 - like
+    any other error or no answer - is UNKNOWN and the choice is kept (re-review of #433,
+    2026-11-01). Archived and hidden photos answer 200 and are present.
+
+  A default is checked by the search alone (it may be replaced by a better one anyway).
+
+- `users.photos_asset_source` says `chosen` (the picker's `PUT`, the member or an admin for them)
+  or `default`. Every photo set before the column existed is `chosen`. **A valid choice is never
+  overwritten**; a valid default may be replaced by a better default; an INVALID choice (its photo
+  is gone) is replaced by a default, since there is nothing left to keep.
+- The default, in order:
+  1. **the face Immich featured** for the member's old person, when the one-off run hands it in,
+     Immich still has the photo, AND that exact face is already one of THIS member's visible
+     matches (`VISIBLE_MATCH_SQL`): the photo they had before A6. It is found among the faces the
+     store holds on that photo by box overlap (>= 0.5, frames scaled), never by an Immich face id.
+     **Never a claim** (lead, review of #433): this runs unattended, so it never calls
+     `claimFace`, never writes `confirmed`, never moves a face from another member. A featured
+     face held by another member, or waiting for the member's own answer, is passed over (counted
+     `featuredNotTheirs`) and the member gets rule 2;
+  2. else the best of their visible matches (`src/lib/profile-photo-rank.ts`): confirmed before
+     `auto`; nearer to their references by steps of 0.05; the larger face (box area over image
+     area); the detector's score (none for a seeded face, ranked after); a single-face photo; the
+     more recent capture date; the asset id, then the face index. The first 25 are checked
+     against Immich in one search, the first one alive wins.
+- **When it is re-evaluated.** The one-off run below; and whenever the avatar route finds no valid
+  photo (none set, no longer theirs, or Immich no longer serving it), which looks for a default in
+  the background (never awaited, at most one per member at a time, on the GLOBAL fetch since the
+  work outlives the request) and answers 404 this once. A
+  member with no visible match at all costs no Immich call. Faces v2 adds the renewal of references
+  as a trigger.
+- Every decision is logged at info without an id; the run logs its aggregate.
+
+**The picker** (`ChangePhotoModal`) shows the member's FACE in each photo, cut by the same tile as
+the confirmation screen (`FaceCropThumb`, which loads crops a few at a time: the cause of the empty
+tiles, below), in the photos' own order (newest first, never ranked: owner, 2026-11-01), only the
+photos with a visible face of theirs, the current one ringed and badged ("Actuelle", or "Par défaut"
+for a default; the badge wraps rather than being cut on a phone tile). The current photo sits beside
+the hint at every width, so the grid stays in view (three columns from 360 px). `GET /api/users/me/profile-photo[?user_id=]` gives it the faces
+and the current photo. An admin picking FOR another member sees whole photos: a face crop is served
+to its holder alone (A6). The dialog's height is the visible viewport (`dvh`), so on a phone the
+"Valider" button no longer sits below the screen with the grid scrolling under it.
+
+**The empty tiles of the confirmation screen**, the same cause the picker would have met: every
+tile was a plain lazy `<img>`, so the browser asked every visible crop AT ONCE; an uncached crop is
+cut under the ONE Sharp pool every image endpoint shares (`sharp-limit.ts`: 4 running, 12
+waiting), and the 17th request at once is refused with 503 `busy`. The `<img>` saw an error and the
+tile kept its grey skeleton forever. `src/lib/face-crop-loader.ts` asks 3 at a time (under the 4
+slots), honours `Retry-After` at most twice, and a tile shows a failure with a retry button.
+`tests/face-crop-loader.test.ts` reproduces the refusal (30 at once: 14 refused) and the fix.
+
+**The one-off run, on every existing member** (the owner's yes before the real run, after a
+backup; dry run first). It is idempotent (a second run keeps what the first set), a member whose
+old group is gone or who never had one is ranked from their own matches, and a member with no
+visible match is counted `none`: nothing crashes on either. As root on the host, in bash, with an
+admin API key in `MIGALLERY_ADMIN_KEY`.
+
+**Where Immich keeps the featured face** (Immich v3.3.3, `server/src/schema/tables/`, as read by
+the review of #433): `person."faceAssetId"` -> `asset_face.id`. `person`'s primary key is
+(`ownerId`, `personGroupId`): one row per Immich USER per group, so the export keeps the rows of
+the Immich user behind MiGallery's API key, and sends `personGroupId` (what a member's
+`photos_id` holds). `person_group` has no `faceAssetId`. **Which assets still exist** comes
+from the same snapshot: `asset` rows with `"deletedAt" IS NULL` (the trash sets `deletedAt`; a
+locked asset keeps its row, `visibility = 'locked'`), all of them (about 172k lines, ~7 MB of
+JSON, under the 64M `BODY_SIZE_LIMIT`), since a choice may be any photo the key could read.
+
+1. **The owner id**, read-only, either way:
+   - `curl -s -H "x-api-key: $IMMICH_API_KEY" <immich>/api/users/me` -> its `id`; or
+   - `docker exec immich_postgres psql -U postgres -d immich -At -c 'SELECT "userId", name FROM api_key'`
+     and take the row of MiGallery's key.
+2. **Export to a file**, read-only, in ONE read-only snapshot, then check both halves:
+
+```sh
+set -o pipefail
+OWNER=<the owner id from step 1>
+docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1 -1 \
+  -c "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" \
+  -c "COPY (SELECT 'G', p.\"personGroupId\", f.\"assetId\", f.\"boundingBoxX1\", f.\"boundingBoxY1\",
+              f.\"boundingBoxX2\", f.\"boundingBoxY2\", f.\"imageWidth\", f.\"imageHeight\"
+            FROM person p JOIN asset_face f ON f.id = p.\"faceAssetId\"
+            WHERE f.\"deletedAt\" IS NULL AND p.\"ownerId\" = '$OWNER') TO STDOUT" \
+  -c "COPY (SELECT 'P', a.id FROM asset a WHERE a.\"deletedAt\" IS NULL) TO STDOUT" \
+  > /root/featured-faces.tsv
+grep -c '^G' /root/featured-faces.tsv     # must be > 0: about one per linked member
+grep -c '^P' /root/featured-faces.tsv     # must be > 0: about 172k, every asset Immich holds
+```
+
+3. **The dry run** from the file (writes nothing), and read its report:
+
+```sh
+docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> \
+  bun scripts/faces/default-photos-client.mjs --dry-run < /root/featured-faces.tsv
+echo "exit: $?"
+```
+
+4. **The real run**: the same command without `--dry-run`, once the dry run's counts are read.
+   Then `rm /root/featured-faces.tsv` (asset ids and boxes, no names).
+
+The client REFUSES an export with no `G` line or no `P` line (a failed or wrong export must not
+silently run without them: without `P`, no deleted choice could be told from a locked one);
+`--no-featured` says an EMPTY stdin is meant (every member ranked from their own matches, a choice
+replaced only when trashed), and is refused alongside an export.
+
+The report is counts only: `members`, `featuredGiven` (members whose person had a featured
+face), `featuredNotTheirs` (featured faces passed over: another member holds them, or they wait
+for the member's answer), `set_featured`, `set_scored`, `kept_choice`, `kept_default`, `none`,
+`failed`, `presentGiven` (the `P` lines received), and `chosenGoneReplaced` (choices whose photo
+is absent from Immich's table, the 14 expected at most). A second POST while a run is going is
+answered 409 (the check and the start have no await between them).
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                       |

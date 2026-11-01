@@ -86,6 +86,20 @@ export function profileFace(db: DatabaseInstance, userId: string, assetId: strin
   return { assetId, faceIndex: row.face_index };
 }
 
+/**
+ * For each of `userId`'s photos, the face {@link profileFace} would cut: their lowest-indexed
+ * visible face there. What the profile photo picker's tiles show.
+ */
+export function visibleProfileFaces(db: DatabaseInstance, userId: string): FaceKey[] {
+  const rows = db
+    .prepare(
+      `SELECT asset_id, MIN(face_index) AS face_index FROM face_matches
+        WHERE user_id = ? AND model = ? AND ${VISIBLE} GROUP BY asset_id ORDER BY asset_id`
+    )
+    .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
+  return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
+}
+
 /** What the screens need to know of a member's face matching, as counts. */
 export interface FaceStatus {
   /** They hold references or photos: the face feature is on for them. */

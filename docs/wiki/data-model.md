@@ -20,15 +20,16 @@ its own faces, persons and embeddings as well.
 
 ### `users`
 
-| Column                            | Notes                                                                                             |
-| --------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `id_user` TEXT PK                 | the OIDC `sub`                                                                                    |
-| `name`, `first_name`, `last_name` | display identity                                                                                  |
-| `photos_id` TEXT                  | legacy Immich person link: READ BY NOTHING since lot A6, kept for the A7 seed; admin-written only |
-| `photos_asset_id` TEXT            | the profile photo, one of the member's own face-matched photos (A6)                               |
-| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`                                                   |
-| `promo` INTEGER                   | graduation year, **mirrored from the SSO, nulls included**                                        |
-| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                                                                          |
+| Column                            | Notes                                                                                                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id_user` TEXT PK                 | the OIDC `sub`                                                                                                                                                                                                            |
+| `name`, `first_name`, `last_name` | display identity                                                                                                                                                                                                          |
+| `photos_id` TEXT                  | legacy Immich person link: READ BY NOTHING since lot A6, kept for the A7 seed; admin-written only                                                                                                                         |
+| `photos_asset_id` TEXT            | the profile photo, one of the member's own face-matched photos (A6)                                                                                                                                                       |
+| `photos_asset_source` TEXT        | `chosen` (the member, or an admin for them) or `default` (picked for them: [the default profile photo](face-matching-option-c.md#the-default-profile-photo-hotfix-2026-11-01)); a default may be replaced, a choice never |
+| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`                                                                                                                                                                           |
+| `promo` INTEGER                   | graduation year, **mirrored from the SSO, nulls included**                                                                                                                                                                |
+| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                                                                                                                                                                                                  |
 
 ### `albums` and permissions
 

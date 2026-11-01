@@ -8,7 +8,7 @@
  * may carry a distance, a band or another member's id. SYNTHETIC ids and images only.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -114,6 +114,15 @@ function box(asset: string, face = 0) {
 let immichCalls: string[] = [];
 /** The assets the faked Immich holds, by id. */
 let library: Record<string, { id: string; type: string; fileCreatedAt: string }> = {};
+/** Assets the faked Immich holds but its search leaves out by default (archived, locked). */
+let archived = new Set<string>();
+/** Assets in the faked Immich's trash: left out of search, `isTrashed` on a direct read. */
+let trashed = new Set<string>();
+/**
+ * LOCKED assets: left out of search, and a direct read answers 400 - the same 400 Immich 3.3.3
+ * gives an asset deleted for good (an API key never holds the elevated session they need).
+ */
+let locked = new Set<string>();
 /** When set, the faked search ignores its filter and answers this page instead. */
 let ignoreFilter: string[] | null = null;
 /** When set, the faked search answers (or throws) this instead. */
@@ -146,8 +155,19 @@ const immich = (async (url: string, init?: RequestInit) => {
       );
     }
     const asked = body.filter.or.map((c) => c.id.eq);
-    const items = (ignoreFilter ?? asked).map((id) => library[id]).filter(Boolean);
+    const items = (ignoreFilter ?? asked)
+      .filter((id) => !archived.has(id) && !trashed.has(id) && !locked.has(id))
+      .map((id) => library[id])
+      .filter(Boolean);
     return Response.json({ assets: { items, nextPage: null, nextCursor: announcedCursor } });
+  }
+  const one = u.pathname.match(/^\/api\/assets\/([^/]+)$/);
+  if (one && (init?.method ?? 'GET') === 'GET') {
+    const asset = library[decodeURIComponent(one[1])];
+    // Immich 3.3.3 checks access first: deleted, unseen and locked all answer this one 400.
+    return asset && !locked.has(asset.id)
+      ? Response.json({ ...asset, isTrashed: trashed.has(asset.id) })
+      : Response.json({ message: 'Not found or no asset.read access' }, { status: 400 });
   }
   if (u.pathname.endsWith('/thumbnail') && u.searchParams.get('size') === 'preview') {
     return new Response(new Uint8Array(source), { headers: { 'content-type': 'image/png' } });
@@ -240,6 +260,13 @@ afterAll(() => {
   removeTempDir(dbDir);
 });
 
+afterEach(async () => {
+  // A background run a test started ends inside that test: one left in flight would make the
+  // next test's schedule for the same member a no-op, and would read the next test's data.
+  await (await import('#lib/server/profile-photo-default.ts')).defaultPhotosSettled();
+  vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
   db().exec(
     'DELETE FROM face_matches; DELETE FROM face_references; DELETE FROM face_consents; DELETE FROM photo_access_permissions; DELETE FROM users;'
@@ -256,7 +283,13 @@ beforeEach(() => {
   state.cvAlbum = [];
   immichCalls = [];
   library = {};
+  archived = new Set();
+  trashed = new Set();
+  locked = new Set();
   searchFails = null;
+  // The avatar route's background default-photo look runs on the GLOBAL fetch: here, the faked
+  // Immich, so no test ever reaches the network (a real lookup of immich.test hung on CI).
+  vi.stubGlobal('fetch', immich);
   env.IMMICH_BASE_URL = 'http://immich.test';
   ignoreFilter = null;
   announcedCursor = null;
@@ -635,5 +668,423 @@ describe('the crop directory never escapes a member', () => {
       path.dirname(faceCrop.memberCropDir('m2'))
     );
     expect(cachedCrops('m2')).toEqual([]);
+  });
+});
+
+describe('the default profile photo (owner, 2026-11-01)', () => {
+  let defaults: typeof import('#lib/server/profile-photo-default.ts');
+  let refs: typeof import('#lib/server/face-references.ts');
+  let seal: typeof import('#lib/server/face-seal.ts');
+  let emb: typeof import('#lib/face-embedding.ts');
+  const key = Buffer.from('ab'.repeat(32), 'hex');
+  const engine = () => ({ db: db(), faceDb: faceDb(), key });
+
+  /** A unit vector along axis `i` (synthetic, never a face). */
+  const axis = (i: number) => {
+    const v = new Float32Array(512);
+    v[i] = 1;
+    return v;
+  };
+
+  beforeAll(async () => {
+    defaults = await import('#lib/server/profile-photo-default.ts');
+    refs = await import('#lib/server/face-references.ts');
+    seal = await import('#lib/server/face-seal.ts');
+    emb = await import('#lib/face-embedding.ts');
+  });
+
+  /** A face in the store with a real sealed vector and a box `side` px wide in a 400x300 frame. */
+  function storeFace(asset: string, face: number, v: Float32Array, side = 80) {
+    faceDb()
+      .prepare(
+        `INSERT INTO face_embeddings (asset_id, face_index, model, x1, y1, x2, y2, img_w, img_h, score, sealed, created_at)
+         VALUES (?, ?, ?, 40, 30, ?, ?, 400, 300, 0.9, ?, 1)`
+      )
+      .run(
+        asset,
+        face,
+        FACE_MODEL,
+        40 + side,
+        30 + side,
+        seal.seal(key, seal.embeddingContext(asset, face, FACE_MODEL), emb.encodeEmbedding(v))
+      );
+  }
+
+  /** One match row of `user` on `asset`, visible by default (auto, pending). */
+  function held(
+    user: string,
+    asset: string,
+    opts: {
+      band?: 'auto' | 'suggested';
+      state?: 'pending' | 'confirmed';
+      distance?: number;
+      face?: number;
+    } = {}
+  ) {
+    db()
+      .prepare(
+        `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band, state, created_at)
+         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 1)`
+      )
+      .run(
+        asset,
+        opts.face ?? 0,
+        FACE_MODEL,
+        user,
+        opts.distance ?? 0.3,
+        opts.band ?? 'auto',
+        opts.state ?? 'pending'
+      );
+  }
+
+  const pointer = (id: string) =>
+    db()
+      .prepare('SELECT photos_asset_id AS a, photos_asset_source AS s FROM users WHERE id_user = ?')
+      .get(id) as { a: string | null; s: string | null };
+
+  const run = (
+    user: string,
+    featured?: import('#lib/server/profile-photo-default.ts').FeaturedFace,
+    dryRun = false
+  ) => defaults.ensureDefaultProfilePhoto(engine(), user, immich, { featured, dryRun });
+
+  it('gives a member with none the best of their own photos: confirmed, then nearer, then larger', async () => {
+    for (const [a, side] of [
+      ['near-small', 40],
+      ['near-big', 120],
+      ['far', 200],
+      ['conf', 30],
+    ] as const) {
+      storeFace(a, 0, axis(1), side);
+      photo(a, '2026-01-01T00:00:00Z');
+    }
+    held('m1', 'near-small', { distance: 0.21 });
+    held('m1', 'near-big', { distance: 0.22 });
+    held('m1', 'far', { distance: 0.45 });
+    expect(await run('m1')).toBe('set_scored');
+    // Same closeness step: the larger face wins over the nearer-by-a-hair small one.
+    expect(pointer('m1')).toEqual({ a: 'near-big', s: 'default' });
+    // A confirmed face outranks every auto one, whatever its size.
+    held('m1', 'conf', { state: 'confirmed', band: 'suggested', distance: 0.55 });
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'conf', s: 'default' });
+  });
+
+  it('skips a photo Immich no longer serves (trashed or deleted)', async () => {
+    storeFace('gone', 0, axis(1), 200);
+    storeFace('kept', 0, axis(1), 40);
+    photo('kept', '2026-01-01T00:00:00Z');
+    held('m1', 'gone', { distance: 0.1 });
+    held('m1', 'kept', { distance: 0.4 });
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'kept', s: 'default' });
+  });
+
+  it("never overwrites a member's valid choice; replaces a choice whose photo is gone", async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // Archived: the search leaves it out, but Immich still has it - kept.
+    archived.add('mine');
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // Locked: the direct read answers 400, which cannot tell it from deleted - kept.
+    archived.delete('mine');
+    locked.add('mine');
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    locked.delete('mine');
+    // In the trash: the one answer the live check believes - gone, replaced.
+    trashed.add('mine');
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'better', s: 'default' });
+  });
+
+  it('live: a 400, an error or no answer keeps the choice - deleted and locked look the same', async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    // Deleted for good: search misses it, the direct read answers 400 - unknown, kept.
+    delete library.mine;
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // A 500, then no answer at all: unknown, kept.
+    for (const answer of [
+      async () => new Response('boom', { status: 500 }),
+      async () => {
+        throw new Error('network down');
+      },
+    ]) {
+      const flaky = (async (url: string, init?: RequestInit) =>
+        new URL(String(url)).pathname.endsWith('/api/assets/mine')
+          ? answer()
+          : immich(url, init)) as unknown as typeof fetch;
+      expect(await defaults.ensureDefaultProfilePhoto(engine(), 'm1', flaky, {})).toBe(
+        'kept_choice'
+      );
+      expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    }
+  });
+
+  it("the one-off run's export decides: a locked chosen photo is kept, a deleted one replaced", async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    // Locked: invisible to every API read, but in Immich's table, so in the export - kept.
+    locked.add('mine');
+    const withLocked = new Set(['mine', 'better']);
+    const kept = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      false,
+      withLocked
+    );
+    expect(kept).toMatchObject({ kept_choice: 1, chosenGoneReplaced: 0, presentGiven: 2 });
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // Deleted for good: no longer in Immich's table, so absent from the export - replaced.
+    delete library.mine;
+    locked.delete('mine');
+    const dry = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      true,
+      new Set(['better'])
+    );
+    expect(dry).toMatchObject({ set_scored: 1, chosenGoneReplaced: 1 });
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    const real = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      false,
+      new Set(['better'])
+    );
+    expect(real).toMatchObject({ set_scored: 1, chosenGoneReplaced: 1 });
+    expect(pointer('m1')).toEqual({ a: 'better', s: 'default' });
+  });
+
+  it('a photo chosen after the export is kept: the search serving it proves it exists', async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    // The export was taken before 'mine' existed in it: only the search can vouch for it.
+    const out = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      false,
+      new Set(['better'])
+    );
+    expect(out).toMatchObject({ kept_choice: 1, chosenGoneReplaced: 0 });
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+  });
+
+  it('replaces a default by a better default, and keeps it when nothing better came', async () => {
+    storeFace('first', 0, axis(1), 40);
+    photo('first', '2026-01-01T00:00:00Z');
+    held('m1', 'first', { distance: 0.3 });
+    await run('m1');
+    expect(pointer('m1')).toEqual({ a: 'first', s: 'default' });
+    expect(await run('m1')).toBe('kept_default');
+    storeFace('second', 0, axis(1), 40);
+    photo('second', '2026-01-01T00:00:00Z');
+    held('m1', 'second', { state: 'confirmed', distance: 0.3 });
+    expect(await run('m1')).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'second', s: 'default' });
+  });
+
+  it('prefers the face Immich featured for their old person, the photo they had before A6', async () => {
+    storeFace('best', 0, axis(1), 200);
+    storeFace('feat', 0, axis(2), 40);
+    storeFace('feat', 1, axis(1), 40);
+    // Face 1 of 'feat' sits elsewhere in the frame: the featured box names face 1, not face 0.
+    faceDb()
+      .prepare(
+        "UPDATE face_embeddings SET x1 = 200, y1 = 150, x2 = 280, y2 = 230 WHERE asset_id = 'feat' AND face_index = 1"
+      )
+      .run();
+    photo('best', '2026-01-01T00:00:00Z');
+    photo('feat', '2026-01-01T00:00:00Z');
+    held('m1', 'best', { distance: 0.1 });
+    held('m1', 'feat', { distance: 0.4, face: 1 });
+    // The featured box, in a frame twice as large: found by overlap, not by equality.
+    const featured = { assetId: 'feat', x1: 400, y1: 300, x2: 560, y2: 460, imgW: 800, imgH: 600 };
+    expect(await run('m1', featured)).toBe('set_featured');
+    expect(pointer('m1')).toEqual({ a: 'feat', s: 'default' });
+  });
+
+  it('never claims the featured face: held by another member, it stays theirs and the member gets their best match', async () => {
+    refs.addFaceReference(db(), key, 'm1', 'seed', axis(1));
+    refs.addFaceReference(db(), key, 'm2', 'seed', axis(1));
+    storeFace('feat', 0, axis(1), 40);
+    storeFace('own', 0, axis(1), 40);
+    photo('feat', '2026-01-01T00:00:00Z');
+    photo('own', '2026-01-01T00:00:00Z');
+    // The face Immich featured for m1's old person is m2's auto match today.
+    held('m2', 'feat', { distance: 0.2 });
+    held('m1', 'own', { distance: 0.3 });
+    const featured = { assetId: 'feat', x1: 40, y1: 30, x2: 80, y2: 70, imgW: 400, imgH: 300 };
+    const seen: { featuredNotTheirs?: boolean } = {};
+    expect(
+      await defaults.ensureDefaultProfilePhoto(engine(), 'm1', immich, { featured, report: seen })
+    ).toBe('set_scored');
+    expect(pointer('m1')).toEqual({ a: 'own', s: 'default' });
+    expect(seen.featuredNotTheirs).toBe(true);
+    // m2 keeps the photo, untouched: no claim, no confirmation written without a human.
+    expect(
+      db().prepare("SELECT user_id, band, state FROM face_matches WHERE asset_id = 'feat'").all()
+    ).toEqual([{ user_id: 'm2', band: 'auto', state: 'pending' }]);
+    // Waiting for m1's own answer (suggested): not taken either, and never confirmed for them.
+    db().prepare("DELETE FROM face_matches WHERE asset_id = 'feat'").run();
+    held('m1', 'feat', { band: 'suggested', distance: 0.55 });
+    expect(await run('m1', featured)).toBe('kept_default');
+    expect(
+      db().prepare("SELECT user_id, band, state FROM face_matches WHERE asset_id = 'feat'").all()
+    ).toEqual([{ user_id: 'm1', band: 'suggested', state: 'pending' }]);
+  });
+
+  it('a run over every member: counts by outcome, idempotent, a gone group ranked from matches, a dry run writes nothing', async () => {
+    storeFace('a1', 0, axis(1), 40);
+    photo('a1', '2026-01-01T00:00:00Z');
+    held('m1', 'a1');
+    storeFace('b1', 0, axis(1), 40);
+    photo('b1', '2026-01-01T00:00:00Z');
+    held('m2', 'b1');
+    // m2's old person has no featured face (the group is gone): ranked from their matches.
+    db()
+      .prepare(
+        "UPDATE users SET photos_id = '11111111-1111-4111-8111-111111111111' WHERE id_user = 'm2'"
+      )
+      .run();
+    // m3 is enrolled and holds no photo at all.
+    refs.addFaceReference(db(), key, 'm3', 'seed', axis(1));
+    const dry = await defaults.runDefaultProfilePhotos(engine(), immich, new Map(), true);
+    expect(dry).toMatchObject({ members: 3, set_scored: 2, none: 1, failed: 0 });
+    expect(pointer('m1')).toEqual({ a: null, s: null });
+    const first = await defaults.runDefaultProfilePhotos(engine(), immich, new Map(), false);
+    expect(first).toMatchObject({ members: 3, set_scored: 2, none: 1, featuredGiven: 0 });
+    const second = await defaults.runDefaultProfilePhotos(engine(), immich, new Map(), false);
+    expect(second).toMatchObject({ members: 3, kept_default: 2, none: 1, set_scored: 0 });
+  });
+
+  it('the avatar of a member with no photo finds one in the background; the next request is served', async () => {
+    storeFace('a1', 0, axis(1), 40);
+    photo('a1', '2026-01-01T00:00:00Z');
+    held('m1', 'a1');
+    state.auth = member('m2');
+    // The background work runs on the GLOBAL fetch (it outlives the request), never event.fetch.
+    vi.stubGlobal('fetch', immich);
+    // The request's own fetch refuses everything: only the global one can find the default.
+    const requestFetch = (async () => {
+      throw new Error('event.fetch used after the response');
+    }) as unknown as typeof fetch;
+    try {
+      const first = await call(avatarRoute.GET, {
+        params: { username: 'm1' },
+        url: new URL('http://x.test/api/users/m1/avatar'),
+        request: new Request('http://x.test/'),
+        fetch: requestFetch,
+      });
+      expect(first.status).toBe(404);
+      // Awaited, never polled against a clock (a slow runner failed a 500 ms poll).
+      await defaults.defaultPhotosSettled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(pointer('m1')).toEqual({ a: 'a1', s: 'default' });
+    expect((await avatar('m1')).status).toBe(200);
+  });
+
+  it('the admin run refuses a malformed present list', async () => {
+    const route = await import('../src/routes/api/admin/faces/default-photos/+server');
+    state.auth = member('boss', 'admin');
+    for (const present of [[], 'a1', [1], ['../x']]) {
+      const res = await call(route.POST, {
+        request: new Request('http://x.test/', {
+          method: 'POST',
+          body: JSON.stringify({ present, dryRun: true }),
+        }),
+      });
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it('the admin run: two POSTs at once start ONE run, the other is told 409', async () => {
+    const route = await import('../src/routes/api/admin/faces/default-photos/+server');
+    state.auth = member('boss', 'admin');
+    storeFace('a1', 0, axis(1), 40);
+    photo('a1', '2026-01-01T00:00:00Z');
+    held('m1', 'a1');
+    vi.stubGlobal('fetch', immich);
+    try {
+      const post = () =>
+        call(route.POST, {
+          request: new Request('http://x.test/', {
+            method: 'POST',
+            body: JSON.stringify({ dryRun: true }),
+          }),
+        });
+      const statuses = (await Promise.all([post(), post()])).map((r) => r.status).sort();
+      expect(statuses).toEqual([202, 409]);
+      // The run itself is awaited, never polled.
+      await route._runSettled();
+      const state_ = await (await call(route.GET, {})).json();
+      expect(state_).toMatchObject({ status: 'done', report: { members: 1, set_scored: 1 } });
+      // A dry run writes nothing.
+      expect(pointer('m1')).toEqual({ a: null, s: null });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('end to end: a choice is stored, served as the avatar, and read back by the picker', async () => {
+    storeFace('p', 0, axis(1), 40);
+    storeFace('q', 2, axis(1), 40);
+    photo('p', '2026-01-01T00:00:00Z');
+    held('m1', 'p');
+    held('m1', 'q', { face: 2 });
+    expect((await choose({ asset_id: 'q' })).status).toBe(200);
+    const read = await call(profileRoute.GET, {
+      url: new URL('http://x.test/api/users/me/profile-photo'),
+    });
+    expect(await read.json()).toEqual({
+      success: true,
+      current: { asset_id: 'q', source: 'chosen' },
+      faces: { p: 0, q: 2 },
+    });
+    state.auth = member('m2');
+    expect((await avatar('m1')).status).toBe(200);
+    expect(cachedCrops('m1')).toEqual(['q_2.webp']);
+    // The admin path: a member cannot read another's, an admin reads and sets it.
+    const other = () =>
+      call(profileRoute.GET, {
+        url: new URL('http://x.test/api/users/me/profile-photo?user_id=m1'),
+      });
+    expect((await other()).status).toBe(403);
+    state.auth = member('boss', 'admin');
+    expect((await other()).status).toBe(200);
+    expect((await choose({ asset_id: 'p', user_id: 'm1' })).status).toBe(200);
+    expect(pointer('m1')).toEqual({ a: 'p', s: 'chosen' });
   });
 });

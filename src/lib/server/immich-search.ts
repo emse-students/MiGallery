@@ -212,3 +212,45 @@ export async function searchAssetsByIds(
   log.debug('assets fetched by id', { asked: ids.length, found: out.length });
   return out;
 }
+
+/** What a direct read of one asset can tell (see {@link assetPresence}). */
+export type AssetPresence = 'present' | 'trashed' | 'unknown';
+
+/**
+ * What `GET /api/assets/{id}` says of one asset, whatever its visibility (a search applies its
+ * default visibility and misses an archived or hidden photo). Only a 200 is an answer: `present`,
+ * or `trashed` (`isTrashed`). EVERYTHING ELSE IS `unknown`, never "gone": Immich 3.3.3 checks
+ * access first and answers the SAME 400 for an asset deleted for good, one the key's user cannot
+ * see, and a LOCKED one (an API key never holds the elevated session locked assets need) - so a
+ * 400 cannot tell a deleted photo from a locked one (re-review of #433, 2026-11-01). Deletion is
+ * known only from Immich's own table, which the one-off run reads (`present`). Never throws.
+ */
+export async function assetPresence(
+  fetchFn: typeof fetch,
+  assetId: string
+): Promise<AssetPresence> {
+  const base = requireImmichBaseUrl();
+  let res: Response;
+  try {
+    res = await fetchFn(`${base}/api/assets/${encodeURIComponent(assetId)}`, {
+      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+      headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' },
+    });
+  } catch (e) {
+    log.warn('asset check: no answer from Immich, unknown', { message: (e as Error).message });
+    return 'unknown';
+  }
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => undefined);
+    log.info('asset check: not readable, unknown (400 is deleted, unseen or locked)', {
+      status: res.status,
+    });
+    return 'unknown';
+  }
+  const asset = (await res.json().catch(() => null)) as { id?: string; isTrashed?: boolean } | null;
+  if (asset?.id !== assetId) {
+    log.error('asset check answered another asset, or no JSON; unknown');
+    return 'unknown';
+  }
+  return asset.isTrashed === true ? 'trashed' : 'present';
+}
