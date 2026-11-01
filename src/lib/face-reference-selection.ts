@@ -21,7 +21,12 @@
  * drifts towards recent photos (the older of the pair goes) - never by a timer.
  */
 
-import { FACE_AUTO_MAX_DISTANCE, cosineDistance, minDistance } from '#lib/face-embedding.ts';
+import {
+  FACE_AUTO_MAX_DISTANCE,
+  FACE_SUGGEST_MAX_DISTANCE,
+  cosineDistance,
+  minDistance,
+} from '#lib/face-embedding.ts';
 
 /** One reference, held or candidate. Biometric: never serialised. */
 export interface ReferenceItem {
@@ -52,6 +57,61 @@ export function usableVector(v: ArrayLike<number>): boolean {
     norm += v[i] * v[i];
   }
   return norm > 0;
+}
+
+/**
+ * The references the BOOTSTRAP adds, grown until stable (owner, 2026-11-01: "jusqu'à stabiliser"):
+ * a member under the minimum keeps no more than a selfie, and every face the matcher held back
+ * for it waits for a human. Each round takes the candidates `within` the member's CURRENT
+ * references (the caller's bound: the `auto` distance for a confirmed face, 0.4 for an unconfirmed
+ * one), chosen for variety among them, held references kept first; a face that a previous round
+ * made reachable is found by the next one.
+ *
+ * TERMINATION IS A PROOF, NOT A CLOCK: a round that finds an eligible face adds at least one
+ * reference (the held ones are anchors, `cap` is above their count), so the count strictly rises
+ * towards `cap`; a round that finds none ends it. At most `cap` rounds, and never a held reference
+ * dropped, so no round can undo the one before.
+ *
+ * THE DRIFT GUARD: every reference stays within FACE_SUGGEST_MAX_DISTANCE of the references the
+ * member held when it began (their selfie), the farthest the model itself offers a face (the
+ * 1e-4 false-match threshold, 0.617). Chaining 0.4 steps could otherwise walk to another face, with
+ * no human to see it. Returns the ADDED candidates, in the order they were taken.
+ */
+export function growUntilStable<T extends ReferenceItem>(
+  held: ReadonlyArray<ReferenceItem>,
+  candidates: ReadonlyArray<T>,
+  cap: number,
+  within: (candidate: T, nearestReferenceDistance: number) => boolean
+): T[] {
+  const yardstick = held.map((h) => h.embedding);
+  const refs: ReferenceItem[] = held.map((h) => ({ ...h, anchor: true }));
+  let left = candidates.filter((c) => usableVector(c.embedding));
+  const added: T[] = [];
+  while (refs.length < cap && left.length > 0) {
+    const vectors = refs.map((r) => r.embedding);
+    const eligible = left.filter(
+      (c) =>
+        within(c, minDistance(vectors, c.embedding)) &&
+        minDistance(yardstick, c.embedding) <= FACE_SUGGEST_MAX_DISTANCE
+    );
+    if (eligible.length === 0) {
+      break;
+    }
+    const known = new Set(refs.map((r) => r.key));
+    const taken = selectVariedReferences([...refs, ...eligible], cap).filter(
+      (c) => !known.has(c.key)
+    ) as T[];
+    if (taken.length === 0) {
+      break;
+    }
+    const takenKeys = new Set(taken.map((t) => t.key));
+    for (const t of taken) {
+      refs.push({ ...t, anchor: true });
+      added.push(t);
+    }
+    left = left.filter((c) => !takenKeys.has(c.key));
+  }
+  return added;
 }
 
 /** Newer first: capture date descending (unknown last), then key ascending. A total order. */

@@ -25,6 +25,11 @@ declare global {
           promo?: number | null;
         } | null;
       } | null;
+      /**
+       * The faces waiting for the member's answer (the badge on "Mes photos" and its banner).
+       * Refreshed by `invalidate('app:face-status')` after each answer.
+       */
+      faceToConfirm?: number;
       /** Set by the root layout on every page: see `#lib/first-paint.ts`. */
       firstPaint: FirstPaint;
     }

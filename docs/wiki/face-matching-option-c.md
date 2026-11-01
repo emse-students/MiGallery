@@ -790,6 +790,23 @@ rule applies, and the re-match that follows the selection makes their faces with
 the other members" therefore starts at 3 references, with no second mechanism. The version bump
 re-selects only members that need it: a member already at the minimum that version 2 selected is
 MARKED (3), never re-selected (a pass over 300 members' references would only churn them).
+
+**Grown until stable** (owner, 2026-11-01: _"il faut faire jusqu'à stabiliser. Demander trop
+d'action à l'utilisateur perd complètement le principe"_; `growUntilStable`,
+`face-reference-selection.ts`). Each round takes the faces within 0.4 of the member's CURRENT
+references (0.5 for a confirmed face), chosen for variety, held references kept; a face that a
+round made reachable is found by the next one. **Termination is a proof, not a clock**: a round
+with an eligible face adds at least one reference (the held ones are anchors and the cap is above
+their count), so the count rises strictly towards `FACE_MAX_REFERENCES`; a round with none ends it.
+No round drops a reference. **The drift guard**: every reference stays within
+`FACE_SUGGEST_MAX_DISTANCE` (0.62, the model's own 1e-4 false-match threshold) of the references
+the member held when the bootstrap began, their selfie: chained 0.4 steps could otherwise walk to
+another face with nobody to see it. This replaces the earlier rule that a member's reach grows
+"only through an answer" FOR THE BOOTSTRAP MEMBERS ALONE (under 3 references at the start); every
+other member keeps the old rule, because applying it to the 300 others is a production-wide change
+that needs its own measurement. On the one member measured (read-only, 2026-11-01): 2 matches at
+0.35 or less, 13 at 0.40 or less (all unambiguous), 88 at 0.45, 197 at 0.50, so the first round
+alone takes all 13 (14 references with the selfie, cap 15).
 Residual, named: a bootstrapped member with no face within 0.4 stays under 3 references and is
 marked done; the way out is a confirmation on the screen below (a learnable face is added), not a
 retry on a timer.
@@ -801,7 +818,17 @@ lookalikes of the face just confirmed become `auto` at once (`promoted` in the a
 another member now holds them, leave (`released`). The screen drops both and says how many joined
 "Mes photos" (`mpc_promoted`): no reload, no waiting for the background re-match, which then finds
 the same decisions (one `decideFace` for every path). There is no group button: the lookalikes
-move with the answer.
+move with the answer (owner, 2026-11-01: no visual grouping; the algorithm stays a nearest-member
+match, nothing clusters faces).
+
+**3. What the member sees** (owner, 2026-11-01). The count of faces waiting for an answer is
+layout data (`faceToConfirm`, `depends('app:face-status')`): ONE number read by the badge on the
+"Mes photos" tab (`NavBadge`, `navBadgeCount`, both navigations) and by the banner on "Mes photos",
+and the confirmation screen calls `invalidate('app:face-status')` after every recorded answer, so
+neither is older than the last answer. A card opens the WHOLE photo (`FacePhotoDialog`: the
+preview every member's viewer already reads, the proposed face as a chip, answer from the dialog;
+Space or the corner button, Escape answers nothing). The background re-match that follows an
+answer lands later and is not pushed to an open page: the next navigation shows it.
 
 **Measured, owed after the release:** the same read-only query as the baseline (visible photos per
 consenting member: zero-visible count and median) once the pass has run; the production write that

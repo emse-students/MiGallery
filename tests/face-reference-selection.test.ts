@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   decideLearning,
+  growUntilStable,
   redundantVictim,
   selectVariedReferences,
   type ReferenceItem,
@@ -238,5 +239,48 @@ describe('the confirmation list: optimistic removal, rollback in place', () => {
     // The list got shorter meanwhile: at the end.
     expect(restoreAt([], list[1], 1)).toEqual([list[1]]);
     expect(restoreAt(list, list[1], 0)).toEqual(list);
+  });
+});
+
+describe('growUntilStable (the bootstrap, owner 2026-11-01: "jusqu\'à stabiliser")', () => {
+  const within = (_c: ReferenceItem, d: number) => d <= 0.4;
+
+  it('reaches a face only a previous round made reachable, and stops at the drift guard', () => {
+    const selfie = item('selfie', 0, null, true);
+    const step = angleOf(0.2);
+    // A is 0.1 from the selfie, B 0.2 beyond A (0.54 from the selfie, so out of reach at the start),
+    // C 0.2 beyond B (past 0.62 from the selfie: the guard, though 0.2 from B).
+    const a = item('a', angleOf(0.1), null);
+    const b = item('b', angleOf(0.1) + step, null);
+    const c = item('c', angleOf(0.1) + 2 * step, null);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeGreaterThan(0.4);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeLessThanOrEqual(0.62);
+    expect(cosineDistance(selfie.embedding, c.embedding)).toBeGreaterThan(0.62);
+    const added = growUntilStable([selfie], [c, b, a], 15, within);
+    expect(added.map((x) => x.key)).toEqual(['a', 'b']);
+  });
+
+  it('holds the bound on every candidate and never drops a held reference', () => {
+    const selfie = item('selfie', 0, null, true);
+    const far = item('far', angleOf(0.45), null);
+    expect(growUntilStable([selfie], [far], 15, within)).toEqual([]);
+    expect(growUntilStable([selfie], [], 15, within)).toEqual([]);
+  });
+
+  it('stops at the cap, whatever is left to take', () => {
+    const held = Array.from({ length: 14 }, (_, i) => item(`h${i}`, i * 0.001, null, i === 0));
+    const near = Array.from({ length: 5 }, (_, i) => item(`n${i}`, angleOf(0.05) + i * 0.01, null));
+    const added = growUntilStable(held, near, 15, within);
+    expect(added).toHaveLength(1);
+  });
+
+  it('gives the same set whatever the order of the candidates', () => {
+    const selfie = item('selfie', 0, null, true);
+    const cands = Array.from({ length: 12 }, (_, i) =>
+      item(`c${i}`, angleOf(0.02 + i * 0.03), i * 1000)
+    );
+    const keys = (list: readonly ReferenceItem[]) =>
+      growUntilStable([selfie], list, 15, within).map((x) => x.key);
+    expect(keys(shuffled(cands, 7))).toEqual(keys(cands));
   });
 });

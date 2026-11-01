@@ -17,7 +17,9 @@
  * them a pending `suggested` face counts, within the same 0.4 of their references and only when no
  * other member was within FACE_AMBIGUITY_MARGIN of it at the decision. It is proof for the
  * SELECTION ONLY: the face stays unseen by the member until the re-match, with the references it
- * then reaches, finds it `auto`. The distance is recomputed against the current references, not
+ * then reaches, finds it `auto`. The bootstrap grows the set UNTIL STABLE (`growUntilStable`: each
+ * round may reach faces the last one made reachable; it ends when a round adds nothing or at the
+ * cap, and no reference stays farther than 0.62 from the member's selfie). The distance is recomputed against the current references, not
  * read from the row (a row's distance is the one of its decision).
  *
  * WHAT IT DOES, per member: read the proven faces and their photos' capture dates from Immich
@@ -45,7 +47,11 @@ import {
   FACE_REFERENCE_SELECTION_VERSION,
   minDistance,
 } from '#lib/face-embedding.ts';
-import { selectVariedReferences, type ReferenceItem } from '#lib/face-reference-selection.ts';
+import {
+  growUntilStable,
+  selectVariedReferences,
+  type ReferenceItem,
+} from '#lib/face-reference-selection.ts';
 import { getFaceStoreState } from '#lib/db/face-database.ts';
 import { rematchMember, runExclusive, type FaceEngine } from '#lib/server/face-engine.ts';
 import { assetCaptureTimes } from '#lib/server/face-photos.ts';
@@ -173,23 +179,35 @@ export function reselectReferences(
     const confirmed = new Set(
       candidates.filter((c) => c.confirmed).map((c) => `${c.assetId}\u0000${c.faceIndex}`)
     );
-    const pool: Array<ReferenceItem & { face?: FaceKey; newSource?: ReferenceSource }> = [...held];
+    type PoolItem = ReferenceItem & {
+      face?: FaceKey;
+      newSource?: ReferenceSource;
+      confirmed?: boolean;
+    };
+    const opened: PoolItem[] = loadFaceEmbeddings(engine.faceDb, key, candidates).map((face) => ({
+      key: `face:${face.assetId}:${face.faceIndex}`,
+      embedding: face.embedding,
+      takenAt: captureTimes.get(face.assetId) ?? null,
+      face: { assetId: face.assetId, faceIndex: face.faceIndex },
+      confirmed: confirmed.has(`${face.assetId}\u0000${face.faceIndex}`),
+      newSource: confirmed.has(`${face.assetId}\u0000${face.faceIndex}`) ? 'photo' : 'matched',
+    }));
+    const bound = (c: PoolItem, d: number) =>
+      d <= (c.confirmed ? FACE_AUTO_MAX_DISTANCE : FACE_PROVEN_AUTO_DISTANCE);
+    const pool: PoolItem[] = [...held];
     let proven = 0;
-    for (const face of loadFaceEmbeddings(engine.faceDb, key, candidates)) {
-      const k = `${face.assetId}\u0000${face.faceIndex}`;
-      const d = minDistance(heldVectors, face.embedding);
-      const isConfirmed = confirmed.has(k);
-      if (!(d <= (isConfirmed ? FACE_AUTO_MAX_DISTANCE : FACE_PROVEN_AUTO_DISTANCE))) {
-        continue;
+    if (bootstrap) {
+      // Grown until stable, held references kept (face-reference-selection.ts).
+      const grown = growUntilStable(held, opened, FACE_MAX_REFERENCES, bound);
+      proven = grown.length;
+      pool.push(...grown);
+    } else {
+      for (const item of opened) {
+        if (bound(item, minDistance(heldVectors, item.embedding))) {
+          proven++;
+          pool.push(item);
+        }
       }
-      proven++;
-      pool.push({
-        key: `face:${face.assetId}:${face.faceIndex}`,
-        embedding: face.embedding,
-        takenAt: captureTimes.get(face.assetId) ?? null,
-        face: { assetId: face.assetId, faceIndex: face.faceIndex },
-        newSource: isConfirmed ? 'photo' : 'matched',
-      });
     }
     const chosen = new Set(selectVariedReferences(pool, FACE_MAX_REFERENCES).map((c) => c.key));
     let dropped = 0;

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { Check, X, CircleCheckBig, ArrowLeft } from '@lucide/svelte';
+  import { invalidate } from '$app/navigation';
+  import { Check, X, CircleCheckBig, ArrowLeft, Maximize2 } from '@lucide/svelte';
+  import FacePhotoDialog from '#lib/components/FacePhotoDialog.svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import PageHeader from '#lib/components/PageHeader.svelte';
   import LoadingState from '#lib/components/LoadingState.svelte';
@@ -28,6 +30,8 @@
   /** The faces whose answer is on its way, so a double tap answers once. */
   let answering = $state<string[]>([]);
   let grid: HTMLUListElement | undefined = $state();
+  /** The face whose whole photo is open (null: none). */
+  let opened = $state<Suggestion | null>(null);
 
   async function load() {
     loading = true;
@@ -77,6 +81,9 @@
         toast.error(m.mpc_answer_error());
         return false;
       }
+      // Recorded (or already settled elsewhere): the menu's badge and the "Mes photos" banner read
+      // the layout's count, so they are refreshed now, not at the next full page load.
+      void invalidate('app:face-status');
       if (res.ok) {
         const body = (await res.json()) as { released?: Suggestion[]; promoted?: Suggestion[] };
         const released = (body.released ?? []).map(answerKey);
@@ -129,6 +136,9 @@
     } else if (key === 'n' || key === 'delete' || key === 'backspace') {
       event.preventDefault();
       void answerAt(index, 'reject');
+    } else if (key === ' ' || key === 'v') {
+      event.preventDefault();
+      opened = suggestions[index] ?? null;
     } else if (
       key === 'arrowright' ||
       key === 'arrowdown' ||
@@ -204,6 +214,16 @@
               faceIndex={item.face_index}
               alt={m.mpc_face_alt()}
             />
+            <button
+              type="button"
+              class="confirm-open"
+              tabindex="-1"
+              aria-label={m.mpc_open_photo()}
+              title={m.mpc_open_photo()}
+              onclick={() => (opened = item)}
+            >
+              <Maximize2 size={16} aria-hidden="true" />
+            </button>
           </div>
           <div class="confirm-actions">
             <button
@@ -232,6 +252,16 @@
     </ul>
   {/if}
 </div>
+
+<FacePhotoDialog
+  item={opened}
+  onClose={() => (opened = null)}
+  onAnswer={(verdict) => {
+    const item = opened;
+    opened = null;
+    if (item) void answer(item, verdict);
+  }}
+/>
 
 <style>
   .confirm-main {
@@ -305,6 +335,27 @@
   .confirm-face {
     position: relative;
     aspect-ratio: 1;
+  }
+
+  /* Opens the whole photo. Small and in the corner so the face stays the target of the eye; the
+     whole tile is not the button, a stray tap on it must never answer or open by accident. */
+  .confirm-open {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: none;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.55);
+    color: white;
+  }
+
+  .confirm-open:hover {
+    background: rgb(0 0 0 / 0.75);
   }
 
   /* Two answers side by side. The label sits UNDER its icon and may wrap, so neither is ever
