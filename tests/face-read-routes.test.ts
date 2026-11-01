@@ -948,9 +948,8 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
         fetch: requestFetch,
       });
       expect(first.status).toBe(404);
-      for (let i = 0; i < 100 && !pointer('m1').a; i++) {
-        await new Promise((r) => setTimeout(r, 5));
-      }
+      // Awaited, never polled against a clock (a slow runner failed a 500 ms poll).
+      await defaults.defaultPhotoSettled('m1');
     } finally {
       vi.unstubAllGlobals();
     }
@@ -976,11 +975,11 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
       const statuses = (await Promise.all([post(), post()])).map((r) => r.status).sort();
       expect(statuses).toEqual([202, 409]);
       let state_: { status?: string; report?: Record<string, number> } = {};
-      for (let i = 0; i < 200; i++) {
+      // Until the run ends, however long it takes: the test's own timeout is the only bound.
+      do {
+        await new Promise((r) => setImmediate(r));
         state_ = await (await call(route.GET, {})).json();
-        if (state_.status !== 'running') break;
-        await new Promise((r) => setTimeout(r, 5));
-      }
+      } while (state_.status === 'running');
       expect(state_).toMatchObject({ status: 'done', report: { members: 1, set_scored: 1 } });
       // A dry run writes nothing.
       expect(pointer('m1')).toEqual({ a: null, s: null });

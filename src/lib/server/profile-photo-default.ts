@@ -365,7 +365,8 @@ export async function runDefaultProfilePhotos(
   return report;
 }
 
-const inFlight = new Set<string>();
+/** The background re-evaluation of each member, while it runs. */
+const inFlight = new Map<string, Promise<void>>();
 
 /**
  * Re-evaluate one member's default in the background (the avatar found no valid photo). At most
@@ -379,11 +380,19 @@ export function scheduleDefaultProfilePhoto(
   if (inFlight.has(userId)) {
     return;
   }
-  inFlight.add(userId);
-  void ensureDefaultProfilePhoto(engine, userId, fetchFn)
+  const run = ensureDefaultProfilePhoto(engine, userId, fetchFn)
     .then((outcome) => log.info('default profile photo re-evaluated', { outcome }))
     .catch((e: unknown) =>
       log.error('default profile photo re-evaluation failed', { message: (e as Error).message })
     )
     .finally(() => inFlight.delete(userId));
+  inFlight.set(userId, run);
+}
+
+/**
+ * The end of `userId`'s background re-evaluation when one runs, else an already settled promise.
+ * Never rejects. What a caller that must see its result awaits (the tests), instead of a clock.
+ */
+export function defaultPhotoSettled(userId: string): Promise<void> {
+  return inFlight.get(userId) ?? Promise.resolve();
 }
