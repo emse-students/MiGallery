@@ -929,6 +929,11 @@ alone sets the width and the gutter, which this page used to add a second time (
     align-items: center;
   }
 
+  /* "Autoriser" is as tall as the field beside it. */
+  .permission-add-row .btn {
+    min-height: var(--st-control-height);
+  }
+
   .user-selector {
     flex: 1;
     position: relative;
