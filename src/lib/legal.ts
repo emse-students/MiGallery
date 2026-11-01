@@ -4,7 +4,7 @@
  * Change it - and only it - when the terms change in substance; a member's consent row keeps the
  * version they agreed to.
  */
-export const TERMS_VERSION = '2026-10-31';
+export const TERMS_VERSION = '2026-11-01';
 
 /** The version recorded for a consent that predates the consent table. */
 export const LEGACY_CONSENT_VERSION = 'legacy';

@@ -43,12 +43,16 @@ export function memberPhotoAssetIds(db: DatabaseInstance, userId: string): strin
   return rows.map((r) => r.asset_id);
 }
 
-/** The faces given to `userId` that wait for their yes or no, oldest first. */
+/**
+ * The faces given to `userId` that wait for their yes or no, NEAREST FIRST (owner, 2026-11-01): the
+ * likeliest to be theirs at the top, so "confirm all above" is safe where the list is surest. Ties
+ * by the face's key, so the order is total. The order is all that leaves: never the distance.
+ */
 export function pendingSuggestions(db: DatabaseInstance, userId: string): FaceKey[] {
   const rows = db
     .prepare(
       `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ? AND ${TO_CONFIRM}
-        ORDER BY created_at, asset_id, face_index`
+        ORDER BY distance, asset_id, face_index`
     )
     .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
   return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
@@ -98,6 +102,29 @@ export function visibleProfileFaces(db: DatabaseInstance, userId: string): FaceK
     )
     .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
   return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
+}
+
+/**
+ * The capture date (ms) of each asset Immich still has, by id: `fileCreatedAt` (Immich's capture
+ * date, from the photo's metadata), else `localDateTime`. An asset Immich no longer has, or one
+ * without a readable date, is absent from the map. Throws as searchAssetsByIds does.
+ */
+export async function assetCaptureTimes(
+  fetchFn: typeof fetch,
+  assetIds: readonly string[]
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (assetIds.length === 0) {
+    return out;
+  }
+  for (const asset of await searchAssetsByIds(fetchFn, [...new Set(assetIds)])) {
+    const t = Date.parse(asset.fileCreatedAt ?? asset.localDateTime ?? '');
+    if (Number.isFinite(t)) {
+      out.set(asset.id, t);
+    }
+  }
+  log.debug('capture dates read', { asked: assetIds.length, dated: out.size });
+  return out;
 }
 
 /** What the screens need to know of a member's face matching, as counts. */

@@ -90,14 +90,14 @@ function match(
   asset: string,
   band: 'auto' | 'suggested',
   st: 'pending' | 'confirmed' | 'rejected',
-  { face = 0, created = 1, model = FACE_MODEL } = {}
+  { face = 0, created = 1, model = FACE_MODEL, distance = 0.42 } = {}
 ) {
   db()
     .prepare(
       `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band, state, created_at)
-       VALUES (?, ?, ?, ?, 0.42, 0.9, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, 0.9, ?, ?, ?)`
     )
-    .run(asset, face, model, user, band, st, created);
+    .run(asset, face, model, user, distance, band, st, created);
 }
 
 /** The stored box of a face, in the frame of the synthetic preview. */
@@ -280,15 +280,18 @@ describe("which faces are a member's photos (face-photos.ts)", () => {
     expect(photos.faceStatus(db(), 'm1')).toEqual({ enrolled: true, photos: 1, toConfirm: 0 });
   });
 
-  it('the faces to confirm are the pending suggested ones only', () => {
-    match('m1', 'a', 'suggested', 'pending', { created: 3 });
-    match('m1', 'b', 'suggested', 'pending', { face: 2, created: 1 });
+  it('the faces to confirm are the pending suggested ones only, NEAREST first (faces v2)', () => {
+    // The nearer face is the NEWER match: an order by age would put it last.
+    match('m1', 'a', 'suggested', 'pending', { created: 1, distance: 0.6 });
+    match('m1', 'z', 'suggested', 'pending', { created: 2, distance: 0.55 });
+    match('m1', 'b', 'suggested', 'pending', { face: 2, created: 3, distance: 0.51 });
     match('m1', 'c', 'suggested', 'confirmed');
     match('m1', 'd', 'auto', 'pending');
     match('m1', 'e', 'suggested', 'rejected');
     match('m2', 'f', 'suggested', 'pending');
     expect(photos.pendingSuggestions(db(), 'm1')).toEqual([
       { assetId: 'b', faceIndex: 2 },
+      { assetId: 'z', faceIndex: 0 },
       { assetId: 'a', faceIndex: 0 },
     ]);
   });

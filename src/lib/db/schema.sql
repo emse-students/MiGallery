@@ -177,10 +177,13 @@ CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
 -- references are NOT told apart from one another. `secure_delete`
 -- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
 --
--- face_references: the 3-5 reference embeddings of a consenting member (source: 'selfie' |
--- 'photo' | 'admin' | 'seed', the last written only by the A7 seed). The trigger holds the cap at FACE_MAX_REFERENCES (5) per member AND model
--- whoever inserts (a test pins the number against the constant). An
--- account deletion takes them by cascade.
+-- face_references: up to 15 reference embeddings of a consenting member (source: 'selfie' |
+-- 'photo' (a face they confirmed) | 'matched' (an `auto` face proven theirs, faces v2) | 'admin'
+-- | 'seed', the last written only by the A7 seed). `asset_id`/`face_index` name the stored face a
+-- reference was taken from (NULL for a selfie and for the A7 seed's), `taken_at` the capture date
+-- of its photo (ms; the selfie's is its enrolment), which renewal reads. The trigger holds the cap
+-- at FACE_MAX_REFERENCES (15) per member AND model whoever inserts (a test pins the number against
+-- the constant; database.ts replaces an older trigger). An account deletion takes them by cascade.
 CREATE TABLE IF NOT EXISTS face_references (
     id INTEGER PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -188,15 +191,55 @@ CREATE TABLE IF NOT EXISTS face_references (
     source TEXT NOT NULL,
     sealed BLOB NOT NULL,
     created_at INTEGER NOT NULL,
+    asset_id TEXT,
+    face_index INTEGER,
+    taken_at INTEGER,
     FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_face_references_user ON face_references(user_id);
 CREATE TRIGGER IF NOT EXISTS trg_face_references_cap
 BEFORE INSERT ON face_references
-WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= 5
+WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= 15
 BEGIN
-    SELECT RAISE(ABORT, 'face_references: at most 5 per member and model');
+    SELECT RAISE(ABORT, 'face_references: at most 15 per member and model');
 END;
+
+-- face_negatives (faces v2, owner 2026-11-01): a face a member answered "not me" on, kept sealed
+-- like a reference (its own context, so a negative never opens as a reference) for THAT member
+-- only: a face nearer one of their negatives than to their nearest reference is not offered to
+-- them. At most FACE_MAX_NEGATIVES (30) per member and model (the trigger; the code drops the most
+-- redundant first). Withdrawal deletes them with the references; an account deletion by cascade.
+CREATE TABLE IF NOT EXISTS face_negatives (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    asset_id TEXT NOT NULL,
+    face_index INTEGER NOT NULL,
+    sealed BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(user_id, model, asset_id, face_index),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_face_negatives_user ON face_negatives(user_id);
+CREATE TRIGGER IF NOT EXISTS trg_face_negatives_cap
+BEFORE INSERT ON face_negatives
+WHEN (SELECT COUNT(*) FROM face_negatives WHERE user_id = NEW.user_id AND model = NEW.model) >= 30
+BEGIN
+    SELECT RAISE(ABORT, 'face_negatives: at most 30 per member and model');
+END;
+
+-- face_reference_selection (faces v2): which version of the reference selection last chose a
+-- member's references (FACE_REFERENCE_SELECTION_VERSION). A member below it is re-selected once, in
+-- the background (face-reference-upgrade.ts); the row is written in the same transaction as the
+-- new references, so a crash resumes and a done member is never redone. Withdrawal deletes it.
+CREATE TABLE IF NOT EXISTS face_reference_selection (
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    selected_at INTEGER NOT NULL,
+    PRIMARY KEY(user_id, model),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
 
 -- face_embeddings (every detected face, non-members included) is NOT in this file: it lives in
 -- data/faces.db (src/lib/db/face-database.ts), which no backup copies, because the faces are

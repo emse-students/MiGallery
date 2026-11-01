@@ -40,7 +40,7 @@ import { getFaceStoreState, setFaceStoreState } from '#lib/db/face-database.ts';
 import type { DatabaseInstance } from '#lib/db/database.ts';
 import {
   FACE_EMBEDDING_DIM,
-  FACE_MAX_REFERENCES,
+  FACE_SEED_REFERENCES,
   FACE_MODEL,
   cosineDistance,
   encodeEmbedding,
@@ -429,7 +429,7 @@ type Nearest = Array<{ d: number; face: FaceKey; embedding: Float32Array }>;
 
 /**
  * What both the dry run and the real finish read, writing nothing: the links, the linked persons,
- * and per person the FACE_MAX_REFERENCES faces nearest its centroid (two streamed scans).
+ * and per person the FACE_SEED_REFERENCES faces nearest its centroid (two streamed scans).
  */
 async function planReferences(engine: FaceEngine): Promise<{
   persons: Map<string, string>;
@@ -464,7 +464,7 @@ async function planReferences(engine: FaceEngine): Promise<{
   for (const [person, { sum, n }] of sums) {
     centroids.set(person, normalizeEmbedding(Float32Array.from(sum, (v) => v / n)));
   }
-  // The FACE_MAX_REFERENCES nearest faces per person, kept as a small sorted list.
+  // The FACE_SEED_REFERENCES nearest faces per person, kept as a small sorted list.
   const nearest = new Map<string, Nearest>();
   await scanFaceStore(faceDb, engine.key, (face, embedding) => {
     const person = personOf.get(`${face.assetId}\u0000${face.faceIndex}`);
@@ -474,10 +474,10 @@ async function planReferences(engine: FaceEngine): Promise<{
     }
     const d = cosineDistance(centroid, embedding);
     const list = nearest.get(person) ?? [];
-    if (list.length < FACE_MAX_REFERENCES || d < list[list.length - 1].d) {
+    if (list.length < FACE_SEED_REFERENCES || d < list[list.length - 1].d) {
       list.push({ d, face, embedding });
       list.sort((a, b) => a.d - b.d);
-      list.length = Math.min(list.length, FACE_MAX_REFERENCES);
+      list.length = Math.min(list.length, FACE_SEED_REFERENCES);
       nearest.set(person, list);
     }
   });
@@ -549,7 +549,9 @@ export async function dryRunSeed(
         report.skipped.noConsent++;
         continue;
       }
-      const room = FACE_MAX_REFERENCES - (held.get(userId, FACE_MODEL) as { n: number }).n;
+      // The seed tops a member up to FACE_SEED_REFERENCES, as it always did (faces v2 raised the
+      // cap to 15; the re-selection, not the seed, fills the rest).
+      const room = FACE_SEED_REFERENCES - (held.get(userId, FACE_MODEL) as { n: number }).n;
       const wouldWrite = Math.max(0, Math.min(chosen.length, room));
       report.referencedMembers++;
       report.referencesPerMember[wouldWrite] = (report.referencesPerMember[wouldWrite] ?? 0) + 1;
@@ -610,8 +612,13 @@ export async function finishSeed(
         if (!stillConsents.get(userId, person)) {
           return -1;
         }
+        const held = (
+          db
+            .prepare('SELECT COUNT(*) AS n FROM face_references WHERE user_id = ? AND model = ?')
+            .get(userId, FACE_MODEL) as { n: number }
+        ).n;
         let n = 0;
-        for (const { embedding } of chosen) {
+        for (const { embedding } of chosen.slice(0, Math.max(0, FACE_SEED_REFERENCES - held))) {
           if (addFaceReference(db, engine.key, userId, 'seed', embedding, now)) {
             n++;
           }

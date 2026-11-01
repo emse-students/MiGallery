@@ -13,20 +13,51 @@
  * - A member who REJECTED the face is never offered it, but still counts as the runner-up: a face
  *   one member rejected at 0.20 is a lookalike case for the next one at 0.40, never `auto`.
  * - Above FACE_SUGGEST_MAX_DISTANCE, nobody.
+ * - A member's NEGATIVES (faces they answered "not me" on, owner 2026-11-01): a face closer to one
+ *   of them than to the member's nearest reference is not offered to that member, exactly as if
+ *   they had rejected it - still the runner-up, so it never goes `auto` to the next member on their
+ *   account. A member's negatives decide only whether THAT member is offered a face: they never
+ *   move another member's distance, so rejecting one's own faces only hurts oneself.
  */
 
 import {
   FACE_AMBIGUITY_MARGIN,
   FACE_MIN_REFERENCES,
+  FACE_SUGGEST_MAX_DISTANCE,
   classifyDistance,
   minDistance,
   type FaceBand,
 } from '#lib/face-embedding.ts';
 
-/** One enrolled member and their opened references. Biometric: never serialised. */
+/** One enrolled member, their opened references and negatives. Biometric: never serialised. */
 export interface MemberReferences {
   userId: string;
   refs: ReadonlyArray<ArrayLike<number>>;
+  /** Faces they answered "not me" on (face_negatives), opened. */
+  negatives?: ReadonlyArray<ArrayLike<number>>;
+}
+
+/**
+ * Whether the member's own negatives withhold a face from them: it lies closer (strictly) to one of
+ * their negatives than to their nearest reference, `d`. Only asked within the suggested band:
+ * beyond it they are not offered the face anyway. A corrupt negative (NaN) withholds it - the safe
+ * side for that member alone - and is reported.
+ */
+export function withheldByNegative(
+  member: MemberReferences,
+  candidate: ArrayLike<number>,
+  d: number,
+  onInvalid?: () => void
+): boolean {
+  if (!member.negatives || member.negatives.length === 0 || d > FACE_SUGGEST_MAX_DISTANCE) {
+    return false;
+  }
+  const nearestNegative = minDistance(member.negatives, candidate);
+  if (Number.isNaN(nearestNegative)) {
+    onInvalid?.();
+    return true;
+  }
+  return nearestNegative < d;
 }
 
 /** Who a face goes to. `runnerUp` is the next member's distance (null: there is none). */
@@ -62,6 +93,8 @@ export interface DecideReports {
   invalidReference?: (userId: string) => void;
   /** The face itself is not a usable vector: nobody is matched, reported ONCE. */
   invalidCandidate?: () => void;
+  /** A member's negative is not a usable vector: the face is withheld from that member. */
+  invalidNegative?: (userId: string) => void;
 }
 
 /** Whether every component of a vector is a finite number. */
@@ -76,7 +109,8 @@ function finiteVector(v: ArrayLike<number>): boolean {
 
 /**
  * The decision for one face against every member. `excluded` are members who must not be offered
- * it (they rejected it); they still count as the runner-up. A face that is not a usable vector
+ * it (they rejected it), and so is a member whose negatives withhold it ({@link withheldByNegative});
+ * both still count as the runner-up. A face that is not a usable vector
  * matches nobody and is reported once as the face's fault; a member whose distance is NaN (a
  * corrupt reference) is skipped and reported, never matched.
  */
@@ -104,7 +138,10 @@ export function decideFace(
       reports?.invalidReference?.(member.userId);
       continue;
     }
-    if (excluded?.has(member.userId)) {
+    if (
+      excluded?.has(member.userId) ||
+      withheldByNegative(member, candidate, d, () => reports?.invalidNegative?.(member.userId))
+    ) {
       nearestExcluded = Math.min(nearestExcluded, d);
       continue;
     }

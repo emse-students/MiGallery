@@ -519,20 +519,20 @@
   "cgu_s4_intro": "Face recognition processes <strong>biometric data</strong>, a special category of data. Its legal basis is your <strong>explicit consent</strong> (GDPR article 9.2.a): you are free to refuse or withdraw it, and the rest of the Service keeps working.",
   "cgu_s4_tech_title": "What happens, precisely",
   "cgu_s4_store": "<strong>For every photo, with no action on your part:</strong> each face detected in a photo of the library (<em>buffalo_l</em> model) is turned into a <strong>digital face print</strong>: a series of numbers computed by a mathematical model, not a picture. MiGallery keeps one encrypted print for every face of the library, <strong>member or not</strong>. These prints carry no name and are not grouped by person: a face is tied to someone only by comparing it with the references of a member who agreed (see below). One exception, once only, when this design is put in place: the faces Immich had already linked to a member's account are grouped just long enough to compute that member's references (a working list and an average of those faces, both erased at the end of that step). The analysis runs on the same server as the photos, by Immich's analysis service, which MiGallery reaches over an internal network reserved to the two of them; no outside provider is involved. This processing concerns anyone appearing in a photo, member or not: to object, write to us (see Your rights).",
-  "cgu_s4_init": "<strong>Your agreement and your references:</strong> you turn recognition on yourself, in the <a href=\"/parametres\">settings</a>, by ticking the agreement box and then taking a selfie. Its print becomes your first <strong>reference</strong>, and MiGallery records the date, the version of these terms and how you agreed (<em>selfie</em>). A face you confirm afterwards becomes a reference too, up to 5, only when it closely resembles a reference you already hold: a face confirmed with a weaker resemblance enters \"My Photos\" but is never used as a reference. If your account was already linked to an Immich face group (the former design, see below), your references were taken among the faces of that group, so from your own photos, and only if you had not withdrawn; the origin recorded at the time is kept until your first selfie, whose agreement replaces it (<em>selfie</em>, <em>administrator</em>, or <em>legacy</em> for links made before this record existed, collected by another means).",
+  "cgu_s4_init": "<strong>Your agreement and your references:</strong> you turn recognition on yourself, in the <a href=\"/parametres\">settings</a>, by ticking the agreement box and then taking a selfie. Its print becomes your first <strong>reference</strong>, and MiGallery records the date, the version of these terms and how you agreed (<em>selfie</em>). A face you confirm afterwards may become a reference too, only when it closely resembles a reference you already hold: a face confirmed with a weaker resemblance enters \"My Photos\" but is never used as a reference. You hold at most <strong>15 references</strong>, chosen to be <strong>varied</strong> (different angles, lights, ages) rather than alike; once you hold 15, a new reference replaces the most redundant one, keeping the more recent of the two by the photos' capture date, so that your references follow your face over time. Your selfie always stays a reference. Photos the comparison already gave you with a very strong resemblance may also serve as references, under the same rule. If your account was already linked to an Immich face group (the former design, see below), your references were taken among the faces of that group, so from your own photos, and only if you had not withdrawn; the origin recorded at the time is kept until your first selfie, whose agreement replaces it (<em>selfie</em>, <em>administrator</em>, or <em>legacy</em> for links made before this record existed, collected by another means).",
   "cgu_s4_selfie": "<strong>The selfie:</strong> the server analyses it in memory and then forgets it; it is never stored, neither in MiGallery nor in Immich. Only its print is kept. A selfie showing more than one face is refused, and nothing of it is kept.",
-  "cgu_s4_match": "<strong>How your photos are found:</strong> every face of the library is compared with the references of the members who agreed, and can go to <strong>one</strong> member only, the one it resembles most. When the resemblance is strong, the photo goes straight into \"My Photos\". When it is weaker, when another member resembles it almost as much, or while you hold fewer than 3 references, the face is first <strong>offered</strong> to you on a confirmation screen, with a picture of the face cut out for you alone: it enters \"My Photos\" only if you answer \"It's me\"; \"Not me\" sets it aside, it is never offered to you again and may go to another member. Mistakes remain possible: a photo that is not of you may be shown or offered to you.",
+  "cgu_s4_match": "<strong>How your photos are found:</strong> every face of the library is compared with the references of the members who agreed, and can go to <strong>one</strong> member only, the one it resembles most. When the resemblance is strong, the photo goes straight into \"My Photos\". When it is weaker, when another member resembles it almost as much, or while you hold fewer than 3 references, the face is first <strong>offered</strong> to you on a confirmation screen, with a picture of the face cut out for you alone: it enters \"My Photos\" only if you answer \"It's me\"; \"Not me\" sets it aside, it is never offered to you again and may go to another member; its print is kept, encrypted, as a <strong>negative example</strong> for you alone (at most 30): a face that resembles it more than your references is no longer offered to you. Your negative examples change nothing for other members. A photo that entered \"My Photos\" stays there: a new comparison may add photos for you, never take one away; only your \"Not me\", or another member confirming that face, takes it out. Mistakes remain possible: a photo that is not of you may be shown or offered to you.",
   "cgu_s4_cutover": "<strong>The former design:</strong> until now, Immich itself grouped faces into anonymous groups, and a member linked a group to their account. MiGallery no longer uses those groups. At the cutover to the design described here, they are deleted from Immich, with their faces and prints; an encrypted copy of what is deleted is kept for 30 days, then deleted.",
   "cgu_s4_myphotos_title": "My Photos and sharing",
   "cgu_s4_myphotos_body": "\"My Photos\" is visible to you, to the library administrators and to the people you open it to. The faces offered to you, and their cut-out pictures, are shown to you alone.",
   "cgu_s4_spectator": "<strong>Spectator mode:</strong> you may allow other users to see your identified photos. This is your choice and can be revoked at any time.",
   "cgu_s4_revoke_title": "Withdrawing your consent",
-  "cgu_s4_revoke_body": "You can withdraw in <a href=\"/parametres\">Settings → Danger zone</a>, or by deleting your account. Immediately, MiGallery deletes your references, the list of photos given to you and your answers, the face pictures cut out for you, your profile photo and the sharing permissions you had given; the record of your agreement is closed with the date of the withdrawal. The faces that were given to you may then go to another member who resembles them. <strong>Withdrawal does not touch the prints of all the faces of the library</strong>, yours included: with no name and no reference, they are tied to nobody, and they go with their photo (to have a photo removed, write to us). Until the cutover, MiGallery also erases your name on the anonymous Immich group that was linked to your account. Backups keep the previous state until they rotate out (see below).",
+  "cgu_s4_revoke_body": "You can withdraw in <a href=\"/parametres\">Settings → Danger zone</a>, or by deleting your account. Immediately, MiGallery deletes your references, your negative examples, the list of photos given to you and your answers, the face pictures cut out for you, your profile photo and the sharing permissions you had given; the record of your agreement is closed with the date of the withdrawal. The faces that were given to you may then go to another member who resembles them. <strong>Withdrawal does not touch the prints of all the faces of the library</strong>, yours included: with no name and no reference, they are tied to nobody, and they go with their photo (to have a photo removed, write to us). Until the cutover, MiGallery also erases your name on the anonymous Immich group that was linked to your account. Backups keep the previous state until they rotate out (see below).",
   "cgu_s5_title": "5. Data, legal bases and retention",
   "cgu_s5_items_title": "Which data, what for, on what basis",
   "cgu_s5_item_account": "<strong>Account</strong> (identifier, last name, first name, class year, programme, role, language, favourites): to recognise you and manage access. Basis: performance of the service you request.",
   "cgu_s5_item_photos": "<strong>Student-life photos:</strong> to archive them and show them to members. Basis: the association's legitimate interest in keeping the memory of life at the School; you may object, or ask for a photo to be blurred or deleted (see Your rights).",
-  "cgu_s5_item_face": "<strong>Your face</strong> (your references, the photos given to you and your answers, the face pictures cut out for you, your profile photo, the consent record): the \"My Photos\" feature. Basis: your explicit consent.",
+  "cgu_s5_item_face": "<strong>Your face</strong> (your references, your negative examples, the photos given to you and your answers, the face pictures cut out for you, your profile photo, the consent record): the \"My Photos\" feature. Basis: your explicit consent.",
   "cgu_s5_item_store": "<strong>Prints of every face of the library</strong> (one per detected face, member or not, encrypted, with no name): finding the photos of the members who asked for it (see section 4).",
   "cgu_s5_item_logs": "<strong>Technical logs</strong> (action, date, IP address): security and traceability of administration actions. Basis: the legitimate interest in protecting the Service.",
   "cgu_s5_retention_title": "Retention",
@@ -917,6 +917,43 @@
   "mpc_me": "It's me",
   "mpc_not_me": "Not me",
   "mpc_answer_error": "Your answer could not be saved. Try again.",
+  "mpc_order_hint": "Closest matches first.",
+  "mpc_keys_hint": "Keyboard: Y or Enter for \"It's me\", N or Delete for \"Not me\", arrows to move.",
+  "mpc_card_label": "Photo {index} of {total}",
+  "mpc_confirm_up_to": "Up to here",
+  "mpc_confirm_up_to_label": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Confirm this photo and the one above",
+        "countPlural=*": "Confirm this photo and the {count} above"
+      }
+    }
+  ],
+  "mpc_confirm_up_to_title": "Confirm everything up to here?",
+  "mpc_confirm_up_to_body": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "This photo will join your photos.",
+        "countPlural=*": "These {count} photos will join your photos. Check that it is you on each of them."
+      }
+    }
+  ],
+  "mpc_confirm_up_to_action": "Confirm all",
+  "mpc_bulk_progress": "Confirming… {done}/{total}",
+  "mpc_released": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "One more similar photo is no longer offered to you.",
+        "countPlural=*": "{count} more similar photos are no longer offered to you."
+      }
+    }
+  ],
   "mpc_crop_missing": "Picture unavailable",
   "mpc_crop_failed": "Picture not loaded",
   "mpc_crop_retry": "Retry",
