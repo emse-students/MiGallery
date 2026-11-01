@@ -420,5 +420,5 @@ export function scheduleDefaultProfilePhoto(
  * next one, since a run left in flight makes the next schedule for that member a no-op.
  */
 export async function defaultPhotosSettled(): Promise<void> {
-  await Promise.all([...inFlight.values()]);
+  await Promise.all(inFlight.values());
 }
