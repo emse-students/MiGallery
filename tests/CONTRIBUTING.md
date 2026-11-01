@@ -450,7 +450,7 @@ it('should create an album', async () => {
 ```typescript
 it('should handle Immich unavailable', async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/people/people`, {
+    const response = await fetch(`${API_BASE_URL}/api/albums`, {
       headers: getAuthHeaders(API_KEY),
       signal: AbortSignal.timeout(10000),
     });

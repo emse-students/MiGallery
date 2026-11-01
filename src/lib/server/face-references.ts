@@ -18,8 +18,12 @@ const log = createLogger('face-references');
 
 type Db = ReturnType<typeof getDatabase>;
 
-/** How a reference came to be. */
-export type ReferenceSource = 'selfie' | 'photo' | 'admin';
+/**
+ * How a reference came to be. `photo` is a face the member confirmed; `seed` one the A7 seed chose
+ * from the member's own Immich person - told apart so a failed seed's are wiped by the next `begin`
+ * without touching any the member gave.
+ */
+export type ReferenceSource = 'selfie' | 'photo' | 'admin' | 'seed';
 
 /**
  * Store one reference for `userId`. Returns false, storing nothing, when the member already holds

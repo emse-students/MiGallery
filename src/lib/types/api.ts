@@ -17,6 +17,8 @@ export interface User {
   last_name?: string | null;
   photos_id?: string | null;
   photos_asset_id?: string | null;
+  /** Face matching is on for them (the session's view, lot A6). */
+  face_enrolled?: boolean;
   role?: 'admin' | 'mitviste' | 'user';
   promo?: number | null;
   formation?: string | null;

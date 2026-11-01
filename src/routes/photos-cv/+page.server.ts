@@ -10,9 +10,10 @@ export const load: PageServerLoad = async ({ parent, url }) => {
     throw redirect(303, loginBounceTarget(url.pathname + url.search));
   }
 
+  // Without face matching a member has no CV photo of their own: /mes-photos says how to start.
   const canManagePhotos = user.role === 'admin' || user.role === 'mitviste';
-  if (!user.photos_id && !canManagePhotos) {
-    throw redirect(303, '/');
+  if (!user.face_enrolled && !canManagePhotos) {
+    throw redirect(303, '/mes-photos');
   }
 
   return {};

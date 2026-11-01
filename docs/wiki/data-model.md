@@ -5,22 +5,30 @@ MiGallery's local database is a single SQLite file (`DATABASE_PATH`, default
 (`src/lib/db/database.ts`). The schema is `src/lib/db/schema.sql`.
 
 The local DB stores **only what Immich does not**: identity/roles, album
-visibility and permissions, favorites, photo-access consent, logs and API keys.
-Media, thumbnails, faces and the underlying albums/assets live in Immich. IDs in
-the local DB match the corresponding Immich UUIDs.
+visibility and permissions, favorites, photo-access consent, the face references
+and matches of consenting members, logs and API keys. Media, thumbnails and the
+underlying albums/assets live in Immich. IDs in the local DB match the
+corresponding Immich UUIDs.
+
+A second SQLite file, `data/faces.db` (`FACE_DATABASE_PATH`,
+`src/lib/db/face-database.ts`), holds the face store: one sealed embedding per
+detected face of the whole library. It is kept apart so that no backup copies it
+([the face tables](#the-face-tables-two-files)). Until lot A8, Immich still holds
+its own faces, persons and embeddings as well.
 
 ## Tables
 
 ### `users`
 
-| Column                            | Notes                                                      |
-| --------------------------------- | ---------------------------------------------------------- |
-| `id_user` TEXT PK                 | the OIDC `sub`                                             |
-| `name`, `first_name`, `last_name` | display identity                                           |
-| `photos_id` TEXT                  | linked Immich person id (for face-based "my photos")       |
-| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`            |
-| `promo` INTEGER                   | graduation year, **mirrored from the SSO, nulls included** |
-| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                                   |
+| Column                            | Notes                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `id_user` TEXT PK                 | the OIDC `sub`                                                                                    |
+| `name`, `first_name`, `last_name` | display identity                                                                                  |
+| `photos_id` TEXT                  | legacy Immich person link: READ BY NOTHING since lot A6, kept for the A7 seed; admin-written only |
+| `photos_asset_id` TEXT            | the profile photo, one of the member's own face-matched photos (A6)                               |
+| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`                                                   |
+| `promo` INTEGER                   | graduation year, **mirrored from the SSO, nulls included**                                        |
+| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                                                                          |
 
 ### `albums` and permissions
 
@@ -99,11 +107,32 @@ backfilled at start; its `created_at` is the backfill date, not the consent date
 that proof). A withdrawal sets `withdrawn_at`; an account deletion cascades. See
 [photos-cv.md](photos-cv.md#consent-record).
 
-### `face_matches` and `face_references`
+### The face tables, two files
 
-The face store (option C): a member's sealed reference embeddings and which stored faces were given
-to whom, with the member's answer. Every detected face itself lives in a second file,
-`data/faces.db`, that no backup copies. See [face-matching-option-c](face-matching-option-c.md).
+The face store of option C ([face-matching-option-c](face-matching-option-c.md), the reference
+for the mechanism). Every embedding is a float16 512-d vector sealed with AES-256-GCM under
+`FACE_STORE_KEY`, bound to its member (a reference) or to its asset and face index (a detected
+face), and tagged with its model.
+
+| Table              | File           | Holds                                                                                                                                                                          | Whose                                      | Written by                                                                       | Backed up |
+| ------------------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | -------------------------------------------------------------------------------- | --------- |
+| `face_embeddings`  | `faces.db`     | one sealed embedding per detected face, its box and image size, the detector score (NULL when seeded)                                                                          | **everyone photographed, non-members too** | ingestion (A3), the seed (A7); its rows go with their asset (`removeAssetFaces`) | **no**    |
+| `face_assets`      | `faces.db`     | per asset: `pending` / `done` / `failed`, attempts, last error, absent listings                                                                                                | assets                                     | ingestion (A3), the seed (A7)                                                    | **no**    |
+| `face_store_state` | `faces.db`     | `seeded_at`, `last_counted_listing_at`                                                                                                                                         | -                                          | the seed (A7), ingestion (A3)                                                    | **no**    |
+| `face_references`  | `migallery.db` | 3 to 5 sealed reference embeddings per member and model (`selfie`, `photo`, `admin`), a trigger holding the cap; never returned by any route                                   | consenting members                         | enrolment and a confirmed answer (A5), the seed's carry-over of the links (A7)   | yes       |
+| `face_matches`     | `migallery.db` | which member a face was given to (`auto` at a distance <= 0.5, `suggested` up to 0.62), the distance and runner-up, the member's answer (`pending` / `confirmed` / `rejected`) | consenting members                         | the match engine only (A4), `claimFace` for the seed's profile photos (A7)       | yes       |
+| `face_consents`    | `migallery.db` | see above                                                                                                                                                                      | members                                    | enrolment (A5), an admin link, the legacy backfill                               | yes       |
+
+**Erasure.** A member's withdrawal, an unlink and an account deletion run `eraseLocalFaceData`
+(`src/lib/server/face-erasure.ts`): their references and matches go and their consent closes in
+ONE transaction, their crops (`data/cache/faces/members/<hash>/`, not in any backup) right after
+the commit ([photos-cv](photos-cv.md#erasure)). `face_references` and `face_matches` also cascade
+on the account row. The rows of `faces.db` are never part of a member's erasure: they carry no
+member, and go with their asset. **The whole store is erased by deleting `faces.db` or rotating
+`FACE_STORE_KEY`.**
+
+**The A1 table in `migallery.db`.** A1 created `face_embeddings` there; no code path ever wrote it,
+and A3 drops it at start when it is empty (a non-empty one is left and reported).
 
 ### `face_erasures`
 
@@ -128,6 +157,13 @@ API keys with scopes; see [authentication.md](authentication.md).
 
 ## Backups
 
-The DB is backed up daily (scheduler started in `hooks.server.ts`) and pushed
-offsite (see [deployment.md](deployment.md)). Media is not backed up here - it
-lives in Immich on the RAID and is handled by Immich's own backup.
+The DB is backed up daily (scheduler started in `hooks.server.ts`, `src/lib/server/backup.ts`,
+the last 10 copies kept under `data/backups/`) and pushed offsite (`scripts/backup-offsite.sh`,
+about 14 days; see [deployment.md](deployment.md)). Both copy `migallery.db` only, so the face
+references, matches and consents are in the backups and **`data/faces.db` is in none**: a lost
+store is seeded or recomputed from the photographs ([face-matching-option-c](face-matching-option-c.md#1-what-is-decided),
+about 22 hours of the model service once Immich no longer holds the vectors). The face crops under
+`data/cache/` are not backed up either. Media is not backed up here - it lives in Immich on the
+RAID and is handled by Immich's own backup; the offsite Immich database dumps (about 7 days) hold
+Immich's own faces, persons and embeddings until lot A8 deletes them (an encrypted copy of what A8
+deletes is kept 30 days, then deleted).

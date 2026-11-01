@@ -8,7 +8,7 @@ const log = createLogger('audit-log');
 
 /**
  * Event types whose row is not only a trace but AUTHORISATION STATE: an `import` row is what makes
- * an upload the member's own (asset-uploads.ts), for deleting it and for the selfie flow. A failed
+ * an upload the member's own (asset-uploads.ts), for deleting it. A failed
  * write of one is reported at error, since the member silently loses those rights over that asset.
  */
 const AUTHORISING_EVENTS: ReadonlySet<string> = new Set(['import']);

@@ -1,6 +1,6 @@
 /**
  * The Immich proxy handler, run as a function against a fake Immich: the one canonical path, the
- * public-asset exception, the admin routes, who may delete which asset, the search body, and the
+ * public-asset exception, the admin routes, who may delete which asset, no search, and the
  * people an asset's detail carries. Ids are synthetic.
  */
 
@@ -182,23 +182,14 @@ describe('a member session', () => {
     expect(forwarded()).toEqual([]);
   });
 
-  it('may search only as the profile photo picker does', async () => {
-    expect((await send('POST', 'search/metadata', { type: 'IMAGE' })).status).toBe(400);
-    expect((await send('POST', 'search/metadata', { personIds: [], type: 'IMAGE' })).status).toBe(
-      400
-    );
+  it('may not search: no search route is listed (lot A6)', async () => {
     expect(
-      (
-        await send('POST', 'search/metadata', {
-          personIds: [PERSON],
-          originalFileName: 'x',
-        })
-      ).status
-    ).toBe(400);
+      (await send('POST', 'search/metadata', { personIds: [PERSON], type: 'IMAGE' })).status
+    ).toBe(404);
     expect(forwarded()).toEqual([]);
   });
 
-  it("never gets the people of an asset's detail; an admin and an API key do", async () => {
+  it("never gets the people of an asset's detail, nor does an admin or an API key (lot A6)", async () => {
     answer = () =>
       Response.json({
         id: VICTIM,
@@ -206,48 +197,51 @@ describe('a member session', () => {
         unassignedFaces: [{ boundingBoxX1: 1 }],
         exifInfo: { make: 'x' },
       });
-    const res = await send('GET', `assets/${VICTIM}`);
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ id: VICTIM, exifInfo: { make: 'x' } });
-    expect(text).not.toContain(PERSON);
-
-    state.auth = member('boss', 'admin');
-    expect(
-      ((await (await send('GET', `assets/${VICTIM}`)).json()) as { people: unknown[] }).people
-    ).toHaveLength(1);
-    state.auth = { user: null, grantedScope: 'read', viaApiKey: true };
-    expect(
-      ((await (await send('GET', `assets/${VICTIM}`)).json()) as { people: unknown[] }).people
-    ).toHaveLength(1);
+    for (const auth of [
+      member('m1'),
+      member('boss', 'admin'),
+      { user: null, grantedScope: 'admin', viaApiKey: true },
+    ]) {
+      state.auth = auth;
+      const res = await send('GET', `assets/${VICTIM}`);
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(JSON.parse(text)).toEqual({ id: VICTIM, exifInfo: { make: 'x' } });
+      expect(text).not.toContain(PERSON);
+    }
   });
 });
 
-describe("a member's stripped asset detail", () => {
-  it("carries none of Immich's validators out, and takes no conditional in", async () => {
+describe('cache validators', () => {
+  it("an answer stripped of its people carries none of Immich's validators, and no JSON route takes a conditional", async () => {
     let conditional: string | null = 'unset';
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
       asked.push(String(url));
       conditional = new Headers(init?.headers).get('if-none-match');
+      if (String(url).endsWith('/thumbnail')) {
+        return new Response('img', { headers: { 'content-type': 'image/webp', etag: 'W/"img"' } });
+      }
       return Response.json(
         { id: VICTIM, people: [{ id: PERSON }] },
         { headers: { etag: 'W/"full"', 'last-modified': 'Thu, 01 Jan 2026 00:00:00 GMT' } }
       );
     });
-    const ask = async () => {
-      const url = new URL(`http://x.test/api/immich/assets/${VICTIM}`);
+    const ask = (path: string) => {
+      const url = new URL(`http://x.test/api/immich/${path}`);
       const request = new Request(url, { headers: { 'if-none-match': 'W/"full"' } });
-      return proxy.GET({ request, url, params: { path: `assets/${VICTIM}` }, fetch } as never);
+      return proxy.GET({ request, url, params: { path }, fetch } as never);
     };
     try {
-      const res = await ask();
-      expect(res.headers.get('etag')).toBeNull();
-      expect(res.headers.get('last-modified')).toBeNull();
-      expect(conditional).toBeNull();
-
-      state.auth = member('boss', 'admin');
-      const full = await ask();
-      expect(full.headers.get('etag')).toBe('W/"full"');
+      for (const auth of [member('m1'), member('boss', 'admin')]) {
+        state.auth = auth;
+        const res = await ask(`assets/${VICTIM}`);
+        expect(res.headers.get('etag')).toBeNull();
+        expect(res.headers.get('last-modified')).toBeNull();
+        expect(conditional).toBeNull();
+      }
+      // The media bytes keep their validators both ways.
+      const img = await ask(`assets/${VICTIM}/thumbnail`);
+      expect(img.headers.get('etag')).toBe('W/"img"');
       expect(conditional).toBe('W/"full"');
     } finally {
       vi.stubGlobal('fetch', async (url: string) => {
@@ -255,60 +249,5 @@ describe("a member's stripped asset detail", () => {
         return answer(String(url));
       });
     }
-  });
-});
-
-describe('GET /api/users/me/face/selfie/[assetId] (the settings page linking flow)', () => {
-  const read = async (assetId: string) => {
-    const route = await import('../src/routes/api/users/me/face/selfie/[assetId]/+server');
-    try {
-      return await route.GET({ params: { assetId }, fetch } as never);
-    } catch (e) {
-      return new Response(null, { status: (e as { status?: number }).status ?? 500 });
-    }
-  };
-
-  const fresh = () => new Date(Date.now() - 60_000).toISOString();
-
-  it("names the one person on the member's fresh upload, and nothing else of the asset", async () => {
-    answer = () =>
-      Response.json({ id: OWN, createdAt: fresh(), people: [{ id: PERSON, name: 'Someone' }] });
-    const res = await read(OWN);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ count: 1, personId: PERSON });
-  });
-
-  it('only counts the people of a photo showing several, or none', async () => {
-    answer = () =>
-      Response.json({ id: OWN, createdAt: fresh(), people: [{ id: PERSON }, { id: VICTIM }] });
-    const res = await read(OWN);
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ count: 2, personId: null });
-    expect(text).not.toContain(PERSON);
-    answer = () => Response.json({ id: OWN, createdAt: fresh(), people: [] });
-    expect(await (await read(OWN)).json()).toEqual({ count: 0, personId: null });
-  });
-
-  it('refuses an upload outside the selfie window, or with no upload date', async () => {
-    // Imported here, not at the top: face-access.ts opens the database, whose path beforeAll sets.
-    const { SELFIE_MAX_AGE_MS } = await import('#lib/server/face-access.ts');
-    const stale = new Date(Date.now() - SELFIE_MAX_AGE_MS - 60_000).toISOString();
-    answer = () => Response.json({ id: OWN, createdAt: stale, people: [{ id: PERSON }] });
-    expect((await read(OWN)).status).toBe(403);
-    answer = () => Response.json({ id: OWN, people: [{ id: PERSON }] });
-    expect((await read(OWN)).status).toBe(403);
-    // More than the minute of allowed clock skew in the future is no upload date either.
-    const ahead = new Date(Date.now() + 5 * 60_000).toISOString();
-    answer = () => Response.json({ id: OWN, createdAt: ahead, people: [{ id: PERSON }] });
-    expect((await read(OWN)).status).toBe(403);
-  });
-
-  it("refuses someone else's asset, a re-uploaded copy, and an API key", async () => {
-    expect((await read(VICTIM)).status).toBe(403);
-    expect((await read(DUP)).status).toBe(403);
-    state.auth = { user: null, grantedScope: 'admin', viaApiKey: true };
-    expect((await read(OWN)).status).toBe(403);
-    expect(asked).toEqual([]);
   });
 });

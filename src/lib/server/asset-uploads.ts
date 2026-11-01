@@ -1,7 +1,7 @@
 /**
  * Who uploaded an Immich asset. Every upload reaches Immich with the one shared key, so Immich
  * cannot say; the only record tying an asset to a member is the proxy's own audit row (`import`,
- * written by finishImmichUpload with the uploader as actor). Read by the selfie checks and by the
+ * written by finishImmichUpload with the uploader as actor). Read by the
  * proxy's rule on deleting assets.
  */
 

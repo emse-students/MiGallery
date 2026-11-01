@@ -23,15 +23,22 @@ export function slimAsset(asset: ImmichAsset) {
 /**
  * One NDJSON line per asset, all in the `full` phase. Gzipped when the client
  * accepts it: Cloudflare does not compress `application/x-ndjson` on its own.
+ * `cacheControl` defaults to `no-cache` (an album's contents); a list derived
+ * from face matches passes `private, no-store`, since "every photo member X
+ * appears in" must not sit in any cache.
  */
-export function assetsNdjsonResponse(assets: ImmichAsset[], request: Request): Response {
+export function assetsNdjsonResponse(
+  assets: ImmichAsset[],
+  request: Request,
+  cacheControl = 'no-cache'
+): Response {
   const body = assets
     .map((asset) => `${JSON.stringify({ phase: 'full', asset: slimAsset(asset) })}\n`)
     .join('');
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/x-ndjson',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': cacheControl,
     Vary: 'Accept-Encoding',
   };
 

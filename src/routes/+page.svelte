@@ -10,7 +10,7 @@
 
   let user = $derived(page.data.session?.user as User | undefined);
   let isAuthenticated = $derived(!!user);
-  let hasIdPhotos = $derived(!!user?.photos_id);
+  let hasIdPhotos = $derived(!!user?.face_enrolled);
 
   // Read from the layout's one draw, never from `new Date()`: the server's clock and the browser's
   // used to disagree, and the greeting flipped once the page hydrated (see `#lib/first-paint.ts`).

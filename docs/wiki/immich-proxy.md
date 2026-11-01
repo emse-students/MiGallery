@@ -17,9 +17,9 @@ Immich REST API with the server-side `IMMICH_API_KEY` after checking access.
   back to the client without buffering. Media caching is delegated to HTTP: the
   proxy forwards `etag`/`cache-control`/`last-modified`, so the browser and the
   reverse proxy hold thumbnails, not the Node process. The one exception is an
-  asset's detail stripped of its people (below): it leaves without Immich's
-  validators and the proxy forwards no conditional header for it, since they
-  describe a body the member never received.
+  answer stripped of its people (below): it leaves without Immich's `etag` and
+  `last-modified`, which describe a body the member never received - so the
+  browser holds no validator to send back for it.
 - **Memoize public-access metadata** with a tiny in-process TTL map, scoped only
   to `checkPublicAssetAccess`. Browsing a public shared album would otherwise
   re-fetch the same asset/album metadata from Immich once per image.
@@ -31,14 +31,14 @@ paths - the ones MiGallery's own pages use - and answers 404 to everything else,
 admin keys included (`src/lib/server/immich-proxy-allowlist.ts`). The path is judged as Immich
 will route it (`.` segments resolved, case and repeated slashes folded, a decoded `?` or `#`
 refused), and ids must be Immich UUIDs. The admin trash routes (`timeline/*`,
-`trash/restore/assets`) also require the admin scope. The consent rule on the person routes
-(`assertProxiedFaceAccess`) still applies on top.
+`trash/restore/assets`) also require the admin scope. No person, face or search route is on
+the list since lot A6, and the refusal below still applies on top of it.
 
 **One path for every decision.** The decoded path is canonicalised ONCE
 (`canonicalProxiedPath`): `.` and `%2e` segments resolved as the URL parser resolves them, case
 folded, slashes collapsed; a path that keeps a `%` after that (a second level of encoding), carries
 its own `?` or `#`, or resolves outside `/api/` is refused (400). That one string is what the
-public-asset exception, the list, the face rule, the body rule, the audit log and the URL sent to
+public-asset exception, the list, the face rule, the audit log and the URL sent to
 Immich all read.
 
 **The public exception** serves an anonymous read of exactly
@@ -56,34 +56,34 @@ API key; a member may delete only assets they uploaded themselves as new files (
   is the one believed, not the first.
 - **Ninety days.** `purgeOldLogs` deletes audit rows older than `LOG_RETENTION_DAYS` (90,
   `src/lib/server/logs.ts`). After that an upload is no longer the member's for this purpose: they
-  cannot delete it through the proxy, and an admin or mitviste has to. The selfie flow is not
-  affected (it only reads uploads younger than half an hour).
+  cannot delete it through the proxy, and an admin or mitviste has to.
 - **Impersonation.** An audit row names the account that ACTED, so an upload made while an admin
   impersonates a member is recorded under the admin. Acting as the member, that upload is not
-  theirs: deleting it, or reading it as a selfie, answers 403. Linking a face is refused outright
-  while impersonating (`/api/users/me/face`).
+  theirs: deleting it answers 403.
 - **A lost row is an error.** The `import` row is authorisation state, so a failed write of it is
   logged at error, not swallowed as a warning (`AUTHORISING_EVENTS` in `logs.ts`), and so is an
   upload answer the proxy could not read to record.
 
-**Search** (`POST search/metadata`) takes only the profile photo picker's body: `personIds`
-(required, then held to the consent rule), `type`, `page`, `size`.
-
-**An asset's detail** reaches a member without its `people` and `unassignedFaces`; an admin
-session and an API key see them. The settings page's selfie flow reads what Immich found on the
-member's own new upload through `GET /api/users/me/face/selfie/[assetId]` instead: a count, and a
-person id only when exactly one person is found, and only for an upload within the selfie window
-(`isFreshSelfie`, half an hour from when Immich received the file, `face-access.ts`); anything older
-answers 403. `selfieProves`, which the link `PATCH` runs, applies the same window.
-
-**An album's detail** (`GET albums/<id>`) carries no people to strip: measured 2026-10-31 on
-the Immich in production (v3.3.3), it no longer lists the album's assets at all, with or without
-`withoutAssets=false`. Re-measure on an Immich upgrade; if assets come back with `people`, strip
-them as the asset detail is.
-
 A page that needs another Immich route adds it to the list, with the page that uses it and a case
 in `tests/immich-proxy-allowlist.test.ts`; anything MiGallery has to join with its own state
 belongs in a dedicated route instead.
+
+## No person, no face - for anyone (lot A6)
+
+The proxy refuses (403), BEFORE anything is forwarded and whoever asks, admins and API keys
+included, every call Immich would answer from its face recognition: any `people/...`,
+`faces/...` or `search/person` path, and any query or JSON body key starting with `personId` or
+`withPeople` (any spelling, any value, empty included, at any depth of the body: Immich v3 nests
+its search conditions under `filter`). One function decides it,
+`assertNoProxiedFaceCall` in `src/lib/server/face-access.ts`; it judges the path Immich will
+route (`.` segments resolved, slashes collapsed, case folded) and refuses a path carrying its own
+`?` or `#` (400). On the way back, a JSON answer of any other call loses its `people` and
+`unassignedFaces` fields (`stripFaceFields`, an asset's detail is the case that carries them); a
+JSON answer that names them and cannot be parsed is refused (502) rather than forwarded. A
+member's photos come from MiGallery's own matches instead
+([face-matching-option-c.md](face-matching-option-c.md#a6---the-read-side)). Pinned by
+`tests/face-access.test.ts` (the rule) and `tests/immich-proxy-faces.test.ts` (the handler, an admin
+session and an API key refused, Immich never asked).
 
 ## Public (unlisted) assets
 

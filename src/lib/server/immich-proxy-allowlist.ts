@@ -3,10 +3,11 @@
  * methods and paths, the ones MiGallery's own pages use. The proxy speaks to Immich with the
  * server's key, so a path that is not listed here is never forwarded, whoever asks - a new Immich
  * endpoint, or one MiGallery never needed, stays out until it is added on purpose with its test
- * (tests/immich-proxy-allowlist.test.ts).
+ * (tests/immich-proxy-allowlist.test.ts). No person, face or search route is listed (lot A6):
+ * face-access.ts refuses those for everyone on top, and every JSON answer loses its face fields.
  *
  * ONE PATH FOR EVERY DECISION. The proxy computes {@link canonicalProxiedPath} once, and that one
- * string is what the public-asset exception, this list, the face rule, the body rule, the audit
+ * string is what the public-asset exception, this list, the face rule, the audit
  * and the URL sent to Immich all read. A check on one spelling and a request on another is how a
  * dot segment (`%2e%2e`, decoded once by the router and resolved by the URL parser) would walk out
  * of a path that was judged.
@@ -44,26 +45,12 @@ export const PROXY_ALLOWLIST: readonly ProxyRule[] = [
   // delete what is decided by the proxy: assertProxiedDeleteAllowed).
   { methods: ['POST', 'DELETE'], path: /^assets$/ },
   { methods: ['GET'], path: /^assets$/, query: (q) => q.has('chunk-status') },
-  // The profile photo picker (its body is held to PROXIED_SEARCH_KEYS by the proxy).
-  { methods: ['POST'], path: /^search\/metadata$/ },
   // An album's own record (src/lib/immich/albums.ts).
   { methods: ['GET', 'HEAD'], path: new RegExp(`^albums/${UUID}$`) },
-  // The linked person (photos.svelte.ts, the settings and "Mes photos" pages); face-access.ts
-  // then holds each to the consent rule.
-  { methods: ['GET', 'HEAD'], path: new RegExp(`^people/${UUID}(/thumbnail)?$`) },
-  { methods: ['PUT'], path: new RegExp(`^people/${UUID}$`) },
   // The admin trash page.
   { methods: ['GET'], path: /^timeline\/buckets?$/, admin: true },
   { methods: ['POST'], path: /^trash\/restore\/assets$/, admin: true },
 ];
-
-/** The only keys a proxied `POST search/metadata` body may carry: the profile photo picker's. */
-export const PROXIED_SEARCH_KEYS: ReadonlySet<string> = new Set([
-  'personIds',
-  'type',
-  'page',
-  'size',
-]);
 
 /**
  * The path Immich will actually route for the decoded proxy path `path`, the ONE string every
@@ -112,22 +99,6 @@ const PUBLIC_ASSET = new RegExp(`^assets/(${UUID})/(thumbnail|original|video/pla
 /** The asset id of a canonical path the public exception may serve, or null. */
 export function publicAssetId(clean: string): string | null {
   return PUBLIC_ASSET.exec(clean)?.[1] ?? null;
-}
-
-/**
- * Throws 400 unless `body` is what the profile photo picker sends to `POST search/metadata`:
- * only {@link PROXIED_SEARCH_KEYS}, and a non-empty `personIds` (which face-access.ts then holds
- * to the consent rule). A search over the whole library, or with any other condition, has no
- * page that needs it through this proxy.
- */
-export function assertProxiedSearchBody(body: unknown): void {
-  const record = body && typeof body === 'object' && !Array.isArray(body) ? body : null;
-  const extra = record ? Object.keys(record).filter((k) => !PROXIED_SEARCH_KEYS.has(k)) : [];
-  const personIds = (record as { personIds?: unknown } | null)?.personIds;
-  if (!record || extra.length > 0 || !Array.isArray(personIds) || personIds.length === 0) {
-    log.warn('proxied search refused: not the profile photo picker', { keys: extra.length });
-    throw error(400, 'Unsupported search');
-  }
 }
 
 /**

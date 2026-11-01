@@ -1,18 +1,19 @@
 /**
- * Undoing a member's face link: what a face withdrawal, an unlink and an account deletion remove.
+ * Undoing a member's face data: what a face withdrawal, an unlink and an account deletion remove.
  *
- * THE CONTRACT (owner decision 2026-10-16). Immich groups EVERY face into anonymous clusters and
- * that is accepted: it is internal, a black box, never shown. What ties a cluster to a human is
- * only what MiGallery writes - `users.photos_id` and `users.photos_asset_id` - plus the person's
- * NAME and birth date in Immich. So the member's link is undone locally and the person's name and
- * birth date are removed in Immich. The cluster itself, its faces and their embeddings stay,
- * unnamed and linked to nobody.
+ * THE CONTRACT (option C, docs/wiki/face-matching-option-c.md). What ties a face to a member is
+ * MiGallery's own state: the member's sealed reference templates (`face_references`), the faces
+ * given to them or answered by them (`face_matches`), their consent record, and - until lot A8
+ * deletes Immich's own faces and persons - the legacy `users.photos_id` link and the person's NAME
+ * and birth date in Immich. Withdrawal removes all of it. The store of every face
+ * (`data/faces.db`) is not the member's: it goes with each photo, never with a withdrawal.
  *
- * TWO HALVES, AND ONLY ONE CAN FAIL. The local half - the `photos_id` link, the profile photo
- * pointer, the on-disk face crops, the photo-access grants in both directions and, for an account
- * deletion, the member's id in the audit log - is MiGallery's own state and is removed inside the
- * request that asked for it ({@link eraseLocalFaceData}, {@link anonymiseUserInLogs}). The remote
- * half (clearing the name in Immich) can fail - Immich down, slow or refusing - so it is written to
+ * TWO HALVES, AND ONLY ONE CAN FAIL. The local half - references, matches, consent, the
+ * `photos_id` link, the profile photo pointer, the photo-access grants the member gave and, for an
+ * account deletion, the member's id in the audit log - is MiGallery's own state and is removed
+ * inside the request that asked for it ({@link eraseLocalFaceData}, {@link anonymiseUserInLogs});
+ * the crops follow right after the commit ({@link finishLocalErasure}). The remote half (clearing
+ * a legacy person's name in Immich) can fail - Immich down, slow or refusing - so it is written to
  * the `face_erasures` journal in the SAME transaction as the local half, and
  * {@link runFaceErasures} drives it to completion.
  *
@@ -24,8 +25,7 @@
  * the row; any row still pending 24 hours after it was requested is logged as an error on every
  * run, by id, until it completes.
  *
- * WHAT THIS DOES NOT REACH: the cluster's faces and embeddings, and the backups - see
- * docs/wiki/photos-cv.md#erasure.
+ * WHAT THIS DOES NOT REACH: the faces store, and the backups - see docs/wiki/photos-cv.md#erasure.
  */
 
 import { env } from '#lib/server/env.ts';
@@ -34,7 +34,7 @@ import { createLogger } from '#lib/server/logger.ts';
 import { registerShutdown } from '#lib/server/shutdown.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 import { searchAllAssets } from '#lib/server/immich-search.ts';
-import { deletePersonFaceCrops } from '#lib/server/face-crop.ts';
+import { deleteMemberFaceCrops, deletePersonFaceCrops } from '#lib/server/face-crop.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
 import { rotateAvatarSalt } from '#lib/server/avatar-revocation.ts';
 import { withdrawFaceConsent } from '#lib/server/face-consent.ts';
@@ -73,6 +73,8 @@ interface ErasureRow {
 
 /** What {@link eraseLocalFaceData} decided, for the caller to finish AFTER its commit. */
 export interface LocalErasure {
+  /** The member whose face data went: their face crops (lot A6) are deleted after the commit. */
+  userId: string;
   /** The journal row, or null when no Immich person was linked (or its id is not a person id). */
   erasure: number | null;
   /** The person whose link was undone, for the crop cleanup. */
@@ -84,8 +86,9 @@ export interface LocalErasure {
 /**
  * The local half for `userId`, inside the caller's transaction: drop the face link and profile
  * photo pointer, the grants the member GAVE (the ones on their own face photos - grants others
- * gave them are about other people's faces and stay), close the consent record, delete the sealed reference embeddings, and journal the
- * Immich half when there is a person to clear. The file side (crops, the run) is NOT done here: a
+ * gave them are about other people's faces and stay), close the consent record, delete the sealed
+ * reference templates and every match row, and journal the Immich half when there is a person to
+ * clear. The file side (crops, the run) is NOT done here: a
  * file error must not roll a withdrawal back, so the caller runs {@link finishLocalErasure} after
  * its COMMIT. Called for a withdrawal, an account deletion, an admin unlink and a RELINK - the
  * old person's grants and consent never carry over to a different person.
@@ -114,13 +117,13 @@ export function eraseLocalFaceData(
 
   if (!linked) {
     log.info('face data erased locally, no Immich person was linked', { reason });
-    return { erasure: null, personId: null, heldFaces };
+    return { userId, erasure: null, personId: null, heldFaces };
   }
   const personId = normalisePersonId(linked);
   if (!personId) {
     // A link an admin stored by hand that is not a person id: nothing in Immich can be named.
     log.warn('face link was not a person id; nothing journaled', { reason });
-    return { erasure: null, personId: null, heldFaces };
+    return { userId, erasure: null, personId: null, heldFaces };
   }
 
   const info = db
@@ -130,7 +133,7 @@ export function eraseLocalFaceData(
     erasure: info.lastInsertRowid,
     reason,
   });
-  return { erasure: Number(info.lastInsertRowid), personId, heldFaces };
+  return { userId, erasure: Number(info.lastInsertRowid), personId, heldFaces };
 }
 
 /**
@@ -150,11 +153,14 @@ export function eraseFaceMatches(db: Db, userId: string): FaceKey[] {
 }
 
 /**
- * After the COMMIT: delete the person's crops (never throws), kick the Immich half, and re-decide
+ * After the COMMIT: delete the member's face crops - the confirmation thumbnails and the profile
+ * photo of lot A6 - and the old Immich person's (never throws), kick the Immich half, and re-decide
  * the faces the member held so they can go to the next member (best effort, logged: the erasure
- * itself is already complete).
+ * itself is already complete). Every path that erases a member's face data ends here, so no crop
+ * of theirs survives a withdrawal, an unlink or an account deletion.
  */
 export function finishLocalErasure(local: LocalErasure): void {
+  deleteMemberFaceCrops(local.userId);
   if (local.personId) {
     deletePersonFaceCrops(local.personId);
   }
