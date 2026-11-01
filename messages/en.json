@@ -911,7 +911,7 @@
   "cpm_load_error": "Your photos could not be loaded.",
   "cpm_photo_alt": "Photo",
   "cpm_current_badge": "Current",
-  "cpm_default_badge": "Picked automatically",
+  "cpm_default_badge": "Default",
   "cpm_face_alt": "Your face in this photo",
   "usr_face_title": "Face recognition",
   "usr_face_on": "Turned on by the member",

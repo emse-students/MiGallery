@@ -929,7 +929,7 @@
   "cpm_load_error": "Impossible de charger vos photos.",
   "cpm_photo_alt": "Photo",
   "cpm_current_badge": "Actuelle",
-  "cpm_default_badge": "Choisie automatiquement",
+  "cpm_default_badge": "Par défaut",
   "cpm_face_alt": "Votre visage sur cette photo",
   "usr_face_title": "Reconnaissance faciale",
   "usr_face_on": "Activée par le membre",

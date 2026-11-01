@@ -148,7 +148,11 @@
   {:else if assets.length > 0}
     <div class="photos-grid">
       {#each assets as asset (asset.id)}
-        <div class="photo-item" class:selected={selectedAssetId === asset.id}>
+        <div
+          class="photo-item"
+          class:selected={selectedAssetId === asset.id}
+          class:current={current?.asset_id === asset.id}
+        >
           {#if ownFace}
             <FaceCropThumb assetId={asset.id} faceIndex={faces[asset.id]} alt={m.cpm_face_alt()} />
           {:else}
@@ -187,34 +191,41 @@
 </Modal>
 
 <style>
+  /* The current photo sits beside the hint, so the grid - what the member came for - is in view. */
   .current-photo-section {
-    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
   }
 
   .current-photo {
+    flex-shrink: 0;
     text-align: center;
-    margin-bottom: 1.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
 
   .current-photo img {
-    width: 120px;
-    height: 120px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     object-fit: cover;
     border: 3px solid var(--surface-border);
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.35rem;
   }
 
   .current-photo p {
+    max-width: 8rem;
     color: var(--text-secondary);
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     margin: 0;
   }
 
   .instructions {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -249,9 +260,9 @@
 
   .photos-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 1rem;
-    margin-top: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
   }
 
   .photo-item {
@@ -295,21 +306,26 @@
     cursor: pointer;
   }
 
+  /* The current photo is ringed, and its badge wraps rather than being cut on a phone tile. */
+  .photo-item.current:not(.selected) {
+    border-color: var(--text-secondary);
+  }
+
   .current-badge {
     position: absolute;
-    left: 0.35rem;
-    bottom: 0.35rem;
+    left: 0.3rem;
+    right: 0.3rem;
+    bottom: 0.3rem;
     z-index: 1;
-    max-width: calc(100% - 0.7rem);
-    padding: 0.15rem 0.5rem;
-    border-radius: 999px;
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+    text-align: center;
+    line-height: 1.25;
     background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
     color: var(--text-primary);
     font-size: 0.6875rem;
     font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: break-word;
     pointer-events: none;
   }
 
@@ -337,27 +353,32 @@
 
   @media (max-width: 768px) {
     .photos-grid {
-      grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+      /* Three columns from 360 px up. */
+      grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
       gap: 0.5rem;
       margin-top: 1rem;
     }
 
-    /* A phone keeps the grid in view: the current photo shrinks and sits beside the hint. */
     .current-photo-section {
-      display: flex;
-      align-items: center;
       gap: 0.75rem;
       margin-bottom: 0.75rem;
     }
 
-    .current-photo {
+    .current-photo img {
+      width: 56px;
+      height: 56px;
       margin-bottom: 0;
     }
 
-    .current-photo img {
-      width: 64px;
-      height: 64px;
-      margin-bottom: 0.25rem;
+    /* The caption would wrap to three lines beside the hint; the image alt and the badge on its
+       tile in the grid say the same. Kept for screen readers. */
+    .current-photo p {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
 
     .instructions {
