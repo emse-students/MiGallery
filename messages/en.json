@@ -443,7 +443,19 @@
   "trombi_export": "Export",
   "trombi_no_users_export": "No user to export",
   "trombi_pdf_generating": "Generating PDF…",
-  "trombi_pdf_title": "MiGallery Directory",
+  "trombi_pdf_title": "Directory",
+  "trombi_pdf_members": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} member",
+        "countPlural=*": "{count} members"
+      }
+    }
+  ],
+  "trombi_pdf_continued": "{label} (continued)",
+  "trombi_pdf_page": "Page {page} of {total}",
   "trombi_pdf_downloaded": "PDF downloaded!",
   "trombi_pdf_error": "PDF generation failed",
   "common_previous": "Previous",
