@@ -349,7 +349,7 @@
     aspect-ratio: 1;
   }
 
-  /* "Confirm all above", over the picture's top corner: small, but a full 2rem target. */
+  /* "Confirm all above", over the picture's top corner: a full 2.75rem target. */
   .confirm-up-to {
     position: absolute;
     top: 0.4rem;
@@ -357,7 +357,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    min-height: 2rem;
+    min-height: 2.75rem;
     max-width: calc(100% - 0.8rem);
     padding: 0.25rem 0.55rem;
     border: none;
@@ -377,6 +377,12 @@
   }
 
   .confirm-up-to:hover:not(:disabled) {
+    opacity: 1;
+  }
+
+  .confirm-up-to:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
     opacity: 1;
   }
 

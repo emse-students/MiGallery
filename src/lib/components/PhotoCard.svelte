@@ -376,8 +376,8 @@
     left: 0.625rem;
     z-index: 5;
     padding: 0.5rem;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     background: rgba(0, 0, 0, 0.7);
     border: none;
     border-radius: var(--radius-sm);
@@ -397,7 +397,13 @@
 
   /* Beside the heart: one button width and a gap further right. */
   .not-me-btn.after-favorite {
-    left: calc(0.625rem + 36px + 0.375rem);
+    left: calc(0.625rem + 44px + 0.375rem);
+  }
+
+  .favorite-btn:focus-visible,
+  .not-me-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .favorite-btn.active {

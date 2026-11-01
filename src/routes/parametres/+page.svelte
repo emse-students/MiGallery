@@ -930,21 +930,32 @@ alone sets the width and the gutter, which this page used to add a second time (
     border-radius: var(--radius-xs);
   }
 
+  /* A real button (44px target, wraps rather than cuts its label), not a bare link-looking word. */
   .rejected-restore {
-    padding: 0.25rem;
-    border: none;
-    background: none;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
     color: var(--accent);
     font: inherit;
     font-size: 0.8125rem;
     font-weight: 600;
+    line-height: 1.2;
     text-align: center;
+    white-space: normal;
     cursor: pointer;
   }
 
   .rejected-restore:hover:not(:disabled) {
+    border-color: var(--accent);
     color: var(--accent-hover);
-    text-decoration: underline;
+  }
+
+  .rejected-restore:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .rejected-restore:disabled {
