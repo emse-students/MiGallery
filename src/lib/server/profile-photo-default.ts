@@ -8,9 +8,11 @@
  * member's own matches only.
  *
  * WHAT IS VALID. A profile photo is valid while it is a VISIBLE match of the member's
- * (`profileFace`) AND Immich still has the asset. A CHOSEN photo is checked by reading the asset
- * itself (`assetStillExists`: archived, hidden or locked count as present; only deleted or trashed
- * is gone), so a choice is replaced only when its photo is really gone. Otherwise - none set, the
+ * (`profileFace`) AND Immich still has the asset. A CHOSEN photo is replaced only when its photo
+ * is KNOWN to be gone: in the one-off run, absent from `present` (every asset Immich's own table
+ * still holds, locked included); elsewhere, only when a direct read says `trashed`
+ * (`assetPresence`: Immich answers one 400 for deleted, unseen and LOCKED, so a 400 is unknown
+ * and the choice is kept). Otherwise - none set, the
  * asset gone, the face rejected or given to someone else - a default is chosen:
  * 1. the face Immich FEATURED for their old person, when the caller hands it in (the one-off run,
  *    from Immich's own table), Immich still has the photo, AND that exact face is already one of
@@ -41,7 +43,7 @@ import {
 } from '#lib/profile-photo-rank.ts';
 import { runExclusive, type FaceEngine } from '#lib/server/face-engine.ts';
 import { VISIBLE_MATCH_SQL, profileFace } from '#lib/server/face-photos.ts';
-import { assetStillExists, searchAssetsByIds } from '#lib/server/immich-search.ts';
+import { assetPresence, searchAssetsByIds } from '#lib/server/immich-search.ts';
 import type { FaceKey } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -193,7 +195,9 @@ async function aliveAssets(
 
 /**
  * Give `userId` a default profile photo when they have no valid one (module header). `featured`:
- * the face Immich featured for their old person, when known. `dryRun` decides without writing.
+ * the face Immich featured for their old person, when known. `present`: every asset id Immich's
+ * table still holds (the one-off run's export), the ONLY evidence that a chosen photo is deleted;
+ * without it a choice goes only when its photo is in the trash. `dryRun` decides without writing.
  * `report.featuredNotTheirs` is set when a featured face was passed over because it is not a
  * visible match of theirs. Throws when Immich cannot be read: nothing is written then.
  */
@@ -203,6 +207,7 @@ export async function ensureDefaultProfilePhoto(
   fetchFn: typeof fetch,
   options: {
     featured?: FeaturedFace | null;
+    present?: ReadonlySet<string> | null;
     dryRun?: boolean;
     report?: { featuredNotTheirs?: boolean };
   } = {}
@@ -222,14 +227,9 @@ export async function ensureDefaultProfilePhoto(
     ...top.map((c) => c.assetId),
   ]);
   const stillTheirs = !!current.assetId && !!profileFace(db, userId, current.assetId);
-  // A choice is kept unless its photo is really gone: the asset itself is read, whatever its
-  // visibility (a search would miss an archived or locked photo). A default may go on less.
-  const currentValid =
-    stillTheirs &&
-    (current.source === 'chosen'
-      ? alive.has(current.assetId as string) ||
-        (await assetStillExists(fetchFn, current.assetId as string))
-      : alive.has(current.assetId as string));
+  // A choice is kept unless its photo is KNOWN to be gone (module header); a default may go on
+  // less (the search's answer).
+  const currentValid = stillTheirs && (await currentStillThere());
   if (currentValid && current.source === 'chosen') {
     log.debug('profile photo kept: the member chose it and it is still theirs');
     return 'kept_choice';
@@ -262,6 +262,25 @@ export async function ensureDefaultProfilePhoto(
     log.debug('no default profile photo: no visible match Immich still serves');
     return currentValid ? 'kept_default' : 'none';
   });
+
+  /** Whether Immich still has the current photo, as far as the evidence for its source goes. */
+  async function currentStillThere(): Promise<boolean> {
+    const assetId = current.assetId as string;
+    if (current.source !== 'chosen') {
+      return alive.has(assetId);
+    }
+    if (options.present) {
+      return options.present.has(assetId);
+    }
+    if (alive.has(assetId)) {
+      return true;
+    }
+    const presence = await assetPresence(fetchFn, assetId);
+    if (presence === 'unknown') {
+      log.info('chosen photo kept: Immich does not say it is gone');
+    }
+    return presence !== 'trashed';
+  }
 
   /** Point the profile photo at `assetId` as a default (unless it already is, or a dry run). */
   function write(assetId: string, outcome: DefaultOutcome): DefaultOutcome {
@@ -303,6 +322,8 @@ export type DefaultReport = Record<DefaultOutcome | 'failed', number> & {
   featuredGiven: number;
   /** Featured faces passed over because another member held them, or they waited an answer. */
   featuredNotTheirs: number;
+  /** Asset ids Immich's table holds, as handed in (0: no export, the live check was used). */
+  presentGiven: number;
   chosenGoneReplaced: number;
 };
 
@@ -310,19 +331,22 @@ export type DefaultReport = Record<DefaultOutcome | 'failed', number> & {
  * Apply {@link ensureDefaultProfilePhoto} to every enrolled member, one after the other.
  * `featuredByPerson` maps an Immich person id (the member's `photos_id`, lowercase) to the face
  * Immich featured for it; a member whose person has none (the group is gone) is ranked from their
- * matches. A member's failure is counted and logged; the run goes on. Idempotent: a second run
- * keeps every photo the first one set.
+ * matches. `present`: every asset id Immich's table still holds (null: not exported, the live
+ * check decides). A member's failure is counted and logged; the run goes on. Idempotent: a second
+ * run keeps every photo the first one set.
  */
 export async function runDefaultProfilePhotos(
   engine: FaceEngine,
   fetchFn: typeof fetch,
   featuredByPerson: ReadonlyMap<string, FeaturedFace>,
-  dryRun: boolean
+  dryRun: boolean,
+  present: ReadonlySet<string> | null = null
 ): Promise<DefaultReport> {
   const report: DefaultReport = {
     members: 0,
     featuredGiven: 0,
     featuredNotTheirs: 0,
+    presentGiven: present?.size ?? 0,
     chosenGoneReplaced: 0,
     kept_choice: 0,
     kept_default: 0,
@@ -344,6 +368,7 @@ export async function runDefaultProfilePhotos(
       const seen: { featuredNotTheirs?: boolean } = {};
       const outcome = await ensureDefaultProfilePhoto(engine, userId, fetchFn, {
         featured,
+        present,
         dryRun,
         report: seen,
       });

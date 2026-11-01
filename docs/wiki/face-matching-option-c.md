@@ -511,11 +511,20 @@ A7 seed as `claimed`, 14 whose photo Immich no longer serves).
 **The rule** (owner, 2026-11-01), in `src/lib/server/profile-photo-default.ts`:
 
 - A profile photo is VALID while it is a visible match of the member's (`profileFace`) AND Immich
-  still has the asset. A CHOSEN photo is checked by reading the asset itself
-  (`assetStillExists`, `GET /api/assets/{id}`): an archived, hidden or locked photo is present
-  (a search applies its default visibility and would leave it out), only a deleted (404/400) or
-  trashed (`isTrashed`) one is gone, and an unknown answer is never read as gone. A default is
-  checked by the search alone (it may be replaced by a better one anyway).
+  still has the asset. A CHOSEN photo is replaced only when it is KNOWN to be gone:
+  - **in the one-off run**, from Immich's own table: the export lists every asset Immich still
+    holds (`P` lines: not deleted, not in the trash, LOCKED INCLUDED); a chosen photo absent from
+    it is gone, one present is kept;
+  - **elsewhere** (the avatar route's background look, an answer on the matching screen), from a
+    direct read (`assetPresence`, `GET /api/assets/{id}`) after the search missed it: only
+    `isTrashed` is gone. Immich 3.3.3 checks access first and answers the SAME 400 ("Not found or
+    no asset.read access") for an asset deleted for good, one the key's user cannot see, and a
+    LOCKED one (an API key never holds the elevated session locked assets need), so a 400 - like
+    any other error or no answer - is UNKNOWN and the choice is kept (re-review of #433,
+    2026-11-01). Archived and hidden photos answer 200 and are present.
+
+  A default is checked by the search alone (it may be replaced by a better one anyway).
+
 - `users.photos_asset_source` says `chosen` (the picker's `PUT`, the member or an admin for them)
   or `default`. Every photo set before the column existed is `chosen`. **A valid choice is never
   overwritten**; a valid default may be replaced by a better default; an INVALID choice (its photo
@@ -570,13 +579,16 @@ admin API key in `MIGALLERY_ADMIN_KEY`.
 the review of #433): `person."faceAssetId"` -> `asset_face.id`. `person`'s primary key is
 (`ownerId`, `personGroupId`): one row per Immich USER per group, so the export keeps the rows of
 the Immich user behind MiGallery's API key, and sends `personGroupId` (what a member's
-`photos_id` holds). `person_group` has no `faceAssetId`.
+`photos_id` holds). `person_group` has no `faceAssetId`. **Which assets still exist** comes
+from the same snapshot: `asset` rows with `"deletedAt" IS NULL` (the trash sets `deletedAt`; a
+locked asset keeps its row, `visibility = 'locked'`), all of them (about 172k lines, ~7 MB of
+JSON, under the 64M `BODY_SIZE_LIMIT`), since a choice may be any photo the key could read.
 
 1. **The owner id**, read-only, either way:
    - `curl -s -H "x-api-key: $IMMICH_API_KEY" <immich>/api/users/me` -> its `id`; or
    - `docker exec immich_postgres psql -U postgres -d immich -At -c 'SELECT "userId", name FROM api_key'`
      and take the row of MiGallery's key.
-2. **Export to a file**, read-only, then check it is not empty:
+2. **Export to a file**, read-only, in ONE read-only snapshot, then check both halves:
 
 ```sh
 set -o pipefail
@@ -587,11 +599,13 @@ docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1
               f.\"boundingBoxX2\", f.\"boundingBoxY2\", f.\"imageWidth\", f.\"imageHeight\"
             FROM person p JOIN asset_face f ON f.id = p.\"faceAssetId\"
             WHERE f.\"deletedAt\" IS NULL AND p.\"ownerId\" = '$OWNER') TO STDOUT" \
+  -c "COPY (SELECT 'P', a.id FROM asset a WHERE a.\"deletedAt\" IS NULL) TO STDOUT" \
   > /root/featured-faces.tsv
-wc -l /root/featured-faces.tsv     # must be > 0 (about one line per linked member)
+grep -c '^G' /root/featured-faces.tsv     # must be > 0: about one per linked member
+grep -c '^P' /root/featured-faces.tsv     # must be > 0: about 172k, every asset Immich holds
 ```
 
-3. **Run it from the file**, `--dry-run` first and read its report, then the same without it:
+3. **The dry run** from the file (writes nothing), and read its report:
 
 ```sh
 docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> \
@@ -599,16 +613,20 @@ docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> \
 echo "exit: $?"
 ```
 
-The client REFUSES an empty stdin (a failed or wrong export must not silently run without the
-featured faces); `--no-featured` says an empty one is meant, and is refused alongside faces. Delete
-`/root/featured-faces.tsv` afterwards (asset ids and boxes, no names).
+4. **The real run**: the same command without `--dry-run`, once the dry run's counts are read.
+   Then `rm /root/featured-faces.tsv` (asset ids and boxes, no names).
+
+The client REFUSES an export with no `G` line or no `P` line (a failed or wrong export must not
+silently run without them: without `P`, no deleted choice could be told from a locked one);
+`--no-featured` says an EMPTY stdin is meant (every member ranked from their own matches, a choice
+replaced only when trashed), and is refused alongside an export.
 
 The report is counts only: `members`, `featuredGiven` (members whose person had a featured
 face), `featuredNotTheirs` (featured faces passed over: another member holds them, or they wait
 for the member's answer), `set_featured`, `set_scored`, `kept_choice`, `kept_default`, `none`,
-`failed`, and `chosenGoneReplaced` (choices whose photo was really gone, the 14 expected at most).
-A second POST while a run is going is answered 409 (the check and the start have no await between
-them).
+`failed`, `presentGiven` (the `P` lines received), and `chosenGoneReplaced` (choices whose photo
+is absent from Immich's table, the 14 expected at most). A second POST while a run is going is
+answered 409 (the check and the start have no await between them).
 
 ### Faces v2 - references, renewal, negatives, sticky auto (the owner's decisions of 2026-11-01)
 
