@@ -23,15 +23,26 @@ rules, not prose:
   [photos-cv.md](photos-cv.md#erasure). When one of those changes, change the page
   and `TERMS_VERSION` in the same pull request.
 
-What the page says about faces, and why it says it plainly: Immich groups EVERY
-detected face into anonymous clusters, for members and non-members alike, and that
-is accepted (internal, never shown). The page states it, offers objection by
-e-mail, and says that withdrawing consent removes the link and the person's name
-but not the anonymous cluster, which is deleted on request.
+What the page says about faces (section 4), and why it says it plainly: MiGallery keeps
+an encrypted print of EVERY detected face of the library, members and non-members
+alike, in no backup and grouped by no person (the face store,
+[face-matching-option-c.md](face-matching-option-c.md)). A face is tied to someone only
+by comparison with the references of a member who agreed. The page states it, offers
+objection by e-mail to anyone in a photo, and says that withdrawing consent erases the
+member's references, negative examples, matches, answers and crops at once
+(`cgu_s4_store`, `cgu_s4_match`, `cgu_s4_revoke_body`).
 
-Two UI strings repeat these claims and must move with them:
-`param_face_note_*` (what happens to the selfie) and `param_unlink_face_desc`
-(what unlinking does).
+**The page describes the current system only** (owner, 2026-11-01): no former design,
+no cutover, no seed from Immich's groups, no legacy consent sources. Immich no longer
+groups faces: until 2026-11-01 it clustered every face into anonymous groups a member
+linked to their account, and at the cutover (lot A8) its recognition was switched off
+and its faces, groups and prints deleted. That history, its encrypted copy (deleted
+2026-12-01) and the dates the old Immich backups stop holding it are told in
+[face-matching-option-c.md](face-matching-option-c.md) (section 5) and the release
+notes, never on the page.
+
+UI strings repeat these claims and must move with them: `param_face_note_*` (what
+happens to the selfie) and `param_unlink_face_desc` (what unlinking does).
 
 **What the page must NOT assert** because the repository cannot back it: where the server
 physically stands, and who administers MiConnect's host. The association's postal address appears as

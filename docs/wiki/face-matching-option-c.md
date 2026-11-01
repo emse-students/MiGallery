@@ -188,7 +188,7 @@ the sake of an enrolment a day, and keep every third party's template in the ser
 | A5  | Enrolment and withdrawal: the selfie embedded in memory and never stored; the consent row (`face_consents`) is reused; withdrawal deletes references, matches and the person's crops in one transaction (the A6 thumbnails, once they exist, must go the same way).                                                                                                                                                                                                                                                                                                                                                                    | building               |
 | A6  | Read side: "Mes photos" reads the matches (by user id, assets fetched by id); the suggested band is a confirmation screen with server-cut crops served to the holder alone and deleted on withdrawal; the people views are removed; the profile photo is chosen among the member's own photos; the proxy refuses every person and face call, admins included; nothing reads `photos_id`.                                                                                                                                                                                                                                               | building               |
 | A7  | Seed from Immich's vectors (physical order, no recomputation) and migrate the existing links: references and matches per member, calibration, parity measured. Read cost measured 2026-10-24: 10k rows 0.60 s, 50k rows 1.31 s, so 600k is about 16-36 s of database time. **Trap**: ordering the export by id sorted the whole table (77 s for 10k rows); export in physical order.                                                                                                                                                                                                                                                   | built (not yet run)    |
-| A8  | Cutover: an encrypted, verified backup of what is deleted, kept outside the repository and **deleted on a fixed date 30 days later** (owner, 2026-10-31: _"Oui, 30 jours puis supprimée"_); "Mes photos" checked on the new path in production; then Immich's recognition off and its faces, persons and embeddings deleted; the date until which the nightly backups still hold the old data recorded. MiGallery and Immich run on the association's own machine, not on the school's shared host, so **no agreement of the school's IT department is needed**; anything touching the school's shared host would still need it first. | building               |
+| A8  | Cutover: an encrypted, verified backup of what is deleted, kept outside the repository and **deleted on a fixed date 30 days later** (owner, 2026-10-31: _"Oui, 30 jours puis supprimée"_); "Mes photos" checked on the new path in production; then Immich's recognition off and its faces, persons and embeddings deleted; the date until which the nightly backups still hold the old data recorded. MiGallery and Immich run on the association's own machine, not on the school's shared host, so **no agreement of the school's IT department is needed**; anything touching the school's shared host would still need it first. | done 2026-11-01        |
 | A9  | Tests, wiki, `/cgu`, and the DPIA and register rows (Canari) updated to a stored-template design. Built: `/cgu` sections 4 and 5 (the store of every face, the references and their sources, the two bands, who sees what, withdrawal, retention, backups, the cutover), `TERMS_VERSION` 2026-10-31, [data-model](data-model.md#the-face-tables-two-files) and [photos-cv](photos-cv.md#erasure); Canari's register row G3 and the DPIA, in Canari draft PR #2813 (emse-students/canari).                                                                                                                                              | built                  |
 
 **One release for A5, A6, A7 and A9** (the coordinator's decision, 2026-10-31): they are merged one
@@ -858,6 +858,57 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
 - **The DPIA and the register rows in Canari**: updated to the stored-template design by A9 (Canari
   draft PR #2813); every assessment the design changes is marked there as to be re-assessed by
   the owner. Owed: that re-assessment, and the merge.
+- **A8 ran on 2026-11-01**, in production, on Immich v3.3.3, with the owner's yes of that day.
+  Aggregates only:
+  - **Backup first**: a `pg_dump -Fc` of exactly the five tables deleted (`asset_face`,
+    `face_search`, `person`, `person_group`, `person_user`), encrypted (gpg, AES-256), kept on the
+    host outside both repositories, its passphrase kept apart from it. **Verified** by a full
+    decrypt restored into a throwaway Postgres of the same image (no network, removed after):
+    per table, the count and an md5 over the ordered row hashes equal the live data before and
+    after the dump. **Deleted on 2026-12-01.**
+  - **"Mes photos" checked on the new path first**: it reads `face_matches` only (312 members with
+    visible matches); the one server path still naming an Immich person, the withdrawal queue's
+    `eraseImmichPerson`, was probed read-only with a person id that does not exist and records
+    `absent` (Immich answers 400 to the lookup and an empty search), so it neither fails nor
+    retries after A8. The default-photos run, the last reader of Immich's featured faces, had run
+    before.
+  - **Then**: recognition off (`machineLearning.facialRecognition.enabled = false`, through
+    `PUT /api/system-config`); the 600,156 faces deleted in one transaction, exactly Immich's own
+    `deleteFaces` (the 600,156 embeddings went with them by cascade); the 94,548 persons, their
+    groups and their thumbnail files deleted by Immich's own `person-cleanup` job; the four tables
+    rewritten (`VACUUM FULL`) so the deleted rows leave the files. Immich's face-detection
+    "reset" was NOT used: in v3.3.3 it is skipped while recognition is off, and while it is on it
+    re-queues detection of every asset (about 22 hours of the model) after deleting. The thumbnail
+    files are not in the backup: Immich regenerates them from restored rows.
+  - **Checked after**, all on 2026-11-01: the live counts and content hashes equalled the
+    backup's right before the delete; the delete wrote 600,156 audit rows (ids only); the
+    `person-cleanup` job was proven done by polling its queue (idle) and the tables (person 0,
+    person_group 0, cluster_group 2); `VACUUM FULL` took `face_search` from 3,527 MB to 35 MB
+    (empty index structures) and the other three to a few kB; 0 person thumbnail files left;
+    MiGallery unchanged: 312 members with visible matches, 0 pending erasures, and 5 matched
+    photos fetched by id from Immich came back exactly.
+  - **Until when a nightly backup still holds the old data**: Immich's own dumps (daily, the last
+    14 kept) and their offsite copies (the newest sent each night, deleted after 7 days by
+    `scripts/backup-offsite.sh`, so a dump of day D goes on D+8). The last dump holding it is
+    the one of 2026-11-01: **gone offsite on 2026-11-09, locally on 2026-11-15**; after that only
+    the encrypted A8 copy holds it, until 2026-12-01.
+  - **Undo, until 2026-12-01**: restore the five tables from the copy (data only, triggers
+    disabled), drop the faces of assets deleted since, delete the audit rows A8 wrote, clear the
+    persons' `thumbnailPath` and run Immich's thumbnail job, then switch recognition back on.
+  - **This record is the only place the cutover and its dates are told**: `/cgu` describes the
+    current system only (the owner's decision below), so it names neither the cutover nor the
+    Immich backups that held the old data. The release notes carry one line.
+- **Owed, not built: retire `users.photos_id`.** Since A8 it holds Immich person-group ids that
+  no longer exist (316 members still carry one), and nothing a member sees depends on it (A6).
+  It is still written by the admin link (`applyFaceLink` through `PATCH /api/users/me/face` with
+  `user_id`, `PUT /api/users/[id]`), read by the withdrawal path (`face_erasures.person_id`, the
+  `relinked` check, the log scrub, the A1 crops keyed by person), by the one-off default-photos
+  run (the featured face of the member's old person) and by the seed; 21 files under `src/`
+  name it. Retiring it means: drop the admin link and the person half of the erasure queue
+  (`eraseImmichPerson`, `deletePersonFaceCrops`), let the default-photos run rank from the
+  member's own matches only, remove it from the session, the types and the docs, then a guarded
+  migration that drops the column (and the `face_erasures.person_id` it feeds). Each consumer
+  is to be re-read before removal: this list is a grep, not an audit.
 - **`/cgu` describes the current system only** (owner, 2026-11-01): no former design, no cutover,
   no seed from Immich's groups, no legacy consent sources - that history lives here and in the
   release notes, never in the terms. They say a member may remove any photo from "Mes photos" and
