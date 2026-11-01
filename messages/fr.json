@@ -975,6 +975,26 @@
   "mpc_crop_missing": "Image indisponible",
   "mpc_crop_failed": "Image non chargée",
   "mpc_crop_retry": "Réessayer",
+  "mp_not_me_link": "Une de ces photos n'est pas vous ? Retirez-la",
+  "mpc_shown_page_title": "Retirer une photo - MiGallery",
+  "mpc_shown_title": "Ce n'est pas vous ?",
+  "mpc_shown_subtitle": "Ces photos ont été ajoutées automatiquement. Touchez « Pas moi » sur celles où ce n'est pas vous : elles quittent vos photos et ne vous seront plus proposées.",
+  "mpc_shown_load_error": "Impossible de charger vos photos.",
+  "mpc_shown_empty_title": "Rien à vérifier",
+  "mpc_shown_empty_body": "Aucune photo ajoutée automatiquement ne reste à vérifier.",
+  "mpc_shown_order_hint": "Les moins sûres en premier.",
+  "mpc_shown_keys_hint": "Clavier : N ou Suppr pour « Pas moi », flèches pour naviguer.",
+  "mpc_shown_face_alt": "Votre visage, reconnu automatiquement",
+  "mpc_shown_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo ajoutée automatiquement",
+        "countPlural=*": "{count} photos ajoutées automatiquement"
+      }
+    }
+  ],
   "cpm_load_error": "Impossible de charger vos photos.",
   "cpm_photo_alt": "Photo",
   "cpm_current_badge": "Actuelle",

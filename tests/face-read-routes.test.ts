@@ -473,19 +473,49 @@ describe('GET /api/users/me/face/matches', () => {
     match('m1', 'a', 'suggested', 'pending');
     match('m1', 'b', 'auto', 'pending');
     match('m2', 'c', 'suggested', 'pending');
-    const res = await call(matchRoute.GET, {});
+    const res = await call(matchRoute.GET, {
+      url: new URL('http://x.test/api/users/me/face/matches'),
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ success: true, suggestions: [{ asset_id: 'a', face_index: 0 }] });
     expect(JSON.stringify(body)).not.toMatch(/distance|runner|band|m2|0\.42/);
   });
 
+  it('with ?list=shown, lists the faces shown without a question that "Pas moi" may still refuse, least sure first', async () => {
+    match('m1', 'sure', 'auto', 'pending', { distance: 0.2 });
+    match('m1', 'doubt', 'auto', 'pending', { distance: 0.38 });
+    match('m1', 'said-yes', 'auto', 'confirmed', { distance: 0.4 });
+    match('m1', 'asked', 'suggested', 'pending', { distance: 0.5 });
+    match('m1', 'said-no', 'auto', 'rejected', { distance: 0.3 });
+    match('m2', 'theirs', 'auto', 'pending', { distance: 0.39 });
+    const res = await call(matchRoute.GET, {
+      url: new URL('http://x.test/api/users/me/face/matches?list=shown'),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({
+      success: true,
+      suggestions: [
+        { asset_id: 'doubt', face_index: 0 },
+        { asset_id: 'sure', face_index: 0 },
+      ],
+    });
+    expect(JSON.stringify(body)).not.toMatch(/distance|band|m2|0\.38/);
+  });
+
   it('refuses an impersonated session and a caller with no member', async () => {
     state.impersonating = true;
-    expect((await call(matchRoute.GET, {})).status).toBe(403);
+    expect(
+      (await call(matchRoute.GET, { url: new URL('http://x.test/api/users/me/face/matches') }))
+        .status
+    ).toBe(403);
     state.impersonating = false;
     state.auth = API_KEY;
-    expect((await call(matchRoute.GET, {})).status).toBe(401);
+    expect(
+      (await call(matchRoute.GET, { url: new URL('http://x.test/api/users/me/face/matches') }))
+        .status
+    ).toBe(401);
   });
 
   it('a "not me" deletes the cached picture of that face', async () => {

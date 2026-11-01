@@ -1326,6 +1326,33 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
     ).toThrow();
   });
 
+  it('"Pas moi" on a face shown WITHOUT a question: it leaves her photos, kept as a negative, the other auto faces stay', async () => {
+    // Three references near her: the auto band needs more than a lone selfie.
+    enrol('alice', ALICE, 3, 0.1);
+    await storeFaces({
+      p1: atDistance(ALICE, synthetic(7), 0.1),
+      p2: atDistance(ALICE, synthetic(11), 0.1),
+    });
+    expect(matches().map((m) => [m.asset_id, m.band, m.state])).toEqual([
+      ['p1', 'auto', 'pending'],
+      ['p2', 'auto', 'pending'],
+    ]);
+    expect(
+      await enrolment.answerFace(engine(), 'alice', { assetId: 'p1', faceIndex: 0 }, 'reject')
+    ).toBe('rejected');
+    expect(matches().map((m) => [m.asset_id, m.band, m.state])).toEqual([
+      ['p1', 'auto', 'rejected'],
+      ['p2', 'auto', 'pending'],
+    ]);
+    expect(negatives.negativeCount(db(), 'alice')).toBe(1);
+    // Never offered again: a full re-match keeps her answer.
+    await L.rematchMember(engine(), 'alice');
+    expect(matches().map((m) => [m.asset_id, m.state])).toEqual([
+      ['p1', 'rejected'],
+      ['p2', 'pending'],
+    ]);
+  });
+
   it('never withholds a face from another member on the negative of someone else', async () => {
     addUser('alice');
     enrolment.enrolMember(engine(), 'alice', ALICE);

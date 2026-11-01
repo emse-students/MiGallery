@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
+  import { page } from '$app/state';
   import { Check, X, CircleCheckBig, ArrowLeft, ChevronsUp } from '@lucide/svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import PageHeader from '#lib/components/PageHeader.svelte';
@@ -19,8 +20,16 @@
   } from '#lib/face-confirm-list.ts';
 
   /**
-   * The faces given to the member with a doubt, NEAREST FIRST as the server orders them (faces
-   * v2): the server never sends a distance, the order is all the screen knows.
+   * Which question the screen asks. By default the faces given to the member WITH a doubt ("is
+   * it you?", yes or no). With `?list=shown` (from Mes photos), the faces given WITHOUT a question
+   * (auto): auto is sticky, so "Pas moi" is the only answer left there, and the only way a stranger
+   * leaves the member's photos. One screen, one answer route, one card.
+   */
+  const shownMode = page.url.searchParams.get('list') === 'shown';
+
+  /**
+   * The faces, in the server's order: NEAREST FIRST for the doubtful ones, LEAST SURE FIRST for
+   * the shown ones (faces v2). The server never sends a distance, the order is all the screen knows.
    */
   let suggestions = $state<Suggestion[]>([]);
   let loading = $state(true);
@@ -35,7 +44,9 @@
     loading = true;
     failed = false;
     try {
-      const res = await fetch('/api/users/me/face/matches');
+      const res = await fetch(
+        shownMode ? '/api/users/me/face/matches?list=shown' : '/api/users/me/face/matches'
+      );
       if (!res.ok) {
         console.warn('[confirmer] the list was refused', res.status);
         failed = true;
@@ -43,7 +54,7 @@
       }
       const body = (await res.json()) as { suggestions?: Suggestion[] };
       suggestions = body.suggestions ?? [];
-      console.debug('[confirmer] faces to confirm', suggestions.length);
+      console.debug('[confirmer] faces listed', { shownMode, count: suggestions.length });
     } catch (e) {
       console.warn('[confirmer] the list could not be read', e);
       failed = true;
@@ -99,7 +110,8 @@
   /** Answer the card at `index` from the keyboard or a button, then focus the one that follows. */
   async function answerAt(index: number, verdict: Verdict) {
     const item = suggestions[index];
-    if (!item || bulk) return;
+    // A shown face is never "confirmed" from here: the screen offers "Pas moi" alone.
+    if (!item || bulk || (shownMode && verdict === 'confirm')) return;
     const sent = answer(item, verdict);
     await tick();
     focusCard(Math.min(index, suggestions.length - 1));
@@ -147,7 +159,7 @@
       return;
     }
     const key = event.key.toLowerCase();
-    if (key === 'o' || key === 'y' || key === 'enter') {
+    if (!shownMode && (key === 'o' || key === 'y' || key === 'enter')) {
       event.preventDefault();
       void answerAt(index, 'confirm');
     } else if (key === 'n' || key === 'delete' || key === 'backspace') {
@@ -184,20 +196,28 @@
 </script>
 
 <svelte:head>
-  <title>{m.mpc_page_title()}</title>
+  <title>{shownMode ? m.mpc_shown_page_title() : m.mpc_page_title()}</title>
 </svelte:head>
 
 <div class="confirm-main">
   <BackgroundBlobs />
 
-  <PageHeader title={m.mpc_title()} subtitle={m.mpc_subtitle()} />
+  {#if shownMode}
+    <PageHeader title={m.mpc_shown_title()} subtitle={m.mpc_shown_subtitle()} />
+  {:else}
+    <PageHeader title={m.mpc_title()} subtitle={m.mpc_subtitle()} />
+  {/if}
 
   {#if loading}
     <LoadingState label={m.mpc_loading()} />
   {:else if failed}
-    <ErrorState title={m.mpc_load_error()} onRetry={load} />
+    <ErrorState title={shownMode ? m.mpc_shown_load_error() : m.mpc_load_error()} onRetry={load} />
   {:else if suggestions.length === 0}
-    <EmptyState icon={CircleCheckBig} title={m.mpc_empty_title()} description={m.mpc_empty_body()}>
+    <EmptyState
+      icon={CircleCheckBig}
+      title={shownMode ? m.mpc_shown_empty_title() : m.mpc_empty_title()}
+      description={shownMode ? m.mpc_shown_empty_body() : m.mpc_empty_body()}
+    >
       <a href="/mes-photos" class="btn primary">
         <ArrowLeft size={18} />
         {m.mpc_back()}
@@ -208,12 +228,16 @@
       <p class="confirm-count">
         {#if bulk}
           {m.mpc_bulk_progress({ done: bulk.done, total: bulk.total })}
+        {:else if shownMode}
+          {m.mpc_shown_count({ count: suggestions.length })}
         {:else}
           {m.mpc_count({ count: suggestions.length })}
         {/if}
       </p>
-      <p class="confirm-hint">{m.mpc_order_hint()}</p>
-      <p class="confirm-hint confirm-keys">{m.mpc_keys_hint()}</p>
+      <p class="confirm-hint">{shownMode ? m.mpc_shown_order_hint() : m.mpc_order_hint()}</p>
+      <p class="confirm-hint confirm-keys">
+        {shownMode ? m.mpc_shown_keys_hint() : m.mpc_keys_hint()}
+      </p>
     </div>
     <ul class="confirm-grid" bind:this={grid}>
       {#each suggestions as item, index (answerKey(item))}
@@ -230,9 +254,9 @@
             <FaceCropThumb
               assetId={item.asset_id}
               faceIndex={item.face_index}
-              alt={m.mpc_face_alt()}
+              alt={shownMode ? m.mpc_shown_face_alt() : m.mpc_face_alt()}
             />
-            {#if index > 0}
+            {#if index > 0 && !shownMode}
               <button
                 type="button"
                 class="confirm-up-to"
@@ -246,7 +270,7 @@
               </button>
             {/if}
           </div>
-          <div class="confirm-actions">
+          <div class="confirm-actions" class:single={shownMode}>
             <button
               type="button"
               class="confirm-btn"
@@ -257,16 +281,18 @@
               <X size={18} aria-hidden="true" />
               <span>{m.mpc_not_me()}</span>
             </button>
-            <button
-              type="button"
-              class="confirm-btn yes"
-              tabindex="-1"
-              disabled={!!bulk || answering.includes(answerKey(item))}
-              onclick={() => answerAt(index, 'confirm')}
-            >
-              <Check size={18} aria-hidden="true" />
-              <span>{m.mpc_me()}</span>
-            </button>
+            {#if !shownMode}
+              <button
+                type="button"
+                class="confirm-btn yes"
+                tabindex="-1"
+                disabled={!!bulk || answering.includes(answerKey(item))}
+                onclick={() => answerAt(index, 'confirm')}
+              >
+                <Check size={18} aria-hidden="true" />
+                <span>{m.mpc_me()}</span>
+              </button>
+            {/if}
           </div>
         </li>
       {/each}
@@ -386,6 +412,11 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.4rem;
     padding: 0.45rem;
+  }
+
+  /* Mes photos' "Pas moi": one answer, the card's full width. */
+  .confirm-actions.single {
+    grid-template-columns: 1fr;
   }
 
   .confirm-btn {

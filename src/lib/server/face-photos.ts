@@ -31,6 +31,8 @@ export const VISIBLE_MATCH_SQL = "state != 'rejected' AND (band = 'auto' OR stat
 const VISIBLE = VISIBLE_MATCH_SQL;
 /** The SQL condition of a face waiting for its holder's answer. */
 const TO_CONFIRM = "band = 'suggested' AND state = 'pending'";
+/** The SQL condition of a face shown without a question that its holder may still refuse. */
+const SHOWN = "band = 'auto' AND state = 'pending'";
 
 /** The distinct assets of `userId`'s visible faces, oldest match first. */
 export function memberPhotoAssetIds(db: DatabaseInstance, userId: string): string[] {
@@ -53,6 +55,22 @@ export function pendingSuggestions(db: DatabaseInstance, userId: string): FaceKe
     .prepare(
       `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ? AND ${TO_CONFIRM}
         ORDER BY distance, asset_id, face_index`
+    )
+    .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
+  return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
+}
+
+/**
+ * The faces given to `userId` WITHOUT a question that they have not answered (`auto`, pending),
+ * LEAST SURE FIRST (faces v2, "Pas moi" from Mes photos): auto is sticky, so a stranger shown as
+ * theirs leaves only by their "not me", and the faces likeliest to be wrong are at the top. A face
+ * they confirmed is not listed (they already said yes). Ties by the face's key; never the distance.
+ */
+export function shownFaces(db: DatabaseInstance, userId: string): FaceKey[] {
+  const rows = db
+    .prepare(
+      `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ? AND ${SHOWN}
+        ORDER BY distance DESC, asset_id, face_index`
     )
     .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
   return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));

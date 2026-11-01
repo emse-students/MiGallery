@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
-  import { Lock, ArrowLeft, Camera, Eye, ChevronRight, ScanFace } from '@lucide/svelte';
+  import { Lock, ArrowLeft, Camera, Eye, ChevronRight, ScanFace, UserX } from '@lucide/svelte';
   import LoadingState from '#lib/components/LoadingState.svelte';
   import ErrorState from '#lib/components/ErrorState.svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
@@ -30,6 +30,11 @@
   let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
   /** How many photos wait for the viewer's yes or no (their own view only). */
   let toConfirm = $derived(isViewingOwnPhotos ? (data.ownFace?.toConfirm ?? 0) : 0);
+  /**
+   * Whether to offer "Pas moi" on the photos given to the viewer without a question (their own
+   * view, once they have photos): auto is sticky, so their answer is the only way out of a mistake.
+   */
+  let canRefuseShown = $derived(isViewingOwnPhotos && (data.ownFace?.photos ?? 0) > 0);
 
   function openChangePhotoModal() {
     showChangePhotoModal = true;
@@ -185,6 +190,14 @@
       </a>
     {/if}
 
+    {#if canRefuseShown}
+      <a href="/mes-photos/confirmer?list=shown" class="confirm-banner quiet">
+        <span class="confirm-icon"><UserX size={20} /></span>
+        <span class="confirm-text">{m.mp_not_me_link()}</span>
+        <ChevronRight size={18} />
+      </a>
+    {/if}
+
     {#if photosState.error}
       <ErrorState
         title={photosState.error}
@@ -235,6 +248,23 @@
 
   .confirm-banner:hover {
     background: var(--bg-tertiary);
+  }
+
+  /* "Pas moi" on the photos shown without a question: always there, never urgent, so muted. */
+  .confirm-banner.quiet {
+    border-color: transparent;
+    background: none;
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+  }
+
+  .confirm-banner.quiet:hover {
+    background: none;
+    color: var(--text-primary);
+  }
+
+  .confirm-banner.quiet .confirm-icon {
+    color: inherit;
   }
 
   .confirm-icon {

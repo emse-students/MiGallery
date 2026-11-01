@@ -957,6 +957,26 @@
   "mpc_crop_missing": "Picture unavailable",
   "mpc_crop_failed": "Picture not loaded",
   "mpc_crop_retry": "Retry",
+  "mp_not_me_link": "One of these photos isn't you? Remove it",
+  "mpc_shown_page_title": "Remove a photo - MiGallery",
+  "mpc_shown_title": "Not you?",
+  "mpc_shown_subtitle": "These photos were added automatically. Tap \"Not me\" on the ones that aren't you: they leave your photos and won't be offered to you again.",
+  "mpc_shown_load_error": "Your photos could not be loaded.",
+  "mpc_shown_empty_title": "Nothing to check",
+  "mpc_shown_empty_body": "No automatically added photo is left to check.",
+  "mpc_shown_order_hint": "Least certain first.",
+  "mpc_shown_keys_hint": "Keyboard: N or Delete for \"Not me\", arrows to move.",
+  "mpc_shown_face_alt": "Your face, recognised automatically",
+  "mpc_shown_count": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo added automatically",
+        "countPlural=*": "{count} photos added automatically"
+      }
+    }
+  ],
   "cpm_load_error": "Your photos could not be loaded.",
   "cpm_photo_alt": "Photo",
   "cpm_current_badge": "Current",
