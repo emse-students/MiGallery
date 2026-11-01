@@ -920,30 +920,6 @@
   "mpc_order_hint": "Closest matches first.",
   "mpc_keys_hint": "Keyboard: Y or Enter for \"It's me\", N or Delete for \"Not me\", arrows to move.",
   "mpc_card_label": "Photo {index} of {total}",
-  "mpc_confirm_up_to": "Up to here",
-  "mpc_confirm_up_to_label": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Confirm this photo and the one above",
-        "countPlural=*": "Confirm this photo and the {count} above"
-      }
-    }
-  ],
-  "mpc_confirm_up_to_title": "Confirm everything up to here?",
-  "mpc_confirm_up_to_body": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "This photo will join your photos.",
-        "countPlural=*": "These {count} photos will join your photos. Check that it is you on each of them."
-      }
-    }
-  ],
-  "mpc_confirm_up_to_action": "Confirm all",
-  "mpc_bulk_progress": "Confirming… {done}/{total}",
   "mpc_released": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

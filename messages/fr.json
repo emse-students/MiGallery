@@ -938,30 +938,6 @@
   "mpc_order_hint": "Les plus ressemblantes en premier.",
   "mpc_keys_hint": "Clavier : O ou Entrée pour « C'est moi », N ou Suppr pour « Pas moi », flèches pour naviguer.",
   "mpc_card_label": "Photo {index} sur {total}",
-  "mpc_confirm_up_to": "Jusqu'ici",
-  "mpc_confirm_up_to_label": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Confirmer cette photo et celle du dessus",
-        "countPlural=*": "Confirmer cette photo et les {count} du dessus"
-      }
-    }
-  ],
-  "mpc_confirm_up_to_title": "Tout confirmer jusqu'ici ?",
-  "mpc_confirm_up_to_body": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "Cette photo rejoindra vos photos.",
-        "countPlural=*": "Ces {count} photos rejoindront vos photos. Vérifiez qu'il s'agit bien de vous sur chacune."
-      }
-    }
-  ],
-  "mpc_confirm_up_to_action": "Tout confirmer",
-  "mpc_bulk_progress": "Confirmation… {done}/{total}",
   "mpc_released": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

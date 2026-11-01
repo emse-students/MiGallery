@@ -732,8 +732,8 @@ impersonated session, like the answer route; `tests/face-not-me-routes.test.ts`.
 `src/lib/face-confirm-list.ts`). Sorted nearest first (`pendingSuggestions` orders by distance; no
 distance reaches the client). Tiles load through the crop loader (the empty tiles' cause, above),
 with a loading state and a retry per tile. The two buttons stack an icon over a label that wraps,
-never clipped, at every width from 360 px. "Jusqu'ici" on every tile but the first confirms it and
-all above it, after a confirmation dialog, one answer at a time with progress. Keyboard: `O`/`Y`/
+never clipped, at every width from 360 px. There is no "up to here" bulk button (the owner removed it,
+2026-11-01: unclear and pointless): each tile answers alone. Keyboard: `O`/`Y`/
 Enter confirm, `N`/Delete/Backspace reject, arrows move (the hint is hidden on touch screens). An
 answer removes its tile at once and a refused one puts it back where it was.
 
