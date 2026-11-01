@@ -2,9 +2,20 @@
 
 ## Changes
 
+# MiGallery v2.18.0
+
+**Date**: November 1, 2026
+**Type**: Minor Release
+
+## 🎯 Objective
+
+The face store goes live: enrolment by a selfie never stored (A5), "Mes photos" read from MiGallery's own matches (A6), the one-shot seed from Immich's vectors (A7), and the terms that describe it (A9).
+
+## Changes
+
 - Immich proxy: an asset detail cleaned of its people leaves without Immich's `etag`/`last-modified`; a failed write of an upload's audit row (`import`, which makes the upload the member's own) is logged at error. The upload ownership rules (latest row, 90 days, impersonation) are written down in `docs/wiki/immich-proxy.md`.
 - Faces (A5, released together with A6, A7 and A9 - never on its own): enrolment by a selfie read in memory and never stored (no longer uploaded to Immich), with an explicit agreement that replaces an older legacy or admin consent; a member's answers on their matches, a confirmed face becoming a reference up to 5 only when within 0.5 of a reference they hold (a confirmed lookalike in the 0.5-0.62 band is shown, never learned); the re-match after an enrolment or a learned face runs in the background, at most one queued per member; at most 10 selfies an hour per member (429); a picture the model refuses is a 422, not "unavailable"; withdrawal of a member enrolled by selfie alone closes the consent too.
-- Faces (A6): "Mes photos" reads MiGallery's own matches (photos fetched from Immich by id); the faces offered with a doubt are confirmed on a new screen, with pictures cut on the server for that member only and deleted on withdrawal; the profile photo is chosen among the member's own photos; the people routes are removed and the Immich proxy refuses every person and face call, admins included. Ships with A7, which carries the existing profile photos over.
+- Faces (A6): "Mes photos" reads MiGallery's own matches (photos fetched from Immich by id, a search that sends no `page`, which Immich v3 refuses alongside a filter, #427); the faces offered with a doubt are confirmed on a new screen, with pictures cut on the server for that member only and deleted on withdrawal; the profile photo is chosen among the member's own photos; the people routes are removed and the Immich proxy refuses every person and face call, admins included. Ships with A7, which carries the existing profile photos over.
 - Faces (A7): the one-shot seed of the face store from Immich's own vectors (no recomputation): every face sealed, every recognised asset done, each linked member's references taken from their own person (the 5 faces nearest its centroid, only while they consent), every face decided, profile photos carried over, and the parity with the old links measured as aggregates (`POST /api/admin/faces/seed`, `scripts/faces/seed-client.mjs`). Every phase carries the run token `begin` returns; the finish is refused unless the counts Immich gave before the export equal what arrived, runs in the background (polled with `GET`), and has a dry run that writes nothing.
 - Faces (A9): the terms (`/cgu`, sections 4 and 5) describe the face store as it now is: a print of every face of the library, members or not, not grouped by person (save the one-time seed, which groups a linked member's faces just long enough to compute their references) and in no backup, a trashed photo keeping its prints until the trash is emptied; a member's references from a selfie never stored or, for an existing link, from their own photos; faces shown at once or offered for confirmation; withdrawal erasing references, matches and crops at once; Immich's former groups deleted at the cutover, an encrypted copy kept 30 days. Terms version 2026-10-31 (labels the consents recorded from now on). The wiki's data model and erasure pages follow.
 
