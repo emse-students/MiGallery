@@ -182,13 +182,28 @@ function bodyKeyNamingPeople(value: unknown, depth: number): string | null {
 const FACE_FIELDS = ['people', 'unassignedFaces'];
 
 /**
+ * An answer nested deeper than {@link MAX_BODY_DEPTH}: it cannot be cleaned with certainty, so it
+ * is refused rather than forwarded (a `people` key below the cap would otherwise leave untouched).
+ */
+export class FaceFieldsTooDeepError extends Error {
+  constructor(readonly depth: number) {
+    super(`proxied answer nested deeper than ${MAX_BODY_DEPTH}`);
+    this.name = 'FaceFieldsTooDeepError';
+  }
+}
+
+/**
  * Remove the people and faces Immich puts inside an answer (`GET /api/assets/:id` carries
- * `people` with their face boxes until lot A8 deletes them), at any depth up to 6, in place.
- * Returns how many fields went, for the log.
+ * `people` with their face boxes until lot A8 deletes them), at any depth, in place. Returns how
+ * many fields went, for the log. Throws {@link FaceFieldsTooDeepError} past
+ * {@link MAX_BODY_DEPTH}, the same bound as the request side: never a silent partial clean.
  */
 export function stripFaceFields(value: unknown, depth = 0): number {
-  if (depth > 6 || !value || typeof value !== 'object') {
+  if (!value || typeof value !== 'object') {
     return 0;
+  }
+  if (depth > MAX_BODY_DEPTH) {
+    throw new FaceFieldsTooDeepError(depth);
   }
   let removed = 0;
   if (Array.isArray(value)) {

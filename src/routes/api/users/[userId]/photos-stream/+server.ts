@@ -18,7 +18,7 @@ const log = createLogger('users-userId-photos-stream');
  * picker).
  *
  * Readable by the member, a member they authorised, an admin or an API key (face-access.ts). The
- * answer is assets only: no face, no score, no other member.
+ * answer is assets only: no face, no score, no other member, and `private, no-store`.
  */
 export const GET: RequestHandler = async (event) => {
   const ownerId = event.params.userId;
@@ -32,7 +32,8 @@ export const GET: RequestHandler = async (event) => {
   await requireMemberPhotosAccess(event, ownerId);
   try {
     const assets = await memberPhotoAssets(event.fetch, getDatabase(), ownerId, scope);
-    return assetsNdjsonResponse(assets, event.request);
+    // Face-derived (who appears where): never stored by a browser or a shared cache.
+    return assetsNdjsonResponse(assets, event.request, 'private, no-store');
   } catch (e: unknown) {
     if (e instanceof ImmichNotConfiguredError) {
       // Said once at info by requireImmichBaseUrl; nothing failed.

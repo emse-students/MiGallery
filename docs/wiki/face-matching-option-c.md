@@ -480,6 +480,26 @@ No `ORDER BY`: it would sort the whole table (section 3, A7 row). Read on the li
 ingested by the worker once seeded), 600,003 visible faces; the person column is
 `personGroupId` in Immich v3. A failed run is run again from the start (`begin` wipes it).
 
+**Before the real run, and what a re-run costs.**
+
+- **Backup first**: a copy of `migallery.db` (`sqlite3 migallery.db ".backup '<copy>'"`), taken
+  right before the run without `--dry-run`. The seed writes only additions there (`seed`
+  references, matches, the claimed profile faces); `faces.db` is the store the run rebuilds, and
+  before `seeded_at` it holds no face of a member's (ingestion waits for the seed), so it needs
+  no copy - and it stays in no backup afterwards (the `Backups` decision above).
+- **The second `begin` wipes the dry run's store** (about 600,000 sealed rows, under
+  `secure_delete`) in the request. If that outlasts the server's idle timeout, the client stops
+  with `seed failed: begin: ...` while the wipe completes on the server; running the same command
+  again starts cleanly (`begin` is idempotent before `seeded_at`).
+- **A re-run from `begin` drops every match**, including answers members gave on a finish that
+  was cut after `rematchAll`, and the crops cut from those faces (a re-run may give the same
+  `(asset, index)` to another face). Run the seed straight after the deploy, before members use
+  the confirmation screen.
+- **Rollback**: before `seeded_at`, a new `begin` (or nothing: the app reads an empty store). After
+  it, there is no supported undo: stop the container, restore the `migallery.db` copy and delete
+  `faces.db` with its `-wal` and `-shm` (it is recreated empty and unseeded) - which also drops whatever members did since
+  the copy, so it is for a parity report that is plainly wrong, read before anyone uses the pages.
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                       |

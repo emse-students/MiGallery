@@ -226,6 +226,14 @@ describe('stripFaceFields (what an Immich answer may carry to a client)', () => 
     expect(answer).toEqual({ id: 'a1', album: { assets: [{ id: 'a2' }] } });
   });
 
+  it('refuses an answer nested past the bound instead of cleaning it partly', () => {
+    let deep: Record<string, unknown> = { people: [{ id: PERSON }] };
+    for (let i = 0; i < 40; i++) {
+      deep = { child: deep };
+    }
+    expect(() => access.stripFaceFields(deep)).toThrow(access.FaceFieldsTooDeepError);
+  });
+
   it('leaves an answer without them untouched', () => {
     const answer = { id: 'a1', exifInfo: { make: 'x' } };
     expect(access.stripFaceFields(answer)).toBe(0);
