@@ -118,6 +118,11 @@ let library: Record<string, { id: string; type: string; fileCreatedAt: string }>
 let archived = new Set<string>();
 /** Assets in the faked Immich's trash: left out of search, `isTrashed` on a direct read. */
 let trashed = new Set<string>();
+/**
+ * LOCKED assets: left out of search, and a direct read answers 400 - the same 400 Immich 3.3.3
+ * gives an asset deleted for good (an API key never holds the elevated session they need).
+ */
+let locked = new Set<string>();
 /** When set, the faked search ignores its filter and answers this page instead. */
 let ignoreFilter: string[] | null = null;
 /** When set, the faked search answers (or throws) this instead. */
@@ -151,7 +156,7 @@ const immich = (async (url: string, init?: RequestInit) => {
     }
     const asked = body.filter.or.map((c) => c.id.eq);
     const items = (ignoreFilter ?? asked)
-      .filter((id) => !archived.has(id) && !trashed.has(id))
+      .filter((id) => !archived.has(id) && !trashed.has(id) && !locked.has(id))
       .map((id) => library[id])
       .filter(Boolean);
     return Response.json({ assets: { items, nextPage: null, nextCursor: announcedCursor } });
@@ -159,9 +164,10 @@ const immich = (async (url: string, init?: RequestInit) => {
   const one = u.pathname.match(/^\/api\/assets\/([^/]+)$/);
   if (one && (init?.method ?? 'GET') === 'GET') {
     const asset = library[decodeURIComponent(one[1])];
-    return asset
+    // Immich 3.3.3 checks access first: deleted, unseen and locked all answer this one 400.
+    return asset && !locked.has(asset.id)
       ? Response.json({ ...asset, isTrashed: trashed.has(asset.id) })
-      : Response.json({ message: 'Not found' }, { status: 404 });
+      : Response.json({ message: 'Not found or no asset.read access' }, { status: 400 });
   }
   if (u.pathname.endsWith('/thumbnail') && u.searchParams.get('size') === 'preview') {
     return new Response(new Uint8Array(source), { headers: { 'content-type': 'image/png' } });
@@ -279,6 +285,7 @@ beforeEach(() => {
   library = {};
   archived = new Set();
   trashed = new Set();
+  locked = new Set();
   searchFails = null;
   // The avatar route's background default-photo look runs on the GLOBAL fetch: here, the faked
   // Immich, so no test ever reaches the network (a real lookup of immich.test hung on CI).
@@ -784,17 +791,23 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
     expect(await run('m1')).toBe('kept_choice');
     expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
-    // Archived (or locked): the search leaves it out, but Immich still has it - kept.
+    // Archived: the search leaves it out, but Immich still has it - kept.
     archived.add('mine');
     expect(await run('m1')).toBe('kept_choice');
     expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
-    // In the trash: gone, replaced.
+    // Locked: the direct read answers 400, which cannot tell it from deleted - kept.
+    archived.delete('mine');
+    locked.add('mine');
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    locked.delete('mine');
+    // In the trash: the one answer the live check believes - gone, replaced.
     trashed.add('mine');
     expect(await run('m1')).toBe('set_scored');
     expect(pointer('m1')).toEqual({ a: 'better', s: 'default' });
   });
 
-  it('replaces a chosen photo Immich deleted, and never one it cannot read', async () => {
+  it('live: a 400, an error or no answer keeps the choice - deleted and locked look the same', async () => {
     storeFace('mine', 0, axis(1), 30);
     storeFace('better', 0, axis(1), 200);
     photo('mine', '2026-01-01T00:00:00Z');
@@ -802,19 +815,68 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     held('m1', 'mine', { distance: 0.45 });
     held('m1', 'better', { distance: 0.1 });
     expect((await choose({ asset_id: 'mine' })).status).toBe(200);
-    archived.add('mine');
-    // Immich does not answer the direct read: an unknown state is never "gone".
-    const down = immich;
-    const failing = (async (url: string, init?: RequestInit) =>
-      new URL(String(url)).pathname.endsWith('/api/assets/mine')
-        ? new Response('boom', { status: 500 })
-        : down(url, init)) as unknown as typeof fetch;
-    await expect(
-      defaults.ensureDefaultProfilePhoto(engine(), 'm1', failing, {})
-    ).rejects.toBeTruthy();
-    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // Deleted for good: search misses it, the direct read answers 400 - unknown, kept.
     delete library.mine;
-    expect(await run('m1')).toBe('set_scored');
+    expect(await run('m1')).toBe('kept_choice');
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // A 500, then no answer at all: unknown, kept.
+    for (const answer of [
+      async () => new Response('boom', { status: 500 }),
+      async () => {
+        throw new Error('network down');
+      },
+    ]) {
+      const flaky = (async (url: string, init?: RequestInit) =>
+        new URL(String(url)).pathname.endsWith('/api/assets/mine')
+          ? answer()
+          : immich(url, init)) as unknown as typeof fetch;
+      expect(await defaults.ensureDefaultProfilePhoto(engine(), 'm1', flaky, {})).toBe(
+        'kept_choice'
+      );
+      expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    }
+  });
+
+  it("the one-off run's export decides: a locked chosen photo is kept, a deleted one replaced", async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    // Locked: invisible to every API read, but in Immich's table, so in the export - kept.
+    locked.add('mine');
+    const withLocked = new Set(['mine', 'better']);
+    const kept = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      false,
+      withLocked
+    );
+    expect(kept).toMatchObject({ kept_choice: 1, chosenGoneReplaced: 0, presentGiven: 2 });
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    // Deleted for good: no longer in Immich's table, so absent from the export - replaced.
+    delete library.mine;
+    locked.delete('mine');
+    const dry = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      true,
+      new Set(['better'])
+    );
+    expect(dry).toMatchObject({ set_scored: 1, chosenGoneReplaced: 1 });
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+    const real = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      false,
+      new Set(['better'])
+    );
+    expect(real).toMatchObject({ set_scored: 1, chosenGoneReplaced: 1 });
     expect(pointer('m1')).toEqual({ a: 'better', s: 'default' });
   });
 
@@ -934,6 +996,20 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     expect((await avatar('m1')).status).toBe(200);
   });
 
+  it('the admin run refuses a malformed present list', async () => {
+    const route = await import('../src/routes/api/admin/faces/default-photos/+server');
+    state.auth = member('boss', 'admin');
+    for (const present of [[], 'a1', [1], ['../x']]) {
+      const res = await call(route.POST, {
+        request: new Request('http://x.test/', {
+          method: 'POST',
+          body: JSON.stringify({ present, dryRun: true }),
+        }),
+      });
+      expect(res.status).toBe(400);
+    }
+  });
+
   it('the admin run: two POSTs at once start ONE run, the other is told 409', async () => {
     const route = await import('../src/routes/api/admin/faces/default-photos/+server');
     state.auth = member('boss', 'admin');
@@ -951,12 +1027,9 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
         });
       const statuses = (await Promise.all([post(), post()])).map((r) => r.status).sort();
       expect(statuses).toEqual([202, 409]);
-      let state_: { status?: string; report?: Record<string, number> } = {};
-      // Until the run ends, however long it takes: the test's own timeout is the only bound.
-      do {
-        await new Promise((r) => setImmediate(r));
-        state_ = await (await call(route.GET, {})).json();
-      } while (state_.status === 'running');
+      // The run itself is awaited, never polled.
+      await route._runSettled();
+      const state_ = await (await call(route.GET, {})).json();
       expect(state_).toMatchObject({ status: 'done', report: { members: 1, set_scored: 1 } });
       // A dry run writes nothing.
       expect(pointer('m1')).toEqual({ a: null, s: null });

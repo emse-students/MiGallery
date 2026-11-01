@@ -1,14 +1,21 @@
 #!/usr/bin/env bun
 /**
  * The one-off run of the DEFAULT profile photo (src/lib/server/profile-photo-default.ts) over every
- * enrolled member. Reads on stdin, tab-separated, the face Immich FEATURED for each person (the
- * thumbnail its people page showed, which was each member's avatar before lot A6):
+ * enrolled member. Reads on stdin, tab-separated, Immich's own table (one export, one snapshot):
  *
  *   G <person id> <asset id> <x1> <y1> <x2> <y2> <image width> <image height>
+ *       the face Immich FEATURED for each person (its people page's thumbnail, each member's
+ *       avatar before lot A6);
+ *   P <asset id>
+ *       every asset Immich still holds (not deleted, not in the trash), LOCKED INCLUDED: the only
+ *       evidence that a member's CHOSEN photo is gone, since the API answers the same 400 for a
+ *       deleted asset and a locked one. A chosen photo absent from the P lines is replaced; one
+ *       present (locked or not) is kept.
  *
- * An EMPTY stdin is refused unless `--no-featured` says it is meant (a failed or wrong export
- * must not silently run without the featured faces; with the flag every member is ranked from
- * their own matches). Posts them to
+ * An export with no G line or no P line is refused unless `--no-featured` says an empty stdin is
+ * meant (a failed or wrong export must not silently run without them; with the flag every member
+ * is ranked from their own matches, and a choice goes only when its photo is in the trash). Posts
+ * them to
  * POST /api/admin/faces/default-photos, and polls GET until the run is done; prints the report,
  * which carries counts only. `--dry-run` decides without writing anything.
  *
@@ -37,53 +44,67 @@ async function answer(res, what) {
 }
 
 /**
- * The featured faces of the export, one per line; a malformed line stops the run.
+ * The export: the featured faces (G lines) and the asset ids Immich still holds (P lines). A
+ * malformed line stops the run.
  * @param {string} text
  */
-export function parseFeatured(text) {
-  const out = [];
+export function parseExport(text) {
+  const featured = [];
+  const present = [];
   for (const [n, line] of text.split('\n').entries()) {
     if (line.trim() === '') continue;
     const f = line.split('\t');
+    if (f[0] === 'P' && f.length === 2 && f[1] !== '') {
+      present.push(f[1]);
+      continue;
+    }
     const nums = f.slice(3, 9).map(Number);
     if (f[0] !== 'G' || f.length !== 9 || nums.some((v) => !Number.isFinite(v))) {
-      throw new Error(`line ${n + 1}: expected "G person asset x1 y1 x2 y2 w h"`);
+      throw new Error(`line ${n + 1}: expected "G person asset x1 y1 x2 y2 w h" or "P asset"`);
     }
     const [x1, y1, x2, y2, imgW, imgH] = nums;
-    out.push({ person: f[1], assetId: f[2], x1, y1, x2, y2, imgW, imgH });
+    featured.push({ person: f[1], assetId: f[2], x1, y1, x2, y2, imgW, imgH });
   }
-  return out;
+  return { featured, present };
 }
 
 /**
- * An empty export is refused unless `--no-featured` says it is meant; featured faces WITH that flag
- * are refused too (the two say opposite things).
- * @param {number} count
+ * An export without featured faces or without present assets is refused unless `--no-featured`
+ * says an empty stdin is meant; anything on stdin WITH that flag is refused too (the two say
+ * opposite things).
+ * @param {{ featured: unknown[], present: unknown[] }} parsed
  * @param {boolean} noFeatured
  */
-export function checkFeaturedCount(count, noFeatured) {
-  if (count === 0 && !noFeatured) {
-    throw new Error(
-      'no featured face on stdin: check the export, or pass --no-featured to run without'
-    );
+export function checkExport({ featured, present }, noFeatured) {
+  if (noFeatured) {
+    if (featured.length > 0 || present.length > 0) {
+      throw new Error('--no-featured given, but stdin carries an export');
+    }
+    return;
   }
-  if (count > 0 && noFeatured) {
-    throw new Error('--no-featured given, but stdin carries featured faces');
+  if (featured.length === 0) {
+    throw new Error('no featured face (G) on stdin: check the export, or pass --no-featured');
+  }
+  if (present.length === 0) {
+    throw new Error('no present asset (P) on stdin: the export is incomplete, check it');
   }
 }
 
 async function main() {
   if (!KEY) throw new Error('MIGALLERY_ADMIN_KEY is not set');
   const dryRun = process.argv.includes('--dry-run');
-  const featured = parseFeatured(await Bun.stdin.text());
-  console.log(`featured faces read: ${featured.length}`);
-  checkFeaturedCount(featured.length, process.argv.includes('--no-featured'));
+  const parsed = parseExport(await Bun.stdin.text());
+  const { featured, present } = parsed;
+  console.log(`featured faces read: ${featured.length}; present assets read: ${present.length}`);
+  checkExport(parsed, process.argv.includes('--no-featured'));
   const headers = { 'content-type': 'application/json', 'x-api-key': KEY };
   await answer(
     await fetch(`${BASE}/api/admin/faces/default-photos`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ featured, dryRun }),
+      body: JSON.stringify(
+        present.length > 0 ? { featured, present, dryRun } : { featured, dryRun }
+      ),
     }),
     'start'
   );
