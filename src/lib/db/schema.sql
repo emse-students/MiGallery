@@ -248,6 +248,44 @@ CREATE TABLE IF NOT EXISTS face_reference_selection (
     FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
 
+-- face_reference_ledger and face_match_ledger (faces v2.1): what a selection pass rewrote, kept so
+-- it can be undone (src/lib/server/face-reference-ledger.ts, docs/wiki/face-matching-option-c.md).
+-- Just BEFORE a pass replaces a member's references, their `face_references` rows are copied here
+-- verbatim (the sealed blob is bound to the member and model, so a restore opens as it did) with
+-- the selection `version` that rewrote them, and so are their PENDING matches (the faces waiting
+-- or shown without a question). One snapshot per member and version. The sealed vectors are as
+-- biometric as the references: withdrawal and an account deletion erase them with the rest
+-- (`eraseFaceReferences`, cascade), and `purgeSelectionLedger` ends the undo window for everyone.
+CREATE TABLE IF NOT EXISTS face_reference_ledger (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    saved_at INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    sealed BLOB NOT NULL,
+    created_at INTEGER NOT NULL,
+    asset_id TEXT,
+    face_index INTEGER,
+    taken_at INTEGER,
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_face_reference_ledger_user ON face_reference_ledger(user_id, version);
+CREATE TABLE IF NOT EXISTS face_match_ledger (
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    saved_at INTEGER NOT NULL,
+    asset_id TEXT NOT NULL,
+    face_index INTEGER NOT NULL,
+    distance REAL NOT NULL,
+    runner_up REAL,
+    band TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY(user_id, model, version, asset_id, face_index),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+
 -- face_embeddings (every detected face, non-members included) is NOT in this file: it lives in
 -- data/faces.db (src/lib/db/face-database.ts), which no backup copies, because the faces are
 -- recomputed from the photographs. Only what concerns consenting members stays here.

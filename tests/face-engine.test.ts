@@ -1268,9 +1268,11 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
   let enrolment: typeof import('#lib/server/face-enrolment.ts');
   let negatives: typeof import('#lib/server/face-negatives.ts');
   let upgrade: typeof import('#lib/server/face-reference-upgrade.ts');
+  let ledger: typeof import('#lib/server/face-reference-ledger.ts');
   let embedding: typeof import('#lib/face-embedding.ts');
 
   beforeAll(async () => {
+    ledger = await import('#lib/server/face-reference-ledger.ts');
     enrolment = await import('#lib/server/face-enrolment.ts');
     negatives = await import('#lib/server/face-negatives.ts');
     upgrade = await import('#lib/server/face-reference-upgrade.ts');
@@ -1618,6 +1620,109 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       expect(result).toMatchObject({ outcome: 'already', added: 0, dropped: 0 });
       expect(refsOf()).toHaveLength(5);
       expect(upgrade.membersToUpgrade(db())).toEqual([]);
+    });
+
+    describe('the ledger of a pass, and the way back', () => {
+      const undo = (userId = 'alice') =>
+        engineMod.runExclusive(() => ledger.undoReferenceSelection(engine(), userId));
+      const bands = () =>
+        Object.fromEntries(
+          matches()
+            .filter((m) => m.user_id === 'alice')
+            .map((m) => [m.asset_id, `${m.band}/${m.state}`])
+        );
+      const selfieBlob = () =>
+        (
+          db().prepare("SELECT sealed FROM face_references WHERE source = 'selfie'").get() as {
+            sealed: Uint8Array;
+          }
+        ).sealed;
+
+      /** A lone selfie, five waiting faces, one answered yes and one answered no. */
+      async function bootstrapped() {
+        addUser('alice');
+        enrolment.enrolMember(engine(), 'alice', ALICE);
+        await storeFaces({
+          near30: atDistance(ALICE, synthetic(911), 0.3),
+          near35: atDistance(ALICE, synthetic(912), 0.35),
+          near38: atDistance(ALICE, synthetic(913), 0.38),
+          far45: atDistance(ALICE, synthetic(914), 0.45),
+          yes: atDistance(ALICE, synthetic(916), 0.55),
+          no: atDistance(ALICE, synthetic(917), 0.58),
+        });
+        setRow('yes', 'suggested', 'confirmed');
+        setRow('no', 'suggested', 'rejected');
+      }
+
+      it('keeps the references and the waiting faces a pass replaces, in the same transaction', async () => {
+        await bootstrapped();
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        // The selfie, and the four faces still waiting: the answered two are the member's own.
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 1, references: 1, matches: 4 });
+      });
+
+      it('restores the references byte for byte, the waiting faces and their bands, and keeps the answers', async () => {
+        await bootstrapped();
+        const selfieBefore = Buffer.from(selfieBlob());
+        const waitingBefore = bands();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        await L.rematchMember(engine(), 'alice');
+        // The pass did something visible, or the undo proves nothing.
+        expect(refsOf().length).toBeGreaterThan(1);
+        expect(bands().near30).toBe('auto/pending');
+        const result = await undo();
+        expect(result).toMatchObject({ version: embedding.FACE_REFERENCE_SELECTION_VERSION });
+        expect(result?.conflicts).toBe(0);
+        expect(refsOf()).toHaveLength(1);
+        expect(Buffer.compare(Buffer.from(selfieBlob()), selfieBefore)).toBe(0);
+        expect(bands()).toEqual(waitingBefore);
+        // Answers are the member's: still there. And the member is not redone.
+        expect(bands().yes).toBe('suggested/confirmed');
+        expect(bands().no).toBe('suggested/rejected');
+        expect(upgrade.membersToUpgrade(db())).toEqual([]);
+        // Consumed: a second undo finds nothing.
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+        expect(await undo()).toBeNull();
+      });
+
+      it('does not force back a face another member confirmed since: a conflict, counted', async () => {
+        await bootstrapped();
+        addUser('bob');
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        db()
+          .prepare("DELETE FROM face_matches WHERE asset_id = 'near30' AND user_id = 'alice'")
+          .run();
+        db()
+          .prepare(
+            `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up,
+               band, state, created_at, decided_at) VALUES ('near30', 0, ?, 'bob', 0.3, NULL,
+               'auto', 'confirmed', 1, 1)`
+          )
+          .run(embedding.FACE_MODEL);
+        const result = await undo();
+        expect(result?.conflicts).toBe(1);
+        expect(matches().find((m) => m.asset_id === 'near30')?.user_id).toBe('bob');
+      });
+
+      it('goes with the member on withdrawal, and the whole ledger goes on a purge', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        expect(ledger.ledgerCounts(db()).references).toBe(1);
+        refs.eraseFaceReferences(db(), 'alice');
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+        db().prepare('DELETE FROM face_reference_selection').run();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        // No reference left to rewrite: nothing was kept, nothing to purge.
+        expect(ledger.purgeSelectionLedger(db())).toBe(0);
+      });
+
+      it('purges everything at once when the window is closed', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        expect(ledger.purgeSelectionLedger(db())).toBe(5);
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+      });
     });
   });
 });

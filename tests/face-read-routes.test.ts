@@ -1038,6 +1038,37 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     expect((await avatar('m1')).status).toBe(200);
   });
 
+  it('the selection undo route: a user id is required, nothing to undo is a 404, GET counts and DELETE purges', async () => {
+    const route = await import('../src/routes/api/admin/faces/selection-undo/+server');
+    state.auth = member('boss', 'admin');
+    for (const body of [{}, { user_id: '' }, { user_id: 7 }]) {
+      const res = await call(route.POST, {
+        request: new Request('http://x.test/', { method: 'POST', body: JSON.stringify(body) }),
+      });
+      expect(res.status).toBe(400);
+    }
+    const none = await call(route.POST, {
+      request: new Request('http://x.test/', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: 'm1' }),
+      }),
+    });
+    expect(none.status).toBe(404);
+    expect(await (await call(route.GET, {})).json()).toEqual({
+      success: true,
+      members: 0,
+      references: 0,
+      matches: 0,
+    });
+    expect(await (await call(route.DELETE, {})).json()).toEqual({ success: true, deleted: 0 });
+    state.impersonating = true;
+    try {
+      expect((await call(route.GET, {})).status).toBe(403);
+    } finally {
+      state.impersonating = false;
+    }
+  });
+
   it('the admin run refuses a malformed present list', async () => {
     const route = await import('../src/routes/api/admin/faces/default-photos/+server');
     state.auth = member('boss', 'admin');

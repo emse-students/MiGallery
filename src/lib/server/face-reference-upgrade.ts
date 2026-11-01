@@ -54,6 +54,7 @@ import {
 } from '#lib/face-reference-selection.ts';
 import { getFaceStoreState } from '#lib/db/face-database.ts';
 import { rematchMember, runExclusive, type FaceEngine } from '#lib/server/face-engine.ts';
+import { saveSelectionLedger } from '#lib/server/face-reference-ledger.ts';
 import { assetCaptureTimes } from '#lib/server/face-photos.ts';
 import { ensureDefaultProfilePhoto } from '#lib/server/profile-photo-default.ts';
 import {
@@ -210,6 +211,8 @@ export function reselectReferences(
       }
     }
     const chosen = new Set(selectVariedReferences(pool, FACE_MAX_REFERENCES).map((c) => c.key));
+    // What is about to be replaced is kept first, in this same transaction: the way back.
+    saveSelectionLedger(db, userId, FACE_REFERENCE_SELECTION_VERSION, now);
     let dropped = 0;
     for (const h of held) {
       if (!chosen.has(h.key)) {

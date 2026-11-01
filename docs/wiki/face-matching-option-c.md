@@ -830,6 +830,33 @@ preview every member's viewer already reads, the proposed face as a chip, answer
 Space or the corner button, Escape answers nothing). The background re-match that follows an
 answer lands later and is not pushed to an open page: the next navigation shows it.
 
+**4. The ledger, and the way back** (`face-reference-ledger.ts`, tables `face_reference_ledger`
+and `face_match_ledger`; the production pass is a write, so it keeps what it replaces). Just BEFORE
+a selection pass rewrites a member's references, and in the same transaction, their
+`face_references` rows are copied verbatim (the sealed blob is bound to the member and model, so a
+restore opens as the original did) with the selection version, and so are their PENDING matches
+(shown without a question, or waiting); answered rows are the member's own and a pass never
+touches them. One snapshot per member and version. A member only MARKED (already at 3 references)
+rewrites nothing and keeps nothing.
+
+**Undo, one member** (`POST /api/admin/faces/selection-undo { user_id }`, an admin session, never
+an impersonated one; the function runs in the engine lock, in one transaction): the references
+are replaced by the snapshot's, the pending matches by the snapshot's, the selection marker stays
+at the pass's version (an undone member is not redone on the next tick), the snapshot is consumed
+(a second undo is a 404), and the faces the member held that the snapshot does not name are
+re-decided for everyone. Counts come back: `{ version, references, matches, conflicts,
+redecided }`. A `conflict` is a snapshot face another member has CONFIRMED since: it is not given
+back. What an undo does not return: a reference the member learned by answering AFTER the pass
+(replaced by the snapshot's set; their answers stay as rows), and a face another member lost to
+this one during the pass (re-decided at that member's next re-match). So undo soon.
+`GET` on the same route counts the ledger (`{ members, references, matches }`).
+
+**Retention.** The ledger holds sealed biometric vectors, so it goes with the member (withdrawal,
+unlink and account deletion: `eraseFaceReferences`, and the cascade) and for everyone at once on
+`DELETE /api/admin/faces/selection-undo` (`purgeSelectionLedger`), which the owner runs when the
+window is closed. No timer decides it. It lives in `migallery.db`, so the backups carry it too:
+add the ledger to the register of processing when the pass has run (owed, Canari repository).
+
 **Measured, owed after the release:** the same read-only query as the baseline (visible photos per
 consenting member: zero-visible count and median) once the pass has run; the production write that
 sets this off is the deploy of the release itself (the selection pass runs from the ingestion
