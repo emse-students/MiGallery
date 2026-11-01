@@ -6,6 +6,7 @@ import { defaultFaceEngine } from '#lib/server/face-engine.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
 import {
   runDefaultProfilePhotos,
+  wantedPersons,
   type DefaultReport,
   type FeaturedFace,
 } from '#lib/server/profile-photo-default.ts';
@@ -93,7 +94,10 @@ export const POST: RequestHandler = async (event) => {
   );
   const rawFeatured = body.featured ?? [];
   if (!Array.isArray(rawFeatured) || rawFeatured.length > MAX_FEATURED) {
-    throw error(400, `featured: an array of at most ${MAX_FEATURED} faces`);
+    throw error(
+      400,
+      `featured: an array of at most ${MAX_FEATURED} faces, one per LINKED member. The client sends only those (GET ?wanted=1 lists them); an export sent by hand must be filtered to them`
+    );
   }
   const featured = new Map<string, FeaturedFace>();
   for (const raw of rawFeatured) {
@@ -140,8 +144,15 @@ export const POST: RequestHandler = async (event) => {
   return json({ success: true, status: 'running', dryRun }, { status: 202 });
 };
 
-/** GET /api/admin/faces/default-photos: the run of this process, `{ status, dryRun, report }`. */
+/**
+ * GET /api/admin/faces/default-photos: the run of this process, `{ status, dryRun, report }`.
+ * `?wanted=1` answers instead `{ people }`, the Immich person ids (lowercase) a featured face can
+ * be used for: what the client filters its export to before the POST (ids only, no names).
+ */
 export const GET: RequestHandler = async (event) => {
-  await adminEngine(event);
+  const engine = await adminEngine(event);
+  if (event.url.searchParams.get('wanted') === '1') {
+    return json({ success: true, people: wantedPersons(engine.db) });
+  }
   return json({ success: true, ...(last ?? { status: 'idle' }) });
 };

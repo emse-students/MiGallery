@@ -318,6 +318,32 @@ export function enrolledMembers(db: DatabaseInstance): string[] {
   ).map((r) => r.user_id);
 }
 
+/**
+ * The Immich person ids a run can use a featured face for: the `photos_id` (lowercase) of every
+ * enrolled member that has one. `featuredByPerson` is read for no other key, so this is exactly
+ * what the one-off client must send as G lines - the Immich table holds far more persons (about
+ * 94k in production) than there are members.
+ */
+export function wantedPersons(db: DatabaseInstance): string[] {
+  const personOf = linkedPersonOf(db);
+  const wanted = new Set<string>();
+  for (const userId of enrolledMembers(db)) {
+    const person = personOf(userId);
+    if (person) wanted.add(person);
+  }
+  return [...wanted].sort();
+}
+
+/**
+ * A member's Immich person id (their `photos_id`), lowercased as every featured-face key is, or
+ * null when they are not linked. The one lookup of the run and of {@link wantedPersons}.
+ */
+function linkedPersonOf(db: DatabaseInstance): (userId: string) => string | null {
+  const stmt = db.prepare('SELECT photos_id FROM users WHERE id_user = ?');
+  return (userId) =>
+    (stmt.get(userId) as { photos_id: string | null } | null)?.photos_id?.toLowerCase() || null;
+}
+
 /** The aggregate of a run: counts only. */
 export type DefaultReport = Record<DefaultOutcome | 'failed', number> & {
   members: number;
@@ -357,11 +383,11 @@ export async function runDefaultProfilePhotos(
     none: 0,
     failed: 0,
   };
-  const personOf = engine.db.prepare('SELECT photos_id FROM users WHERE id_user = ?');
+  const personOf = linkedPersonOf(engine.db);
   for (const userId of enrolledMembers(engine.db)) {
     report.members++;
-    const person = (personOf.get(userId) as { photos_id: string | null } | null)?.photos_id;
-    const featured = person ? (featuredByPerson.get(person.toLowerCase()) ?? null) : null;
+    const person = personOf(userId);
+    const featured = person ? (featuredByPerson.get(person) ?? null) : null;
     if (featured) {
       report.featuredGiven++;
     }

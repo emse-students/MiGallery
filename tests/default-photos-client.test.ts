@@ -6,7 +6,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { checkExport, parseExport } from '../scripts/faces/default-photos-client.mjs';
+import {
+  checkExport,
+  keepWanted,
+  parseExport,
+  readWanted,
+} from '../scripts/faces/default-photos-client.mjs';
 
 describe('the default-photo client', () => {
   it('parses featured faces and present assets, one per line', () => {
@@ -16,6 +21,37 @@ describe('the default-photo client', () => {
     });
     expect(() => parseExport('G\tp1\ta1\t1\t2\n')).toThrow(/line 1/);
     expect(() => parseExport('P\n')).toThrow(/line 1/);
+  });
+
+  it('keeps only the featured faces of linked members, case-insensitively, under the server cap', () => {
+    // The production shape: far more persons than members (6,000 unlinked here, 94k there).
+    const face = (person: string) => ({
+      person,
+      assetId: 'a',
+      x1: 1,
+      y1: 2,
+      x2: 3,
+      y2: 4,
+      imgW: 4,
+      imgH: 3,
+    });
+    const featured = [
+      ...Array.from({ length: 6000 }, (_, i) => face(`unlinked-${i}`)),
+      face('AAAA-Person'),
+      face('cccc-person'),
+    ];
+    expect(featured.length).toBeGreaterThan(5000);
+    const sent = keepWanted(featured, ['aaaa-person', 'CCCC-PERSON', 'nobody-in-export']);
+    expect(sent.map((f) => f.person)).toEqual(['AAAA-Person', 'cccc-person']);
+    expect(keepWanted(featured, [])).toEqual([]);
+  });
+
+  it('says so when the server does not know ?wanted=1 (an older one answers the run state)', () => {
+    expect(readWanted({ success: true, people: ['p'] })).toEqual(['p']);
+    expect(() => readWanted({ success: true, status: 'idle' })).toThrow(
+      /does not support \?wanted=1/
+    );
+    expect(() => readWanted(null)).toThrow(/does not support/);
   });
 
   it('refuses an export missing its G or P lines unless --no-featured, and the flag with an export', () => {

@@ -5,7 +5,9 @@
  *
  *   G <person id> <asset id> <x1> <y1> <x2> <y2> <image width> <image height>
  *       the face Immich FEATURED for each person (its people page's thumbnail, each member's
- *       avatar before lot A6);
+ *       avatar before lot A6). The export may carry EVERY person (about 94k in production): the
+ *       client asks the server which persons it can use (GET ?wanted=1, the members' linked
+ *       ids) and posts only those, so no hand filtering is needed;
  *   P <asset id>
  *       every asset Immich still holds (not deleted, not in the trash), LOCKED INCLUDED: the only
  *       evidence that a member's CHOSEN photo is gone, since the API answers the same 400 for a
@@ -90,6 +92,38 @@ export function checkExport({ featured, present }, noFeatured) {
   }
 }
 
+/**
+ * The G lines the server can use: those whose person is in `wanted`, compared case-insensitively
+ * (the server keeps `photos_id` lowercase, Immich's export may not). One entry per person.
+ * @param {Array<{ person: string }>} featured
+ * @param {Iterable<string>} wanted
+ */
+export function keepWanted(featured, wanted) {
+  const set = new Set([...wanted].map((id) => id.toLowerCase()));
+  const byPerson = new Map();
+  for (const f of featured) {
+    const person = f.person.toLowerCase();
+    if (set.has(person)) byPerson.set(person, f);
+  }
+  return [...byPerson.values()];
+}
+
+/**
+ * The person ids the server wants, from its answer to `GET ?wanted=1`. A server without the
+ * feature answers the run state instead: say so, never an opaque TypeError later.
+ * @param {unknown} body
+ * @returns {string[]}
+ */
+export function readWanted(body) {
+  const people = /** @type {{ people?: unknown } | null} */ (body)?.people;
+  if (!Array.isArray(people)) {
+    throw new Error(
+      'the server does not support ?wanted=1: deploy a MiGallery build carrying it first (the one that ships this client)'
+    );
+  }
+  return people;
+}
+
 async function main() {
   if (!KEY) throw new Error('MIGALLERY_ADMIN_KEY is not set');
   const dryRun = process.argv.includes('--dry-run');
@@ -98,12 +132,20 @@ async function main() {
   console.log(`featured faces read: ${featured.length}; present assets read: ${present.length}`);
   checkExport(parsed, process.argv.includes('--no-featured'));
   const headers = { 'content-type': 'application/json', 'x-api-key': KEY };
+  const people = readWanted(
+    await answer(
+      await fetch(`${BASE}/api/admin/faces/default-photos?wanted=1`, { headers }),
+      'wanted'
+    )
+  );
+  const sent = keepWanted(featured, people);
+  console.log(`linked members wanting a featured face: ${people.length}; sent: ${sent.length}`);
   await answer(
     await fetch(`${BASE}/api/admin/faces/default-photos`, {
       method: 'POST',
       headers,
       body: JSON.stringify(
-        present.length > 0 ? { featured, present, dryRun } : { featured, dryRun }
+        present.length > 0 ? { featured: sent, present, dryRun } : { featured: sent, dryRun }
       ),
     }),
     'start'
