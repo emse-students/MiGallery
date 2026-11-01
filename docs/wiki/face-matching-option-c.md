@@ -736,6 +736,13 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
     "reset" was NOT used: in v3.3.3 it is skipped while recognition is off, and while it is on it
     re-queues detection of every asset (about 22 hours of the model) after deleting. The thumbnail
     files are not in the backup: Immich regenerates them from restored rows.
+  - **Checked after**, all on 2026-11-01: the live counts and content hashes equalled the
+    backup's right before the delete; the delete wrote 600,156 audit rows (ids only); the
+    `person-cleanup` job was proven done by polling its queue (idle) and the tables (person 0,
+    person_group 0, cluster_group 2); `VACUUM FULL` took `face_search` from 3,527 MB to 35 MB
+    (empty index structures) and the other three to a few kB; 0 person thumbnail files left;
+    MiGallery unchanged: 312 members with visible matches, 0 pending erasures, and 5 matched
+    photos fetched by id from Immich came back exactly.
   - **Until when a nightly backup still holds the old data**: Immich's own dumps (daily, the last
     14 kept) and their offsite copies (the newest sent each night, deleted after 7 days by
     `scripts/backup-offsite.sh`, so a dump of day D goes on D+8). The last dump holding it is
