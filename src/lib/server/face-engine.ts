@@ -9,6 +9,13 @@
  * WHAT A HUMAN SAID WINS. A face a member CONFIRMED is never re-decided; a face a member REJECTED
  * is never offered to them again (the face goes to the next member, if any is within the bands).
  *
+ * AN `auto` FACE IS STICKY (owner, 2026-11-01: "une fois qu'un visage est attaché, il n'est pas
+ * détaché par un nouveau scan"). A re-decision may ADD a match, and may re-decide a `suggested`
+ * one, but never removes or downgrades a pending `auto` match: it leaves its member only when they
+ * answer "not me", when another member claims it as theirs ({@link claimFace}), or with the photo
+ * or the member (withdrawal). The price: a wrong `auto` stays until its member says so; their
+ * negative examples then keep its lookalikes from them.
+ *
  * ONE AT A TIME, ENFORCED. Every mutation here must run inside {@link runExclusive}: a scan is
  * asynchronous (it yields between chunks), and two of them interleaving could each decide on a
  * state the other is changing. Each mutating function CHECKS that it runs inside the lock and
@@ -38,6 +45,7 @@ import {
   type FaceKey,
 } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { loadAllNegatives } from '#lib/server/face-negatives.ts';
 import { deleteMemberFaceCrop } from '#lib/server/face-crop.ts';
 
 const log = createLogger('face-engine');
@@ -166,13 +174,28 @@ const faceKey = (f: FaceKey) => `${f.assetId}\u0000${f.faceIndex}`;
  * (bytes 1-12 of the sealed blob, fresh random for every seal) differs on any new reference.
  */
 function referenceFingerprint(db: DatabaseInstance): string {
+  // The negatives too (faces v2): a "not me" landing during a scan changes who may be offered what.
   const row = db
     .prepare(
-      `SELECT group_concat(user_id || ':' || id || ':' || hex(substr(sealed, 2, 12)), ',') AS f FROM
-         (SELECT user_id, id, sealed FROM face_references WHERE model = ? ORDER BY user_id, id)`
+      `SELECT group_concat(t || user_id || ':' || id || ':' || hex(substr(sealed, 2, 12)), ',') AS f FROM
+         (SELECT 'r' AS t, user_id, id, sealed FROM face_references WHERE model = ?
+          UNION ALL
+          SELECT 'n' AS t, user_id, id, sealed FROM face_negatives WHERE model = ?
+          ORDER BY t, user_id, id)`
     )
-    .get(FACE_MODEL) as { f: string | null };
+    .get(FACE_MODEL, FACE_MODEL) as { f: string | null };
   return row.f ?? '';
+}
+
+/**
+ * Every member's references with their negatives. A member whose negatives fail to open is left
+ * out entirely, like one whose references do (loadAllReferences): never matched on a partial set.
+ */
+function loadMembers(db: DatabaseInstance, key: Buffer): MemberReferences[] {
+  const { byMember, broken } = loadAllNegatives(db, key);
+  return loadAllReferences(db, key)
+    .filter((m) => !broken.has(m.userId))
+    .map((m) => ({ ...m, negatives: byMember.get(m.userId) ?? [] }));
 }
 
 /** Totals of a recording, for the logs. */
@@ -201,13 +224,13 @@ export interface MemberSnapshot {
 export function snapshotMembers(engine: FaceEngine): MemberSnapshot {
   return {
     fingerprint: referenceFingerprint(engine.db),
-    members: loadAllReferences(engine.db, engine.key),
+    members: loadMembers(engine.db, engine.key),
   };
 }
 
 /**
- * Re-decide each face and write the result. Inside one transaction per batch: a confirmed face is
- * kept as it is; otherwise its holder row (not a rejection) is replaced by the decision among the
+ * Re-decide each face and write the result. Inside one transaction per batch: a confirmed face, and
+ * a pending `auto` one (sticky), is kept as it is; otherwise its holder row (not a rejection) is replaced by the decision among the
  * members who did not reject it. The decision is taken on the references as they are IN that
  * transaction: when they changed since `snapshot` was read (a withdrawal, an enrolment landing
  * during a scan), they are read again first. A holder who keeps the face keeps its `created_at`.
@@ -222,7 +245,7 @@ export function recordDecisions(
   const { db } = engine;
   const result = emptyResult();
   const rowsOf = db.prepare(
-    'SELECT user_id, state, created_at FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
+    'SELECT user_id, state, band, created_at FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?'
   );
   const clear = db.prepare(
     "DELETE FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ? AND state != 'rejected'"
@@ -240,16 +263,20 @@ export function recordDecisions(
       const fingerprint = referenceFingerprint(db);
       if (fingerprint !== snapshot.fingerprint) {
         log.info('references changed during the decision; read again');
-        snapshot.members = loadAllReferences(db, engine.key);
+        snapshot.members = loadMembers(db, engine.key);
         snapshot.fingerprint = fingerprint;
       }
       for (const face of batch) {
         const rows = rowsOf.all(face.assetId, face.faceIndex, FACE_MODEL) as Array<{
           user_id: string;
           state: string;
+          band: string;
           created_at: number;
         }>;
-        if (rows.some((r) => r.state === 'confirmed')) {
+        // A confirmed face is the member's word; a pending `auto` one is sticky (see the header).
+        if (
+          rows.some((r) => r.state === 'confirmed' || (r.state === 'pending' && r.band === 'auto'))
+        ) {
           result.kept++;
           continue;
         }
@@ -259,6 +286,10 @@ export function recordDecisions(
         const decision = decideFace(face.embedding, snapshot.members, rejected, {
           invalidReference: (userId) =>
             log.error('a member reference is not a usable vector; member skipped', { userId }),
+          invalidNegative: (userId) =>
+            log.error('a member negative is not a usable vector; face withheld from them', {
+              userId,
+            }),
           invalidCandidate: () =>
             log.error('a stored face is not a usable vector; matched to nobody', {
               assetId: face.assetId,

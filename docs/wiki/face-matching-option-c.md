@@ -342,7 +342,7 @@ A `suggested` face waiting for their answer is not one of their photos until the
 
 | File                                                                  | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/server/face-photos.ts`                                       | `memberPhotoAssetIds`, `pendingSuggestions`, `holdsFace`, `profileFace`, `faceStatus`, `memberPhotoAssets` (the ids from the matches, the assets from Immich BY ID, the PhotoCV partition, images only, newest first).                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `src/lib/server/face-photos.ts`                                       | `memberPhotoAssetIds`, `pendingSuggestions`, `rejectedFaces`, `holdsFace`, `mayViewFaceCrop`, `profileFace`, `faceStatus`, `memberPhotoAssets` (the ids from the matches, the assets from Immich BY ID, the PhotoCV partition, images only, newest first).                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | `src/lib/server/immich-search.ts`                                     | `searchAssetsByIds`: `POST /api/search/metadata` with `filter.or` of `id.eq`, 250 ids per request, size 251, no `page` (Immich refuses one with a `filter`). **The answer is checked**: an asset not asked for, or more results announced (`nextCursor`, `nextPage`), throws 502 and nothing of the batch is used - an Immich that ignored the filter would otherwise show a member a page of someone else's photos. Every failure is classified there and none is the member's: Immich not configured 503, an Immich error status (a 4xx included: it refuses OUR request) or an unreadable answer 502, no answer in time 504, unreachable 502; Immich's text is logged, never sent. |
 | `src/routes/api/users/[userId]/photos-stream/+server.ts`              | A member's photos as NDJSON (`in_album=false` "Mes photos", `true` "Mes photos CV", none = every photo, for the picker), behind `requireMemberPhotosAccess` (owner, authorised member, admin, API key).                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `src/routes/api/users/me/face/matches/+server.ts`                     | `GET`: the faces waiting for the member's answer as `{ asset_id, face_index }` - no distance, band, runner-up or other member. Answered by the A5 `POST`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -351,7 +351,7 @@ A `suggested` face waiting for their answer is not one of their photos until the
 | `src/routes/api/users/me/profile-photo/+server.ts`                    | `PUT { asset_id, user_id? }`: the profile photo, only among the member's own photos (404 otherwise); `user_id` for another member is an admin's (403 otherwise); refused impersonated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `src/routes/api/users/[username]/avatar/+server.ts`                   | Cut around the member's lowest visible face in the chosen photo; 404 when there is none (the Immich person thumbnail fallback is gone).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `src/routes/api/immich/[...path]/+server.ts`                          | `assertNoProxiedFaceCall` for EVERY caller: people/faces/search-person paths and any `personId*` / `withPeople*` query or body key are 403. A JSON answer loses `people` / `unassignedFaces` (`stripFaceFields`); one that names them and does not parse is a 502.                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `src/routes/mes-photos/+page.svelte`, `mes-photos/confirmer/`         | "Mes photos" by user id (yours, or a member who granted you); an invitation to enrol when you have no face; a banner to the confirmation screen, which shows each face's crop with "C'est moi" / "Pas moi".                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `src/routes/mes-photos/+page.svelte`, `mes-photos/confirmer/`         | "Mes photos" by user id (yours, or a member who granted you); an invitation to enrol when you have no face; a banner to the confirmation screen, which shows each face's crop with "C'est moi" / "Pas moi"; "Ce n'est pas moi" on every photo (see faces v2).                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 **What each people view became.**
 
@@ -638,13 +638,148 @@ for the member's answer), `set_featured`, `set_scored`, `kept_choice`, `kept_def
 is absent from Immich's table, the 14 expected at most). A second POST while a run is going is
 answered 409 (the check and the start have no await between them).
 
+### Faces v2 - references, renewal, negatives, sticky auto (the owner's decisions of 2026-11-01)
+
+Everything in this section is the owner's decision of 2026-11-01, as relayed by the lead; the code
+names each rule where it is enforced.
+
+**Why.** One member's production numbers (aggregates, no id) set the problem: of the 740 photos of
+their old Immich person, the A7 seed's five references give **582 `auto`**, **117 `suggested`**
+(0.501-0.62, p50 0.554) and **41 to nobody** (0.62-0.851, p50 0.664), 0 to another member. The seed
+took the five faces nearest the CENTROID of the old person: near-identical frontal faces. A
+profile, a coloured light or a costume is far from all five, so it lands in the band (asked) or
+past it (lost). The 41 and the 117 are faces of the member that no reference covers - not
+strangers (0 went to another member).
+
+**1. Up to 15 references, chosen for variety** (`FACE_MAX_REFERENCES = 15`,
+`src/lib/face-reference-selection.ts`). `selectVariedReferences` is farthest-point sampling: the
+selfie first (an anchor), else the most recent face; then repeatedly the candidate FARTHEST from
+every reference already chosen, ties to the more recent, then the key - deterministic whatever the
+input order. Farthest-point picks outliers, so the POOL is what keeps it honest: only proven faces
+enter it (below), and `learnable` bounds every one (within 0.5 of a reference the member already
+holds - the anti-drift rule, unchanged since A5). How it moves the 41 and the 117: a face at 0.55
+from the five frontal references is typically within 0.5 of a proven profile or low-light face once
+one is a reference, so it turns `auto`; a face at 0.66 needs a reference within 0.5 of it, which
+the variety step provides only when a proven face lies in between. The dry run below measures the
+real shift; the argument predicts the 117 shrink most and the 41 less.
+
+**What counts as proven, and why** (`src/lib/server/face-reference-upgrade.ts`). An `auto` face had
+no human, so a wrong one made a reference would pull the member's reach towards a stranger. Proven
+is, against the references held NOW (the distance is recomputed, never read from the row):
+CONFIRMED by the member and within 0.5 (the `learnable` bound, as every learned reference); or a
+pending `auto` face within `FACE_PROVEN_AUTO_DISTANCE = 0.4` - 0.1 under the `auto` bound, so the
+auto faces most likely to be wrong, those nearest the bound, never teach. Never `suggested`, never
+rejected. A proven auto face is stored with source `matched`; a confirmed one `photo`.
+
+**2. Renewal from durable state, never a timer** (`redundantVictim`, `decideLearning`). Below the
+cap a learnable confirmed face is added. At the cap it replaces the LEAST USEFUL reference: of the
+closest pair (the two that duplicate each other most; never the selfie), the OLDER by the photo's
+capture date (`face_references.taken_at`, Immich's `fileCreatedAt`, read when the answer is
+recorded; unknown ranks oldest). When that victim is the incoming face itself (an old photo, or a
+duplicate of a newer reference) nothing changes and the answer is a plain `confirmed`. So variety
+is kept (a redundant pair loses one), the set drifts toward recent photos (the older of the pair
+goes), and the reach never jumps: every added face is within 0.5 of what is held.
+`tests/face-reference-selection.test.ts` runs 40 confirmations of a face that moved over the years
+and shows the overlapping old references replaced, the region only the old photos cover kept, and a
+lookalike 0.55 past the newest reference refused at every step.
+
+**3. "Pas moi" is a negative example** (`face_negatives`, `src/lib/server/face-negatives.ts`). The
+rejected face's embedding is kept, sealed under its own context (`negativeContext`: a negative can
+never open as a reference), at most `FACE_MAX_NEGATIVES = 30` per member (the trigger; at the cap
+the older of the two closest goes). In `decideFace`, a face closer (strictly) to one of a member's
+negatives than to their nearest reference is withheld from THAT member (`withheldByNegative`, only
+within 0.62; a corrupt negative withholds and is logged). The withheld member still counts as the
+runner-up, so their negatives never hand a doubtful face to someone else as `auto`, and they never
+enter another member's decision. A rejection re-decides the member's other waiting suggestions at
+once; those now withheld leave the screen (`released` in the answer, a toast). Withdrawal deletes
+the negatives with the references (`eraseFaceNegatives`); an account deletion by cascade.
+
+**4. Sticky `auto`** ("une fois qu'un visage est attaché, il n'est pas détaché par un nouveau scan",
+`recordDecisions`). A re-match may ADD matches, never remove or downgrade a pending `auto` one: the
+row is kept like a confirmed one. An `auto` face leaves its member only on their "Pas moi", or when
+another member CONFIRMS it (`claimFace`). `suggested` rows are still re-decided. THE TRADE-OFF,
+taken knowingly: a false `auto` stays until the member says "Pas moi"; their negative then keeps
+its `suggested` lookalikes from them (a negative is not consulted past the suggested band, so
+another `auto` lookalike stays until its own "Pas moi").
+
+**"Ce n'est pas moi" on every photo, and "Photos écartées"** (the owner's decision of
+2026-11-01, the sticky rule's way out). Each photo of the member's OWN "Mes photos" carries a
+discreet UserX button beside the favourites heart (the tile, revealed with the heart; the viewer's
+toolbar), automatic or confirmed alike. It asks once (`showConfirm`: the photo leaves "Mes photos"
+and is found again under Paramètres -> "Photos écartées"), with no undo toast, then
+`POST /api/users/me/face/rejections { asset_id }` (`removeMemberPhoto`): every visible face of
+theirs on that asset becomes `rejected` and follows the ONE rejection path (`afterRejection`, the
+same as "Pas moi" on the confirmation screen): its crop deleted, kept as a negative example,
+re-decided for everyone else, the member's waiting faces re-decided against the new negative
+(`released`). **Any reference learned from a rejected face is deleted** (never the selfie), on every
+rejection path - a face the member says is not them never stays a reference - and a deleted one
+queues the member's background re-match, as a learned one does. A DEFAULT profile photo is looked
+at again in the background (a chosen one is never touched while it is theirs). The former
+`?list=shown` mode of the confirmation screen is gone; the screen keeps the doubtful faces only.
+
+"Photos écartées" is a folded row of the settings' face section (`#photos-ecartees`):
+`GET /api/users/me/face/rejections` lists the member's `rejected` rows, latest answer first, each
+shown by its crop (`mayViewFaceCrop`: served to the member who rejected it while no other member
+has CONFIRMED it - then it is that member's face, 404). "En fait, c'est moi" is
+`DELETE /api/users/me/face/rejections/[assetId]/[faceIndex]` (`restoreRejectedFace`, one
+transaction in the engine lock): refused 409 `confirmed_by_other` when another member confirmed the
+face (nothing changes), else the negative goes, a PENDING holder loses the face (as a confirmation
+takes it), the member's row becomes `confirmed`, and their re-match is queued (the negative no
+longer withholds lookalikes). The face is not learned as a reference. Both routes refuse an
+impersonated session, like the answer route; `tests/face-not-me-routes.test.ts`.
+
+**5. The confirmation screen** (`src/routes/mes-photos/confirmer/+page.svelte`,
+`src/lib/face-confirm-list.ts`). Sorted nearest first (`pendingSuggestions` orders by distance; no
+distance reaches the client). Tiles load through the crop loader (the empty tiles' cause, above),
+with a loading state and a retry per tile. The two buttons stack an icon over a label that wraps,
+never clipped, at every width from 360 px. "Jusqu'ici" on every tile but the first confirms it and
+all above it, after a confirmation dialog, one answer at a time with progress. Keyboard: `O`/`Y`/
+Enter confirm, `N`/Delete/Backspace reject, arrows move (the hint is hidden on touch screens). An
+answer removes its tile at once and a refused one puts it back where it was.
+
+**The migration of existing members** (`runReferenceUpgrades`, from the ingestion tick once the
+store is seeded). One member at a time, each in its own turn of the engine lock: capture dates read
+from Immich outside the lock, then ONE transaction re-selects held references plus proven faces
+(the selfie kept) and writes `face_reference_selection` (version 2); then the member is re-matched
+(sticky rows kept) and their DEFAULT profile photo looked at again. The row is durable state: a
+member done is never redone, a crash resumes, a member whose Immich read failed is retried on the
+next tick with an error line. Who gets what: the **4 linked members with no group** hold no
+reference, so they are skipped (`no_references`) until they enrol by selfie; the **14 members whose
+profile asset is trashed or gone** are handled by the default profile photo (hotfix #433): the
+avatar route finds the photo gone and picks a default from their visible matches.
+
+**The dry run that gates the production re-match** (`scripts/faces/measure-references-v2.ts`).
+The owner allows the production re-match only if a dev measurement shows that no confirmed photo
+changes member and that the lost photos go down. On COPIES of `migallery.db` and `faces.db`, opened
+read-only, it re-selects every member's references as above and decides every stored face with the
+current and the v2 sets, printing aggregates only: references before/after, proven faces per member
+(quantiles), `auto`/`suggested`/`none` before and after with the transition counts,
+`confirmedWouldMove` (to ANOTHER member - must be 0), `confirmedWouldBeUnmatched`, `stickyKept`,
+`holderChanged`, and the time of each decision pass. Capture dates are not read (no Immich call),
+which only changes which of two equal candidates renewal prefers.
+
+```sh
+# on dev, never on the live files: copy both, then
+FACE_STORE_KEY=<the dev key> bun scripts/faces/measure-references-v2.ts /tmp/m.db /tmp/f.db
+```
+
+**Costs, measured** (`scripts/faces/measure-store.ts`, synthetic, this workstation, 200k faces): a
+streamed scan of one member against the store takes **1.48 s with 5 references and 2.46 s with
+15** (x1.66: unsealing and decoding are fixed, only the distances triple). The production figure
+of 6.5 s for 600k faces with 5 references therefore scales to about **10.8 s per re-match** at 15
+references. A re-match is background work, coalesced per member, never in a request; the dry run
+prints the real decision time on the dev copy.
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                       |
 | --------------------------------------------- | ----------- | ----------------------------------------------------------------------------- |
 | `FACE_MODEL`                                  | `buffalo_l` | the only model compared; every row carries the tag                            |
 | `FACE_EMBEDDING_DIM`                          | 512         |                                                                               |
-| `FACE_MIN_REFERENCES` / `FACE_MAX_REFERENCES` | 3 / 5       | the cap is also a table trigger                                               |
+| `FACE_MIN_REFERENCES` / `FACE_MAX_REFERENCES` | 3 / 15      | the cap is also a table trigger (5 until faces v2, 2026-11-01)                |
+| `FACE_SEED_REFERENCES`                        | 5           | what the A7 seed still writes; the v2 re-selection tops up to 15              |
+| `FACE_PROVEN_AUTO_DISTANCE`                   | 0.4         | an `auto` face this close is proven, and may become a reference (v2)          |
+| `FACE_MAX_NEGATIVES`                          | 30          | "Pas moi" examples kept per member, also a trigger (v2)                       |
 | `FACE_AUTO_MAX_DISTANCE`                      | 0.5         | shown without a question                                                      |
 | `FACE_SUGGEST_MAX_DISTANCE`                   | 0.62        | 0.5 to 0.62 is offered to the member, who confirms                            |
 | `FACE_AMBIGUITY_MARGIN`                       | 0.05        | a runner-up closer than this (strictly) makes an `auto` face `suggested` (A2) |
@@ -673,6 +808,15 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
 
 ## 5. Open and owed
 
+- **Faces v2 (2026-11-01), owed before its production re-match:** the dry run
+  (`scripts/faces/measure-references-v2.ts`) on COPIES of the dev databases, its report read
+  against the owner's gate (`confirmedWouldMove` = 0, `after.none` below `before.none`); then, in
+  production after the deploy, the same aggregates for the one measured member (582 / 117 / 41 / 0) to see how far 15 varied references moved the 117 and the 41, the re-selection pass's
+  outcome counts (`upgraded` / `no_references` / `failed`, logged once per pass), and the
+  re-match time per member against the ~10.8 s estimate.
+- **The /cgu wording of faces v2** (15 varied references renewed toward recent photos, `auto`
+  faces as references, negative examples, sticky photos; `TERMS_VERSION` 2026-11-01) is the
+  engineer's; its legal reading is owed to the lead.
 - **A7 ran on 2026-11-01**, in production, on v2.18.0, straight after its deploy (the release
   carrying A1-A7 and the search-by-id fix, #427). A `migallery.db` copy was taken right before
   the real run (`PRAGMA integrity_check` ok). Aggregates only:
@@ -714,8 +858,11 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
 - **The DPIA and the register rows in Canari**: updated to the stored-template design by A9 (Canari
   draft PR #2813); every assessment the design changes is marked there as to be re-assessed by
   the owner. Owed: that re-assessment, and the merge.
-- **`/cgu` after A8**: the terms describe the cutover in the future ("à la bascule"); once A8 has
-  run, they are to say it happened, with the date the encrypted copy is deleted.
+- **`/cgu` describes the current system only** (owner, 2026-11-01): no former design, no cutover,
+  no seed from Immich's groups, no legacy consent sources - that history lives here and in the
+  release notes, never in the terms. They say a member may remove any photo from "Mes photos" and
+  undo a "Pas moi" from "Photos écartées". Read before A8 runs: the terms no longer name Immich's own
+  face groups, nor the Immich database backups that hold them.
 - **A6 owed**:
   - **A6 and A7 ship together.** The avatar requires the chosen photo to be a visible match of
     the member; A7's `finish` claims each profile photo that is a face of the member's own person.

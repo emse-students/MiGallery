@@ -43,20 +43,39 @@ export function memberPhotoAssetIds(db: DatabaseInstance, userId: string): strin
   return rows.map((r) => r.asset_id);
 }
 
-/** The faces given to `userId` that wait for their yes or no, oldest first. */
+/**
+ * The faces given to `userId` that wait for their yes or no, NEAREST FIRST (owner, 2026-11-01): the
+ * likeliest to be theirs at the top, so "confirm all above" is safe where the list is surest. Ties
+ * by the face's key, so the order is total. The order is all that leaves: never the distance.
+ */
 export function pendingSuggestions(db: DatabaseInstance, userId: string): FaceKey[] {
   const rows = db
     .prepare(
       `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ? AND ${TO_CONFIRM}
-        ORDER BY created_at, asset_id, face_index`
+        ORDER BY distance, asset_id, face_index`
     )
     .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
   return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
 }
 
 /**
- * Whether `userId` holds `face` now - shown or waiting for their answer - which is the ONLY
- * condition under which its crop may be served to them. A face they rejected is not held.
+ * The faces `userId` rejected ("Photos écartées", owner 2026-11-01), the latest answer first, ties
+ * by the face's key: what "En fait, c'est moi" may take back. Only their own rows leave; whether
+ * another member holds the face now is not said (the restore answers it when asked).
+ */
+export function rejectedFaces(db: DatabaseInstance, userId: string): FaceKey[] {
+  const rows = db
+    .prepare(
+      `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ?
+        AND state = 'rejected' ORDER BY decided_at DESC, asset_id, face_index`
+    )
+    .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
+  return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
+}
+
+/**
+ * Whether `userId` holds `face` now - shown or waiting for their answer. A face they rejected is
+ * not held. Its crop is served under {@link mayViewFaceCrop}.
  */
 export function holdsFace(db: DatabaseInstance, userId: string, face: FaceKey): boolean {
   const row = db
@@ -66,6 +85,28 @@ export function holdsFace(db: DatabaseInstance, userId: string, face: FaceKey): 
     )
     .get(face.assetId, face.faceIndex, FACE_MODEL, userId);
   return row != null;
+}
+
+/**
+ * Whether `userId` may see the crop of `face`: they hold it ({@link holdsFace}), or they rejected
+ * it and no other member has CONFIRMED it since - the face they once answered on, shown in their
+ * "Photos écartées" so they can take the answer back. A face another member confirmed is that
+ * member's: its picture is no longer served to the one who said it was not them.
+ */
+export function mayViewFaceCrop(db: DatabaseInstance, userId: string, face: FaceKey): boolean {
+  const rows = db
+    .prepare(
+      `SELECT user_id, state FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?`
+    )
+    .all(face.assetId, face.faceIndex, FACE_MODEL) as Array<{ user_id: string; state: string }>;
+  const own = rows.find((r) => r.user_id === userId);
+  if (!own) {
+    return false;
+  }
+  if (own.state !== 'rejected') {
+    return true;
+  }
+  return !rows.some((r) => r.user_id !== userId && r.state === 'confirmed');
 }
 
 /**
@@ -98,6 +139,29 @@ export function visibleProfileFaces(db: DatabaseInstance, userId: string): FaceK
     )
     .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>;
   return rows.map((r) => ({ assetId: r.asset_id, faceIndex: r.face_index }));
+}
+
+/**
+ * The capture date (ms) of each asset Immich still has, by id: `fileCreatedAt` (Immich's capture
+ * date, from the photo's metadata), else `localDateTime`. An asset Immich no longer has, or one
+ * without a readable date, is absent from the map. Throws as searchAssetsByIds does.
+ */
+export async function assetCaptureTimes(
+  fetchFn: typeof fetch,
+  assetIds: readonly string[]
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (assetIds.length === 0) {
+    return out;
+  }
+  for (const asset of await searchAssetsByIds(fetchFn, [...new Set(assetIds)])) {
+    const t = Date.parse(asset.fileCreatedAt ?? asset.localDateTime ?? '');
+    if (Number.isFinite(t)) {
+      out.set(asset.id, t);
+    }
+  }
+  log.debug('capture dates read', { asked: assetIds.length, dated: out.size });
+  return out;
 }
 
 /** What the screens need to know of a member's face matching, as counts. */

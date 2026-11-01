@@ -3,6 +3,7 @@ import { join, dirname } from 'path';
 import { createRequire } from 'module';
 import { createLogger } from '#lib/server/logger.ts';
 import { backfillLegacyConsents } from '#lib/server/face-consent.ts';
+import { FACE_MAX_REFERENCES } from '#lib/face-embedding.ts';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/migallery.db';
 const log = createLogger('db');
@@ -132,11 +133,52 @@ function moveFaceEmbeddingsOut(dbInstance: DatabaseInstance): void {
   log.info('the empty A1 face_embeddings table left migallery.db for faces.db');
 }
 
+/**
+ * Faces v2 (2026-11-01) on a database made before it: `face_references` gains where each reference
+ * came from (`asset_id`, `face_index`) and its photo's capture date (`taken_at`), and its cap
+ * trigger goes from 5 to 15. `CREATE ... IF NOT EXISTS` never changes what exists, so both are
+ * guarded steps here: a column is added when missing, the trigger replaced when its stored SQL
+ * does not hold the current cap. Existing rows keep NULLs (unknown origin, unknown date: renewal
+ * ranks them oldest).
+ */
+function upgradeFaceReferences(dbInstance: DatabaseInstance): void {
+  const cols = dbInstance
+    .prepare('PRAGMA table_info(face_references)')
+    .all()
+    .map((c) => (c as { name: string }).name);
+  for (const [name, type] of [
+    ['asset_id', 'TEXT'],
+    ['face_index', 'INTEGER'],
+    ['taken_at', 'INTEGER'],
+  ] as const) {
+    if (!cols.includes(name)) {
+      dbInstance.exec(`ALTER TABLE face_references ADD COLUMN ${name} ${type}`);
+      log.info('face_references column added', { column: name });
+    }
+  }
+  const trigger = dbInstance
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'trg_face_references_cap'"
+    )
+    .get() as { sql: string } | null;
+  if (trigger && !trigger.sql.includes(`>= ${FACE_MAX_REFERENCES}`)) {
+    dbInstance.exec('DROP TRIGGER trg_face_references_cap');
+    dbInstance.exec(`CREATE TRIGGER trg_face_references_cap
+BEFORE INSERT ON face_references
+WHEN (SELECT COUNT(*) FROM face_references WHERE user_id = NEW.user_id AND model = NEW.model) >= ${FACE_MAX_REFERENCES}
+BEGIN
+    SELECT RAISE(ABORT, 'face_references: at most ${FACE_MAX_REFERENCES} per member and model');
+END`);
+    log.info('face_references cap trigger replaced', { cap: FACE_MAX_REFERENCES });
+  }
+}
+
 export function ensureSchema(dbInstance: DatabaseInstance): void {
   const schemaPath = join(process.cwd(), 'src/lib/db/schema.sql');
   const schema = readFileSync(schemaPath, 'utf-8');
   dbInstance.exec(schema);
   moveFaceEmbeddingsOut(dbInstance);
+  upgradeFaceReferences(dbInstance);
 
   try {
     const cols = dbInstance

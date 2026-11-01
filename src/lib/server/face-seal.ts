@@ -49,6 +49,16 @@ export function referenceContext(userId: string, model: string): string {
   return JSON.stringify(['face_references', userId, model]);
 }
 
+/**
+ * Canonical context of a `face_negatives` blob (faces v2): the MEMBER and the MODEL, under its own
+ * table name, so a negative can never be opened as one of the member's references, nor the reverse.
+ */
+export function negativeContext(userId: string, model: string): string {
+  requireText(userId, 'userId');
+  requireText(model, 'model');
+  return JSON.stringify(['face_negatives', userId, model]);
+}
+
 /** Canonical context of a `face_embeddings` blob: its whole key (asset, face index) and the model. */
 export function embeddingContext(assetId: string, faceIndex: number, model: string): string {
   requireText(assetId, 'assetId');
