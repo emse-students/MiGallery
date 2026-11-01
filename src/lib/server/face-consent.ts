@@ -1,6 +1,7 @@
 /**
- * The consent record for a face link (`face_consents`, see schema.sql): who agreed, when, to which
- * version of the terms and how. Written in the same request as the link, never reconstructed.
+ * The consent record for face matching (`face_consents`, see schema.sql): who agreed, when, to
+ * which version of the terms (`TERMS_VERSION`) and how. Written in the same request as the
+ * enrolment or the admin link, never reconstructed; closed by a withdrawal.
  */
 
 import type { getDatabase } from '#lib/db/database.ts';

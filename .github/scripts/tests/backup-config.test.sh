@@ -6,8 +6,8 @@
 # WHAT IS ASSERTED. The destination comes from `backup.env` (written by the deploy from the
 # repository secrets) or from the environment, never from a default in this repository. A missing
 # file, an unknown key and an empty value each stop the script BEFORE any ssh or rsync; the
-# environment wins over the file; the file is read, never executed; and no private address is
-# written in the scripts. A backup that silently goes nowhere, or somewhere else, is the failure
+# environment wins over the file; the file is read, never executed; `faces.db` is never dumped or
+# sent; and no private address is written in the scripts. A backup that silently goes nowhere, or somewhere else, is the failure
 # this guards - and the 05:00 cron that would meet it is read by nobody.
 #
 # `ssh`, `rsync` and `sqlite3` are fakes on `PATH` that record their arguments, so nothing leaves the
@@ -30,9 +30,14 @@ exit 0
 FAKE
   chmod +x "$work/bin/$tool"
 done
-# `sqlite3 DB ".backup 'OUT'"` writes OUT; the fake writes it empty.
-cat >"$work/bin/sqlite3" <<'FAKE'
+# `sqlite3 DB ".backup 'OUT'"` writes OUT; the fake writes it empty, and records the database it
+# was asked to dump in `$work/dumps` (kept apart from `$work/calls`, which the cases above read as
+# "no ssh or rsync at all").
+cat >"$work/bin/sqlite3" <<FAKE
 #!/usr/bin/env bash
+echo "sqlite3 \$1" >>"$work/dumps"
+FAKE
+cat >>"$work/bin/sqlite3" <<'FAKE'
 out="${2#.backup \'}"; out="${out%\'}"
 : >"$out"
 FAKE
@@ -112,6 +117,26 @@ if [ -e "$work/executed" ]; then
 else
   echo "PASS no value in backup.env was executed"
 fi
+
+# `faces.db` holds a print of EVERY face of the library, non-members included, and is deliberately
+# in no backup (docs/wiki/face-matching-option-c.md, "Backups"): a lost file is recomputed from the
+# photos. It sits next to `migallery.db`, so a backup that took the whole data directory, or dumped
+# it by name, would carry it offsite. Neither the dump nor any ssh or rsync may name it.
+: >"$work/app/data/faces.db"
+rm -f "$work/dumps"
+expect 'a full backup with faces.db present next to migallery.db' 0 'rsync ' 'MiGallery offsite OK' \
+  BACKUP_ENV_FILE="$good" bash "$scripts/backup-offsite.sh"
+if grep -q 'faces' "$work/calls" "$work/dumps" 2>/dev/null; then
+  echo "FAIL faces.db is dumped or sent by the offsite backup"
+  grep -h 'faces' "$work/calls" "$work/dumps" 2>/dev/null | sed 's/^/     /'
+  failures=$((failures + 1))
+elif ! grep -q 'migallery\.db' "$work/dumps" 2>/dev/null; then
+  echo "FAIL the faces.db check saw no dump at all, so it proves nothing"
+  failures=$((failures + 1))
+else
+  echo "PASS faces.db is never dumped or sent"
+fi
+rm -f "$work/app/data/faces.db"
 
 # RFC 1918 ranges: the destination is operations data and lives in the secrets, never here.
 if grep -nE '(^|[^0-9.])(10\.[0-9]+\.[0-9]+\.[0-9]+|192\.168\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+)' \

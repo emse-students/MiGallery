@@ -124,19 +124,27 @@ each member's profile face to any session by design: it is the avatar, not the s
 terms version (`TERMS_VERSION`, the one value the `/cgu` page also shows) and the source.
 The A5 enrolment writes it (`selfie`); `PATCH /api/users/me/face` writes it when an admin links
 a person (`admin`, also through `POST /api/users` and `PUT /api/users/[id]`); a changed or cleared link closes the previous row; `ensureSchema` backfills `legacy` rows for every link that
-exists without one, idempotently. Withdrawal closes the row (`withdrawn_at`) and keeps it. There is
-no explicit consent step in the settings UI yet: the link is the recorded act.
+exists without one, idempotently. Withdrawal closes the row (`withdrawn_at`) and keeps it. The
+settings screen asks for the agreement explicitly: a box, linking `/cgu#biometrie`, ticked before
+the camera opens, and the enrolment request refused (400) without it. A new `TERMS_VERSION` only labels
+the consents recorded after it: an open consent row is never rewritten (`recordFaceConsent` skips
+it) and nothing asks a member to accept again.
 
 ## Erasure
 
-**The contract (owner decision 2026-10-16).** Immich groups EVERY face into anonymous clusters
-(people with no name). That is accepted: it is internal, a black box, and never shown to a
-member. A cluster is tied to a human only by what MiGallery writes (`users.photos_id`,
-`users.photos_asset_id`) and by the person's name and birth date in Immich. When a member
-withdraws consent, unlinks, or deletes their account, MiGallery undoes the link AND removes the
-person's name in Immich. The anonymous cluster, its faces and their embeddings stay.
+**The contract (owner decision 2026-10-16, extended by option C).** What ties a face to a human
+is only what MiGallery writes: the member's sealed references (`face_references`), the faces given
+to them (`face_matches`), the profile photo pointer (`users.photos_asset_id`) and, until lot A8,
+the legacy Immich person link (`users.photos_id`) and that person's name in Immich. When a member
+withdraws consent, unlinks, or deletes their account, all of it goes: the references, the matches,
+the crops, the link, and the person's name in Immich. The face store (`data/faces.db`, one sealed
+embedding per detected face, everyone's) is not part of a member's erasure: its rows carry no
+member, are tied to nobody once the references are gone, and go with their photograph. Until A8,
+Immich's own anonymous cluster, its faces and their embeddings stay too; A8 deletes them all
+([face-matching-option-c](face-matching-option-c.md#3-the-lots)).
 
-Linking a cluster to a member happens only through MiGallery (`users.photos_id`).
+Linking an Immich cluster to a member happens only through MiGallery (`users.photos_id`), and only
+an admin can still do it; nothing reads that link but the A7 seed.
 
 Every CHANGE of the person linked to an account runs the erasure for the OLD person, through
 `applyFaceLink` (`src/lib/server/face-link.ts`, the one application writer of `users.photos_id`; `createUser`/`updateUser` refuse the column, `POST /api/users` goes through it, and only the test suite's own admin row bypasses it, with a NULL link): a member
@@ -161,6 +169,9 @@ impersonated session (they are the member's own acts and consents).
   gave the member concern other people's faces and stay on a withdrawal or a relink; an account deletion
   takes them by cascade;
 - the member's open consent row is closed (`withdrawn_at`);
+- the member's sealed references (`face_references`) and every `face_matches` row naming them -
+  the faces they held, answered or not, and the ones they rejected; those faces are re-decided
+  after the commit and may go to the next member;
 - account deletion only: the member's id in `logs` becomes `[deleted]` (as
   actor, with the row's `ip` cleared, and as target of a `user` or `person`
   event, whose details are cleared; any other row whose `details` contains the member's id also loses
@@ -220,17 +231,23 @@ name). `--apply` sends `PUT /api/people/{id}` `{ "name": "", "birthDate": null }
 and re-reads it. The Immich key needs the `person.read` and `person.update` permissions. Hidden
 people are included. Re-running is safe (a cleared person is skipped).
 
-**What erasure does not reach**, and the terms must say so:
+**What erasure does not reach**, and the terms say so (`/cgu`, section 4):
 
-- **The cluster itself.** Immich keeps the anonymous cluster, its faces and their embeddings,
-  accepted by the owner. Only an Immich admin can see them, unnamed and linked to nobody.
+- **The face store.** `data/faces.db` keeps one sealed embedding per face of every photograph,
+  the member's own included: no member, no name, tied to nobody without a reference. It goes with
+  the photograph, or as a whole (delete the file or rotate `FACE_STORE_KEY`).
+- **The cluster itself, until A8.** Immich keeps the anonymous cluster, its faces and their
+  embeddings, unnamed and linked to nobody; only an Immich admin can see them, and A8 deletes them
+  all.
 - **Immich's featured-face pointer.** `featureFaceAssetId` (the thumbnail MiGallery sets when a
   member picks a profile photo) cannot be unset through Immich's API; the thumbnail stays on the
   anonymous person. MiGallery's own pointer (`photos_asset_id`) is nulled.
 - **Backups.** The local snapshots under `data/backups/` (the last 10 kept,
-  daily), the off-site MiGallery copies (about 14 days) and the off-site Immich
-  database dumps (about 7 days, `scripts/backup-offsite.sh`, pruned by file age)
-  keep the data until they rotate out. Immich's own local dump retention is an
+  daily) and the off-site MiGallery copies (about 14 days) keep the references and
+  matches until they rotate out; the off-site Immich database dumps (about 7 days,
+  `scripts/backup-offsite.sh`, pruned by file age) keep Immich's clusters until
+  they rotate out after A8, and A8's encrypted copy of what it deletes is deleted
+  30 days after. `data/faces.db` is in no backup. Immich's own local dump retention is an
   Immich setting, not read from here.
 - **A person merged away in Immich.** Its id stops existing and its faces live on
   in the person it was merged into, which this erasure never names; a name given to
