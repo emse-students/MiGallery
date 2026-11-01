@@ -59,6 +59,7 @@ import {
   type RecordResult,
 } from '#lib/server/face-engine.ts';
 import { VISIBLE_MATCH_SQL } from '#lib/server/face-photos.ts';
+import { deleteMemberFaceCrops } from '#lib/server/face-crop.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('face-seed');
@@ -251,15 +252,29 @@ export async function beginSeed(engine: FaceEngine): Promise<string> {
     // Matches name faces of the store just emptied: none may outlive them. The references an
     // earlier, failed finish wrote go too (only the seed writes source 'seed', and only while the
     // store is unseeded, which this phase has just checked): a member's own go nowhere.
-    const { droppedMatches, droppedReferences } = inTransaction(db, () => ({
+    const { holders, droppedMatches, droppedReferences } = inTransaction(db, () => ({
+      holders: (
+        db
+          .prepare('SELECT DISTINCT user_id FROM face_matches WHERE model = ?')
+          .all(FACE_MODEL) as Array<{ user_id: string }>
+      ).map((r) => r.user_id),
       droppedMatches: db.prepare('DELETE FROM face_matches WHERE model = ?').run(FACE_MODEL)
         .changes,
       droppedReferences: db
         .prepare("DELETE FROM face_references WHERE model = ? AND source = 'seed'")
         .run(FACE_MODEL).changes,
     }));
+    // After the commit, like every erasure: a crop cut from a face of the wiped run must not be
+    // served again under the same (asset, index), which the next run may give to another face.
+    for (const userId of holders) {
+      deleteMemberFaceCrops(userId);
+    }
     checkpointFaceStore(engine);
-    log.info('face seed begun', { droppedMatches, droppedReferences });
+    log.info('face seed begun', {
+      droppedMatches,
+      droppedReferences,
+      cropHolders: holders.length,
+    });
     return run;
   });
 }

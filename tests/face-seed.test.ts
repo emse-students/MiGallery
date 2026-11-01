@@ -9,7 +9,12 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
-import { FACE_EMBEDDING_DIM, cosineDistance, normalizeEmbedding } from '#lib/face-embedding.ts';
+import {
+  FACE_EMBEDDING_DIM,
+  FACE_MODEL,
+  cosineDistance,
+  normalizeEmbedding,
+} from '#lib/face-embedding.ts';
 import { parseSealKey } from '#lib/server/face-seal.ts';
 
 const env: Record<string, string | undefined> = {
@@ -463,6 +468,30 @@ describe('the seed guards', () => {
     // So a rerun's histogram counts the seed's own references afresh, the member's kept.
     const { report } = await seed(aliceFaces());
     expect(report.referencesPerMember).toEqual({ 3: 1 });
+  });
+
+  it('begin deletes the crops of every member whose matches it wipes', async () => {
+    member('alice', 'pA');
+    await stream(aliceFaces());
+    // What a finish cut after rematchAll leaves: a match, and the crop A6 cut from it.
+    db()
+      .prepare(
+        `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, band, state,
+           created_at) VALUES ('al1', 0, ?, 'alice', 0.1, 'auto', 'pending', 0)`
+      )
+      .run(FACE_MODEL);
+    const { memberCropDir } = await import('#lib/server/face-crop.ts');
+    const crop = join(memberCropDir('alice'), 'al1_0.webp');
+    mkdirSync(memberCropDir('alice'), { recursive: true });
+    writeFileSync(crop, 'crop');
+    try {
+      await seedMod.beginSeed(engine());
+      expect(matches()).toEqual([]);
+      // The next run may give (al1, 0) to another face: the old picture must not be served.
+      expect(existsSync(crop)).toBe(false);
+    } finally {
+      rmSync(memberCropDir('alice'), { recursive: true, force: true });
+    }
   });
 });
 
