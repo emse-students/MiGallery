@@ -118,6 +118,8 @@ let library: Record<string, { id: string; type: string; fileCreatedAt: string }>
 let ignoreFilter: string[] | null = null;
 /** When set, the faked search answers (or throws) this instead. */
 let searchFails: (() => Response) | null = null;
+/** When set, the faked search announces more results by this cursor, as Immich v3 pages a filter. */
+let announcedCursor: string | null = null;
 
 const immich = (async (url: string, init?: RequestInit) => {
   const u = new URL(String(url));
@@ -129,10 +131,23 @@ const immich = (async (url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body)) as {
       filter: { or: Array<{ id: { eq: string } }> };
       size: number;
+      page?: number;
     };
+    // What the live Immich v3 answers to a `page` alongside a `filter` (read 2026-11-01).
+    if (body.page !== undefined) {
+      return Response.json(
+        {
+          message: 'Validation failed',
+          errors: [
+            { path: ['page'], message: 'Deprecated field page cannot be combined with filter' },
+          ],
+        },
+        { status: 400 }
+      );
+    }
     const asked = body.filter.or.map((c) => c.id.eq);
     const items = (ignoreFilter ?? asked).map((id) => library[id]).filter(Boolean);
-    return Response.json({ assets: { items, nextPage: null } });
+    return Response.json({ assets: { items, nextPage: null, nextCursor: announcedCursor } });
   }
   if (u.pathname.endsWith('/thumbnail') && u.searchParams.get('size') === 'preview') {
     return new Response(new Uint8Array(source), { headers: { 'content-type': 'image/png' } });
@@ -244,6 +259,7 @@ beforeEach(() => {
   searchFails = null;
   env.IMMICH_BASE_URL = 'http://immich.test';
   ignoreFilter = null;
+  announcedCursor = null;
 });
 
 describe("which faces are a member's photos (face-photos.ts)", () => {
@@ -377,6 +393,11 @@ describe('GET /api/users/[userId]/photos-stream', () => {
   it('refuses an Immich answer that ignored the filter rather than show photos not asked for', async () => {
     photo('stranger', '2025-07-01T00:00:00Z');
     ignoreFilter = ['new', 'stranger'];
+    expect(await streamOf('m1')).toEqual({ status: 502, ids: null });
+  });
+
+  it('refuses a filtered answer that announces more results by a cursor', async () => {
+    announcedCursor = 'opaque-cursor';
     expect(await streamOf('m1')).toEqual({ status: 502, ids: null });
   });
 
