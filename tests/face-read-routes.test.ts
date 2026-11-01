@@ -8,7 +8,7 @@
  * may carry a distance, a band or another member's id. SYNTHETIC ids and images only.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -254,6 +254,13 @@ afterAll(() => {
   removeTempDir(dbDir);
 });
 
+afterEach(async () => {
+  // A background run a test started ends inside that test: one left in flight would make the
+  // next test's schedule for the same member a no-op, and would read the next test's data.
+  await (await import('#lib/server/profile-photo-default.ts')).defaultPhotosSettled();
+  vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
   db().exec(
     'DELETE FROM face_matches; DELETE FROM face_references; DELETE FROM face_consents; DELETE FROM photo_access_permissions; DELETE FROM users;'
@@ -273,6 +280,9 @@ beforeEach(() => {
   archived = new Set();
   trashed = new Set();
   searchFails = null;
+  // The avatar route's background default-photo look runs on the GLOBAL fetch: here, the faked
+  // Immich, so no test ever reaches the network (a real lookup of immich.test hung on CI).
+  vi.stubGlobal('fetch', immich);
   env.IMMICH_BASE_URL = 'http://immich.test';
   ignoreFilter = null;
   announcedCursor = null;
@@ -949,7 +959,7 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
       });
       expect(first.status).toBe(404);
       // Awaited, never polled against a clock (a slow runner failed a 500 ms poll).
-      await defaults.defaultPhotoSettled('m1');
+      await defaults.defaultPhotosSettled();
     } finally {
       vi.unstubAllGlobals();
     }
