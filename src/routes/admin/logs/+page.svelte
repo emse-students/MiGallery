@@ -7,7 +7,7 @@
   import type { PageData } from './$types';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let { data } = $props<{ data: PageData }>();
+  let { data }: { data: PageData } = $props();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let logs = $derived(data.logs as any[]);
 
