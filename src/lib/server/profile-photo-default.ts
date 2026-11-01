@@ -390,9 +390,10 @@ export function scheduleDefaultProfilePhoto(
 }
 
 /**
- * The end of `userId`'s background re-evaluation when one runs, else an already settled promise.
- * Never rejects. What a caller that must see its result awaits (the tests), instead of a clock.
+ * The end of every background re-evaluation running now. Never rejects. What a caller that must
+ * see their results awaits (the tests), instead of a clock - and what a test awaits before the
+ * next one, since a run left in flight makes the next schedule for that member a no-op.
  */
-export function defaultPhotoSettled(userId: string): Promise<void> {
-  return inFlight.get(userId) ?? Promise.resolve();
+export async function defaultPhotosSettled(): Promise<void> {
+  await Promise.all([...inFlight.values()]);
 }
