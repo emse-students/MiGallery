@@ -84,10 +84,63 @@ export function runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
     // Already inside the lock (a nested engine call): queueing would wait for itself forever.
     return Promise.resolve().then(fn);
   }
+  return queueExclusive(fn);
+}
+
+/**
+ * Append `fn` to the engine's queue, ALWAYS at the end, even when called from inside the lock: for
+ * work nobody waits for inside the lock (a background re-match). Awaiting it from inside the lock
+ * would wait for itself forever; {@link runExclusive} is the call for nested work.
+ */
+function queueExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
   const run = () => lock.run(true, fn);
   const next = chain.then(run, run);
   chain = next.catch(() => undefined);
   return next;
+}
+
+/**
+ * Background engine work, AT MOST ONE QUEUED PER KEY (a member). A request while a run for the
+ * key is queued and not started joins it: that run starts later, so it reads the references as
+ * they are then, the newest ones included. A request while the run is RUNNING queues exactly one
+ * more after it (the run in progress may have read the references before the change), and every
+ * further request joins that one. So N requests cost at most two runs, never N, and the last
+ * change is always matched. The state is the queued promise itself, cleared when its run starts.
+ */
+export class CoalescingQueue {
+  private readonly queued = new Map<string, Promise<void>>();
+
+  /** @param name for the logs; @param onError how a run's failure is reported (never rejects). */
+  constructor(
+    private readonly name: string,
+    private readonly onError: (e: unknown) => void
+  ) {}
+
+  /** Queue `run` for `key` unless one is already queued and not started; resolves after it. */
+  request(key: string, run: () => Promise<unknown>): Promise<void> {
+    const waiting = this.queued.get(key);
+    if (waiting) {
+      log.debug('engine work coalesced into the queued run', { queue: this.name });
+      return waiting;
+    }
+    const next = queueExclusive(async () => {
+      // Started: a request from now on must queue a new run, as this one may read stale state.
+      this.queued.delete(key);
+      await run();
+    }).then(
+      () => undefined,
+      (e: unknown) => {
+        this.onError(e);
+      }
+    );
+    this.queued.set(key, next);
+    return next;
+  }
+
+  /** Whether a run for `key` is queued and not started (for the tests). */
+  isQueued(key: string): boolean {
+    return this.queued.has(key);
+  }
 }
 
 /** Throw unless the caller holds the engine lock. */

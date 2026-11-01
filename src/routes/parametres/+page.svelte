@@ -12,7 +12,6 @@
     X,
     ChevronRight,
     Trash2,
-    TriangleAlert,
     Languages,
     Shield,
   } from '@lucide/svelte';
@@ -32,7 +31,6 @@
   import type { UserRow, Album, User } from '#lib/types/api.ts';
   import { showConfirm } from '#lib/confirm.ts';
   import { toast } from '#lib/toast.ts';
-  import { uploadFileChunked } from '#lib/album-operations.ts';
   import { m } from '#lib/paraglide/messages.js';
   import { getLocale, type Locale } from '#lib/paraglide/runtime.js';
   import { switchLocale } from '#lib/locale.ts';
@@ -50,21 +48,20 @@
   let isAdmin = $state<boolean>(false);
 
   let uploadStatus = $state<string>('');
-  let assetId = $state<string | null>(null);
   let tagAssetId = $state<string>('');
   let tagOpStatus = $state<string>('');
   let assetDescription = $state<string>('');
   let personId = $state<string | null>(null);
 
   let isProcessing = $state<boolean>(false);
-  let needsNewPhoto = $state<boolean>(false);
-  let detectionTimeout = $state<boolean>(false);
-  let abortController: AbortController | null = null;
+  /** The member ticked the agreement; the camera stays shut until they do. */
+  let faceConsent = $state<boolean>(false);
+  /** The last enrolment ended with the member's face stored. */
+  let enrolledNow = $state<boolean>(false);
 
   let showDeleteAccountModal = $state<boolean>(false);
   let deleteConfirmText = $state<string>('');
   let isDeletingAccount = $state<boolean>(false);
-  let showFaceAlreadyAssignedModal = $state<boolean>(false);
 
   let showUnlinkFaceModal = $state<boolean>(false);
   let isUnlinkingFace = $state<boolean>(false);
@@ -177,6 +174,11 @@
       if (data.success && data.user) {
         currentUserHasFace = !!data.user.photos_id;
         personId = data.user.photos_id ?? null;
+      }
+      const enrolment = await fetch('/api/users/me/face/enrolment');
+      if (enrolment.ok) {
+        const status = (await enrolment.json()) as { enrolled?: boolean };
+        currentUserHasFace = currentUserHasFace || !!status.enrolled;
       }
     } catch {
       /* Ignore */
@@ -312,261 +314,39 @@
     }
   }
 
-  async function checkForPeople(
-    shouldDeleteAfter: boolean = false,
-    assetIdToDelete: string | null = null,
-    isTimeoutCheck: boolean = false
-  ) {
-    const userId = (page.data.session?.user as User)?.id_user;
-    if (!userId || !assetId) {
-      return;
-    }
-    let shouldCleanup = shouldDeleteAfter && assetIdToDelete;
-
-    try {
-      uploadStatus = m.param_status_fetching();
-      const assetInfoResponse = await fetch(`/api/users/me/face/selfie/${assetId}`);
-      if (!assetInfoResponse.ok) {
-        const errMsg = `Asset fetch error: ${assetInfoResponse.statusText}`;
-        throw new Error(errMsg);
-      }
-      const assetInfoData = await assetInfoResponse.json();
-      const assetInfo = assetInfoData as { people?: Array<{ id: string }> };
-      const people = assetInfo.people || [];
-
-      uploadStatus = m.param_status_detected_count({ count: people.length });
-
-      if (people.length === 1) {
-        personId = people[0].id;
-        uploadStatus = m.param_status_saving();
-
-        const updateResponse = await fetch('/api/users/me/face', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          // The selfie is the proof the server checks before it links a new person.
-          body: JSON.stringify({ person_id: personId, selfie_asset_id: assetId }),
-        });
-        const updateData = (await updateResponse.json()) as {
-          success?: boolean;
-          error?: string;
-          message?: string;
-        };
-
-        if (updateData.error === 'face_already_assigned') {
-          uploadStatus = m.param_status_face_taken();
-          showFaceAlreadyAssignedModal = true;
-          if (shouldCleanup) {
-            try {
-              await cleanupAsset(assetIdToDelete);
-            } catch (e) {
-              /* Ignore cleanup error */
-            }
-          }
-          return;
-        }
-
-        if (updateData.success) {
-          uploadStatus = m.param_face_ok();
-          if (shouldCleanup) {
-            try {
-              await cleanupAsset(assetIdToDelete);
-            } catch (e) {
-              /* Ignore cleanup error */
-            }
-          }
-          isProcessing = false;
-          // Increase delay to give DB time to sync
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          window.location.reload();
-        } else {
-          uploadStatus =
-            updateData.error === 'selfie_proof_required'
-              ? m.face_selfie_proof_msg()
-              : m.param_db_update_error({
-                  error: updateData.error || m.common_unknown_error(),
-                });
-          if (shouldCleanup) {
-            try {
-              await cleanupAsset(assetIdToDelete);
-            } catch (e) {
-              /* Ignore cleanup error */
-            }
-          }
-        }
-      } else if (people.length === 0) {
-        // Distinguish actual "no face" vs "timeout"
-        if (isTimeoutCheck) {
-          uploadStatus = m.param_status_timeout();
-          detectionTimeout = true;
-        } else {
-          uploadStatus = m.param_status_no_face();
-        }
-        if (shouldCleanup) {
-          try {
-            await cleanupAsset(assetIdToDelete);
-          } catch (e) {
-            console.warn('Cleanup failed:', e);
-          }
-        }
-      } else {
-        uploadStatus = m.param_status_multi_count({ count: people.length });
-        needsNewPhoto = true;
-        if (shouldCleanup) {
-          try {
-            await cleanupAsset(assetIdToDelete);
-          } catch (e) {
-            console.warn('Cleanup failed:', e);
-          }
-        }
-      }
-    } catch (error: unknown) {
-      uploadStatus = m.common_error_detail({
-        error: error instanceof Error ? error.message : m.common_unknown_error(),
-      });
-      if (shouldCleanup) {
-        try {
-          await cleanupAsset(assetIdToDelete);
-        } catch (e) {
-          /* Ignore cleanup error */
-        }
-      }
-    }
-  }
-
-  async function cleanupAsset(id: string | null) {
-    if (!id) {
-      return;
-    }
-    const response = await fetch(`/api/immich/assets`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Face-Pairing-Cleanup': 'true',
-      },
-      // force: the selfie is deleted outright, not parked in Immich's trash for its retention.
-      body: JSON.stringify({ ids: [id], force: true }),
-    });
-    if (!response.ok) {
-      const errMsg = `Cleanup failed: ${response.status} ${response.statusText}. Photo may not be deleted from Immich.`;
-      throw new Error(errMsg);
-    }
-  }
-
-  async function importPhoto(file: File) {
+  /**
+   * Enrol with a selfie (lot A5): the picture goes to MiGallery's own server, which reads the face
+   * in memory and never stores the picture - nothing reaches the photo library any more.
+   */
+  async function enrolSelfie(file: File) {
     if (!file) return;
-    const userId = (page.data.session?.user as User)?.id_user;
-    if (!userId) {
-      toast.error(m.param_no_user());
+    if (!faceConsent) {
+      uploadStatus = m.face_enrol_consent_required();
       return;
     }
-
     isProcessing = true;
-    detectionTimeout = false;
-    uploadStatus = m.param_status_uploading();
-    assetId = null;
-    personId = null;
-    needsNewPhoto = false;
-    abortController = new AbortController();
-    const signal = abortController.signal;
-
-    let isDuplicate = false;
-    let uploadedAssetId: string | null = null;
-
+    enrolledNow = false;
+    uploadStatus = m.param_status_analyzing_short();
     try {
-      let uploadResponse: Response;
-      uploadResponse = await uploadFileChunked(file, signal);
-
-      if (!uploadResponse.ok) {
-        const errMsg = `Upload error: ${uploadResponse.statusText}`;
-        throw new Error(errMsg);
-      }
-      const uploadData = (await uploadResponse.json()) as Record<string, unknown>;
-
-      if (uploadData.status === 'duplicate' && uploadData.id) {
-        isDuplicate = true;
-        uploadedAssetId = String(uploadData.id);
-        uploadStatus = m.param_status_existing();
-      } else if (uploadData.duplicateId) {
-        isDuplicate = true;
-        uploadedAssetId = String(uploadData.duplicateId);
-        uploadStatus = m.param_status_existing();
-      } else if (uploadData.id) {
-        uploadedAssetId = String(uploadData.id);
+      const form = new FormData();
+      form.append('selfie', file);
+      form.append('consent', 'true');
+      const response = await fetch('/api/users/me/face/enrolment', { method: 'POST', body: form });
+      const data = (await response.json()) as { success?: boolean; message?: string };
+      if (data.success) {
+        enrolledNow = true;
+        currentUserHasFace = true;
+        uploadStatus = '';
+        toast.success(m.param_face_ok());
       } else {
-        throw new Error(m.param_no_id_returned());
+        uploadStatus = data.message || m.face_enrol_unavailable();
       }
-
-      // A file Immich already holds proves nothing about who took it, and the server refuses it
-      // as a selfie (selfieProves): say so now rather than after the detection wait.
-      if (isDuplicate) {
-        uploadStatus = m.face_selfie_proof_msg();
-        return;
-      }
-
-      assetId = uploadedAssetId;
-
-      // Increase to 60 seconds to give Immich time to process
-      const maxAttempts = 60;
-      let attempt = 0;
-      let faceDetected = false;
-      while (attempt < maxAttempts && !faceDetected) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        attempt++;
-        uploadStatus = m.param_status_analyzing({ seconds: attempt });
-        try {
-          const checkResponse = await fetch(`/api/users/me/face/selfie/${assetId}`, {
-            cache: 'no-store',
-            signal,
-          });
-          if (checkResponse.ok) {
-            const checkData = await checkResponse.json();
-            if (checkData.people && checkData.people.length > 0) {
-              faceDetected = true;
-              break;
-            }
-          }
-        } catch (err: unknown) {
-          if (err instanceof Error && err.name === 'AbortError') throw err;
-        }
-      }
-
-      const shouldDeleteAfter = !isDuplicate && !!uploadedAssetId;
-      // Pass the isTimeoutCheck=true flag if we reached max attempts
-      const isTimeout = attempt >= maxAttempts && !faceDetected;
-      await checkForPeople(shouldDeleteAfter, uploadedAssetId, isTimeout);
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return;
-      }
-      if (!isDuplicate && uploadedAssetId) {
-        try {
-          await cleanupAsset(uploadedAssetId);
-        } catch (e) {
-          /* Ignore cleanup error */
-        }
-      }
-      uploadStatus = m.common_error_detail({
-        error: error instanceof Error ? error.message : m.common_unknown_error(),
-      });
+    } catch {
+      uploadStatus = m.face_enrol_unavailable();
     } finally {
       isProcessing = false;
-      abortController = null;
     }
   }
-
-  $effect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isProcessing && abortController) {
-        abortController.abort();
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  });
 
   async function deleteMyAccount() {
     if (deleteConfirmText !== 'CONFIRMATION') {
@@ -617,11 +397,9 @@ alone sets the width and the gutter, which this page used to add a second time (
         <SettingsRow
           icon={Camera}
           title={m.param_profile_photo()}
-          description={currentUserHasFace
-            ? m.param_profile_photo_desc()
-            : m.param_need_face_first()}
+          description={personId ? m.param_profile_photo_desc() : m.param_need_face_first()}
           onclick={() => (showChangePhotoModal = true)}
-          disabled={!currentUserHasFace}
+          disabled={!personId}
         />
       </div>
     </section>
@@ -673,9 +451,17 @@ alone sets the width and the gutter, which this page used to add a second time (
           </p>
         </div>
 
+        <label class="consent-row">
+          <input type="checkbox" bind:checked={faceConsent} disabled={isProcessing} />
+          <span>
+            {m.param_face_consent_before()}
+            <a href="/cgu#biometrie">{m.param_face_consent_link()}</a>{m.param_face_consent_after()}
+          </span>
+        </label>
+
         <div class="camera-section">
           <div class="camera-wrapper">
-            <CameraInput onPhoto={importPhoto} disabled={isProcessing} />
+            <CameraInput onPhoto={enrolSelfie} disabled={isProcessing || !faceConsent} />
           </div>
 
           <div class="camera-status">
@@ -683,64 +469,17 @@ alone sets the width and the gutter, which this page used to add a second time (
               <div class="status-processing">
                 <Spinner size={20} /> <span>{uploadStatus}</span>
               </div>
-            {:else if assetId && !needsNewPhoto && !detectionTimeout}
+            {:else if enrolledNow}
               <div class="status-success">
                 <CircleCheckBig size={20} />
                 <span>{m.param_face_ok()}</span>
               </div>
-            {:else if needsNewPhoto}
-              <div class="status-error">
-                <CircleAlert size={20} />
-                <div class="error-message">
-                  <span>{m.param_face_multi()}</span>
-                  <p class="text-sm">{uploadStatus}</p>
-                  <button
-                    type="button"
-                    onclick={() => {
-                      assetId = null;
-                      needsNewPhoto = false;
-                      detectionTimeout = false;
-                      uploadStatus = '';
-                    }}
-                    class="retry-link"
-                  >
-                    {m.common_retry()}
-                  </button>
-                </div>
-              </div>
-            {:else if detectionTimeout}
-              <div class="status-warning">
-                <TriangleAlert size={20} />
-                <div class="error-message">
-                  <span>{uploadStatus}</span>
-                  <button
-                    type="button"
-                    onclick={() => {
-                      assetId = null;
-                      detectionTimeout = false;
-                      uploadStatus = '';
-                    }}
-                    class="retry-link"
-                  >
-                    {m.common_retry()}
-                  </button>
-                </div>
-              </div>
-            {:else if uploadStatus && !isProcessing}
+            {:else if uploadStatus}
               <div class="status-error">
                 <CircleAlert size={20} />
                 <div class="error-message">
                   <span>{uploadStatus}</span>
-                  <button
-                    type="button"
-                    onclick={() => {
-                      assetId = null;
-                      needsNewPhoto = false;
-                      detectionTimeout = false;
-                      uploadStatus = '';
-                    }}
-                    class="retry-link"
-                  >
+                  <button type="button" onclick={() => (uploadStatus = '')} class="retry-link">
                     {m.common_retry()}
                   </button>
                 </div>
@@ -966,19 +705,6 @@ alone sets the width and the gutter, which this page used to add a second time (
   <p>{m.param_unlink_confirm()}</p>
 </Modal>
 
-<Modal
-  bind:show={showFaceAlreadyAssignedModal}
-  title={m.param_face_taken_title()}
-  type="warning"
-  icon="alert-circle"
-  confirmText={m.param_confirm_understood()}
-  onConfirm={() => {
-    showFaceAlreadyAssignedModal = false;
-  }}
->
-  <p>{m.param_face_taken_body()}</p>
-</Modal>
-
 {#if showChangePhotoModal}
   <ChangePhotoModal
     peopleId={personId ?? undefined}
@@ -1121,6 +847,24 @@ alone sets the width and the gutter, which this page used to add a second time (
     color: var(--accent);
   }
 
+  .consent-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  .consent-row input {
+    flex-shrink: 0;
+    margin-top: 0.3rem;
+    accent-color: var(--accent);
+  }
+  .consent-row a {
+    color: var(--accent);
+  }
+
   .camera-section {
     display: flex;
     flex-direction: column;
@@ -1145,13 +889,6 @@ alone sets the width and the gutter, which this page used to add a second time (
   }
   .status-error {
     color: var(--error);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-  }
-  .status-warning {
-    color: var(--warning);
     display: flex;
     align-items: center;
     gap: 0.5rem;
