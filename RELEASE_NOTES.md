@@ -3,6 +3,7 @@
 ## Changes
 
 - **Trombinoscope PDF**: a fixed 5-column A4 grid, names wrapped by the browser on at most two lines (never overlapping), MiGallery's fonts (Space Grotesk, Inter) embedded, a header with the date and a page count, one tile shape for every member with initials as the single fallback, members sorted by last name in a French collation, and real selectable text over the raster. Ported from Canari's trombinoscope export.
+- **Admin panel version**: the deployed image now reports the version it was released as; since v2.18.0 it kept showing 2.17.0, because only the tarball job synced `package.json` with the tag.
 
 # MiGallery v2.18.0
 
