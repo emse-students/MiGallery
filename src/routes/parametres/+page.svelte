@@ -421,38 +421,33 @@ alone sets the width and the gutter, which this page used to add a second time (
     <section id="face-recognition" class="settings-group">
       <h2 class="group-title">{m.param_face_title()}</h2>
       <p class="group-desc">{m.param_face_sub()}</p>
-      <div class="group-card group-body">
-        <!-- The icon is the flex row's first child, not inside the <p>: lucide's svg is a block, so
-             in the text it took a line of its own above it (user, 2026-09-26). -->
-        <div class="info-box">
-          <Info size={18} class="info-box-icon" />
-          <p>
-            {m.param_face_note_before()}
-            <strong>{m.param_face_note_strong()}</strong>
-            {m.param_face_note_after()}
-          </p>
+      <div class="group-card">
+        <!-- Step 1, the agreement: what the selfie is for, then the consent that opens step 2. The
+             icon is the flex row's first child, not inside the <p>: lucide's svg is a block, so in
+             the text it took a line of its own above it (user, 2026-09-26). -->
+        <div class="step">
+          <div class="info-box">
+            <Info size={18} class="info-box-icon" />
+            <p>
+              {m.param_face_note_before()}
+              <strong>{m.param_face_note_strong()}</strong>
+              {m.param_face_note_after()}
+            </p>
+          </div>
+
+          <label class="consent-row">
+            <input type="checkbox" bind:checked={faceConsent} disabled={isProcessing} />
+            <span>
+              {m.param_face_consent_before()}
+              <a href="/cgu#biometrie">{m.param_face_consent_link()}</a
+              >{m.param_face_consent_after()}
+            </span>
+          </label>
         </div>
 
-        <label class="consent-row">
-          <input type="checkbox" bind:checked={faceConsent} disabled={isProcessing} />
-          <span>
-            {m.param_face_consent_before()}
-            <a href="/cgu#biometrie">{m.param_face_consent_link()}</a>{m.param_face_consent_after()}
-          </span>
-        </label>
-
-        {#if toConfirm > 0}
-          <a href="/mes-photos/confirmer" class="confirm-link">
-            <ScanFace size={18} />
-            <span>{m.mp_confirm_banner({ count: toConfirm })}</span>
-            <ChevronRight size={18} />
-          </a>
-        {/if}
-
-        <div class="camera-section">
-          <div class="camera-wrapper">
-            <CameraInput onPhoto={enrolSelfie} disabled={isProcessing || !faceConsent} />
-          </div>
+        <!-- Step 2, the selfie: the two ways to give one, then what became of it. -->
+        <div class="step">
+          <CameraInput onPhoto={enrolSelfie} disabled={isProcessing || !faceConsent} />
 
           <div class="camera-status">
             {#if isProcessing}
@@ -479,6 +474,27 @@ alone sets the width and the gutter, which this page used to add a second time (
             {/if}
           </div>
         </div>
+
+        <!-- Step 3, the photos waiting for the member's answer: a row of its own, after the
+             enrolment it depends on. -->
+        {#if toConfirm > 0}
+          <SettingsRow
+            icon={ScanFace}
+            title={m.mp_confirm_banner({ count: toConfirm })}
+            href="/mes-photos/confirmer"
+          />
+        {/if}
+
+        <!-- Step 4, the way out, next to what it undoes. -->
+        {#if currentUserHasFace}
+          <SettingsRow
+            icon={ScanEye}
+            title={m.param_unlink_face()}
+            description={m.param_unlink_face_desc()}
+            onclick={() => (showUnlinkFaceModal = true)}
+            danger
+          />
+        {/if}
       </div>
     </section>
 
@@ -619,15 +635,6 @@ alone sets the width and the gutter, which this page used to add a second time (
     <section class="settings-group">
       <h2 class="group-title">{m.param_account_title()}</h2>
       <div class="group-card">
-        {#if currentUserHasFace}
-          <SettingsRow
-            icon={ScanEye}
-            title={m.param_unlink_face()}
-            description={m.param_unlink_face_desc()}
-            onclick={() => (showUnlinkFaceModal = true)}
-            danger
-          />
-        {/if}
         <SettingsRow
           icon={Trash2}
           title={m.param_delete_account()}
@@ -754,27 +761,6 @@ alone sets the width and the gutter, which this page used to add a second time (
     font-size: 0.8125rem;
   }
 
-  /* The photos waiting for the member's answer, as one flat row inside the face card. */
-  .confirm-link {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: 0.875rem;
-    text-decoration: none;
-  }
-
-  .confirm-link span {
-    flex: 1;
-  }
-
-  .confirm-link:hover {
-    background: var(--bg-tertiary);
-  }
-
   .group-card {
     overflow: hidden;
     border: 1px solid var(--border);
@@ -783,12 +769,18 @@ alone sets the width and the gutter, which this page used to add a second time (
   }
 
   /* Rows are separated by a hairline inset past the icon, as in a native list. */
-  .group-card > :global(.settings-row + .settings-row) {
+  .group-card > :global(.settings-row + .settings-row),
+  .group-card > .step + :global(.settings-row),
+  .group-card > .step + .step {
     border-top: 1px solid var(--border);
   }
 
-  /* A group holding free content (face recognition, sharing) rather than rows. */
-  .group-body {
+  /* One spacing scale inside a card's content: 1rem of padding, 1rem between blocks. */
+  .group-body,
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     padding: 1rem;
   }
 
@@ -840,12 +832,11 @@ alone sets the width and the gutter, which this page used to add a second time (
   .info-box {
     display: flex;
     gap: 0.75rem;
-    background: rgba(59, 130, 246, 0.1);
+    background: var(--accent-light);
     color: var(--text-primary);
-    padding: 1rem;
-    border-radius: var(--radius-md);
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-xs);
+    font-size: 0.9375rem;
   }
   .info-box p {
     margin: 0;
@@ -862,8 +853,7 @@ alone sets the width and the gutter, which this page used to add a second time (
     display: flex;
     gap: 0.75rem;
     align-items: flex-start;
-    margin-bottom: 1.25rem;
-    font-size: 0.95rem;
+    font-size: 0.9375rem;
     line-height: 1.5;
     cursor: pointer;
   }
@@ -876,14 +866,9 @@ alone sets the width and the gutter, which this page used to add a second time (
     color: var(--accent);
   }
 
-  .camera-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
+  /* Left-aligned like everything else in the card. */
   .camera-status {
-    text-align: center;
+    text-align: left;
   }
   .status-processing {
     color: var(--accent);
@@ -939,8 +924,7 @@ alone sets the width and the gutter, which this page used to add a second time (
 
   .permission-add-row {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    gap: 0.75rem;
     /* Both controls are one height now, so centring them actually lines them up. */
     align-items: center;
   }
@@ -1058,6 +1042,14 @@ alone sets the width and the gutter, which this page used to add a second time (
     font-size: 0.85rem;
     margin-top: 0.5rem;
     opacity: 0.7;
+  }
+
+  /* On a phone the field takes the whole row and the button its own line below. */
+  @media (max-width: 480px) {
+    .permission-add-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
   }
 
   @media (max-width: 640px) {
