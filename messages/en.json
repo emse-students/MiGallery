@@ -322,7 +322,7 @@
   "param_shared_sub": "Access the photos of friends who authorized you",
   "param_no_shared": "No one has shared access to their photos with you yet.",
   "param_unlink_face": "Unlink my face",
-  "param_unlink_face_desc": "Deletes your reference prints, the photos given to you and your answers, and erases your name in Immich. You will lose access to \"My photos\".",
+  "param_unlink_face_desc": "Deletes your reference prints, the photos given to you and your answers. You will lose access to \"My photos\".",
   "param_delete_account": "Delete my account",
   "param_delete_account_desc": "Permanently deletes your data, preferences and access.",
   "param_delete_account_title": "Delete your account",

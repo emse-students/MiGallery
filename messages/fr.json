@@ -331,7 +331,7 @@
   "param_shared_sub": "Accédez aux photos des amis qui vous ont autorisé",
   "param_no_shared": "Personne ne vous a encore partagé l'accès à ses photos.",
   "param_unlink_face": "Dissocier mon visage",
-  "param_unlink_face_desc": "Supprime vos empreintes de référence, les photos qui vous ont été attribuées et vos réponses, et efface votre nom dans Immich. Vous perdrez l'accès à \"Mes photos\".",
+  "param_unlink_face_desc": "Supprime vos empreintes de référence, les photos qui vous ont été attribuées et vos réponses. Vous perdrez l'accès à \"Mes photos\".",
   "param_delete_account": "Supprimer mon compte",
   "param_delete_account_desc": "Supprime définitivement vos données, préférences et accès.",
   "param_delete_account_title": "Supprimer votre compte",
