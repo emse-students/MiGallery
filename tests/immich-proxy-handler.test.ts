@@ -211,3 +211,43 @@ describe('a member session', () => {
     }
   });
 });
+
+describe('cache validators', () => {
+  it("an answer stripped of its people carries none of Immich's validators, and no JSON route takes a conditional", async () => {
+    let conditional: string | null = 'unset';
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      asked.push(String(url));
+      conditional = new Headers(init?.headers).get('if-none-match');
+      if (String(url).endsWith('/thumbnail')) {
+        return new Response('img', { headers: { 'content-type': 'image/webp', etag: 'W/"img"' } });
+      }
+      return Response.json(
+        { id: VICTIM, people: [{ id: PERSON }] },
+        { headers: { etag: 'W/"full"', 'last-modified': 'Thu, 01 Jan 2026 00:00:00 GMT' } }
+      );
+    });
+    const ask = (path: string) => {
+      const url = new URL(`http://x.test/api/immich/${path}`);
+      const request = new Request(url, { headers: { 'if-none-match': 'W/"full"' } });
+      return proxy.GET({ request, url, params: { path }, fetch } as never);
+    };
+    try {
+      for (const auth of [member('m1'), member('boss', 'admin')]) {
+        state.auth = auth;
+        const res = await ask(`assets/${VICTIM}`);
+        expect(res.headers.get('etag')).toBeNull();
+        expect(res.headers.get('last-modified')).toBeNull();
+        expect(conditional).toBeNull();
+      }
+      // The media bytes keep their validators both ways.
+      const img = await ask(`assets/${VICTIM}/thumbnail`);
+      expect(img.headers.get('etag')).toBe('W/"img"');
+      expect(conditional).toBe('W/"full"');
+    } finally {
+      vi.stubGlobal('fetch', async (url: string) => {
+        asked.push(String(url));
+        return answer(String(url));
+      });
+    }
+  });
+});

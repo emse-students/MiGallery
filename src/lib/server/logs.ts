@@ -6,6 +6,13 @@ import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('audit-log');
 
+/**
+ * Event types whose row is not only a trace but AUTHORISATION STATE: an `import` row is what makes
+ * an upload the member's own (asset-uploads.ts), for deleting it. A failed
+ * write of one is reported at error, since the member silently loses those rights over that asset.
+ */
+const AUTHORISING_EVENTS: ReadonlySet<string> = new Set(['import']);
+
 /** Set once the missing-address fault has been logged, so it is reported once per process. */
 let addressFaultReported = false;
 
@@ -80,6 +87,15 @@ export function logEvent(
     );
     stmt.run(actor, eventType, targetType, targetId, details ? JSON.stringify(details) : null, ip);
   } catch (e) {
+    if (AUTHORISING_EVENTS.has(eventType)) {
+      log.error('an authorising audit row was not written; the actor loses its rights over it', {
+        eventType,
+        targetType,
+        targetId,
+        error: (e as Error).message || e,
+      });
+      return;
+    }
     log.warn('logEvent failed', (e as Error).message || e);
   }
 }

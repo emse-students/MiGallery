@@ -785,13 +785,17 @@ const handle: RequestHandler = async function (event) {
     outgoingHeaders['if-range'] = sanitizeHeaderValue(ifRange) || '';
   }
 
-  // Forward cache validation headers
+  // Cache validation travels for the media bytes only (a thumbnail, an original, a video). A JSON
+  // answer may be stripped of its people (withoutFaceFields), and Immich's validators describe the
+  // FULL body: a conditional compared against them would answer about a body this caller never
+  // received.
+  const conditional = publicAssetId(clean) !== null;
   const ifNoneMatch = request.headers.get('if-none-match');
-  if (ifNoneMatch) {
+  if (ifNoneMatch && conditional) {
     outgoingHeaders['if-none-match'] = sanitizeHeaderValue(ifNoneMatch) || '';
   }
   const ifModifiedSince = request.headers.get('if-modified-since');
-  if (ifModifiedSince) {
+  if (ifModifiedSince && conditional) {
     outgoingHeaders['if-modified-since'] = sanitizeHeaderValue(ifModifiedSince) || '';
   }
 
@@ -1003,7 +1007,7 @@ const handle: RequestHandler = async function (event) {
  * The JSON answer without the people and faces Immich puts in it (`GET /api/assets/:id` carries
  * `people` and their face boxes until lot A8 deletes them): a biometric field never reaches a
  * client through the gallery, whoever asks. Only a JSON text that names one of those fields is
- * parsed; the length header goes when the body changed. `null` when such a text does not parse:
+ * parsed; the length and the validators go when the body changed. `null` when such a text does not parse:
  * it cannot be cleaned, so it is not forwarded.
  */
 function withoutFaceFields(textBody: string, contentType: string, headers: Headers): string | null {
@@ -1039,7 +1043,11 @@ function withoutFaceFields(textBody: string, contentType: string, headers: Heade
     return textBody;
   }
   log.info('people and faces removed from a proxied answer', { removed });
-  headers.delete('content-length');
+  // What described Immich's FULL body goes: its length, and the validators a later conditional
+  // would be compared against.
+  for (const h of ['content-length', 'etag', 'last-modified']) {
+    headers.delete(h);
+  }
   return JSON.stringify(parsed);
 }
 
@@ -1147,7 +1155,8 @@ async function finishImmichUpload(
             });
           }
         } catch (e) {
-          log.warn('failed to log upload', e);
+          // No `import` row means the member does not own this upload (asset-uploads.ts).
+          log.error('the upload answer could not be recorded; its ownership is lost', e);
         } finally {
           cleanup();
         }
