@@ -418,3 +418,20 @@ keeps focus through a pick and the blur can close it at once. Measured on the ri
 at 1440x900 the list ran from y=476 to 776 over a card ending at 535; with the field at y=816 it
 opened above (512-812); at 393 px it spans the field's width (225 px) and flips the same way; the
 arrows, Enter, Escape, a click, a tap and a click outside all behave, light and dark.
+
+## Rendering rules: markup in text, and markdown in the admin docs
+
+- **A translation that carries inline markup (`<strong>`, `<em>`, `<br />`, `<a href>`) is rendered
+  by `RichText.svelte`**, never printed with `{m.key()}` (the tags show as text) and never with
+  `{@html}`. `$lib/rich-text.ts` parses the string into a tree with an allowlist (four tags; an `href`
+  only http(s), mailto, `#` or a site path; `class="mail-link"`); an unknown tag stays literal text.
+  `tests/rich-text.test.ts` fails on a markup key printed through a plain mustache.
+- **The admin "Documentation interne" page renders `docs/wiki` with `marked`**
+  (`$lib/docs/render-md.ts`): CommonMark joins hard-wrapped lines, raw HTML is escaped, a
+  `javascript:`/`data:` link loses its `href`, an image is reduced to its alt text. The document's
+  own `# title` is lifted into the card header (`splitTitle`), and the sidebar shows `shortTitle`
+  (the title up to its first parenthesis).
+- **No global element rule styles a link inside a list.** The old `ul li a` "album list" card rule
+  turned every inline link in a bullet into a block card; it had no user and is gone.
+- **A grid track that must shrink is `minmax(0, 1fr)`, never a bare `1fr`**: a bare `1fr` grows to
+  its widest child and pushed cards past the edge of a 360 px screen (admin database, documentation).

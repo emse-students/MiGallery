@@ -69,8 +69,10 @@
     justify-content: center;
   }
 
+  /* A real basis, not 0: the title keeps a readable line and the actions wrap below it on a
+     phone, instead of squeezing the title into a one-word column beside a button. */
   .admin-page-heading {
-    flex: 1;
+    flex: 1 1 12rem;
     min-width: 0;
   }
 

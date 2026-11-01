@@ -491,13 +491,18 @@
   /* --- GRID LAYOUT --- */
   .dashboard-grid {
     display: grid;
-    grid-template-columns: 2fr 1.2fr;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
     gap: 2.5rem; /* Gap significantly increased */
     align-items: start;
   }
   @media (max-width: 900px) {
+    /* minmax(0, ...): a bare 1fr grows to its widest child and pushed the cards off a 360px screen. */
     .dashboard-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+    .surface {
+      padding: 1.25rem;
     }
   }
 
@@ -558,12 +563,12 @@
   /* --- STATS --- */
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1.25rem;
   }
   @media (max-width: 600px) {
     .stats-grid {
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
@@ -603,7 +608,7 @@
   /* --- ACTIONS --- */
   .actions-list {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.25rem;
   }
   .action-btn {
@@ -658,6 +663,8 @@
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
+    min-width: 0;
+    white-space: normal;
   }
   .btn-title {
     font-weight: 700;

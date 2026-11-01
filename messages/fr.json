@@ -944,5 +944,11 @@
   "usr_face_withdraw": "Retirer la reconnaissance",
   "usr_face_withdraw_confirm": "Retirer la reconnaissance faciale de {name} ? Ses données de visage et ses photos reconnues seront supprimées.",
   "usr_face_withdraw_error": "Le retrait a échoué.",
-  "usr_face_withdrawn": "Reconnaissance faciale retirée"
+  "usr_face_withdrawn": "Reconnaissance faciale retirée",
+  "err_not_found_title": "Page introuvable",
+  "err_not_found_desc": "Cette page n'existe pas ou a été déplacée.",
+  "err_forbidden_title": "Accès refusé",
+  "err_forbidden_desc": "Tu n'as pas accès à cette page.",
+  "err_generic_title": "Une erreur est survenue",
+  "err_generic_desc": "Réessaie dans un instant ; si le problème persiste, préviens le bureau MiTV."
 }
