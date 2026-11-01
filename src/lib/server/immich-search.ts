@@ -24,22 +24,31 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
  *
  * `nextPage` comes back as a STRING ("2"), so it is coerced, never compared to
  * a number.
+ *
+ * A search by `filter` (Immich v3) pages differently: Immich refuses it with a
+ * `page` (400 "Deprecated field page cannot be combined with filter", read on
+ * the live server 2026-11-01), answers `nextPage: null` always, and announces
+ * more results with an opaque `nextCursor` instead.
  */
 export interface AssetSearchPage {
   items: ImmichAsset[];
   /** The next page to ask for, or null when this was the last one. */
   nextPage: number | null;
+  /** A filtered search's next-results cursor, or null when nothing more is announced. */
+  nextCursor: string | null;
 }
 
 interface SearchMetadataResponse {
   assets?: {
     items?: ImmichAsset[];
     nextPage?: string | number | null;
+    nextCursor?: string | null;
   };
 }
 
 /**
- * Fetch exactly one page of results.
+ * Fetch exactly one page of results. `page` is null for a search by `filter`, which Immich
+ * refuses with one.
  *
  * Every failure is classified HERE, and none of them is the member's: the search is built by this
  * server. Immich not configured throws `ImmichNotConfiguredError` (the route answers 503). Immich
@@ -50,7 +59,7 @@ interface SearchMetadataResponse {
 export async function searchAssetPage(
   fetchFn: typeof fetch,
   filter: Record<string, unknown>,
-  page: number,
+  page: number | null,
   size: number
 ): Promise<AssetSearchPage> {
   const base = requireImmichBaseUrl();
@@ -60,7 +69,7 @@ export async function searchAssetPage(
       signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
       method: 'POST',
       headers: { 'x-api-key': IMMICH_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...filter, page, size }),
+      body: JSON.stringify(page === null ? { ...filter, size } : { ...filter, page, size }),
     });
 
     if (!res.ok) {
@@ -88,7 +97,11 @@ export async function searchAssetPage(
     const raw = data.assets?.nextPage;
     const next = raw === null || raw === undefined ? null : Number(raw);
 
-    return { items, nextPage: Number.isFinite(next) && next !== null ? next : null };
+    return {
+      items,
+      nextPage: Number.isFinite(next) && next !== null ? next : null,
+      nextCursor: data.assets?.nextCursor ?? null,
+    };
   } catch (e: unknown) {
     if (isHttpError(e)) {
       throw e;
@@ -164,8 +177,9 @@ export const ASSET_ID_BATCH = 250;
  * THE ANSWER IS CHECKED, NOT TRUSTED. An Immich that ignored the filter would answer an arbitrary
  * page of the library, and the caller would show a member photos that are not theirs. So every
  * asset returned must be one that was asked for; one that was not throws (502), classified here,
- * and nothing of that batch is used. A batch that says it has a next page throws for the same
- * reason: the filter was not applied as written.
+ * and nothing of that batch is used. A batch that announces more results (a `nextCursor`, or a
+ * `nextPage`) throws for the same reason: the filter was not applied as written. No `page` is
+ * sent: Immich refuses one alongside a `filter`.
  */
 export async function searchAssetsByIds(
   fetchFn: typeof fetch,
@@ -178,17 +192,18 @@ export async function searchAssetsByIds(
     const page = await searchAssetPage(
       fetchFn,
       { filter: { or: batch.map((id) => ({ id: { eq: id } })) } },
-      1,
+      null,
       // One more than asked: an honoured answer can never fill the page, so a next page is
       // never legitimately announced.
       ASSET_ID_BATCH + 1
     );
     const stranger = page.items.find((asset) => !asked.has(asset.id));
-    if (stranger || page.nextPage !== null) {
+    if (stranger || page.nextPage !== null || page.nextCursor !== null) {
       log.error('search by id answered assets that were not asked for: the filter was ignored', {
         asked: batch.length,
         answered: page.items.length,
         nextPage: page.nextPage,
+        nextCursor: page.nextCursor !== null,
       });
       throw error(502, 'Search by id was not honoured');
     }
