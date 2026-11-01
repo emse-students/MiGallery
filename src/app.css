@@ -966,38 +966,6 @@
     margin-bottom: 0.75rem;
   }
 
-  ul li a {
-    display: block;
-    padding: 1rem 1.25rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    transition: all var(--ease) 200ms;
-  }
-
-  ul li a:hover {
-    background: var(--bg-tertiary);
-    border-color: var(--divider);
-    transform: translateX(4px);
-  }
-
-  /* Fix: keep mailto links inline (don't style them as block 'buttons' inside lists) */
-  ul li a[href^='mailto:'] {
-    display: inline;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    color: var(--accent);
-    transition: color var(--ease) 150ms;
-  }
-
-  ul li a[href^='mailto:']:hover {
-    background: transparent;
-    transform: none;
-    color: var(--accent-hover);
-  }
-
   .album-name {
     font-weight: 500;
     color: var(--text-primary);

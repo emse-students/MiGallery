@@ -1,4 +1,4 @@
-<!-- d.html is generated from trusted, versioned Markdown content. -->
+<!-- d.html comes from mdToHtml (#lib/docs/render-md.ts): raw HTML escaped, links allowlisted. -->
 <!-- eslint-disable svelte/no-at-html-tags -->
 <script lang="ts">
   import { page } from '$app/state';
@@ -11,6 +11,7 @@
     title: string;
     content: string;
     name: string;
+    short: string;
     html: string;
   }
 
@@ -45,9 +46,9 @@
           <ul>
             {#each docs as d (d.filename)}
               <li>
-                <button onclick={() => scrollToDoc(d.filename)} class="toc-link">
+                <button onclick={() => scrollToDoc(d.filename)} class="toc-link" title={d.name}>
                   <span class="doc-icon"><FileText size={14} /></span>
-                  <span class="doc-name">{d.name}</span>
+                  <span class="doc-name">{d.short}</span>
                 </button>
               </li>
             {/each}
@@ -84,7 +85,7 @@
     --doc-code-text: #e2e8f0;
 
     display: grid;
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 280px minmax(0, 1fr);
     gap: 2rem;
     align-items: start;
   }
@@ -128,7 +129,7 @@
 
   .toc-link {
     display: flex;
-    align-items: flex-start; /* Top alignment for multiline text */
+    align-items: center;
     gap: 0.75rem;
     width: 100%;
     text-align: left;
@@ -140,12 +141,15 @@
     cursor: pointer;
     transition: all 0.2s;
     font-size: 0.9rem;
-
-    /* Handling line wrapping */
-    white-space: normal; /* Allows line wrapping */
-    overflow-wrap: break-word; /* Break long words if needed */
-    word-break: break-word;
     line-height: 1.4;
+  }
+
+  /* One line, cut with an ellipsis: the full title is the button's tooltip and the card header. */
+  .doc-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .toc-link:hover {
@@ -156,8 +160,8 @@
   .doc-icon {
     color: var(--text-secondary);
     opacity: 0.7;
-    min-width: 16px; /* Fixed space for the icon */
-    margin-top: 2px; /* Optical alignment with first line of text */
+    flex: none;
+    display: inline-flex;
   }
   .toc-link:hover .doc-icon {
     color: var(--accent);
@@ -225,9 +229,9 @@
     overflow-wrap: break-word;
   }
 
-  :global(.doc-body h1),
   :global(.doc-body h2),
-  :global(.doc-body h3) {
+  :global(.doc-body h3),
+  :global(.doc-body h4) {
     color: var(--text-primary);
     font-weight: 700;
     margin-top: 2rem;
@@ -235,15 +239,15 @@
     line-height: 1.3;
   }
 
-  :global(.doc-body h1) {
+  :global(.doc-body h2) {
     font-size: 1.5rem;
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.5rem;
   }
-  :global(.doc-body h2) {
+  :global(.doc-body h3) {
     font-size: 1.3rem;
   }
-  :global(.doc-body h3) {
+  :global(.doc-body h4) {
     font-size: 1.1rem;
   }
 
@@ -318,16 +322,26 @@
     font-weight: 600;
     white-space: nowrap;
   }
+  /* The app's global td rule clips a cell to one 200px line with an ellipsis (right for the admin
+     data tables); a documentation cell must show all of its text. */
   :global(.doc-body td) {
     padding: 0.75rem;
     border-bottom: 1px solid var(--border);
     min-width: 120px;
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
   }
 
-  /* --- RESPONSIVE --- */
-  @media (max-width: 1024px) {
+  /* --- RESPONSIVE ---
+     The app's side navigation and the admin menu already take about 570px, so below 1440px the
+     two-column layout left the document a 330px column (tables scrolled sideways). The contents
+     list stacks above the document instead. */
+  @media (max-width: 1440px) {
     .docs-layout {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
       gap: 2rem;
     }
 
@@ -339,7 +353,7 @@
     }
 
     .sidebar-content {
-      max-height: 300px;
+      max-height: 260px;
     }
 
     .doc-card {

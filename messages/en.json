@@ -627,7 +627,7 @@
       }
     }
   ],
-  "usr_search_ph": "Search (name, promo, program, role)…",
+  "usr_search_ph": "Search a member…",
   "usr_you": "you",
   "usr_no_self_role": "You cannot change your own role",
   "usr_change_role": "Change role",
@@ -646,7 +646,7 @@
   "apik_label": "Label",
   "apik_label_ph": "Ex: portail-etu",
   "apik_scopes": "Scopes (optional)",
-  "apik_scopes_ph": "Ex: read,write (comma-separated)",
+  "apik_scopes_ph": "Ex: read,write",
   "apik_creating": "Creating...",
   "apik_create": "Create",
   "apik_hint": "The raw key will only be shown once after creation.",
@@ -926,5 +926,11 @@
   "usr_face_withdraw": "Withdraw recognition",
   "usr_face_withdraw_confirm": "Withdraw face recognition for {name}? Their face data and recognised photos will be deleted.",
   "usr_face_withdraw_error": "The withdrawal failed.",
-  "usr_face_withdrawn": "Face recognition withdrawn"
+  "usr_face_withdrawn": "Face recognition withdrawn",
+  "err_not_found_title": "Page not found",
+  "err_not_found_desc": "This page does not exist or has moved.",
+  "err_forbidden_title": "Access denied",
+  "err_forbidden_desc": "You do not have access to this page.",
+  "err_generic_title": "Something went wrong",
+  "err_generic_desc": "Try again in a moment; if the problem persists, tell the MiTV office."
 }

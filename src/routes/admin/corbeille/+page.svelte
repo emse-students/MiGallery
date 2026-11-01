@@ -258,7 +258,7 @@
 
 <AdminPage title={m.nav_trash()} subtitle={m.trash_subtitle()} icon={Trash2} maxWidth="1200px">
   {#if error}
-    <ErrorState title={m.common_error_detail({ error })} onRetry={fetchTrashedAssets} />
+    <ErrorState title={error} onRetry={fetchTrashedAssets} />
   {/if}
 
   {#if loading}

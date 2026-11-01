@@ -107,7 +107,7 @@
   "am_users_label": "Utilisateurs spécifiques",
   "am_user_search_placeholder": "Rechercher par nom, prénom ou identifiant",
   "common_download": "Télécharger",
-  "common_error_detail": "Erreur: {error}",
+  "common_error_detail": "Erreur : {error}",
   "trash_to_bin": "Mettre à la corbeille",
   "photo_delete_title": "Supprimer la photo",
   "photo_trash_confirm": "Voulez-vous vraiment mettre cette photo à la corbeille ?",
@@ -636,7 +636,7 @@
       }
     }
   ],
-  "usr_search_ph": "Rechercher (nom, promo, formation, rôle)…",
+  "usr_search_ph": "Rechercher un membre…",
   "usr_you": "vous",
   "usr_no_self_role": "Vous ne pouvez pas modifier votre propre rôle",
   "usr_change_role": "Changer le rôle",
@@ -655,7 +655,7 @@
   "apik_label": "Label",
   "apik_label_ph": "Ex: portail-etu",
   "apik_scopes": "Scopes (optionnel)",
-  "apik_scopes_ph": "Ex: read,write (séparés par virgule)",
+  "apik_scopes_ph": "Ex: read,write",
   "apik_creating": "Création...",
   "apik_create": "Créer",
   "apik_hint": "La clé brute ne sera affichée qu'une seule fois après la création.",
@@ -944,5 +944,11 @@
   "usr_face_withdraw": "Retirer la reconnaissance",
   "usr_face_withdraw_confirm": "Retirer la reconnaissance faciale de {name} ? Ses données de visage et ses photos reconnues seront supprimées.",
   "usr_face_withdraw_error": "Le retrait a échoué.",
-  "usr_face_withdrawn": "Reconnaissance faciale retirée"
+  "usr_face_withdrawn": "Reconnaissance faciale retirée",
+  "err_not_found_title": "Page introuvable",
+  "err_not_found_desc": "Cette page n'existe pas ou a été déplacée.",
+  "err_forbidden_title": "Accès refusé",
+  "err_forbidden_desc": "Tu n'as pas accès à cette page.",
+  "err_generic_title": "Une erreur est survenue",
+  "err_generic_desc": "Réessaie dans un instant ; si le problème persiste, préviens le bureau MiTV."
 }
