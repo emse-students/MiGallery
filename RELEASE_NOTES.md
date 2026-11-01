@@ -4,6 +4,7 @@
 
 - Faces: a member who never chose a profile photo has one again (A6 had dropped Immich's person thumbnail, so every such member showed initials): the face Immich featured for their old person when it is theirs (claimed for them like the seed's profile photos, never over another member's confirmation), else the best of their own photos (confirmed, nearer, larger, single-face, recent). A photo the member chose is never replaced while it is theirs; one Immich no longer serves is. A one-off admin run applies it to every member (`scripts/faces/default-photos-client.mjs`, dry run first). The picker shows the member's face in each of their photos, newest first, the current one marked, and fits a phone screen. The confirmation screen's empty tiles are fixed: crops are asked three at a time instead of all at once, which overflowed the server's shared image pool, and a tile that fails offers a retry.
 - **Trombinoscope PDF**: a fixed 5-column A4 grid, names wrapped by the browser on at most two lines (never overlapping), MiGallery's fonts (Space Grotesk, Inter) embedded, a header with the date and a page count, one tile shape for every member with initials as the single fallback, members sorted by last name in a French collation, and real selectable text over the raster. Ported from Canari's trombinoscope export.
+- **Admin panel version**: the deployed image now reports the version it was released as; since v2.18.0 it kept showing 2.17.0, because only the tarball job synced `package.json` with the tag.
 
 # MiGallery v2.18.0
 
