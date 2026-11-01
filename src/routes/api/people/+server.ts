@@ -4,60 +4,37 @@ import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { logEvent } from '#lib/server/logs.ts';
 import {
-  getPersonAssets,
   getAlbumAssets,
   getAlbumInfo,
   addAssetsToAlbum,
   removeAssetsFromAlbum,
 } from '#lib/photos-cv/handlers.ts';
 import { requireScope } from '#lib/server/permissions.ts';
-import {
-  assertPersonAccess,
-  assertPhotoCvManager,
-  requirePhotoCvManager,
-} from '#lib/server/face-access.ts';
+import { assertPhotoCvManager, requirePhotoCvManager } from '#lib/server/face-access.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 
 const log = createLogger('people');
 /**
- * GET /api/people?action=...&personId=...
+ * GET /api/people?action=...
  *
- * Actions:
- * - my-photos: Person's photos OUTSIDE PhotoCV album
- * - album-photos: Person's photos IN PhotoCV album (filtered by personId)
- * - all-album-photos: ALL photos IN PhotoCV album (all people)
+ * Actions (the PhotoCV album as a whole; managers and API keys):
+ * - all-album-photos: ALL photos IN PhotoCV album
  * - album-info: Information about PhotoCV album
+ *
+ * The person-keyed actions `my-photos` and `album-photos` are gone with Immich's people (lot A6):
+ * a member's photos are `GET /api/users/[userId]/photos-stream`.
  */
 export const GET: RequestHandler = async (event) => {
   const { url, fetch } = event;
   const action = url.searchParams.get('action');
-  const personId = url.searchParams.get('personId');
 
   // Each action names what it reads, so each is guarded by the rule for THAT (face-access.ts).
   const auth = await requireScope(event, 'read');
 
   try {
     switch (action) {
-      case 'my-photos': {
-        if (!personId) {
-          throw error(400, 'personId is required');
-        }
-        assertPersonAccess(auth, personId);
-        const assets = await getPersonAssets(personId, false, fetch);
-        return json({ assets });
-      }
-
-      case 'album-photos': {
-        if (!personId) {
-          throw error(400, 'personId is required');
-        }
-        assertPersonAccess(auth, personId);
-        const assets = await getPersonAssets(personId, true, fetch);
-        return json({ assets });
-      }
-
       case 'all-album-photos': {
         assertPhotoCvManager(auth, 'all-album-photos');
         const assets = await getAlbumAssets(fetch);
@@ -71,10 +48,7 @@ export const GET: RequestHandler = async (event) => {
       }
 
       default:
-        throw error(
-          400,
-          'Invalid action. Valid actions: my-photos, album-photos, all-album-photos, album-info'
-        );
+        throw error(400, 'Invalid action. Valid actions: all-album-photos, album-info');
     }
   } catch (e: unknown) {
     if (isHttpError(e)) {

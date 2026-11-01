@@ -13,14 +13,15 @@ the local DB match the corresponding Immich UUIDs.
 
 ### `users`
 
-| Column                            | Notes                                                      |
-| --------------------------------- | ---------------------------------------------------------- |
-| `id_user` TEXT PK                 | the OIDC `sub`                                             |
-| `name`, `first_name`, `last_name` | display identity                                           |
-| `photos_id` TEXT                  | linked Immich person id (for face-based "my photos")       |
-| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`            |
-| `promo` INTEGER                   | graduation year, **mirrored from the SSO, nulls included** |
-| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                                   |
+| Column                            | Notes                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `id_user` TEXT PK                 | the OIDC `sub`                                                                                    |
+| `name`, `first_name`, `last_name` | display identity                                                                                  |
+| `photos_id` TEXT                  | legacy Immich person link: READ BY NOTHING since lot A6, kept for the A7 seed; admin-written only |
+| `photos_asset_id` TEXT            | the profile photo, one of the member's own face-matched photos (A6)                               |
+| `role` TEXT                       | `admin` \| `mitviste` \| `user`, default `user`                                                   |
+| `promo` INTEGER                   | graduation year, **mirrored from the SSO, nulls included**                                        |
+| `formation` TEXT                  | e.g. `InfoCom`, `ICM`, …                                                                          |
 
 ### `albums` and permissions
 

@@ -6,9 +6,6 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
-// No Immich in `bun run test`, so no real person id exists; the photo routes are reached with a
-// placeholder, as the my-photos tests below already do.
-const testPersonId = 'test-person-id';
 let testAlbumId = '';
 
 beforeAll(async () => {
@@ -31,124 +28,20 @@ const getAuthHeaders = () => {
   return headers;
 };
 
-describe('People API - GET /api/people/people', () => {
-  it('should list all people', async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/people`, {
-      headers: getAuthHeaders(),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    // `bun run test` runs with no Immich (IMMICH_BASE_URL is empty, see
-    // tests/README.md), so the route's contract HERE is exactly this 503. It
-    // used to accept five statuses and assert the body only on a 200 that this
-    // run can never produce - which is how the route shipped answering
-    // `{ people: { people: [...] } }` against Immich v3 with this test green.
-    // Reading Immich's `PeopleResponseDto` (object, paginated) is pinned by
-    // tests/immich-people.test.ts against a mock of that shape.
-    expect(response.status).toBe(503);
-    const body = (await response.json()) as { message: string };
-    expect(body.message).toBe('Immich is not configured (IMMICH_BASE_URL is empty)');
-  }, 15000);
-
-  it('should reject access without authentication', async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/people`);
-    expect([401, 403]).toContain(response.status);
-  });
-
-  // There used to be a third test here called "should handle case where Immich is
-  // unavailable". It made the same request as the one above with a wider list of
-  // accepted statuses, and its catch branch asserted `expect(true).toBe(true)`.
-  // Nothing in it could fail and nothing in it made Immich unavailable.
-});
-
-describe('People API - GET /api/people/people/[personId]/photos', () => {
-  it("should fetch a person's photos", async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/people/${testPersonId}/photos`, {
-      headers: getAuthHeaders(),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    expect([200, 400, 401, 404, 503]).toContain(response.status);
-
-    if (response.status === 200) {
-      // `{ assets: [...] }`, not a bare array.
-      const body = (await response.json()) as { assets?: unknown };
-      expect(Array.isArray(body.assets)).toBe(true);
+describe('People API - the Immich person routes are gone (lot A6)', () => {
+  it('answers 404 for the person list and a person photo list', async () => {
+    for (const path of [
+      '/api/people/people',
+      '/api/people/people/test-person-id/photos',
+      '/api/people/person/test-person-id/my-photos',
+    ]) {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(10000),
+      });
+      expect(response.status).toBe(404);
     }
-  }, 15000);
-
-  it('should support pagination', async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/people/people/${testPersonId}/photos?page=1&limit=20`,
-      {
-        headers: getAuthHeaders(),
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    expect([200, 400, 401, 404, 503]).toContain(response.status);
-  }, 15000);
-
-  it('should return 404 for a nonexistent person', async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/people/inexistant-person-id/photos`, {
-      headers: getAuthHeaders(),
-    });
-
-    expect([404, 503]).toContain(response.status);
-  });
-});
-
-describe('People API - GET /api/people/people/[personId]/photos-stream', () => {
-  it("should stream a person's photos", async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/people/people/${testPersonId}/photos-stream`,
-      {
-        headers: getAuthHeaders(),
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    expect([200, 400, 401, 404, 503]).toContain(response.status);
-
-    if (response.status === 200) {
-      const contentType = response.headers.get('content-type');
-      expect(contentType).toContain('application/json');
-    }
-  }, 15000);
-
-  it('should support streaming with cursor', async () => {
-    const response = await fetch(
-      `${API_BASE_URL}/api/people/people/${testPersonId}/photos-stream?cursor=10&limit=30`,
-      {
-        headers: getAuthHeaders(),
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    expect([200, 400, 401, 404, 503]).toContain(response.status);
-  }, 15000);
-});
-
-describe('People API - GET /api/people/person/[id]/my-photos', () => {
-  it("should fetch the corresponding user's photos", async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/person/test-person-id/my-photos`, {
-      headers: getAuthHeaders(),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    expect([200, 400, 401, 404, 503]).toContain(response.status);
-  }, 15000);
-});
-
-describe('People API - GET /api/people/person/[id]/album-photos', () => {
-  it("should fetch the person's album photos", async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/person/test-person-id/album-photos`, {
-      headers: getAuthHeaders(),
-      signal: AbortSignal.timeout(10000),
-    });
-
-    expect([200, 400, 401, 404, 503]).toContain(response.status);
-  }, 15000);
+  }, 30000);
 });
 
 describe('People API - GET /api/people', () => {
@@ -412,7 +305,7 @@ describe('People API - Error Handling', () => {
   // and its catch branch asserted `expect(true).toBe(true)`.
 
   it('should return structured errors', async () => {
-    const response = await fetch(`${API_BASE_URL}/api/people/people/invalid-id/photos`);
+    const response = await fetch(`${API_BASE_URL}/api/people/album/info`);
 
     expect([401, 404, 500]).toContain(response.status);
 

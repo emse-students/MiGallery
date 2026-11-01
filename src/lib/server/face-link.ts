@@ -29,11 +29,6 @@ export interface FaceLinkOptions {
   source: 'selfie' | 'admin';
   /** What an unlink (person -> null) is called in the journal. */
   unlinkReason: Extract<FaceErasureReason, 'withdrawal' | 'admin_unlink'>;
-  /**
-   * The profile-photo asset to store: a string or null sets it, `undefined` leaves it alone - except
-   * that a changed person always clears it, since the old one belonged to the old person.
-   */
-  assetId?: string | null;
 }
 
 export interface FaceLinkResult {
@@ -69,12 +64,6 @@ export function applyFaceLink(
   if (personId !== null && changed) {
     db.prepare('UPDATE users SET photos_id = ? WHERE id_user = ?').run(personId, userId);
     recordFaceConsent(db, userId, options.source);
-  }
-  if (options.assetId !== undefined && personId !== null) {
-    db.prepare('UPDATE users SET photos_asset_id = ? WHERE id_user = ?').run(
-      options.assetId,
-      userId
-    );
   }
   return { changed, local };
 }

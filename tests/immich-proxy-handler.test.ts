@@ -1,6 +1,6 @@
 /**
  * The Immich proxy handler, run as a function against a fake Immich: the one canonical path, the
- * public-asset exception, the admin routes, who may delete which asset, the search body, and the
+ * public-asset exception, the admin routes, who may delete which asset, no search, and the
  * people an asset's detail carries. Ids are synthetic.
  */
 
@@ -182,23 +182,14 @@ describe('a member session', () => {
     expect(forwarded()).toEqual([]);
   });
 
-  it('may search only as the profile photo picker does', async () => {
-    expect((await send('POST', 'search/metadata', { type: 'IMAGE' })).status).toBe(400);
-    expect((await send('POST', 'search/metadata', { personIds: [], type: 'IMAGE' })).status).toBe(
-      400
-    );
+  it('may not search: no search route is listed (lot A6)', async () => {
     expect(
-      (
-        await send('POST', 'search/metadata', {
-          personIds: [PERSON],
-          originalFileName: 'x',
-        })
-      ).status
-    ).toBe(400);
+      (await send('POST', 'search/metadata', { personIds: [PERSON], type: 'IMAGE' })).status
+    ).toBe(404);
     expect(forwarded()).toEqual([]);
   });
 
-  it("never gets the people of an asset's detail; an admin and an API key do", async () => {
+  it("never gets the people of an asset's detail, nor does an admin or an API key (lot A6)", async () => {
     answer = () =>
       Response.json({
         id: VICTIM,
@@ -206,45 +197,17 @@ describe('a member session', () => {
         unassignedFaces: [{ boundingBoxX1: 1 }],
         exifInfo: { make: 'x' },
       });
-    const res = await send('GET', `assets/${VICTIM}`);
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ id: VICTIM, exifInfo: { make: 'x' } });
-    expect(text).not.toContain(PERSON);
-
-    state.auth = member('boss', 'admin');
-    expect(
-      ((await (await send('GET', `assets/${VICTIM}`)).json()) as { people: unknown[] }).people
-    ).toHaveLength(1);
-    state.auth = { user: null, grantedScope: 'read', viaApiKey: true };
-    expect(
-      ((await (await send('GET', `assets/${VICTIM}`)).json()) as { people: unknown[] }).people
-    ).toHaveLength(1);
-  });
-});
-
-describe('GET /api/users/me/face/selfie/[assetId] (the settings page linking flow)', () => {
-  const read = async (assetId: string) => {
-    const route = await import('../src/routes/api/users/me/face/selfie/[assetId]/+server');
-    try {
-      return await route.GET({ params: { assetId }, fetch } as never);
-    } catch (e) {
-      return new Response(null, { status: (e as { status?: number }).status ?? 500 });
+    for (const auth of [
+      member('m1'),
+      member('boss', 'admin'),
+      { user: null, grantedScope: 'admin', viaApiKey: true },
+    ]) {
+      state.auth = auth;
+      const res = await send('GET', `assets/${VICTIM}`);
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(JSON.parse(text)).toEqual({ id: VICTIM, exifInfo: { make: 'x' } });
+      expect(text).not.toContain(PERSON);
     }
-  };
-
-  it("answers the people ids of the member's own new upload, and nothing else of the asset", async () => {
-    answer = () => Response.json({ id: OWN, people: [{ id: PERSON, name: 'Someone' }] });
-    const res = await read(OWN);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ people: [{ id: PERSON }] });
-  });
-
-  it("refuses someone else's asset, a re-uploaded copy, and an API key", async () => {
-    expect((await read(VICTIM)).status).toBe(403);
-    expect((await read(DUP)).status).toBe(403);
-    state.auth = { user: null, grantedScope: 'admin', viaApiKey: true };
-    expect((await read(OWN)).status).toBe(403);
-    expect(asked).toEqual([]);
   });
 });

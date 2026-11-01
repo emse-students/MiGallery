@@ -19,8 +19,9 @@
 
   let userRole = $derived((page.data.session?.user as User)?.role || 'user');
   let canManagePhotos = $derived(userRole === 'mitviste' || userRole === 'admin');
-  let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.photos_id);
+  let hasIdPhotos = $derived(!!(page.data.session?.user as User)?.face_enrolled);
   let currentView = $state<'my' | 'all'>('my');
+  /** The signed-in member, whose CV photos the first tab shows. */
   let personId = $state<string>('');
   let photosGridContainer = $state<HTMLDivElement | null>(null);
 
@@ -86,20 +87,20 @@
       return;
     }
 
-    const hasIdPhotos = !!user.photos_id;
+    const hasIdPhotos = !!user.face_enrolled;
     const isManager = user.role === 'admin' || user.role === 'mitviste';
 
     if (!hasIdPhotos && !isManager) {
-      // No linked face and not a manager: funnel to the profile incitation
+      // Face matching off and not a manager: funnel to the profile incitation
       // on /mes-photos instead of a dead-end redirect to home.
       goto('/mes-photos');
       return;
     }
 
     if (hasIdPhotos) {
-      personId = String(user.photos_id ?? '');
-      myPhotosState.peopleId = String(user.photos_id ?? '');
-      myPhotosState.loadMyPhotosCV(String(user.photos_id ?? ''));
+      personId = user.id_user;
+      myPhotosState.memberId = user.id_user;
+      myPhotosState.loadMyPhotosCV(user.id_user);
     } else if (isManager) {
       currentView = 'all';
       allPhotosState.loadAllPhotosCV();

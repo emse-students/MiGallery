@@ -7,8 +7,35 @@ import { readJsonBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
 import { answerFace } from '#lib/server/face-enrolment.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { pendingSuggestions } from '#lib/server/face-photos.ts';
 
 const log = createLogger('face-matches-route');
+
+/**
+ * GET /api/users/me/face/matches
+ * The faces given to the member that wait for their answer (the `suggested` band, lot A6), oldest
+ * first: `{ suggestions: [{ asset_id, face_index }] }`. Nothing else: no distance, no band, no
+ * other member. Each one's picture is `GET /api/users/me/face/crops/[assetId]/[faceIndex]`.
+ * Refused to an impersonated session, like the answer itself.
+ */
+export const GET: RequestHandler = async (event) => {
+  const auth = await requireScope(event, 'read');
+  if (isImpersonating(event)) {
+    log.warn('face suggestions refused while impersonating');
+    return json({ error: 'Not allowed while impersonating' }, { status: 403 });
+  }
+  const userId = auth.user?.id_user;
+  if (!userId) {
+    return json({ error: 'Unauthorized - no user identified' }, { status: 401 });
+  }
+  const suggestions = pendingSuggestions(getDatabase(), userId).map((face) => ({
+    asset_id: face.assetId,
+    face_index: face.faceIndex,
+  }));
+  log.debug('face suggestions read', { count: suggestions.length });
+  return json({ success: true, suggestions });
+};
 
 /**
  * POST /api/users/me/face/matches

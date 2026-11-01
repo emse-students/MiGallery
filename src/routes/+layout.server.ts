@@ -2,6 +2,8 @@ import type { UserRow } from '#lib/types/api.ts';
 import { getSession } from '#lib/session.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { newFirstPaint } from '#lib/first-paint.ts';
+import { getDatabase } from '#lib/db/database.ts';
+import { faceStatus } from '#lib/server/face-photos.ts';
 import type { LayoutServerLoad } from './$types';
 
 const log = createLogger('layout');
@@ -19,7 +21,9 @@ function toSessionUser(user: UserRow): SessionPageUser {
     name: user.name,
     first_name: user.first_name,
     last_name: user.last_name,
-    photos_id: user.photos_id,
+    // Whether face matching is on for them (lot A6): enrolled, or holding photos. The Immich
+    // person link (`photos_id`) no longer decides anything a page shows.
+    face_enrolled: faceStatus(getDatabase(), user.id_user).enrolled,
     photos_asset_id: user.photos_asset_id,
     role: normalizeRole(user.role),
     promo: user.promo,

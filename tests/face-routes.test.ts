@@ -1,5 +1,5 @@
 /**
- * The face-link routes, called as HANDLERS against a throwaway SQLite file with the session
+ * The face-link routes (the legacy Immich person link, the withdrawal), called as HANDLERS against a throwaway SQLite file with the session
  * helpers scripted: PATCH /api/users/me/face, PUT and POST /api/users, DELETE /api/users/me,
  * the photo-access grants, and the two throw paths of the erasure worker.
  *
@@ -18,7 +18,6 @@ const state = vi.hoisted(() => ({
   user: null as null | { id_user: string; role: string },
   admin: false,
   impersonating: false,
-  proof: { ok: true } as { ok: true } | { ok: false; reason: string },
 }));
 
 vi.mock('#lib/server/env.ts', () => ({
@@ -44,10 +43,6 @@ vi.mock('#lib/server/auth.ts', () => ({
 }));
 vi.mock('#lib/session.ts', () => ({ clearSessionCookie: vi.fn() }));
 vi.mock('#lib/server/logs.ts', () => ({ logEvent: vi.fn() }));
-vi.mock('#lib/server/face-access.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#lib/server/face-access.ts')>()),
-  selfieProves: async () => state.proof,
-}));
 
 let database: typeof import('#lib/db/database.ts');
 let erasure: typeof import('#lib/server/face-erasure.ts');
@@ -137,40 +132,46 @@ beforeEach(() => {
   state.user = { id_user: 'member', role: 'user' };
   state.admin = false;
   state.impersonating = false;
-  state.proof = { ok: true };
 });
 
+/** Act as an admin session on their own account (`boss`, or `member` when `self`). */
+function asAdmin(self = false) {
+  state.admin = true;
+  state.user = { id_user: self ? 'member' : 'boss', role: 'admin' };
+}
+
 describe('PATCH /api/users/me/face - linking', () => {
-  it('a member with a passing selfie links, and the consent says selfie and which terms', async () => {
+  it('a MEMBER can no longer link a person (lot A6): 400, and nothing changed', async () => {
     addUser('member', null);
+    const res = await patch({ person_id: A, selfie_asset_id: 'anything' });
+    expect(res.status).toBe(400);
+    expect((res.body as { error: string }).error).toBe('person_link_retired');
+    expect(linkOf('member')).toEqual({ photos_id: null, photos_asset_id: null });
+    expect(consents('member')).toEqual([]);
+    expect(journal()).toEqual([]);
+  });
+
+  it('a MEMBER who holds a person cannot even send it again: 400, nothing erased', async () => {
+    addUser('member', A);
+    expect((await patch({ person_id: A })).status).toBe(400);
+    expect(linkOf('member')).toEqual({ photos_id: A, photos_asset_id: 'asset-of-member' });
+    expect(journal()).toEqual([]);
+  });
+
+  it('an admin acting on their OWN account still links, and the consent says admin', async () => {
+    addUser('member', null);
+    asAdmin(true);
     expect((await patch({ person_id: A })).status).toBe(200);
     expect(linkOf('member')).toEqual({ photos_id: A, photos_asset_id: null });
     expect(consents('member')).toEqual([
-      { source: 'selfie', version: legal.TERMS_VERSION, withdrawn_at: null },
+      { source: 'admin', version: legal.TERMS_VERSION, withdrawn_at: null },
     ]);
-  });
-
-  it('without the selfie proof: 403, and nothing changed', async () => {
-    addUser('member', null);
-    state.proof = { ok: false, reason: 'no selfie asset' };
-    const res = await patch({ person_id: A });
-    expect(res.status).toBe(403);
-    expect(linkOf('member')).toEqual({ photos_id: null, photos_asset_id: null });
-    expect(consents('member')).toEqual([]);
-  });
-
-  it('an admin acting on their OWN account skips the proof, so the consent says admin', async () => {
-    addUser('member', null);
-    state.admin = true;
-    state.user = { id_user: 'member', role: 'admin' };
-    state.proof = { ok: false, reason: 'would have failed' };
-    expect((await patch({ person_id: A })).status).toBe(200);
-    expect(consents('member')[0].source).toBe('admin');
   });
 
   it('a person another member holds: 409, nothing changed', async () => {
     addUser('member', null);
     addUser('other', A);
+    asAdmin(true);
     const res = await patch({ person_id: A });
     expect(res.status).toBe(409);
     expect(linkOf('member')).toEqual({ photos_id: null, photos_asset_id: null });
@@ -190,6 +191,7 @@ describe('PATCH /api/users/me/face - the same person again', () => {
     db()
       .prepare('INSERT INTO photo_access_permissions (owner_id, authorized_id) VALUES (?, ?)')
       .run('member', 'friend');
+    asAdmin(true);
     expect((await patch({ person_id: A })).status).toBe(200);
     expect(grants()).toHaveLength(1);
     expect(journal()).toEqual([]);
@@ -219,17 +221,18 @@ describe('PATCH /api/users/me/face - a changed person never carries the old one 
     return crop;
   }
 
-  it('a RELINK drops the grants given, closes the old consent, opens a new one, journals the OLD person, clears the profile pointer, removes the old crops', async () => {
+  it('a RELINK (by an admin) drops the grants given, closes the old consent, opens a new one, journals the OLD person, clears the profile pointer, removes the old crops', async () => {
     const crop = await linkedWithGrantAndCrop();
+    asAdmin();
 
-    expect((await patch({ person_id: B })).status).toBe(200);
+    expect((await patch({ person_id: B, user_id: 'member' })).status).toBe(200);
 
     expect(linkOf('member')).toEqual({ photos_id: B, photos_asset_id: null });
     // Only what the member GAVE goes; what the friend gave them is about the friend's face.
     expect(grants()).toEqual([{ owner_id: 'friend', authorized_id: 'member' }]);
     expect(consents('member').map((c) => [c.source, c.withdrawn_at === null])).toEqual([
       ['legacy', false],
-      ['selfie', true],
+      ['admin', true],
     ]);
     expect(journal()).toEqual([{ person_id: A, reason: 'relink' }]);
     expect(fs.existsSync(crop)).toBe(false);
@@ -237,8 +240,7 @@ describe('PATCH /api/users/me/face - a changed person never carries the old one 
 
   it('an ADMIN unlink with user_id does the same, as admin_unlink', async () => {
     const crop = await linkedWithGrantAndCrop();
-    state.admin = true;
-    state.user = { id_user: 'boss', role: 'admin' };
+    asAdmin();
 
     expect((await patch({ person_id: null, user_id: 'member' })).status).toBe(200);
 
@@ -255,9 +257,37 @@ describe('PATCH /api/users/me/face - a changed person never carries the old one 
     expect(journal()).toEqual([{ person_id: A, reason: 'withdrawal' }]);
   });
 
+  it('a withdrawal deletes every face crop of the member (lot A6), and only theirs', async () => {
+    addUser('member', null);
+    addUser('friend', null);
+    const mine = faceCrop.memberCropDir('member');
+    const theirs = faceCrop.memberCropDir('friend');
+    for (const dir of [mine, theirs]) {
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, 'asset-1_0.webp'), 'x');
+    }
+    try {
+      expect((await patch({ person_id: null })).status).toBe(200);
+      expect(fs.existsSync(mine)).toBe(false);
+      expect(fs.existsSync(path.join(theirs, 'asset-1_0.webp'))).toBe(true);
+    } finally {
+      fs.rmSync(theirs, { recursive: true, force: true });
+    }
+  });
+
+  it('an account deletion deletes the member face crops too', async () => {
+    addUser('member', null);
+    const mine = faceCrop.memberCropDir('member');
+    fs.mkdirSync(mine, { recursive: true });
+    fs.writeFileSync(path.join(mine, 'asset-1_0.webp'), 'x');
+    expect(erasure.deleteUserAccount(db(), 'member')).toBe(true);
+    expect(fs.existsSync(mine)).toBe(false);
+  });
+
   it('the journal job of the OLD person clears the old person, never the new one', async () => {
     await linkedWithGrantAndCrop();
-    await patch({ person_id: B });
+    asAdmin();
+    await patch({ person_id: B, user_id: 'member' });
     const touched: string[] = [];
     // After the PUT the re-read must see no name: script it.
     let put = false;
@@ -472,7 +502,7 @@ describe('the throw paths of the file and the worker', () => {
     const local = erasure.inTransaction(db(), () =>
       erasure.eraseLocalFaceData(db(), 'member', 'admin_unlink')
     );
-    expect(local).toEqual({ erasure: null, personId: null, heldFaces: [] });
+    expect(local).toEqual({ userId: 'member', erasure: null, personId: null, heldFaces: [] });
     expect(journal()).toEqual([]);
   });
 });

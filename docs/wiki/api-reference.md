@@ -28,11 +28,11 @@ the effective minimum.
 
 ## People / CV directory
 
-| Path                                                       | Auth              | Purpose                            |
-| ---------------------------------------------------------- | ----------------- | ---------------------------------- |
-| `/api/people`, `/api/people/people`, `/api/people/album/*` | session           | Trombinoscope people and CV albums |
-| `/api/people/people/[personId]/photos`, `/photos-stream`   | session + consent | A person's photos                  |
-| `/api/people/person/[id]/my-photos`, `/album-photos`       | session + consent | Face-based photo sets              |
+| Path                                                                                             | Auth              | Purpose                                                  |
+| ------------------------------------------------------------------------------------------------ | ----------------- | -------------------------------------------------------- |
+| `/api/people`, `/api/people/album/*`                                                             | session           | CV albums                                                |
+| `/api/users/[userId]/photos-stream`                                                              | session + consent | A member's face-matched photos (A6)                      |
+| `/api/users/me/face/matches`, `/face/crops/[assetId]/[faceIndex]`, `/api/users/me/profile-photo` | the member        | Faces to confirm, their pictures, the profile photo (A6) |
 
 ## Users and photo-access
 
@@ -41,7 +41,6 @@ the effective minimum.
 | `GET /api/users`, `/api/users/[id]`                         | admin / self    | User management                                                                                                              |
 | `/api/users/me`                                             | session         | Current user                                                                                                                 |
 | `/api/users/me/face`                                        | session         | Own reference face                                                                                                           |
-| `GET /api/users/me/face/selfie/[assetId]`                   | session         | People ids on the member's own new upload (the selfie flow)                                                                  |
 | `/api/users/me/photo-access`, `/options`, `/shared-with-me` | session         | RGPD photo-access consent                                                                                                    |
 | `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                              |
 | `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below              |
@@ -94,8 +93,9 @@ Admin pages: `/admin`, `/admin/api-keys`, `/admin/database`,
 ## Which users have a photo, asked for a list
 
 `GET /api/users/avatar-presence?ids=<a>,<b>` answers `{ withPhoto: [...] }`: the ids among those
-named whose `users` row has a `photos_id` - exactly the ones `/api/users/<id>/avatar` does not
-answer 404 for (a `photos_id` whose Immich person is gone is the rare exception). At most 100 distinct
+named whose profile photo (`photos_asset_id`) is still one of their own face-matched photos (lot A6) -
+exactly the ones `/api/users/<id>/avatar` does not answer 404 for (a photo Immich no longer serves is
+the rare exception). At most 100 distinct
 ids (`MAX_AVATAR_PRESENCE_IDS`, Canari's profile batch size); a longer or empty list is a 400, never a
 short answer. It exists because Canari learned which members have no photo by being refused once per
 face - 37 404s in one salon walk on 2026-10-13 - for a fact this table already holds
@@ -114,7 +114,10 @@ MiConnect computes the same value in its `avatar` property mapping, the only oth
 key; `tests/avatar-signature.test.ts` pins a vector produced by the PYTHON expression, since the
 two sides share no code. No expiry, deliberately (a relying party stores the URL it was given);
 rotating the key is the revocation, and it invalidates every URL at once. The response stays
-`private`, like every avatar: a shared cache must never hold a face.
+`private`, like every avatar: a shared cache must never hold a face. And no avatar is
+`immutable`: a `?v=` URL is fresh for an hour (`private, max-age=3600`), an unbusted one
+revalidates every time, and a revalidation gets its 304 only while the face is still the member's
+profile face - so a withdrawal reaches the viewers' browsers within the hour.
 
 **Revoking one user's links.** Each revoked user has a salt in `avatar_revocations` (keyed by id_user, surviving the account's
 deletion; no row until a revocation). No row signs the bare id, what MiConnect computes today; once set, the signed message is

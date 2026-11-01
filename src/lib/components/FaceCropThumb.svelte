@@ -3,19 +3,20 @@
 
   interface Props {
     assetId: string;
-    personId: string;
-    alt?: string;
+    faceIndex: number;
+    alt: string;
   }
 
-  let { assetId, personId, alt = 'Face' }: Props = $props();
+  let { assetId, faceIndex, alt }: Props = $props();
 
   let loaded = $state(false);
   let failed = $state(false);
 
-  // Square face crop generated and cached server-side (see /api/faces). The
-  // server centers on the person's detected face, so the component only has to
-  // display the returned square. "center" forces a plain center crop.
-  const src = $derived(`/api/faces/${assetId}/${personId || 'center'}`);
+  // One face given to the signed-in member, cut server-side around its stored box and served to
+  // them alone (/api/users/me/face/crops, lot A6), so this only displays the returned square.
+  const src = $derived(
+    `/api/users/me/face/crops/${encodeURIComponent(assetId)}/${encodeURIComponent(String(faceIndex))}`
+  );
 </script>
 
 <div class="face-crop">

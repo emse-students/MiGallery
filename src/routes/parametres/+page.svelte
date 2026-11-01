@@ -14,6 +14,7 @@
     Trash2,
     Languages,
     Shield,
+    ScanFace,
   } from '@lucide/svelte';
   import Modal from '#lib/components/Modal.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
@@ -51,7 +52,8 @@
   let tagAssetId = $state<string>('');
   let tagOpStatus = $state<string>('');
   let assetDescription = $state<string>('');
-  let personId = $state<string | null>(null);
+  /** Photos waiting for the member's yes or no (lot A6). */
+  let toConfirm = $state<number>(0);
 
   let isProcessing = $state<boolean>(false);
   /** The member ticked the agreement; the camera stays shut until they do. */
@@ -130,58 +132,36 @@
 
   onDestroy(() => photosState.cleanup());
 
+  /** The profile photo, chosen among the member's own photos (lot A6). */
   async function handlePhotoSelected(assetId: string) {
-    const u = page.data.session?.user as User | undefined;
-    if (!u?.photos_id) {
-      toast.error(m.param_no_immich_link());
-      return;
-    }
-
-    const updateRes = await fetch(`/api/immich/people/${u.photos_id}`, {
+    const res = await fetch('/api/users/me/profile-photo', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ featureFaceAssetId: assetId }),
+      body: JSON.stringify({ asset_id: assetId }),
     });
-
-    if (!updateRes.ok) {
-      const txt = await updateRes.text().catch(() => updateRes.statusText);
-      throw new Error(txt || m.param_photo_update_error());
+    if (!res.ok) {
+      console.warn('[parametres] profile photo refused', res.status);
+      throw new Error(m.param_photo_update_error());
     }
-
-    // Persist the backing asset id so /api/users/{id}/avatar serves our own
-    // square crop instead of Immich's. Best-effort (see mes-photos handler).
-    try {
-      await fetch('/api/users/me/face', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ person_id: u.photos_id, photos_asset_id: assetId }),
-      });
-    } catch (e) {
-      console.warn('Failed to persist profile asset id', e);
-    }
-
     toast.success(m.param_photo_updated());
     window.location.reload();
   }
 
+  /** Whether face matching is on for the member, and how many photos wait for their answer. */
   async function loadCurrentUserFaceStatus() {
     try {
-      const response = await fetch('/api/users/me');
-      const data = (await response.json()) as {
-        success?: boolean;
-        user?: { photos_id?: string | null };
-      };
-      if (data.success && data.user) {
-        currentUserHasFace = !!data.user.photos_id;
-        personId = data.user.photos_id ?? null;
-      }
       const enrolment = await fetch('/api/users/me/face/enrolment');
       if (enrolment.ok) {
         const status = (await enrolment.json()) as { enrolled?: boolean };
-        currentUserHasFace = currentUserHasFace || !!status.enrolled;
+        currentUserHasFace = !!status.enrolled || !!page.data.session?.user?.face_enrolled;
       }
-    } catch {
-      /* Ignore */
+      const matches = await fetch('/api/users/me/face/matches');
+      if (matches.ok) {
+        const body = (await matches.json()) as { suggestions?: unknown[] };
+        toConfirm = body.suggestions?.length ?? 0;
+      }
+    } catch (e) {
+      console.warn('[parametres] face status could not be read', e);
     }
   }
 
@@ -301,7 +281,7 @@
         toast.success(m.param_face_unlinked());
         showUnlinkFaceModal = false;
         currentUserHasFace = false;
-        personId = null;
+        toConfirm = 0;
       } else {
         toast.error(m.common_error_detail({ error: data.error || m.common_unknown_error() }));
       }
@@ -397,9 +377,11 @@ alone sets the width and the gutter, which this page used to add a second time (
         <SettingsRow
           icon={Camera}
           title={m.param_profile_photo()}
-          description={personId ? m.param_profile_photo_desc() : m.param_need_face_first()}
+          description={currentUserHasFace
+            ? m.param_profile_photo_desc()
+            : m.param_need_face_first()}
           onclick={() => (showChangePhotoModal = true)}
-          disabled={!personId}
+          disabled={!currentUserHasFace}
         />
       </div>
     </section>
@@ -458,6 +440,14 @@ alone sets the width and the gutter, which this page used to add a second time (
             <a href="/cgu#biometrie">{m.param_face_consent_link()}</a>{m.param_face_consent_after()}
           </span>
         </label>
+
+        {#if toConfirm > 0}
+          <a href="/mes-photos/confirmer" class="confirm-link">
+            <ScanFace size={18} />
+            <span>{m.mp_confirm_banner({ count: toConfirm })}</span>
+            <ChevronRight size={18} />
+          </a>
+        {/if}
 
         <div class="camera-section">
           <div class="camera-wrapper">
@@ -707,7 +697,7 @@ alone sets the width and the gutter, which this page used to add a second time (
 
 {#if showChangePhotoModal}
   <ChangePhotoModal
-    peopleId={personId ?? undefined}
+    memberId={page.data.session?.user?.id_user}
     onClose={() => (showChangePhotoModal = false)}
     onPhotoSelected={handlePhotoSelected}
   />
@@ -762,6 +752,27 @@ alone sets the width and the gutter, which this page used to add a second time (
     margin: -0.25rem 0 0.625rem 1rem;
     color: var(--text-muted);
     font-size: 0.8125rem;
+  }
+
+  /* The photos waiting for the member's answer, as one flat row inside the face card. */
+  .confirm-link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+
+  .confirm-link span {
+    flex: 1;
+  }
+
+  .confirm-link:hover {
+    background: var(--bg-tertiary);
   }
 
   .group-card {

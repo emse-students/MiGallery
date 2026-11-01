@@ -28,14 +28,14 @@ paths - the ones MiGallery's own pages use - and answers 404 to everything else,
 admin keys included (`src/lib/server/immich-proxy-allowlist.ts`). The path is judged as Immich
 will route it (`.` segments resolved, case and repeated slashes folded, a decoded `?` or `#`
 refused), and ids must be Immich UUIDs. The admin trash routes (`timeline/*`,
-`trash/restore/assets`) also require the admin scope. The consent rule on the person routes
-(`assertProxiedFaceAccess`) still applies on top.
+`trash/restore/assets`) also require the admin scope. No person, face or search route is on
+the list since lot A6, and the refusal below still applies on top of it.
 
 **One path for every decision.** The decoded path is canonicalised ONCE
 (`canonicalProxiedPath`): `.` and `%2e` segments resolved as the URL parser resolves them, case
 folded, slashes collapsed; a path that keeps a `%` after that (a second level of encoding), carries
 its own `?` or `#`, or resolves outside `/api/` is refused (400). That one string is what the
-public-asset exception, the list, the face rule, the body rule, the audit log and the URL sent to
+public-asset exception, the list, the face rule, the audit log and the URL sent to
 Immich all read.
 
 **The public exception** serves an anonymous read of exactly
@@ -45,16 +45,26 @@ Immich all read.
 API key; a member may delete only assets they uploaded themselves as new files (the proxy's own
 `import` audit row, `src/lib/server/asset-uploads.ts`; a duplicate upload does not count).
 
-**Search** (`POST search/metadata`) takes only the profile photo picker's body: `personIds`
-(required, then held to the consent rule), `type`, `page`, `size`.
-
-**An asset's detail** reaches a member without its `people` and `unassignedFaces`; an admin
-session and an API key see them. The settings page's selfie flow reads the people of the member's
-own new upload through `GET /api/users/me/face/selfie/[assetId]` instead (ids only).
-
 A page that needs another Immich route adds it to the list, with the page that uses it and a case
 in `tests/immich-proxy-allowlist.test.ts`; anything MiGallery has to join with its own state
 belongs in a dedicated route instead.
+
+## No person, no face - for anyone (lot A6)
+
+The proxy refuses (403), BEFORE anything is forwarded and whoever asks, admins and API keys
+included, every call Immich would answer from its face recognition: any `people/...`,
+`faces/...` or `search/person` path, and any query or JSON body key starting with `personId` or
+`withPeople` (any spelling, any value, empty included, at any depth of the body: Immich v3 nests
+its search conditions under `filter`). One function decides it,
+`assertNoProxiedFaceCall` in `src/lib/server/face-access.ts`; it judges the path Immich will
+route (`.` segments resolved, slashes collapsed, case folded) and refuses a path carrying its own
+`?` or `#` (400). On the way back, a JSON answer of any other call loses its `people` and
+`unassignedFaces` fields (`stripFaceFields`, an asset's detail is the case that carries them); a
+JSON answer that names them and cannot be parsed is refused (502) rather than forwarded. A
+member's photos come from MiGallery's own matches instead
+([face-matching-option-c.md](face-matching-option-c.md#a6---the-read-side)). Pinned by
+`tests/face-access.test.ts` (the rule) and `tests/immich-proxy-faces.test.ts` (the handler, an admin
+session and an API key refused, Immich never asked).
 
 ## Public (unlisted) assets
 
