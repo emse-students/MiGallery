@@ -1030,6 +1030,28 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     }
   });
 
+  it('the admin run: GET ?wanted=1 lists the linked members only, and a 400 on too many G says what to do', async () => {
+    const route = await import('../src/routes/api/admin/faces/default-photos/+server');
+    state.auth = member('boss', 'admin');
+    refs.addFaceReference(db(), key, 'm1', 'seed', axis(1));
+    refs.addFaceReference(db(), key, 'm2', 'seed', axis(2));
+    refs.addFaceReference(db(), key, 'm3', 'seed', axis(3));
+    // m1 is linked (mixed case in the store), m2 is not, m3 is enrolled and linked.
+    db().prepare("UPDATE users SET photos_id = 'AAAA-Person' WHERE id_user = 'm1'").run();
+    db().prepare("UPDATE users SET photos_id = NULL WHERE id_user = 'm2'").run();
+    db().prepare("UPDATE users SET photos_id = 'cccc-person' WHERE id_user = 'm3'").run();
+    const wanted = await call(route.GET, { url: new URL('http://x.test/?wanted=1') });
+    expect(await wanted.json()).toEqual({ success: true, people: ['aaaa-person', 'cccc-person'] });
+    const tooMany = Array.from({ length: 5001 }, () => ({}));
+    const res = await call(route.POST, {
+      request: new Request('http://x.test/', {
+        method: 'POST',
+        body: JSON.stringify({ featured: tooMany, dryRun: true }),
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('the admin run: two POSTs at once start ONE run, the other is told 409', async () => {
     const route = await import('../src/routes/api/admin/faces/default-photos/+server');
     state.auth = member('boss', 'admin');
@@ -1049,7 +1071,7 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
       expect(statuses).toEqual([202, 409]);
       // The run itself is awaited, never polled.
       await route._runSettled();
-      const state_ = await (await call(route.GET, {})).json();
+      const state_ = await (await call(route.GET, { url: new URL('http://x.test/') })).json();
       expect(state_).toMatchObject({ status: 'done', report: { members: 1, set_scored: 1 } });
       // A dry run writes nothing.
       expect(pointer('m1')).toEqual({ a: null, s: null });

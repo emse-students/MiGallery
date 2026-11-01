@@ -318,6 +318,22 @@ export function enrolledMembers(db: DatabaseInstance): string[] {
   ).map((r) => r.user_id);
 }
 
+/**
+ * The Immich person ids a run can use a featured face for: the `photos_id` (lowercase) of every
+ * enrolled member that has one. `featuredByPerson` is read for no other key, so this is exactly
+ * what the one-off client must send as G lines - the Immich table holds far more persons (about
+ * 94k in production) than there are members.
+ */
+export function wantedPersons(db: DatabaseInstance): string[] {
+  const personOf = db.prepare('SELECT photos_id FROM users WHERE id_user = ?');
+  const wanted = new Set<string>();
+  for (const userId of enrolledMembers(db)) {
+    const person = (personOf.get(userId) as { photos_id: string | null } | null)?.photos_id;
+    if (person) wanted.add(person.toLowerCase());
+  }
+  return [...wanted].sort();
+}
+
 /** The aggregate of a run: counts only. */
 export type DefaultReport = Record<DefaultOutcome | 'failed', number> & {
   members: number;

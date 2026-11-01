@@ -601,7 +601,7 @@ docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1
             WHERE f.\"deletedAt\" IS NULL AND p.\"ownerId\" = '$OWNER') TO STDOUT" \
   -c "COPY (SELECT 'P', a.id FROM asset a WHERE a.\"deletedAt\" IS NULL) TO STDOUT" \
   > /root/featured-faces.tsv
-grep -c '^G' /root/featured-faces.tsv     # must be > 0: about one per linked member
+grep -c '^G' /root/featured-faces.tsv     # must be > 0: one per Immich person (about 94k), NOT per member
 grep -c '^P' /root/featured-faces.tsv     # must be > 0: about 172k, every asset Immich holds
 ```
 
@@ -615,6 +615,16 @@ echo "exit: $?"
 
 4. **The real run**: the same command without `--dry-run`, once the dry run's counts are read.
    Then `rm /root/featured-faces.tsv` (asset ids and boxes, no names).
+
+The export carries a `G` line for EVERY person of that Immich user, and that is deliberate: the
+server reads `G` only for members' `users.photos_id`, and the POST refuses more than 5000 faces
+(`MAX_FEATURED`; production holds about 94k persons for a few hundred linked members). Nobody
+filters the file by hand: the client first reads `GET /api/admin/faces/default-photos?wanted=1`
+(`{ people }`: the lowercase `photos_id` of every enrolled member that has one, ids only), keeps
+the `G` lines of those persons, compared case-insensitively (`keepWanted`), and posts only them -
+one POST, one run, so a dry run applies nothing and a second run stays idempotent. The first line
+the client prints says how many it read, how many members want one, and how many it sent. A hand-made
+POST over 5000 faces gets a 400 saying the same.
 
 The client REFUSES an export with no `G` line or no `P` line (a failed or wrong export must not
 silently run without them: without `P`, no deleted choice could be told from a locked one);
