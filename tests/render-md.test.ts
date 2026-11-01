@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { isSafeHref, mdToHtml, plainInline, shortTitle, splitTitle } from '#lib/docs/render-md.ts';
+import { mdToHtml, plainInline, shortTitle, splitTitle } from '#lib/docs/render-md.ts';
+import { isSafeHref } from '#lib/safe-href.ts';
+
+/** A single backslash, spelled by code so no tool can eat an escape. */
+const BS = String.fromCharCode(92);
 
 describe('mdToHtml: CommonMark behaviour', () => {
   it('joins hard-wrapped lines into one paragraph', () => {
@@ -76,6 +80,25 @@ describe('mdToHtml: sanitising', () => {
     const html = mdToHtml('![alt text](https://tracker.example/p.png)');
     expect(html).not.toContain('<img');
     expect(html).toContain('alt text');
+  });
+
+  it('refuses control characters, tabs and newlines in an angle-bracket destination', () => {
+    for (const dest of [
+      '<\u0001javascript:alert(1)>',
+      '<java\tscript:alert(1)>',
+      '<java\nscript:alert(1)>',
+      '<\u0000javascript:alert(1)>',
+      '<\u00a0javascript:alert(1)>',
+    ]) {
+      const html = mdToHtml(`[x](${dest})`);
+      // Either collapsed to a span by our validator, or not parsed as a link at all by marked.
+      expect(html, JSON.stringify(dest)).not.toMatch(/href|<a[ >]/i);
+    }
+  });
+
+  it('refuses slash-backslash host (read as //host by a browser) but keeps a plain site path', () => {
+    expect(mdToHtml(`[x](/${BS}evil.example)`)).not.toMatch(/href/i);
+    expect(mdToHtml('[x](/albums)')).toContain('href="/albums"');
   });
 
   it('refuses a protocol-relative href', () => {

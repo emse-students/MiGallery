@@ -627,7 +627,7 @@
       }
     }
   ],
-  "usr_search_ph": "Search (name, promo, program, role)…",
+  "usr_search_ph": "Search a member…",
   "usr_you": "you",
   "usr_no_self_role": "You cannot change your own role",
   "usr_change_role": "Change role",
@@ -646,7 +646,7 @@
   "apik_label": "Label",
   "apik_label_ph": "Ex: portail-etu",
   "apik_scopes": "Scopes (optional)",
-  "apik_scopes_ph": "Ex: read,write (comma-separated)",
+  "apik_scopes_ph": "Ex: read,write",
   "apik_creating": "Creating...",
   "apik_create": "Create",
   "apik_hint": "The raw key will only be shown once after creation.",

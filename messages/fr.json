@@ -107,7 +107,7 @@
   "am_users_label": "Utilisateurs spécifiques",
   "am_user_search_placeholder": "Rechercher par nom, prénom ou identifiant",
   "common_download": "Télécharger",
-  "common_error_detail": "Erreur: {error}",
+  "common_error_detail": "Erreur : {error}",
   "trash_to_bin": "Mettre à la corbeille",
   "photo_delete_title": "Supprimer la photo",
   "photo_trash_confirm": "Voulez-vous vraiment mettre cette photo à la corbeille ?",
@@ -636,7 +636,7 @@
       }
     }
   ],
-  "usr_search_ph": "Rechercher (nom, promo, formation, rôle)…",
+  "usr_search_ph": "Rechercher un membre…",
   "usr_you": "vous",
   "usr_no_self_role": "Vous ne pouvez pas modifier votre propre rôle",
   "usr_change_role": "Changer le rôle",
@@ -655,7 +655,7 @@
   "apik_label": "Label",
   "apik_label_ph": "Ex: portail-etu",
   "apik_scopes": "Scopes (optionnel)",
-  "apik_scopes_ph": "Ex: read,write (séparés par virgule)",
+  "apik_scopes_ph": "Ex: read,write",
   "apik_creating": "Création...",
   "apik_create": "Créer",
   "apik_hint": "La clé brute ne sera affichée qu'une seule fois après la création.",

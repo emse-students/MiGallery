@@ -1,4 +1,5 @@
 import { Marked, type Tokens } from 'marked';
+import { isSafeHref } from '#lib/safe-href.ts';
 
 /**
  * Markdown to HTML for the admin "Documentation interne" page.
@@ -9,8 +10,8 @@ import { Marked, type Tokens } from 'marked';
  * is configured to be safe by construction rather than trusted because the wiki is versioned:
  *
  * - raw HTML in the source is ESCAPED (it shows as text, it never becomes a tag);
- * - a link keeps its `href` only for http(s), mailto, an in-page `#anchor` or a relative path -
- *   `javascript:` and `data:` collapse to a plain span;
+ * - a link keeps its `href` only if `#lib/safe-href.ts` accepts it (http(s), mailto, anchor, path;
+ *   no control character, whitespace or backslash) - anything else collapses to a plain span;
  * - an image is reduced to its alt text (the wiki references none, and a remote one would leak).
  *
  * Headings are shifted one level down: the card around a document already carries an `h2` with
@@ -27,20 +28,6 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** True for the only href shapes the docs may carry. */
-export function isSafeHref(href: string): boolean {
-  const h = href.trim();
-  if (h === '') {
-    return false;
-  }
-  // A scheme is `letters:` before any `/`, `?` or `#`; relative and anchor links have none.
-  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(h);
-  if (!scheme) {
-    return !h.startsWith('//');
-  }
-  return ['http', 'https', 'mailto'].includes(scheme[1].toLowerCase());
-}
-
 const marked = new Marked({
   gfm: true,
   breaks: false,
@@ -50,7 +37,7 @@ const marked = new Marked({
     },
     link(this: { parser: { parseInline: (t: Tokens.Generic[]) => string } }, token: Tokens.Link) {
       const inner = this.parser.parseInline(token.tokens);
-      if (!isSafeHref(token.href)) {
+      if (!isSafeHref(token.href, { relative: true })) {
         return `<span>${inner}</span>`;
       }
       const external = /^https?:/i.test(token.href);

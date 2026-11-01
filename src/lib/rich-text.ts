@@ -1,3 +1,5 @@
+import { isSafeHref } from '#lib/safe-href.ts';
+
 /**
  * Inline markup carried by a few translation strings (`<strong>`, `<em>`, `<br />`, `<a href>`),
  * parsed into a tree that `RichText.svelte` renders as real elements.
@@ -37,18 +39,6 @@ export function decodeEntities(text: string): string {
   return text.replace(/&(?:amp|lt|gt|quot|apos|nbsp|#39);/g, (e) => ENTITIES[e] ?? e);
 }
 
-/** True for an `href` a translation may carry. */
-export function isSafeRichHref(href: string): boolean {
-  if (href.startsWith('//')) {
-    return false;
-  }
-  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(href);
-  if (!scheme) {
-    return href.startsWith('/') || href.startsWith('#');
-  }
-  return ['http', 'https', 'mailto'].includes(scheme[1].toLowerCase());
-}
-
 const TAG = /<(\/?)([a-z]+)((?:\s+[a-z-]+="[^"]*")*)\s*(\/?)>/gi;
 
 function attributesOf(raw: string): Record<string, string> {
@@ -68,7 +58,7 @@ interface Frame {
 function close(frame: Frame): RichNode {
   if (frame.tag === 'a') {
     const href = frame.attrs.href ?? '';
-    if (isSafeRichHref(href)) {
+    if (isSafeHref(href)) {
       return {
         kind: 'a',
         href,
@@ -97,6 +87,7 @@ export function parseRich(source: string): RichNode[] {
   };
 
   let last = 0;
+  let refusedAnchors = 0;
   for (const m of source.matchAll(TAG)) {
     const [whole, closing, rawName, rawAttrs, selfClosing] = m;
     const name = rawName.toLowerCase();
@@ -107,13 +98,21 @@ export function parseRich(source: string): RichNode[] {
       top().children.push({ kind: 'br' });
     } else if (name === 'strong' || name === 'em' || name === 'a') {
       if (closing) {
-        if (top().tag === name && stack.length > 1) {
+        if (name === 'a' && refusedAnchors > 0) {
+          // The closer of an anchor refused below for nesting: it stays text, like its opener.
+          refusedAnchors--;
+          pushText(whole);
+        } else if (top().tag === name && stack.length > 1) {
           const done = stack.pop() as Frame;
           top().children.push(close(done));
         } else {
           pushText(whole);
         }
       } else if (selfClosing) {
+        pushText(whole);
+      } else if (name === 'a' && stack.some((f) => f.tag === 'a')) {
+        // An <a> inside an <a> is invalid HTML and a click-target trap: keep the inner one as text.
+        refusedAnchors++;
         pushText(whole);
       } else {
         stack.push({ tag: name, children: [], attrs: attributesOf(rawAttrs) });

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { decodeEntities, parseRich, isSafeRichHref, type RichNode } from '#lib/rich-text.ts';
+import { decodeEntities, parseRich, type RichNode } from '#lib/rich-text.ts';
+import { isSafeHref } from '#lib/safe-href.ts';
 
 /** The words a reader sees, markup removed. */
 function visibleText(nodes: RichNode[]): string {
@@ -17,6 +18,9 @@ function visibleText(nodes: RichNode[]): string {
     })
     .join('');
 }
+
+/** A single backslash, spelled by code so no tool can eat an escape. */
+const BS = String.fromCharCode(92);
 
 describe('parseRich', () => {
   it('turns strong and em into elements, never into text', () => {
@@ -61,9 +65,41 @@ describe('parseRich', () => {
   it('refuses a script-bearing href and keeps the words', () => {
     const nodes = parseRich('<a href="javascript:alert(1)">click</a>');
     expect(nodes).toEqual([{ kind: 'span', children: [{ kind: 'text', text: 'click' }] }]);
-    expect(isSafeRichHref('data:text/html,x')).toBe(false);
-    expect(isSafeRichHref('//evil.example/x')).toBe(false);
-    expect(isSafeRichHref(' javascript:x')).toBe(false);
+    expect(isSafeHref('data:text/html,x')).toBe(false);
+    expect(isSafeHref('//' + BS + 'evil.example/x')).toBe(false);
+    expect(isSafeHref(' javascript:x')).toBe(false);
+  });
+
+  it('refuses control characters, tabs and newlines anywhere in an href', () => {
+    for (const bad of [
+      '\u0001javascript:alert(1)',
+      'java\tscript:alert(1)',
+      'java\nscript:alert(1)',
+      'java\rscript:alert(1)',
+      '\u0000javascript:alert(1)',
+      '\u007fjavascript:alert(1)',
+      '\u00a0javascript:alert(1)',
+      '/ok\u0001',
+    ]) {
+      const [node] = parseRich(`<a href="${bad}">x</a>`);
+      expect(node, JSON.stringify(bad)).toMatchObject({ kind: 'span' });
+    }
+  });
+
+  it('refuses a slash-backslash host, which a browser reads as //host', () => {
+    const [node] = parseRich(`<a href="/${BS}evil.example">x</a>`);
+    expect(node).toMatchObject({ kind: 'span' });
+    expect(isSafeHref('/' + BS + 'evil.example')).toBe(false);
+    expect(isSafeHref('/albums')).toBe(true);
+  });
+
+  it('keeps an anchor nested in an anchor as text', () => {
+    const nodes = parseRich('<a href="/a">one <a href="/b">two</a> three</a>');
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({ kind: 'a', href: '/a' });
+    const inner = (nodes[0] as { children: RichNode[] }).children;
+    expect(inner.some((n) => n.kind === 'a')).toBe(false);
+    expect(visibleText(nodes)).toBe('one <a href="/b">two</a> three');
   });
 
   it('shows an unknown tag as text instead of executing it', () => {
@@ -79,18 +115,18 @@ describe('parseRich', () => {
 
   it('decodes only the known entities', () => {
     expect(decodeEntities('a &amp; b &lt;c&gt; &quot;d&quot; &#39;e&#39;&nbsp;f &foo;')).toBe(
-      'a & b <c> "d" \'e\' f &foo;'
+      'a & b <c> "d" \'e\'\u00a0f &foo;'
     );
   });
 });
 
 /** Every .svelte file under src, as [path, source]. */
 function svelteSources(dir: string, out: [string, string][] = []): [string, string][] {
-  for (const name of readdirSync(dir)) {
-    const full = join(dir, name);
-    if (statSync(full).isDirectory()) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
       svelteSources(full, out);
-    } else if (name.endsWith('.svelte')) {
+    } else if (entry.name.endsWith('.svelte')) {
       out.push([full, readFileSync(full, 'utf8')]);
     }
   }
@@ -130,17 +166,24 @@ describe('translations that carry markup', () => {
   });
 
   it('are never printed through a plain {m.key()} (which would show the tags)', () => {
+    // Per OCCURRENCE: the only accepted use is `text={m.key(...)}` on RichText.
     const offenders: string[] = [];
     for (const [file, source] of svelteSources('src')) {
-      for (const key of markupKeys) {
-        if (source.includes(`{m.${key}(`) && !source.includes(`text={m.${key}(`)) {
-          offenders.push(`${file}: ${key}`);
-        }
-        if (source.includes(`{@html m.${key}(`)) {
-          offenders.push(`${file}: ${key} (@html)`);
+      for (const use of source.matchAll(/(text=)?\{(@html )?m\.([a-z0-9_]+)\(/g)) {
+        const [, rich, html, key] = use;
+        if (markupKeys.has(key) && (!rich || html)) {
+          offenders.push(`${file}: ${key}${html ? ' (@html)' : ''}`);
         }
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('the guard itself catches a second, bare use in a file that also uses RichText', () => {
+    const source = '<RichText text={m.k()} /> <p>{m.k()}</p>';
+    const bare = [...source.matchAll(/(text=)?\{(@html )?m\.([a-z0-9_]+)\(/g)].filter(
+      (u) => !u[1] || u[2]
+    );
+    expect(bare).toHaveLength(1);
   });
 });
