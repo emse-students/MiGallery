@@ -948,6 +948,16 @@
       }
     }
   ],
+  "mpc_promoted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Une photo semblable a rejoint vos photos.",
+        "countPlural=*": "{count} photos semblables ont rejoint vos photos."
+      }
+    }
+  ],
   "mpc_crop_missing": "Image indisponible",
   "mpc_crop_failed": "Image non chargée",
   "mpc_crop_retry": "Réessayer",

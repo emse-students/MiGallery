@@ -11,8 +11,14 @@
  *   (`learnable`): a confirmed lookalike at 0.6 is shown to them, never learned; or
  * - a pending `auto` face within FACE_PROVEN_AUTO_DISTANCE (0.4): a margin of 0.1 under the `auto`
  *   bound, so the auto faces most likely to be wrong - those nearest the bound - never teach.
- * Never a `suggested` face, never one they rejected. The distance is recomputed against the
- * current references, not read from the row (a row's distance is the one of its decision).
+ * Never one they rejected, and a `suggested` face only in the BOOTSTRAP (selection version 3, owner
+ * 2026-11-01): a member under FACE_MIN_REFERENCES has every `auto` face held back as `suggested` by
+ * that very minimum, so a member with only a selfie had no proven face and never reached it. For
+ * them a pending `suggested` face counts, within the same 0.4 of their references and only when no
+ * other member was within FACE_AMBIGUITY_MARGIN of it at the decision. It is proof for the
+ * SELECTION ONLY: the face stays unseen by the member until the re-match, with the references it
+ * then reaches, finds it `auto`. The distance is recomputed against the current references, not
+ * read from the row (a row's distance is the one of its decision).
  *
  * WHAT IT DOES, per member: read the proven faces and their photos' capture dates from Immich
  * (outside the engine lock: network), then, inside the lock and in ONE synchronous transaction,
@@ -30,8 +36,10 @@
 import type { DatabaseInstance } from '#lib/db/database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
 import {
+  FACE_AMBIGUITY_MARGIN,
   FACE_AUTO_MAX_DISTANCE,
   FACE_MAX_REFERENCES,
+  FACE_MIN_REFERENCES,
   FACE_MODEL,
   FACE_PROVEN_AUTO_DISTANCE,
   FACE_REFERENCE_SELECTION_VERSION,
@@ -72,21 +80,53 @@ export function membersToUpgrade(db: DatabaseInstance): string[] {
   ).map((r) => r.user_id);
 }
 
-/** The member's confirmed faces and pending `auto` faces: the proven pool before distances. */
-function provenCandidates(db: DatabaseInstance, userId: string): ProvenCandidate[] {
+/** How many references of the current model `userId` holds. */
+function heldCount(db: DatabaseInstance, userId: string): number {
+  const row = db
+    .prepare('SELECT COUNT(*) AS n FROM face_references WHERE user_id = ? AND model = ?')
+    .get(userId, FACE_MODEL) as { n: number };
+  return row.n;
+}
+
+/**
+ * The member's confirmed faces and pending `auto` faces: the proven pool before distances. In the
+ * BOOTSTRAP (a member under FACE_MIN_REFERENCES, whose `auto` faces are all held back as
+ * `suggested` by that very minimum) it also takes the pending `suggested` faces the matcher found
+ * unambiguous (no other member within FACE_AMBIGUITY_MARGIN of the distance it decided on); the
+ * 0.4 bound on their distance to the CURRENT references is applied by the caller, as for `auto`.
+ */
+function provenCandidates(
+  db: DatabaseInstance,
+  userId: string,
+  bootstrap: boolean
+): ProvenCandidate[] {
   return (
     db
       .prepare(
         `SELECT asset_id, face_index, state FROM face_matches WHERE user_id = ? AND model = ?
-          AND (state = 'confirmed' OR (state = 'pending' AND band = 'auto'))
+          AND (state = 'confirmed' OR (state = 'pending' AND (band = 'auto'
+            OR (? AND band = 'suggested' AND (runner_up IS NULL OR runner_up - distance >= ?)))))
           ORDER BY asset_id, face_index`
       )
-      .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number; state: string }>
+      .all(userId, FACE_MODEL, bootstrap ? 1 : 0, FACE_AMBIGUITY_MARGIN) as Array<{
+      asset_id: string;
+      face_index: number;
+      state: string;
+    }>
   ).map((r) => ({
     assetId: r.asset_id,
     faceIndex: r.face_index,
     confirmed: r.state === 'confirmed',
   }));
+}
+
+/** Record that the member's references were chosen by the current selection version. */
+function markSelected(db: DatabaseInstance, userId: string, now: number): void {
+  db.prepare(
+    `INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id, model) DO UPDATE SET version = excluded.version,
+        selected_at = excluded.selected_at`
+  ).run(userId, FACE_MODEL, FACE_REFERENCE_SELECTION_VERSION, now);
 }
 
 /** What one member's re-selection did. */
@@ -116,11 +156,18 @@ export function reselectReferences(
     if (held.length === 0) {
       return { outcome: 'no_references' as const, references: 0, added: 0, dropped: 0 };
     }
+    const bootstrap = held.length < FACE_MIN_REFERENCES;
+    if (marker && !bootstrap) {
+      // Chosen by an earlier version and already at the minimum: nothing the bootstrap adds, and a
+      // re-selection of 300 members' references would only churn them. Marked, not touched.
+      markSelected(db, userId, now);
+      return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
+    }
     const heldVectors = held.map((h) => h.embedding);
     const heldFaces = new Set(
       held.filter((h) => h.assetId !== null).map((h) => `${h.assetId}\u0000${h.faceIndex}`)
     );
-    const candidates = provenCandidates(db, userId).filter(
+    const candidates = provenCandidates(db, userId, bootstrap).filter(
       (c) => !heldFaces.has(`${c.assetId}\u0000${c.faceIndex}`)
     );
     const confirmed = new Set(
@@ -167,13 +214,10 @@ export function reselectReferences(
         added++;
       }
     }
-    db.prepare(
-      `INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, ?, ?)
-        ON CONFLICT(user_id, model) DO UPDATE SET version = excluded.version,
-          selected_at = excluded.selected_at`
-    ).run(userId, FACE_MODEL, FACE_REFERENCE_SELECTION_VERSION, now);
+    markSelected(db, userId, now);
     const references = held.length - dropped + added;
     log.info('member references re-selected', {
+      bootstrap,
       held: held.length,
       proven,
       added,
@@ -194,7 +238,8 @@ export async function upgradeMemberReferences(
   userId: string,
   fetchFn: typeof fetch
 ): Promise<UpgradeOutcome> {
-  const assets = [...new Set(provenCandidates(engine.db, userId).map((c) => c.assetId))];
+  const bootstrap = heldCount(engine.db, userId) < FACE_MIN_REFERENCES;
+  const assets = [...new Set(provenCandidates(engine.db, userId, bootstrap).map((c) => c.assetId))];
   const captureTimes = await assetCaptureTimes(fetchFn, assets);
   const outcome = await runExclusive(async () => {
     const result = reselectReferences(engine, userId, captureTimes);

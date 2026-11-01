@@ -930,6 +930,16 @@
       }
     }
   ],
+  "mpc_promoted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "One similar photo joined your photos.",
+        "countPlural=*": "{count} similar photos joined your photos."
+      }
+    }
+  ],
   "mpc_crop_missing": "Picture unavailable",
   "mpc_crop_failed": "Picture not loaded",
   "mpc_crop_retry": "Retry",

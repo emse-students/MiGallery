@@ -1326,6 +1326,38 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
     ).toThrow();
   });
 
+  it('"C\'est moi" on a face that is learned promotes its waiting lookalike, reported as promoted', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    refs.addFaceReference(db(), key, 'alice', 'photo', atDistance(ALICE, synthetic(6), 0.2));
+    const c1 = atDistance(ALICE, synthetic(7), 0.3);
+    await storeFaces({
+      c1,
+      // Beside c1: the same person in another photo.
+      c2: atDistance(c1, synthetic(8), 0.02),
+      // Another face in the band, nowhere near c1: still asked.
+      c3: atDistance(ALICE, synthetic(9), 0.56),
+    });
+    // Two references only: every face is held back as suggested.
+    expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+    const promoted: Array<{ assetId: string; faceIndex: number }> = [];
+    const released: Array<{ assetId: string; faceIndex: number }> = [];
+    expect(
+      await enrolment.answerFace(engine(), 'alice', { assetId: 'c1', faceIndex: 0 }, 'confirm', {
+        promoted,
+        released,
+      })
+    ).toBe('learned');
+    // Three references now: c2 is theirs without a question, at once, before any re-match.
+    expect(promoted).toEqual([{ assetId: 'c2', faceIndex: 0 }]);
+    expect(released).toEqual([]);
+    expect(matches().map((m) => [m.asset_id, m.band, m.state])).toEqual([
+      ['c1', 'suggested', 'confirmed'],
+      ['c2', 'auto', 'pending'],
+      ['c3', 'suggested', 'pending'],
+    ]);
+  });
+
   it('"Pas moi" on a face shown WITHOUT a question: it leaves her photos, kept as a negative, the other auto faces stay', async () => {
     // Three references near her: the auto band needs more than a lone selfie.
     enrol('alice', ALICE, 3, 0.1);
@@ -1531,6 +1563,61 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       upgrade.reselectReferences(engine(), 'alice', new Map());
       await L.rematchMember(engine(), 'alice');
       expect(matches().find((m) => m.asset_id === 'beside')?.band).toBe('auto');
+    });
+
+    it('bootstraps a member with a lone selfie from the unambiguous suggestions nearest it', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({
+        near30: atDistance(ALICE, synthetic(911), 0.3),
+        near35: atDistance(ALICE, synthetic(912), 0.35),
+        near38: atDistance(ALICE, synthetic(913), 0.38),
+        far45: atDistance(ALICE, synthetic(914), 0.45),
+        twin: atDistance(ALICE, synthetic(915), 0.3),
+      });
+      // The lone selfie holds EVERY face back as suggested (fewer than FACE_MIN_REFERENCES).
+      expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+      // A lookalike member was 0.02 behind at the decision: ambiguous, never proof.
+      db()
+        .prepare("UPDATE face_matches SET runner_up = distance + 0.02 WHERE asset_id = 'twin'")
+        .run();
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      const result = upgrade.reselectReferences(engine(), 'alice', new Map());
+      // Within 0.4 and unambiguous: three. Not the one at 0.45, not the twin.
+      expect(result).toMatchObject({ outcome: 'upgraded', added: 3, dropped: 0, references: 4 });
+      expect(
+        refsOf()
+          .filter((r) => r.asset_id !== null)
+          .map((r) => [r.source, r.asset_id])
+          .sort()
+      ).toEqual([
+        ['matched', 'near30'],
+        ['matched', 'near35'],
+        ['matched', 'near38'],
+      ]);
+      // Proof for the selection only: nothing was shown by it. The re-match, with four references,
+      // then finds the faces within the auto distance auto, the twin included (no other member).
+      expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+      await L.rematchMember(engine(), 'alice');
+      expect(Object.fromEntries(matches().map((m) => [m.asset_id, m.band]))).toMatchObject({
+        near30: 'auto',
+        far45: 'auto',
+        twin: 'auto',
+      });
+    });
+
+    it('only marks a member already at the minimum that an earlier version selected', async () => {
+      seededAlice();
+      db()
+        .prepare(
+          'INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, 2, 1)'
+        )
+        .run('alice', embedding.FACE_MODEL);
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      const result = upgrade.reselectReferences(engine(), 'alice', new Map());
+      expect(result).toMatchObject({ outcome: 'already', added: 0, dropped: 0 });
+      expect(refsOf()).toHaveLength(5);
+      expect(upgrade.membersToUpgrade(db())).toEqual([]);
     });
   });
 });

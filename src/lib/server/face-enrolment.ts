@@ -152,6 +152,12 @@ export interface AnswerOptions {
    * longer theirs to answer.
    */
   released?: FaceKey[];
+  /**
+   * Filled on a confirmation that became a reference with the faces the member was waiting to
+   * answer that the new reference now makes theirs WITHOUT a question (`auto`): the mirror of
+   * `released`, and the screen drops them from the list - they are in "Mes photos" now.
+   */
+  promoted?: FaceKey[];
 }
 
 /**
@@ -222,6 +228,7 @@ export async function answerFace(
       }
     });
     log.info('confirmed face learned', { renewal: decision.kind === 'replace' });
+    settleWaitingAfterLearning(engine, userId, options.promoted, options.released);
     return 'learned';
   });
   if (outcome === 'learned' || rematch) {
@@ -277,6 +284,46 @@ function afterRejection(
     log.info('a rejection withheld other waiting faces', { released: gone.length });
   }
   return dropped;
+}
+
+/**
+ * What follows a confirmation that became a reference, inside the engine lock: the mirror of the
+ * rejection's re-decision. The faces still waiting for the member's answer are re-decided against
+ * their new references, so the lookalikes of the face they just confirmed move at once - to `auto`
+ * (`promoted`: shown without a question) or, when another member now holds them, away (`released`)
+ * - instead of waiting for the background re-match to land and the screen to be reloaded. The
+ * re-match still runs after it; it finds the same decisions (one `decideFace` for every path).
+ */
+function settleWaitingAfterLearning(
+  engine: FaceEngine,
+  userId: string,
+  promoted?: FaceKey[],
+  released?: FaceKey[]
+): void {
+  const waiting = waitingFaces(engine.db, userId);
+  if (waiting.length === 0) {
+    return;
+  }
+  redecideFaces(engine, waiting);
+  const still = new Set(waitingFaces(engine.db, userId).map(keyOf));
+  const shown = new Set(
+    (
+      engine.db
+        .prepare(
+          `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ?
+            AND state = 'pending' AND band = 'auto'`
+        )
+        .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>
+    ).map((r) => keyOf({ assetId: r.asset_id, faceIndex: r.face_index }))
+  );
+  const gone = waiting.filter((f) => !still.has(keyOf(f)));
+  const nowShown = gone.filter((f) => shown.has(keyOf(f)));
+  promoted?.push(...nowShown);
+  released?.push(...gone.filter((f) => !shown.has(keyOf(f))));
+  log.info('a confirmation moved other waiting faces', {
+    promoted: nowShown.length,
+    released: gone.length - nowShown.length,
+  });
 }
 
 /** What {@link removeMemberPhoto} did. */

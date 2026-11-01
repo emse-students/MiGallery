@@ -44,9 +44,11 @@ export const FACE_PROVEN_AUTO_DISTANCE = 0.4;
 /**
  * The version of the reference selection a member's references were last chosen by
  * (`face_reference_selection`). 2: up to 15 varied references from the proven faces (2026-11-01).
- * A member below it is re-selected once, in the background.
+ * 3: a member below FACE_MIN_REFERENCES also learns from the `suggested` faces nearest their
+ * selfie (the bootstrap, face-reference-upgrade.ts); a member already at the minimum is only
+ * marked. A member below it is re-selected once, in the background.
  */
-export const FACE_REFERENCE_SELECTION_VERSION = 2;
+export const FACE_REFERENCE_SELECTION_VERSION = 3;
 
 /** Cosine distance up to which a face is accepted without a human (Immich's own value). */
 export const FACE_AUTO_MAX_DISTANCE = 0.5;

@@ -740,7 +740,8 @@ answer removes its tile at once and a refused one puts it back where it was.
 **The migration of existing members** (`runReferenceUpgrades`, from the ingestion tick once the
 store is seeded). One member at a time, each in its own turn of the engine lock: capture dates read
 from Immich outside the lock, then ONE transaction re-selects held references plus proven faces
-(the selfie kept) and writes `face_reference_selection` (version 2); then the member is re-matched
+(the selfie kept) and writes `face_reference_selection` (version 2, then 3 with the bootstrap
+above); then the member is re-matched
 (sticky rows kept) and their DEFAULT profile photo looked at again. The row is durable state: a
 member done is never redone, a crash resumes, a member whose Immich read failed is retried on the
 next tick with an error line. Who gets what: the **4 linked members with no group** hold no
@@ -770,21 +771,58 @@ of 6.5 s for 600k faces with 5 references therefore scales to about **10.8 s per
 references. A re-match is background work, coalesced per member, never in a request; the dry run
 prints the real decision time on the dev copy.
 
+### The bootstrap, and a confirmation that promotes (faces v2.1, owner's decisions of 2026-11-01)
+
+**The defect.** `decideBand` holds every `auto` face back as `suggested` for a member under
+`FACE_MIN_REFERENCES` (3), and the v2 selection learns only PROVEN faces (confirmed, or pending
+`auto`). A member with the selfie alone therefore had no proven face, kept one reference, and saw
+no photo at all: production read-only on 2026-11-01, **316 consenting members, 5 with zero visible
+photos, all 5 under 3 references** (median 212 visible). One of them held a lone selfie with 473
+matches, every one `suggested` (197 of them within 0.5, none ambiguous); the other four hold no
+reference at all (linked person gone, above) and are NOT touched by this fix.
+
+**1. The bootstrap** (selection version 3, `face-reference-upgrade.ts`). A member below
+`FACE_MIN_REFERENCES` also takes as proven the pending `suggested` faces within
+`FACE_PROVEN_AUTO_DISTANCE` (0.4) of their CURRENT references whose decision-time runner-up was at
+least `FACE_AMBIGUITY_MARGIN` (0.05) behind (or absent). They are proof for the SELECTION only
+(source `matched`): nothing becomes visible by it. Once the member reaches 3 references the normal
+rule applies, and the re-match that follows the selection makes their faces within 0.5 `auto`. "As
+the other members" therefore starts at 3 references, with no second mechanism. The version bump
+re-selects only members that need it: a member already at the minimum that version 2 selected is
+MARKED (3), never re-selected (a pass over 300 members' references would only churn them).
+Residual, named: a bootstrapped member with no face within 0.4 stays under 3 references and is
+marked done; the way out is a confirmation on the screen below (a learnable face is added), not a
+retry on a timer.
+
+**2. A "C'est moi" mirrors "Pas moi"** (`settleWaitingAfterLearning`, `face-enrolment.ts`). When a
+confirmation becomes a reference, the faces still waiting for the member are re-decided against
+their new references INSIDE the engine lock, as a rejection already does against its negative: the
+lookalikes of the face just confirmed become `auto` at once (`promoted` in the answer) or, if
+another member now holds them, leave (`released`). The screen drops both and says how many joined
+"Mes photos" (`mpc_promoted`): no reload, no waiting for the background re-match, which then finds
+the same decisions (one `decideFace` for every path). There is no group button: the lookalikes
+move with the answer.
+
+**Measured, owed after the release:** the same read-only query as the baseline (visible photos per
+consenting member: zero-visible count and median) once the pass has run; the production write that
+sets this off is the deploy of the release itself (the selection pass runs from the ingestion
+tick), which the owner approves first.
+
 ### The decided numbers
 
-| Constant                                      | Value       | Meaning                                                                       |
-| --------------------------------------------- | ----------- | ----------------------------------------------------------------------------- |
-| `FACE_MODEL`                                  | `buffalo_l` | the only model compared; every row carries the tag                            |
-| `FACE_EMBEDDING_DIM`                          | 512         |                                                                               |
-| `FACE_MIN_REFERENCES` / `FACE_MAX_REFERENCES` | 3 / 15      | the cap is also a table trigger (5 until faces v2, 2026-11-01)                |
-| `FACE_SEED_REFERENCES`                        | 5           | what the A7 seed still writes; the v2 re-selection tops up to 15              |
-| `FACE_PROVEN_AUTO_DISTANCE`                   | 0.4         | an `auto` face this close is proven, and may become a reference (v2)          |
-| `FACE_MAX_NEGATIVES`                          | 30          | "Pas moi" examples kept per member, also a trigger (v2)                       |
-| `FACE_AUTO_MAX_DISTANCE`                      | 0.5         | shown without a question                                                      |
-| `FACE_SUGGEST_MAX_DISTANCE`                   | 0.62        | 0.5 to 0.62 is offered to the member, who confirms                            |
-| `FACE_AMBIGUITY_MARGIN`                       | 0.05        | a runner-up closer than this (strictly) makes an `auto` face `suggested` (A2) |
-| `FACE_DETECTION_MIN_SCORE`                    | 0.7         | a face stored, and a selfie's one face (A2)                                   |
-| `FACE_SELFIE_BYSTANDER_SCORE`                 | 0.5         | any second face at or above it refuses a selfie (A2)                          |
+| Constant                                      | Value       | Meaning                                                                                                                                      |
+| --------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FACE_MODEL`                                  | `buffalo_l` | the only model compared; every row carries the tag                                                                                           |
+| `FACE_EMBEDDING_DIM`                          | 512         |                                                                                                                                              |
+| `FACE_MIN_REFERENCES` / `FACE_MAX_REFERENCES` | 3 / 15      | the cap is also a table trigger (5 until faces v2, 2026-11-01)                                                                               |
+| `FACE_SEED_REFERENCES`                        | 5           | what the A7 seed still writes; the v2 re-selection tops up to 15                                                                             |
+| `FACE_PROVEN_AUTO_DISTANCE`                   | 0.4         | an `auto` face this close is proven, and may become a reference (v2); in the bootstrap (< 3 references) so is an unambiguous `suggested` one |
+| `FACE_MAX_NEGATIVES`                          | 30          | "Pas moi" examples kept per member, also a trigger (v2)                                                                                      |
+| `FACE_AUTO_MAX_DISTANCE`                      | 0.5         | shown without a question                                                                                                                     |
+| `FACE_SUGGEST_MAX_DISTANCE`                   | 0.62        | 0.5 to 0.62 is offered to the member, who confirms                                                                                           |
+| `FACE_AMBIGUITY_MARGIN`                       | 0.05        | a runner-up closer than this (strictly) makes an `auto` face `suggested` (A2)                                                                |
+| `FACE_DETECTION_MIN_SCORE`                    | 0.7         | a face stored, and a selfie's one face (A2)                                                                                                  |
+| `FACE_SELFIE_BYSTANDER_SCORE`                 | 0.5         | any second face at or above it refuses a selfie (A2)                                                                                         |
 
 ### The secret
 

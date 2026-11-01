@@ -54,7 +54,9 @@
    * Send one answer through the one answer route (A5). The tile leaves the list AT ONCE; a refusal
    * puts it back where it was. 404 means the face was answered or given to someone else
    * meanwhile: it stays gone. A rejection may release other faces (the new negative example
-   * withholds them from the member): they leave the list too. Returns whether it was recorded.
+   * withholds them from the member): they leave the list too, as do the faces a confirmation
+   * makes theirs without a question (`promoted`, in "Mes photos" now). Returns whether it was
+   * recorded.
    */
   async function answer(item: Suggestion, verdict: Verdict): Promise<boolean> {
     const key = answerKey(item);
@@ -76,10 +78,16 @@
         return false;
       }
       if (res.ok) {
-        const body = (await res.json()) as { released?: Suggestion[] };
+        const body = (await res.json()) as { released?: Suggestion[]; promoted?: Suggestion[] };
         const released = (body.released ?? []).map(answerKey);
+        const promoted = (body.promoted ?? []).map(answerKey);
+        if (released.length > 0 || promoted.length > 0) {
+          suggestions = removeKeys(suggestions, [...released, ...promoted]);
+        }
+        if (promoted.length > 0) {
+          toast.info(m.mpc_promoted({ count: promoted.length }));
+        }
         if (released.length > 0) {
-          suggestions = removeKeys(suggestions, released);
           toast.info(m.mpc_released({ count: released.length }));
         }
       }
