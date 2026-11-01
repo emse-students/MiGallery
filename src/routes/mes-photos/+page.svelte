@@ -147,7 +147,7 @@
   {:else}
     {#if photosState.personName}
       <!-- Google Photos' person page: a small face beside the name, not half a screen of portrait. -->
-      <PageHeader title={targetUserName ?? photosState.personName}>
+      <PageHeader title={photosState.personName}>
         {#snippet leading()}
           {#if photosState.imageUrl}
             {#if canEditProfilePhoto}
