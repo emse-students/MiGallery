@@ -270,7 +270,9 @@ export async function ensureDefaultProfilePhoto(
       return alive.has(assetId);
     }
     if (options.present) {
-      return options.present.has(assetId);
+      // The export is a snapshot: a photo chosen after it is absent from it, yet the search may
+      // still serve it, and a photo the search finds exists.
+      return options.present.has(assetId) || alive.has(assetId);
     }
     if (alive.has(assetId)) {
       return true;

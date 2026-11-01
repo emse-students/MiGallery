@@ -175,6 +175,7 @@
       top: 0;
       z-index: 50;
       flex-direction: row;
+      flex-wrap: wrap;
       align-items: center;
       gap: 0.5rem;
       padding: 0.6rem 0.75rem;
@@ -189,8 +190,13 @@
       font-size: 1.1rem;
     }
 
+    /* Two rows: the brand and the way back on the first, the section tabs alone on the second.
+       One row left the tabs a ~130px window between the two (a tab cut mid-word, the "back"
+       link pressed against it). */
     nav {
-      flex: 1;
+      order: 3;
+      flex: 1 1 100%;
+      min-width: 0;
       display: flex;
       flex-direction: row;
       gap: 0.4rem;
@@ -213,7 +219,9 @@
     /* Footer meta collapses into the bar: keep the "back to site" link at the
        end, drop the version line and the top border/spacing. */
     .meta {
+      order: 2;
       margin-top: 0;
+      margin-left: auto;
       padding-top: 0;
       border-top: none;
       flex-shrink: 0;

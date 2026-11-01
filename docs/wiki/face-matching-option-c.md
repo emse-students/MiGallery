@@ -834,8 +834,10 @@ face_references; DROP TABLE face_embeddings;`) and restart; the current schema r
 - **The DPIA and the register rows in Canari**: updated to the stored-template design by A9 (Canari
   draft PR #2813); every assessment the design changes is marked there as to be re-assessed by
   the owner. Owed: that re-assessment, and the merge.
-- **`/cgu` after A8**: the terms describe the cutover in the future ("à la bascule"); once A8 has
-  run, they are to say it happened, with the date the encrypted copy is deleted.
+- **`/cgu` describes the current system only** (owner, 2026-11-01): no former design, no cutover,
+  no seed from Immich's groups, no legacy consent sources - that history lives here and in the
+  release notes, never in the terms. Read before A8 runs: the terms no longer name Immich's own
+  face groups, nor the Immich database backups that hold them.
 - **A6 owed**:
   - **A6 and A7 ship together.** The avatar requires the chosen photo to be a visible match of
     the member; A7's `finish` claims each profile photo that is a face of the member's own person.

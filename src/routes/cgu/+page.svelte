@@ -1,5 +1,3 @@
-<!-- These localized legal messages intentionally contain trusted inline HTML. -->
-<!-- eslint-disable svelte/no-at-html-tags -->
 <script lang="ts">
   import {
     Book,
@@ -13,6 +11,7 @@
     Info,
   } from '@lucide/svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
+  import RichText from '#lib/components/RichText.svelte';
   import { m } from '#lib/paraglide/messages.js';
   import { getLocale } from '#lib/paraglide/runtime.js';
   import { TERMS_VERSION } from '#lib/legal.ts';
@@ -60,17 +59,17 @@
         <h2><Book size={24} /> {m.cgu_s1_title()}</h2>
         <p>{m.cgu_s1_intro()}</p>
         <ul>
-          <li>{@html m.cgu_s1_service()}</li>
-          <li>{@html m.cgu_s1_editor()}</li>
-          <li>{@html m.cgu_s1_user()}</li>
-          <li>{@html m.cgu_s1_miconnect()}</li>
-          <li>{@html m.cgu_s1_immich()}</li>
+          <li><RichText text={m.cgu_s1_service()} /></li>
+          <li><RichText text={m.cgu_s1_editor()} /></li>
+          <li><RichText text={m.cgu_s1_user()} /></li>
+          <li><RichText text={m.cgu_s1_miconnect()} /></li>
+          <li><RichText text={m.cgu_s1_immich()} /></li>
         </ul>
       </section>
 
       <section id="responsable" class="section">
         <h2><Building size={24} /> {m.cgu_s2_title()}</h2>
-        <p>{@html m.cgu_s2_body()}</p>
+        <p><RichText text={m.cgu_s2_body()} /></p>
       </section>
 
       <section id="acces" class="section">
@@ -78,51 +77,50 @@
         <h3>{m.cgu_s3_auth_title()}</h3>
         <p>{m.cgu_s3_auth_body()}</p>
         <h3>{m.cgu_s3_hosting_title()}</h3>
-        <p>{@html m.cgu_s3_hosting_body()}</p>
+        <p><RichText text={m.cgu_s3_hosting_body()} /></p>
         <h3>{m.cgu_s3_recipients_title()}</h3>
-        <p>{m.cgu_s3_recipients_body()}</p>
+        <p><RichText text={m.cgu_s3_recipients_body()} /></p>
         <h3>{m.cgu_s3_avail_title()}</h3>
         <p>{m.cgu_s3_avail_body()}</p>
       </section>
 
       <section id="biometrie" class="section">
         <h2><ScanEye size={24} /> {m.cgu_s4_title()}</h2>
-        <p>{@html m.cgu_s4_intro()}</p>
+        <p><RichText text={m.cgu_s4_intro()} /></p>
 
         <h3>{m.cgu_s4_tech_title()}</h3>
         <ul>
-          <li>{@html m.cgu_s4_store()}</li>
-          <li>{@html m.cgu_s4_init()}</li>
-          <li>{@html m.cgu_s4_selfie()}</li>
-          <li>{@html m.cgu_s4_match()}</li>
-          <li>{@html m.cgu_s4_cutover()}</li>
+          <li><RichText text={m.cgu_s4_store()} /></li>
+          <li><RichText text={m.cgu_s4_init()} /></li>
+          <li><RichText text={m.cgu_s4_selfie()} /></li>
+          <li><RichText text={m.cgu_s4_match()} /></li>
         </ul>
 
         <h3>{m.cgu_s4_myphotos_title()}</h3>
         <p>{m.cgu_s4_myphotos_body()}</p>
-        <p>{@html m.cgu_s4_spectator()}</p>
+        <p><RichText text={m.cgu_s4_spectator()} /></p>
 
         <h3>{m.cgu_s4_revoke_title()}</h3>
-        <p>{@html m.cgu_s4_revoke_body()}</p>
+        <p><RichText text={m.cgu_s4_revoke_body()} /></p>
       </section>
 
       <section id="donnees" class="section">
         <h2><Database size={24} /> {m.cgu_s5_title()}</h2>
         <h3>{m.cgu_s5_items_title()}</h3>
         <ul>
-          <li>{@html m.cgu_s5_item_account()}</li>
-          <li>{@html m.cgu_s5_item_photos()}</li>
-          <li>{@html m.cgu_s5_item_face()}</li>
-          <li>{@html m.cgu_s5_item_store()}</li>
-          <li>{@html m.cgu_s5_item_logs()}</li>
+          <li><RichText text={m.cgu_s5_item_account()} /></li>
+          <li><RichText text={m.cgu_s5_item_photos()} /></li>
+          <li><RichText text={m.cgu_s5_item_face()} /></li>
+          <li><RichText text={m.cgu_s5_item_store()} /></li>
+          <li><RichText text={m.cgu_s5_item_logs()} /></li>
         </ul>
         <h3>{m.cgu_s5_retention_title()}</h3>
         <ul>
-          <li>{@html m.cgu_s5_retention_photos()}</li>
-          <li>{@html m.cgu_s5_retention_account()}</li>
-          <li>{@html m.cgu_s5_retention_face()}</li>
-          <li>{@html m.cgu_s5_retention_store()}</li>
-          <li>{@html m.cgu_s5_retention_logs()}</li>
+          <li><RichText text={m.cgu_s5_retention_photos()} /></li>
+          <li><RichText text={m.cgu_s5_retention_account()} /></li>
+          <li><RichText text={m.cgu_s5_retention_face()} /></li>
+          <li><RichText text={m.cgu_s5_retention_store()} /></li>
+          <li><RichText text={m.cgu_s5_retention_logs()} /></li>
         </ul>
         <h3>{m.cgu_s5_backups_title()}</h3>
         <p>{m.cgu_s5_backups_body()}</p>
@@ -131,13 +129,13 @@
       <section id="droits" class="section">
         <h2><Scale size={24} /> {m.cgu_s6_title()}</h2>
         <p>{m.cgu_s6_intro()}</p>
-        <p>{@html m.cgu_s6_how()}</p>
-        <p>{@html m.cgu_s6_cnil()}</p>
+        <p><RichText text={m.cgu_s6_how()} /></p>
+        <p><RichText text={m.cgu_s6_cnil()} /></p>
       </section>
 
       <section id="age" class="section">
         <h2><Baby size={24} /> {m.cgu_s7_title()}</h2>
-        <p>{@html m.cgu_s7_body()}</p>
+        <p><RichText text={m.cgu_s7_body()} /></p>
       </section>
 
       <section id="propriete" class="section">
@@ -151,15 +149,15 @@
         <div class="footer-grid">
           <div>
             <h3>{m.cgu_contact_editor_title()}</h3>
-            <p>{@html m.cgu_contact_editor_body()}</p>
+            <p><RichText text={m.cgu_contact_editor_body()} /></p>
           </div>
           <div>
             <h3>{m.cgu_contact_gdpr_title()}</h3>
-            <p>{@html m.cgu_contact_gdpr_body()}</p>
+            <p><RichText text={m.cgu_contact_gdpr_body()} /></p>
           </div>
         </div>
         <div class="credits">
-          <p>{@html m.cgu_credits()}</p>
+          <p><RichText text={m.cgu_credits()} /></p>
           <p class="tech-stack">{m.cgu_tech_stack()}</p>
         </div>
       </section>
@@ -297,8 +295,8 @@
     font-weight: bold;
   }
 
-  /* Links come from {@html} message blocks, so they lack Svelte's scope
-	   attribute; :global() lets the scoped section styles still reach them. */
+  /* Links come from <RichText> message blocks: they carry RichText's scope attribute, not this
+	   page's, so :global() lets the section styles still reach them. */
   .section :global(a) {
     color: var(--accent);
     text-decoration: none;
