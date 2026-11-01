@@ -108,6 +108,22 @@ export function keepWanted(featured, wanted) {
   return [...byPerson.values()];
 }
 
+/**
+ * The person ids the server wants, from its answer to `GET ?wanted=1`. A server without the
+ * feature answers the run state instead: say so, never an opaque TypeError later.
+ * @param {unknown} body
+ * @returns {string[]}
+ */
+export function readWanted(body) {
+  const people = /** @type {{ people?: unknown } | null} */ (body)?.people;
+  if (!Array.isArray(people)) {
+    throw new Error(
+      'the server does not support ?wanted=1: deploy a MiGallery build carrying it first (the one that ships this client)'
+    );
+  }
+  return people;
+}
+
 async function main() {
   if (!KEY) throw new Error('MIGALLERY_ADMIN_KEY is not set');
   const dryRun = process.argv.includes('--dry-run');
@@ -116,9 +132,11 @@ async function main() {
   console.log(`featured faces read: ${featured.length}; present assets read: ${present.length}`);
   checkExport(parsed, process.argv.includes('--no-featured'));
   const headers = { 'content-type': 'application/json', 'x-api-key': KEY };
-  const { people } = await answer(
-    await fetch(`${BASE}/api/admin/faces/default-photos?wanted=1`, { headers }),
-    'wanted'
+  const people = readWanted(
+    await answer(
+      await fetch(`${BASE}/api/admin/faces/default-photos?wanted=1`, { headers }),
+      'wanted'
+    )
   );
   const sent = keepWanted(featured, people);
   console.log(`linked members wanting a featured face: ${people.length}; sent: ${sent.length}`);

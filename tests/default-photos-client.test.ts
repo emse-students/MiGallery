@@ -6,7 +6,12 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { checkExport, keepWanted, parseExport } from '../scripts/faces/default-photos-client.mjs';
+import {
+  checkExport,
+  keepWanted,
+  parseExport,
+  readWanted,
+} from '../scripts/faces/default-photos-client.mjs';
 
 describe('the default-photo client', () => {
   it('parses featured faces and present assets, one per line', () => {
@@ -39,6 +44,14 @@ describe('the default-photo client', () => {
     const sent = keepWanted(featured, ['aaaa-person', 'CCCC-PERSON', 'nobody-in-export']);
     expect(sent.map((f) => f.person)).toEqual(['AAAA-Person', 'cccc-person']);
     expect(keepWanted(featured, [])).toEqual([]);
+  });
+
+  it('says so when the server does not know ?wanted=1 (an older one answers the run state)', () => {
+    expect(readWanted({ success: true, people: ['p'] })).toEqual(['p']);
+    expect(() => readWanted({ success: true, status: 'idle' })).toThrow(
+      /does not support \?wanted=1/
+    );
+    expect(() => readWanted(null)).toThrow(/does not support/);
   });
 
   it('refuses an export missing its G or P lines unless --no-featured, and the flag with an export', () => {
