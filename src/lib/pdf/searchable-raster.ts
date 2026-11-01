@@ -16,7 +16,7 @@
  * bare `<span>`, not a padded or flex-centred container): a run is anchored to the measured
  * baseline of its first line.
  */
-import { rasterizeElementToCanvas } from './raster';
+import { rasterizeElementToCanvas, type RasterizeOptions } from './raster';
 import { registerAppFonts, pickAppFont } from './app-fonts';
 
 /** One measured character: its glyph box, or null where the browser gave it no box. */
@@ -115,7 +115,7 @@ interface LineBox {
   baselineY: number;
 }
 
-interface TextSpec {
+export interface TextSpec {
   x: number;
   y: number;
   w: number;
@@ -132,7 +132,7 @@ interface TextSpec {
   lines: LineBox[];
 }
 
-function collectTextSpecs(root: HTMLElement, naturalWidth: number): TextSpec[] {
+export function collectTextSpecs(root: HTMLElement, naturalWidth: number): TextSpec[] {
   const rootRect = root.getBoundingClientRect();
   const k = rootRect.width > 0 ? naturalWidth / rootRect.width : 1;
   const specs: TextSpec[] = [];
@@ -179,101 +179,140 @@ function collectTextSpecs(root: HTMLElement, naturalWidth: number): TextSpec[] {
   return specs;
 }
 
+/** A page the caller has mounted: its element, and how to take it down again. */
+export interface MountedPage {
+  el: HTMLElement;
+  dispose: () => void;
+}
+
+/** What a page's raster needs to be: a canvas that can be encoded, then released. */
+export interface RasterCanvas {
+  width: number;
+  height: number;
+  toDataURL: (type: string, quality?: number) => string;
+}
+
 /** Options for {@link exportSearchablePdf}. */
 export interface SearchablePdfOptions {
   /** Base filename (sanitised; ".pdf" appended). */
   filename: string;
-  /** Natural pixel width of the element; maps DOM boxes to mm. */
+  /** Number of A4 pages; each is mounted, rasterised and released on its own. */
+  pages: number;
+  /** Mounts page `index` (0-based) in the document and measures-ready. */
+  renderPage: (index: number) => Promise<MountedPage>;
+  /** Natural pixel width of a page; maps DOM boxes to mm. */
   naturalWidth: number;
-  /** Natural pixel height of the element: a whole number of A4 pages. */
-  naturalHeight: number;
   rasterScale?: number;
   jpegQuality?: number;
   fonts?: string[];
   backgroundColor?: string;
 }
 
+/** The seams a test replaces: the browser-only parts of the export. */
+export interface ExportDeps {
+  rasterize: (el: HTMLElement, o: RasterizeOptions) => Promise<RasterCanvas>;
+  collectSpecs: (el: HTMLElement, naturalWidth: number) => TextSpec[];
+  createPdf: () => Promise<PdfLike>;
+  registerFonts: (pdf: PdfLike) => Promise<void>;
+  /** Wraps the raster of one page: hides the vector text for it. Default toggles a class. */
+  withTextHidden: <T>(el: HTMLElement, run: () => Promise<T>) => Promise<T>;
+}
+
+/** The slice of jsPDF the export uses. */
+export interface PdfLike {
+  internal: { pageSize: { getWidth(): number; getHeight(): number } };
+  addPage(): unknown;
+  addImage(data: string, format: string, x: number, y: number, w: number, h: number): unknown;
+  save(name: string): unknown;
+  setFont(name: string, style: string): unknown;
+  setFontSize(size: number): unknown;
+  setTextColor(r: number, g: number, b: number): unknown;
+  text(text: string, x: number, y: number, o?: object): unknown;
+}
+
 const PT_PER_MM = 1 / (25.4 / 72);
 
+const defaultDeps: ExportDeps = {
+  rasterize: rasterizeElementToCanvas,
+  collectSpecs: collectTextSpecs,
+  createPdf: async () => {
+    const { default: jsPDF } = await import('jspdf');
+    return new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }) as unknown as PdfLike;
+  },
+  registerFonts: (pdf) => registerAppFonts(pdf as unknown as import('jspdf').jsPDF),
+  withTextHidden: async (el, run) => {
+    // Hidden by a stylesheet (not inline styles, which a reactive framework may re-apply during the
+    // async raster); the glyphs go, so the vector re-draw is the only text.
+    const styleEl = document.createElement('style');
+    styleEl.textContent =
+      '.pdf-exporting-raster [data-pdf-text]{color:rgba(0,0,0,0) !important;-webkit-text-fill-color:rgba(0,0,0,0) !important;}';
+    document.head.appendChild(styleEl);
+    el.classList.add('pdf-exporting-raster');
+    try {
+      return await run();
+    } finally {
+      el.classList.remove('pdf-exporting-raster');
+      styleEl.remove();
+    }
+  },
+};
+
 /**
- * Exports `el` as an A4 portrait searchable-raster PDF. The element is exactly N pages tall, so the
- * raster is sliced on page boundaries: the caller decides where a page ends (and never splits a
- * cell); this only cuts where it is told.
+ * Exports an A4 portrait searchable-raster PDF, ONE PAGE AT A TIME: a page is mounted, its text
+ * measured, its element rasterised on its own, drawn, and released (canvas zeroed, node removed)
+ * before the next. A single canvas of every page would hit the engines' limits at a few pages
+ * (Chrome caps a side near 32767 px, Safari the area near 16.7 M px); one page is the same size
+ * whatever the page count.
+ *
+ * The fonts are registered BEFORE the first raster, so a missing font fails the export at once and
+ * not after minutes of rasterising.
  */
 export async function exportSearchablePdf(
-  el: HTMLElement,
-  opts: SearchablePdfOptions
+  opts: SearchablePdfOptions,
+  deps: ExportDeps = defaultDeps
 ): Promise<void> {
-  const { default: jsPDF } = await import('jspdf');
-  const specs = collectTextSpecs(el, opts.naturalWidth);
+  const pdf = await deps.createPdf();
+  await deps.registerFonts(pdf);
 
-  // Hidden for the raster by a stylesheet (not inline styles, which a reactive framework may re-apply
-  // during the async raster); the glyphs go, so the vector re-draw is the only text.
-  const styleEl = document.createElement('style');
-  styleEl.textContent =
-    '.pdf-exporting-raster [data-pdf-text]{color:rgba(0,0,0,0) !important;-webkit-text-fill-color:rgba(0,0,0,0) !important;}';
-  document.head.appendChild(styleEl);
-  el.classList.add('pdf-exporting-raster');
-  let canvas: HTMLCanvasElement;
-  try {
-    canvas = await rasterizeElementToCanvas(el, {
-      scale: opts.rasterScale ?? 2,
-      fonts: opts.fonts,
-      backgroundColor: opts.backgroundColor,
-    });
-  } finally {
-    el.classList.remove('pdf-exporting-raster');
-    styleEl.remove();
-  }
-
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
-  await registerAppFonts(pdf);
-
   const mmPerPx = pageW / opts.naturalWidth;
-  const pagePxH = pageH / mmPerPx;
-  const totalPages = Math.max(1, Math.round(opts.naturalHeight / pagePxH));
-  const rasterScale = canvas.width / opts.naturalWidth;
 
-  for (let p = 0; p < totalPages; p++) {
-    if (p > 0) pdf.addPage();
-    const srcY = Math.round(p * pagePxH * rasterScale);
-    const srcH = Math.min(Math.round(pagePxH * rasterScale), canvas.height - srcY);
-    if (srcH <= 0) continue;
-    const slice = document.createElement('canvas');
-    slice.width = canvas.width;
-    slice.height = srcH;
-    slice
-      .getContext('2d')!
-      .drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-    pdf.addImage(
-      slice.toDataURL('image/jpeg', opts.jpegQuality ?? 0.92),
-      'JPEG',
-      0,
-      0,
-      pageW,
-      (srcH / rasterScale) * mmPerPx
-    );
-    const top = p * pagePxH;
-    drawTextSpecs(
-      pdf,
-      specs.filter((s) => s.y + s.h / 2 >= top && s.y + s.h / 2 < top + pagePxH),
-      mmPerPx,
-      -top
-    );
+  for (let p = 0; p < opts.pages; p++) {
+    const page = await opts.renderPage(p);
+    try {
+      // Measured while the text is still visible (real colours and sizes).
+      const specs = deps.collectSpecs(page.el, opts.naturalWidth);
+      const canvas = await deps.withTextHidden(page.el, () =>
+        deps.rasterize(page.el, {
+          scale: opts.rasterScale ?? 2,
+          fonts: opts.fonts,
+          backgroundColor: opts.backgroundColor,
+        })
+      );
+      if (p > 0) pdf.addPage();
+      pdf.addImage(
+        canvas.toDataURL('image/jpeg', opts.jpegQuality ?? 0.92),
+        'JPEG',
+        0,
+        0,
+        pageW,
+        pageH
+      );
+      // Release the pixels now, not when the garbage collector gets to it.
+      canvas.width = 0;
+      canvas.height = 0;
+      drawTextSpecs(pdf, specs, mmPerPx, 0);
+    } finally {
+      page.dispose();
+    }
   }
 
   const safe = opts.filename.replace(/[^a-zA-Z0-9À-ž\- ]/g, '_').trim() || 'export';
   pdf.save(`${safe}.pdf`);
 }
 
-function drawTextSpecs(
-  pdf: import('jspdf').jsPDF,
-  specs: TextSpec[],
-  mmPerPx: number,
-  yOffset: number
-): void {
+function drawTextSpecs(pdf: PdfLike, specs: TextSpec[], mmPerPx: number, yOffset: number): void {
   for (const s of specs) {
     const font = pickAppFont(s.family, s.weight);
     if (font) pdf.setFont(font.name, font.style);

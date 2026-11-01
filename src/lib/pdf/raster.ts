@@ -28,6 +28,10 @@ export async function rasterizeElementToCanvas(
 ): Promise<HTMLCanvasElement> {
   const { scale = 2, backgroundColor, fonts = [] } = opts;
 
+  // NOTHING IN THIS RASTER WAITS ON THE NETWORK, so there is no timeout around snapdom (correctness
+  // is never decided by a clock here): the photos are `data:` URLs resolved before the export, the
+  // fonts are loaded by `document.fonts.load` below, and every <img> either decodes or fires `error`
+  // - which the loop below waits for, an event and not a duration.
   const images = Array.from(el.querySelectorAll<HTMLImageElement>('img'));
   await Promise.all(
     images.map(

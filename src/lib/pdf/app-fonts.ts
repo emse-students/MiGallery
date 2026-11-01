@@ -22,8 +22,14 @@ const APP_FONTS: AppFont[] = [
 ];
 
 async function fetchFontBase64(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`pdf font ${url}: HTTP ${res.status}`);
+  const res = await fetch(url).catch((e) => {
+    console.error('[pdf-fonts] font fetch failed', url, e);
+    throw e;
+  });
+  if (!res.ok) {
+    console.error('[pdf-fonts] font fetch refused', url, res.status);
+    throw new Error(`pdf font ${url}: HTTP ${res.status}`);
+  }
   const bytes = new Uint8Array(await res.arrayBuffer());
   let binary = '';
   // Chunked to stay under the argument-count limit of String.fromCharCode.

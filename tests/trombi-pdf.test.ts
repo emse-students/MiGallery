@@ -8,7 +8,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   TROMBI_GEOMETRY as G,
-  buildTrombiHtml,
+  buildTrombiPage,
+  mapWithConcurrency,
+  planTrombi,
+  type TrombiSectionData,
   cellWidth,
   initialsOf,
   layoutTrombi,
@@ -20,7 +23,12 @@ import {
   type TrombiTexts,
 } from '#lib/trombi-pdf.ts';
 import { escapeHtmlAttribute } from '#lib/escape-html.ts';
-import { groupCharsIntoLines } from '#lib/pdf/searchable-raster.ts';
+import {
+  exportSearchablePdf,
+  groupCharsIntoLines,
+  type ExportDeps,
+  type PdfLike,
+} from '#lib/pdf/searchable-raster.ts';
 import { pickAppFont } from '#lib/pdf/app-fonts.ts';
 
 const texts: TrombiTexts = {
@@ -29,6 +37,15 @@ const texts: TrombiTexts = {
   date: '1 novembre 2026',
   page: (p, t) => `Page ${p} / ${t}`,
   count: (n) => `${n} membres`,
+};
+
+/** Every page of a sheet, joined: the tests read the markup as one string. */
+const buildTrombiHtml = (sections: TrombiSectionData[], t: TrombiTexts) => {
+  const plan = planTrombi(sections);
+  const html = Array.from({ length: plan.pages }, (_, i) =>
+    buildTrombiPage(sections, t, plan, i + 1)
+  ).join('');
+  return { html, pages: plan.pages };
 };
 
 const member = (over: Partial<TrombiMember> = {}): TrombiMember => ({
@@ -254,5 +271,149 @@ describe('searchable raster', () => {
     expect(pickAppFont('Inter, system-ui', 600)).toEqual({ name: 'Inter', style: 'bold' });
     expect(pickAppFont('"Inter", sans-serif', 400)).toEqual({ name: 'Inter', style: 'normal' });
     expect(pickAppFont('Arial', 400)).toBeNull();
+  });
+});
+
+describe('mapWithConcurrency', () => {
+  it('never runs more than the limit at once, and keeps the input order', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const out = await mapWithConcurrency(
+      Array.from({ length: 40 }, (_, i) => i),
+      6,
+      async (n) => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((r) => setTimeout(r, 0));
+        inFlight--;
+        return n * 2;
+      }
+    );
+    expect(peak).toBeLessThanOrEqual(6);
+    expect(out).toEqual(Array.from({ length: 40 }, (_, i) => i * 2));
+  });
+
+  it('handles an empty list', async () => {
+    expect(await mapWithConcurrency([], 6, async (x) => x)).toEqual([]);
+  });
+});
+
+describe('exportSearchablePdf: one raster per page', () => {
+  const fakePdf = () => {
+    const calls = { addPage: 0, addImage: 0, save: [] as string[], fonts: 0 };
+    const pdf: PdfLike = {
+      internal: { pageSize: { getWidth: () => 210, getHeight: () => 297 } },
+      addPage: () => void calls.addPage++,
+      addImage: () => void calls.addImage++,
+      save: (n) => void calls.save.push(n),
+      setFont: () => {},
+      setFontSize: () => {},
+      setTextColor: () => {},
+      text: () => {},
+    };
+    return { pdf, calls };
+  };
+
+  it('rasterises and releases one canvas per page, 20 pages, none alive at once', async () => {
+    const { pdf, calls } = fakePdf();
+    const rasterised: number[] = [];
+    const canvases: { width: number }[] = [];
+    let mounted = 0;
+    let peakMounted = 0;
+    const deps: ExportDeps = {
+      rasterize: async (el) => {
+        rasterised.push(Number((el as unknown as { n: number }).n));
+        const c = { width: 1588, height: 2246, toDataURL: () => 'data:image/jpeg;base64,AA' };
+        canvases.push(c);
+        return c;
+      },
+      collectSpecs: () => [],
+      createPdf: async () => pdf,
+      registerFonts: async () => {
+        calls.fonts++;
+        // Fonts come first: nothing has been rasterised yet.
+        expect(rasterised).toHaveLength(0);
+      },
+      withTextHidden: (_el, run) => run(),
+    };
+    await exportSearchablePdf(
+      {
+        filename: 'sheet',
+        pages: 20,
+        naturalWidth: 794,
+        renderPage: async (i) => {
+          mounted++;
+          peakMounted = Math.max(peakMounted, mounted);
+          return {
+            el: { n: i } as unknown as HTMLElement,
+            dispose: () => void mounted--,
+          };
+        },
+      },
+      deps
+    );
+    expect(rasterised).toEqual(Array.from({ length: 20 }, (_, i) => i));
+    expect(calls.addImage).toBe(20);
+    expect(calls.addPage).toBe(19);
+    expect(calls.save).toEqual(['sheet.pdf']);
+    expect(calls.fonts).toBe(1);
+    expect(peakMounted).toBe(1);
+    // Every canvas was zeroed after its page was encoded.
+    expect(canvases.every((c) => c.width === 0)).toBe(true);
+  });
+
+  it('fails before any raster when the fonts cannot be registered', async () => {
+    const { pdf } = fakePdf();
+    let rasters = 0;
+    const deps: ExportDeps = {
+      rasterize: async () => {
+        rasters++;
+        return { width: 1, height: 1, toDataURL: () => '' };
+      },
+      collectSpecs: () => [],
+      createPdf: async () => pdf,
+      registerFonts: async () => {
+        throw new Error('font missing');
+      },
+      withTextHidden: (_el, run) => run(),
+    };
+    await expect(
+      exportSearchablePdf(
+        {
+          filename: 'x',
+          pages: 3,
+          naturalWidth: 794,
+          renderPage: async () => ({ el: {} as HTMLElement, dispose: () => {} }),
+        },
+        deps
+      )
+    ).rejects.toThrow('font missing');
+    expect(rasters).toBe(0);
+  });
+
+  it('releases a page even when its raster fails', async () => {
+    const { pdf } = fakePdf();
+    let disposed = 0;
+    const deps: ExportDeps = {
+      rasterize: async () => {
+        throw new Error('canvas too large');
+      },
+      collectSpecs: () => [],
+      createPdf: async () => pdf,
+      registerFonts: async () => {},
+      withTextHidden: (_el, run) => run(),
+    };
+    await expect(
+      exportSearchablePdf(
+        {
+          filename: 'x',
+          pages: 2,
+          naturalWidth: 794,
+          renderPage: async () => ({ el: {} as HTMLElement, dispose: () => void disposed++ }),
+        },
+        deps
+      )
+    ).rejects.toThrow('canvas too large');
+    expect(disposed).toBe(1);
   });
 });

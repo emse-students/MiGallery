@@ -19,7 +19,7 @@
   import { fuzzySearch } from '#lib/fuzzy.ts';
   import { toast } from '#lib/toast.ts';
   import { showConfirm } from '#lib/confirm.ts';
-  import { exportTrombinoscope, sortMembers } from '#lib/trombi-pdf.ts';
+  import { exportTrombinoscope, mapWithConcurrency, sortMembers } from '#lib/trombi-pdf.ts';
   import { getLocale } from '#lib/paraglide/runtime.js';
   import { m } from '#lib/paraglide/messages.js';
   import type { PageData } from './$types';
@@ -53,18 +53,6 @@
   }
   function formationKey(u: UserRow): string {
     return u.formation || NO_FORMATION_KEY;
-  }
-
-  function sortByLastName(arr: UserRow[]): UserRow[] {
-    return [...arr].sort((a, b) => {
-      const la = (a.last_name || a.name || '').toLowerCase();
-      const lb = (b.last_name || b.name || '').toLowerCase();
-      const cmp = la.localeCompare(lb, 'fr');
-      if (cmp !== 0) return cmp;
-      return (a.first_name || '')
-        .toLowerCase()
-        .localeCompare((b.first_name || '').toLowerCase(), 'fr');
-    });
   }
 
   let searchQuery = $state('');
@@ -143,8 +131,8 @@
   function startPdfExport() {
     const promoSet = new Set(pdfSelectedPromos);
     const formationSet = new Set(pdfSelectedFormations);
-    const usersToExport = sortByLastName(
-      users.filter((u) => promoSet.has(promoKey(u)) && formationSet.has(formationKey(u)))
+    const usersToExport = users.filter(
+      (u) => promoSet.has(promoKey(u)) && formationSet.has(formationKey(u))
     );
     exportToPDF(usersToExport);
   }
@@ -161,7 +149,13 @@
       const loadImage = async (userId: string) => {
         try {
           const res = await fetch(`/api/users/${userId}/avatar`);
-          if (!res.ok) return null;
+          if (!res.ok) {
+            // 404 is a member with no photo: expected. Anything else is a fault worth a line.
+            if (res.status !== 404) {
+              console.error('[trombinoscope] avatar refused, initials used', userId, res.status);
+            }
+            return null;
+          }
           const blob = await res.blob();
           // Anything that is not an image is no photo: the member gets the initials tile.
           if (!blob.type.startsWith('image/')) return null;
@@ -170,18 +164,18 @@
             reader.onloadend = () => resolve(reader.result as string);
             reader.readAsDataURL(blob);
           });
-        } catch {
+        } catch (e) {
+          console.error('[trombinoscope] avatar download failed, initials used', userId, e);
           return null;
         }
       };
 
       const images: Record<string, string> = {};
-      await Promise.all(
-        usersToExport.map(async (u) => {
-          const dataUrl = await loadImage(u.id_user);
-          if (dataUrl) images[u.id_user] = dataUrl;
-        })
-      );
+      // Six downloads at a time: a burst of one per member is felt by the server and the browser.
+      await mapWithConcurrency(usersToExport, 6, async (u) => {
+        const dataUrl = await loadImage(u.id_user);
+        if (dataUrl) images[u.id_user] = dataUrl;
+      });
 
       const usersByPromo: Record<string, UserRow[]> = {};
       usersToExport.forEach((u) => {

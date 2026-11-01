@@ -190,22 +190,37 @@ export function tileHtml(member: TrombiMember, g: Geometry = TROMBI_GEOMETRY): s
   return `<div data-trombi-tile style="${tileStyle(g)}">${img}<div data-trombi-initials style="position:absolute;inset:0;display:${hasPhoto ? 'none' : 'flex'};align-items:center;justify-content:center;font:600 ${Math.round(g.tileSize * 0.32)}px/1 ${FONT_BODY};color:#ffffff;">${initials}</div></div>`;
 }
 
-/**
- * The whole sheet's markup, set as `innerHTML` by {@link exportTrombinoscope}: one fixed-size
- * `.page` per page, every cell absolutely placed from {@link layoutTrombi}. Every value that comes
- * from the API is escaped where it is interpolated.
- */
-export function buildTrombiHtml(
+/** Where every band and cell goes, and how many pages that takes. */
+export interface TrombiPlan {
+  placements: Placement[];
+  pages: number;
+}
+
+/** Lays the sections out once; every page's markup is then built from it on demand. */
+export function planTrombi(
   sections: TrombiSectionData[],
-  texts: TrombiTexts,
   g: Geometry = TROMBI_GEOMETRY
-): { html: string; pages: number } {
-  const safe = escapeHtmlAttribute;
+): TrombiPlan {
   const placements = layoutTrombi(
     sections.map((s) => ({ label: s.label, count: s.members.length })),
     g
   );
-  const pages = placements.reduce((n, p) => Math.max(n, p.page), 1);
+  return { placements, pages: placements.reduce((n, p) => Math.max(n, p.page), 1) };
+}
+
+/**
+ * The markup of ONE page: a fixed-size `.page` with every cell absolutely placed from the plan.
+ * Built one page at a time so only one page's photos are ever a string and a DOM subtree at once.
+ * Every value that comes from the API is escaped where it is interpolated.
+ */
+export function buildTrombiPage(
+  sections: TrombiSectionData[],
+  texts: TrombiTexts,
+  plan: TrombiPlan,
+  page: number,
+  g: Geometry = TROMBI_GEOMETRY
+): string {
+  const safe = escapeHtmlAttribute;
   const cw = cellWidth(g);
   const nameLinePx = g.nameFontPx * g.nameLineHeight;
 
@@ -218,40 +233,30 @@ export function buildTrombiHtml(
     <span data-pdf-text style="position:absolute;right:${g.margin}px;top:${g.margin + 16}px;text-align:right;font:400 11px/16px ${FONT_BODY};color:${TROMBI_COLORS.muted};">${safe(texts.subtitle)}</span>
     <div style="position:absolute;left:${g.margin}px;right:${g.margin}px;top:${g.margin + 42}px;height:2px;background:${TROMBI_COLORS.accent};"></div>`;
 
-  const body = placements.map((p) => {
-    const section = sections[p.section];
-    if (p.kind === 'band') {
-      return {
-        page: p.page,
-        html: `<div style="position:absolute;left:${g.margin}px;right:${g.margin}px;top:${p.y}px;height:${g.bandHeight}px;border-radius:10px;background:${TROMBI_COLORS.accentLight};">
+  const body = plan.placements
+    .filter((p) => p.page === page)
+    .map((p) => {
+      const section = sections[p.section];
+      if (p.kind === 'band') {
+        return `<div style="position:absolute;left:${g.margin}px;right:${g.margin}px;top:${p.y}px;height:${g.bandHeight}px;border-radius:10px;background:${TROMBI_COLORS.accentLight};">
           <span data-pdf-text style="position:absolute;left:16px;top:7px;font:700 16px/20px ${FONT_DISPLAY};color:${TROMBI_COLORS.accent};">${safe(section.label)}</span>
           <span data-pdf-text style="position:absolute;right:16px;top:9px;text-align:right;font:400 11px/16px ${FONT_BODY};color:${TROMBI_COLORS.muted};">${safe(texts.count(section.members.length))}</span>
-        </div>`,
-      };
-    }
-    const member = section.members[p.member];
-    const name = [member.firstName, member.lastName].filter(Boolean).join(' ') || member.name;
-    return {
-      page: p.page,
-      html: `<div data-trombi-cell style="position:absolute;left:${p.x}px;top:${p.y}px;width:${cw}px;display:flex;flex-direction:column;align-items:center;">
+        </div>`;
+      }
+      const member = section.members[p.member];
+      const name = [member.firstName, member.lastName].filter(Boolean).join(' ') || member.name;
+      return `<div data-trombi-cell style="position:absolute;left:${p.x}px;top:${p.y}px;width:${cw}px;display:flex;flex-direction:column;align-items:center;">
         ${tileHtml(member, g)}
         <p data-pdf-text data-trombi-name style="margin:${g.nameGap}px 0 0 0;width:${cw - 8}px;text-align:center;text-wrap:balance;overflow-wrap:anywhere;font:600 ${g.nameFontPx}px/${nameLinePx}px ${FONT_BODY};color:${TROMBI_COLORS.text};">${safe(name)}</p>
-      </div>`,
-    };
-  });
+      </div>`;
+    })
+    .join('');
 
-  const html = Array.from({ length: pages }, (_, i) => {
-    const page = i + 1;
-    return `<div data-trombi-page style="position:relative;width:${g.pageWidth}px;height:${g.pageHeight}px;overflow:hidden;background:#ffffff;">
+  return `<div data-trombi-page style="position:relative;width:${g.pageWidth}px;height:${g.pageHeight}px;overflow:hidden;background:#ffffff;">
       ${header}
-      ${body
-        .filter((b) => b.page === page)
-        .map((b) => b.html)
-        .join('')}
-      <span data-pdf-text style="position:absolute;left:0;right:0;top:${g.pageHeight - g.margin - 12}px;text-align:center;font:400 10px/14px ${FONT_BODY};color:${TROMBI_COLORS.muted};">${safe(texts.page(page, pages))}</span>
+      ${body}
+      <span data-pdf-text style="position:absolute;left:0;right:0;top:${g.pageHeight - g.margin - 12}px;text-align:center;font:400 10px/14px ${FONT_BODY};color:${TROMBI_COLORS.muted};">${safe(texts.page(page, plan.pages))}</span>
     </div>`;
-  }).join('');
-  return { html, pages };
 }
 
 /**
@@ -281,7 +286,37 @@ export function clampNameToLines(el: HTMLElement, maxLines: number, lineHeightPx
   }
 }
 
-/** Renders the sections to an A4 PDF and downloads it. */
+/**
+ * Runs `fn` over `items` with at most `limit` in flight, results in input order. The avatar
+ * downloads go through it: one request per member, unbounded, is a burst the server and the browser
+ * both feel on a few hundred members.
+ */
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    for (let i = next++; i < items.length; i = next++) results[i] = await fn(items[i], i);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+/** The exact faces the sheet draws, force-loaded before anything is measured or rasterised. */
+export const TROMBI_FACES = [
+  "400 11px 'Inter'",
+  "600 11.5px 'Inter'",
+  "700 26px 'Space Grotesk'",
+] as const;
+
+/**
+ * Renders the sections to an A4 PDF and downloads it, one page at a time: each page is mounted,
+ * measured, rasterised on its own, drawn into the PDF, then unmounted, so neither the canvas nor
+ * the DOM ever grows with the page count.
+ */
 export async function exportTrombinoscope(
   sections: TrombiSectionData[],
   texts: TrombiTexts,
@@ -289,41 +324,49 @@ export async function exportTrombinoscope(
   g: Geometry = TROMBI_GEOMETRY
 ): Promise<void> {
   const { exportSearchablePdf } = await import('./pdf/searchable-raster');
-  const { html, pages } = buildTrombiHtml(sections, texts, g);
+  const plan = planTrombi(sections, g);
 
-  const container = document.createElement('div');
-  Object.assign(container.style, {
-    position: 'absolute',
-    top: '0',
-    left: '-9999px',
-    width: `${g.pageWidth}px`,
-    background: '#ffffff',
+  await exportSearchablePdf({
+    filename,
+    pages: plan.pages,
+    naturalWidth: g.pageWidth,
+    rasterScale: 2,
+    jpegQuality: 0.92,
+    backgroundColor: '#ffffff',
+    fonts: [...TROMBI_FACES],
+    renderPage: async (index) => {
+      const container = document.createElement('div');
+      Object.assign(container.style, {
+        position: 'absolute',
+        top: '0',
+        left: '-9999px',
+        width: `${g.pageWidth}px`,
+        background: '#ffffff',
+      });
+      container.innerHTML = buildTrombiPage(sections, texts, plan, index + 1, g);
+      document.body.appendChild(container);
+      // Every photo is SETTLED before anything is measured or rasterised: `decode()` resolves when the
+      // image is ready and rejects when it is broken, so a photo that fails is swapped for the initials
+      // tile now and not at whatever moment an `error` event happens to be delivered (a listener lost
+      // that race on the last page of a 15-page sample and the raster caught a broken-image icon). No
+      // `on*` property or inline handler: a CSP refuses those, and nothing here is a clock.
+      await Promise.all(
+        Array.from(container.querySelectorAll<HTMLImageElement>('img[data-trombi-photo]')).map(
+          (img) => img.decode().catch(() => showInitialsInstead(img))
+        )
+      );
+      // The exact faces, loaded BEFORE the name clamp measures anything: a clamp measured in a
+      // fallback face would cut names the real face fits.
+      await Promise.all(TROMBI_FACES.map((f) => document.fonts.load(f)));
+      await document.fonts.ready;
+      const nameLinePx = g.nameFontPx * g.nameLineHeight;
+      for (const el of container.querySelectorAll<HTMLElement>('[data-trombi-name]')) {
+        clampNameToLines(el, g.nameMaxLines, nameLinePx);
+      }
+      return {
+        el: container.firstElementChild as HTMLElement,
+        dispose: () => container.remove(),
+      };
+    },
   });
-  container.innerHTML = html;
-
-  // A listener and not an `onerror=` attribute (a CSP refuses inline handlers), attached before the
-  // container joins the document so an error that fires at once still finds it. Never `on*` on a
-  // node this file did not create.
-  for (const img of container.querySelectorAll<HTMLImageElement>('img[data-trombi-photo]')) {
-    img.addEventListener('error', () => showInitialsInstead(img), { once: true });
-  }
-  document.body.appendChild(container);
-  try {
-    await document.fonts.ready;
-    const nameLinePx = g.nameFontPx * g.nameLineHeight;
-    for (const el of container.querySelectorAll<HTMLElement>('[data-trombi-name]')) {
-      clampNameToLines(el, g.nameMaxLines, nameLinePx);
-    }
-    await exportSearchablePdf(container, {
-      filename,
-      naturalWidth: g.pageWidth,
-      naturalHeight: pages * g.pageHeight,
-      rasterScale: 2,
-      jpegQuality: 0.92,
-      backgroundColor: '#ffffff',
-      fonts: ["700 26px 'Space Grotesk'", "600 12px 'Inter'", "400 11px 'Inter'"],
-    });
-  } finally {
-    document.body.removeChild(container);
-  }
 }
