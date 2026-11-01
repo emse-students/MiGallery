@@ -539,8 +539,9 @@ A7 seed as `claimed`, 14 whose photo Immich no longer serves).
 **The picker** (`ChangePhotoModal`) shows the member's FACE in each photo, cut by the same tile as
 the confirmation screen (`FaceCropThumb`, which loads crops a few at a time: the cause of the empty
 tiles, below), in the photos' own order (newest first, never ranked: owner, 2026-11-01), only the
-photos with a visible face of theirs, the current one marked ("Actuelle", or "Choisie
-automatiquement" for a default). `GET /api/users/me/profile-photo[?user_id=]` gives it the faces
+photos with a visible face of theirs, the current one ringed and badged ("Actuelle", or "Par défaut"
+for a default; the badge wraps rather than being cut on a phone tile). The current photo sits beside
+the hint at every width, so the grid stays in view (three columns from 360 px). `GET /api/users/me/profile-photo[?user_id=]` gives it the faces
 and the current photo. An admin picking FOR another member sees whole photos: a face crop is served
 to its holder alone (A6). The dialog's height is the visible viewport (`dvh`), so on a phone the
 "Valider" button no longer sits below the screen with the grid scrolling under it.
@@ -567,7 +568,7 @@ who never had one, is ranked from their own matches; a member with no visible ma
 
 ```sh
 set -o pipefail
-docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1 \
+docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1 -1 \
   -c "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" \
   -c "COPY (SELECT 'G', g.id, f.\"assetId\", f.\"boundingBoxX1\", f.\"boundingBoxY1\",
               f.\"boundingBoxX2\", f.\"boundingBoxY2\", f.\"imageWidth\", f.\"imageHeight\"
