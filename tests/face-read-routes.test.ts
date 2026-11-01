@@ -880,6 +880,26 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     expect(pointer('m1')).toEqual({ a: 'better', s: 'default' });
   });
 
+  it('a photo chosen after the export is kept: the search serving it proves it exists', async () => {
+    storeFace('mine', 0, axis(1), 30);
+    storeFace('better', 0, axis(1), 200);
+    photo('mine', '2026-01-01T00:00:00Z');
+    photo('better', '2026-01-01T00:00:00Z');
+    held('m1', 'mine', { distance: 0.45 });
+    held('m1', 'better', { distance: 0.1 });
+    expect((await choose({ asset_id: 'mine' })).status).toBe(200);
+    // The export was taken before 'mine' existed in it: only the search can vouch for it.
+    const out = await defaults.runDefaultProfilePhotos(
+      engine(),
+      immich,
+      new Map(),
+      false,
+      new Set(['better'])
+    );
+    expect(out).toMatchObject({ kept_choice: 1, chosenGoneReplaced: 0 });
+    expect(pointer('m1')).toEqual({ a: 'mine', s: 'chosen' });
+  });
+
   it('replaces a default by a better default, and keeps it when nothing better came', async () => {
     storeFace('first', 0, axis(1), 40);
     photo('first', '2026-01-01T00:00:00Z');
