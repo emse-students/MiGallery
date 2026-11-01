@@ -511,19 +511,24 @@ A7 seed as `claimed`, 14 whose photo Immich no longer serves).
 **The rule** (owner, 2026-11-01), in `src/lib/server/profile-photo-default.ts`:
 
 - A profile photo is VALID while it is a visible match of the member's (`profileFace`) AND Immich
-  still serves the asset (search by id answers it: not trashed, not deleted).
+  still has the asset. A CHOSEN photo is checked by reading the asset itself
+  (`assetStillExists`, `GET /api/assets/{id}`): an archived, hidden or locked photo is present
+  (a search applies its default visibility and would leave it out), only a deleted (404/400) or
+  trashed (`isTrashed`) one is gone, and an unknown answer is never read as gone. A default is
+  checked by the search alone (it may be replaced by a better one anyway).
 - `users.photos_asset_source` says `chosen` (the picker's `PUT`, the member or an admin for them)
   or `default`. Every photo set before the column existed is `chosen`. **A valid choice is never
   overwritten**; a valid default may be replaced by a better default; an INVALID choice (its photo
   is gone) is replaced by a default, since there is nothing left to keep.
 - The default, in order:
-  1. **the face Immich featured** for the member's old person, when the one-off run hands it in and
-     Immich still has the photo: the photo they had before A6. It is found among the faces the
+  1. **the face Immich featured** for the member's old person, when the one-off run hands it in,
+     Immich still has the photo, AND that exact face is already one of THIS member's visible
+     matches (`VISIBLE_MATCH_SQL`): the photo they had before A6. It is found among the faces the
      store holds on that photo by box overlap (>= 0.5, frames scaled), never by an Immich face id.
-     When it is a visible match of theirs it is taken; when it is not (it waits for their answer,
-     or another member holds it pending) it is CLAIMED for them exactly as the A7 seed claims a
-     chosen profile photo (`claimFace`: never over another member's confirmation nor over their
-     own "not me");
+     **Never a claim** (lead, review of #433): this runs unattended, so it never calls
+     `claimFace`, never writes `confirmed`, never moves a face from another member. A featured
+     face held by another member, or waiting for the member's own answer, is passed over (counted
+     `featuredNotTheirs`) and the member gets rule 2;
   2. else the best of their visible matches (`src/lib/profile-photo-rank.ts`): confirmed before
      `auto`; nearer to their references by steps of 0.05; the larger face (box area over image
      area); the detector's score (none for a seeded face, ranked after); a single-face photo; the
@@ -531,7 +536,8 @@ A7 seed as `claimed`, 14 whose photo Immich no longer serves).
      against Immich in one search, the first one alive wins.
 - **When it is re-evaluated.** The one-off run below; and whenever the avatar route finds no valid
   photo (none set, no longer theirs, or Immich no longer serving it), which looks for a default in
-  the background (never awaited, at most one per member at a time) and answers 404 this once. A
+  the background (never awaited, at most one per member at a time, on the GLOBAL fetch since the
+  work outlives the request) and answers 404 this once. A
   member with no visible match at all costs no Immich call. Faces v2 adds the renewal of references
   as a trigger.
 - Every decision is logged at info without an id; the run logs its aggregate.
@@ -554,34 +560,55 @@ tile kept its grey skeleton forever. `src/lib/face-crop-loader.ts` asks 3 at a t
 slots), honours `Retry-After` at most twice, and a tile shows a failure with a retry button.
 `tests/face-crop-loader.test.ts` reproduces the refusal (30 at once: 14 refused) and the fix.
 
-**The one-off run, on every existing member** (the owner's yes before the real run; dry run first).
-It is idempotent (a second run keeps what the first set) and a member whose old group is gone, or
-who never had one, is ranked from their own matches; a member with no visible match is counted
-`none`. As root on the host, in bash, with an admin API key in `MIGALLERY_ADMIN_KEY`:
+**The one-off run, on every existing member** (the owner's yes before the real run, after a
+backup; dry run first). It is idempotent (a second run keeps what the first set), a member whose
+old group is gone or who never had one is ranked from their own matches, and a member with no
+visible match is counted `none`: nothing crashes on either. As root on the host, in bash, with an
+admin API key in `MIGALLERY_ADMIN_KEY`.
 
-1. **Check, read-only, which table holds the featured face** in this Immich (v3 groups faces by
-   `personGroupId`): `docker exec immich_postgres psql -U postgres -d immich -c '\d person_group'`
-   and `-c '\d person'`; the featured face is the `"faceAssetId"` column (an `asset_face` id) of the
-   table whose ids are the `personGroupId` values. **NOT VERIFIED here**: no Immich v3 copy was at
-   hand; the command below assumes `person_group`.
-2. Export and run (`--dry-run` first, then without it):
+**Where Immich keeps the featured face** (Immich v3.3.3, `server/src/schema/tables/`, as read by
+the review of #433): `person."faceAssetId"` -> `asset_face.id`. `person`'s primary key is
+(`ownerId`, `personGroupId`): one row per Immich USER per group, so the export keeps the rows of
+the Immich user behind MiGallery's API key, and sends `personGroupId` (what a member's
+`photos_id` holds). `person_group` has no `faceAssetId`.
+
+1. **The owner id**, read-only, either way:
+   - `curl -s -H "x-api-key: $IMMICH_API_KEY" <immich>/api/users/me` -> its `id`; or
+   - `docker exec immich_postgres psql -U postgres -d immich -At -c 'SELECT "userId", name FROM api_key'`
+     and take the row of MiGallery's key.
+2. **Export to a file**, read-only, then check it is not empty:
 
 ```sh
 set -o pipefail
+OWNER=<the owner id from step 1>
 docker exec immich_postgres psql -U postgres -d immich -At -q -v ON_ERROR_STOP=1 -1 \
   -c "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" \
-  -c "COPY (SELECT 'G', g.id, f.\"assetId\", f.\"boundingBoxX1\", f.\"boundingBoxY1\",
+  -c "COPY (SELECT 'G', p.\"personGroupId\", f.\"assetId\", f.\"boundingBoxX1\", f.\"boundingBoxY1\",
               f.\"boundingBoxX2\", f.\"boundingBoxY2\", f.\"imageWidth\", f.\"imageHeight\"
-            FROM person_group g JOIN asset_face f ON f.id = g.\"faceAssetId\"
-            WHERE f.\"deletedAt\" IS NULL) TO STDOUT" \
-| docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> bun scripts/faces/default-photos-client.mjs --dry-run
+            FROM person p JOIN asset_face f ON f.id = p.\"faceAssetId\"
+            WHERE f.\"deletedAt\" IS NULL AND p.\"ownerId\" = '$OWNER') TO STDOUT" \
+  > /root/featured-faces.tsv
+wc -l /root/featured-faces.tsv     # must be > 0 (about one line per linked member)
+```
+
+3. **Run it from the file**, `--dry-run` first and read its report, then the same without it:
+
+```sh
+docker exec -i -e MIGALLERY_ADMIN_KEY <migallery container> \
+  bun scripts/faces/default-photos-client.mjs --dry-run < /root/featured-faces.tsv
 echo "exit: $?"
 ```
 
-The report is counts only: `members`, `featuredGiven` (members whose person had a featured face),
-`set_featured`, `set_featured_claimed`, `set_scored`, `kept_choice`, `kept_default`, `none`,
-`failed`, and `chosenGoneReplaced` (choices whose photo was gone, the 14 expected). A run with an
-empty stdin is allowed: every member is then ranked from their matches.
+The client REFUSES an empty stdin (a failed or wrong export must not silently run without the
+featured faces); `--no-featured` says an empty one is meant, and is refused alongside faces. Delete
+`/root/featured-faces.tsv` afterwards (asset ids and boxes, no names).
+
+The report is counts only: `members`, `featuredGiven` (members whose person had a featured
+face), `featuredNotTheirs` (featured faces passed over: another member holds them, or they wait
+for the member's answer), `set_featured`, `set_scored`, `kept_choice`, `kept_default`, `none`,
+`failed`, and `chosenGoneReplaced` (choices whose photo was really gone, the 14 expected at most).
+A second POST while a run is going is answered 409 (the check and the start have no await between
+them).
 
 ### Faces v2 - references, renewal, negatives, sticky auto (the owner's decisions of 2026-11-01)
 

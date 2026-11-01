@@ -212,3 +212,34 @@ export async function searchAssetsByIds(
   log.debug('assets fetched by id', { asked: ids.length, found: out.length });
   return out;
 }
+
+/**
+ * Whether Immich still HAS one asset, whatever its visibility: `GET /api/assets/{id}` reads the
+ * asset itself, so an archived, hidden or locked photo counts as present - a search applies its
+ * default visibility and would call those gone. Gone means deleted (404, or 400 for an id Immich
+ * no longer knows) or in the trash (`isTrashed`). Any other answer, or no answer, throws: an
+ * unknown state is never read as "gone" (a member's chosen photo is replaced on that verdict).
+ */
+export async function assetStillExists(fetchFn: typeof fetch, assetId: string): Promise<boolean> {
+  const base = requireImmichBaseUrl();
+  const res = await fetchFn(`${base}/api/assets/${encodeURIComponent(assetId)}`, {
+    signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
+    headers: { 'x-api-key': IMMICH_API_KEY, Accept: 'application/json' },
+  });
+  if (res.status === 404 || res.status === 400) {
+    await res.body?.cancel().catch(() => undefined);
+    log.info('asset checked: Immich no longer has it', { status: res.status });
+    return false;
+  }
+  if (!res.ok) {
+    await res.body?.cancel().catch(() => undefined);
+    log.error('asset check refused by Immich', { status: res.status });
+    throw error(502, 'Immich did not answer the asset check');
+  }
+  const asset = (await res.json()) as { id?: string; isTrashed?: boolean };
+  if (asset.id !== assetId) {
+    log.error('asset check answered another asset');
+    throw error(502, 'Immich answered another asset');
+  }
+  return asset.isTrashed !== true;
+}

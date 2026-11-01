@@ -8,13 +8,19 @@
  * member's own matches only.
  *
  * WHAT IS VALID. A profile photo is valid while it is a VISIBLE match of the member's
- * (`profileFace`) AND Immich still serves the asset (not trashed, not deleted). Otherwise - none
- * set, the asset gone, the face rejected or given to someone else - a default is chosen:
+ * (`profileFace`) AND Immich still has the asset. A CHOSEN photo is checked by reading the asset
+ * itself (`assetStillExists`: archived, hidden or locked count as present; only deleted or trashed
+ * is gone), so a choice is replaced only when its photo is really gone. Otherwise - none set, the
+ * asset gone, the face rejected or given to someone else - a default is chosen:
  * 1. the face Immich FEATURED for their old person, when the caller hands it in (the one-off run,
- *    from Immich's own table) and Immich still has the photo: the photo they had before A6. When
- *    it is not yet a visible match of theirs it is CLAIMED for them as the A7 seed claims a chosen
- *    profile photo (`claimFace`: never over another member's confirmation or their own "not me");
+ *    from Immich's own table), Immich still has the photo, AND that exact face is already one of
+ *    THIS member's visible matches: the photo they had before A6;
  * 2. else the best of their visible matches by `compareProfileCandidates`.
+ *
+ * NEVER A CLAIM (lead, 2026-11-01). This runs unattended: it never writes `confirmed`, never
+ * calls `claimFace`, never moves a face from another member. A featured face that is not a
+ * visible match of theirs (another member holds it, or it waits for their answer) is passed over
+ * and counted (`featured_not_theirs`); the member gets their best visible match.
  *
  * A CHOICE IS NEVER OVERWRITTEN. `users.photos_asset_source` says `chosen` (the member, or an admin
  * for them, through PUT /api/users/me/profile-photo) or `default`. A valid choice is kept as it
@@ -33,10 +39,10 @@ import {
   type Box,
   type ProfileCandidate,
 } from '#lib/profile-photo-rank.ts';
-import { claimFace, runExclusive, type FaceEngine } from '#lib/server/face-engine.ts';
+import { runExclusive, type FaceEngine } from '#lib/server/face-engine.ts';
 import { VISIBLE_MATCH_SQL, profileFace } from '#lib/server/face-photos.ts';
-import { searchAssetsByIds } from '#lib/server/immich-search.ts';
-import { loadFaceEmbeddings, type FaceKey } from '#lib/server/face-store.ts';
+import { assetStillExists, searchAssetsByIds } from '#lib/server/immich-search.ts';
+import type { FaceKey } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('profile-photo-default');
@@ -54,7 +60,6 @@ export type DefaultOutcome =
   | 'kept_choice'
   | 'kept_default'
   | 'set_featured'
-  | 'set_featured_claimed'
   | 'set_scored'
   | 'none';
 
@@ -157,6 +162,18 @@ export function featuredFaceKey(faceDb: DatabaseInstance, featured: FeaturedFace
   return best ? { assetId: featured.assetId, faceIndex: best.faceIndex } : null;
 }
 
+/** Whether `face` is one of `userId`'s VISIBLE matches (auto, or confirmed by them). */
+function visibleMatchOf(db: DatabaseInstance, userId: string, face: FaceKey): boolean {
+  return (
+    db
+      .prepare(
+        `SELECT 1 AS x FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ?
+          AND user_id = ? AND ${VISIBLE_MATCH_SQL}`
+      )
+      .get(face.assetId, face.faceIndex, FACE_MODEL, userId) != null
+  );
+}
+
 /** The assets Immich still serves among `ids` (not trashed, not deleted), with their capture date. */
 async function aliveAssets(
   fetchFn: typeof fetch,
@@ -176,14 +193,19 @@ async function aliveAssets(
 
 /**
  * Give `userId` a default profile photo when they have no valid one (module header). `featured`:
- * the face Immich featured for their old person, when known. `dryRun` decides without writing or
- * claiming anything. Throws when Immich cannot be read: nothing is written then.
+ * the face Immich featured for their old person, when known. `dryRun` decides without writing.
+ * `report.featuredNotTheirs` is set when a featured face was passed over because it is not a
+ * visible match of theirs. Throws when Immich cannot be read: nothing is written then.
  */
 export async function ensureDefaultProfilePhoto(
   engine: FaceEngine,
   userId: string,
   fetchFn: typeof fetch,
-  options: { featured?: FeaturedFace | null; dryRun?: boolean; now?: number } = {}
+  options: {
+    featured?: FeaturedFace | null;
+    dryRun?: boolean;
+    report?: { featuredNotTheirs?: boolean };
+  } = {}
 ): Promise<DefaultOutcome> {
   const { db } = engine;
   const current = profilePhotoOf(db, userId);
@@ -199,8 +221,15 @@ export async function ensureDefaultProfilePhoto(
     ...(featured ? [featured.assetId] : []),
     ...top.map((c) => c.assetId),
   ]);
+  const stillTheirs = !!current.assetId && !!profileFace(db, userId, current.assetId);
+  // A choice is kept unless its photo is really gone: the asset itself is read, whatever its
+  // visibility (a search would miss an archived or locked photo). A default may go on less.
   const currentValid =
-    !!current.assetId && alive.has(current.assetId) && !!profileFace(db, userId, current.assetId);
+    stillTheirs &&
+    (current.source === 'chosen'
+      ? alive.has(current.assetId as string) ||
+        (await assetStillExists(fetchFn, current.assetId as string))
+      : alive.has(current.assetId as string));
   if (currentValid && current.source === 'chosen') {
     log.debug('profile photo kept: the member chose it and it is still theirs');
     return 'kept_choice';
@@ -210,19 +239,13 @@ export async function ensureDefaultProfilePhoto(
     // 1. The face Immich featured for their old person: the photo they had before A6.
     if (featured && alive.has(featured.assetId)) {
       const key = featuredFaceKey(engine.faceDb, featured);
+      if (key && visibleMatchOf(db, userId, key)) {
+        return write(key.assetId, 'set_featured');
+      }
       if (key) {
-        if (profileFace(db, userId, key.assetId)) {
-          return write(key.assetId, 'set_featured');
-        }
-        if (options.dryRun) {
-          return 'set_featured_claimed';
-        }
-        const [opened] = loadFaceEmbeddings(engine.faceDb, engine.key, [key]);
-        const claim = opened ? claimFace(engine, userId, opened, options.now) : 'no_face';
-        if (claim === 'claimed' || claim === 'already_confirmed') {
-          return write(key.assetId, 'set_featured_claimed');
-        }
-        log.info('featured face not claimed', { claim });
+        // Held by another member, waiting for their answer, or rejected: never claimed here.
+        if (options.report) options.report.featuredNotTheirs = true;
+        log.info('featured face passed over: it is not a visible match of the member');
       } else {
         log.info('the featured face is not among the faces the store holds on that photo');
       }
@@ -278,6 +301,8 @@ export function enrolledMembers(db: DatabaseInstance): string[] {
 export type DefaultReport = Record<DefaultOutcome | 'failed', number> & {
   members: number;
   featuredGiven: number;
+  /** Featured faces passed over because another member held them, or they waited an answer. */
+  featuredNotTheirs: number;
   chosenGoneReplaced: number;
 };
 
@@ -297,11 +322,11 @@ export async function runDefaultProfilePhotos(
   const report: DefaultReport = {
     members: 0,
     featuredGiven: 0,
+    featuredNotTheirs: 0,
     chosenGoneReplaced: 0,
     kept_choice: 0,
     kept_default: 0,
     set_featured: 0,
-    set_featured_claimed: 0,
     set_scored: 0,
     none: 0,
     failed: 0,
@@ -316,11 +341,16 @@ export async function runDefaultProfilePhotos(
     }
     const before = profilePhotoOf(engine.db, userId);
     try {
+      const seen: { featuredNotTheirs?: boolean } = {};
       const outcome = await ensureDefaultProfilePhoto(engine, userId, fetchFn, {
         featured,
         dryRun,
+        report: seen,
       });
       report[outcome]++;
+      if (seen.featuredNotTheirs) {
+        report.featuredNotTheirs++;
+      }
       if (before.source === 'chosen' && outcome.startsWith('set_')) {
         report.chosenGoneReplaced++;
       }

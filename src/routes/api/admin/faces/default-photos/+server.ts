@@ -76,9 +76,6 @@ async function adminEngine(event: Parameters<RequestHandler>[0]) {
  */
 export const POST: RequestHandler = async (event) => {
   const engine = await adminEngine(event);
-  if (last?.status === 'running') {
-    throw error(409, 'running');
-  }
   const body = await readJsonBody<{ featured?: unknown; dryRun?: unknown }>(event.request);
   const rawFeatured = body.featured ?? [];
   if (!Array.isArray(rawFeatured) || rawFeatured.length > MAX_FEATURED) {
@@ -93,6 +90,11 @@ export const POST: RequestHandler = async (event) => {
     featured.set(entry[0], entry[1]);
   }
   const dryRun = body.dryRun === true;
+  // Checked and taken with NO await in between (every await is above): two POSTs at once cannot
+  // both see "not running".
+  if (last?.status === 'running') {
+    throw error(409, 'running');
+  }
   last = { status: 'running', dryRun };
   log.info('default profile photos started', { featured: featured.size, dryRun });
   // The global fetch: the run outlives this request.
