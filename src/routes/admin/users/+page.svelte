@@ -19,7 +19,8 @@
   import { fuzzySearch } from '#lib/fuzzy.ts';
   import { toast } from '#lib/toast.ts';
   import { showConfirm } from '#lib/confirm.ts';
-  import jsPDF from 'jspdf';
+  import { exportTrombinoscope, sortMembers } from '#lib/trombi-pdf.ts';
+  import { getLocale } from '#lib/paraglide/runtime.js';
   import { m } from '#lib/paraglide/messages.js';
   import type { PageData } from './$types';
   import type { UserRow } from '#lib/types/api.ts';
@@ -157,19 +158,13 @@
 
     const toastId = toast.loading(m.trombi_pdf_generating());
     try {
-      const doc = new jsPDF();
-
-      doc.setFontSize(18);
-      doc.text(m.trombi_pdf_title(), 14, 22);
-      doc.setFontSize(11);
-      doc.setTextColor(100);
-
-      const images: Record<string, string> = {};
       const loadImage = async (userId: string) => {
         try {
           const res = await fetch(`/api/users/${userId}/avatar`);
           if (!res.ok) return null;
           const blob = await res.blob();
+          // Anything that is not an image is no photo: the member gets the initials tile.
+          if (!blob.type.startsWith('image/')) return null;
           return new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
@@ -180,6 +175,7 @@
         }
       };
 
+      const images: Record<string, string> = {};
       await Promise.all(
         usersToExport.map(async (u) => {
           const dataUrl = await loadImage(u.id_user);
@@ -200,67 +196,33 @@
         return Number(b) - Number(a);
       });
 
-      let y = 40;
-      const margin = 15;
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const contentWidth = pageWidth - margin * 2;
-      const colCount = 5;
-      const colWidth = contentWidth / colCount;
-      const imgSize = 25;
-      const rowHeight = 45;
+      await exportTrombinoscope(
+        promos.map((promo) => ({
+          label: promoLabel(promo),
+          members: sortMembers(
+            usersByPromo[promo].map((u) => ({
+              id: u.id_user,
+              name: u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+              firstName: u.first_name,
+              lastName: u.last_name,
+              image: images[u.id_user] ?? null,
+            }))
+          ),
+        })),
+        {
+          title: m.trombi_pdf_title(),
+          subtitle: m.trombi_pdf_members({ count: usersToExport.length }),
+          date: new Date().toLocaleDateString(getLocale(), {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          }),
+          page: (page, total) => m.trombi_pdf_page({ page, total }),
+          count: (count) => m.trombi_pdf_members({ count }),
+        },
+        'trombinoscope'
+      );
 
-      promos.forEach((promo) => {
-        if (y + 20 > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage();
-          y = margin + 10;
-        }
-
-        doc.setFontSize(16);
-        doc.setTextColor(0);
-        doc.setFont('helvetica', 'bold');
-        doc.text(promoLabel(promo), margin, y);
-        y += 10;
-
-        const promoUsers = usersByPromo[promo];
-
-        for (let i = 0; i < promoUsers.length; i += colCount) {
-          if (y + rowHeight > doc.internal.pageSize.getHeight() - margin) {
-            doc.addPage();
-            y = margin + 10;
-          }
-
-          const rowUsers = promoUsers.slice(i, i + colCount);
-          rowUsers.forEach((user, idx) => {
-            const x = margin + idx * colWidth;
-            const img = images[user.id_user];
-
-            const imgX = x + (colWidth - imgSize) / 2;
-            if (img) {
-              try {
-                doc.addImage(img, 'JPEG', imgX, y, imgSize, imgSize);
-              } catch (e) {
-                /* ignore */
-              }
-            } else {
-              doc.setDrawColor(220);
-              doc.setFillColor('#f0f0f0');
-              doc.rect(imgX, y, imgSize, imgSize, 'FD');
-            }
-
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(60);
-            const name = user.name || `${user.first_name || ''} ${user.last_name || ''}`.trim();
-            doc.text(name, x + colWidth / 2, y + imgSize + 5, { align: 'center' });
-          });
-
-          y += rowHeight;
-        }
-
-        y += 5;
-      });
-
-      doc.save('trombinoscope.pdf');
       toast.dismiss(toastId);
       toast.success(m.trombi_pdf_downloaded());
     } catch (e) {

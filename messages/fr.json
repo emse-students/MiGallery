@@ -452,7 +452,18 @@
   "trombi_export": "Exporter",
   "trombi_no_users_export": "Aucun utilisateur à exporter",
   "trombi_pdf_generating": "Génération du PDF…",
-  "trombi_pdf_title": "Trombinoscope MiGallery",
+  "trombi_pdf_title": "Trombinoscope",
+  "trombi_pdf_members": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} membre",
+        "countPlural=*": "{count} membres"
+      }
+    }
+  ],
+  "trombi_pdf_page": "Page {page} / {total}",
   "trombi_pdf_downloaded": "PDF téléchargé !",
   "trombi_pdf_error": "Erreur lors de la génération du PDF",
   "common_previous": "Précédent",
