@@ -4,6 +4,7 @@ import { ensureError } from '#lib/ts-utils.ts';
 import { consumeNDJSONStream } from '#lib/streaming.ts';
 import { showConfirm } from '#lib/confirm.ts';
 import { toast } from '#lib/toast.ts';
+import { photosFailureMessage } from '#lib/photos-failure.ts';
 import { m } from '#lib/paraglide/messages.js';
 import {
   enterSelection,
@@ -220,7 +221,7 @@ export class PhotosState {
         `/api/users/${encodeURIComponent(userId)}/photos-stream?in_album=false`
       );
       if (!res.ok) {
-        throw new Error(m.photos_error({ message: `HTTP ${res.status}` }));
+        throw new Error(photosFailureMessage(res.status, `HTTP ${res.status}`));
       }
 
       // eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -286,7 +287,7 @@ export class PhotosState {
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
-        throw new Error(text || `HTTP ${res.status}`);
+        throw new Error(photosFailureMessage(res.status, text || `HTTP ${res.status}`));
       }
 
       // eslint-disable-next-line svelte/prefer-svelte-reactivity

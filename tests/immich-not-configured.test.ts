@@ -55,10 +55,10 @@ describe('Immich not configured', () => {
       async () => new Response('down', { status: 502, statusText: 'Bad Gateway' })
     ) as unknown as typeof fetch;
     const failure = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV').catch((e: unknown) => e);
-    expect(failure).toBeInstanceOf(Error);
+    expect(failure).toMatchObject({ status: 502 });
     expect(failure).not.toBeInstanceOf(ImmichNotConfiguredError);
     expect(
-      errors.mock.calls.some((c) => String(c[0]).includes('failed to resolve system album'))
+      errors.mock.calls.some((c) => String(c[0]).includes('Immich refused the album list'))
     ).toBe(true);
   });
 

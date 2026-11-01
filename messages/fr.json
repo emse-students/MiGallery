@@ -137,6 +137,7 @@
   "upload_error_long": "Erreur lors de l'upload : {message}",
   "photos_none_selected": "Aucune image sélectionnée",
   "photos_error": "Erreur : {message}",
+  "photos_upstream_busy": "Le serveur de photos est occupé en ce moment. Réessayez dans un instant.",
   "download_error_long": "Erreur lors du téléchargement: {error}",
   "delete_error_long": "Erreur lors de la suppression: {error}",
   "albumd_download_done": "Téléchargement terminé",

@@ -1,3 +1,5 @@
+import { error, isHttpError } from '@sveltejs/kit';
+import type { Logger } from '#lib/server/logger.ts';
 /**
  * THE ONE DEADLINE EVERY OUTBOUND CALL FROM THIS SERVER ANSWERS TO.
  *
@@ -61,5 +63,38 @@ export async function fetchWithAnswerDeadline(
     // Clearing the timer is what makes this "answer only": once the headers are in, nothing is
     // left to fire, so the body streams on the connection's own terms.
     clearTimeout(timer);
+  }
+}
+
+/**
+ * Run one named Immich call, and classify its failure HERE, where it is known: the deadline
+ * (`TimeoutError`, told apart by the error's NAME, never its message) is a 504, any other
+ * transport failure a 502, and an `HttpError` the call threw itself passes through. Every failure
+ * is logged once at error with the CALL NAME and the ELAPSED time, so a timeout accuses the call
+ * that was slow (Immich under load) rather than surfacing as a bare `DOMException` 500.
+ *
+ * @param log - the caller's logger
+ * @param call - a stable name of the call ("GET /api/albums"), logged with every failure
+ * @param run - the call itself
+ */
+export async function immichCall<T>(log: Logger, call: string, run: () => Promise<T>): Promise<T> {
+  const started = Date.now();
+  try {
+    return await run();
+  } catch (e: unknown) {
+    if (isHttpError(e)) {
+      throw e;
+    }
+    const elapsedMs = Date.now() - started;
+    const timedOut = e instanceof Error && e.name === 'TimeoutError';
+    log.error(timedOut ? 'Immich did not answer in time' : 'Immich could not be reached', {
+      call,
+      elapsedMs,
+      budgetMs: OUTBOUND_BUDGET_MS,
+      name: e instanceof Error ? e.name : typeof e,
+    });
+    throw timedOut
+      ? error(504, 'Immich did not answer in time')
+      : error(502, 'Immich could not be reached');
   }
 }

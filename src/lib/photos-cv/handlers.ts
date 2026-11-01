@@ -1,7 +1,7 @@
 import { env } from '#lib/server/env.ts';
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import type { ImmichAsset, ImmichAlbum } from '#lib/types/api.ts';
-import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
+import { forgetSystemAlbum, getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
 import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 import { addAlbumAssets, removeAlbumAssets } from '#lib/server/immich-album-assets.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
@@ -12,12 +12,20 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 /** Every asset of the PhotoCV system album (its members, read through the album). */
 export async function getAlbumAssets(fetchFn: typeof fetch): Promise<ImmichAsset[]> {
   const albumId = await getOrCreateSystemAlbum(fetchFn, 'PhotoCV');
-  return (await fetchAlbumAssets(
-    fetchFn,
-    IMMICH_BASE_URL,
-    IMMICH_API_KEY,
-    albumId
-  )) as ImmichAsset[];
+  try {
+    return (await fetchAlbumAssets(
+      fetchFn,
+      IMMICH_BASE_URL,
+      IMMICH_API_KEY,
+      albumId
+    )) as ImmichAsset[];
+  } catch (e: unknown) {
+    // The stored id names an album Immich no longer has: forget it, so the next call resolves anew.
+    if (isHttpError(e) && e.status === 404) {
+      forgetSystemAlbum('PhotoCV');
+    }
+    throw e;
+  }
 }
 
 export async function getAlbumInfo(fetchFn: typeof fetch): Promise<{
