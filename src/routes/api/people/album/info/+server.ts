@@ -1,41 +1,25 @@
-import { json, error } from '@sveltejs/kit';
-import type { ImmichAlbum } from '#lib/types/api.ts';
+import { json, error, isHttpError } from '@sveltejs/kit';
 import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
-import { getOrCreateSystemAlbum } from '#lib/immich/system-albums.ts';
+import { getAlbumInfo } from '#lib/photos-cv/handlers.ts';
 import { ImmichNotConfiguredError } from '#lib/immich/not-configured.ts';
 import { requirePhotoCvManager } from '#lib/server/face-access.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
-import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
 const log = createLogger('people-album-info');
 export const GET: RequestHandler = async (event) => {
   // Outside the try: its catch answers 500 for everything, and a 401/403 must stay one.
   await requirePhotoCvManager(event);
   try {
-    const { fetch } = event;
-    const albumId = await getOrCreateSystemAlbum(fetch, 'PhotoCV');
-    const headers: Record<string, string> = { Accept: 'application/json' };
-    if (process.env.IMMICH_API_KEY) {
-      headers['x-api-key'] = process.env.IMMICH_API_KEY;
-    }
-    const albumRes = await fetch(`${process.env.IMMICH_BASE_URL}/api/albums/${albumId}`, {
-      headers,
-      signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-    });
-    if (!albumRes.ok) {
-      throw error(500, `Failed to fetch album: ${albumRes.statusText}`);
-    }
-    const albumData = (await albumRes.json()) as ImmichAlbum;
-    return json({
-      id: albumData.id,
-      name: albumData.albumName,
-      assetCount: albumData.assetCount || 0,
-    });
+    return json(await getAlbumInfo(event.fetch));
   } catch (e: unknown) {
     if (e instanceof ImmichNotConfiguredError) {
       throw error(503, e.message);
+    }
+    // A typed failure (404, 502, 504) keeps its status: squashing it to 500 hides what it is.
+    if (isHttpError(e)) {
+      throw e;
     }
     const err = ensureError(e);
     log.error('Error in /api/people/album/info GET:', err);
