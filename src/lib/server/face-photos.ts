@@ -2,7 +2,7 @@
  * The read side of face matching (lot A6, docs/wiki/face-matching-option-c.md): which photos are a
  * member's, which faces wait for their answer, and the photos themselves, fetched from Immich BY
  * ID. Everything reads `face_matches` (written by face-engine.ts alone); nothing here reads an
- * Immich person or face, which lot A8 deletes.
+ * Immich person or face, which lot A8 deleted (2026-11-01).
  *
  * A MEMBER'S PHOTOS are the assets of the faces they hold that are shown without a question: a
  * row of theirs, not rejected, and either `auto` or confirmed by them. A `suggested` face waiting

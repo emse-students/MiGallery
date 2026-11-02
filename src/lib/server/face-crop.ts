@@ -3,8 +3,8 @@
  *
  * A crop is cut from the Immich preview of the photo, centred on the box the face store holds for
  * that face (`faces.db` `face_embeddings`: x1, y1, x2, y2 in the frame `img_w` x `img_h` the
- * detector saw). Nothing here asks Immich where a face is: Immich's people and faces are deleted
- * by lot A8, and the box the store holds is the one the match was decided on.
+ * detector saw). Nothing here asks Immich where a face is: Immich's people and faces were deleted
+ * by lot A8 (2026-11-01), and the box the store holds is the one the match was decided on.
  *
  * WHOSE CROPS. A crop is cached in the directory of the MEMBER who holds the face
  * (`data/cache/faces/members/<hash of the member id>/<asset>_<face>.webp`), and only for a member:
@@ -18,7 +18,7 @@
  *
  * The older crops of A1, keyed by an Immich person (`data/cache/faces/<asset>_<person>.webp`), are
  * no longer generated; {@link deletePersonFaceCrops} still removes them when a linked person is
- * erased, until lot A8 deletes the persons themselves.
+ * erased, until lot A8 deleted the persons themselves (2026-11-01).
  */
 
 import { env } from '#lib/server/env.ts';

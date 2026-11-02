@@ -134,13 +134,14 @@ it) and nothing asks a member to accept again.
 
 **The contract (owner decision 2026-10-16, extended by option C).** What ties a face to a human
 is only what MiGallery writes: the member's sealed references (`face_references`), the faces given
-to them (`face_matches`), the profile photo pointer (`users.photos_asset_id`) and, until lot A8,
+to them (`face_matches`), the profile photo pointer (`users.photos_asset_id`) and, until lot A8 ran (2026-11-01),
 the legacy Immich person link (`users.photos_id`) and that person's name in Immich. When a member
 withdraws consent, unlinks, or deletes their account, all of it goes: the references, the matches,
 the crops, the link, and the person's name in Immich. The face store (`data/faces.db`, one sealed
 embedding per detected face, everyone's) is not part of a member's erasure: its rows carry no
 member, are tied to nobody once the references are gone, and go with their photograph. Until A8,
-Immich's own anonymous cluster, its faces and their embeddings stay too; A8 deletes them all
+Immich's own anonymous cluster, its faces and their embeddings stayed too; A8 ran on 2026-11-01
+and deleted them all
 ([face-matching-option-c](face-matching-option-c.md#3-the-lots)).
 
 Linking an Immich cluster to a member happens only through MiGallery (`users.photos_id`), and only
@@ -236,18 +237,20 @@ people are included. Re-running is safe (a cleared person is skipped).
 - **The face store.** `data/faces.db` keeps one sealed embedding per face of every photograph,
   the member's own included: no member, no name, tied to nobody without a reference. It goes with
   the photograph, or as a whole (delete the file or rotate `FACE_STORE_KEY`).
-- **The cluster itself, until A8.** Immich keeps the anonymous cluster, its faces and their
-  embeddings, unnamed and linked to nobody; only an Immich admin can see them, and A8 deletes them
-  all.
+- **The cluster itself, until A8 ran on 2026-11-01.** Immich kept the anonymous cluster, its faces
+  and their embeddings, unnamed and linked to nobody; only an Immich admin could see them, and A8
+  deleted them all (recognition is off, and every face, embedding, person, person group and
+  thumbnail is gone).
 - **Immich's featured-face pointer.** `featureFaceAssetId` (the thumbnail MiGallery sets when a
   member picks a profile photo) cannot be unset through Immich's API; the thumbnail stays on the
   anonymous person. MiGallery's own pointer (`photos_asset_id`) is nulled.
 - **Backups.** The local snapshots under `data/backups/` (the last 10 kept,
   daily) and the off-site MiGallery copies (about 14 days) keep the references and
   matches until they rotate out; the off-site Immich database dumps (about 7 days,
-  `scripts/backup-offsite.sh`, pruned by file age) keep Immich's clusters until
-  they rotate out after A8, and A8's encrypted copy of what it deletes is deleted
-  30 days after. `data/faces.db` is in no backup. Immich's own local dump retention is an
+  `scripts/backup-offsite.sh`, pruned by file age) held Immich's clusters until
+  they rotated out after A8 ran (2026-11-01): the last dump holding them is gone offsite on
+  2026-11-09 and on the host on 2026-11-15, and A8's encrypted copy of what it deleted is deleted
+  on 2026-12-01. `data/faces.db` is in no backup. Immich's own local dump retention is an
   Immich setting, not read from here.
 - **A person merged away in Immich.** Its id stops existing and its faces live on
   in the person it was merged into, which this erasure never names; a name given to

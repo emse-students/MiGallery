@@ -1014,7 +1014,7 @@ const handle: RequestHandler = async function (event) {
 
 /**
  * The JSON answer without the people and faces Immich puts in it (`GET /api/assets/:id` carries
- * `people` and their face boxes until lot A8 deletes them): a biometric field never reaches a
+ * `people` and their face boxes until lot A8 deleted them on 2026-11-01): a biometric field never reaches a
  * client through the gallery, whoever asks. Only a JSON text that names one of those fields is
  * parsed; the length and the validators go when the body changed. `null` when such a text does not parse:
  * it cannot be cleaned, so it is not forwarded.

@@ -11,8 +11,8 @@
  *
  * Losing this file loses nothing that cannot be recomputed: `face_store_state` goes with it, so
  * ingestion stops ("not seeded") until the store is seeded again or marked empty, after which every
- * asset is embedded again by the model: about 22 hours of the model service once Immich no longer
- * holds the vectors (after A8).
+ * asset is embedded again by the model: about 22 hours of the model service now that Immich no longer
+ * holds the vectors (since A8, 2026-11-01).
  */
 
 import { join, dirname } from 'path';

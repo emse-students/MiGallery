@@ -14,7 +14,7 @@
  *
  * Immich's people and faces are reachable through NOTHING in the gallery: the generic proxy
  * refuses every person and face call for everyone, admins and API keys included
- * ({@link assertNoProxiedFaceCall}). Lot A8 deletes them from Immich.
+ * ({@link assertNoProxiedFaceCall}). Lot A8 deleted them from Immich on 2026-11-01.
  */
 
 import { error, type RequestEvent } from '@sveltejs/kit';
@@ -194,7 +194,7 @@ export class FaceFieldsTooDeepError extends Error {
 
 /**
  * Remove the people and faces Immich puts inside an answer (`GET /api/assets/:id` carries
- * `people` with their face boxes until lot A8 deletes them), at any depth, in place. Returns how
+ * `people` with their face boxes until lot A8 deleted them on 2026-11-01), at any depth, in place. Returns how
  * many fields went, for the log. Throws {@link FaceFieldsTooDeepError} past
  * {@link MAX_BODY_DEPTH}, the same bound as the request side: never a silent partial clean.
  */
