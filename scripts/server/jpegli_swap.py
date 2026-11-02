@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""In-place JPEGLI q80 recompression of Immich originals on `mitv`.
+"""In-place JPEGLI q80 recompression of Immich originals on the Immich host.
 
 Replaces each original file IN PLACE (same asset id, same path) so that every
 reference to the asset survives: Immich albums, faces and dates, and the asset ids
@@ -31,20 +31,48 @@ A real run that swapped at least one asset ends by queueing Immich's integrity
 cause is fixed (nothing schedules it). A failure there is logged at ERROR and makes
 the run exit 1; a run with zero swaps and any dry run make no call.
 """
-import argparse, csv, datetime, fcntl, hashlib, json, os, re, shutil, struct, subprocess, sys, time, urllib.request
+import argparse, csv, datetime, fcntl, hashlib, json, os, re, shutil, signal, struct, subprocess, sys, time, urllib.request
 
+
+
+def load_env_file():
+    """Merge the KEY=VALUE file named by JPEGLI_SWAP_ENV (kept outside the repository) into os.environ.
+
+    The real environment wins over the file. Host paths and container names live there, never in the repo.
+    """
+    path = os.environ.get("JPEGLI_SWAP_ENV")
+    if not path:
+        return
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, value = line.partition("=")
+                os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+
+load_env_file()
 ROOT_IN_CONTAINER = "/usr/src/app/upload"
-ROOT_ON_HOST = "/srv/dev-disk-by-uuid-ff73ed20-08b7-4b38-b53c-6de6a86bfd6a/immich-app/library"
-QUARANTINE = "/srv/dev-disk-by-uuid-ff73ed20-08b7-4b38-b53c-6de6a86bfd6a/jpegli-quarantine"
-NCONVERT = os.path.expanduser("~/jpegli-swap/NConvert/nconvert.sh")
-EXPECTED_IMMICH = "ghcr.io/immich-app/immich-server:v3.3.3"
+# Required, no default: where Immich's library and this script's quarantine live on the host.
+ROOT_ON_HOST = os.environ.get("JPEGLI_SWAP_ROOT_ON_HOST")
+QUARANTINE = os.environ.get("JPEGLI_SWAP_QUARANTINE")
+# Required for the integrity refresh only: the container whose environment holds an admin Immich API key.
+API_KEY_CONTAINER = os.environ.get("JPEGLI_SWAP_API_KEY_CONTAINER")
+NCONVERT = os.environ.get("JPEGLI_SWAP_NCONVERT", "nconvert")
+EXPECTED_IMMICH = os.environ.get("JPEGLI_SWAP_IMMICH_IMAGE", "ghcr.io/immich-app/immich-server:v3.3.3")
+POSTGRES_CONTAINER = os.environ.get("JPEGLI_SWAP_POSTGRES_CONTAINER", "immich_postgres")
+IMMICH_CONTAINER = os.environ.get("JPEGLI_SWAP_IMMICH_CONTAINER", "immich_server")
+IMMICH_JOBS_URL = os.environ.get("JPEGLI_SWAP_JOBS_URL", "http://localhost:2283/api/jobs")
 TARGET_DQT = {"b5e89ed5c7"}
 LEDGER_FIELDS = ["at", "asset_id", "path", "status", "old_sha1", "new_sha1", "old_size", "new_size", "quarantine", "detail"]
-
-
 INTEGRITY_REFRESH_JOB = "integrity-checksum-mismatch-refresh"
-IMMICH_JOBS_URL = "http://localhost:2283/api/jobs"
-API_KEY_CONTAINER = "migallery-migallery-1"
+
+
+def require_config():
+    """Abort unless the two host paths are configured (JPEGLI_SWAP_ROOT_ON_HOST, JPEGLI_SWAP_QUARANTINE)."""
+    missing = [n for n, v in (("JPEGLI_SWAP_ROOT_ON_HOST", ROOT_ON_HOST), ("JPEGLI_SWAP_QUARANTINE", QUARANTINE)) if not v]
+    if missing:
+        sys.exit(f"ABORT: {', '.join(missing)} not set (export it, or list it in the file JPEGLI_SWAP_ENV names)")
 
 
 def log(msg):
@@ -62,6 +90,8 @@ def trigger_integrity_refresh():
     on any failure: the swaps are already committed, so this never raises.
     """
     try:
+        if not API_KEY_CONTAINER:
+            raise RuntimeError("JPEGLI_SWAP_API_KEY_CONTAINER is not set")
         key = subprocess.run(["docker", "exec", API_KEY_CONTAINER, "printenv", "IMMICH_API_KEY"],
                              capture_output=True, text=True, check=True).stdout.strip()
         if not key:
@@ -78,16 +108,40 @@ def trigger_integrity_refresh():
     return True
 
 
-def refresh_after_run(counts, dry_run, trigger=trigger_integrity_refresh):
-    """Queue the integrity refresh iff a real run swapped something. Returns False only when a needed call failed."""
-    if dry_run or counts.get("swapped", 0) == 0:
+def refresh_owed_mark():
+    """The durable "a refresh is owed" mark: written when a refresh fails, cleared by the next 204. No timer."""
+    return os.path.join(QUARANTINE, "REFRESH_OWED")
+
+
+def settle_refresh(trigger=None, mark=None):
+    """Queue the refresh now, and keep the owed mark equal to "the last attempt failed". Returns success."""
+    mark = mark or refresh_owed_mark()
+    ok = (trigger or trigger_integrity_refresh)()
+    if ok:
+        try:
+            os.remove(mark)
+        except FileNotFoundError:
+            pass
+    else:
+        with open(mark, "w") as fh:
+            fh.write(f"{datetime.datetime.now().isoformat(timespec='seconds')}\n")
+    return ok
+
+
+def refresh_after_run(counts, dry_run, trigger=None, mark=None):
+    """Queue the integrity refresh iff a real run swapped something OR an earlier refresh is still owed.
+
+    A dry run touches nothing, so it neither calls nor settles the mark. Returns False only when a needed call failed.
+    """
+    mark = mark or refresh_owed_mark()
+    if dry_run or (counts.get("swapped", 0) == 0 and not os.path.exists(mark)):
         return True
-    return trigger()
+    return settle_refresh(trigger, mark)
 
 
 def psql(sql):
-    """Run SQL in immich_postgres; raises on any SQL error (ON_ERROR_STOP)."""
-    p = subprocess.run(["docker", "exec", "-i", "immich_postgres", "psql", "-U", "postgres", "-d", "immich",
+    """Run SQL in the Postgres container; raises on any SQL error (ON_ERROR_STOP)."""
+    p = subprocess.run(["docker", "exec", "-i", POSTGRES_CONTAINER, "psql", "-U", "postgres", "-d", "immich",
                         "-v", "ON_ERROR_STOP=1", "-At", "-F", "\t"], input=sql, capture_output=True, text=True)
     if p.returncode != 0:
         raise RuntimeError(f"psql failed: {p.stderr.strip()}")
@@ -96,10 +150,10 @@ def psql(sql):
 
 def preflight():
     """Abort unless the Immich image and the columns this script writes are exactly the ones it was written for."""
-    image = subprocess.run(["docker", "inspect", "immich_server", "--format", "{{.Config.Image}}"],
+    image = subprocess.run(["docker", "inspect", IMMICH_CONTAINER, "--format", "{{.Config.Image}}"],
                            capture_output=True, text=True).stdout.strip()
     if image != EXPECTED_IMMICH:
-        sys.exit(f"ABORT: immich_server is {image!r}, script validated on {EXPECTED_IMMICH!r}")
+        sys.exit(f"ABORT: {IMMICH_CONTAINER} is {image!r}, script validated on {EXPECTED_IMMICH!r}")
     cols = {tuple(r) for r in psql("""SELECT table_name, column_name, data_type FROM information_schema.columns
         WHERE table_schema='public' AND ((table_name='asset' AND column_name IN ('checksum','checksumAlgorithm','originalPath'))
         OR (table_name='asset_exif' AND column_name='fileSizeInByte'));""")}
@@ -265,16 +319,18 @@ def main():
     ap.add_argument("--min-age-minutes", type=int, default=60)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    require_config()
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))  # systemctl stop must still reach the `finally` below
     os.makedirs(os.path.join(QUARANTINE, "tmp"), exist_ok=True)
     lock = open(os.path.join(QUARANTINE, ".lock"), "w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         sys.exit("ABORT: another jpegli_swap run holds the lock")
-    if args.purge_days:
+    if args.purge_days is not None:
         return purge(args.purge_days)
     if args.refresh_integrity:
-        sys.exit(0 if trigger_integrity_refresh() else 1)
+        sys.exit(0 if settle_refresh() else 1)
     preflight()
     if args.undo:
         return undo(args.undo)
@@ -284,7 +340,8 @@ def main():
     if args.album:
         rows = psql(base + f""" AND a.id IN (SELECT "assetId" FROM album_asset WHERE "albumId" = '{args.album}') ORDER BY a.id;""")
     elif args.ids_file:
-        ids = [l.strip() for l in open(args.ids_file) if l.strip()]
+        with open(args.ids_file) as fh:
+            ids = [l.strip() for l in fh if l.strip()]
         bad = [i for i in ids if not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", i)]
         if bad:
             sys.exit(f"ABORT: {len(bad)} entries of {args.ids_file} are not UUIDs")
@@ -299,15 +356,20 @@ def main():
     f, w = ledger_writer(ledger)
     counts = {}
     log(f"{len(rows)} assets, ledger {ledger}")
-    for i, row in enumerate(rows, 1):
-        wait_while_paused()
-        s = swap_one(row, args, w)
-        f.flush()
-        counts[s] = counts.get(s, 0) + 1
-        if i % 500 == 0:
-            log(f"{i}/{len(rows)} {counts}")
-    log(f"done {counts}")
-    if not refresh_after_run(counts, args.dry_run):
+    try:
+        for i, row in enumerate(rows, 1):
+            wait_while_paused()
+            s = swap_one(row, args, w)
+            f.flush()
+            counts[s] = counts.get(s, 0) + 1
+            if i % 500 == 0:
+                log(f"{i}/{len(rows)} {counts}")
+        log(f"done {counts}")
+    finally:
+        # Even a crash or a stop leaves swaps committed in the database: their reports are refreshed on the counts so far.
+        f.close()
+        refreshed = refresh_after_run(counts, args.dry_run)
+    if not refreshed:
         sys.exit(1)
 
 
