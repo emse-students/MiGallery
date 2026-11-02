@@ -42,6 +42,17 @@ drop the dates of files with no Exif.
   heavy job on the same Postgres (a face purge, a vacuum, a RAID resync) creates it
   first and removes it after.
 
+## Configuration (kept outside the repository)
+
+The script commits no host detail. The two host paths have no default and the run aborts
+without them: `JPEGLI_SWAP_ROOT_ON_HOST` (the Immich library on the host) and
+`JPEGLI_SWAP_QUARANTINE`. Optional: `JPEGLI_SWAP_API_KEY_CONTAINER` (the container whose
+environment holds an admin Immich API key, needed only for the integrity refresh),
+`JPEGLI_SWAP_NCONVERT`, `JPEGLI_SWAP_IMMICH_IMAGE`, `JPEGLI_SWAP_POSTGRES_CONTAINER`,
+`JPEGLI_SWAP_IMMICH_CONTAINER`, `JPEGLI_SWAP_JOBS_URL`. They are read from the environment
+or from the `KEY=VALUE` file named by `JPEGLI_SWAP_ENV`, which lives on the host and is
+never committed; the real environment wins over the file.
+
 ## Result of the first pass
 
 172 285 images read: 30 795 swapped (80.1 GB to 51.0 GB, 29.1 GB saved), 140 587
@@ -84,13 +95,24 @@ then recompress.
    date and deleted them; the report then held only the 16 298 known `untracked_file`
    rows, and no new anomaly.
 
-**Gap, recorded**: Immich's integrity jobs DO run on their own (checksum job daily at
-03:00 with a one-hour limit, missing and untracked files nightly), but they only create
-reports and scan forward from a cursor; nothing schedules the refresh that clears a
-report after its cause is fixed. After any re-baseline, run the refresh by hand.
+**Gap found, and closed by the owner's decision of 2026-11-02**: Immich's integrity jobs
+DO run on their own (checksum job daily at 03:00 with a one-hour limit, missing and
+untracked files nightly), but they only create reports and scan forward from a cursor;
+nothing schedules the refresh that clears a report after its cause is fixed. So the swap
+script ends every REAL run that swapped at least one asset by queueing that refresh
+(`trigger_integrity_refresh`, MiGallery's own Immich API key read from its container). A
+run with zero swaps and any dry run make no call (pinned by `tests/jpegli-swap.test.ts`,
+which runs `scripts/server/test_jpegli_swap.py`, `main()`'s wiring included). A failed call
+is logged at ERROR, makes the run exit 1 and leaves a durable `REFRESH_OWED` mark in the
+quarantine directory: the next run, whatever its swap count, queues the refresh again and
+clears the mark on success (no timer). The refresh also runs when a crash or a stop
+interrupts a run, on the swaps done so far. `--refresh-integrity` queues it alone, for a
+re-baseline done outside the script.
 
 ## Rule for any future bulk write to originals
 
-A tool that edits files under the Immich library must also update `asset.checksum` and
-`asset_exif.fileSizeInByte` (or go through Immich), otherwise the integrity report
-fills up and a swap like this one refuses the asset.
+Any tool that writes originals re-baselines, then triggers the refresh. It must update
+`asset.checksum` and `asset_exif.fileSizeInByte` from the file it wrote (or go through
+Immich), otherwise the integrity report fills up and a swap like this one refuses the
+asset; and once the database is right it queues the integrity refresh
+(`jpegli_swap.py --refresh-integrity`), otherwise the stale reports stay.
