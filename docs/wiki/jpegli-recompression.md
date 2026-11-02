@@ -45,7 +45,7 @@ drop the dates of files with no Exif.
 ## Result of the first pass
 
 172 285 images read: 30 795 swapped (80.1 GB to 51.0 GB, 29.1 GB saved), 140 587
-already q80, 2 with no gain, 901 refused for a checksum mismatch. 0 rollbacks, 0 failed
+already q80, 2 with no gain, 901 refused for a checksum mismatch (since resolved, see below). 0 rollbacks, 0 failed
 checks. Load stayed near 2 on 4 vCPU.
 
 ## The 901 refusals: a file rewritten behind Immich's back
