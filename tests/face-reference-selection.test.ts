@@ -282,6 +282,33 @@ describe('growUntilStable (the bootstrap, owner 2026-11-01: "jusqu\'à stabilise
     expect(added.map((x) => x.key)).toEqual(['n1', 'n2']);
   });
 
+  it('measures the guard to the SELFIE, so a reference admitted far out does not move it', () => {
+    const selfie = item('selfie', 0, null, true);
+    // A reference held at 0.55 from the selfie (a pass admitted it), and a face 0.3 beyond it:
+    // within 0.4 of a held reference, but past the 0.62 guard from the selfie.
+    const outer = item('outer', angleOf(0.55), null);
+    const beyond = item('beyond', angleOf(0.55) + angleOf(0.3), null);
+    expect(cosineDistance(selfie.embedding, beyond.embedding)).toBeGreaterThan(0.62);
+    expect(growUntilStable([selfie, outer], [beyond], 15, within)).toEqual([]);
+    // Without a selfie there is no anchor: every held reference is the yardstick.
+    const a = item('a', 0, null);
+    const b = item('b', angleOf(0.55), null);
+    expect(growUntilStable([a, b], [beyond], 15, within).map((x) => x.key)).toEqual(['beyond']);
+  });
+
+  it('with room to spare takes every reachable face inside the guard, near and far alike', () => {
+    const selfie = item('selfie', 0, null, true);
+    const cands = [
+      item('n1', angleOf(0.05), null),
+      item('n2', angleOf(0.08), null),
+      item('f1', angleOf(0.36), null),
+      item('f2', angleOf(0.37), null),
+      item('out', angleOf(0.7), null),
+    ];
+    const added = growUntilStable([selfie], cands, 15, within);
+    expect(added.map((x) => x.key)).toEqual(['n1', 'n2', 'f1', 'f2']);
+  });
+
   it('gives the same set whatever the order of the candidates', () => {
     const selfie = item('selfie', 0, null, true);
     const cands = Array.from({ length: 12 }, (_, i) =>

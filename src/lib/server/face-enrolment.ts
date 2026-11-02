@@ -32,6 +32,7 @@ import { inTransaction } from '#lib/db/transaction.ts';
 import {
   FACE_AUTO_MAX_DISTANCE,
   FACE_MAX_REFERENCES,
+  FACE_MIN_REFERENCES,
   FACE_MODEL,
   FACE_SELECTION_UNDONE,
   cosineDistance,
@@ -242,6 +243,7 @@ export async function answerFace(
       engine,
       userId,
       opened.embedding,
+      held.length < FACE_MIN_REFERENCES && held.length + 1 >= FACE_MIN_REFERENCES,
       options.promoted,
       options.released
     );
@@ -314,18 +316,23 @@ function settleWaitingAfterLearning(
   engine: FaceEngine,
   userId: string,
   learned: ArrayLike<number>,
+  crossedMinimum: boolean,
   promoted?: FaceKey[],
   released?: FaceKey[]
 ): void {
   // Only the faces the NEW reference can move: those within the `auto` distance of it. Any other
   // waiting face is as far from the member's references as before, so re-deciding it is work
   // (and a screen that shifts under the member) for nothing.
+  // Except when the confirmation made the member cross FACE_MIN_REFERENCES: every waiting face
+  // within 0.5 of ANY reference stops being held back by the minimum, so all of them are decided.
   const reachable = new Set(
     loadFaceEmbeddings(engine.faceDb, engine.key, waitingFaces(engine.db, userId))
       .filter((f) => cosineDistance(learned, f.embedding) <= FACE_AUTO_MAX_DISTANCE)
       .map(keyOf)
   );
-  const waiting = waitingFaces(engine.db, userId).filter((f) => reachable.has(keyOf(f)));
+  const waiting = waitingFaces(engine.db, userId).filter(
+    (f) => crossedMinimum || reachable.has(keyOf(f))
+  );
   if (waiting.length === 0) {
     return;
   }

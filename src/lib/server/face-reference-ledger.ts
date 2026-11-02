@@ -12,9 +12,9 @@
  *
  * THE UNDO ({@link undoReferenceSelection}), one member, inside the engine lock, one transaction:
  * the references are replaced by the snapshot's, the pending matches by the snapshot's (a face
- * another member has since CONFIRMED cannot be given back: counted as a conflict, never forced),
- * the selection marker stays at the pass's version so the member is not redone, and the snapshot
- * is consumed. The faces the member held now and the snapshot does not name are re-decided for
+ * another member HOLDS now (whatever its state) cannot be given back: counted as a conflict, never
+ * forced), the selection marker becomes UNDONE so the member is not selected again until they
+ * enrol with a new selfie, and the snapshot is consumed. The faces the member held now and the snapshot does not name are re-decided for
  * everyone, so they go back to whoever is nearest. What an undo does NOT bring back: a reference
  * the member learned by answering AFTER the pass (it is replaced by the snapshot's set, answers
  * stay as rows), and a face another member lost to this one during the pass (it is re-decided at
@@ -41,8 +41,9 @@ export interface LedgerSaved {
 }
 
 /**
- * Copy the member's references and pending matches into the ledger under `version`, replacing an
- * earlier snapshot of the same version. Inside the caller's transaction, BEFORE it changes either.
+ * Copy the member's references and pending matches into the ledger under `version`, unless the
+ * member already holds a snapshot (the first one is kept). Inside the caller's transaction, BEFORE
+ * it changes either. Returns what THIS call copied (zeros when the first snapshot stood).
  */
 export function saveSelectionLedger(
   db: DatabaseInstance,
@@ -50,14 +51,17 @@ export function saveSelectionLedger(
   version: number,
   now: number
 ): LedgerSaved {
-  db.prepare(
-    'DELETE FROM face_reference_ledger WHERE user_id = ? AND model = ? AND version = ?'
-  ).run(userId, FACE_MODEL, version);
-  db.prepare('DELETE FROM face_match_ledger WHERE user_id = ? AND model = ? AND version = ?').run(
-    userId,
-    FACE_MODEL,
-    version
-  );
+  // ONE snapshot per member, the FIRST: the rule is permanent, so a member is selected again at
+  // every enrolment and every tick that finds a reachable face, and a snapshot taken each time would
+  // leave an undo only the last step back. The first is the state before anything touched them; it
+  // is consumed by the undo, after which the next pass keeps a new one.
+  const existing = db
+    .prepare('SELECT COUNT(*) AS n FROM face_reference_ledger WHERE user_id = ? AND model = ?')
+    .get(userId, FACE_MODEL) as { n: number };
+  if (existing.n > 0) {
+    log.debug('selection ledger already holds the first snapshot of the member', { version });
+    return { references: 0, matches: 0 };
+  }
   const references = db
     .prepare(
       `INSERT INTO face_reference_ledger (user_id, model, version, saved_at, source, sealed,
@@ -76,7 +80,7 @@ export function saveSelectionLedger(
     .run(version, now, userId, FACE_MODEL).changes;
   // The profile photo pointer too: the pass that follows may set a DEFAULT one other members see.
   db.prepare(
-    `INSERT OR REPLACE INTO face_avatar_ledger (user_id, version, saved_at, photos_asset_id,
+    `INSERT OR IGNORE INTO face_avatar_ledger (user_id, version, saved_at, photos_asset_id,
        photos_asset_source)
      SELECT id_user, ?, ?, photos_asset_id, photos_asset_source FROM users WHERE id_user = ?`
   ).run(version, now, userId);
@@ -90,7 +94,7 @@ export interface UndoResult {
   version: number;
   references: number;
   matches: number;
-  /** Snapshot faces that could not be given back (another member confirmed them since). */
+  /** Snapshot faces that could not be given back (another member holds them now, in any state). */
   conflicts: number;
   /** Faces the member held that the snapshot does not name, re-decided for everyone. */
   redecided: number;

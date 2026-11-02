@@ -77,8 +77,9 @@ export function usableVector(v: ArrayLike<number>): boolean {
  * (the cap is above the held count), so the count strictly rises towards `cap`; a round with none
  * ends it. At most `cap` rounds.
  *
- * THE DRIFT GUARD: every reference stays within FACE_SUGGEST_MAX_DISTANCE of the references the
- * member held when it began (their selfie), the farthest the model itself offers a face (the
+ * THE DRIFT GUARD: every reference stays within FACE_SUGGEST_MAX_DISTANCE of the member's SELFIE
+ * (the anchors; only a member with none is measured to every held reference, so the guard never
+ * moves with the references a pass has already added), the farthest the model itself offers a face (the
  * 1e-4 false-match threshold, 0.617). Chaining 0.4 steps could otherwise walk to another face, with
  * no human to see it. THE RESIDUAL RISK, named: a lookalike (a relative, a twin) who is not enrolled
  * and sits within the guard of the selfie can be admitted. Returns the ADDED candidates, in the
@@ -90,7 +91,11 @@ export function growUntilStable<T extends ReferenceItem>(
   cap: number,
   within: (candidate: T, nearestReferenceDistance: number) => boolean
 ): T[] {
-  const yardstick = held.map((h) => h.embedding);
+  // The guard and the ranking are measured to the member's SELFIE (the anchors), never to every
+  // held reference: a reference admitted at 0.55 would otherwise let in faces ~1.0 from the selfie,
+  // and the reach would ratchet pass after pass. Only a member with no selfie falls back to all.
+  const anchors = held.filter((h) => h.anchor);
+  const yardstick = (anchors.length > 0 ? anchors : held).map((h) => h.embedding);
   const vectors = held.map((h) => h.embedding);
   let count = held.length;
   let left = candidates

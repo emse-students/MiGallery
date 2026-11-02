@@ -788,14 +788,15 @@ least `FACE_AMBIGUITY_MARGIN` (0.05) behind (or absent). They are proof for the 
 (source `matched`): nothing becomes visible by it. Once the member reaches 3 references the normal
 rule applies, and the re-match that follows the selection makes their faces within 0.5 `auto`. "As
 the other members" therefore starts at 3 references, with no second mechanism. The version bump
-re-selects only members that need it: a member already at the minimum that version 2 selected is
-MARKED (3), never re-selected (a pass over 300 members' references would only churn them).
+re-selects only members that need it (see the 2026-11-02 section below for the rule as it stands):
+a member at the cap that version 2 selected is MARKED (3) and never re-propagated, a pass over
+300 members' references would only churn them.
 
 **Grown until stable** (owner, 2026-11-01: _"il faut faire jusqu'à stabiliser. Demander trop
 d'action à l'utilisateur perd complètement le principe"_; `growUntilStable`,
 `face-reference-selection.ts`). Each round takes the faces within 0.4 of the member's CURRENT
-references (0.5 for a confirmed face), chosen for variety, held references kept; a face that a
-round made reachable is found by the next one. **Termination is a proof, not a clock**: a round
+references (0.5 for a confirmed face), the closest to the selfie first, held references kept; a
+face that a round made reachable is found by the next one. **Termination is a proof, not a clock**: a round
 with an eligible face adds at least one reference (the held ones are anchors and the cap is above
 their count), so the count rises strictly towards `FACE_MAX_REFERENCES`; a round with none ends it.
 No round drops a reference. **The drift guard**: every reference stays within
@@ -836,16 +837,19 @@ a selection pass rewrites a member's references, and in the same transaction, th
 `face_references` rows are copied verbatim (the sealed blob is bound to the member and model, so a
 restore opens as the original did) with the selection version, and so are their PENDING matches
 (shown without a question, or waiting); answered rows are the member's own and a pass never
-touches them. One snapshot per member and version. A member only MARKED (already at 3 references)
-rewrites nothing and keeps nothing.
+touches them. **ONE snapshot per member, the FIRST** (the rule is permanent, so a member is
+selected again at every enrolment and every tick that finds a reachable face; a snapshot per pass
+would leave an undo only the last step back). It is consumed by the undo, after which the next
+pass keeps a new one. A member only MARKED rewrites nothing and keeps nothing. The profile photo
+pointer is in it (`face_avatar_ledger`).
 
 **Undo, one member** (`POST /api/admin/faces/selection-undo { user_id }`, an admin session, never
 an impersonated one; the function runs in the engine lock, in one transaction): the references
-are replaced by the snapshot's, the pending matches by the snapshot's, the selection marker stays
-at the pass's version (an undone member is not redone on the next tick), the snapshot is consumed
+are replaced by the snapshot's, the pending matches by the snapshot's, the selection marker becomes
+UNDONE (-1: an undone member is not selected again until a new selfie), the snapshot is consumed
 (a second undo is a 404), and the faces the member held that the snapshot does not name are
 re-decided for everyone. Counts come back: `{ version, references, matches, conflicts,
-redecided }`. A `conflict` is a snapshot face another member has CONFIRMED since: it is not given
+redecided }`. A `conflict` is a snapshot face another member HOLDS now, in any state: it is not given
 back. What an undo does not return: a reference the member learned by answering AFTER the pass
 (replaced by the snapshot's set; their answers stay as rows), and a face another member lost to
 this one during the pass (re-decided at that member's next re-match). So undo soon.
@@ -855,7 +859,9 @@ this one during the pass (re-decided at that member's next re-match). So undo so
 unlink and account deletion: `eraseFaceReferences`, and the cascade) and for everyone at once on
 `DELETE /api/admin/faces/selection-undo` (`purgeSelectionLedger`), which the owner runs when the
 window is closed. No timer decides it. It lives in `migallery.db`, so the backups carry it too:
-add the ledger to the register of processing when the pass has run (owed, Canari repository).
+add the ledger to the register of processing when the pass has run (owed, Canari repository):
+its lifetime is one snapshot per member, the first, kept until an admin undoes it or purges the
+ledger, and refilled for any member selected again after that.
 
 **Measured, owed after the release:** the same read-only query as the baseline (visible photos per
 consenting member: zero-visible count and median) once the pass has run; the production write that
@@ -891,10 +897,32 @@ within 0.62 of the selfie can be admitted: named, not removable by a threshold, 
 the ledger below. **Crossing 3 references makes EVERY face within 0.5 `auto`, hence visible to the
 member without a question**, which is the point of the chantier and also the exposure.
 
+**The guard and the ranking are measured to the SELFIE** (the anchors; only a member with none is
+measured to every held reference), never to the references a pass has already added: otherwise a
+reference admitted at 0.55 would let in faces about 1.0 from the selfie and the reach would ratchet
+at every tick. Qualification (0.4 unconfirmed, 0.5 confirmed) is still measured to the nearest
+CURRENT reference, so admissions chain, but never past 0.62 from the selfie. Whether an unproven
+chain should stop at 0.5 is the owner's call once he has read the corrected histogram.
+
+**A member the pass cannot help costs no Immich call and no lock turn**: the tick previews the
+selection (a read of the store) and asks Immich for capture dates only of the faces it would
+admit (growth) or of every proven face (propagation, where recency breaks ties).
+
+**A confirmation that makes the count cross 3** re-decides ALL the member's waiting faces (the
+minimum no longer holds any of them back); any other confirmation only those within 0.5 of the new
+reference.
+
+**A MARKED member at the cap is never re-propagated: intended.** Version 2 already propagated
+them; a rewrite of every such member's references would only churn them. An unmarked member at the
+cap IS propagated, once.
+
 **Two phases per pass** (`runReferenceUpgrades`). All members' references are selected first (one
 engine-lock turn each), then every member whose re-match is owed (`face_rematch_pending`) is
 re-matched, so each re-match decides against the FINAL reference sets of everyone: two lookalikes
-bootstrapping in one pass get the same faces whichever id sorts first. The pending mark is written
+bootstrapping in one pass get the same faces whichever id sorts first (a test pins it, and shows
+that one phase after the other does NOT). Two residual order paths, named: ingestion runs between
+the phase-1 turns (a face decided in between is decided against a partial set; the next pass
+re-reads it), and the enrolment chain selects one member alone (no other member to wait for). The pending mark is written
 in the same transaction as the references and the marker and deleted when the re-match completes: a
 crash between the two is resumed by the next tick, never left "selected and stale".
 

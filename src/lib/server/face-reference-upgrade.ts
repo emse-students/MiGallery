@@ -114,14 +114,6 @@ export function membersPendingRematch(db: DatabaseInstance): string[] {
   ).map((r) => r.user_id);
 }
 
-/** How many references of the current model `userId` holds. */
-function heldCount(db: DatabaseInstance, userId: string): number {
-  const row = db
-    .prepare('SELECT COUNT(*) AS n FROM face_references WHERE user_id = ? AND model = ?')
-    .get(userId, FACE_MODEL) as { n: number };
-  return row.n;
-}
-
 /**
  * The member's confirmed faces and pending `auto` faces: the proven pool before distances. In the
  * BOOTSTRAP (a member under FACE_MIN_REFERENCES, whose `auto` faces are all held back as
@@ -167,6 +159,16 @@ function markSelected(db: DatabaseInstance, userId: string, now: number): void {
 export type UpgradeOutcome = 'upgraded' | 'already' | 'no_references';
 
 /**
+ * What a PREVIEW of a selection reports instead of writing: the photos whose capture dates the
+ * real pass would read (only the faces it would admit when growing, every proven face when
+ * propagating), and whether it would only mark the member.
+ */
+export interface SelectionPreview {
+  assets: Set<string>;
+  mark: boolean;
+}
+
+/**
  * Choose the member's references from their held references and their proven faces, write them
  * and the selection row in ONE transaction, synchronously (no withdrawal can land in between).
  * Inside the engine lock. Returns how many references they hold afterwards, or null when there was
@@ -176,7 +178,8 @@ export function reselectReferences(
   engine: FaceEngine,
   userId: string,
   captureTimes: ReadonlyMap<string, number>,
-  now: number = Date.now()
+  now: number = Date.now(),
+  preview?: SelectionPreview
 ): { outcome: UpgradeOutcome; references: number; added: number; dropped: number } {
   const { db, key } = engine;
   return inTransaction(db, () => {
@@ -200,8 +203,13 @@ export function reselectReferences(
     }
     if (marker && !growing) {
       // Chosen by an earlier version and already at the cap: a re-selection of every member's
-      // references would only churn them. Marked, not touched.
-      markSelected(db, userId, now);
+      // references would only churn them (intended: version 2 already propagated them). Marked,
+      // not touched.
+      if (preview) {
+        preview.mark = true;
+      } else {
+        markSelected(db, userId, now);
+      }
       return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
     }
     const bootstrap = growing;
@@ -239,7 +247,11 @@ export function reselectReferences(
       const grown = growUntilStable(held, opened, FACE_MAX_REFERENCES, bound);
       if (grown.length === 0) {
         if (held.length >= FACE_MIN_REFERENCES) {
-          markSelected(db, userId, now);
+          if (preview) {
+            preview.mark = true;
+          } else {
+            markSelected(db, userId, now);
+          }
         }
         return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
       }
@@ -258,6 +270,16 @@ export function reselectReferences(
     const chosen = new Set(
       (growing ? pool : selectVariedReferences(pool, FACE_MAX_REFERENCES)).map((c) => c.key)
     );
+    if (preview) {
+      // Dates only for what the real pass would use: the admitted faces when growing (their order
+      // is proximity, never a date), every proven face when propagating (recency breaks ties).
+      for (const item of pool) {
+        if (item.face && (!growing || chosen.has(item.key))) {
+          preview.assets.add(item.face.assetId);
+        }
+      }
+      return { outcome: 'upgraded' as const, references: held.length, added: 0, dropped: 0 };
+    }
     // What is about to be replaced is kept first, in this same transaction: the way back.
     saveSelectionLedger(db, userId, FACE_REFERENCE_SELECTION_VERSION, now);
     let dropped = 0;
@@ -313,9 +335,15 @@ export async function selectMemberReferences(
   userId: string,
   fetchFn: typeof fetch
 ): Promise<UpgradeOutcome> {
-  const growing = heldCount(engine.db, userId) < FACE_MAX_REFERENCES;
-  const assets = [...new Set(provenCandidates(engine.db, userId, growing).map((c) => c.assetId))];
-  const captureTimes = await assetCaptureTimes(fetchFn, assets);
+  // DECIDE BEFORE CALLING IMMICH: a member the pass cannot help (nothing admissible) costs a read of
+  // the store and nothing else - no HTTP call, no turn of the engine lock - every tick.
+  const preview: SelectionPreview = { assets: new Set(), mark: false };
+  const probe = reselectReferences(engine, userId, new Map(), Date.now(), preview);
+  if (probe.outcome !== 'upgraded' && !preview.mark) {
+    return probe.outcome;
+  }
+  const captureTimes =
+    preview.assets.size > 0 ? await assetCaptureTimes(fetchFn, [...preview.assets]) : new Map();
   return runExclusive(() => reselectReferences(engine, userId, captureTimes).outcome);
 }
 
@@ -336,6 +364,15 @@ export async function finishMemberRematch(
       .prepare('DELETE FROM face_rematch_pending WHERE user_id = ? AND model = ?')
       .run(userId, FACE_MODEL);
   });
+  const undone = engine.db
+    .prepare(
+      'SELECT 1 FROM face_reference_selection WHERE user_id = ? AND model = ? AND version = ?'
+    )
+    .get(userId, FACE_MODEL, FACE_SELECTION_UNDONE);
+  if (undone) {
+    // An admin undid the pass since the capture: its profile photo is restored, not re-decided.
+    return;
+  }
   try {
     await ensureDefaultProfilePhoto(engine, userId, fetchFn);
   } catch (e) {
