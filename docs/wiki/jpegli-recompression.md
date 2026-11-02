@@ -77,8 +77,17 @@ then recompress.
 4. The normal swap then ran on the same allowlist (`--ids-file`, a dry run first):
    901 swapped, 0 refused, 1.16 GB to 1.09 GB (these files were already progressive
    JPEGLI, so the gain is small; the point was to end the difference).
-5. Immich's integrity report keeps its 901 `checksum_mismatch` rows until its own job
-   runs again (last run 2026-09-16); a re-baseline alone does not clear them.
+5. Immich's integrity report kept its 901 `checksum_mismatch` rows after the
+   re-baseline: a report is only deleted by the "refresh" form of the checksum job
+   (`integrity-checksum-mismatch-refresh`, `POST /api/jobs`, admin), which re-reads
+   existing reports only. It was triggered once by hand, found 901 of 901 reports out of
+   date and deleted them; the report then held only the 16 298 known `untracked_file`
+   rows, and no new anomaly.
+
+**Gap, recorded**: Immich's integrity jobs DO run on their own (checksum job daily at
+03:00 with a one-hour limit, missing and untracked files nightly), but they only create
+reports and scan forward from a cursor; nothing schedules the refresh that clears a
+report after its cause is fixed. After any re-baseline, run the refresh by hand.
 
 ## Rule for any future bulk write to originals
 
