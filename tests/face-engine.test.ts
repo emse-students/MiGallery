@@ -1520,9 +1520,10 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       setRow('conf60', 'suggested', 'confirmed');
       expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
       const result = upgrade.reselectReferences(engine(), 'alice', new Map([['conf45', 5000]]), 9);
-      expect(result).toMatchObject({ outcome: 'upgraded', added: 2, dropped: 0, references: 7 });
-      // A confirmed face within 0.5 and an auto face within 0.4; not the auto at 0.45, not the
-      // pending suggestion, not the confirmed lookalike at 0.6. The photo of auto35 has no date.
+      expect(result).toMatchObject({ outcome: 'upgraded', added: 3, dropped: 0, references: 8 });
+      // BELOW THE CAP the set grows (owner, 2026-11-02): a confirmed face within 0.5, an auto face
+      // and a pending suggestion within 0.4; not the auto at 0.45, not the confirmed lookalike at
+      // 0.6. The photo of auto35 has no date.
       expect(
         refsOf()
           .filter((r) => r.asset_id !== null)
@@ -1530,6 +1531,7 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       ).toEqual([
         { source: 'matched', asset_id: 'auto35', taken_at: null },
         { source: 'photo', asset_id: 'conf45', taken_at: 5000 },
+        { source: 'matched', asset_id: 'sugg30', taken_at: null },
       ]);
       expect(upgrade.reselectReferences(engine(), 'alice', new Map()).outcome).toBe('already');
       expect(upgrade.membersToUpgrade(db())).toEqual([]);
@@ -1606,6 +1608,97 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
         far45: 'auto',
         twin: 'auto',
       });
+    });
+
+    it('grows below the cap, then at the cap propagates by variety among PROVEN faces only', async () => {
+      addUser('alice');
+      const held = Array.from({ length: 14 }, (_, i) => atDistance(ALICE, synthetic(600 + i), 0.2));
+      for (const v of held) refs.addFaceReference(db(), key, 'alice', 'seed', v);
+      await storeFaces({
+        sugg: atDistance(held[0], synthetic(931), 0.3),
+        auto: atDistance(held[1], synthetic(932), 0.3),
+      });
+      setRow('sugg', 'suggested', 'pending');
+      setRow('auto', 'auto', 'pending');
+      // 14 held, the cap is 15: GROWTH, one room, the closest taken (ties on the key), the
+      // unproven suggestion allowed as proof.
+      const grown = upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+      expect(grown).toMatchObject({ outcome: 'upgraded', added: 1, dropped: 0, references: 15 });
+      // AT THE CAP, an older marker, a new face: PROPAGATION never reads an unproven suggestion.
+      db().prepare('DELETE FROM face_references WHERE asset_id IS NOT NULL').run();
+      db().prepare('DELETE FROM face_reference_selection').run();
+      db()
+        .prepare(
+          "INSERT INTO face_references (user_id, model, source, sealed, created_at) SELECT user_id, model, 'seed', sealed, created_at FROM face_references WHERE source = 'seed' LIMIT 1"
+        )
+        .run();
+      expect(refsOf().length).toBe(15);
+      setRow('sugg', 'suggested', 'pending');
+      upgrade.reselectReferences(engine(), 'alice', new Map(), 10);
+      expect(refsOf().map((r) => r.asset_id)).not.toContain('sugg');
+    });
+
+    it('selects every member before it re-matches any, so two lookalikes do not depend on the order', async () => {
+      const lookalike = atDistance(ALICE, synthetic(940), 0.3);
+      let run = 0;
+      const outcome = async (first: string, second: string) => {
+        run++;
+        db().exec(
+          'DELETE FROM face_matches; DELETE FROM face_references; DELETE FROM face_reference_selection; DELETE FROM face_rematch_pending; DELETE FROM users'
+        );
+        addUser(first);
+        addUser(second);
+        enrolment.enrolMember(engine(), first, ALICE);
+        enrolment.enrolMember(engine(), second, lookalike);
+        // Fresh asset ids per run: the face store keeps what it ingested.
+        const faces: Record<string, Float32Array> = {};
+        for (let i = 0; i < 3; i++) {
+          faces[`r${run}a${i}`] = atDistance(ALICE, synthetic(941 + i), 0.3);
+          faces[`r${run}b${i}`] = atDistance(lookalike, synthetic(951 + i), 0.3);
+        }
+        await storeFaces(faces);
+        await upgrade.runReferenceUpgrades(engine(), fakeFetch);
+        return Object.fromEntries(
+          matches().map((m) => [
+            m.asset_id.replace(/^r\d+/, ''),
+            `${m.user_id === first ? 'first' : 'second'}/${m.band}`,
+          ])
+        );
+      };
+      const one = await outcome('alice', 'bob');
+      expect(Object.keys(one)).toHaveLength(6);
+      expect(await outcome('bob', 'alice')).toEqual(one);
+    });
+
+    it('resumes a re-match a crash left owed, and clears the mark', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({
+        near1: atDistance(ALICE, synthetic(950), 0.3),
+        near2: atDistance(ALICE, synthetic(951), 0.31),
+      });
+      upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+      expect(upgrade.membersPendingRematch(db())).toEqual(['alice']);
+      await upgrade.runReferenceUpgrades(engine(), fakeFetch);
+      expect(upgrade.membersPendingRematch(db())).toEqual([]);
+      expect(matches().find((m) => m.asset_id === 'near1')?.band).toBe('auto');
+    });
+
+    it('retries a member still under the minimum whatever the marker, and never one undone', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      db()
+        .prepare(
+          'INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, ?, 1)'
+        )
+        .run('alice', embedding.FACE_MODEL, embedding.FACE_REFERENCE_SELECTION_VERSION);
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      db()
+        .prepare('UPDATE face_reference_selection SET version = ?')
+        .run(embedding.FACE_SELECTION_UNDONE);
+      expect(upgrade.membersToUpgrade(db())).toEqual([]);
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
     });
 
     it('only marks a member already at the minimum that an earlier version selected', async () => {
@@ -1720,7 +1813,7 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       it('purges everything at once when the window is closed', async () => {
         await bootstrapped();
         upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
-        expect(ledger.purgeSelectionLedger(db())).toBe(5);
+        expect(ledger.purgeSelectionLedger(db())).toBe(6);
         expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
       });
     });

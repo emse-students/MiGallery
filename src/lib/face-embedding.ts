@@ -50,6 +50,12 @@ export const FACE_PROVEN_AUTO_DISTANCE = 0.4;
  */
 export const FACE_REFERENCE_SELECTION_VERSION = 3;
 
+/**
+ * The selection marker of a member whose pass an admin UNDID (face-reference-ledger.ts): never
+ * selected again by the tick, and cleared when they enrol with a new selfie.
+ */
+export const FACE_SELECTION_UNDONE = -1;
+
 /** Cosine distance up to which a face is accepted without a human (Immich's own value). */
 export const FACE_AUTO_MAX_DISTANCE = 0.5;
 /**

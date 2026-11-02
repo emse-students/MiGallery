@@ -27,7 +27,7 @@
 
 import type { DatabaseInstance } from '#lib/db/database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
-import { FACE_MODEL, FACE_REFERENCE_SELECTION_VERSION } from '#lib/face-embedding.ts';
+import { FACE_MODEL, FACE_SELECTION_UNDONE } from '#lib/face-embedding.ts';
 import { redecideFaces, type FaceEngine } from '#lib/server/face-engine.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import type { FaceKey } from '#lib/server/face-store.ts';
@@ -74,6 +74,12 @@ export function saveSelectionLedger(
          FROM face_matches WHERE user_id = ? AND model = ? AND state = 'pending'`
     )
     .run(version, now, userId, FACE_MODEL).changes;
+  // The profile photo pointer too: the pass that follows may set a DEFAULT one other members see.
+  db.prepare(
+    `INSERT OR REPLACE INTO face_avatar_ledger (user_id, version, saved_at, photos_asset_id,
+       photos_asset_source)
+     SELECT id_user, ?, ?, photos_asset_id, photos_asset_source FROM users WHERE id_user = ?`
+  ).run(version, now, userId);
   log.info('selection ledger saved', { version, references, matches });
   return { references, matches };
 }
@@ -186,12 +192,38 @@ export function undoReferenceSelection(
       ).changes;
     }
 
-    // The member stays marked as selected: an undone pass must not run again on the next tick.
+    // The member is marked UNDONE: the tick never selects for them again, and a new selfie clears
+    // the mark (enrolMember). A pass undone with a version marker would be redone at the next bump.
     db.prepare(
       `INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, ?, ?)
         ON CONFLICT(user_id, model) DO UPDATE SET version = excluded.version,
           selected_at = excluded.selected_at`
-    ).run(userId, FACE_MODEL, Math.max(version, FACE_REFERENCE_SELECTION_VERSION), now);
+    ).run(userId, FACE_MODEL, FACE_SELECTION_UNDONE, now);
+    // A re-match the pass left owed would undo the undo.
+    db.prepare('DELETE FROM face_rematch_pending WHERE user_id = ? AND model = ?').run(
+      userId,
+      FACE_MODEL
+    );
+    // The profile photo goes back only while it is still a DEFAULT: a choice is never overwritten.
+    const avatar = db
+      .prepare(
+        'SELECT photos_asset_id, photos_asset_source FROM face_avatar_ledger WHERE user_id = ? AND version = ?'
+      )
+      .get(userId, version) as {
+      photos_asset_id: string | null;
+      photos_asset_source: string | null;
+    } | null;
+    if (avatar) {
+      db.prepare(
+        `UPDATE users SET photos_asset_id = ?, photos_asset_source = ?
+          WHERE id_user = ? AND (photos_asset_id IS NULL OR photos_asset_id = ''
+            OR photos_asset_source = 'default')`
+      ).run(avatar.photos_asset_id, avatar.photos_asset_source, userId);
+      db.prepare('DELETE FROM face_avatar_ledger WHERE user_id = ? AND version = ?').run(
+        userId,
+        version
+      );
+    }
 
     db.prepare(
       'DELETE FROM face_reference_ledger WHERE user_id = ? AND model = ? AND version = ?'
@@ -238,7 +270,8 @@ export function ledgerCounts(db: DatabaseInstance): {
 export function purgeSelectionLedger(db: DatabaseInstance): number {
   const gone =
     db.prepare('DELETE FROM face_reference_ledger').run().changes +
-    db.prepare('DELETE FROM face_match_ledger').run().changes;
+    db.prepare('DELETE FROM face_match_ledger').run().changes +
+    db.prepare('DELETE FROM face_avatar_ledger').run().changes;
   log.info('selection ledger purged', { rows: gone });
   return gone;
 }

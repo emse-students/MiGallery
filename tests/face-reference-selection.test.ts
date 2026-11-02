@@ -274,6 +274,14 @@ describe('growUntilStable (the bootstrap, owner 2026-11-01: "jusqu\'à stabilise
     expect(added).toHaveLength(1);
   });
 
+  it('takes the closest faces first: a far cluster that passes the guard waits while closer ones exist', () => {
+    const selfie = item('selfie', 0, null, true);
+    const near = [item('n1', angleOf(0.05), null), item('n2', angleOf(0.08), null)];
+    const far = [item('f1', angleOf(0.36), null), item('f2', angleOf(0.37), null)];
+    const added = growUntilStable([selfie], [...far, ...near], 3, within);
+    expect(added.map((x) => x.key)).toEqual(['n1', 'n2']);
+  });
+
   it('gives the same set whatever the order of the candidates', () => {
     const selfie = item('selfie', 0, null, true);
     const cands = Array.from({ length: 12 }, (_, i) =>

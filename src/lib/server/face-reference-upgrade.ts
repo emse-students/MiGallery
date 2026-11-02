@@ -45,6 +45,7 @@ import {
   FACE_MODEL,
   FACE_PROVEN_AUTO_DISTANCE,
   FACE_REFERENCE_SELECTION_VERSION,
+  FACE_SELECTION_UNDONE,
   minDistance,
 } from '#lib/face-embedding.ts';
 import {
@@ -73,17 +74,43 @@ interface ProvenCandidate extends FaceKey {
   confirmed: boolean;
 }
 
-/** The members holding references not chosen by the current selection version. */
+/**
+ * The members the tick has to select for: those holding references not chosen by the current
+ * selection version, AND - the rule is PERMANENT (owner, 2026-11-02) - every member still under
+ * FACE_MIN_REFERENCES, whatever their marker, because new faces keep arriving and a lone selfie is
+ * exactly who the bootstrap is for. A member whose pass an admin undid is left out until they enrol
+ * again. Derived from durable state, never from a clock: a member the bootstrap cannot help yet
+ * costs one read per tick and no write.
+ */
 export function membersToUpgrade(db: DatabaseInstance): string[] {
   return (
     db
       .prepare(
         `SELECT DISTINCT r.user_id FROM face_references r
           LEFT JOIN face_reference_selection s ON s.user_id = r.user_id AND s.model = r.model
-          WHERE r.model = ? AND (s.version IS NULL OR s.version < ?)
+          WHERE r.model = ? AND (s.version IS NULL OR (s.version != ? AND (s.version < ?
+            OR (SELECT COUNT(*) FROM face_references r2
+                 WHERE r2.user_id = r.user_id AND r2.model = r.model) < ?)))
           ORDER BY r.user_id`
       )
-      .all(FACE_MODEL, FACE_REFERENCE_SELECTION_VERSION) as Array<{ user_id: string }>
+      .all(
+        FACE_MODEL,
+        FACE_SELECTION_UNDONE,
+        FACE_REFERENCE_SELECTION_VERSION,
+        FACE_MIN_REFERENCES
+      ) as Array<{ user_id: string }>
+  ).map((r) => r.user_id);
+}
+
+/**
+ * The members a selection pass rewrote whose re-match did not finish (a crash, a failure): the
+ * durable half of "selected AND re-matched". Written with the references, cleared by the re-match.
+ */
+export function membersPendingRematch(db: DatabaseInstance): string[] {
+  return (
+    db
+      .prepare('SELECT user_id FROM face_rematch_pending WHERE model = ? ORDER BY user_id')
+      .all(FACE_MODEL) as Array<{ user_id: string }>
   ).map((r) => r.user_id);
 }
 
@@ -156,20 +183,28 @@ export function reselectReferences(
     const marker = db
       .prepare('SELECT version FROM face_reference_selection WHERE user_id = ? AND model = ?')
       .get(userId, FACE_MODEL) as { version: number } | null;
-    if (marker && marker.version >= FACE_REFERENCE_SELECTION_VERSION) {
+    if (marker?.version === FACE_SELECTION_UNDONE) {
       return { outcome: 'already' as const, references: 0, added: 0, dropped: 0 };
     }
     const held = loadReferenceItems(db, key, userId);
     if (held.length === 0) {
       return { outcome: 'no_references' as const, references: 0, added: 0, dropped: 0 };
     }
-    const bootstrap = held.length < FACE_MIN_REFERENCES;
-    if (marker && !bootstrap) {
-      // Chosen by an earlier version and already at the minimum: nothing the bootstrap adds, and a
-      // re-selection of 300 members' references would only churn them. Marked, not touched.
+    // THE PHASE, decided by the count at the start (owner, 2026-11-02): below the cap the set
+    // GROWS (most similar first, an unconfirmed suggestion counts as proof); at the cap it
+    // PROPAGATES (variety, proven faces only, never an unproven suggestion).
+    const growing = held.length < FACE_MAX_REFERENCES;
+    const current = marker !== null && marker.version >= FACE_REFERENCE_SELECTION_VERSION;
+    if (current && held.length >= FACE_MIN_REFERENCES) {
+      return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
+    }
+    if (marker && !growing) {
+      // Chosen by an earlier version and already at the cap: a re-selection of every member's
+      // references would only churn them. Marked, not touched.
       markSelected(db, userId, now);
       return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
     }
+    const bootstrap = growing;
     const heldVectors = held.map((h) => h.embedding);
     const heldFaces = new Set(
       held.filter((h) => h.assetId !== null).map((h) => `${h.assetId}\u0000${h.faceIndex}`)
@@ -198,8 +233,16 @@ export function reselectReferences(
     const pool: PoolItem[] = [...held];
     let proven = 0;
     if (bootstrap) {
-      // Grown until stable, held references kept (face-reference-selection.ts).
+      // Admitted by proximity, grown until stable, held references kept, nothing dropped
+      // (face-reference-selection.ts). Nothing to admit: nothing is written, except that a member
+      // already at the minimum is marked so the tick stops asking.
       const grown = growUntilStable(held, opened, FACE_MAX_REFERENCES, bound);
+      if (grown.length === 0) {
+        if (held.length >= FACE_MIN_REFERENCES) {
+          markSelected(db, userId, now);
+        }
+        return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
+      }
       proven = grown.length;
       pool.push(...grown);
     } else {
@@ -210,7 +253,11 @@ export function reselectReferences(
         }
       }
     }
-    const chosen = new Set(selectVariedReferences(pool, FACE_MAX_REFERENCES).map((c) => c.key));
+    // Growth already holds exactly what it admitted (held + grown, within the cap); variety is the
+    // rule at the cap only.
+    const chosen = new Set(
+      (growing ? pool : selectVariedReferences(pool, FACE_MAX_REFERENCES)).map((c) => c.key)
+    );
     // What is about to be replaced is kept first, in this same transaction: the way back.
     saveSelectionLedger(db, userId, FACE_REFERENCE_SELECTION_VERSION, now);
     let dropped = 0;
@@ -236,6 +283,11 @@ export function reselectReferences(
       }
     }
     markSelected(db, userId, now);
+    // In the SAME transaction: the marker must mean "selected AND re-matched", so the re-match
+    // has its own durable mark, cleared when it completes (finishMemberRematch).
+    db.prepare(
+      'INSERT OR REPLACE INTO face_rematch_pending (user_id, model, since) VALUES (?, ?, ?)'
+    ).run(userId, FACE_MODEL, now);
     const references = held.length - dropped + added;
     log.info('member references re-selected', {
       bootstrap,
@@ -250,29 +302,59 @@ export function reselectReferences(
 }
 
 /**
- * One member's upgrade: the capture dates of their proven faces read from Immich OUTSIDE the
- * lock, then the re-selection and the member's re-match inside it. Throws when Immich cannot be
- * read: nothing is written, and the member is tried again on the next pass.
+ * PHASE 1 of a member's upgrade: the capture dates of their proven faces read from Immich OUTSIDE
+ * the lock, then the re-selection inside it (references, ledger, marker and the re-match's pending
+ * mark in one transaction). No re-match here: a pass selects EVERY member first and re-matches them
+ * after (see {@link runReferenceUpgrades}), so no decision depends on who came first. Throws when
+ * Immich cannot be read: nothing is written, and the member is tried again on the next pass.
  */
+export async function selectMemberReferences(
+  engine: FaceEngine,
+  userId: string,
+  fetchFn: typeof fetch
+): Promise<UpgradeOutcome> {
+  const growing = heldCount(engine.db, userId) < FACE_MAX_REFERENCES;
+  const assets = [...new Set(provenCandidates(engine.db, userId, growing).map((c) => c.assetId))];
+  const captureTimes = await assetCaptureTimes(fetchFn, assets);
+  return runExclusive(() => reselectReferences(engine, userId, captureTimes).outcome);
+}
+
+/**
+ * PHASE 2: the member's re-match, inside the lock, then the pending mark cleared in the same turn
+ * (a throw leaves it, and the next tick resumes). After the lock, a DEFAULT profile photo may have
+ * a better candidate now (a choice is never touched): best effort and logged, since the member's
+ * references and matches are already complete.
+ */
+export async function finishMemberRematch(
+  engine: FaceEngine,
+  userId: string,
+  fetchFn: typeof fetch
+): Promise<void> {
+  await runExclusive(async () => {
+    await rematchMember(engine, userId);
+    engine.db
+      .prepare('DELETE FROM face_rematch_pending WHERE user_id = ? AND model = ?')
+      .run(userId, FACE_MODEL);
+  });
+  try {
+    await ensureDefaultProfilePhoto(engine, userId, fetchFn);
+  } catch (e) {
+    log.error('default profile photo after a selection failed; the next answer retries it', {
+      userId,
+      message: (e as Error).message,
+    });
+  }
+}
+
+/** One member, both phases in a row: for an enrolment, where there is no other member to wait for. */
 export async function upgradeMemberReferences(
   engine: FaceEngine,
   userId: string,
   fetchFn: typeof fetch
 ): Promise<UpgradeOutcome> {
-  const bootstrap = heldCount(engine.db, userId) < FACE_MIN_REFERENCES;
-  const assets = [...new Set(provenCandidates(engine.db, userId, bootstrap).map((c) => c.assetId))];
-  const captureTimes = await assetCaptureTimes(fetchFn, assets);
-  const outcome = await runExclusive(async () => {
-    const result = reselectReferences(engine, userId, captureTimes);
-    if (result.outcome === 'upgraded') {
-      await rematchMember(engine, userId);
-    }
-    return result.outcome;
-  });
+  const outcome = await selectMemberReferences(engine, userId, fetchFn);
   if (outcome === 'upgraded') {
-    // New references, new matches: a DEFAULT profile photo may now have a better candidate (a
-    // choice is never touched). After the lock: it reads Immich.
-    await ensureDefaultProfilePhoto(engine, userId, fetchFn);
+    await finishMemberRematch(engine, userId, fetchFn);
   }
   return outcome;
 }
@@ -280,11 +362,15 @@ export async function upgradeMemberReferences(
 let running: Promise<void> | null = null;
 
 /**
- * Upgrade every member still below the current selection version, one after the other, each in
- * its own turn of the engine lock (so answers and ingestion run between two members). At most one
+ * Upgrade the members the tick owes ({@link membersToUpgrade}) in TWO PHASES, so the result does
+ * not depend on the order of the members: first every member's references are selected (one turn
+ * of the engine lock each, so answers and ingestion run between two), THEN every member whose
+ * re-match is pending ({@link membersPendingRematch}: those just selected AND any a crash left) is
+ * re-matched. Every re-match therefore decides against the FINAL reference sets of everyone, so two
+ * lookalikes bootstrapping in one pass get the same faces whichever id sorts first. At most one
  * pass at a time: a call while one runs returns it. A member's failure is logged and the pass goes
- * on; the member stays below the version, so the next pass tries again. Called from the ingestion
- * tick once the store is seeded: the tick decides WHEN, the selection rows decide WHO.
+ * on; the member stays owed, so the next pass tries again. Called from the ingestion tick once the
+ * store is seeded: the tick decides WHEN, the durable rows decide WHO. Silent when it did nothing.
  */
 export function runReferenceUpgrades(engine: FaceEngine, fetchFn: typeof fetch): Promise<void> {
   if (running) {
@@ -294,20 +380,20 @@ export function runReferenceUpgrades(engine: FaceEngine, fetchFn: typeof fetch):
     return Promise.resolve();
   }
   const members = membersToUpgrade(engine.db);
-  if (members.length === 0) {
+  if (members.length === 0 && membersPendingRematch(engine.db).length === 0) {
     return Promise.resolve();
   }
-  log.info('reference re-selection pass', { members: members.length });
   running = (async () => {
-    const counts: Record<UpgradeOutcome | 'failed', number> = {
+    const counts: Record<UpgradeOutcome | 'rematched' | 'failed', number> = {
       upgraded: 0,
       already: 0,
       no_references: 0,
+      rematched: 0,
       failed: 0,
     };
     for (const userId of members) {
       try {
-        counts[await upgradeMemberReferences(engine, userId, fetchFn)]++;
+        counts[await selectMemberReferences(engine, userId, fetchFn)]++;
       } catch (e) {
         counts.failed++;
         log.error("re-selecting a member's references failed; tried again next pass", {
@@ -316,7 +402,21 @@ export function runReferenceUpgrades(engine: FaceEngine, fetchFn: typeof fetch):
         });
       }
     }
-    log.info('reference re-selection pass done', counts);
+    for (const userId of membersPendingRematch(engine.db)) {
+      try {
+        await finishMemberRematch(engine, userId, fetchFn);
+        counts.rematched++;
+      } catch (e) {
+        counts.failed++;
+        log.error('re-matching a member after their selection failed; tried again next pass', {
+          userId,
+          message: (e as Error).message,
+        });
+      }
+    }
+    if (counts.upgraded > 0 || counts.rematched > 0 || counts.failed > 0) {
+      log.info('reference selection pass done', counts);
+    }
   })().finally(() => {
     running = null;
   });

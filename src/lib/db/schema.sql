@@ -286,6 +286,32 @@ CREATE TABLE IF NOT EXISTS face_match_ledger (
     FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
 );
 
+-- face_avatar_ledger (faces v2.1): the member's profile photo pointer just before a selection pass,
+-- because the pass may set a DEFAULT profile photo from the faces it makes theirs, which other
+-- members see. Restored by the undo only while the pointer is still a default (a choice is never
+-- overwritten). One row per member and version.
+CREATE TABLE IF NOT EXISTS face_avatar_ledger (
+    user_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    saved_at INTEGER NOT NULL,
+    photos_asset_id TEXT,
+    photos_asset_source TEXT,
+    PRIMARY KEY(user_id, version),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+
+-- face_rematch_pending (faces v2.1): a member whose references a selection pass rewrote and whose
+-- re-match has not finished. Written in the SAME transaction as the references and the selection
+-- marker, deleted when the re-match completes, so a crash in between is resumed by the next tick
+-- instead of leaving the member marked done and stale.
+CREATE TABLE IF NOT EXISTS face_rematch_pending (
+    user_id TEXT NOT NULL,
+    model TEXT NOT NULL,
+    since INTEGER NOT NULL,
+    PRIMARY KEY(user_id, model),
+    FOREIGN KEY(user_id) REFERENCES users(id_user) ON DELETE CASCADE
+);
+
 -- face_embeddings (every detected face, non-members included) is NOT in this file: it lives in
 -- data/faces.db (src/lib/db/face-database.ts), which no backup copies, because the faces are
 -- recomputed from the photographs. Only what concerns consenting members stays here.

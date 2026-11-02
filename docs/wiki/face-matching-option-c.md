@@ -862,6 +862,53 @@ consenting member: zero-visible count and median) once the pass has run; the pro
 sets this off is the deploy of the release itself (the selection pass runs from the ingestion
 tick), which the owner approves first.
 
+### The selection rule, as the owner fixed it on 2026-11-02 (grow, then propagate)
+
+This supersedes the "chosen for variety" and "marked, never re-selected" wording of the bootstrap
+section above wherever they disagree.
+
+**The phase is decided by the reference count at the start of each round, so it is deterministic and
+order-independent:**
+
+- **Below the cap (`FACE_MAX_REFERENCES`, 15): GROW.** Admit the most SIMILAR faces first, by
+  proximity to the selfie (ties on the key), under the drift guard (0.62 from the selfie). A pending
+  unambiguous `suggested` face may count as proof for the SELECTION only (this is the bootstrap).
+  Nothing is dropped, the selfie stays. Never farthest-point here: that picks the off-centre faces,
+  which is where a lookalike relative sits.
+- **At the cap: PROPAGATE.** Replace by VARIETY (`selectVariedReferences`, farthest-point) to cover
+  angles, lighting and age, and ONLY among PROVEN faces (confirmed, or `auto` decided for a member
+  already at 3 references or more), never among unproven suggestions: "farthest" is safe only on
+  faces known to be theirs. That was the v2 rule and it stays there.
+
+**The rule is permanent**: every member under `FACE_MIN_REFERENCES` is owed the bootstrap, now and at
+every future enrolment (`membersToUpgrade` selects them whatever their marker, except an undone one;
+the enrolment route chains the selection after the re-match; a new selfie clears an undone mark). A
+member with nothing within reach costs one read per tick and no write.
+
+**What the owner approved, and the residual risk.** A selfie alone is enough to start; the
+admission is by proximity, guarded. A lookalike who is not enrolled (a relative, a twin) and sits
+within 0.62 of the selfie can be admitted: named, not removable by a threshold, and the way back is
+the ledger below. **Crossing 3 references makes EVERY face within 0.5 `auto`, hence visible to the
+member without a question**, which is the point of the chantier and also the exposure.
+
+**Two phases per pass** (`runReferenceUpgrades`). All members' references are selected first (one
+engine-lock turn each), then every member whose re-match is owed (`face_rematch_pending`) is
+re-matched, so each re-match decides against the FINAL reference sets of everyone: two lookalikes
+bootstrapping in one pass get the same faces whichever id sorts first. The pending mark is written
+in the same transaction as the references and the marker and deleted when the re-match completes: a
+crash between the two is resumed by the next tick, never left "selected and stale".
+
+**The way back covers the profile photo and the promotions.** `face_avatar_ledger` keeps the
+member's profile photo pointer before the pass (a pass may set a DEFAULT one other members see);
+an undo restores it only while it is still a default, never over a choice. A face a confirmation
+promoted was a pending row (`decided_at` NULL), so the snapshot restore covers it. The undo marks
+the member `FACE_SELECTION_UNDONE` (-1): the tick never selects for them again until a new selfie.
+`settleWaitingAfterLearning` re-decides only the waiting faces within 0.5 of the NEW reference.
+
+**The selfie is always kept.** `growUntilStable` never drops a held reference; at the cap
+`selectVariedReferences` places the anchors (the selfie) first; renewal (`redundantVictim`) never
+picks an anchor; only a new enrolment replaces it (`enrolMember`).
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                                                                                      |

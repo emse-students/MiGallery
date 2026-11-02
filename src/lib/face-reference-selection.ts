@@ -60,22 +60,29 @@ export function usableVector(v: ArrayLike<number>): boolean {
 }
 
 /**
- * The references the BOOTSTRAP adds, grown until stable (owner, 2026-11-01: "jusqu'à stabiliser"):
- * a member under the minimum keeps no more than a selfie, and every face the matcher held back
- * for it waits for a human. Each round takes the candidates `within` the member's CURRENT
- * references (the caller's bound: the `auto` distance for a confirmed face, 0.4 for an unconfirmed
- * one), chosen for variety among them, held references kept first; a face that a previous round
- * made reachable is found by the next one.
+ * The references the BOOTSTRAP adds, grown until stable and ADMITTED BY PROXIMITY (owner,
+ * 2026-11-02: "au plus les 14 visages les PLUS PROCHES, s'ils sont assez proches"): a member under
+ * the minimum keeps no more than a selfie, and every face the matcher held back for it waits for a
+ * human. Each round takes the candidates `within` the member's CURRENT references (the caller's
+ * bound: the `auto` distance for a confirmed face, 0.4 for an unconfirmed one), CLOSEST TO THE
+ * SELFIE FIRST (ties on the key), as many as the cap leaves room for; a face that a previous round
+ * made reachable is found by the next one. Never farthest-point variety here: that picks the
+ * off-centre faces, which is where a lookalike relative sits (selectVariedReferences is for the
+ * members who already hold 3 references).
  *
- * TERMINATION IS A PROOF, NOT A CLOCK: a round that finds an eligible face adds at least one
- * reference (the held ones are anchors, `cap` is above their count), so the count strictly rises
- * towards `cap`; a round that finds none ends it. At most `cap` rounds, and never a held reference
- * dropped, so no round can undo the one before.
+ * THE SELFIE STAYS: the references the member held when it began are kept, always, and nothing is
+ * ever dropped or replaced in a round.
+ *
+ * TERMINATION IS A PROOF, NOT A CLOCK: a round with an eligible face adds at least one reference
+ * (the cap is above the held count), so the count strictly rises towards `cap`; a round with none
+ * ends it. At most `cap` rounds.
  *
  * THE DRIFT GUARD: every reference stays within FACE_SUGGEST_MAX_DISTANCE of the references the
  * member held when it began (their selfie), the farthest the model itself offers a face (the
  * 1e-4 false-match threshold, 0.617). Chaining 0.4 steps could otherwise walk to another face, with
- * no human to see it. Returns the ADDED candidates, in the order they were taken.
+ * no human to see it. THE RESIDUAL RISK, named: a lookalike (a relative, a twin) who is not enrolled
+ * and sits within the guard of the selfie can be admitted. Returns the ADDED candidates, in the
+ * order they were taken.
  */
 export function growUntilStable<T extends ReferenceItem>(
   held: ReadonlyArray<ReferenceItem>,
@@ -84,32 +91,28 @@ export function growUntilStable<T extends ReferenceItem>(
   within: (candidate: T, nearestReferenceDistance: number) => boolean
 ): T[] {
   const yardstick = held.map((h) => h.embedding);
-  const refs: ReferenceItem[] = held.map((h) => ({ ...h, anchor: true }));
-  let left = candidates.filter((c) => usableVector(c.embedding));
+  const vectors = held.map((h) => h.embedding);
+  let count = held.length;
+  let left = candidates
+    .filter((c) => usableVector(c.embedding))
+    .map((c) => ({ c, fromSelfie: minDistance(yardstick, c.embedding) }))
+    .filter((x) => x.fromSelfie <= FACE_SUGGEST_MAX_DISTANCE);
   const added: T[] = [];
-  while (refs.length < cap && left.length > 0) {
-    const vectors = refs.map((r) => r.embedding);
-    const eligible = left.filter(
-      (c) =>
-        within(c, minDistance(vectors, c.embedding)) &&
-        minDistance(yardstick, c.embedding) <= FACE_SUGGEST_MAX_DISTANCE
-    );
+  while (count < cap && left.length > 0) {
+    const eligible = left
+      .filter((x) => within(x.c, minDistance(vectors, x.c.embedding)))
+      .sort((a, b) => a.fromSelfie - b.fromSelfie || (a.c.key < b.c.key ? -1 : 1));
     if (eligible.length === 0) {
       break;
     }
-    const known = new Set(refs.map((r) => r.key));
-    const taken = selectVariedReferences([...refs, ...eligible], cap).filter(
-      (c) => !known.has(c.key)
-    ) as T[];
-    if (taken.length === 0) {
-      break;
+    const taken = eligible.slice(0, cap - count);
+    for (const x of taken) {
+      vectors.push(x.c.embedding);
+      added.push(x.c);
     }
-    const takenKeys = new Set(taken.map((t) => t.key));
-    for (const t of taken) {
-      refs.push({ ...t, anchor: true });
-      added.push(t);
-    }
-    left = left.filter((c) => !takenKeys.has(c.key));
+    count += taken.length;
+    const takenKeys = new Set(taken.map((x) => x.c.key));
+    left = left.filter((x) => !takenKeys.has(x.c.key));
   }
   return added;
 }

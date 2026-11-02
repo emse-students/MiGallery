@@ -140,6 +140,8 @@ export function eraseFaceReferences(db: Db, userId: string): number {
   // And so does the ledger of what a selection pass replaced: sealed copies of the same templates.
   db.prepare('DELETE FROM face_reference_ledger WHERE user_id = ?').run(userId);
   db.prepare('DELETE FROM face_match_ledger WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM face_avatar_ledger WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM face_rematch_pending WHERE user_id = ?').run(userId);
   log.info('references erased', { count: result.changes });
   return result.changes;
 }

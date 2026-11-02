@@ -29,7 +29,13 @@
 
 import type { DatabaseInstance } from '#lib/db/database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
-import { FACE_MAX_REFERENCES, FACE_MODEL } from '#lib/face-embedding.ts';
+import {
+  FACE_AUTO_MAX_DISTANCE,
+  FACE_MAX_REFERENCES,
+  FACE_MODEL,
+  FACE_SELECTION_UNDONE,
+  cosineDistance,
+} from '#lib/face-embedding.ts';
 import { decideLearning, learnable, redundantVictim } from '#lib/face-reference-selection.ts';
 import { recordFaceConsent } from '#lib/server/face-consent.ts';
 import {
@@ -101,6 +107,10 @@ export function enrolMember(
       // The cap is held above; reaching this means the table and this code disagree.
       throw new Error('the selfie reference could not be stored');
     }
+    // A new selfie ends an admin's undo of the selection pass: the member is owed it again.
+    db.prepare(
+      'DELETE FROM face_reference_selection WHERE user_id = ? AND model = ? AND version = ?'
+    ).run(userId, FACE_MODEL, FACE_SELECTION_UNDONE);
     const held = referenceCount(db, userId);
     log.info('member enrolled', { replaced, evicted, references: held });
     return held;
@@ -228,7 +238,13 @@ export async function answerFace(
       }
     });
     log.info('confirmed face learned', { renewal: decision.kind === 'replace' });
-    settleWaitingAfterLearning(engine, userId, options.promoted, options.released);
+    settleWaitingAfterLearning(
+      engine,
+      userId,
+      opened.embedding,
+      options.promoted,
+      options.released
+    );
     return 'learned';
   });
   if (outcome === 'learned' || rematch) {
@@ -297,10 +313,19 @@ function afterRejection(
 function settleWaitingAfterLearning(
   engine: FaceEngine,
   userId: string,
+  learned: ArrayLike<number>,
   promoted?: FaceKey[],
   released?: FaceKey[]
 ): void {
-  const waiting = waitingFaces(engine.db, userId);
+  // Only the faces the NEW reference can move: those within the `auto` distance of it. Any other
+  // waiting face is as far from the member's references as before, so re-deciding it is work
+  // (and a screen that shifts under the member) for nothing.
+  const reachable = new Set(
+    loadFaceEmbeddings(engine.faceDb, engine.key, waitingFaces(engine.db, userId))
+      .filter((f) => cosineDistance(learned, f.embedding) <= FACE_AUTO_MAX_DISTANCE)
+      .map(keyOf)
+  );
+  const waiting = waitingFaces(engine.db, userId).filter((f) => reachable.has(keyOf(f)));
   if (waiting.length === 0) {
     return;
   }
