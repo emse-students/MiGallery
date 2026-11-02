@@ -60,12 +60,25 @@ of the 901 have a latitude in the database). The writer was not identified.
 
 - The images are intact: all 901 decode, and 30 sampled against Immich's preview differ
   by 0.24 out of 255 on average.
-- Immich's own integrity job already reports exactly these 901 as `checksum_mismatch`
-  (since 2026-09-15).
-- The population is frozen: one change-time hour, one upload day.
-- The script refuses them on purpose (disk SHA-1 differs from the database). Fixing
-  them means writing the new checksum and size into the Immich database, then
-  recompressing; that write is the owner's decision, not the script's.
+- Immich's own integrity job reported exactly these 901 as `checksum_mismatch`
+  (since 2026-09-15). The population was frozen: one change-time hour, one upload day.
+- The script refuses them on purpose (disk SHA-1 differs from the database).
+
+**Resolution, decided by the owner on 2026-11-02 and done the same night**: re-baseline,
+then recompress.
+
+1. The 901 ids (an allowlist file, never a predicate re-evaluated at write time) and
+   their old checksum and size were saved to a restorable SQL file first.
+2. Preconditions checked per file: still a mismatch, larger than recorded, valid JPEG,
+   untouched since the diagnosed rewrite.
+3. ONE transaction set `asset.checksum` and `asset_exif.fileSizeInByte` from the disk
+   file, each update asserted to hit exactly one row. Verified afterwards: 901 of 901
+   rows equal the disk.
+4. The normal swap then ran on the same allowlist (`--ids-file`, a dry run first):
+   901 swapped, 0 refused, 1.16 GB to 1.09 GB (these files were already progressive
+   JPEGLI, so the gain is small; the point was to end the difference).
+5. Immich's integrity report keeps its 901 `checksum_mismatch` rows until its own job
+   runs again (last run 2026-09-16); a re-baseline alone does not clear them.
 
 ## Rule for any future bulk write to originals
 
