@@ -185,7 +185,7 @@ CREATE INDEX IF NOT EXISTS idx_face_consents_user ON face_consents(user_id);
 -- is ON (database.ts) so a deleted row is overwritten, not just unlinked.
 --
 -- face_references: up to 15 reference embeddings of a consenting member (source: 'selfie' |
--- 'photo' (a face they confirmed) | 'matched' (an `auto` face proven theirs, faces v2) | 'admin'
+-- 'photo' (a face they confirmed) | 'matched' (any face a faces v2 pass admitted, `auto`-proven or confirmed) | 'admin'
 -- | 'seed', the last written only by the A7 seed). `asset_id`/`face_index` name the stored face a
 -- reference was taken from (NULL for a selfie and for the A7 seed's), `taken_at` the capture date
 -- of its photo (ms; the selfie's is its enrolment), which renewal reads. The trigger holds the cap

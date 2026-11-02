@@ -91,6 +91,7 @@ export function enrolMember(
       .prepare("DELETE FROM face_references WHERE user_id = ? AND model = ? AND source = 'selfie'")
       .run(userId, FACE_MODEL).changes;
     let evicted = 0;
+    let evictedSealed: Uint8Array | null = null;
     if (referenceCount(db, userId) >= FACE_MAX_REFERENCES) {
       const held = loadReferenceItems(db, key, userId);
       const victim = redundantVictim([
@@ -98,6 +99,12 @@ export function enrolMember(
         { key: 'selfie', embedding: selfie, takenAt: now, anchor: true },
       ]);
       const row = held.find((h) => h.key === victim?.key);
+      evictedSealed =
+        (
+          db.prepare('SELECT sealed FROM face_references WHERE id = ?').get(row?.id ?? -1) as {
+            sealed: Uint8Array;
+          } | null
+        )?.sealed ?? null;
       if (!row || !deleteFaceReference(db, userId, row.id)) {
         throw new Error('no reference could make room for the selfie');
       }
@@ -108,14 +115,38 @@ export function enrolMember(
       // The cap is held above; reaching this means the table and this code disagree.
       throw new Error('the selfie reference could not be stored');
     }
-    {
-      // ANY selfie insert ends the snapshot, replaced or first: a snapshot taken before it holds no
-      // selfie (or the replaced one), and an undo would delete the new one. A selfie is a new
-      // start; the next pass keeps a new snapshot.
+    if (replaced > 0) {
+      // A REPLACEMENT drops the snapshot (owner, 2026-11-02): it holds the selfie that was just
+      // replaced, an undo would give it back and delete the new one. The next pass keeps a new one.
       for (const table of ['face_reference_ledger', 'face_match_ledger']) {
         db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND model = ?`).run(userId, FACE_MODEL);
       }
       db.prepare('DELETE FROM face_avatar_ledger WHERE user_id = ?').run(userId);
+    } else {
+      // A FIRST selfie joins the snapshot a seed-era pass kept, so an undo returns the seeds PLUS
+      // the selfie (and the pass stays undoable). A reference the selfie evicted leaves it too, or
+      // the restored set would pass the cap.
+      const version = (
+        db
+          .prepare(
+            'SELECT MAX(version) AS v FROM face_reference_ledger WHERE user_id = ? AND model = ?'
+          )
+          .get(userId, FACE_MODEL) as { v: number | null }
+      ).v;
+      if (version !== null) {
+        if (evictedSealed) {
+          db.prepare(
+            `DELETE FROM face_reference_ledger WHERE id = (SELECT id FROM face_reference_ledger
+               WHERE user_id = ? AND model = ? AND version = ? AND sealed = ? LIMIT 1)`
+          ).run(userId, FACE_MODEL, version, evictedSealed);
+        }
+        db.prepare(
+          `INSERT INTO face_reference_ledger (user_id, model, version, saved_at, source, sealed,
+             created_at, asset_id, face_index, taken_at)
+           SELECT user_id, model, ?, ?, source, sealed, created_at, asset_id, face_index, taken_at
+             FROM face_references WHERE user_id = ? AND model = ? AND source = 'selfie'`
+        ).run(version, now, userId, FACE_MODEL);
+      }
     }
     // A new selfie ends an admin's undo of the selection pass: the member is owed it again.
     db.prepare(
@@ -220,6 +251,14 @@ export async function answerFace(
       return 'confirmed';
     }
     const held = loadReferenceItems(engine.db, engine.key, userId);
+    // A face the member already holds as a reference (a pass admitted it as `matched`) is not
+    // learned a second time: a duplicate would take a slot and weigh double. Its source stays
+    // `matched`, so a confirmation does not turn it into an anchor of a no-selfie member (the
+    // ratchet the anchors exist to prevent).
+    if (held.some((h) => h.assetId === face.assetId && h.faceIndex === face.faceIndex)) {
+      log.info('confirmed face already held as a reference; nothing to learn');
+      return 'confirmed';
+    }
     const decision = decideLearning(
       held,
       {

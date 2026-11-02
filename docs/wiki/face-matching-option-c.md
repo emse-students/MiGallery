@@ -916,9 +916,13 @@ confirmed - never to a reference a pass added. This persists with no extra colum
 the source a pass writes for EVERY face it admits, confirmed or not (the member's own later
 confirmations are `photo`), and nothing else ever uses it.
 
-**Owner decision, 2026-11-02 (direct): inserting a selfie (a first one or a replacement) DROPS the member's ledger snapshot**
+**Owner decision, 2026-11-02 (direct): REPLACING the selfie DROPS the member's ledger snapshot**
 (`enrolMember`, references, matches and the profile photo pointer): an undo then returns to the NEW
 selfie, and the replaced selfie's vector is no longer kept.
+A FIRST selfie (a seed member who had none) does not drop it: the selfie joins the snapshot, a
+reference it evicted at the cap leaves it, so an undo returns the seeds PLUS the selfie. A face
+the member confirms while a pass already holds it as a reference is not learned twice (its source
+stays `matched`, so no confirmation turns it into an anchor).
 
 **A member the pass cannot help costs no Immich call and no lock turn**: the tick previews the
 selection (a read of the store) and asks Immich for capture dates only of the faces it would

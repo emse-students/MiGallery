@@ -24,8 +24,9 @@ const log = createLogger('face-references');
 type Db = ReturnType<typeof getDatabase>;
 
 /**
- * How a reference came to be. `photo` is a face the member confirmed; `matched` an `auto` face
- * proven theirs, chosen by the faces v2 re-selection (face-reference-upgrade.ts); `seed` one the
+ * How a reference came to be. `photo` is a face the member confirmed and learned; `matched` ANY face
+ * a faces v2 pass admitted (face-reference-upgrade.ts), `auto`-proven or confirmed - what a pass
+ * wrote, so a no-selfie member's anchors are the references that are not `matched`; `seed` one the
  * A7 seed chose from the member's own Immich person - told apart so a failed seed's are wiped by
  * the next `begin` without touching any the member gave.
  */

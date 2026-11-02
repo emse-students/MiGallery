@@ -1830,18 +1830,6 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       expect(refsOf().map((r) => r.asset_id)).not.toContain('far');
     });
 
-    it('drops the snapshot of a seed member who then enrols a FIRST selfie', async () => {
-      addUser('alice');
-      refs.addFaceReference(db(), key, 'alice', 'seed', atDistance(ALICE, synthetic(995), 0.1));
-      refs.addFaceReference(db(), key, 'alice', 'seed', atDistance(ALICE, synthetic(996), 0.1));
-      await storeFaces({ n1: atDistance(ALICE, synthetic(997), 0.3) });
-      upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
-      expect(ledger.ledgerCounts(db()).members).toBe(1);
-      enrolment.enrolMember(engine(), 'alice', atDistance(ALICE, synthetic(998), 0.05));
-      // An undo would restore the seeds only and delete the selfie.
-      expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
-    });
-
     it('gives up quietly, writing nothing, when faces keep arriving between the reads', async () => {
       addUser('alice');
       enrolment.enrolMember(engine(), 'alice', ALICE);
@@ -2020,6 +2008,60 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
         const result = await undo();
         expect(result?.conflicts).toBe(1);
         expect(matches().find((m) => m.asset_id === 'near30')?.user_id).toBe('bob');
+      });
+
+      it('counts no conflict for a snapshot face the member answered after the pass', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        const held = refsOf().filter((r) => r.asset_id !== null).length;
+        const face = { assetId: 'near30', faceIndex: 0 };
+        // Held as a reference by the pass: confirming it must not learn it a second time.
+        expect(refsOf().map((r) => r.asset_id)).toContain('near30');
+        expect(await enrolment.answerFace(engine(), 'alice', face, 'confirm')).toBe('confirmed');
+        expect(refsOf().filter((r) => r.asset_id !== null)).toHaveLength(held);
+        expect(refsOf().find((r) => r.asset_id === 'near30')?.source).toBe('matched');
+        const result = await undo();
+        expect(result?.conflicts).toBe(0);
+        // The member's answer stays as it was recorded.
+        expect(bands().near30).toBe('suggested/confirmed');
+      });
+
+      it('returns the seeds PLUS the selfie when a seed member enrols a FIRST selfie after a pass', async () => {
+        addUser('alice');
+        refs.addFaceReference(db(), key, 'alice', 'seed', atDistance(ALICE, synthetic(1101), 0.1));
+        refs.addFaceReference(db(), key, 'alice', 'seed', atDistance(ALICE, synthetic(1102), 0.1));
+        await storeFaces({ n1: atDistance(ALICE, synthetic(1103), 0.3) });
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        enrolment.enrolMember(engine(), 'alice', atDistance(ALICE, synthetic(1104), 0.05));
+        expect(ledger.ledgerCounts(db()).references).toBe(3);
+        const result = await undo();
+        expect(result?.references).toBe(3);
+        expect(
+          refsOf()
+            .map((r) => r.source)
+            .sort()
+        ).toEqual(['seed', 'seed', 'selfie']);
+        expect(upgrade.membersToUpgrade(db())).toEqual([]);
+      });
+
+      it('keeps the restored set within the cap when the first selfie evicted a reference', async () => {
+        addUser('alice');
+        for (let i = 0; i < embedding.FACE_MAX_REFERENCES; i++) {
+          refs.addFaceReference(
+            db(),
+            key,
+            'alice',
+            'seed',
+            atDistance(ALICE, synthetic(1120 + i), 0.1)
+          );
+        }
+        // At the cap, unmarked: the pass propagates once and keeps a snapshot.
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        enrolment.enrolMember(engine(), 'alice', atDistance(ALICE, synthetic(1150), 0.05));
+        expect(refsOf()).toHaveLength(embedding.FACE_MAX_REFERENCES);
+        const result = await undo();
+        expect(result?.references).toBe(embedding.FACE_MAX_REFERENCES);
+        expect(refsOf().filter((r) => r.source === 'selfie')).toHaveLength(1);
       });
 
       it('goes with the member on withdrawal, and the whole ledger goes on a purge', async () => {
