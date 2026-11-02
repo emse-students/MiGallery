@@ -13,8 +13,8 @@ corresponding Immich UUIDs.
 A second SQLite file, `data/faces.db` (`FACE_DATABASE_PATH`,
 `src/lib/db/face-database.ts`), holds the face store: one sealed embedding per
 detected face of the whole library. It is kept apart so that no backup copies it
-([the face tables](#the-face-tables-two-files)). Until lot A8, Immich still holds
-its own faces, persons and embeddings as well.
+([the face tables](#the-face-tables-two-files)). Until lot A8 ran (2026-11-01), Immich
+also held its own faces, persons and embeddings; A8 deleted them.
 
 ## Tables
 
@@ -167,6 +167,7 @@ references, matches and consents are in the backups and **`data/faces.db` is in 
 store is seeded or recomputed from the photographs ([face-matching-option-c](face-matching-option-c.md#1-what-is-decided),
 about 22 hours of the model service once Immich no longer holds the vectors). The face crops under
 `data/cache/` are not backed up either. Media is not backed up here - it lives in Immich on the
-RAID and is handled by Immich's own backup; the offsite Immich database dumps (about 7 days) hold
-Immich's own faces, persons and embeddings until lot A8 deletes them (an encrypted copy of what A8
-deletes is kept 30 days, then deleted).
+RAID and is handled by Immich's own backup; the offsite Immich database dumps (about 7 days) held
+Immich's own faces, persons and embeddings until lot A8 deleted them on 2026-11-01 (the last dump
+holding them is gone offsite on 2026-11-09 and on the host on 2026-11-15; an encrypted copy of what
+A8 deleted is deleted on 2026-12-01).

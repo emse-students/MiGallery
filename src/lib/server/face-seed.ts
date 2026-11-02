@@ -1,7 +1,7 @@
 /**
  * Lot A7: seed the face store from the vectors Immich already computed, and carry the members'
  * existing links (`users.photos_id`, an Immich person they linked to themselves) over to
- * references and matches. Run ONCE, before the cutover (lot A8) deletes Immich's faces.
+ * references and matches. Run ONCE, before the cutover (lot A8, 2026-11-01) deleted Immich's faces.
  *
  * WHY NO RECOMPUTATION. Immich's buffalo_l vectors are the same model the store uses; re-embedding
  * the archive would cost about 22 hours of the model service for the same numbers. The seed reads

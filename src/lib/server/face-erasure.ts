@@ -4,7 +4,7 @@
  * THE CONTRACT (option C, docs/wiki/face-matching-option-c.md). What ties a face to a member is
  * MiGallery's own state: the member's sealed reference templates (`face_references`), the faces
  * given to them or answered by them (`face_matches`), their consent record, and - until lot A8
- * deletes Immich's own faces and persons - the legacy `users.photos_id` link and the person's NAME
+ * deleted Immich's own faces and persons on 2026-11-01 - the legacy `users.photos_id` link and the person's NAME
  * and birth date in Immich. Withdrawal removes all of it. The store of every face
  * (`data/faces.db`) is not the member's: it goes with each photo, never with a withdrawal.
  *
