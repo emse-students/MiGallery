@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   decideLearning,
+  growUntilStable,
   redundantVictim,
   selectVariedReferences,
   type ReferenceItem,
@@ -238,5 +239,106 @@ describe('the confirmation list: optimistic removal, rollback in place', () => {
     // The list got shorter meanwhile: at the end.
     expect(restoreAt([], list[1], 1)).toEqual([list[1]]);
     expect(restoreAt(list, list[1], 0)).toEqual(list);
+  });
+});
+
+describe('growUntilStable (the bootstrap, owner 2026-11-01: "jusqu\'à stabiliser")', () => {
+  const within = (_c: ReferenceItem, d: number) => d <= 0.4;
+
+  it('reaches a face only a previous round made reachable, and stops at the drift guard', () => {
+    const selfie = item('selfie', 0, null, true);
+    const step = angleOf(0.2);
+    // A is 0.1 from the selfie, B 0.2 beyond A (0.54 from the selfie, so out of reach at the start),
+    // C 0.2 beyond B (past 0.62 from the selfie: the guard, though 0.2 from B).
+    const a = item('a', angleOf(0.1), null);
+    const b = item('b', angleOf(0.1) + step, null);
+    const c = item('c', angleOf(0.1) + 2 * step, null);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeGreaterThan(0.4);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeLessThanOrEqual(0.62);
+    expect(cosineDistance(selfie.embedding, c.embedding)).toBeGreaterThan(0.62);
+    const added = growUntilStable([selfie], [c, b, a], 15, within);
+    expect(added.map((x) => x.key)).toEqual(['a', 'b']);
+  });
+
+  it('holds the bound on every candidate and never drops a held reference', () => {
+    const selfie = item('selfie', 0, null, true);
+    const far = item('far', angleOf(0.45), null);
+    expect(growUntilStable([selfie], [far], 15, within)).toEqual([]);
+    expect(growUntilStable([selfie], [], 15, within)).toEqual([]);
+  });
+
+  it('stops at the cap, whatever is left to take', () => {
+    const held = Array.from({ length: 14 }, (_, i) => item(`h${i}`, i * 0.001, null, i === 0));
+    const near = Array.from({ length: 5 }, (_, i) => item(`n${i}`, angleOf(0.05) + i * 0.01, null));
+    const added = growUntilStable(held, near, 15, within);
+    expect(added).toHaveLength(1);
+  });
+
+  it('takes the closest faces first: a far cluster that passes the guard waits while closer ones exist', () => {
+    const selfie = item('selfie', 0, null, true);
+    const near = [item('n1', angleOf(0.05), null), item('n2', angleOf(0.08), null)];
+    const far = [item('f1', angleOf(0.36), null), item('f2', angleOf(0.37), null)];
+    const added = growUntilStable([selfie], [...far, ...near], 3, within);
+    expect(added.map((x) => x.key)).toEqual(['n1', 'n2']);
+  });
+
+  it('measures the guard to the SELFIE, so a reference admitted far out does not move it', () => {
+    const selfie = item('selfie', 0, null, true);
+    // A reference held at 0.55 from the selfie (a pass admitted it), and a face 0.3 beyond it:
+    // within 0.4 of a held reference, but past the 0.62 guard from the selfie.
+    const outer = item('outer', angleOf(0.55), null);
+    const beyond = item('beyond', angleOf(0.55) + angleOf(0.3), null);
+    expect(cosineDistance(selfie.embedding, beyond.embedding)).toBeGreaterThan(0.62);
+    expect(growUntilStable([selfie, outer], [beyond], 15, within)).toEqual([]);
+    // Without a selfie there is no anchor: every held reference is the yardstick.
+    const a = item('a', 0, null);
+    const b = item('b', angleOf(0.55), null);
+    expect(growUntilStable([a, b], [beyond], 15, within).map((x) => x.key)).toEqual(['beyond']);
+  });
+
+  it('with room to spare takes every reachable face inside the guard, near and far alike', () => {
+    const selfie = item('selfie', 0, null, true);
+    const cands = [
+      item('n1', angleOf(0.05), null),
+      item('n2', angleOf(0.08), null),
+      item('f1', angleOf(0.36), null),
+      item('f2', angleOf(0.37), null),
+      item('out', angleOf(0.7), null),
+    ];
+    const added = growUntilStable([selfie], cands, 15, within);
+    expect(added.map((x) => x.key)).toEqual(['n1', 'n2', 'f1', 'f2']);
+  });
+
+  it('ranks by distance to the SELFIE, not to the references already held (cap slicing)', () => {
+    const selfie = item('selfie', 0, null, true);
+    const inner = item('inner', angleOf(0.3), null);
+    // `far` lies 0.01 from a held reference but 0.34 from the selfie; `close` 0.1 from the selfie.
+    const far = item('far', angleOf(0.3) + angleOf(0.01), null);
+    const close = item('close', angleOf(0.1), null);
+    expect(growUntilStable([selfie, inner], [far, close], 3, within).map((x) => x.key)).toEqual([
+      'close',
+    ]);
+  });
+
+  it('stops an UNPROVEN chain at the guard the caller sets (0.5, owner 2026-11-02)', () => {
+    const selfie = item('selfie', 0, null, true);
+    const a = item('a', angleOf(0.3), null);
+    const b = item('b', angleOf(0.55), null);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeGreaterThan(0.5);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeLessThanOrEqual(0.62);
+    expect(
+      growUntilStable([selfie], [a, b], 15, within, { guard: () => 0.5 }).map((x) => x.key)
+    ).toEqual(['a']);
+    expect(growUntilStable([selfie], [a, b], 15, within).map((x) => x.key)).toEqual(['a', 'b']);
+  });
+
+  it('gives the same set whatever the order of the candidates', () => {
+    const selfie = item('selfie', 0, null, true);
+    const cands = Array.from({ length: 12 }, (_, i) =>
+      item(`c${i}`, angleOf(0.02 + i * 0.03), i * 1000)
+    );
+    const keys = (list: readonly ReferenceItem[]) =>
+      growUntilStable([selfie], list, 15, within).map((x) => x.key);
+    expect(keys(shuffled(cands, 7))).toEqual(keys(cands));
   });
 });

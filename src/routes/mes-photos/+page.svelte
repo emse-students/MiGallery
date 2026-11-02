@@ -29,8 +29,14 @@
   let showProfileIncitation = $state(false);
 
   let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
-  /** How many photos wait for the viewer's yes or no (their own view only). */
-  let toConfirm = $derived(isViewingOwnPhotos ? (data.ownFace?.toConfirm ?? 0) : 0);
+  /**
+   * How many photos wait for the viewer's yes or no (their own view only). Read from the layout,
+   * the one number the menu's badge shows too, which the confirmation screen refreshes after each
+   * answer: the banner is never older than the last one.
+   */
+  let toConfirm = $derived(
+    isViewingOwnPhotos ? (page.data.faceToConfirm ?? data.ownFace?.toConfirm ?? 0) : 0
+  );
 
   function openChangePhotoModal() {
     showChangePhotoModal = true;

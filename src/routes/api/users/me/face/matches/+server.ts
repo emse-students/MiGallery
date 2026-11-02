@@ -50,7 +50,10 @@ export const GET: RequestHandler = async (event) => {
  * its photo's capture date is read from Immich first, outside the engine lock, for renewal (a
  * failed read is logged and the face ranks oldest). A rejection keeps the face as a negative
  * example, hands it to the next member, and answers `released`: the other faces waiting for this
- * member that the negative now withholds from them (the screen drops them).
+ * member that the negative now withholds from them (the screen drops them). A confirmation that
+ * became a reference answers `promoted`: the faces waiting for them that it now makes theirs
+ * without a question (they are in "Mes photos"; the screen drops them too), and `released` for
+ * any that went to another member.
  */
 export const POST: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');
@@ -97,9 +100,11 @@ export const POST: RequestHandler = async (event) => {
     }
   }
   const released: FaceKey[] = [];
+  const promoted: FaceKey[] = [];
   const outcome = await answerFace(engine, userId, { assetId, faceIndex }, verdict, {
     takenAt,
     released,
+    promoted,
   });
   if (outcome === 'not_held') {
     log.info('face answer refused: not held');
@@ -115,5 +120,6 @@ export const POST: RequestHandler = async (event) => {
     success: true,
     outcome,
     released: released.map((f) => ({ asset_id: f.assetId, face_index: f.faceIndex })),
+    promoted: promoted.map((f) => ({ asset_id: f.assetId, face_index: f.faceIndex })),
   });
 };

@@ -297,7 +297,7 @@ describe('POST /api/users/me/face/matches', () => {
     const res = await answer({ asset_id: 'a', face_index: 0, verdict: 'reject' });
     expect(res).toEqual({
       status: 200,
-      body: { success: true, outcome: 'rejected', released: [] },
+      body: { success: true, outcome: 'rejected', released: [], promoted: [] },
     });
     expect(db().prepare('SELECT state FROM face_matches').get()).toEqual({ state: 'rejected' });
   });

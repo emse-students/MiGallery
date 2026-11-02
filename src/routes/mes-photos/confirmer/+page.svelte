@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { Check, X, CircleCheckBig, ArrowLeft } from '@lucide/svelte';
+  import { invalidate } from '$app/navigation';
+  import { Check, X, CircleCheckBig, ArrowLeft, Maximize2 } from '@lucide/svelte';
+  import FacePhotoDialog from '#lib/components/FacePhotoDialog.svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import PageHeader from '#lib/components/PageHeader.svelte';
   import LoadingState from '#lib/components/LoadingState.svelte';
@@ -28,6 +30,8 @@
   /** The faces whose answer is on its way, so a double tap answers once. */
   let answering = $state<string[]>([]);
   let grid: HTMLUListElement | undefined = $state();
+  /** The face whose whole photo is open (null: none). */
+  let opened = $state<Suggestion | null>(null);
 
   async function load() {
     loading = true;
@@ -54,7 +58,9 @@
    * Send one answer through the one answer route (A5). The tile leaves the list AT ONCE; a refusal
    * puts it back where it was. 404 means the face was answered or given to someone else
    * meanwhile: it stays gone. A rejection may release other faces (the new negative example
-   * withholds them from the member): they leave the list too. Returns whether it was recorded.
+   * withholds them from the member): they leave the list too, as do the faces a confirmation
+   * makes theirs without a question (`promoted`, in "Mes photos" now). Returns whether it was
+   * recorded.
    */
   async function answer(item: Suggestion, verdict: Verdict): Promise<boolean> {
     const key = answerKey(item);
@@ -75,11 +81,20 @@
         toast.error(m.mpc_answer_error());
         return false;
       }
+      // Recorded (or already settled elsewhere): the menu's badge and the "Mes photos" banner read
+      // the layout's count, so they are refreshed now, not at the next full page load.
+      void invalidate('app:face-status');
       if (res.ok) {
-        const body = (await res.json()) as { released?: Suggestion[] };
+        const body = (await res.json()) as { released?: Suggestion[]; promoted?: Suggestion[] };
         const released = (body.released ?? []).map(answerKey);
+        const promoted = (body.promoted ?? []).map(answerKey);
+        if (released.length > 0 || promoted.length > 0) {
+          suggestions = removeKeys(suggestions, [...released, ...promoted]);
+        }
+        if (promoted.length > 0) {
+          toast.info(m.mpc_promoted({ count: promoted.length }));
+        }
         if (released.length > 0) {
-          suggestions = removeKeys(suggestions, released);
           toast.info(m.mpc_released({ count: released.length }));
         }
       }
@@ -121,6 +136,9 @@
     } else if (key === 'n' || key === 'delete' || key === 'backspace') {
       event.preventDefault();
       void answerAt(index, 'reject');
+    } else if (key === ' ' || key === 'v') {
+      event.preventDefault();
+      opened = suggestions[index] ?? null;
     } else if (
       key === 'arrowright' ||
       key === 'arrowdown' ||
@@ -196,6 +214,16 @@
               faceIndex={item.face_index}
               alt={m.mpc_face_alt()}
             />
+            <button
+              type="button"
+              class="confirm-open"
+              tabindex="-1"
+              aria-label={m.mpc_open_photo()}
+              title={m.mpc_open_photo()}
+              onclick={() => (opened = item)}
+            >
+              <Maximize2 size={16} aria-hidden="true" />
+            </button>
           </div>
           <div class="confirm-actions">
             <button
@@ -224,6 +252,16 @@
     </ul>
   {/if}
 </div>
+
+<FacePhotoDialog
+  item={opened}
+  onClose={() => (opened = null)}
+  onAnswer={(verdict) => {
+    const item = opened;
+    opened = null;
+    if (item) void answer(item, verdict);
+  }}
+/>
 
 <style>
   .confirm-main {
@@ -297,6 +335,27 @@
   .confirm-face {
     position: relative;
     aspect-ratio: 1;
+  }
+
+  /* Opens the whole photo. Small and in the corner so the face stays the target of the eye; the
+     whole tile is not the button, a stray tap on it must never answer or open by accident. */
+  .confirm-open {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: none;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.55);
+    color: white;
+  }
+
+  .confirm-open:hover {
+    background: rgb(0 0 0 / 0.75);
   }
 
   /* Two answers side by side. The label sits UNDER its icon and may wrap, so neither is ever

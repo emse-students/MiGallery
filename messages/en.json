@@ -918,7 +918,7 @@
   "mpc_not_me": "Not me",
   "mpc_answer_error": "Your answer could not be saved. Try again.",
   "mpc_order_hint": "Closest matches first.",
-  "mpc_keys_hint": "Keyboard: Y or Enter for \"It's me\", N or Delete for \"Not me\", arrows to move.",
+  "mpc_keys_hint": "Keyboard: Y or Enter for \"It's me\", N or Delete for \"Not me\", Space to see the whole photo, arrows to move.",
   "mpc_card_label": "Photo {index} of {total}",
   "mpc_released": [
     {
@@ -930,6 +930,21 @@
       }
     }
   ],
+  "mpc_promoted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "One similar photo joined your photos.",
+        "countPlural=*": "{count} similar photos joined your photos."
+      }
+    }
+  ],
+  "mpc_open_photo": "See the whole photo",
+  "mpc_dialog_label": "Whole photo",
+  "mpc_dialog_photo_alt": "The whole photo containing the proposed face",
+  "mpc_dialog_face": "Proposed face",
+  "mpc_dialog_photo_failed": "Photo unavailable",
   "mpc_crop_missing": "Picture unavailable",
   "mpc_crop_failed": "Picture not loaded",
   "mpc_crop_retry": "Retry",

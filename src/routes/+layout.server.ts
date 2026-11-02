@@ -15,7 +15,7 @@ function normalizeRole(role: UserRow['role']): SessionRole {
   return role === 'admin' || role === 'mitviste' || role === 'user' ? role : 'user';
 }
 
-function toSessionUser(user: UserRow): SessionPageUser {
+function toSessionUser(user: UserRow, faceEnrolled: boolean): SessionPageUser {
   return {
     id_user: user.id_user,
     name: user.name,
@@ -23,7 +23,7 @@ function toSessionUser(user: UserRow): SessionPageUser {
     last_name: user.last_name,
     // Whether face matching is on for them (lot A6): enrolled, or holding photos. The Immich
     // person link (`photos_id`) no longer decides anything a page shows.
-    face_enrolled: faceStatus(getDatabase(), user.id_user).enrolled,
+    face_enrolled: faceEnrolled,
     photos_asset_id: user.photos_asset_id,
     role: normalizeRole(user.role),
     promo: user.promo,
@@ -47,7 +47,16 @@ export const load: LayoutServerLoad = (event) => {
       return { session: null, firstPaint };
     }
 
-    return { session: { user: toSessionUser(session.user) }, firstPaint };
+    // The faces waiting for their answer sit in the layout data, so the menu's badge and the
+    // "Mes photos" banner read ONE number, and the confirmation screen refreshes both with
+    // `invalidate('app:face-status')` after each answer.
+    event.depends('app:face-status');
+    const face = faceStatus(getDatabase(), session.user.id_user);
+    return {
+      session: { user: toSessionUser(session.user, face.enrolled) },
+      faceToConfirm: face.toConfirm,
+      firstPaint,
+    };
   } catch (e) {
     log.warn('error while loading the session', e);
 

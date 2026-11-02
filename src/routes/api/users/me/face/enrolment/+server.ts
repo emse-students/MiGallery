@@ -7,6 +7,7 @@ import { createLogger } from '#lib/server/logger.ts';
 import { readFormBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
+import { upgradeMemberReferences } from '#lib/server/face-reference-upgrade.ts';
 import {
   ENROL_LIMIT_PER_HOUR,
   enrolLimiter,
@@ -144,6 +145,14 @@ export const POST: RequestHandler = async (event) => {
   }
 
   const references = enrolMember(engine, userId, embedding);
-  void scheduleRematch(engine, userId);
+  // The bootstrap is owed to every member under the minimum, at every enrolment (owner,
+  // 2026-11-02): it runs after the re-match, in the background, and the tick retries on a failure.
+  void scheduleRematch(engine, userId)
+    .then(() => upgradeMemberReferences(engine, userId, fetch))
+    .catch((e) =>
+      log.error('the selection after an enrolment failed; the tick retries it', {
+        message: (e as Error).message,
+      })
+    );
   return json({ success: true, enrolled: true, references });
 };

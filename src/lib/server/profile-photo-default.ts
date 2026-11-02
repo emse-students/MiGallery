@@ -33,7 +33,7 @@
  */
 
 import type { DatabaseInstance } from '#lib/db/database.ts';
-import { FACE_MODEL } from '#lib/face-embedding.ts';
+import { FACE_MODEL, FACE_SELECTION_UNDONE } from '#lib/face-embedding.ts';
 import {
   FEATURED_MIN_OVERLAP,
   boxOverlap,
@@ -210,6 +210,8 @@ export async function ensureDefaultProfilePhoto(
     present?: ReadonlySet<string> | null;
     dryRun?: boolean;
     report?: { featuredNotTheirs?: boolean };
+    /** Leave a member whose face selection an admin undid alone (checked inside the lock). */
+    unlessUndone?: boolean;
   } = {}
 ): Promise<DefaultOutcome> {
   const { db } = engine;
@@ -236,6 +238,17 @@ export async function ensureDefaultProfilePhoto(
   }
 
   return runExclusive((): DefaultOutcome => {
+    if (options.unlessUndone) {
+      const undone = db
+        .prepare(
+          'SELECT 1 FROM face_reference_selection WHERE user_id = ? AND model = ? AND version = ?'
+        )
+        .get(userId, FACE_MODEL, FACE_SELECTION_UNDONE);
+      if (undone) {
+        log.debug('default profile photo skipped: the selection was undone');
+        return 'none';
+      }
+    }
     // 1. The face Immich featured for their old person: the photo they had before A6.
     if (featured && alive.has(featured.assetId)) {
       const key = featuredFaceKey(engine.faceDb, featured);
