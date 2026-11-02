@@ -46,6 +46,7 @@ import {
   FACE_PROVEN_AUTO_DISTANCE,
   FACE_REFERENCE_SELECTION_VERSION,
   FACE_SELECTION_UNDONE,
+  FACE_SUGGEST_MAX_DISTANCE,
   minDistance,
 } from '#lib/face-embedding.ts';
 import {
@@ -179,8 +180,16 @@ export function reselectReferences(
   userId: string,
   captureTimes: ReadonlyMap<string, number>,
   now: number = Date.now(),
-  preview?: SelectionPreview
-): { outcome: UpgradeOutcome; references: number; added: number; dropped: number } {
+  preview?: SelectionPreview,
+  asked?: ReadonlySet<string>
+): {
+  outcome: UpgradeOutcome;
+  references: number;
+  added: number;
+  dropped: number;
+  /** Photos of faces this pass would store whose capture date was never asked for (see `asked`). */
+  missing?: string[];
+} {
   const { db, key } = engine;
   return inTransaction(db, () => {
     const marker = db
@@ -212,7 +221,20 @@ export function reselectReferences(
       }
       return { outcome: 'already' as const, references: held.length, added: 0, dropped: 0 };
     }
-    const bootstrap = growing;
+    // The BOOTSTRAP - an unconfirmed `suggested` face counts as proof - is the lone-selfie case
+    // only: a member already at the minimum grows from PROVEN faces (confirmed, or `auto` within
+    // 0.4), still closest first.
+    const bootstrap = held.length < FACE_MIN_REFERENCES;
+    // What the drift guard and the ranking are measured to: the selfie; a member with none (the A7
+    // seed) is measured to the references that were NOT admitted by a pass, never to `matched`
+    // ones, or the reach would move one hop per tick.
+    const selfies = held.filter((h) => h.source === 'selfie');
+    const originals = held.filter((h) => h.source !== 'matched');
+    const yardstick = selfies.length > 0 ? selfies : originals.length > 0 ? originals : held;
+    // The owner's decision of 2026-11-02: an UNPROVEN chain stops at the `auto` distance (0.5)
+    // from the selfie; a face the member CONFIRMED may go to the suggestion bound (0.62).
+    const guard = (c: { confirmed?: boolean }) =>
+      c.confirmed ? FACE_SUGGEST_MAX_DISTANCE : FACE_AUTO_MAX_DISTANCE;
     const heldVectors = held.map((h) => h.embedding);
     const heldFaces = new Set(
       held.filter((h) => h.assetId !== null).map((h) => `${h.assetId}\u0000${h.faceIndex}`)
@@ -240,11 +262,14 @@ export function reselectReferences(
       d <= (c.confirmed ? FACE_AUTO_MAX_DISTANCE : FACE_PROVEN_AUTO_DISTANCE);
     const pool: PoolItem[] = [...held];
     let proven = 0;
-    if (bootstrap) {
+    if (growing) {
       // Admitted by proximity, grown until stable, held references kept, nothing dropped
       // (face-reference-selection.ts). Nothing to admit: nothing is written, except that a member
       // already at the minimum is marked so the tick stops asking.
-      const grown = growUntilStable(held, opened, FACE_MAX_REFERENCES, bound);
+      const grown = growUntilStable(held, opened, FACE_MAX_REFERENCES, bound, {
+        yardstick,
+        guard,
+      });
       if (grown.length === 0) {
         if (held.length >= FACE_MIN_REFERENCES) {
           if (preview) {
@@ -258,8 +283,12 @@ export function reselectReferences(
       proven = grown.length;
       pool.push(...grown);
     } else {
+      const anchorVectors = yardstick.map((h) => h.embedding);
       for (const item of opened) {
-        if (bound(item, minDistance(heldVectors, item.embedding))) {
+        if (
+          bound(item, minDistance(heldVectors, item.embedding)) &&
+          minDistance(anchorVectors, item.embedding) <= guard(item)
+        ) {
           proven++;
           pool.push(item);
         }
@@ -279,6 +308,21 @@ export function reselectReferences(
         }
       }
       return { outcome: 'upgraded' as const, references: held.length, added: 0, dropped: 0 };
+    }
+    if (asked) {
+      // The faces seen between the preview and now may differ from the ones whose dates were read:
+      // nothing is stored with a missing date (it would rank oldest and be evicted first). The
+      // caller reads the dates and asks again; a photo Immich no longer has is asked once.
+      const missing = [
+        ...new Set(
+          pool
+            .filter((i) => i.face && chosen.has(i.key) && !asked.has(i.face.assetId))
+            .map((i) => (i.face as FaceKey).assetId)
+        ),
+      ];
+      if (missing.length > 0) {
+        return { outcome: 'already' as const, references: 0, added: 0, dropped: 0, missing };
+      }
     }
     // What is about to be replaced is kept first, in this same transaction: the way back.
     saveSelectionLedger(db, userId, FACE_REFERENCE_SELECTION_VERSION, now);
@@ -342,9 +386,25 @@ export async function selectMemberReferences(
   if (probe.outcome !== 'upgraded' && !preview.mark) {
     return probe.outcome;
   }
-  const captureTimes =
-    preview.assets.size > 0 ? await assetCaptureTimes(fetchFn, [...preview.assets]) : new Map();
-  return runExclusive(() => reselectReferences(engine, userId, captureTimes).outcome);
+  const asked = new Set(preview.assets);
+  const captureTimes = new Map<string, number>(
+    asked.size > 0 ? await assetCaptureTimes(fetchFn, [...asked]) : []
+  );
+  // Rarely more than once: a face landed between the preview and the lock.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = await runExclusive(() =>
+      reselectReferences(engine, userId, captureTimes, Date.now(), undefined, asked)
+    );
+    if (!result.missing) {
+      return result.outcome;
+    }
+    for (const id of result.missing) asked.add(id);
+    for (const [id, at] of await assetCaptureTimes(fetchFn, result.missing)) {
+      captureTimes.set(id, at);
+    }
+  }
+  // Still moving after three reads: the next pass tries again, nothing was written.
+  return 'already';
 }
 
 /**
@@ -358,23 +418,26 @@ export async function finishMemberRematch(
   userId: string,
   fetchFn: typeof fetch
 ): Promise<void> {
-  await runExclusive(async () => {
+  const rematched = await runExclusive(async () => {
+    // An admin may have undone the pass since the owed mark was read: the undo deleted the mark and
+    // restored the member, so a re-match now would undo the undo.
+    const owed = engine.db
+      .prepare('SELECT 1 FROM face_rematch_pending WHERE user_id = ? AND model = ?')
+      .get(userId, FACE_MODEL);
+    if (!owed) {
+      return false;
+    }
     await rematchMember(engine, userId);
     engine.db
       .prepare('DELETE FROM face_rematch_pending WHERE user_id = ? AND model = ?')
       .run(userId, FACE_MODEL);
+    return true;
   });
-  const undone = engine.db
-    .prepare(
-      'SELECT 1 FROM face_reference_selection WHERE user_id = ? AND model = ? AND version = ?'
-    )
-    .get(userId, FACE_MODEL, FACE_SELECTION_UNDONE);
-  if (undone) {
-    // An admin undid the pass since the capture: its profile photo is restored, not re-decided.
+  if (!rematched) {
     return;
   }
   try {
-    await ensureDefaultProfilePhoto(engine, userId, fetchFn);
+    await ensureDefaultProfilePhoto(engine, userId, fetchFn, { unlessUndone: true });
   } catch (e) {
     log.error('default profile photo after a selection failed; the next answer retries it', {
       userId,

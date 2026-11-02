@@ -108,6 +108,14 @@ export function enrolMember(
       // The cap is held above; reaching this means the table and this code disagree.
       throw new Error('the selfie reference could not be stored');
     }
+    if (replaced > 0) {
+      // The first snapshot holds the selfie that was just replaced: an undo would give it back and
+      // delete the new one. A re-enrolment is a new start; the next pass keeps a new snapshot.
+      for (const table of ['face_reference_ledger', 'face_match_ledger']) {
+        db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND model = ?`).run(userId, FACE_MODEL);
+      }
+      db.prepare('DELETE FROM face_avatar_ledger WHERE user_id = ?').run(userId);
+    }
     // A new selfie ends an admin's undo of the selection pass: the member is owed it again.
     db.prepare(
       'DELETE FROM face_reference_selection WHERE user_id = ? AND model = ? AND version = ?'

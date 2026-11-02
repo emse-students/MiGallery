@@ -89,19 +89,28 @@ export function growUntilStable<T extends ReferenceItem>(
   held: ReadonlyArray<ReferenceItem>,
   candidates: ReadonlyArray<T>,
   cap: number,
-  within: (candidate: T, nearestReferenceDistance: number) => boolean
+  within: (candidate: T, nearestReferenceDistance: number) => boolean,
+  options: {
+    /** The references the guard and the ranking are measured to (default: the anchors, else all). */
+    yardstick?: ReadonlyArray<ReferenceItem>;
+    /** How far from the yardstick a candidate may lie (default FACE_SUGGEST_MAX_DISTANCE). */
+    guard?: (candidate: T) => number;
+  } = {}
 ): T[] {
   // The guard and the ranking are measured to the member's SELFIE (the anchors), never to every
   // held reference: a reference admitted at 0.55 would otherwise let in faces ~1.0 from the selfie,
   // and the reach would ratchet pass after pass. Only a member with no selfie falls back to all.
   const anchors = held.filter((h) => h.anchor);
-  const yardstick = (anchors.length > 0 ? anchors : held).map((h) => h.embedding);
+  const yardstick = (options.yardstick ?? (anchors.length > 0 ? anchors : held)).map(
+    (h) => h.embedding
+  );
+  const guardOf = options.guard ?? (() => FACE_SUGGEST_MAX_DISTANCE);
   const vectors = held.map((h) => h.embedding);
   let count = held.length;
   let left = candidates
     .filter((c) => usableVector(c.embedding))
     .map((c) => ({ c, fromSelfie: minDistance(yardstick, c.embedding) }))
-    .filter((x) => x.fromSelfie <= FACE_SUGGEST_MAX_DISTANCE);
+    .filter((x) => x.fromSelfie <= guardOf(x.c));
   const added: T[] = [];
   while (count < cap && left.length > 0) {
     const eligible = left

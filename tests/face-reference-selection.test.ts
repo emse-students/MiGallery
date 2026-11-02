@@ -309,6 +309,29 @@ describe('growUntilStable (the bootstrap, owner 2026-11-01: "jusqu\'à stabilise
     expect(added.map((x) => x.key)).toEqual(['n1', 'n2', 'f1', 'f2']);
   });
 
+  it('ranks by distance to the SELFIE, not to the references already held (cap slicing)', () => {
+    const selfie = item('selfie', 0, null, true);
+    const inner = item('inner', angleOf(0.3), null);
+    // `far` lies 0.01 from a held reference but 0.34 from the selfie; `close` 0.1 from the selfie.
+    const far = item('far', angleOf(0.3) + angleOf(0.01), null);
+    const close = item('close', angleOf(0.1), null);
+    expect(growUntilStable([selfie, inner], [far, close], 3, within).map((x) => x.key)).toEqual([
+      'close',
+    ]);
+  });
+
+  it('stops an UNPROVEN chain at the guard the caller sets (0.5, owner 2026-11-02)', () => {
+    const selfie = item('selfie', 0, null, true);
+    const a = item('a', angleOf(0.3), null);
+    const b = item('b', angleOf(0.55), null);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeGreaterThan(0.5);
+    expect(cosineDistance(selfie.embedding, b.embedding)).toBeLessThanOrEqual(0.62);
+    expect(
+      growUntilStable([selfie], [a, b], 15, within, { guard: () => 0.5 }).map((x) => x.key)
+    ).toEqual(['a']);
+    expect(growUntilStable([selfie], [a, b], 15, within).map((x) => x.key)).toEqual(['a', 'b']);
+  });
+
   it('gives the same set whatever the order of the candidates', () => {
     const selfie = item('selfie', 0, null, true);
     const cands = Array.from({ length: 12 }, (_, i) =>

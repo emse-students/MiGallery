@@ -808,9 +808,9 @@ other member keeps the old rule, because applying it to the 300 others is a prod
 that needs its own measurement. On the one member measured (read-only, 2026-11-01): 2 matches at
 0.35 or less, 13 at 0.40 or less (all unambiguous), 88 at 0.45, 197 at 0.50, so the first round
 alone takes all 13 (14 references with the selfie, cap 15).
-Residual, named: a bootstrapped member with no face within 0.4 stays under 3 references and is
-marked done; the way out is a confirmation on the screen below (a learnable face is added), not a
-retry on a timer.
+Residual, named: a bootstrapped member with no face within 0.4 stays under 3 references; the tick
+re-reads them (one read, no write, no Immich call) as faces arrive, and a confirmation on the
+screen below (a learnable face is added) is the way out that does not wait for one.
 
 **2. A "C'est moi" mirrors "Pas moi"** (`settleWaitingAfterLearning`, `face-enrolment.ts`). When a
 confirmation becomes a reference, the faces still waiting for the member are re-decided against
@@ -877,9 +877,11 @@ section above wherever they disagree.
 order-independent:**
 
 - **Below the cap (`FACE_MAX_REFERENCES`, 15): GROW.** Admit the most SIMILAR faces first, by
-  proximity to the selfie (ties on the key), under the drift guard (0.62 from the selfie). A pending
-  unambiguous `suggested` face may count as proof for the SELECTION only (this is the bootstrap).
-  Nothing is dropped, the selfie stays. Never farthest-point here: that picks the off-centre faces,
+  proximity to the selfie (ties on the key), under the drift guard (below). **A member holding
+  nothing but a selfie (fewer than 3 references) is the BOOTSTRAP: a pending unambiguous
+  `suggested` face counts as proof, for the SELECTION only. A member holding 3 to 14 references
+  grows too, on this deploy, but ONLY from PROVEN faces** (confirmed, or `auto` within 0.4; owner,
+  2026-11-02). Nothing is dropped, the selfie stays. Never farthest-point here: that picks the off-centre faces,
   which is where a lookalike relative sits.
 - **At the cap: PROPAGATE.** Replace by VARIETY (`selectVariedReferences`, farthest-point) to cover
   angles, lighting and age, and ONLY among PROVEN faces (confirmed, or `auto` decided for a member
@@ -893,7 +895,7 @@ member with nothing within reach costs one read per tick and no write.
 
 **What the owner approved, and the residual risk.** A selfie alone is enough to start; the
 admission is by proximity, guarded. A lookalike who is not enrolled (a relative, a twin) and sits
-within 0.62 of the selfie can be admitted: named, not removable by a threshold, and the way back is
+within the guard of the selfie can be admitted: named, not removable by a threshold, and the way back is
 the ledger below. **Crossing 3 references makes EVERY face within 0.5 `auto`, hence visible to the
 member without a question**, which is the point of the chantier and also the exposure.
 
@@ -901,16 +903,37 @@ member without a question**, which is the point of the chantier and also the exp
 measured to every held reference), never to the references a pass has already added: otherwise a
 reference admitted at 0.55 would let in faces about 1.0 from the selfie and the reach would ratchet
 at every tick. Qualification (0.4 unconfirmed, 0.5 confirmed) is still measured to the nearest
-CURRENT reference, so admissions chain, but never past 0.62 from the selfie. Whether an unproven
-chain should stop at 0.5 is the owner's call once he has read the corrected histogram.
+CURRENT reference, so admissions chain, but never past the guard from the selfie.
+
+**Owner decision, 2026-11-02 (direct): an UNPROVEN chain stops at 0.5 from the selfie, not 0.62.**
+The guard is `FACE_AUTO_MAX_DISTANCE` for an unconfirmed face (a pending `auto` or an unambiguous
+`suggested` one) and `FACE_SUGGEST_MAX_DISTANCE` (0.62) only for a face the member CONFIRMED
+themselves. At the cap the propagation obeys the same guard.
+
+**Owner decision, 2026-11-02 (direct): a member with NO selfie (the A7 seed references) is measured
+to their ORIGINAL references** - every reference that is not `matched`, so seeds and the faces they
+confirmed - never to a reference a pass added. This persists with no extra column: `matched` is
+the source a pass writes, and nothing else ever uses it.
+
+**Owner decision, 2026-11-02 (direct): replacing the selfie DROPS the member's ledger snapshot**
+(`enrolMember`, references, matches and the profile photo pointer): an undo then returns to the NEW
+selfie, and the replaced selfie's vector is no longer kept.
 
 **A member the pass cannot help costs no Immich call and no lock turn**: the tick previews the
 selection (a read of the store) and asks Immich for capture dates only of the faces it would
-admit (growth) or of every proven face (propagation, where recency breaks ties).
+admit (growth) or of every proven face (propagation, where recency breaks ties). The real pass
+refuses to store a face whose date was never asked for and the tick asks again (at most three
+reads): a reference is never stored undated by a race, because an undated one is evicted first.
+
+**What production writes, by band** (what the dry run reports): under 3 references - the bootstrap,
+closest first, suggestions count as proof, then the re-match makes everything within 0.5 `auto`
+once 3 are held; 3 to 14 - proven faces by proximity, one snapshot, one re-match; 15, unmarked -
+one variety pass among proven faces, marked once; 15, marked - nothing (intended). Every written
+member keeps the FIRST snapshot, is re-matched in phase 2, and is marked version 3.
 
 **A confirmation that makes the count cross 3** re-decides ALL the member's waiting faces (the
 minimum no longer holds any of them back); any other confirmation only those within 0.5 of the new
-reference.
+reference (`settleWaitingAfterLearning`).
 
 **A MARKED member at the cap is never re-propagated: intended.** Version 2 already propagated
 them; a rewrite of every such member's references would only churn them. An unmarked member at the
@@ -931,7 +954,7 @@ member's profile photo pointer before the pass (a pass may set a DEFAULT one oth
 an undo restores it only while it is still a default, never over a choice. A face a confirmation
 promoted was a pending row (`decided_at` NULL), so the snapshot restore covers it. The undo marks
 the member `FACE_SELECTION_UNDONE` (-1): the tick never selects for them again until a new selfie.
-`settleWaitingAfterLearning` re-decides only the waiting faces within 0.5 of the NEW reference.
+`settleWaitingAfterLearning` re-decides only the waiting faces within 0.5 of the NEW reference, all of them when the count crosses 3.
 
 **The selfie is always kept.** `growUntilStable` never drops a held reference; at the cap
 `selectVariedReferences` places the anchors (the selfie) first; renewal (`redundantVictim`) never

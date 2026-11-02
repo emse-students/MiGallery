@@ -1538,9 +1538,10 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       setRow('conf60', 'suggested', 'confirmed');
       expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
       const result = upgrade.reselectReferences(engine(), 'alice', new Map([['conf45', 5000]]), 9);
-      expect(result).toMatchObject({ outcome: 'upgraded', added: 3, dropped: 0, references: 8 });
-      // BELOW THE CAP the set grows (owner, 2026-11-02): a confirmed face within 0.5, an auto face
-      // and a pending suggestion within 0.4; not the auto at 0.45, not the confirmed lookalike at
+      expect(result).toMatchObject({ outcome: 'upgraded', added: 2, dropped: 0, references: 7 });
+      // A member at the minimum grows from PROVEN faces only (owner, 2026-11-02): a confirmed
+      // face within 0.5 and an auto face within 0.4; not the auto at 0.45, not the pending
+      // suggestion (proof for the lone-selfie bootstrap only), not the confirmed lookalike at
       // 0.6. The photo of auto35 has no date.
       expect(
         refsOf()
@@ -1549,7 +1550,6 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       ).toEqual([
         { source: 'matched', asset_id: 'auto35', taken_at: null },
         { source: 'photo', asset_id: 'conf45', taken_at: 5000 },
-        { source: 'matched', asset_id: 'sugg30', taken_at: null },
       ]);
       expect(upgrade.reselectReferences(engine(), 'alice', new Map()).outcome).toBe('already');
       expect(upgrade.membersToUpgrade(db())).toEqual([]);
@@ -1638,10 +1638,12 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       });
       setRow('sugg', 'suggested', 'pending');
       setRow('auto', 'auto', 'pending');
-      // 14 held, the cap is 15: GROWTH, one room, the closest taken (ties on the key), the
-      // unproven suggestion allowed as proof.
+      // 14 held, the cap is 15: GROWTH, one room, from PROVEN faces only: the auto face, never
+      // the suggestion (proof for a member holding nothing but a selfie).
       const grown = upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
       expect(grown).toMatchObject({ outcome: 'upgraded', added: 1, dropped: 0, references: 15 });
+      expect(refsOf().map((r) => r.asset_id)).toContain('auto');
+      expect(refsOf().map((r) => r.asset_id)).not.toContain('sugg');
       // AT THE CAP, an older marker, a new face: PROPAGATION never reads an unproven suggestion.
       db().prepare('DELETE FROM face_references WHERE asset_id IS NOT NULL').run();
       db().prepare('DELETE FROM face_reference_selection').run();
@@ -1788,6 +1790,57 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
     });
 
+    it('measures a member with no selfie to their ORIGINAL references, never to ones a pass added', async () => {
+      addUser('alice');
+      const s1 = atDistance(ALICE, synthetic(981), 0.1);
+      refs.addFaceReference(db(), key, 'alice', 'seed', s1);
+      refs.addFaceReference(db(), key, 'alice', 'seed', atDistance(ALICE, synthetic(982), 0.1));
+      const m = atDistance(s1, synthetic(983), 0.35);
+      const far = atDistance(m, synthetic(984), 0.3);
+      expect(embedding.cosineDistance(s1, far)).toBeGreaterThan(0.5);
+      await storeFaces({ m, far });
+      setRow('m', 'suggested', 'pending');
+      // Two references: the lone-selfie bootstrap applies, `m` is admitted.
+      expect(upgrade.reselectReferences(engine(), 'alice', new Map(), 9).added).toBe(1);
+      // Three now; `far` is 0.3 from the admitted `m` but past 0.5 from the seeds: a hop that the
+      // old yardstick (every held reference) took, one per tick.
+      setRow('far', 'auto', 'pending');
+      db().prepare('DELETE FROM face_reference_selection').run();
+      expect(upgrade.reselectReferences(engine(), 'alice', new Map(), 10).outcome).toBe('already');
+      expect(refsOf().map((r) => r.asset_id)).not.toContain('far');
+    });
+
+    it('drops the first snapshot when a new selfie replaces the one it holds', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({ n1: atDistance(ALICE, synthetic(985), 0.3) });
+      upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+      expect(ledger.ledgerCounts(db()).members).toBe(1);
+      enrolment.enrolMember(engine(), 'alice', atDistance(ALICE, synthetic(986), 0.05));
+      // An undo now would give back the replaced selfie and delete the new one.
+      expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+      expect(db().prepare('SELECT COUNT(*) AS n FROM face_avatar_ledger').get()).toEqual({ n: 0 });
+    });
+
+    it('takes no turn of the engine lock, and no Immich call, for a member with nothing to admit', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({ far: atDistance(ALICE, synthetic(987), 0.45) });
+      let release: () => void = () => {};
+      const lockHeld = engineMod.runExclusive(() => new Promise<void>((r) => (release = r)));
+      try {
+        // Would wait forever if it took a turn of the lock.
+        expect(
+          await upgrade.selectMemberReferences(engine(), 'alice', (() => {
+            throw new Error('Immich must not be asked');
+          }) as unknown as typeof fetch)
+        ).toBe('already');
+      } finally {
+        release();
+        await lockHeld;
+      }
+    });
+
     it('only marks a member already at the minimum that an earlier version selected', async () => {
       seededAlice();
       db()
@@ -1884,6 +1937,18 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
         expect(result?.conflicts).toBe(0);
         expect(refsOf()).toHaveLength(1);
         expect(Buffer.compare(Buffer.from(selfieBlob()), selfieBefore)).toBe(0);
+      });
+
+      it('does not re-match a member an undo already restored, and leaves their profile photo', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        const waiting = bands();
+        await undo();
+        // The undo deleted the owed mark: a re-match from the old read of it must do nothing.
+        await upgrade.finishMemberRematch(engine(), 'alice', fakeFetch);
+        expect(refsOf()).toHaveLength(1);
+        expect(bands().near30).toBe(waiting.near30);
+        expect(upgrade.membersPendingRematch(db())).toEqual([]);
       });
 
       it('does not force back a face another member confirmed since: a conflict, counted', async () => {

@@ -40,6 +40,7 @@ import {
   FACE_PROVEN_AUTO_DISTANCE,
   FACE_REFERENCE_SELECTION_VERSION,
   FACE_SELECTION_UNDONE,
+  FACE_SUGGEST_MAX_DISTANCE,
   decodeEmbedding,
   minDistance,
 } from '../../src/lib/face-embedding.ts';
@@ -198,20 +199,33 @@ const startClass = new Map<string, Klass>([...held].map(([id, l]) => [id, klassO
 
 // 3. One member's selection, as reselectReferences does it. Returns the added items.
 type Candidate = ReferenceItem & { confirmed: boolean };
-const selfieDistance = (items: Held[], v: ArrayLike<number>) => {
-  const anchors = items.filter((i) => i.anchor);
-  return minDistance(
-    (anchors.length > 0 ? anchors : items).map((i) => i.embedding),
+/** What the guard and the ranking are measured to: the selfie, else the references no pass added. */
+const yardstickOf = (items: Held[]) => {
+  const selfies = items.filter((i) => i.source === 'selfie');
+  const originals = items.filter((i) => i.source !== 'matched');
+  return selfies.length > 0 ? selfies : originals.length > 0 ? originals : items;
+};
+const selfieDistance = (items: Held[], v: ArrayLike<number>) =>
+  minDistance(
+    yardstickOf(items).map((i) => i.embedding),
     v
   );
-};
-function selectFor(userId: string, items: Held[], rowsOf: Map<string, string[]>) {
+const guardOf = (c: { confirmed?: boolean }) =>
+  c.confirmed ? FACE_SUGGEST_MAX_DISTANCE : FACE_AUTO_MAX_DISTANCE;
+type Selection =
+  | { kind: 'none' }
+  | { kind: 'mark' }
+  | { kind: 'change'; added: Candidate[]; keep: Held[] };
+function selectFor(userId: string, items: Held[], rowsOf: Map<string, string[]>): Selection {
   const m = marker.get(userId);
-  if (m === FACE_SELECTION_UNDONE) return null;
+  if (m === FACE_SELECTION_UNDONE) return { kind: 'none' };
   const growing = items.length < FACE_MAX_REFERENCES;
   const current = m !== undefined && m >= FACE_REFERENCE_SELECTION_VERSION;
-  if (current && items.length >= FACE_MIN_REFERENCES) return null;
-  if (m !== undefined && !growing) return null; // marked at the cap: only marked, never touched
+  if (current && items.length >= FACE_MIN_REFERENCES) return { kind: 'none' };
+  // Marked at the cap: only marked, never touched.
+  if (m !== undefined && !growing) return { kind: 'mark' };
+  // The bootstrap (an unconfirmed suggestion counts as proof) is the lone-selfie case only.
+  const bootstrap = items.length < FACE_MIN_REFERENCES;
   const heldFaces = new Set(items.map((i) => i.face).filter((f): f is string => f !== null));
   const candidates: Candidate[] = [];
   for (const k of rowsOf.get(userId) ?? []) {
@@ -221,7 +235,7 @@ function selectFor(userId: string, items: Held[], rowsOf: Map<string, string[]>)
     const confirmed = r.state === 'confirmed';
     const pendingAuto = r.state === 'pending' && r.band === 'auto';
     const pendingSuggested =
-      growing &&
+      bootstrap &&
       r.state === 'pending' &&
       r.band === 'suggested' &&
       (r.runnerUp === null || r.runnerUp - r.distance >= FACE_AMBIGUITY_MARGIN);
@@ -238,19 +252,34 @@ function selectFor(userId: string, items: Held[], rowsOf: Map<string, string[]>)
   }
   const bound = (c: Candidate, d: number) =>
     d <= (c.confirmed ? FACE_AUTO_MAX_DISTANCE : FACE_PROVEN_AUTO_DISTANCE);
+  const yardstick = yardstickOf(items);
   if (growing) {
-    const grown = growUntilStable(items, candidates, FACE_MAX_REFERENCES, bound);
-    return grown.length === 0 ? null : { added: grown, keep: items };
+    const grown = growUntilStable(items, candidates, FACE_MAX_REFERENCES, bound, {
+      yardstick,
+      guard: guardOf,
+    });
+    if (grown.length === 0)
+      return items.length >= FACE_MIN_REFERENCES ? { kind: 'mark' } : { kind: 'none' };
+    return { kind: 'change', added: grown, keep: items };
   }
   const heldVectors = items.map((i) => i.embedding);
+  const anchorVectors = yardstick.map((i) => i.embedding);
   const pool: ReferenceItem[] = [...items];
   for (const c of candidates) {
-    if (bound(c, minDistance(heldVectors, c.embedding))) pool.push(c);
+    if (
+      bound(c, minDistance(heldVectors, c.embedding)) &&
+      minDistance(anchorVectors, c.embedding) <= guardOf(c)
+    ) {
+      pool.push(c);
+    }
   }
   const chosen = new Set(selectVariedReferences(pool, FACE_MAX_REFERENCES).map((c) => c.key));
-  const keep = items.filter((i) => chosen.has(i.key));
-  const added = candidates.filter((c) => chosen.has(c.key));
-  return keep.length === items.length && added.length === 0 ? null : { added, keep };
+  // The real pass writes (and marks) even when the chosen set equals the held one.
+  return {
+    kind: 'change',
+    added: candidates.filter((c) => chosen.has(c.key)),
+    keep: items.filter((i) => chosen.has(i.key)),
+  };
 }
 
 // 4. The passes, until stable.
@@ -271,7 +300,8 @@ const stats = Object.fromEntries(
 for (const [id, k] of startClass) {
   if (marker.get(id) !== FACE_SELECTION_UNDONE) stats[k].members++;
 }
-const bucket = (d: number) => (Math.floor(d / 0.05) * 0.05).toFixed(2);
+// An epsilon, so 0.15 (which the float 0.15000000000000002 / 0.05 floors to 3) is not 0.10.
+const bucket = (d: number) => (Math.floor(d / 0.05 + 1e-9) * 0.05).toFixed(2);
 const refs = new Map<string, Held[]>([...held].map(([id, l]) => [id, [...l]]));
 const addedTotal = new Map<string, number>();
 let passes = 0;
@@ -285,10 +315,13 @@ for (; passes < MAX_PASSES;) {
     list.push(k);
     rowsOf.set(r.userId, list);
   }
-  let changed = 0;
+  const changedMembers = new Set<string>();
   for (const [userId, items] of refs) {
     const result = selectFor(userId, items, rowsOf);
-    if (!result) continue;
+    if (result.kind === 'none') continue;
+    // Production marks the member selected in both cases, and never selects for them again.
+    marker.set(userId, FACE_REFERENCE_SELECTION_VERSION);
+    if (result.kind === 'mark') continue;
     const { added, keep } = result;
     const dropped = items.length - keep.length;
     const start = startClass.get(userId) as Klass;
@@ -298,26 +331,31 @@ for (; passes < MAX_PASSES;) {
       const h = stats[start].histogram;
       h[bucket(d)] = (h[bucket(d)] ?? 0) + 1;
     }
+    changedMembers.add(userId);
     if (added.length > 0 || dropped > 0) {
-      changed++;
       stats[start].affected.add(userId);
       addedTotal.set(userId, (addedTotal.get(userId) ?? 0) + added.length);
       stats[start].dropped += dropped;
       if (before < FACE_MIN_REFERENCES && before + added.length >= FACE_MIN_REFERENCES) {
         stats[start].crossed++;
       }
-      const addedHeld: Held[] = added.map((a) => ({
-        ...a,
-        source: 'matched',
-        face: a.key.slice('face:'.length),
-      }));
-      refs.set(userId, [...keep, ...addedHeld]);
     }
+    const addedHeld: Held[] = added.map((a) => ({
+      ...a,
+      source: 'matched',
+      face: a.key.slice('face:'.length),
+    }));
+    refs.set(userId, [...keep, ...addedHeld]);
   }
-  if (changed === 0) {
+  if (changedMembers.size === 0) {
     converged = true;
     break;
   }
+  // The faces production re-decides: those within the suggestion bound of a RE-MATCHED member's
+  // references, and those such a member holds (rematchMember), not every face of the store.
+  const changedVectors = [...changedMembers].flatMap((id) =>
+    (refs.get(id) ?? []).map((i) => i.embedding)
+  );
   // Phase 2: every face of the store, decided against the FINAL sets of this pass.
   const members: MemberReferences[] = [...refs].map(([userId, items]) => ({
     userId,
@@ -348,6 +386,15 @@ for (; passes < MAX_PASSES;) {
       }
       const k = faceKey(row.asset_id, row.face_index);
       const now = sim.get(k);
+      if (
+        !(now && changedMembers.has(now.userId)) &&
+        !(
+          changedVectors.length > 0 &&
+          minDistance(changedVectors, embedding) <= FACE_SUGGEST_MAX_DISTANCE
+        )
+      ) {
+        continue;
+      }
       // A confirmed face stays; a face shown without a question stays with who shows it (sticky).
       if (now && (now.state === 'confirmed' || (now.state === 'pending' && now.band === 'auto'))) {
         continue;
@@ -370,6 +417,41 @@ for (; passes < MAX_PASSES;) {
   }
 }
 const visibleAfter = visibleOf(sim.values());
+// Faces by band at the end, per starting class: shown without a question (`auto`, within 0.5),
+// waiting for an answer (`suggested`, 0.5 to 0.62), and answered `confirmed`.
+const bandCounts = (rowsOfAll: Iterable<Row>, ids: Set<string>) => {
+  const out = { auto: 0, suggested: 0, confirmed: 0 };
+  for (const r of rowsOfAll) {
+    if (!ids.has(r.userId)) continue;
+    if (r.state === 'confirmed') out.confirmed++;
+    else if (r.band === 'auto') out.auto++;
+    else out.suggested++;
+  }
+  return out;
+};
+const initialRows = new Map<string, Row>();
+for (const r of main
+  .prepare(
+    "SELECT asset_id, face_index, user_id, band, state, runner_up, distance FROM face_matches WHERE model = ? AND state != 'rejected'"
+  )
+  .all(FACE_MODEL) as Array<{
+  asset_id: string;
+  face_index: number;
+  user_id: string;
+  band: string;
+  state: string;
+  runner_up: number | null;
+  distance: number;
+}>) {
+  initialRows.set(faceKey(r.asset_id, r.face_index), {
+    userId: r.user_id,
+    band: r.band,
+    state: r.state,
+    distance: r.distance,
+    runnerUp: r.runner_up,
+  });
+}
+
 // 5. The report.
 const report: Record<string, unknown> = {
   passes,
@@ -382,7 +464,9 @@ const report: Record<string, unknown> = {
 for (const k of KLASSES) {
   const s = stats[k];
   const ids = [...s.affected];
-  const all = [...startClass].filter(([, c]) => c === k).map(([id]) => id);
+  const all = [...startClass]
+    .filter(([id, c]) => c === k && marker.get(id) !== FACE_SELECTION_UNDONE)
+    .map(([id]) => id);
   report[k] = {
     members: s.members,
     affected: ids.length,
@@ -390,6 +474,8 @@ for (const k of KLASSES) {
     referencesDropped: s.dropped,
     addedDistanceToSelfie: s.histogram,
     crossedMinimum: s.crossed,
+    facesBefore: bandCounts(initialRows.values(), new Set(all)),
+    facesAfter: bandCounts(sim.values(), new Set(all)),
     zeroVisibleBefore: all.filter((id) => !(visibleBefore.get(id) ?? 0)).length,
     zeroVisibleAfter: all.filter((id) => !(visibleAfter.get(id) ?? 0)).length,
     visibleBefore: quantiles(all.map((id) => visibleBefore.get(id) ?? 0)),
