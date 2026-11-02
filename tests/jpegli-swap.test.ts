@@ -4,16 +4,16 @@
  * must be logged at ERROR. See docs/wiki/jpegli-recompression.md. The script imports `fcntl`, so it
  * only loads on Linux (CI and the host); there is no Windows equivalent to run.
  */
-import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
+import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
 
-describe.skipIf(process.platform === "win32")("jpegli_swap integrity refresh", () => {
-  it("passes its unittest suite", () => {
-    const r = spawnSync("python3", ["scripts/server/test_jpegli_swap.py", "-v"], {
-      encoding: "utf8",
+describe.skipIf(process.platform === 'win32')('jpegli_swap integrity refresh', () => {
+  it('passes its unittest suite', () => {
+    const r = spawnSync('python3', ['scripts/server/test_jpegli_swap.py', '-v'], {
+      encoding: 'utf8',
     });
     expect(r.error, String(r.error)).toBeUndefined();
-    expect(r.stderr, r.stderr).toContain("OK");
+    expect(r.stderr, r.stderr).toContain('OK');
     expect(r.status).toBe(0);
   });
 });
