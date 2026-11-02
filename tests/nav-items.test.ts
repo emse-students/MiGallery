@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NAV_ITEMS, isNavActive } from '#lib/nav-items.ts';
+import { NAV_ITEMS, isNavActive, navBadgeCount } from '#lib/nav-items.ts';
 import { locales } from '#lib/paraglide/runtime.js';
 
 describe('isNavActive', () => {
@@ -21,5 +21,19 @@ describe('NAV_ITEMS names', () => {
     for (const item of NAV_ITEMS) {
       expect(item.label({}, { locale }).trim()).not.toBe('');
     }
+  });
+});
+
+describe('navBadgeCount', () => {
+  it('badges only "Mes photos", with the faces waiting for an answer', () => {
+    expect(navBadgeCount('/mes-photos', 473)).toBe(473);
+    expect(navBadgeCount('/albums', 473)).toBe(0);
+    expect(navBadgeCount('/parametres', 5)).toBe(0);
+  });
+
+  it('shows nothing for none, an unknown count or a negative one', () => {
+    expect(navBadgeCount('/mes-photos', 0)).toBe(0);
+    expect(navBadgeCount('/mes-photos', undefined)).toBe(0);
+    expect(navBadgeCount('/mes-photos', -1)).toBe(0);
   });
 });

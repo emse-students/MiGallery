@@ -21,7 +21,12 @@
  * drifts towards recent photos (the older of the pair goes) - never by a timer.
  */
 
-import { FACE_AUTO_MAX_DISTANCE, cosineDistance, minDistance } from '#lib/face-embedding.ts';
+import {
+  FACE_AUTO_MAX_DISTANCE,
+  FACE_SUGGEST_MAX_DISTANCE,
+  cosineDistance,
+  minDistance,
+} from '#lib/face-embedding.ts';
 
 /** One reference, held or candidate. Biometric: never serialised. */
 export interface ReferenceItem {
@@ -52,6 +57,78 @@ export function usableVector(v: ArrayLike<number>): boolean {
     norm += v[i] * v[i];
   }
   return norm > 0;
+}
+
+/**
+ * The references the BOOTSTRAP adds, grown until stable and ADMITTED BY PROXIMITY (owner,
+ * 2026-11-02: "au plus les 14 visages les PLUS PROCHES, s'ils sont assez proches"): a member under
+ * the minimum keeps no more than a selfie, and every face the matcher held back for it waits for a
+ * human. Each round takes the candidates `within` the member's CURRENT references (the caller's
+ * bound: the `auto` distance for a confirmed face, 0.4 for an unconfirmed one), CLOSEST TO THE
+ * SELFIE FIRST (ties on the key), as many as the cap leaves room for; a face that a previous round
+ * made reachable is found by the next one. Never farthest-point variety here: that picks the
+ * off-centre faces, which is where a lookalike relative sits (selectVariedReferences is for the
+ * members who already hold 3 references).
+ *
+ * THE SELFIE STAYS: the references the member held when it began are kept, always, and nothing is
+ * ever dropped or replaced in a round.
+ *
+ * TERMINATION IS A PROOF, NOT A CLOCK: a round with an eligible face adds at least one reference
+ * (the cap is above the held count), so the count strictly rises towards `cap`; a round with none
+ * ends it. At most `cap` rounds.
+ *
+ * THE DRIFT GUARD: every reference stays within FACE_SUGGEST_MAX_DISTANCE of the member's SELFIE
+ * (the anchors; only a member with none is measured to every held reference, so the guard never
+ * moves with the references a pass has already added), the farthest the model itself offers a face (the
+ * 1e-4 false-match threshold, 0.617). Chaining 0.4 steps could otherwise walk to another face, with
+ * no human to see it. THE RESIDUAL RISK, named: a lookalike (a relative, a twin) who is not enrolled
+ * and sits within the guard of the selfie can be admitted. Returns the ADDED candidates, in the
+ * order they were taken.
+ */
+export function growUntilStable<T extends ReferenceItem>(
+  held: ReadonlyArray<ReferenceItem>,
+  candidates: ReadonlyArray<T>,
+  cap: number,
+  within: (candidate: T, nearestReferenceDistance: number) => boolean,
+  options: {
+    /** The references the guard and the ranking are measured to (default: the anchors, else all). */
+    yardstick?: ReadonlyArray<ReferenceItem>;
+    /** How far from the yardstick a candidate may lie (default FACE_SUGGEST_MAX_DISTANCE). */
+    guard?: (candidate: T) => number;
+  } = {}
+): T[] {
+  // The guard and the ranking are measured to the member's SELFIE (the anchors), never to every
+  // held reference: a reference admitted at 0.55 would otherwise let in faces ~1.0 from the selfie,
+  // and the reach would ratchet pass after pass. Only a member with no selfie falls back to all.
+  const anchors = held.filter((h) => h.anchor);
+  const yardstick = (options.yardstick ?? (anchors.length > 0 ? anchors : held)).map(
+    (h) => h.embedding
+  );
+  const guardOf = options.guard ?? (() => FACE_SUGGEST_MAX_DISTANCE);
+  const vectors = held.map((h) => h.embedding);
+  let count = held.length;
+  let left = candidates
+    .filter((c) => usableVector(c.embedding))
+    .map((c) => ({ c, fromSelfie: minDistance(yardstick, c.embedding) }))
+    .filter((x) => x.fromSelfie <= guardOf(x.c));
+  const added: T[] = [];
+  while (count < cap && left.length > 0) {
+    const eligible = left
+      .filter((x) => within(x.c, minDistance(vectors, x.c.embedding)))
+      .sort((a, b) => a.fromSelfie - b.fromSelfie || (a.c.key < b.c.key ? -1 : 1));
+    if (eligible.length === 0) {
+      break;
+    }
+    const taken = eligible.slice(0, cap - count);
+    for (const x of taken) {
+      vectors.push(x.c.embedding);
+      added.push(x.c);
+    }
+    count += taken.length;
+    const takenKeys = new Set(taken.map((x) => x.c.key));
+    left = left.filter((x) => !takenKeys.has(x.c.key));
+  }
+  return added;
 }
 
 /** Newer first: capture date descending (unknown last), then key ascending. A total order. */

@@ -936,7 +936,7 @@
   "mpc_not_me": "Pas moi",
   "mpc_answer_error": "Votre réponse n'a pas pu être enregistrée. Réessayez.",
   "mpc_order_hint": "Les plus ressemblantes en premier.",
-  "mpc_keys_hint": "Clavier : O ou Entrée pour « C'est moi », N ou Suppr pour « Pas moi », flèches pour naviguer.",
+  "mpc_keys_hint": "Clavier : O ou Entrée pour « C'est moi », N ou Suppr pour « Pas moi », Espace pour voir la photo entière, flèches pour naviguer.",
   "mpc_card_label": "Photo {index} sur {total}",
   "mpc_released": [
     {
@@ -948,6 +948,21 @@
       }
     }
   ],
+  "mpc_promoted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Une photo semblable a rejoint vos photos.",
+        "countPlural=*": "{count} photos semblables ont rejoint vos photos."
+      }
+    }
+  ],
+  "mpc_open_photo": "Voir la photo entière",
+  "mpc_dialog_label": "Photo entière",
+  "mpc_dialog_photo_alt": "Photo entière contenant le visage proposé",
+  "mpc_dialog_face": "Visage proposé",
+  "mpc_dialog_photo_failed": "Photo indisponible",
   "mpc_crop_missing": "Image indisponible",
   "mpc_crop_failed": "Image non chargée",
   "mpc_crop_retry": "Réessayer",

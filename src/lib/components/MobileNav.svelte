@@ -7,7 +7,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import type { User } from '#lib/types/api.ts';
-  import { NAV_ITEMS, isNavActive } from '#lib/nav-items.ts';
+  import { NAV_ITEMS, isNavActive, navBadgeCount } from '#lib/nav-items.ts';
+  import NavBadge from '#lib/components/NavBadge.svelte';
   import { m } from '#lib/paraglide/messages.js';
 
   let user = $derived(page.data?.session?.user as User | undefined);
@@ -32,7 +33,10 @@
         data-sveltekit-preload-data
       >
         <!-- The glyph alone is drawn; the full name stays the tab's accessible name. -->
-        <item.icon size={24} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
+        <span class="nav-glyph">
+          <item.icon size={24} strokeWidth={active ? 2.5 : 2} aria-hidden="true" />
+          <NavBadge count={navBadgeCount(item.href, page.data?.faceToConfirm)} />
+        </span>
         <span class="sr-only">{item.label()}</span>
       </a>
     {/each}
@@ -66,6 +70,11 @@
       display: flex;
       align-items: stretch;
     }
+  }
+
+  .nav-glyph {
+    position: relative;
+    display: flex;
   }
 
   .nav-item {

@@ -26,6 +26,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 /**
+ * The count the tab of `href` carries (0: no badge). Only "Mes photos" has one: the faces waiting
+ * for the member's answer, read from the layout data so that answering on the confirmation screen
+ * updates every tab at once (`invalidate('app:face-status')`).
+ */
+export function navBadgeCount(href: string, faceToConfirm: number | undefined): number {
+  if (href !== '/mes-photos') {
+    return 0;
+  }
+  return faceToConfirm !== undefined && faceToConfirm > 0 ? faceToConfirm : 0;
+}
+
+/**
  * Whether `href` is the section `pathname` belongs to: `/albums/abc` lights "Albums". A prefix
  * match on a path SEGMENT, so a future `/albums-archive` would not light it.
  */

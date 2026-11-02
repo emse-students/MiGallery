@@ -1268,9 +1268,11 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
   let enrolment: typeof import('#lib/server/face-enrolment.ts');
   let negatives: typeof import('#lib/server/face-negatives.ts');
   let upgrade: typeof import('#lib/server/face-reference-upgrade.ts');
+  let ledger: typeof import('#lib/server/face-reference-ledger.ts');
   let embedding: typeof import('#lib/face-embedding.ts');
 
   beforeAll(async () => {
+    ledger = await import('#lib/server/face-reference-ledger.ts');
     enrolment = await import('#lib/server/face-enrolment.ts');
     negatives = await import('#lib/server/face-negatives.ts');
     upgrade = await import('#lib/server/face-reference-upgrade.ts');
@@ -1324,6 +1326,56 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
     expect(() =>
       seal.unseal(key, seal.referenceContext('alice', embedding.FACE_MODEL), sealed)
     ).toThrow();
+  });
+
+  it('"C\'est moi" on a face that is learned promotes its waiting lookalike, reported as promoted', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    refs.addFaceReference(db(), key, 'alice', 'photo', atDistance(ALICE, synthetic(6), 0.2));
+    const c1 = atDistance(ALICE, synthetic(7), 0.3);
+    await storeFaces({
+      c1,
+      // Beside c1: the same person in another photo.
+      c2: atDistance(c1, synthetic(8), 0.02),
+      // Another face in the band, nowhere near c1: still asked.
+      c3: atDistance(ALICE, synthetic(9), 0.56),
+    });
+    // Two references only: every face is held back as suggested.
+    expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+    const promoted: Array<{ assetId: string; faceIndex: number }> = [];
+    const released: Array<{ assetId: string; faceIndex: number }> = [];
+    expect(
+      await enrolment.answerFace(engine(), 'alice', { assetId: 'c1', faceIndex: 0 }, 'confirm', {
+        promoted,
+        released,
+      })
+    ).toBe('learned');
+    // Three references now: c2 is theirs without a question, at once, before any re-match.
+    expect(promoted).toEqual([{ assetId: 'c2', faceIndex: 0 }]);
+    expect(released).toEqual([]);
+    expect(matches().map((m) => [m.asset_id, m.band, m.state])).toEqual([
+      ['c1', 'suggested', 'confirmed'],
+      ['c2', 'auto', 'pending'],
+      ['c3', 'suggested', 'pending'],
+    ]);
+  });
+
+  it('a "C est moi" that makes the count cross three decides EVERY waiting face, not only the ones near the new reference', async () => {
+    addUser('alice');
+    enrolment.enrolMember(engine(), 'alice', ALICE);
+    refs.addFaceReference(db(), key, 'alice', 'photo', atDistance(ALICE, synthetic(6), 0.2));
+    const c1 = atDistance(ALICE, synthetic(7), 0.3);
+    // Near the selfie, but more than 0.5 from c1 (the face about to be learned).
+    const apart = atDistance(ALICE, synthetic(11), 0.38);
+    expect(embedding.cosineDistance(c1, apart)).toBeGreaterThan(0.5);
+    await storeFaces({ c1, apart });
+    expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+    const promoted: Array<{ assetId: string; faceIndex: number }> = [];
+    await enrolment.answerFace(engine(), 'alice', { assetId: 'c1', faceIndex: 0 }, 'confirm', {
+      promoted,
+    });
+    // Three references: the minimum no longer holds `apart` back, whatever its distance to c1.
+    expect(promoted).toEqual([{ assetId: 'apart', faceIndex: 0 }]);
   });
 
   it('"Pas moi" on a face shown WITHOUT a question: it leaves her photos, kept as a negative, the other auto faces stay', async () => {
@@ -1487,8 +1539,10 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
       const result = upgrade.reselectReferences(engine(), 'alice', new Map([['conf45', 5000]]), 9);
       expect(result).toMatchObject({ outcome: 'upgraded', added: 2, dropped: 0, references: 7 });
-      // A confirmed face within 0.5 and an auto face within 0.4; not the auto at 0.45, not the
-      // pending suggestion, not the confirmed lookalike at 0.6. The photo of auto35 has no date.
+      // A member at the minimum grows from PROVEN faces only (owner, 2026-11-02): a confirmed
+      // face within 0.5 and an auto face within 0.4; not the auto at 0.45, not the pending
+      // suggestion (proof for the lone-selfie bootstrap only), not the confirmed lookalike at
+      // 0.6. The photo of auto35 has no date.
       expect(
         refsOf()
           .filter((r) => r.asset_id !== null)
@@ -1531,6 +1585,409 @@ describe('faces v2: negatives, sticky auto and the re-selection (owner, 2026-11-
       upgrade.reselectReferences(engine(), 'alice', new Map());
       await L.rematchMember(engine(), 'alice');
       expect(matches().find((m) => m.asset_id === 'beside')?.band).toBe('auto');
+    });
+
+    it('bootstraps a member with a lone selfie from the unambiguous suggestions nearest it', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({
+        near30: atDistance(ALICE, synthetic(911), 0.3),
+        near35: atDistance(ALICE, synthetic(912), 0.35),
+        near38: atDistance(ALICE, synthetic(913), 0.38),
+        far45: atDistance(ALICE, synthetic(914), 0.45),
+        twin: atDistance(ALICE, synthetic(915), 0.3),
+      });
+      // The lone selfie holds EVERY face back as suggested (fewer than FACE_MIN_REFERENCES).
+      expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+      // A lookalike member was 0.02 behind at the decision: ambiguous, never proof.
+      db()
+        .prepare("UPDATE face_matches SET runner_up = distance + 0.02 WHERE asset_id = 'twin'")
+        .run();
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      const result = upgrade.reselectReferences(engine(), 'alice', new Map());
+      // Within 0.4 and unambiguous: three. Not the one at 0.45, not the twin.
+      expect(result).toMatchObject({ outcome: 'upgraded', added: 3, dropped: 0, references: 4 });
+      expect(
+        refsOf()
+          .filter((r) => r.asset_id !== null)
+          .map((r) => [r.source, r.asset_id])
+          .sort()
+      ).toEqual([
+        ['matched', 'near30'],
+        ['matched', 'near35'],
+        ['matched', 'near38'],
+      ]);
+      // Proof for the selection only: nothing was shown by it. The re-match, with four references,
+      // then finds the faces within the auto distance auto, the twin included (no other member).
+      expect(new Set(matches().map((m) => m.band))).toEqual(new Set(['suggested']));
+      await L.rematchMember(engine(), 'alice');
+      expect(Object.fromEntries(matches().map((m) => [m.asset_id, m.band]))).toMatchObject({
+        near30: 'auto',
+        far45: 'auto',
+        twin: 'auto',
+      });
+    });
+
+    it('grows below the cap, then at the cap propagates by variety among PROVEN faces only', async () => {
+      addUser('alice');
+      const held = Array.from({ length: 14 }, (_, i) => atDistance(ALICE, synthetic(600 + i), 0.2));
+      for (const v of held) refs.addFaceReference(db(), key, 'alice', 'seed', v);
+      await storeFaces({
+        sugg: atDistance(held[0], synthetic(931), 0.3),
+        auto: atDistance(held[1], synthetic(932), 0.3),
+      });
+      setRow('sugg', 'suggested', 'pending');
+      setRow('auto', 'auto', 'pending');
+      // 14 held, the cap is 15: GROWTH, one room, from PROVEN faces only: the auto face, never
+      // the suggestion (proof for a member holding nothing but a selfie).
+      const grown = upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+      expect(grown).toMatchObject({ outcome: 'upgraded', added: 1, dropped: 0, references: 15 });
+      expect(refsOf().map((r) => r.asset_id)).toContain('auto');
+      expect(refsOf().map((r) => r.asset_id)).not.toContain('sugg');
+      // AT THE CAP, an older marker, a new face: PROPAGATION never reads an unproven suggestion.
+      db().prepare('DELETE FROM face_references WHERE asset_id IS NOT NULL').run();
+      db().prepare('DELETE FROM face_reference_selection').run();
+      db()
+        .prepare(
+          "INSERT INTO face_references (user_id, model, source, sealed, created_at) SELECT user_id, model, 'seed', sealed, created_at FROM face_references WHERE source = 'seed' LIMIT 1"
+        )
+        .run();
+      expect(refsOf().length).toBe(15);
+      setRow('sugg', 'suggested', 'pending');
+      upgrade.reselectReferences(engine(), 'alice', new Map(), 10);
+      expect(refsOf().map((r) => r.asset_id)).not.toContain('sugg');
+    });
+
+    it('selects every member before it re-matches any, so two lookalikes do not depend on the order', async () => {
+      const lookalike = atDistance(ALICE, synthetic(940), 0.3);
+      let run = 0;
+      const outcome = async (first: string, second: string) => {
+        run++;
+        db().exec(
+          'DELETE FROM face_matches; DELETE FROM face_references; DELETE FROM face_reference_selection; DELETE FROM face_rematch_pending; DELETE FROM users'
+        );
+        addUser(first);
+        addUser(second);
+        enrolment.enrolMember(engine(), first, ALICE);
+        enrolment.enrolMember(engine(), second, lookalike);
+        // Fresh asset ids per run: the face store keeps what it ingested.
+        const faces: Record<string, Float32Array> = {};
+        for (let i = 0; i < 3; i++) {
+          faces[`r${run}a${i}`] = atDistance(ALICE, synthetic(941 + i), 0.3);
+          faces[`r${run}b${i}`] = atDistance(lookalike, synthetic(951 + i), 0.3);
+        }
+        await storeFaces(faces);
+        await upgrade.runReferenceUpgrades(engine(), fakeFetch);
+        return Object.fromEntries(
+          matches().map((m) => [
+            m.asset_id.replace(/^r\d+/, ''),
+            `${m.user_id === first ? 'first' : 'second'}/${m.band}`,
+          ])
+        );
+      };
+      const one = await outcome('alice', 'bob');
+      expect(Object.keys(one)).toHaveLength(6);
+      expect(await outcome('bob', 'alice')).toEqual(one);
+    });
+
+    it('asks Immich nothing, and takes no turn of the lock, for a member with nothing to admit', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({ far: atDistance(ALICE, synthetic(970), 0.45) });
+      let calls = 0;
+      const noFetch = (async () => {
+        calls++;
+        throw new Error('Immich must not be asked');
+      }) as unknown as typeof fetch;
+      expect(await upgrade.selectMemberReferences(engine(), 'alice', noFetch)).toBe('already');
+      expect(calls).toBe(0);
+      expect(refsOf()).toHaveLength(1);
+    });
+
+    it('is order independent only because of the two phases: one phase after the other differs with the ids', async () => {
+      // Everything lives in ONE plane through ALICE, so a distance is 1 - cos(angle difference):
+      // ALICE at 0, B's selfie at 60, A's faces at 20 and 15, B's at 70 and 75, and X at 36 - held
+      // by B at first (24 from B's selfie against 36 from A's), nearer to A once A has grown.
+      const u = embedding.normalizeEmbedding(ALICE);
+      const v = embedding.normalizeEmbedding(synthetic(5));
+      const w = new Float32Array(u.length);
+      let dot = 0;
+      for (let i = 0; i < u.length; i++) dot += u[i] * v[i];
+      for (let i = 0; i < u.length; i++) w[i] = v[i] - dot * u[i];
+      const o = embedding.normalizeEmbedding(w);
+      const at = (deg: number) => {
+        const r = (deg * Math.PI) / 180;
+        return Float32Array.from(u, (x, i) => Math.cos(r) * x + Math.sin(r) * o[i]);
+      };
+      let run = 0;
+      const outcome = async (aId: string, bId: string, twoPhase: boolean) => {
+        run++;
+        db().exec(
+          'DELETE FROM face_matches; DELETE FROM face_references; DELETE FROM face_reference_selection; DELETE FROM face_rematch_pending; DELETE FROM users'
+        );
+        addUser(aId);
+        addUser(bId);
+        enrolment.enrolMember(engine(), aId, at(0));
+        enrolment.enrolMember(engine(), bId, at(60));
+        const faces: Record<string, Float32Array> = {};
+        const spec: Record<string, number> = { a1: 20, a2: 15, b1: 70, b2: 75, x: 36 };
+        for (const [name, deg] of Object.entries(spec)) faces[`r${run}${name}`] = at(deg);
+        await storeFaces(faces);
+        if (twoPhase) {
+          await upgrade.runReferenceUpgrades(engine(), fakeFetch);
+        } else {
+          for (const id of [aId, bId].sort()) {
+            if ((await upgrade.selectMemberReferences(engine(), id, fakeFetch)) === 'upgraded') {
+              await upgrade.finishMemberRematch(engine(), id, fakeFetch);
+            }
+          }
+        }
+        const count = (id: string) =>
+          (
+            db().prepare('SELECT COUNT(*) AS n FROM face_references WHERE user_id = ?').get(id) as {
+              n: number;
+            }
+          ).n;
+        const holderOfX = matches().find((m) => m.asset_id === `r${run}x`)?.user_id;
+        return { a: count(aId), b: count(bId), x: holderOfX === aId ? 'a' : 'b' };
+      };
+      // The same result whichever id sorts first, in the order the pass really uses.
+      expect(await outcome('alice', 'bob', true)).toEqual(await outcome('bob', 'alice', true));
+      // The fixture is sharp: with one phase the ids DO change the result.
+      expect(await outcome('alice', 'bob', false)).not.toEqual(
+        await outcome('bob', 'alice', false)
+      );
+    });
+
+    it('resumes a re-match a crash left owed, and clears the mark', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({
+        near1: atDistance(ALICE, synthetic(950), 0.3),
+        near2: atDistance(ALICE, synthetic(951), 0.31),
+      });
+      upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+      expect(upgrade.membersPendingRematch(db())).toEqual(['alice']);
+      await upgrade.runReferenceUpgrades(engine(), fakeFetch);
+      expect(upgrade.membersPendingRematch(db())).toEqual([]);
+      expect(matches().find((m) => m.asset_id === 'near1')?.band).toBe('auto');
+    });
+
+    it('retries a member still under the minimum whatever the marker, and never one undone', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      db()
+        .prepare(
+          'INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, ?, 1)'
+        )
+        .run('alice', embedding.FACE_MODEL, embedding.FACE_REFERENCE_SELECTION_VERSION);
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      db()
+        .prepare('UPDATE face_reference_selection SET version = ?')
+        .run(embedding.FACE_SELECTION_UNDONE);
+      expect(upgrade.membersToUpgrade(db())).toEqual([]);
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+    });
+
+    it('measures a member with no selfie to their ORIGINAL references, never to ones a pass added', async () => {
+      addUser('alice');
+      const s1 = atDistance(ALICE, synthetic(981), 0.1);
+      refs.addFaceReference(db(), key, 'alice', 'seed', s1);
+      refs.addFaceReference(db(), key, 'alice', 'seed', atDistance(ALICE, synthetic(982), 0.1));
+      const m = atDistance(s1, synthetic(983), 0.35);
+      const far = atDistance(m, synthetic(984), 0.3);
+      expect(embedding.cosineDistance(s1, far)).toBeGreaterThan(0.5);
+      await storeFaces({ m, far });
+      setRow('m', 'suggested', 'pending');
+      // Two references: the lone-selfie bootstrap applies, `m` is admitted.
+      expect(upgrade.reselectReferences(engine(), 'alice', new Map(), 9).added).toBe(1);
+      // Three now; `far` is 0.3 from the admitted `m` but past 0.5 from the seeds: a hop that the
+      // old yardstick (every held reference) took, one per tick.
+      setRow('far', 'auto', 'pending');
+      db().prepare('DELETE FROM face_reference_selection').run();
+      expect(upgrade.reselectReferences(engine(), 'alice', new Map(), 10).outcome).toBe('already');
+      expect(refsOf().map((r) => r.asset_id)).not.toContain('far');
+    });
+
+    it('drops the first snapshot when a new selfie replaces the one it holds', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({ n1: atDistance(ALICE, synthetic(985), 0.3) });
+      upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+      expect(ledger.ledgerCounts(db()).members).toBe(1);
+      enrolment.enrolMember(engine(), 'alice', atDistance(ALICE, synthetic(986), 0.05));
+      // An undo now would give back the replaced selfie and delete the new one.
+      expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+      expect(db().prepare('SELECT COUNT(*) AS n FROM face_avatar_ledger').get()).toEqual({ n: 0 });
+    });
+
+    it('takes no turn of the engine lock, and no Immich call, for a member with nothing to admit', async () => {
+      addUser('alice');
+      enrolment.enrolMember(engine(), 'alice', ALICE);
+      await storeFaces({ far: atDistance(ALICE, synthetic(987), 0.45) });
+      let release: () => void = () => {};
+      const lockHeld = engineMod.runExclusive(() => new Promise<void>((r) => (release = r)));
+      try {
+        // Would wait forever if it took a turn of the lock.
+        expect(
+          await upgrade.selectMemberReferences(engine(), 'alice', (() => {
+            throw new Error('Immich must not be asked');
+          }) as unknown as typeof fetch)
+        ).toBe('already');
+      } finally {
+        release();
+        await lockHeld;
+      }
+    });
+
+    it('only marks a member already at the minimum that an earlier version selected', async () => {
+      seededAlice();
+      db()
+        .prepare(
+          'INSERT INTO face_reference_selection (user_id, model, version, selected_at) VALUES (?, ?, 2, 1)'
+        )
+        .run('alice', embedding.FACE_MODEL);
+      expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+      const result = upgrade.reselectReferences(engine(), 'alice', new Map());
+      expect(result).toMatchObject({ outcome: 'already', added: 0, dropped: 0 });
+      expect(refsOf()).toHaveLength(5);
+      expect(upgrade.membersToUpgrade(db())).toEqual([]);
+    });
+
+    describe('the ledger of a pass, and the way back', () => {
+      const undo = (userId = 'alice') =>
+        engineMod.runExclusive(() => ledger.undoReferenceSelection(engine(), userId));
+      const bands = () =>
+        Object.fromEntries(
+          matches()
+            .filter((m) => m.user_id === 'alice')
+            .map((m) => [m.asset_id, `${m.band}/${m.state}`])
+        );
+      const selfieBlob = () =>
+        (
+          db().prepare("SELECT sealed FROM face_references WHERE source = 'selfie'").get() as {
+            sealed: Uint8Array;
+          }
+        ).sealed;
+
+      /** A lone selfie, five waiting faces, one answered yes and one answered no. */
+      async function bootstrapped() {
+        addUser('alice');
+        enrolment.enrolMember(engine(), 'alice', ALICE);
+        await storeFaces({
+          near30: atDistance(ALICE, synthetic(911), 0.3),
+          near35: atDistance(ALICE, synthetic(912), 0.35),
+          near38: atDistance(ALICE, synthetic(913), 0.38),
+          far45: atDistance(ALICE, synthetic(914), 0.45),
+          yes: atDistance(ALICE, synthetic(916), 0.55),
+          no: atDistance(ALICE, synthetic(917), 0.58),
+        });
+        setRow('yes', 'suggested', 'confirmed');
+        setRow('no', 'suggested', 'rejected');
+      }
+
+      it('keeps the references and the waiting faces a pass replaces, in the same transaction', async () => {
+        await bootstrapped();
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        // The selfie, and the four faces still waiting: the answered two are the member's own.
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 1, references: 1, matches: 4 });
+      });
+
+      it('restores the references byte for byte, the waiting faces and their bands, and keeps the answers', async () => {
+        await bootstrapped();
+        const selfieBefore = Buffer.from(selfieBlob());
+        const waitingBefore = bands();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        await L.rematchMember(engine(), 'alice');
+        // The pass did something visible, or the undo proves nothing.
+        expect(refsOf().length).toBeGreaterThan(1);
+        expect(bands().near30).toBe('auto/pending');
+        const result = await undo();
+        expect(result).toMatchObject({ version: embedding.FACE_REFERENCE_SELECTION_VERSION });
+        expect(result?.conflicts).toBe(0);
+        expect(refsOf()).toHaveLength(1);
+        expect(Buffer.compare(Buffer.from(selfieBlob()), selfieBefore)).toBe(0);
+        expect(bands()).toEqual(waitingBefore);
+        // Answers are the member's: still there. And the member is not redone.
+        expect(bands().yes).toBe('suggested/confirmed');
+        expect(bands().no).toBe('suggested/rejected');
+        expect(upgrade.membersToUpgrade(db())).toEqual([]);
+        // Consumed: a second undo finds nothing.
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+        expect(await undo()).toBeNull();
+      });
+
+      it('keeps the FIRST snapshot: two passes, then an undo returns to the state before either', async () => {
+        addUser('alice');
+        enrolment.enrolMember(engine(), 'alice', ALICE);
+        const first = { n1: atDistance(ALICE, synthetic(961), 0.3) };
+        await storeFaces(first);
+        const selfieBefore = Buffer.from(selfieBlob());
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        expect(refsOf()).toHaveLength(2);
+        await storeFaces({ ...first, n2: atDistance(ALICE, synthetic(962), 0.31) });
+        // Two references: still owed, whatever the marker. The second pass keeps no new snapshot.
+        expect(upgrade.membersToUpgrade(db())).toEqual(['alice']);
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 10);
+        expect(refsOf()).toHaveLength(3);
+        expect(ledger.ledgerCounts(db()).references).toBe(1);
+        const result = await undo();
+        expect(result?.conflicts).toBe(0);
+        expect(refsOf()).toHaveLength(1);
+        expect(Buffer.compare(Buffer.from(selfieBlob()), selfieBefore)).toBe(0);
+      });
+
+      it('does not re-match a member an undo already restored, and leaves their profile photo', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        const waiting = bands();
+        await undo();
+        // The undo deleted the owed mark: a re-match from the old read of it must do nothing.
+        await upgrade.finishMemberRematch(engine(), 'alice', fakeFetch);
+        expect(refsOf()).toHaveLength(1);
+        expect(bands().near30).toBe(waiting.near30);
+        expect(upgrade.membersPendingRematch(db())).toEqual([]);
+      });
+
+      it('does not force back a face another member confirmed since: a conflict, counted', async () => {
+        await bootstrapped();
+        addUser('bob');
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        db()
+          .prepare("DELETE FROM face_matches WHERE asset_id = 'near30' AND user_id = 'alice'")
+          .run();
+        db()
+          .prepare(
+            `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up,
+               band, state, created_at, decided_at) VALUES ('near30', 0, ?, 'bob', 0.3, NULL,
+               'auto', 'confirmed', 1, 1)`
+          )
+          .run(embedding.FACE_MODEL);
+        const result = await undo();
+        expect(result?.conflicts).toBe(1);
+        expect(matches().find((m) => m.asset_id === 'near30')?.user_id).toBe('bob');
+      });
+
+      it('goes with the member on withdrawal, and the whole ledger goes on a purge', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        expect(ledger.ledgerCounts(db()).references).toBe(1);
+        refs.eraseFaceReferences(db(), 'alice');
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+        db().prepare('DELETE FROM face_reference_selection').run();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        // No reference left to rewrite: nothing was kept, nothing to purge.
+        expect(ledger.purgeSelectionLedger(db())).toBe(0);
+      });
+
+      it('purges everything at once when the window is closed', async () => {
+        await bootstrapped();
+        upgrade.reselectReferences(engine(), 'alice', new Map(), 9);
+        expect(ledger.purgeSelectionLedger(db())).toBe(6);
+        expect(ledger.ledgerCounts(db())).toEqual({ members: 0, references: 0, matches: 0 });
+      });
     });
   });
 });

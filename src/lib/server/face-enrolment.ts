@@ -29,7 +29,14 @@
 
 import type { DatabaseInstance } from '#lib/db/database.ts';
 import { inTransaction } from '#lib/db/transaction.ts';
-import { FACE_MAX_REFERENCES, FACE_MODEL } from '#lib/face-embedding.ts';
+import {
+  FACE_AUTO_MAX_DISTANCE,
+  FACE_MAX_REFERENCES,
+  FACE_MIN_REFERENCES,
+  FACE_MODEL,
+  FACE_SELECTION_UNDONE,
+  cosineDistance,
+} from '#lib/face-embedding.ts';
 import { decideLearning, learnable, redundantVictim } from '#lib/face-reference-selection.ts';
 import { recordFaceConsent } from '#lib/server/face-consent.ts';
 import {
@@ -101,6 +108,18 @@ export function enrolMember(
       // The cap is held above; reaching this means the table and this code disagree.
       throw new Error('the selfie reference could not be stored');
     }
+    if (replaced > 0) {
+      // The first snapshot holds the selfie that was just replaced: an undo would give it back and
+      // delete the new one. A re-enrolment is a new start; the next pass keeps a new snapshot.
+      for (const table of ['face_reference_ledger', 'face_match_ledger']) {
+        db.prepare(`DELETE FROM ${table} WHERE user_id = ? AND model = ?`).run(userId, FACE_MODEL);
+      }
+      db.prepare('DELETE FROM face_avatar_ledger WHERE user_id = ?').run(userId);
+    }
+    // A new selfie ends an admin's undo of the selection pass: the member is owed it again.
+    db.prepare(
+      'DELETE FROM face_reference_selection WHERE user_id = ? AND model = ? AND version = ?'
+    ).run(userId, FACE_MODEL, FACE_SELECTION_UNDONE);
     const held = referenceCount(db, userId);
     log.info('member enrolled', { replaced, evicted, references: held });
     return held;
@@ -152,6 +171,12 @@ export interface AnswerOptions {
    * longer theirs to answer.
    */
   released?: FaceKey[];
+  /**
+   * Filled on a confirmation that became a reference with the faces the member was waiting to
+   * answer that the new reference now makes theirs WITHOUT a question (`auto`): the mirror of
+   * `released`, and the screen drops them from the list - they are in "Mes photos" now.
+   */
+  promoted?: FaceKey[];
 }
 
 /**
@@ -222,6 +247,14 @@ export async function answerFace(
       }
     });
     log.info('confirmed face learned', { renewal: decision.kind === 'replace' });
+    settleWaitingAfterLearning(
+      engine,
+      userId,
+      opened.embedding,
+      held.length < FACE_MIN_REFERENCES && held.length + 1 >= FACE_MIN_REFERENCES,
+      options.promoted,
+      options.released
+    );
     return 'learned';
   });
   if (outcome === 'learned' || rematch) {
@@ -277,6 +310,60 @@ function afterRejection(
     log.info('a rejection withheld other waiting faces', { released: gone.length });
   }
   return dropped;
+}
+
+/**
+ * What follows a confirmation that became a reference, inside the engine lock: the mirror of the
+ * rejection's re-decision. The faces still waiting for the member's answer are re-decided against
+ * their new references, so the lookalikes of the face they just confirmed move at once - to `auto`
+ * (`promoted`: shown without a question) or, when another member now holds them, away (`released`)
+ * - instead of waiting for the background re-match to land and the screen to be reloaded. The
+ * re-match still runs after it; it finds the same decisions (one `decideFace` for every path).
+ */
+function settleWaitingAfterLearning(
+  engine: FaceEngine,
+  userId: string,
+  learned: ArrayLike<number>,
+  crossedMinimum: boolean,
+  promoted?: FaceKey[],
+  released?: FaceKey[]
+): void {
+  // Only the faces the NEW reference can move: those within the `auto` distance of it. Any other
+  // waiting face is as far from the member's references as before, so re-deciding it is work
+  // (and a screen that shifts under the member) for nothing.
+  // Except when the confirmation made the member cross FACE_MIN_REFERENCES: every waiting face
+  // within 0.5 of ANY reference stops being held back by the minimum, so all of them are decided.
+  const reachable = new Set(
+    loadFaceEmbeddings(engine.faceDb, engine.key, waitingFaces(engine.db, userId))
+      .filter((f) => cosineDistance(learned, f.embedding) <= FACE_AUTO_MAX_DISTANCE)
+      .map(keyOf)
+  );
+  const waiting = waitingFaces(engine.db, userId).filter(
+    (f) => crossedMinimum || reachable.has(keyOf(f))
+  );
+  if (waiting.length === 0) {
+    return;
+  }
+  redecideFaces(engine, waiting);
+  const still = new Set(waitingFaces(engine.db, userId).map(keyOf));
+  const shown = new Set(
+    (
+      engine.db
+        .prepare(
+          `SELECT asset_id, face_index FROM face_matches WHERE user_id = ? AND model = ?
+            AND state = 'pending' AND band = 'auto'`
+        )
+        .all(userId, FACE_MODEL) as Array<{ asset_id: string; face_index: number }>
+    ).map((r) => keyOf({ assetId: r.asset_id, faceIndex: r.face_index }))
+  );
+  const gone = waiting.filter((f) => !still.has(keyOf(f)));
+  const nowShown = gone.filter((f) => shown.has(keyOf(f)));
+  promoted?.push(...nowShown);
+  released?.push(...gone.filter((f) => !shown.has(keyOf(f))));
+  log.info('a confirmation moved other waiting faces', {
+    promoted: nowShown.length,
+    released: gone.length - nowShown.length,
+  });
 }
 
 /** What {@link removeMemberPhoto} did. */

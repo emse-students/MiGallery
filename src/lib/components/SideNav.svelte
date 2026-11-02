@@ -10,7 +10,8 @@
 <script lang="ts">
   import { page } from '$app/state';
   import type { User } from '#lib/types/api.ts';
-  import { NAV_ITEMS, isNavActive } from '#lib/nav-items.ts';
+  import { NAV_ITEMS, isNavActive, navBadgeCount } from '#lib/nav-items.ts';
+  import NavBadge from '#lib/components/NavBadge.svelte';
   import { m } from '#lib/paraglide/messages.js';
 
   let user = $derived(page.data?.session?.user as User | undefined);
@@ -28,7 +29,10 @@
         aria-current={active ? 'page' : undefined}
         data-sveltekit-preload-data
       >
-        <span class="side-icon"><item.icon size={20} /></span>
+        <span class="side-icon">
+          <item.icon size={20} />
+          <NavBadge count={navBadgeCount(item.href, page.data?.faceToConfirm)} />
+        </span>
         <span class="side-label">{item.label()}</span>
       </a>
     {/each}
@@ -84,6 +88,7 @@
   }
 
   .side-icon {
+    position: relative;
     display: flex;
     flex-shrink: 0;
   }

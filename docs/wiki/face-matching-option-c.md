@@ -740,7 +740,8 @@ answer removes its tile at once and a refused one puts it back where it was.
 **The migration of existing members** (`runReferenceUpgrades`, from the ingestion tick once the
 store is seeded). One member at a time, each in its own turn of the engine lock: capture dates read
 from Immich outside the lock, then ONE transaction re-selects held references plus proven faces
-(the selfie kept) and writes `face_reference_selection` (version 2); then the member is re-matched
+(the selfie kept) and writes `face_reference_selection` (version 2, then 3 with the bootstrap
+above); then the member is re-matched
 (sticky rows kept) and their DEFAULT profile photo looked at again. The row is durable state: a
 member done is never redone, a crash resumes, a member whose Immich read failed is retried on the
 next tick with an error line. Who gets what: the **4 linked members with no group** hold no
@@ -770,21 +771,210 @@ of 6.5 s for 600k faces with 5 references therefore scales to about **10.8 s per
 references. A re-match is background work, coalesced per member, never in a request; the dry run
 prints the real decision time on the dev copy.
 
+### The bootstrap, and a confirmation that promotes (faces v2.1, owner's decisions of 2026-11-01)
+
+**The defect.** `decideBand` holds every `auto` face back as `suggested` for a member under
+`FACE_MIN_REFERENCES` (3), and the v2 selection learns only PROVEN faces (confirmed, or pending
+`auto`). A member with the selfie alone therefore had no proven face, kept one reference, and saw
+no photo at all: production read-only on 2026-11-01, **316 consenting members, 5 with zero visible
+photos, all 5 under 3 references** (median 212 visible). One of them held a lone selfie with 473
+matches, every one `suggested` (197 of them within 0.5, none ambiguous); the other four hold no
+reference at all (linked person gone, above) and are NOT touched by this fix.
+
+**1. The bootstrap** (selection version 3, `face-reference-upgrade.ts`). A member below
+`FACE_MIN_REFERENCES` also takes as proven the pending `suggested` faces within
+`FACE_PROVEN_AUTO_DISTANCE` (0.4) of their CURRENT references whose decision-time runner-up was at
+least `FACE_AMBIGUITY_MARGIN` (0.05) behind (or absent). They are proof for the SELECTION only
+(source `matched`): nothing becomes visible by it. Once the member reaches 3 references the normal
+rule applies, and the re-match that follows the selection makes their faces within 0.5 `auto`. "As
+the other members" therefore starts at 3 references, with no second mechanism. The version bump
+re-selects only members that need it (see the 2026-11-02 section below for the rule as it stands):
+a member at the cap that version 2 selected is MARKED (3) and never re-propagated, a pass over
+300 members' references would only churn them.
+
+**Grown until stable** (owner, 2026-11-01: _"il faut faire jusqu'à stabiliser. Demander trop
+d'action à l'utilisateur perd complètement le principe"_; `growUntilStable`,
+`face-reference-selection.ts`). Each round takes the faces within 0.4 of the member's CURRENT
+references (0.5 for a confirmed face), the closest to the selfie first, held references kept; a
+face that a round made reachable is found by the next one. **Termination is a proof, not a clock**: a round
+with an eligible face adds at least one reference (the held ones are anchors and the cap is above
+their count), so the count rises strictly towards `FACE_MAX_REFERENCES`; a round with none ends it.
+No round drops a reference. **The drift guard**: every reference stays within
+`FACE_SUGGEST_MAX_DISTANCE` (0.62, the model's own 1e-4 false-match threshold) of the references
+the member held when the bootstrap began, their selfie: chained 0.4 steps could otherwise walk to
+another face with nobody to see it. This replaces the earlier rule that a member's reach grows
+"only through an answer" FOR THE BOOTSTRAP MEMBERS ALONE (under 3 references at the start); every
+other member keeps the old rule, because applying it to the 300 others is a production-wide change
+that needs its own measurement. On the one member measured (read-only, 2026-11-01): 2 matches at
+0.35 or less, 13 at 0.40 or less (all unambiguous), 88 at 0.45, 197 at 0.50, so the first round
+alone takes all 13 (14 references with the selfie, cap 15).
+Residual, named: a bootstrapped member with no face within 0.4 stays under 3 references; the tick
+re-reads them (one read, no write, no Immich call) as faces arrive, and a confirmation on the
+screen below (a learnable face is added) is the way out that does not wait for one.
+
+**2. A "C'est moi" mirrors "Pas moi"** (`settleWaitingAfterLearning`, `face-enrolment.ts`). When a
+confirmation becomes a reference, the faces still waiting for the member are re-decided against
+their new references INSIDE the engine lock, as a rejection already does against its negative: the
+lookalikes of the face just confirmed become `auto` at once (`promoted` in the answer) or, if
+another member now holds them, leave (`released`). The screen drops both and says how many joined
+"Mes photos" (`mpc_promoted`): no reload, no waiting for the background re-match, which then finds
+the same decisions (one `decideFace` for every path). There is no group button: the lookalikes
+move with the answer (owner, 2026-11-01: no visual grouping; the algorithm stays a nearest-member
+match, nothing clusters faces).
+
+**3. What the member sees** (owner, 2026-11-01). The count of faces waiting for an answer is
+layout data (`faceToConfirm`, `depends('app:face-status')`): ONE number read by the badge on the
+"Mes photos" tab (`NavBadge`, `navBadgeCount`, both navigations) and by the banner on "Mes photos",
+and the confirmation screen calls `invalidate('app:face-status')` after every recorded answer, so
+neither is older than the last answer. A card opens the WHOLE photo (`FacePhotoDialog`: the
+preview every member's viewer already reads, the proposed face as a chip, answer from the dialog;
+Space or the corner button, Escape answers nothing). The background re-match that follows an
+answer lands later and is not pushed to an open page: the next navigation shows it.
+
+**4. The ledger, and the way back** (`face-reference-ledger.ts`, tables `face_reference_ledger`
+and `face_match_ledger`; the production pass is a write, so it keeps what it replaces). Just BEFORE
+a selection pass rewrites a member's references, and in the same transaction, their
+`face_references` rows are copied verbatim (the sealed blob is bound to the member and model, so a
+restore opens as the original did) with the selection version, and so are their PENDING matches
+(shown without a question, or waiting); answered rows are the member's own and a pass never
+touches them. **ONE snapshot per member, the FIRST** (the rule is permanent, so a member is
+selected again at every enrolment and every tick that finds a reachable face; a snapshot per pass
+would leave an undo only the last step back). It is consumed by the undo, after which the next
+pass keeps a new one. A member only MARKED rewrites nothing and keeps nothing. The profile photo
+pointer is in it (`face_avatar_ledger`).
+
+**Undo, one member** (`POST /api/admin/faces/selection-undo { user_id }`, an admin session, never
+an impersonated one; the function runs in the engine lock, in one transaction): the references
+are replaced by the snapshot's, the pending matches by the snapshot's, the selection marker becomes
+UNDONE (-1: an undone member is not selected again until a new selfie), the snapshot is consumed
+(a second undo is a 404), and the faces the member held that the snapshot does not name are
+re-decided for everyone. Counts come back: `{ version, references, matches, conflicts,
+redecided }`. A `conflict` is a snapshot face another member HOLDS now, in any state: it is not given
+back. What an undo does not return: a reference the member learned by answering AFTER the pass
+(replaced by the snapshot's set; their answers stay as rows), and a face another member lost to
+this one during the pass (re-decided at that member's next re-match). So undo soon.
+`GET` on the same route counts the ledger (`{ members, references, matches }`).
+
+**Retention.** The ledger holds sealed biometric vectors, so it goes with the member (withdrawal,
+unlink and account deletion: `eraseFaceReferences`, and the cascade) and for everyone at once on
+`DELETE /api/admin/faces/selection-undo` (`purgeSelectionLedger`), which the owner runs when the
+window is closed. No timer decides it. It lives in `migallery.db`, so the backups carry it too:
+add the ledger to the register of processing when the pass has run (owed, Canari repository):
+its lifetime is one snapshot per member, the first, kept until an admin undoes it or purges the
+ledger, and refilled for any member selected again after that.
+
+**Measured, owed after the release:** the same read-only query as the baseline (visible photos per
+consenting member: zero-visible count and median) once the pass has run; the production write that
+sets this off is the deploy of the release itself (the selection pass runs from the ingestion
+tick), which the owner approves first.
+
+### The selection rule, as the owner fixed it on 2026-11-02 (grow, then propagate)
+
+This supersedes the "chosen for variety" and "marked, never re-selected" wording of the bootstrap
+section above wherever they disagree.
+
+**The phase is decided by the reference count at the start of each round, so it is deterministic and
+order-independent:**
+
+- **Below the cap (`FACE_MAX_REFERENCES`, 15): GROW.** Admit the most SIMILAR faces first, by
+  proximity to the selfie (ties on the key), under the drift guard (below). **A member holding
+  nothing but a selfie (fewer than 3 references) is the BOOTSTRAP: a pending unambiguous
+  `suggested` face counts as proof, for the SELECTION only. A member holding 3 to 14 references
+  grows too, on this deploy, but ONLY from PROVEN faces** (confirmed, or `auto` within 0.4; owner,
+  2026-11-02). Nothing is dropped, the selfie stays. Never farthest-point here: that picks the off-centre faces,
+  which is where a lookalike relative sits.
+- **At the cap: PROPAGATE.** Replace by VARIETY (`selectVariedReferences`, farthest-point) to cover
+  angles, lighting and age, and ONLY among PROVEN faces (confirmed, or `auto` decided for a member
+  already at 3 references or more), never among unproven suggestions: "farthest" is safe only on
+  faces known to be theirs. That was the v2 rule and it stays there.
+
+**The rule is permanent**: every member under `FACE_MIN_REFERENCES` is owed the bootstrap, now and at
+every future enrolment (`membersToUpgrade` selects them whatever their marker, except an undone one;
+the enrolment route chains the selection after the re-match; a new selfie clears an undone mark). A
+member with nothing within reach costs one read per tick and no write.
+
+**What the owner approved, and the residual risk.** A selfie alone is enough to start; the
+admission is by proximity, guarded. A lookalike who is not enrolled (a relative, a twin) and sits
+within the guard of the selfie can be admitted: named, not removable by a threshold, and the way back is
+the ledger below. **Crossing 3 references makes EVERY face within 0.5 `auto`, hence visible to the
+member without a question**, which is the point of the chantier and also the exposure.
+
+**The guard and the ranking are measured to the SELFIE** (the anchors; only a member with none is
+measured to every held reference), never to the references a pass has already added: otherwise a
+reference admitted at 0.55 would let in faces about 1.0 from the selfie and the reach would ratchet
+at every tick. Qualification (0.4 unconfirmed, 0.5 confirmed) is still measured to the nearest
+CURRENT reference, so admissions chain, but never past the guard from the selfie.
+
+**Owner decision, 2026-11-02 (direct): an UNPROVEN chain stops at 0.5 from the selfie, not 0.62.**
+The guard is `FACE_AUTO_MAX_DISTANCE` for an unconfirmed face (a pending `auto` or an unambiguous
+`suggested` one) and `FACE_SUGGEST_MAX_DISTANCE` (0.62) only for a face the member CONFIRMED
+themselves. At the cap the propagation obeys the same guard.
+
+**Owner decision, 2026-11-02 (direct): a member with NO selfie (the A7 seed references) is measured
+to their ORIGINAL references** - every reference that is not `matched`, so seeds and the faces they
+confirmed - never to a reference a pass added. This persists with no extra column: `matched` is
+the source a pass writes, and nothing else ever uses it.
+
+**Owner decision, 2026-11-02 (direct): replacing the selfie DROPS the member's ledger snapshot**
+(`enrolMember`, references, matches and the profile photo pointer): an undo then returns to the NEW
+selfie, and the replaced selfie's vector is no longer kept.
+
+**A member the pass cannot help costs no Immich call and no lock turn**: the tick previews the
+selection (a read of the store) and asks Immich for capture dates only of the faces it would
+admit (growth) or of every proven face (propagation, where recency breaks ties). The real pass
+refuses to store a face whose date was never asked for and the tick asks again (at most three
+reads): a reference is never stored undated by a race, because an undated one is evicted first.
+
+**What production writes, by band** (what the dry run reports): under 3 references - the bootstrap,
+closest first, suggestions count as proof, then the re-match makes everything within 0.5 `auto`
+once 3 are held; 3 to 14 - proven faces by proximity, one snapshot, one re-match; 15, unmarked -
+one variety pass among proven faces, marked once; 15, marked - nothing (intended). Every written
+member keeps the FIRST snapshot, is re-matched in phase 2, and is marked version 3.
+
+**A confirmation that makes the count cross 3** re-decides ALL the member's waiting faces (the
+minimum no longer holds any of them back); any other confirmation only those within 0.5 of the new
+reference (`settleWaitingAfterLearning`).
+
+**A MARKED member at the cap is never re-propagated: intended.** Version 2 already propagated
+them; a rewrite of every such member's references would only churn them. An unmarked member at the
+cap IS propagated, once.
+
+**Two phases per pass** (`runReferenceUpgrades`). All members' references are selected first (one
+engine-lock turn each), then every member whose re-match is owed (`face_rematch_pending`) is
+re-matched, so each re-match decides against the FINAL reference sets of everyone: two lookalikes
+bootstrapping in one pass get the same faces whichever id sorts first (a test pins it, and shows
+that one phase after the other does NOT). Two residual order paths, named: ingestion runs between
+the phase-1 turns (a face decided in between is decided against a partial set; the next pass
+re-reads it), and the enrolment chain selects one member alone (no other member to wait for). The pending mark is written
+in the same transaction as the references and the marker and deleted when the re-match completes: a
+crash between the two is resumed by the next tick, never left "selected and stale".
+
+**The way back covers the profile photo and the promotions.** `face_avatar_ledger` keeps the
+member's profile photo pointer before the pass (a pass may set a DEFAULT one other members see);
+an undo restores it only while it is still a default, never over a choice. A face a confirmation
+promoted was a pending row (`decided_at` NULL), so the snapshot restore covers it. The undo marks
+the member `FACE_SELECTION_UNDONE` (-1): the tick never selects for them again until a new selfie.
+`settleWaitingAfterLearning` re-decides only the waiting faces within 0.5 of the NEW reference, all of them when the count crosses 3.
+
+**The selfie is always kept.** `growUntilStable` never drops a held reference; at the cap
+`selectVariedReferences` places the anchors (the selfie) first; renewal (`redundantVictim`) never
+picks an anchor; only a new enrolment replaces it (`enrolMember`).
+
 ### The decided numbers
 
-| Constant                                      | Value       | Meaning                                                                       |
-| --------------------------------------------- | ----------- | ----------------------------------------------------------------------------- |
-| `FACE_MODEL`                                  | `buffalo_l` | the only model compared; every row carries the tag                            |
-| `FACE_EMBEDDING_DIM`                          | 512         |                                                                               |
-| `FACE_MIN_REFERENCES` / `FACE_MAX_REFERENCES` | 3 / 15      | the cap is also a table trigger (5 until faces v2, 2026-11-01)                |
-| `FACE_SEED_REFERENCES`                        | 5           | what the A7 seed still writes; the v2 re-selection tops up to 15              |
-| `FACE_PROVEN_AUTO_DISTANCE`                   | 0.4         | an `auto` face this close is proven, and may become a reference (v2)          |
-| `FACE_MAX_NEGATIVES`                          | 30          | "Pas moi" examples kept per member, also a trigger (v2)                       |
-| `FACE_AUTO_MAX_DISTANCE`                      | 0.5         | shown without a question                                                      |
-| `FACE_SUGGEST_MAX_DISTANCE`                   | 0.62        | 0.5 to 0.62 is offered to the member, who confirms                            |
-| `FACE_AMBIGUITY_MARGIN`                       | 0.05        | a runner-up closer than this (strictly) makes an `auto` face `suggested` (A2) |
-| `FACE_DETECTION_MIN_SCORE`                    | 0.7         | a face stored, and a selfie's one face (A2)                                   |
-| `FACE_SELFIE_BYSTANDER_SCORE`                 | 0.5         | any second face at or above it refuses a selfie (A2)                          |
+| Constant                                      | Value       | Meaning                                                                                                                                      |
+| --------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FACE_MODEL`                                  | `buffalo_l` | the only model compared; every row carries the tag                                                                                           |
+| `FACE_EMBEDDING_DIM`                          | 512         |                                                                                                                                              |
+| `FACE_MIN_REFERENCES` / `FACE_MAX_REFERENCES` | 3 / 15      | the cap is also a table trigger (5 until faces v2, 2026-11-01)                                                                               |
+| `FACE_SEED_REFERENCES`                        | 5           | what the A7 seed still writes; the v2 re-selection tops up to 15                                                                             |
+| `FACE_PROVEN_AUTO_DISTANCE`                   | 0.4         | an `auto` face this close is proven, and may become a reference (v2); in the bootstrap (< 3 references) so is an unambiguous `suggested` one |
+| `FACE_MAX_NEGATIVES`                          | 30          | "Pas moi" examples kept per member, also a trigger (v2)                                                                                      |
+| `FACE_AUTO_MAX_DISTANCE`                      | 0.5         | shown without a question                                                                                                                     |
+| `FACE_SUGGEST_MAX_DISTANCE`                   | 0.62        | 0.5 to 0.62 is offered to the member, who confirms                                                                                           |
+| `FACE_AMBIGUITY_MARGIN`                       | 0.05        | a runner-up closer than this (strictly) makes an `auto` face `suggested` (A2)                                                                |
+| `FACE_DETECTION_MIN_SCORE`                    | 0.7         | a face stored, and a selfie's one face (A2)                                                                                                  |
+| `FACE_SELFIE_BYSTANDER_SCORE`                 | 0.5         | any second face at or above it refuses a selfie (A2)                                                                                         |
 
 ### The secret
 
