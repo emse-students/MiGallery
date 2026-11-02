@@ -20,7 +20,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 
 const server = http.createServer((req, res) => {
   console.log(`[MockImmich] ${safeLog(req.method)} ${safeLog(req.url)}`);
-  console.log('[MockImmich] Headers:', req.headers);
+  console.log(`[MockImmich] Header names: ${Object.keys(req.headers).map(safeLog).join(', ')}`);
 
   if (req.method === 'POST' && req.url === '/api/assets') {
     const contentType = req.headers['content-type'] || '';
@@ -34,7 +34,7 @@ const server = http.createServer((req, res) => {
     }
 
     const boundary = boundaryMatch[1] || boundaryMatch[2];
-    console.log(`[MockImmich] Multipart boundary received (length=${boundary.length})`);
+    console.log(`[MockImmich] Multipart boundary received (length=${Number(boundary.length)})`);
 
     // Simple stream to file to verify reception
     const timestamp = Date.now();

@@ -316,7 +316,16 @@ async function handleChunkedUpload(
       // rather than fail forever. A genuinely concurrent writer's lock is
       // always fresh, so this never steals from one.
       try {
-        const staleAgeMs = Date.now() - fs.statSync(lockPath).mtimeMs;
+        // Age the lock through a descriptor opened on it, not through its path: a
+        // path stat followed by an unlink is a check-then-act on a name that may
+        // already designate another file.
+        const lockFd = fs.openSync(lockPath, 'r');
+        let staleAgeMs: number;
+        try {
+          staleAgeMs = Date.now() - fs.fstatSync(lockFd).mtimeMs;
+        } finally {
+          fs.closeSync(lockFd);
+        }
         if (staleAgeMs > STALE_LOCK_MS) {
           fs.unlinkSync(lockPath);
           const fd = fs.openSync(lockPath, 'wx');
