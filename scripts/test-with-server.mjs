@@ -271,8 +271,9 @@ async function main() {
   runDir = mkdtempSync(join(tmpdir(), 'migallery-test-'));
   const provider = startFakeProvider();
   process.on('exit', provider.stop);
-  const env = testEnv(join(runDir, 'migallery.db'), provider.issuer);
-  console.log(`🗄️  Test database: ${env.DATABASE_PATH}`);
+  const dbPath = join(runDir, 'migallery.db');
+  const env = testEnv(dbPath, provider.issuer);
+  console.log(`🗄️  Test database: ${dbPath}`);
 
   // `--mode test` is what compiles `/dev/login-as` into this build (its handler is folded out of
   // every other build); see src/routes/dev/login-as/+server.ts.

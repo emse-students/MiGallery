@@ -154,7 +154,7 @@ try {
 
   const migratedAlbums = insertAlbums();
   const permissions = insertAlbumTagsAndDerivedPermissions();
-  const migratedApiKeys = insertApiKeys();
+  const migratedAccessRows = insertApiKeys();
   const migratedLogs = insertLogs();
 
   targetDb.exec('COMMIT');
@@ -167,7 +167,7 @@ try {
   console.log('   Migrated albums               :', migratedAlbums);
   console.log('   Migrated album tag perms      :', permissions.tagCount);
   console.log('   Derived promo perms from tags :', permissions.derivedPromoCount);
-  console.log('   Migrated api keys             :', migratedApiKeys);
+  console.log('   Migrated api keys             :', migratedAccessRows);
   console.log('   Migrated logs                 :', migratedLogs);
   console.log('');
   console.log('   Skipped users                 :', countRows(sourceDb, 'users'));
