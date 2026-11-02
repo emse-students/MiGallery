@@ -94,7 +94,7 @@ export interface UndoResult {
   version: number;
   references: number;
   matches: number;
-  /** Snapshot faces that could not be given back (another member holds them now, in any state). */
+  /** Snapshot faces that could not be given back because ANOTHER member holds them now (any state). */
   conflicts: number;
   /** Faces the member held that the snapshot does not name, re-decided for everyone. */
   redecided: number;
@@ -182,9 +182,13 @@ export function undoReferenceSelection(
       `INSERT OR IGNORE INTO face_matches (asset_id, face_index, model, user_id, distance,
          runner_up, band, state, created_at, decided_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, NULL)`
     );
+    const heldByAnother = db.prepare(
+      'SELECT 1 FROM face_matches WHERE asset_id = ? AND face_index = ? AND model = ? AND user_id <> ?'
+    );
     let restored = 0;
+    let conflicts = 0;
     for (const m of matches) {
-      restored += insertMatch.run(
+      const inserted = insertMatch.run(
         m.asset_id,
         m.face_index,
         FACE_MODEL,
@@ -194,6 +198,12 @@ export function undoReferenceSelection(
         m.band,
         m.created_at
       ).changes;
+      restored += inserted;
+      // A face the member already holds (their own answer, kept) is not a conflict: only another
+      // member's row is.
+      if (!inserted && heldByAnother.get(m.asset_id, m.face_index, FACE_MODEL, userId)) {
+        conflicts++;
+      }
     }
 
     // The member is marked UNDONE: the tick never selects for them again, and a new selfie clears
@@ -241,7 +251,7 @@ export function undoReferenceSelection(
       version,
       references: refs.length,
       matches: restored,
-      conflicts: matches.length - restored,
+      conflicts,
       redecided: toRedecide.length,
     };
   });

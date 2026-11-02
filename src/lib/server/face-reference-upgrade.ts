@@ -11,16 +11,19 @@
  *   (`learnable`): a confirmed lookalike at 0.6 is shown to them, never learned; or
  * - a pending `auto` face within FACE_PROVEN_AUTO_DISTANCE (0.4): a margin of 0.1 under the `auto`
  *   bound, so the auto faces most likely to be wrong - those nearest the bound - never teach.
- * Never one they rejected, and a `suggested` face only in the BOOTSTRAP (selection version 3, owner
- * 2026-11-01): a member under FACE_MIN_REFERENCES has every `auto` face held back as `suggested` by
- * that very minimum, so a member with only a selfie had no proven face and never reached it. For
- * them a pending `suggested` face counts, within the same 0.4 of their references and only when no
- * other member was within FACE_AMBIGUITY_MARGIN of it at the decision. It is proof for the
- * SELECTION ONLY: the face stays unseen by the member until the re-match, with the references it
- * then reaches, finds it `auto`. The bootstrap grows the set UNTIL STABLE (`growUntilStable`: each
- * round may reach faces the last one made reachable; it ends when a round adds nothing or at the
- * cap, and no reference stays farther than 0.62 from the member's selfie). The distance is recomputed against the current references, not
- * read from the row (a row's distance is the one of its decision).
+ * Never one they rejected, and a `suggested` face only in the BOOTSTRAP (owner 2026-11-01): a member
+ * under FACE_MIN_REFERENCES has every `auto` face held back as `suggested` by that very minimum, so
+ * a member with only a selfie had no proven face and never reached it. For them a pending
+ * `suggested` face counts, within the same 0.4 of their references and only when no other member
+ * was within FACE_AMBIGUITY_MARGIN of it at the decision. It is proof for the SELECTION ONLY: the
+ * face stays unseen by the member until the re-match, with the references it then reaches, finds
+ * it `auto`. Below the cap the set GROWS UNTIL STABLE (`growUntilStable`: closest to the selfie
+ * first, each round may reach faces the last one made reachable; it ends when a round adds nothing
+ * or at the cap - up to 14 faces for a lone selfie, as the owner read it). The guard from the
+ * selfie is 0.5 for an unconfirmed face and 0.62 for one the member confirmed (owner, 2026-11-02);
+ * a member with no selfie is measured to the references no pass wrote (source other than
+ * `matched`, which EVERY pass-admitted face gets). The distance is recomputed against the current
+ * references, not read from the row (a row's distance is the one of its decision).
  *
  * WHAT IT DOES, per member: read the proven faces and their photos' capture dates from Immich
  * (outside the engine lock: network), then, inside the lock and in ONE synchronous transaction,
@@ -63,7 +66,6 @@ import {
   addFaceReference,
   deleteFaceReference,
   loadReferenceItems,
-  type ReferenceSource,
 } from '#lib/server/face-references.ts';
 import { loadFaceEmbeddings, type FaceKey } from '#lib/server/face-store.ts';
 import { createLogger } from '#lib/server/logger.ts';
@@ -247,7 +249,6 @@ export function reselectReferences(
     );
     type PoolItem = ReferenceItem & {
       face?: FaceKey;
-      newSource?: ReferenceSource;
       confirmed?: boolean;
     };
     const opened: PoolItem[] = loadFaceEmbeddings(engine.faceDb, key, candidates).map((face) => ({
@@ -256,7 +257,6 @@ export function reselectReferences(
       takenAt: captureTimes.get(face.assetId) ?? null,
       face: { assetId: face.assetId, faceIndex: face.faceIndex },
       confirmed: confirmed.has(`${face.assetId}\u0000${face.faceIndex}`),
-      newSource: confirmed.has(`${face.assetId}\u0000${face.faceIndex}`) ? 'photo' : 'matched',
     }));
     const bound = (c: PoolItem, d: number) =>
       d <= (c.confirmed ? FACE_AUTO_MAX_DISTANCE : FACE_PROVEN_AUTO_DISTANCE);
@@ -337,7 +337,9 @@ export function reselectReferences(
     for (const item of pool) {
       if (item.face && chosen.has(item.key)) {
         if (
-          !addFaceReference(db, key, userId, item.newSource ?? 'photo', item.embedding, now, {
+          // `matched` for EVERY face a pass admits, confirmed or not: it marks what a pass wrote, so
+          // the anchors of a member with no selfie are the references it never wrote.
+          !addFaceReference(db, key, userId, 'matched', item.embedding, now, {
             assetId: item.face.assetId,
             faceIndex: item.face.faceIndex,
             takenAt: item.takenAt,
@@ -404,6 +406,10 @@ export async function selectMemberReferences(
     }
   }
   // Still moving after three reads: the next pass tries again, nothing was written.
+  log.warn('reference selection gave up: faces kept arriving between reads', {
+    userId,
+    asked: asked.size,
+  });
   return 'already';
 }
 

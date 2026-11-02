@@ -799,13 +799,13 @@ references (0.5 for a confirmed face), the closest to the selfie first, held ref
 face that a round made reachable is found by the next one. **Termination is a proof, not a clock**: a round
 with an eligible face adds at least one reference (the held ones are anchors and the cap is above
 their count), so the count rises strictly towards `FACE_MAX_REFERENCES`; a round with none ends it.
-No round drops a reference. **The drift guard**: every reference stays within
-`FACE_SUGGEST_MAX_DISTANCE` (0.62, the model's own 1e-4 false-match threshold) of the references
-the member held when the bootstrap began, their selfie: chained 0.4 steps could otherwise walk to
-another face with nobody to see it. This replaces the earlier rule that a member's reach grows
-"only through an answer" FOR THE BOOTSTRAP MEMBERS ALONE (under 3 references at the start); every
-other member keeps the old rule, because applying it to the 300 others is a production-wide change
-that needs its own measurement. On the one member measured (read-only, 2026-11-01): 2 matches at
+No round drops a reference. **For a member holding only a selfie this grows to the cap in ONE pass,
+on suggestions**: up to 14 faces, the closest to the selfie first (the owner's reading, 2026-11-02:
+"au maximum 14 visages les plus proches"). **The drift guard** (superseded below by the 0.5 rule):
+every reference stays within a bound of the references the member held when the growth began,
+their selfie: chained 0.4 steps could otherwise walk to another face with nobody to see it. This
+replaces the earlier rule that a member's reach grows "only through an answer"; a member holding 3
+to 14 references grows on this deploy too, but only from PROVEN faces. On the one member measured (read-only, 2026-11-01): 2 matches at
 0.35 or less, 13 at 0.40 or less (all unambiguous), 88 at 0.45, 197 at 0.50, so the first round
 alone takes all 13 (14 references with the selfie, cap 15).
 Residual, named: a bootstrapped member with no face within 0.4 stays under 3 references; the tick
@@ -849,8 +849,8 @@ are replaced by the snapshot's, the pending matches by the snapshot's, the selec
 UNDONE (-1: an undone member is not selected again until a new selfie), the snapshot is consumed
 (a second undo is a 404), and the faces the member held that the snapshot does not name are
 re-decided for everyone. Counts come back: `{ version, references, matches, conflicts,
-redecided }`. A `conflict` is a snapshot face another member HOLDS now, in any state: it is not given
-back. What an undo does not return: a reference the member learned by answering AFTER the pass
+redecided }`. A `conflict` is a snapshot face ANOTHER member holds now, in any state: it is not given
+back (a face the member already holds themselves, an answer of theirs, is not counted). What an undo does not return: a reference the member learned by answering AFTER the pass
 (replaced by the snapshot's set; their answers stay as rows), and a face another member lost to
 this one during the pass (re-decided at that member's next re-match). So undo soon.
 `GET` on the same route counts the ledger (`{ members, references, matches }`).
@@ -913,9 +913,10 @@ themselves. At the cap the propagation obeys the same guard.
 **Owner decision, 2026-11-02 (direct): a member with NO selfie (the A7 seed references) is measured
 to their ORIGINAL references** - every reference that is not `matched`, so seeds and the faces they
 confirmed - never to a reference a pass added. This persists with no extra column: `matched` is
-the source a pass writes, and nothing else ever uses it.
+the source a pass writes for EVERY face it admits, confirmed or not (the member's own later
+confirmations are `photo`), and nothing else ever uses it.
 
-**Owner decision, 2026-11-02 (direct): replacing the selfie DROPS the member's ledger snapshot**
+**Owner decision, 2026-11-02 (direct): inserting a selfie (a first one or a replacement) DROPS the member's ledger snapshot**
 (`enrolMember`, references, matches and the profile photo pointer): an undo then returns to the NEW
 selfie, and the replaced selfie's vector is no longer kept.
 

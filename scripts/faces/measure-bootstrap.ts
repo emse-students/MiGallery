@@ -84,7 +84,7 @@ const held = new Map<string, Held[]>();
 const broken = new Set<string>();
 for (const row of main
   .prepare(
-    'SELECT id, user_id, source, sealed, asset_id, face_index FROM face_references WHERE model = ? ORDER BY user_id, id'
+    'SELECT id, user_id, source, sealed, asset_id, face_index, taken_at FROM face_references WHERE model = ? ORDER BY user_id, id'
   )
   .all(FACE_MODEL) as Array<{
   id: number;
@@ -93,6 +93,7 @@ for (const row of main
   sealed: Uint8Array;
   asset_id: string | null;
   face_index: number | null;
+  taken_at: number | null;
 }>) {
   if (broken.has(row.user_id)) continue;
   try {
@@ -103,7 +104,7 @@ for (const row of main
     list.push({
       key: `ref:${row.id}`,
       embedding,
-      takenAt: null,
+      takenAt: row.taken_at,
       anchor: row.source === 'selfie',
       source: row.source,
       face: row.asset_id === null ? null : faceKey(row.asset_id, row.face_index ?? 0),
@@ -133,14 +134,23 @@ if (
     negatives.set(row.user_id, list);
   }
 }
-const hasPhoto = new Set(
+// The profile photo pointer: production keeps a CHOSEN photo while it is a visible match of the
+// member's, and replaces a default or an invalid one.
+const photoOf = new Map<string, { assetId: string; chosen: boolean }>(
   (
     main
       .prepare(
-        "SELECT id_user FROM users WHERE photos_asset_id IS NOT NULL AND photos_asset_id != ''"
+        "SELECT id_user, photos_asset_id, photos_asset_source FROM users WHERE photos_asset_id IS NOT NULL AND photos_asset_id != ''"
       )
-      .all() as Array<{ id_user: string }>
-  ).map((u) => u.id_user)
+      .all() as Array<{
+      id_user: string;
+      photos_asset_id: string;
+      photos_asset_source: string | null;
+    }>
+  ).map((u) => [
+    u.id_user,
+    { assetId: u.photos_asset_id, chosen: u.photos_asset_source !== 'default' },
+  ])
 );
 
 // 2. The match rows: the state the passes start from, and that they update.
@@ -417,6 +427,14 @@ for (; passes < MAX_PASSES;) {
   }
 }
 const visibleAfter = visibleOf(sim.values());
+const visibleAssetsAfter = new Map<string, Set<string>>();
+for (const [k, r] of sim) {
+  if (r.state === 'confirmed' || (r.state === 'pending' && r.band === 'auto')) {
+    const set = visibleAssetsAfter.get(r.userId) ?? new Set<string>();
+    set.add(k.split(' ')[0]);
+    visibleAssetsAfter.set(r.userId, set);
+  }
+}
 // Faces by band at the end, per starting class: shown without a question (`auto`, within 0.5),
 // waiting for an answer (`suggested`, 0.5 to 0.62), and answered `confirmed`.
 const bandCounts = (rowsOfAll: Iterable<Row>, ids: Set<string>) => {
@@ -483,8 +501,19 @@ for (const k of KLASSES) {
     newlyVisible: quantiles(
       ids.map((id) => (visibleAfter.get(id) ?? 0) - (visibleBefore.get(id) ?? 0))
     ),
-    defaultPhotoWouldBeSet: ids.filter((id) => !hasPhoto.has(id) && (visibleAfter.get(id) ?? 0) > 0)
-      .length,
+    // As production decides it: a member with a visible match gets a default when they have no
+    // photo, or the one they have is no visible match of theirs (a chosen photo is otherwise kept).
+    // Immich's own answer (a trashed photo) cannot be read here, so a member whose photo IS still a
+    // match is counted under `defaultPhotoMayChange` when it is a default (a better one may win).
+    defaultPhotoWouldBeSet: ids.filter((id) => {
+      if ((visibleAfter.get(id) ?? 0) === 0) return false;
+      const photo = photoOf.get(id);
+      return !photo || !visibleAssetsAfter.get(id)?.has(photo.assetId);
+    }).length,
+    defaultPhotoMayChange: ids.filter((id) => {
+      const photo = photoOf.get(id);
+      return !!photo && !photo.chosen && !!visibleAssetsAfter.get(id)?.has(photo.assetId);
+    }).length,
   };
 }
 console.log(JSON.stringify(report, null, 2));
