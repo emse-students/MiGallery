@@ -6,6 +6,8 @@ import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { profileFace, visibleProfileFaces } from '#lib/server/face-photos.ts';
 import { profilePhotoOf } from '#lib/server/profile-photo-default.ts';
+import { answerMatch, runExclusive } from '#lib/server/face-engine.ts';
+import { inTransaction } from '#lib/db/transaction.ts';
 
 const log = createLogger('profile-photo-route');
 
@@ -20,6 +22,12 @@ const log = createLogger('profile-photo-route');
  * around that face (`GET /api/users/[username]/avatar`). Stored in `users.photos_asset_id`, which
  * a withdrawal clears, as a CHOICE (`photos_asset_source = chosen`): a default photo never
  * replaces it while it is still theirs (profile-photo-default.ts). Refused to an impersonated session: it is the member's own choice.
+ *
+ * Choosing CONFIRMS the face the avatar is cut around (owner, 2026-11-10): a pending `auto` face
+ * could be claimed by another member, which ended the choice and let a default replace it without
+ * the member doing anything. A confirmed face is never claimed nor re-decided, so a chosen photo
+ * now changes only by the member's act (a rejection, a withdrawal) or because Immich lost it. No
+ * reference is learned from it here: that stays the "c'est moi" answer's (face/matches).
  */
 export const PUT: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');
@@ -51,16 +59,34 @@ export const PUT: RequestHandler = async (event) => {
   }
 
   const db = getDatabase();
-  if (!profileFace(db, userId, assetId)) {
+  // Inside the engine lock: no claim or re-decision runs between the check and the write.
+  const outcome = await runExclusive((): 'not_theirs' | 'no_user' | 'chosen' => {
+    const face = profileFace(db, userId, assetId);
+    if (!face) {
+      return 'not_theirs';
+    }
+    return inTransaction(db, () => {
+      const changes = db
+        .prepare(
+          "UPDATE users SET photos_asset_id = ?, photos_asset_source = 'chosen' WHERE id_user = ?"
+        )
+        .run(assetId, userId).changes;
+      if (changes === 0) {
+        return 'no_user';
+      }
+      // The choice IS the member's word on that face: confirmed, no other member can claim it
+      // away and turn the choice invalid (a pending `auto` face can be). False when it already was.
+      const confirmed = answerMatch(db, userId, face, 'confirm');
+      log.debug('profile photo face', { newlyConfirmed: confirmed });
+      return 'chosen';
+    });
+  });
+  if (outcome === 'not_theirs') {
     log.info('profile photo refused: not one of the member photos', { byAdmin: isAdmin });
     return json({ error: 'not_found' }, { status: 404 });
   }
-  const changes = db
-    .prepare(
-      "UPDATE users SET photos_asset_id = ?, photos_asset_source = 'chosen' WHERE id_user = ?"
-    )
-    .run(assetId, userId).changes;
-  if (changes === 0) {
+  if (outcome === 'no_user') {
+    log.warn('profile photo refused: no such member');
     return json({ error: 'User not found' }, { status: 404 });
   }
   log.info('profile photo chosen', { byAdmin: userId !== auth.user?.id_user });

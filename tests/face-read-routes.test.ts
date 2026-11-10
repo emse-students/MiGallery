@@ -592,6 +592,35 @@ describe('PUT /api/users/me/profile-photo', () => {
     expect(profileOf('m1')).toBe('a');
   });
 
+  it('confirms the chosen face, so no other member can claim it away (owner, 2026-11-10)', async () => {
+    match('m1', 'a', 'auto', 'pending', { face: 1 });
+    match('m1', 'a', 'auto', 'pending', { face: 2 });
+    expect((await choose({ asset_id: 'a' })).status).toBe(200);
+    const states = db()
+      .prepare(
+        "SELECT face_index, state FROM face_matches WHERE user_id = 'm1' AND asset_id = 'a' ORDER BY face_index"
+      )
+      .all();
+    // The face the avatar is cut around (the lowest visible one), and only that one.
+    expect(states).toEqual([
+      { face_index: 1, state: 'confirmed' },
+      { face_index: 2, state: 'pending' },
+    ]);
+    const engineModule = await import('#lib/server/face-engine.ts');
+    const engine = { db: db(), faceDb: faceDb(), key: Buffer.from('ab'.repeat(32), 'hex') };
+    const claim = await engineModule.runExclusive(() =>
+      engineModule.claimFace(engine, 'm2', {
+        assetId: 'a',
+        faceIndex: 1,
+        embedding: new Float32Array(512),
+      })
+    );
+    expect(claim).toBe('confirmed_by_other');
+    // Choosing it again is a no-op on the face, not a refusal.
+    expect((await choose({ asset_id: 'a' })).status).toBe(200);
+    expect(profileOf('m1')).toBe('a');
+  });
+
   it("refuses a photo that is not theirs - waiting, rejected, another member's - and keeps the old one", async () => {
     match('m1', 'a', 'auto', 'pending');
     await choose({ asset_id: 'a' });
