@@ -633,19 +633,18 @@ describe('PUT /api/users/me/profile-photo', () => {
     expect(profileOf('m1')).toBe('a');
   });
 
-  it("a member cannot choose for another member; an admin can, among THAT member's photos", async () => {
+  it('nobody chooses for another member, an admin neither (owner, 2026-11-10)', async () => {
     match('m2', 'o', 'auto', 'pending');
     expect((await choose({ asset_id: 'o', user_id: 'm2' })).status).toBe(403);
-    expect(profileOf('m2')).toBeNull();
     state.auth = member('boss', 'admin');
-    expect((await choose({ asset_id: 'o', user_id: 'm2' })).status).toBe(200);
-    expect(profileOf('m2')).toBe('o');
-    // The admin saw no face: their choice confirms nothing on the member's behalf.
+    expect((await choose({ asset_id: 'o', user_id: 'm2' })).status).toBe(403);
+    expect(profileOf('m2')).toBeNull();
     expect(
       db().prepare("SELECT state FROM face_matches WHERE user_id = 'm2' AND asset_id = 'o'").get()
     ).toEqual({ state: 'pending' });
-    match('m3', 'x', 'auto', 'pending');
-    expect((await choose({ asset_id: 'x', user_id: 'm2' })).status).toBe(404);
+    // Naming oneself is the same as naming nobody.
+    state.auth = member('m2');
+    expect((await choose({ asset_id: 'o', user_id: 'm2' })).status).toBe(200);
     expect(profileOf('m2')).toBe('o');
   });
 
@@ -655,7 +654,7 @@ describe('PUT /api/users/me/profile-photo', () => {
     expect((await choose({ asset_id: 'a' })).status).toBe(403);
     state.impersonating = false;
     expect((await choose({ asset_id: '../a' })).status).toBe(400);
-    expect((await choose({ asset_id: 'a', user_id: 7 })).status).toBe(400);
+    expect((await choose({ asset_id: 'a', user_id: 7 })).status).toBe(403);
     expect(profileOf('m1')).toBeNull();
   });
 });
@@ -1184,15 +1183,15 @@ describe('the default profile photo (owner, 2026-11-01)', () => {
     state.auth = member('m2');
     expect((await avatar('m1')).status).toBe(200);
     expect(cachedCrops('m1')).toEqual(['q_2.webp']);
-    // The admin path: a member cannot read another's, an admin reads and sets it.
+    // Nobody reads or sets another member's, an admin neither (owner, 2026-11-10).
     const other = () =>
       call(profileRoute.GET, {
         url: new URL('http://x.test/api/users/me/profile-photo?user_id=m1'),
       });
     expect((await other()).status).toBe(403);
     state.auth = member('boss', 'admin');
-    expect((await other()).status).toBe(200);
-    expect((await choose({ asset_id: 'p', user_id: 'm1' })).status).toBe(200);
-    expect(pointer('m1')).toEqual({ a: 'p', s: 'chosen' });
+    expect((await other()).status).toBe(403);
+    expect((await choose({ asset_id: 'p', user_id: 'm1' })).status).toBe(403);
+    expect(pointer('m1')).toEqual({ a: 'q', s: 'chosen' });
   });
 });

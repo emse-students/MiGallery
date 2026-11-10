@@ -77,15 +77,15 @@ routes use. The PhotoCV album AS A WHOLE (every member's CV portrait) is read an
 changed by `admin`, `mitviste` and API keys; a member reads their own CV portraits
 through the member rule (`in_album=true`).
 
-| Route                                                                               | Guard                                    |
-| ----------------------------------------------------------------------------------- | ---------------------------------------- |
-| `GET /api/users/[userId]/photos-stream`                                             | member rule                              |
-| `GET /api/users/me/face/matches`, `/face/crops/...`                                 | the member themself, never impersonated  |
-| `PUT /api/users/me/profile-photo`                                                   | the member (an admin for another member) |
-| `GET /api/people?action=all-album-photos` or `album-info`, `POST /api/people`       | PhotoCV manager                          |
-| `/api/people/album`, `/album/info`, `/album/assets`, `/album/[albumId]/assets`      | PhotoCV manager                          |
-| `/api/immich/people...`, `/api/immich/faces...`, `/api/immich/search/person`        | refused to everyone (403), admins too    |
-| any proxied call with a `personId(s)` or `withPeople` key in its query or JSON body | refused to everyone (403), admins too    |
+| Route                                                                               | Guard                                   |
+| ----------------------------------------------------------------------------------- | --------------------------------------- |
+| `GET /api/users/[userId]/photos-stream`                                             | member rule                             |
+| `GET /api/users/me/face/matches`, `/face/crops/...`                                 | the member themself, never impersonated |
+| `PUT /api/users/me/profile-photo`                                                   | the member only (2026-11-10)            |
+| `GET /api/people?action=all-album-photos` or `album-info`, `POST /api/people`       | PhotoCV manager                         |
+| `/api/people/album`, `/album/info`, `/album/assets`, `/album/[albumId]/assets`      | PhotoCV manager                         |
+| `/api/immich/people...`, `/api/immich/faces...`, `/api/immich/search/person`        | refused to everyone (403), admins too   |
+| any proxied call with a `personId(s)` or `withPeople` key in its query or JSON body | refused to everyone (403), admins too   |
 
 The proxy judges the path Immich will actually route: `.` segments resolved,
 repeated slashes collapsed, case folded (Immich's router is case-insensitive), and
