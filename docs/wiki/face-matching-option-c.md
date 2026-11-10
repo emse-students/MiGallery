@@ -838,7 +838,7 @@ layout data (`faceToConfirm`, `depends('app:face-status')`): ONE number read by 
 and the confirmation screen calls `invalidate('app:face-status')` after every recorded answer, so
 neither is older than the last answer. A card opens the WHOLE photo (`FacePhotoDialog`: the
 preview every member's viewer already reads, the proposed face as a chip, answer from the dialog;
-Space or the corner button, Escape answers nothing). The background re-match that follows an
+Space or the corner button, Escape answers nothing). The dialog sets `margin: auto` itself: `app.css` resets every margin to 0, which removes the browser rule that centres a modal `<dialog>` (the generic `Modal` centres itself by `position: fixed` + transform, so it was never affected). The background re-match that follows an
 answer lands later and is not pushed to an open page: the next navigation shows it.
 
 **4. The ledger, and the way back** (`face-reference-ledger.ts`, tables `face_reference_ledger`
