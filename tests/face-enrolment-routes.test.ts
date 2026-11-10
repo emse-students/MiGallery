@@ -317,6 +317,30 @@ describe('GET /api/users/me/face/enrolment', () => {
     }
   });
 
+  it('keeps matching while two overlapping follow-ups are owed, until both end', async () => {
+    const gates: Array<() => void> = [];
+    state.upgradeGate = new Promise<void>((r) => gates.push(r));
+    const body = () => ({ selfie: new Blob([new Uint8Array([1])]), consent: 'true' });
+    try {
+      await enrol(body());
+      await idle();
+      const second = new Promise<void>((r) => gates.push(r));
+      state.upgradeGate = second;
+      await enrol(body());
+      await idle();
+      gates[0](); // the first follow-up ends; the second is still owed
+      await new Promise((r) => setTimeout(r, 20));
+      expect(((await read()).body as { matching: boolean }).matching).toBe(true);
+      gates[1]();
+      await vi.waitFor(async () =>
+        expect(((await read()).body as { matching: boolean }).matching).toBe(false)
+      );
+    } finally {
+      gates.forEach((g) => g());
+      state.upgradeGate = Promise.resolve();
+    }
+  });
+
   it('is matching while the durable re-match row of a selection exists', async () => {
     db()
       .prepare('INSERT INTO face_rematch_pending (user_id, model, since) VALUES (?, ?, 1)')

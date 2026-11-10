@@ -38,8 +38,8 @@ describe('isEnrolmentStatus', () => {
 
 describe('statusVerdict', () => {
   it('stops on an answer that asking again cannot change, retries the rest', () => {
-    for (const status of [401, 403, 503]) expect(statusVerdict(status)).toBe('stop');
-    for (const status of [500, 502, 504, 429, 404, 200])
+    for (const status of [401, 403]) expect(statusVerdict(status)).toBe('stop');
+    for (const status of [500, 502, 503, 504, 429, 404, 200])
       expect(statusVerdict(status)).toBe('retry');
   });
 });

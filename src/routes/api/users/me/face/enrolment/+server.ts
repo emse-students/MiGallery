@@ -8,10 +8,7 @@ import { readFormBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { faceStatus } from '#lib/server/face-photos.ts';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
-import {
-  membersPendingRematch,
-  upgradeMemberReferences,
-} from '#lib/server/face-reference-upgrade.ts';
+import { hasPendingRematch, upgradeMemberReferences } from '#lib/server/face-reference-upgrade.ts';
 import {
   ENROL_LIMIT_PER_HOUR,
   enrolLimiter,
@@ -62,7 +59,7 @@ export const GET: RequestHandler = async (event) => {
   const db = getDatabase();
   const references = referenceCount(db, userId);
   // Read the flag BEFORE the counts: a run that ends in between then only makes the counts newer.
-  const matching = isRematching(userId) || membersPendingRematch(db).includes(userId);
+  const matching = isRematching(userId) || hasPendingRematch(db, userId);
   const { photos, toConfirm } = faceStatus(db, userId);
   log.debug('enrolment status read', { references, matching, photos, toConfirm });
   return json({ success: true, enrolled: references > 0, references, matching, photos, toConfirm });

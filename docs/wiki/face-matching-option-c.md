@@ -998,7 +998,7 @@ yet" or fewer photos, and the new photos still arrive as the store is analysed.
 
 The end of the wait is the server's answer, never a clock. The display asks every 2 s while the
 server answers; a transport failure or an unusable answer is retried with a doubling delay (2 s up
-to 30 s) and is never taken for "done"; 401/403/503 are ANSWERS asking again cannot change, so the
+to 30 s) and is never taken for "done"; 401/403 are ANSWERS asking again cannot change (503 is the proxy during a deploy: the status route never answers it, so it is retried), so the
 panel stops with a message. An answer that arrives after the panel was left is ignored. Outcomes:
 faces to check give a button to the confirmation flow (the title does not say "0 photos found" when
 only faces were found), photos with nothing to check are shown (the grid reloads, WITH the member's

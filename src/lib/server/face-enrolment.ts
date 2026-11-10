@@ -183,8 +183,8 @@ export function scheduleRematch(engine: FaceEngine, userId: string): Promise<voi
   return rematches.request(userId, () => rematchMember(engine, userId));
 }
 
-/** Members whose enrolment follow-up (re-match, then reference selection) is still owed. */
-const followUps = new Set<string>();
+/** Per member, how many enrolment follow-ups (re-match, then selection) are still owed: two selfies overlap. */
+const followUps = new Map<string, number>();
 
 /**
  * What follows a selfie, as ONE unit the status can see: the coalesced re-match, then `afterwards`
@@ -198,14 +198,16 @@ export async function scheduleEnrolmentFollowUp(
   afterwards: () => Promise<unknown>,
   onError: (e: unknown) => void
 ): Promise<void> {
-  followUps.add(userId);
+  followUps.set(userId, (followUps.get(userId) ?? 0) + 1);
   try {
     await scheduleRematch(engine, userId);
     await afterwards();
   } catch (e) {
     onError(e);
   } finally {
-    followUps.delete(userId);
+    const left = (followUps.get(userId) ?? 1) - 1;
+    if (left > 0) followUps.set(userId, left);
+    else followUps.delete(userId);
   }
 }
 

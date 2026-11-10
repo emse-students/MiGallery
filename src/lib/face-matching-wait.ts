@@ -43,11 +43,12 @@ export const POLL_CAP_MS = 30000;
 
 /**
  * What an HTTP status means for the wait. A status code is an ANSWER: 401/403 (signed out, not
- * allowed) and 503 (the face store is off) will not change by asking again, so the wait stops with
- * a message. Any other failure is retried: only the server's `matching: false` ends the wait.
+ * allowed) will not change by asking again, so the wait stops with a message. The status route never
+ * answers 503 itself: a 503 is the proxy during a restart or a deploy, so it is retried like any
+ * other failure. Only the server's `matching: false` ends the wait.
  */
 export function statusVerdict(status: number): 'stop' | 'retry' {
-  return status === 401 || status === 403 || status === 503 ? 'stop' : 'retry';
+  return status === 401 || status === 403 ? 'stop' : 'retry';
 }
 
 /** The delay after a failed read: the previous one doubled, up to the cap. */
