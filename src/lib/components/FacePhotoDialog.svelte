@@ -90,7 +90,11 @@
 <style>
   .face-photo {
     width: min(92vw, 44rem);
-    max-height: 92vh;
+    /* app.css resets every margin to 0, which removes the UA `margin: auto` that centres a modal
+       dialog: without it the dialog sticks to the top-left corner. */
+    margin: auto;
+    max-width: 92vw;
+    max-height: 92dvh;
     padding: 0;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
