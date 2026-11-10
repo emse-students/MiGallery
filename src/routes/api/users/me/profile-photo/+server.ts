@@ -6,6 +6,8 @@ import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { profileFace, visibleProfileFaces } from '#lib/server/face-photos.ts';
 import { profilePhotoOf } from '#lib/server/profile-photo-default.ts';
+import { answerMatch, runExclusive } from '#lib/server/face-engine.ts';
+import { inTransaction } from '#lib/db/transaction.ts';
 
 const log = createLogger('profile-photo-route');
 
@@ -13,13 +15,24 @@ const log = createLogger('profile-photo-route');
  * PUT /api/users/me/profile-photo
  * Choose the member's profile photo among THEIR OWN photos (lot A6).
  *
- * Body: { asset_id: string, user_id?: string (admin only: another member's) }
+ * Body: { asset_id: string }. A `user_id` naming anyone else is refused (403), admins included
+ * (owner, 2026-11-10): the picker shows a member's faces to that member alone, so nobody else
+ * could see which face the avatar would be cut around.
  *
  * The photo must be one of the member's photos now - a face of theirs there, shown without a
  * question (`face_matches`) - or the answer is 404 and nothing changes. The avatar is then cut
  * around that face (`GET /api/users/[username]/avatar`). Stored in `users.photos_asset_id`, which
  * a withdrawal clears, as a CHOICE (`photos_asset_source = chosen`): a default photo never
- * replaces it while it is still theirs (profile-photo-default.ts). Refused to an impersonated session: it is the member's own choice.
+ * replaces it while it is still theirs (profile-photo-default.ts). Refused to an impersonated
+ * session: it is the member's own choice.
+ *
+ * Choosing CONFIRMS the face the avatar is cut around (owner, 2026-11-10): a pending `auto` face
+ * could be claimed by another member, which ended the choice and let a default replace it without
+ * the member doing anything. A confirmed face is never claimed nor re-decided, so a chosen photo
+ * now changes only by the member's act (a rejection, a withdrawal) or because Immich lost it.
+ * The member saw that face in the picker (the only one who can choose). No reference is learned
+ * in this request; like any face the member confirmed, it may become one at a later reference
+ * selection (face-reference-upgrade.ts).
  */
 export const PUT: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');
@@ -33,15 +46,11 @@ export const PUT: RequestHandler = async (event) => {
   } catch {
     return json({ error: 'a JSON body is required' }, { status: 400 });
   }
-  const isAdmin = auth.user?.role === 'admin';
-  if (body.user_id !== undefined && typeof body.user_id !== 'string') {
-    return json({ error: 'user_id must be a string' }, { status: 400 });
-  }
-  if (body.user_id !== undefined && body.user_id !== auth.user?.id_user && !isAdmin) {
-    log.warn('profile photo of another member refused: not an admin');
+  const userId = auth.user?.id_user;
+  if (body.user_id !== undefined && body.user_id !== userId) {
+    log.warn('profile photo of another member refused');
     return json({ error: 'Forbidden' }, { status: 403 });
   }
-  const userId = (body.user_id as string | undefined) ?? auth.user?.id_user;
   if (!userId) {
     return json({ error: 'Unauthorized - no user identified' }, { status: 401 });
   }
@@ -51,29 +60,47 @@ export const PUT: RequestHandler = async (event) => {
   }
 
   const db = getDatabase();
-  if (!profileFace(db, userId, assetId)) {
-    log.info('profile photo refused: not one of the member photos', { byAdmin: isAdmin });
+  // Inside the engine lock: no claim or re-decision runs between the check and the write.
+  const outcome = await runExclusive((): 'not_theirs' | 'no_user' | 'chosen' => {
+    const face = profileFace(db, userId, assetId);
+    if (!face) {
+      return 'not_theirs';
+    }
+    return inTransaction(db, () => {
+      const changes = db
+        .prepare(
+          "UPDATE users SET photos_asset_id = ?, photos_asset_source = 'chosen' WHERE id_user = ?"
+        )
+        .run(assetId, userId).changes;
+      if (changes === 0) {
+        return 'no_user';
+      }
+      // The member's choice IS their word on that face: confirmed, no other member can claim it
+      // away and turn the choice invalid (a pending `auto` face can be). False when it already was.
+      const confirmed = answerMatch(db, userId, face, 'confirm');
+      log.debug('profile photo face', { newlyConfirmed: confirmed });
+      return 'chosen';
+    });
+  });
+  if (outcome === 'not_theirs') {
+    log.info('profile photo refused: not one of the member photos');
     return json({ error: 'not_found' }, { status: 404 });
   }
-  const changes = db
-    .prepare(
-      "UPDATE users SET photos_asset_id = ?, photos_asset_source = 'chosen' WHERE id_user = ?"
-    )
-    .run(assetId, userId).changes;
-  if (changes === 0) {
+  if (outcome === 'no_user') {
+    log.warn('profile photo refused: no such member');
     return json({ error: 'User not found' }, { status: 404 });
   }
-  log.info('profile photo chosen', { byAdmin: userId !== auth.user?.id_user });
+  log.info('profile photo chosen');
   return json({ success: true, photos_asset_id: assetId });
 };
 
 /**
- * GET /api/users/me/profile-photo[?user_id=]
+ * GET /api/users/me/profile-photo
  * What the profile photo picker needs: the current photo and whether it was chosen or picked by
  * default, and, for each of the member's photos, the face of theirs a tile shows
  * (`{ current: { asset_id, source } | null, faces: { [asset_id]: face_index } }`). The photos
- * themselves, in their order (newest first), come from the photos stream. `user_id` is an
- * admin's, like the PUT. Refused to an impersonated session.
+ * themselves, in their order (newest first), come from the photos stream. The caller's own only,
+ * like the PUT (a `user_id` naming anyone else is a 403). Refused to an impersonated session.
  */
 export const GET: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');
@@ -82,12 +109,11 @@ export const GET: RequestHandler = async (event) => {
     return json({ error: 'Not allowed while impersonating' }, { status: 403 });
   }
   const asked = event.url.searchParams.get('user_id');
-  const isAdmin = auth.user?.role === 'admin';
-  if (asked !== null && asked !== auth.user?.id_user && !isAdmin) {
-    log.warn('profile photo of another member refused: not an admin');
+  const userId = auth.user?.id_user;
+  if (asked !== null && asked !== userId) {
+    log.warn('profile photo of another member refused');
     return json({ error: 'Forbidden' }, { status: 403 });
   }
-  const userId = asked ?? auth.user?.id_user;
   if (!userId) {
     return json({ error: 'Unauthorized - no user identified' }, { status: 401 });
   }

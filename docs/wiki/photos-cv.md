@@ -31,8 +31,9 @@ page, fails the request (500) rather than show photos that are not theirs.
   holds now, cut server-side from the box in `faces.db`, cached in the member's own directory
   (`data/cache/faces/members/<hash of the id>/`), `private, no-store`. 404 for any face they do
   not hold, whoever holds it; 403 to an impersonated session; an API key holds no face (401).
-- `PUT /api/users/me/profile-photo` - `{ asset_id, user_id? }`: the profile photo, among the
-  member's own photos only (404 otherwise); `user_id` is an admin's, for another member.
+- `PUT /api/users/me/profile-photo` - `{ asset_id }`: the profile photo, among the member's own
+  photos only (404 otherwise), its face confirmed; a `user_id` naming anyone else is a 403, admins
+  included (2026-11-10).
 - `GET /api/users/[username]/avatar` - cut around the member's own face in that photo; 404 when
   they chose none or the photo is no longer one of theirs.
 
@@ -77,15 +78,15 @@ routes use. The PhotoCV album AS A WHOLE (every member's CV portrait) is read an
 changed by `admin`, `mitviste` and API keys; a member reads their own CV portraits
 through the member rule (`in_album=true`).
 
-| Route                                                                               | Guard                                    |
-| ----------------------------------------------------------------------------------- | ---------------------------------------- |
-| `GET /api/users/[userId]/photos-stream`                                             | member rule                              |
-| `GET /api/users/me/face/matches`, `/face/crops/...`                                 | the member themself, never impersonated  |
-| `PUT /api/users/me/profile-photo`                                                   | the member (an admin for another member) |
-| `GET /api/people?action=all-album-photos` or `album-info`, `POST /api/people`       | PhotoCV manager                          |
-| `/api/people/album`, `/album/info`, `/album/assets`, `/album/[albumId]/assets`      | PhotoCV manager                          |
-| `/api/immich/people...`, `/api/immich/faces...`, `/api/immich/search/person`        | refused to everyone (403), admins too    |
-| any proxied call with a `personId(s)` or `withPeople` key in its query or JSON body | refused to everyone (403), admins too    |
+| Route                                                                               | Guard                                   |
+| ----------------------------------------------------------------------------------- | --------------------------------------- |
+| `GET /api/users/[userId]/photos-stream`                                             | member rule                             |
+| `GET /api/users/me/face/matches`, `/face/crops/...`                                 | the member themself, never impersonated |
+| `PUT /api/users/me/profile-photo`                                                   | the member only (2026-11-10)            |
+| `GET /api/people?action=all-album-photos` or `album-info`, `POST /api/people`       | PhotoCV manager                         |
+| `/api/people/album`, `/album/info`, `/album/assets`, `/album/[albumId]/assets`      | PhotoCV manager                         |
+| `/api/immich/people...`, `/api/immich/faces...`, `/api/immich/search/person`        | refused to everyone (403), admins too   |
+| any proxied call with a `personId(s)` or `withPeople` key in its query or JSON body | refused to everyone (403), admins too   |
 
 The proxy judges the path Immich will actually route: `.` segments resolved,
 repeated slashes collapsed, case folded (Immich's router is case-insensitive), and

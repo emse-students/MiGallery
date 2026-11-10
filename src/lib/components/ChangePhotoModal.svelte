@@ -13,16 +13,14 @@
     currentPhotoUrl?: string;
     onClose: () => void;
     onPhotoSelected?: (assetId: string) => void;
-    /** The member whose profile photo changes: it is chosen among THEIR photos (lot A6). */
-    memberId?: string;
     /**
-     * The member picks for themselves: each tile is THEIR FACE, cut as on the confirmation screen
-     * (a crop is served to its holder alone, so an admin picking for someone else sees the photos).
+     * The signed-in member, who picks for themselves only (owner, 2026-11-10): each tile is THEIR
+     * FACE, cut as on the confirmation screen.
      */
-    ownFace?: boolean;
+    memberId?: string;
   }
 
-  let { currentPhotoUrl, onClose, onPhotoSelected, memberId, ownFace = false }: Props = $props();
+  let { currentPhotoUrl, onClose, onPhotoSelected, memberId }: Props = $props();
 
   /** For each photo, the member's face a tile shows; and the current photo and how it was set. */
   let faces = $state<Record<string, number>>({});
@@ -48,8 +46,7 @@
       error = null;
       // The member's faces and current photo, then the photos IN THEIR ORDER (newest first, as the
       // stream gives them): the picker is chronological, never ranked (owner, 2026-11-01).
-      const query = ownFace ? '' : `?user_id=${encodeURIComponent(memberId)}`;
-      const infoRes = await fetch(`/api/users/me/profile-photo${query}`);
+      const infoRes = await fetch('/api/users/me/profile-photo');
       if (!infoRes.ok) {
         throw new Error(`profile photo read refused (${infoRes.status})`);
       }
@@ -153,17 +150,7 @@
           class:selected={selectedAssetId === asset.id}
           class:current={current?.asset_id === asset.id}
         >
-          {#if ownFace}
-            <FaceCropThumb assetId={asset.id} faceIndex={faces[asset.id]} alt={m.cpm_face_alt()} />
-          {:else}
-            <img
-              class="photo-thumb"
-              src={`/api/immich/assets/${encodeURIComponent(asset.id)}/thumbnail?size=thumbnail`}
-              alt={m.cpm_photo_alt()}
-              loading="lazy"
-              decoding="async"
-            />
-          {/if}
+          <FaceCropThumb assetId={asset.id} faceIndex={faces[asset.id]} alt={m.cpm_face_alt()} />
           <button
             type="button"
             class="photo-pick"
@@ -295,12 +282,6 @@
   .photo-item.selected {
     border-color: var(--accent);
     outline: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  }
-
-  .photo-thumb {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   /* The whole tile picks; FaceCropThumb's retry sits above it (z-index 2). */

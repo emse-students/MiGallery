@@ -24,11 +24,11 @@
   /** The member whose photos are shown: the viewer, or the one named by `?userId=`. */
   let memberId = $state<string | null>(null);
   let isViewingOwnPhotos = $state(true);
-  let isAdmin = $state(false);
   let accessDenied = $state(false);
   let showProfileIncitation = $state(false);
 
-  let canEditProfilePhoto = $derived(isViewingOwnPhotos || isAdmin);
+  /** Only the member chooses their own profile photo (owner, 2026-11-10). */
+  let canEditProfilePhoto = $derived(isViewingOwnPhotos);
   /**
    * How many photos wait for the viewer's yes or no (their own view only). Read from the layout,
    * the one number the menu's badge shows too, which the confirmation screen refreshes after each
@@ -52,9 +52,7 @@
     const res = await fetch('/api/users/me/profile-photo', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(
-        isViewingOwnPhotos ? { asset_id: assetId } : { asset_id: assetId, user_id: memberId }
-      ),
+      body: JSON.stringify({ asset_id: assetId }),
     });
     if (!res.ok) {
       console.warn('[mes-photos] profile photo refused', res.status);
@@ -97,7 +95,6 @@
   onMount(async () => {
     const userIdParam = new URLSearchParams(window.location.search).get('userId');
     const user = page.data.session?.user as User;
-    isAdmin = user?.role === 'admin';
 
     if (userIdParam && userIdParam !== user?.id_user) {
       isViewingOwnPhotos = false;
@@ -218,7 +215,6 @@
     <ChangePhotoModal
       currentPhotoUrl={photosState.imageUrl || undefined}
       memberId={memberId ?? undefined}
-      ownFace={isViewingOwnPhotos}
       onPhotoSelected={handlePhotoSelected}
       onClose={closeChangePhotoModal}
     />
