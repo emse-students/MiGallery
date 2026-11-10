@@ -534,8 +534,11 @@ A7 seed as `claimed`, 14 whose photo Immich no longer serves).
   the same transaction as the pointer. Before, a choice on a pending `auto` face ended the day
   another member claimed that face (`claimFace` displaces pending holders), and a default replaced
   it with nobody having acted. A confirmed face is neither claimed (`confirmed_by_other`) nor
-  re-decided, so a choice now ends only by the member's act or Immich losing the photo. An admin
-  choosing for a member confirms on their behalf; no reference is learned from a choice.
+  re-decided, so a choice now ends only by the member's act or Immich losing the photo. Only the
+  member's OWN choice confirms (they saw the face in the picker); an admin choosing for them sees
+  no face, so that choice stays unconfirmed. Nothing is learned in the request; like any face the
+  member confirmed, it may become a reference at a later selection. Choices made before this
+  change are not back-filled: an unattended write of `confirmed` is what the default run forbids.
 - The default, in order:
   1. **the face Immich featured** for the member's old person, when the one-off run hands it in,
      Immich still has the photo, AND that exact face is already one of THIS member's visible

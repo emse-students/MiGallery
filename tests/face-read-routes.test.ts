@@ -640,6 +640,10 @@ describe('PUT /api/users/me/profile-photo', () => {
     state.auth = member('boss', 'admin');
     expect((await choose({ asset_id: 'o', user_id: 'm2' })).status).toBe(200);
     expect(profileOf('m2')).toBe('o');
+    // The admin saw no face: their choice confirms nothing on the member's behalf.
+    expect(
+      db().prepare("SELECT state FROM face_matches WHERE user_id = 'm2' AND asset_id = 'o'").get()
+    ).toEqual({ state: 'pending' });
     match('m3', 'x', 'auto', 'pending');
     expect((await choose({ asset_id: 'x', user_id: 'm2' })).status).toBe(404);
     expect(profileOf('m2')).toBe('o');

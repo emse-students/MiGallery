@@ -26,8 +26,11 @@ const log = createLogger('profile-photo-route');
  * Choosing CONFIRMS the face the avatar is cut around (owner, 2026-11-10): a pending `auto` face
  * could be claimed by another member, which ended the choice and let a default replace it without
  * the member doing anything. A confirmed face is never claimed nor re-decided, so a chosen photo
- * now changes only by the member's act (a rejection, a withdrawal) or because Immich lost it. No
- * reference is learned from it here: that stays the "c'est moi" answer's (face/matches).
+ * now changes only by the member's act (a rejection, a withdrawal) or because Immich lost it.
+ * Only the MEMBER's own choice confirms: they saw that face in the picker. An admin choosing for
+ * them sees no face (the crops are served to their holder alone), so an admin's choice is stored
+ * unconfirmed, as before. No reference is learned in this request; like any face the member
+ * confirmed, it may become one at a later reference selection (face-reference-upgrade.ts).
  */
 export const PUT: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');
@@ -74,7 +77,11 @@ export const PUT: RequestHandler = async (event) => {
       if (changes === 0) {
         return 'no_user';
       }
-      // The choice IS the member's word on that face: confirmed, no other member can claim it
+      if (userId !== auth.user?.id_user) {
+        log.debug('profile photo chosen by an admin: the face is left unconfirmed');
+        return 'chosen';
+      }
+      // The member's choice IS their word on that face: confirmed, no other member can claim it
       // away and turn the choice invalid (a pending `auto` face can be). False when it already was.
       const confirmed = answerMatch(db, userId, face, 'confirm');
       log.debug('profile photo face', { newlyConfirmed: confirmed });
