@@ -753,8 +753,22 @@ outlining it would need that frame's size on the API too, for a visual aid.
   (it is back at the next visit). It can be undone like an answer.
 - **The faces the engine settles by itself** (`promoted`/`released` in the answer, section 2) are
   NOT announced during the flow: they leave the queue silently and are counted for the end screen
-  ("C'est fini !": confirmed, set aside, left for later, settled automatically). A card the engine
-  already settled answers 404: dropped silently, its count taken back.
+  ("C'est fini !": confirmed, set aside, left for later, settled automatically). The summary counts
+  SERVER outcomes and adds up to the list's size: a face whose own answer is HELD when the engine
+  names it stays held (its answer still applies and counts as the member's; it is not counted as
+  added); if that send then answers 404 it counts once, as the engine said it (`heldSettled`). A
+  card the engine already settled answers 404: dropped silently, its answer's count taken back and
+  counted once as "already settled elsewhere" when the engine did not say it. A held skip the
+  engine settles has nothing left to undo.
+- **An answer names the card the member saw** (`choose(session, choice, seenKey)`): a card button
+  carries the key it was rendered for, the whole-photo dialog answers with ITS face, and a choice
+  for a card that is no longer current is refused (the dialog closes, nothing is sent). Input is
+  ignored from a choice until the next card has been drawn (a frame), so a double tap answers one
+  face. The leave flush goes on the same send chain as the other answers when one is in flight.
+- **The browser's own line.** The 404 of an already-settled face shows as `Failed to load resource:
+  404` in the console. It is the route's contract (404 = not yours to answer any more, the same
+  answer whether the face exists or not, as the crop route), and the route has no other way to say
+  "already settled": it was left unchanged, the line is the browser's, not the app's.
 - **UNDO, no server change.** The LAST answer is held client-side and sent only when the member
   answers the next card, reaches the end, or leaves the page (`pagehide`, and the component's
   destroy for an in-app navigation; both with `fetch(..., { keepalive: true })`, the reply unread).

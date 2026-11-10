@@ -965,7 +965,6 @@
   "mpc_me": "C'est moi",
   "mpc_not_me": "Pas moi",
   "mpc_answer_error": "Votre réponse n'a pas pu être enregistrée. Réessayez.",
-  "mpc_order_hint": "Les plus ressemblantes en premier.",
   "mpc_unsure": "Je ne sais pas",
   "mpc_undo": "Annuler",
   "mpc_undo_title": "Annuler la dernière réponse",
@@ -975,8 +974,38 @@
   "mpc_done_confirmed": "Confirmées : {count}",
   "mpc_done_rejected": "Écartées : {count}",
   "mpc_done_skipped": "Laissées pour plus tard : {count}",
-  "mpc_done_auto": "Traitées automatiquement d'après vos réponses : {added} ajoutées à vos photos, {setAside} écartées",
   "mpc_keys_hint": "Clavier : O ou Entrée pour « C'est moi », N ou Suppr pour « Pas moi », J pour « Je ne sais pas », U pour annuler, Espace pour voir la photo entière.",
+  "mpc_done_auto_title": "Traitées automatiquement d'après vos réponses :",
+  "mpc_done_added": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} ajoutée à vos photos",
+        "countPlural=*": "{count} ajoutées à vos photos"
+      }
+    }
+  ],
+  "mpc_done_set_aside": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} écartée",
+        "countPlural=*": "{count} écartées"
+      }
+    }
+  ],
+  "mpc_done_settled": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} déjà réglée ailleurs",
+        "countPlural=*": "{count} déjà réglées ailleurs"
+      }
+    }
+  ],
   "mpc_open_photo": "Voir la photo entière",
   "mpc_dialog_label": "Photo entière",
   "mpc_dialog_photo_alt": "Photo entière contenant le visage proposé",

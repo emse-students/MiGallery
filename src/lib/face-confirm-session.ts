@@ -44,10 +44,18 @@ export interface Session {
   rejected: number;
   /** Left for later this session. */
   skipped: Suggestion[];
-  /** Faces the engine added to the member's photos by itself. */
+  /** Faces the engine added to the member's photos by itself (the server's word, not an answer). */
   added: number;
   /** Faces the engine set aside by itself. */
   setAside: number;
+  /** Faces that answered 404 with no word of the engine's on them: settled elsewhere. */
+  alreadySettled: number;
+  /**
+   * Faces the engine announced while the member's own answer for them is HELD: the answer still
+   * goes out (and counts as theirs if the server takes it); only if its send answers 404 does the
+   * face count, once, under what the engine said.
+   */
+  heldSettled: Record<string, 'added' | 'setAside'>;
 }
 
 /** A new session over the server's list, in the server's order (nearest first). */
@@ -61,6 +69,8 @@ export function startSession(list: readonly Suggestion[]): Session {
     skipped: [],
     added: 0,
     setAside: 0,
+    alreadySettled: 0,
+    heldSettled: {},
   };
 }
 
@@ -86,16 +96,22 @@ const bump = (s: Session, choice: Verdict, by: 1 | -1): Session =>
     : { ...s, rejected: s.rejected + by };
 
 /**
- * The member chose for the current card. The card leaves the queue and becomes the held choice;
- * the choice held before it (a verdict) is returned as `send`: it is sent NOW and not before.
+ * The member chose for the card they SAW, named by `seenKey`. The card leaves the queue and becomes
+ * the held choice; the choice held before it (a verdict) is returned as `send`: it is sent NOW and
+ * not before. A choice for a card that is no longer the current one (a double tap, a dialog opened
+ * on a card the engine settled meanwhile) is refused: `accepted` is false and nothing changes.
  */
-export function choose(s: Session, choice: Choice): { session: Session; send: Held | null } {
+export function choose(
+  s: Session,
+  choice: Choice,
+  seenKey: string
+): { session: Session; send: Held | null; accepted: boolean } {
   const item = currentCard(s);
-  if (!item) return { session: s, send: null };
+  if (!item || answerKey(item) !== seenKey) return { session: s, send: null, accepted: false };
   const send = s.last && s.last.choice !== 'skip' ? s.last : null;
   let next: Session = { ...s, queue: s.queue.slice(1), last: { item, choice } };
   next = choice === 'skip' ? { ...next, skipped: [...next.skipped, item] } : bump(next, choice, 1);
-  return { session: next, send };
+  return { session: next, send, accepted: true };
 }
 
 /** Whether there is a choice to undo. */
@@ -131,25 +147,59 @@ export function clearLast(s: Session): Session {
 }
 
 /**
- * Fold the server's answer to a sent verdict into the session. Settled faces leave the queue and
- * the skipped list silently and are counted; a 404 drops the card and its count; a failure puts
- * the card back at the front and takes its count back.
+ * Fold the server's answer to a sent verdict into the session. The summary counts SERVER outcomes:
+ * - the faces the engine settled leave the queue and the skipped list silently and are counted
+ *   (`added` for `promoted`, `setAside` for `released`);
+ * - except a face whose own VERDICT is held right now: it stays held, its answer still applies when
+ *   sent, and it is counted only if that send answers 404 (see `heldSettled`);
+ * - a 404 for the sent face drops it and takes its answer's count back; it is counted once, as the
+ *   engine said it if known, else as `alreadySettled`;
+ * - a failure puts the card back at the front and takes its count back.
  */
 export function settleSend(s: Session, sent: Held, outcome: SendOutcome): Session {
   const choice = sent.choice;
   if (choice === 'skip') return s;
+  const sentKey = answerKey(sent.item);
+  const { [sentKey]: said, ...heldSettled } = s.heldSettled;
   if (outcome.kind === 'failed') {
+    // Still owed: the face stays where the member can answer it again.
     return bump({ ...s, queue: [sent.item, ...s.queue] }, choice, -1);
   }
   if (outcome.kind === 'gone') {
-    return bump(s, choice, -1);
+    const next = bump({ ...s, heldSettled }, choice, -1);
+    if (said === 'added') return { ...next, added: next.added + 1 };
+    if (said === 'setAside') return { ...next, setAside: next.setAside + 1 };
+    return { ...next, alreadySettled: next.alreadySettled + 1 };
   }
-  const settled = new Set([...outcome.promoted, ...outcome.released].map(answerKey));
+  const heldKey = s.last && s.last.choice !== 'skip' ? answerKey(s.last.item) : null;
+  const held: Record<string, 'added' | 'setAside'> = { ...heldSettled };
+  let added = 0;
+  let setAside = 0;
+  const gone = new Set<string>();
+  for (const f of outcome.promoted) {
+    const key = answerKey(f);
+    if (key === heldKey) held[key] = 'added';
+    else {
+      added += 1;
+      gone.add(key);
+    }
+  }
+  for (const f of outcome.released) {
+    const key = answerKey(f);
+    if (key === heldKey) held[key] = 'setAside';
+    else {
+      setAside += 1;
+      gone.add(key);
+    }
+  }
   return {
     ...s,
-    queue: s.queue.filter((c) => !settled.has(answerKey(c))),
-    skipped: s.skipped.filter((c) => !settled.has(answerKey(c))),
-    added: s.added + outcome.promoted.length,
-    setAside: s.setAside + outcome.released.length,
+    queue: s.queue.filter((c) => !gone.has(answerKey(c))),
+    skipped: s.skipped.filter((c) => !gone.has(answerKey(c))),
+    // A held skip the engine settled has nothing left to undo.
+    last: s.last && gone.has(answerKey(s.last.item)) ? null : s.last,
+    added: s.added + added,
+    setAside: s.setAside + setAside,
+    heldSettled: held,
   };
 }

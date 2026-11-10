@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { answerKey } from '#lib/face-confirm-list.ts';
 import {
   canUndo,
-  choose,
+  choose as chooseKeyed,
   clearLast,
   currentCard,
   isFinished,
@@ -10,7 +11,15 @@ import {
   settleSend,
   startSession,
   undo,
+  type Choice,
+  type Session,
 } from '#lib/face-confirm-session.ts';
+
+/** The member chooses for the card they see now. */
+const choose = (s: Session, choice: Choice) => {
+  const card = currentCard(s);
+  return chooseKeyed(s, choice, card ? answerKey(card) : '');
+};
 
 const f = (n: number) => ({ asset_id: `a${n}`, face_index: 0 });
 const list = [f(1), f(2), f(3), f(4)];
@@ -119,5 +128,118 @@ describe('what the server answered to a sent verdict', () => {
     expect(s.confirmed).toBe(0);
     expect(s.rejected).toBe(1);
     expect(s.last).toEqual({ item: f(2), choice: 'reject' });
+  });
+});
+
+describe('a choice for a card that is no longer the current one', () => {
+  it('is refused and changes nothing (double tap, stale dialog)', () => {
+    const s0 = startSession(list);
+    const once = chooseKeyed(s0, 'confirm', answerKey(f(1)));
+    expect(once.accepted).toBe(true);
+    const twice = chooseKeyed(once.session, 'confirm', answerKey(f(1)));
+    expect(twice.accepted).toBe(false);
+    expect(twice.send).toBeNull();
+    expect(twice.session).toBe(once.session);
+    expect(currentCard(twice.session)).toEqual(f(2));
+  });
+});
+
+describe('the summary counts server outcomes', () => {
+  it('keeps a promoted face held: its answer applies, it is not counted as added', () => {
+    let s = choose(startSession(list), 'confirm').session; // f1 held
+    s = choose(s, 'confirm').session; // f2 held, f1 to send
+    // f1's send says the engine promoted f2 (held) and f3 (queued).
+    s = settleSend(
+      s,
+      { item: f(1), choice: 'confirm' },
+      {
+        kind: 'recorded',
+        promoted: [f(2), f(3)],
+        released: [],
+      }
+    );
+    expect(s.added).toBe(1); // f3 only
+    expect(s.queue).toEqual([f(4)]);
+    expect(s.confirmed).toBe(2); // f1 and the held f2
+    expect(s.heldSettled).toEqual({ [answerKey(f(2))]: 'added' });
+    // f2 is sent and accepted: still the member's answer, counted once.
+    s = settleSend(
+      s,
+      { item: f(2), choice: 'confirm' },
+      { kind: 'recorded', promoted: [], released: [] }
+    );
+    expect(s.confirmed).toBe(2);
+    expect(s.added).toBe(1);
+    expect(s.heldSettled).toEqual({});
+  });
+
+  it('counts a released held face once, as the engine said it, when its send answers 404', () => {
+    let s = choose(startSession(list), 'confirm').session;
+    s = choose(s, 'reject').session; // f2 held
+    s = settleSend(
+      s,
+      { item: f(1), choice: 'confirm' },
+      {
+        kind: 'recorded',
+        promoted: [],
+        released: [f(2)],
+      }
+    );
+    expect(s.setAside).toBe(0);
+    s = settleSend(s, { item: f(2), choice: 'reject' }, { kind: 'gone' });
+    expect(s.rejected).toBe(0);
+    expect(s.setAside).toBe(1);
+    expect(s.alreadySettled).toBe(0);
+  });
+
+  it('counts a 404 with no word of the engine as already settled, and a retry too', () => {
+    let s = choose(startSession(list), 'confirm').session;
+    s = settleSend(s, { item: f(1), choice: 'confirm' }, { kind: 'failed' });
+    expect(currentCard(s)).toEqual(f(1));
+    s = choose(s, 'confirm').session;
+    s = settleSend(s, { item: f(1), choice: 'confirm' }, { kind: 'gone' });
+    expect([s.confirmed, s.alreadySettled]).toEqual([0, 1]);
+  });
+
+  it('adds up: every face of the list is counted exactly once at the end', () => {
+    let s = choose(startSession(list), 'confirm').session; // f1
+    s = choose(s, 'skip').session; // f2 skipped, f1 to send
+    s = settleSend(
+      s,
+      { item: f(1), choice: 'confirm' },
+      {
+        kind: 'recorded',
+        promoted: [f(2)], // the skipped one is settled by the engine
+        released: [f(4)],
+      }
+    );
+    s = choose(s, 'reject').session; // f3
+    const final = settleSend(
+      s,
+      { item: f(3), choice: 'reject' },
+      { kind: 'recorded', promoted: [], released: [] }
+    );
+    const total =
+      final.confirmed +
+      final.rejected +
+      final.skipped.length +
+      final.added +
+      final.setAside +
+      final.alreadySettled;
+    expect(isFinished(final)).toBe(true);
+    expect(total).toBe(final.total);
+  });
+
+  it('forgets a held skip the engine settled: nothing left to undo', () => {
+    let s = choose(startSession(list), 'confirm').session;
+    s = choose(s, 'skip').session; // f2 held as a skip
+    s = settleSend(
+      s,
+      { item: f(1), choice: 'confirm' },
+      { kind: 'recorded', promoted: [f(2)], released: [] }
+    );
+    expect(s.last).toBeNull();
+    expect(s.skipped).toEqual([]);
+    expect(s.added).toBe(1);
   });
 });

@@ -947,7 +947,6 @@
   "mpc_me": "It's me",
   "mpc_not_me": "Not me",
   "mpc_answer_error": "Your answer could not be saved. Try again.",
-  "mpc_order_hint": "Closest matches first.",
   "mpc_unsure": "I'm not sure",
   "mpc_undo": "Undo",
   "mpc_undo_title": "Undo the last answer",
@@ -957,8 +956,38 @@
   "mpc_done_confirmed": "Confirmed: {count}",
   "mpc_done_rejected": "Set aside: {count}",
   "mpc_done_skipped": "Left for later: {count}",
-  "mpc_done_auto": "Settled automatically from your answers: {added} added to your photos, {setAside} set aside",
   "mpc_keys_hint": "Keyboard: O or Enter for \"It's me\", N or Delete for \"Not me\", J for \"I'm not sure\", U to undo, Space to see the whole photo.",
+  "mpc_done_auto_title": "Settled automatically from your answers:",
+  "mpc_done_added": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} added to your photos",
+        "countPlural=*": "{count} added to your photos"
+      }
+    }
+  ],
+  "mpc_done_set_aside": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} set aside",
+        "countPlural=*": "{count} set aside"
+      }
+    }
+  ],
+  "mpc_done_settled": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} already settled elsewhere",
+        "countPlural=*": "{count} already settled elsewhere"
+      }
+    }
+  ],
   "mpc_open_photo": "See the whole photo",
   "mpc_dialog_label": "Whole photo",
   "mpc_dialog_photo_alt": "The whole photo containing the proposed face",

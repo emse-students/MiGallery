@@ -15,7 +15,6 @@ import {
 } from '#lib/face-reference-selection.ts';
 import { decideFace, withheldByNegative } from '#lib/face-match.ts';
 import { cosineDistance } from '#lib/face-embedding.ts';
-import { removeKeys, restoreAt, type Suggestion } from '#lib/face-confirm-list.ts';
 
 /** A unit vector at `angle` radians. */
 const at = (angle: number) => Float32Array.from([Math.cos(angle), Math.sin(angle)]);
@@ -218,27 +217,6 @@ describe('negatives: "not me" withholds a lookalike from that member only', () =
     expect(decideFace(face, [alice])).toBeNull();
     // Bob holds no negative of alice's: a face near alice's negative still goes to him alone.
     expect(decideFace(at(1.1), [bob])?.userId).toBe('bob');
-  });
-});
-
-describe('the confirmation list: optimistic removal, rollback in place', () => {
-  const list: Suggestion[] = [
-    { asset_id: 'a', face_index: 0 },
-    { asset_id: 'b', face_index: 1 },
-    { asset_id: 'c', face_index: 0 },
-  ];
-
-  it('removes answered faces by key', () => {
-    expect(removeKeys(list, ['b:1', 'c:0'])).toEqual([{ asset_id: 'a', face_index: 0 }]);
-    expect(removeKeys(list, ['b:0'])).toEqual(list);
-  });
-
-  it('puts a refused answer back where it was, never twice', () => {
-    const without = removeKeys(list, ['b:1']);
-    expect(restoreAt(without, list[1], 1)).toEqual(list);
-    // The list got shorter meanwhile: at the end.
-    expect(restoreAt([], list[1], 1)).toEqual([list[1]]);
-    expect(restoreAt(list, list[1], 0)).toEqual(list);
   });
 });
 

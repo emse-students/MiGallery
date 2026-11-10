@@ -48,6 +48,9 @@
   /** Answers on their way to the server: the end screen waits for them to settle. */
   let inFlight = $state(0);
   let stage: HTMLDivElement | undefined = $state();
+  let doneHeading: HTMLHeadingElement | undefined = $state();
+  /** Input is ignored from a choice until the next card has been drawn (no double answer). */
+  let settling = $state(false);
   /** The face whose whole photo is open (null: none). */
   let opened = $state<Suggestion | null>(null);
 
@@ -124,13 +127,24 @@
     });
   }
 
-  /** The member chose for the current card; the answer held before it leaves now. */
-  async function pick(choice: Choice) {
-    if (!card) return;
-    const { session: next, send } = choose(session, choice);
+  /**
+   * The member chose for the card they SAW (`seenKey`, carried from what was rendered or from the
+   * whole-photo dialog): a card that is no longer the current one is not answered. Input is then
+   * ignored until the next card has been drawn, so a double tap answers one face.
+   */
+  async function pick(choice: Choice, seenKey: string) {
+    if (settling) return;
+    const { session: next, send, accepted } = choose(session, choice, seenKey);
+    if (!accepted) {
+      console.debug('[confirmer] a choice for a card that is no longer current was refused');
+      return;
+    }
+    settling = true;
     session = next;
     if (send) commit(send);
     await tick();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    settling = false;
     stage?.focus();
   }
 
@@ -151,17 +165,33 @@
     commit(held);
   });
 
+  // A card the engine settled (or a held answer's undo) changes the current card: a dialog opened
+  // on another face is closed without answering.
+  $effect(() => {
+    if (opened && (!card || answerKey(card) !== answerKey(opened))) opened = null;
+  });
+
+  // The end screen takes the focus, so a keyboard or screen-reader user lands on it.
+  $effect(() => {
+    if (done && doneHeading) doneHeading.focus();
+  });
+
   /**
    * The page is being left: the held answer goes out now, with `keepalive` so the browser lets the
-   * request outlive the page. Its reply is not read; what the engine settles shows at the next
-   * visit.
+   * request outlive the page. When an earlier answer is still in flight it is sent after it on the
+   * same chain, so the order is kept (best effort: the page may be gone first). Its reply is not
+   * read; what the engine settles shows at the next visit.
    */
   function flushOnLeave() {
     const held = pendingSend(session);
     if (!held) return;
     console.debug('[confirmer] leaving: sending the held answer', answerKey(held.item));
     session = clearLast(session);
-    void sendAnswer(held, true);
+    if (inFlight === 0) {
+      void sendAnswer(held, true);
+    } else {
+      chain = chain.then(() => sendAnswer(held, true).then(() => undefined));
+    }
   }
 
   /** The keys: O/Y/Enter yes, N/Delete/Backspace no, J not sure, U undo, Space/V whole photo. */
@@ -170,18 +200,19 @@
       return;
     }
     const key = event.key.toLowerCase();
+    const seen = card ? answerKey(card) : '';
     if (key === 'o' || key === 'y' || key === 'enter') {
       event.preventDefault();
-      void pick('confirm');
+      void pick('confirm', seen);
     } else if (key === 'n' || key === 'delete' || key === 'backspace') {
       event.preventDefault();
-      void pick('reject');
+      void pick('reject', seen);
     } else if (key === 'j') {
       event.preventDefault();
-      void pick('skip');
+      void pick('skip', seen);
     } else if (key === 'u') {
       event.preventDefault();
-      void takeBack();
+      if (!settling) void takeBack();
     } else if (key === ' ' || key === 'v') {
       event.preventDefault();
       opened = card;
@@ -205,106 +236,142 @@
 
   <PageHeader title={m.mpc_title()} subtitle={m.mpc_subtitle()} />
 
-  {#if loading}
-    <LoadingState label={m.mpc_loading()} />
-  {:else if failed}
-    <ErrorState title={m.mpc_load_error()} onRetry={load} />
-  {:else if session.total === 0}
-    <EmptyState icon={CircleCheckBig} title={m.mpc_empty_title()} description={m.mpc_empty_body()}>
-      <a href="/mes-photos" class="btn primary">
-        <ArrowLeft size={18} />
-        {m.mpc_back()}
-      </a>
-    </EmptyState>
-  {:else if done}
-    <div class="confirm-done">
-      <CircleCheckBig size={40} aria-hidden="true" />
-      <h2>{m.mpc_done_title()}</h2>
-      <ul>
-        <li>{m.mpc_done_confirmed({ count: session.confirmed })}</li>
-        <li>{m.mpc_done_rejected({ count: session.rejected })}</li>
-        <li>{m.mpc_done_skipped({ count: session.skipped.length })}</li>
-        {#if session.added + session.setAside > 0}
-          <li>{m.mpc_done_auto({ added: session.added, setAside: session.setAside })}</li>
-        {/if}
-      </ul>
-      <a href="/mes-photos" class="btn primary">
-        <ArrowLeft size={18} />
-        {m.mpc_back()}
-      </a>
-    </div>
-  {:else if !card}
-    <LoadingState label={m.mpc_saving()} />
-  {:else}
-    <div class="confirm-bar" aria-live="polite">
-      <p class="confirm-count">
-        {m.mpc_progress({ index: position(session), total: session.total })}
-      </p>
-      <button
-        type="button"
-        class="confirm-undo"
-        disabled={!canUndo(session)}
-        title={m.mpc_undo_title()}
-        onclick={takeBack}
+  <!-- A polite live region that exists from the start: the end screen is announced when it fills. -->
+  <div class="confirm-live" aria-live="polite">
+    {#if loading}
+      <LoadingState label={m.mpc_loading()} />
+    {:else if failed}
+      <ErrorState title={m.mpc_load_error()} onRetry={load} />
+    {:else if session.total === 0}
+      <EmptyState
+        icon={CircleCheckBig}
+        title={m.mpc_empty_title()}
+        description={m.mpc_empty_body()}
       >
-        <Undo2 size={16} aria-hidden="true" />
-        <span>{m.mpc_undo()}</span>
-      </button>
-    </div>
-    <!-- One card, a keyboard stop whose keys mirror its buttons (see onStageKey). -->
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-    <div
-      class="confirm-stage"
-      tabindex="0"
-      role="group"
-      aria-label={m.mpc_progress({ index: position(session), total: session.total })}
-      bind:this={stage}
-      onkeydown={onStageKey}
-    >
-      <div class="confirm-face">
-        {#key answerKey(card)}
-          <FaceCropThumb
-            assetId={card.asset_id}
-            faceIndex={card.face_index}
-            alt={m.mpc_face_alt()}
-          />
-        {/key}
+        <a href="/mes-photos" class="btn primary">
+          <ArrowLeft size={18} />
+          {m.mpc_back()}
+        </a>
+      </EmptyState>
+    {:else if done}
+      <div class="confirm-done">
+        <span class="confirm-done-icon"><CircleCheckBig size={40} aria-hidden="true" /></span>
+        <h2 tabindex="-1" bind:this={doneHeading}>{m.mpc_done_title()}</h2>
+        <ul>
+          <li>{m.mpc_done_confirmed({ count: session.confirmed })}</li>
+          <li>{m.mpc_done_rejected({ count: session.rejected })}</li>
+          <li>{m.mpc_done_skipped({ count: session.skipped.length })}</li>
+          {#if session.added + session.setAside + session.alreadySettled > 0}
+            <li>
+              {m.mpc_done_auto_title()}
+              <ul class="confirm-done-auto">
+                {#if session.added > 0}<li>{m.mpc_done_added({ count: session.added })}</li>{/if}
+                {#if session.setAside > 0}<li>
+                    {m.mpc_done_set_aside({ count: session.setAside })}
+                  </li>{/if}
+                {#if session.alreadySettled > 0}
+                  <li>{m.mpc_done_settled({ count: session.alreadySettled })}</li>
+                {/if}
+              </ul>
+            </li>
+          {/if}
+        </ul>
+        <a href="/mes-photos" class="btn primary">
+          <ArrowLeft size={18} />
+          {m.mpc_back()}
+        </a>
+      </div>
+    {:else if !card}
+      <LoadingState label={m.mpc_saving()} />
+    {:else}
+      <div class="confirm-bar">
+        <p class="confirm-count">
+          {m.mpc_progress({ index: position(session), total: session.total })}
+        </p>
         <button
           type="button"
-          class="confirm-open"
-          tabindex="-1"
-          aria-label={m.mpc_open_photo()}
-          title={m.mpc_open_photo()}
-          onclick={() => (opened = card)}
+          class="confirm-undo"
+          disabled={!canUndo(session) || settling}
+          title={m.mpc_undo_title()}
+          onclick={takeBack}
         >
-          <Maximize2 size={18} aria-hidden="true" />
+          <Undo2 size={16} aria-hidden="true" />
+          <span>{m.mpc_undo()}</span>
         </button>
       </div>
-      <div class="confirm-actions">
-        <button type="button" class="confirm-btn" tabindex="-1" onclick={() => pick('reject')}>
-          <X size={18} aria-hidden="true" />
-          <span>{m.mpc_not_me()}</span>
-        </button>
-        <button type="button" class="confirm-btn" tabindex="-1" onclick={() => pick('skip')}>
-          <CircleHelp size={18} aria-hidden="true" />
-          <span>{m.mpc_unsure()}</span>
-        </button>
-        <button type="button" class="confirm-btn yes" tabindex="-1" onclick={() => pick('confirm')}>
-          <Check size={18} aria-hidden="true" />
-          <span>{m.mpc_me()}</span>
-        </button>
+      <!-- One card, a keyboard stop whose keys mirror its buttons (see onStageKey). -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+      <div
+        class="confirm-stage"
+        tabindex="0"
+        role="group"
+        aria-label={m.mpc_progress({ index: position(session), total: session.total })}
+        bind:this={stage}
+        onkeydown={onStageKey}
+      >
+        <div class="confirm-face">
+          {#key answerKey(card)}
+            <FaceCropThumb
+              assetId={card.asset_id}
+              faceIndex={card.face_index}
+              alt={m.mpc_face_alt()}
+            />
+          {/key}
+          <button
+            type="button"
+            class="confirm-open"
+            tabindex="-1"
+            aria-label={m.mpc_open_photo()}
+            title={m.mpc_open_photo()}
+            onclick={() => (opened = card)}
+          >
+            <Maximize2 size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div class="confirm-actions">
+          <button
+            type="button"
+            class="confirm-btn"
+            tabindex="-1"
+            disabled={settling}
+            onclick={() => pick('reject', answerKey(card))}
+          >
+            <X size={18} aria-hidden="true" />
+            <span>{m.mpc_not_me()}</span>
+          </button>
+          <button
+            type="button"
+            class="confirm-btn"
+            tabindex="-1"
+            disabled={settling}
+            onclick={() => pick('skip', answerKey(card))}
+          >
+            <CircleHelp size={18} aria-hidden="true" />
+            <span>{m.mpc_unsure()}</span>
+          </button>
+          <button
+            type="button"
+            class="confirm-btn yes"
+            tabindex="-1"
+            disabled={settling}
+            onclick={() => pick('confirm', answerKey(card))}
+          >
+            <Check size={18} aria-hidden="true" />
+            <span>{m.mpc_me()}</span>
+          </button>
+        </div>
       </div>
-    </div>
-    <p class="confirm-hint confirm-keys">{m.mpc_keys_hint()}</p>
-  {/if}
+      <p class="confirm-hint confirm-keys">{m.mpc_keys_hint()}</p>
+    {/if}
+  </div>
 </div>
 
 <FacePhotoDialog
   item={opened}
   onClose={() => (opened = null)}
-  onAnswer={(verdict) => {
+  onAnswer={(item, verdict) => {
     opened = null;
-    void pick(verdict);
+    void pick(verdict, answerKey(item));
   }}
 />
 
@@ -437,8 +504,19 @@
     font-weight: 600;
     line-height: 1.15;
     text-align: center;
-    white-space: normal;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+  }
+
+  /* At 360 px three labels and three icons do not fit one line: the labels win. */
+  @media (max-width: 26rem) {
+    .confirm-btn {
+      padding-inline: 0.15rem;
+      font-size: 0.78rem;
+    }
+
+    .confirm-btn :global(svg) {
+      display: none;
+    }
   }
 
   .confirm-btn.yes {
@@ -466,8 +544,19 @@
     color: var(--text-primary);
   }
 
-  .confirm-done :global(svg:first-child) {
+  .confirm-done-icon {
+    display: flex;
     color: var(--accent);
+  }
+
+  /* An icon in a button is its label's colour, at full strength (the empty state dims every svg). */
+  .confirm-main :global(.btn svg) {
+    color: currentColor;
+    opacity: 1;
+  }
+
+  .confirm-done-auto {
+    margin-top: 0.25rem;
   }
 
   .confirm-done h2 {

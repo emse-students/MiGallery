@@ -16,7 +16,8 @@
   interface Props {
     /** The face whose photo is shown; null keeps the dialog closed. */
     item: Suggestion | null;
-    onAnswer: (verdict: Verdict) => void;
+    /** The answer NAMES the face the dialog shows, so a card that changed meanwhile is not answered. */
+    onAnswer: (item: Suggestion, verdict: Verdict) => void;
     onClose: () => void;
   }
 
@@ -76,10 +77,10 @@
         <X size={18} aria-hidden="true" />
         <span>{m.common_close()}</span>
       </button>
-      <button type="button" class="face-photo-btn" onclick={() => onAnswer('reject')}>
+      <button type="button" class="face-photo-btn" onclick={() => onAnswer(item, 'reject')}>
         <span>{m.mpc_not_me()}</span>
       </button>
-      <button type="button" class="face-photo-btn yes" onclick={() => onAnswer('confirm')}>
+      <button type="button" class="face-photo-btn yes" onclick={() => onAnswer(item, 'confirm')}>
         <Check size={18} aria-hidden="true" />
         <span>{m.mpc_me()}</span>
       </button>
