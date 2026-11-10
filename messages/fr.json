@@ -948,13 +948,16 @@
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "{count} visage à vérifier avant de les ajouter à vos photos.",
+        "countPlural=one": "{count} visage à vérifier avant de l'ajouter à vos photos.",
         "countPlural=*": "{count} visages à vérifier avant de les ajouter à vos photos."
       }
     }
   ],
   "mpw_check_cta": "Vérifier maintenant",
   "mpw_show": "Elles apparaissent ci-dessous.",
+  "mpw_to_check_title": "Des photos vous ressemblent",
+  "mpw_unavailable_title": "Recherche indisponible",
+  "mpw_unavailable_body": "La recherche de vos photos ne peut pas aboutir pour le moment. Réessayez plus tard depuis vos paramètres.",
   "mpw_none_title": "Rien trouvé pour le moment",
   "mpw_none_body": "Les nouvelles photos sont analysées au fil de l'eau : revenez plus tard.",
   "mpw_status_error": "L'état de la recherche n'a pas pu être lu. Nouvel essai en cours…",

@@ -36,3 +36,21 @@ export function isEnrolmentStatus(value: unknown): value is EnrolmentStatus {
     typeof v.toConfirm === 'number'
   );
 }
+
+/** First delay between two asks, and the cap the backoff doubles up to (ms). */
+export const POLL_FIRST_MS = 2000;
+export const POLL_CAP_MS = 30000;
+
+/**
+ * What an HTTP status means for the wait. A status code is an ANSWER: 401/403 (signed out, not
+ * allowed) and 503 (the face store is off) will not change by asking again, so the wait stops with
+ * a message. Any other failure is retried: only the server's `matching: false` ends the wait.
+ */
+export function statusVerdict(status: number): 'stop' | 'retry' {
+  return status === 401 || status === 403 || status === 503 ? 'stop' : 'retry';
+}
+
+/** The delay after a failed read: the previous one doubled, up to the cap. */
+export function backoffDelay(previous: number): number {
+  return Math.min(POLL_CAP_MS, Math.max(POLL_FIRST_MS, previous * 2));
+}

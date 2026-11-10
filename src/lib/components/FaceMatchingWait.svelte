@@ -12,7 +12,10 @@
   import { ChevronRight, ScanFace, Search } from '@lucide/svelte';
   import { m } from '#lib/paraglide/messages.js';
   import {
+    POLL_FIRST_MS,
+    backoffDelay,
     isEnrolmentStatus,
+    statusVerdict,
     waitOutcome,
     type EnrolmentStatus,
     type WaitOutcome,
@@ -25,11 +28,12 @@
 
   let { onDone }: Props = $props();
 
-  /** How often the display asks again while the server says "still matching". */
-  const POLL_MS = 2000;
-
   let status = $state<EnrolmentStatus | null>(null);
   let readFailed = $state(false);
+  /** The server answered that asking again will not help (signed out, store off). */
+  let unavailable = $state(false);
+  /** The delay before the next ask: constant while the server answers, doubling on failures. */
+  let delay = POLL_FIRST_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
 
@@ -39,11 +43,20 @@
     if (stopped) return;
     try {
       const res = await fetch('/api/users/me/face/enrolment');
+      if (statusVerdict(res.status) === 'stop') {
+        console.warn('[face-wait] the server answered that the wait cannot go on', res.status);
+        stopped = true;
+        unavailable = true;
+        return;
+      }
       const body: unknown = await res.json();
+      // The panel may have been left while the answer was on its way.
+      if (stopped) return;
       if (!res.ok || !isEnrolmentStatus(body)) {
         throw new Error(`unusable status answer (${res.status})`);
       }
       readFailed = false;
+      delay = POLL_FIRST_MS;
       status = body;
       const result = waitOutcome(body);
       console.debug('[face-wait] status', result, body);
@@ -53,10 +66,12 @@
         return;
       }
     } catch (e) {
-      console.warn('[face-wait] status read failed, asking again', e);
+      if (stopped) return;
+      delay = backoffDelay(delay);
+      console.warn('[face-wait] status read failed, asking again', { delay, error: e });
       readFailed = true;
     }
-    if (!stopped) timer = setTimeout(poll, POLL_MS);
+    if (!stopped) timer = setTimeout(poll, delay);
   }
 
   onMount(() => {
@@ -71,13 +86,20 @@
 </script>
 
 <section class="face-wait" aria-live="polite">
-  {#if outcome === 'waiting'}
+  {#if unavailable}
+    <span class="wait-icon"><Search size={28} aria-hidden="true" /></span>
+    <h2>{m.mpw_unavailable_title()}</h2>
+    <p>{m.mpw_unavailable_body()}</p>
+  {:else if outcome === 'waiting'}
     <span class="wait-icon spin"><Search size={28} aria-hidden="true" /></span>
     <h2>{m.mpw_title()}</h2>
     <p>{readFailed ? m.mpw_status_error() : m.mpw_hint()}</p>
   {:else if outcome === 'to_check' && status}
     <span class="wait-icon"><ScanFace size={28} aria-hidden="true" /></span>
-    <h2>{m.mpw_found({ count: status.photos })}</h2>
+    <!-- No "0 photos found" when only faces to check were found. -->
+    <h2>
+      {status.photos > 0 ? m.mpw_found({ count: status.photos }) : m.mpw_to_check_title()}
+    </h2>
     <p>{m.mpw_to_check({ count: status.toConfirm })}</p>
     <a href="/mes-photos/confirmer" class="wait-cta">
       <span>{m.mpw_check_cta()}</span>

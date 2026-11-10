@@ -183,13 +183,41 @@ export function scheduleRematch(engine: FaceEngine, userId: string): Promise<voi
   return rematches.request(userId, () => rematchMember(engine, userId));
 }
 
+/** Members whose enrolment follow-up (re-match, then reference selection) is still owed. */
+const followUps = new Set<string>();
+
 /**
- * Whether a re-match for the member is queued or running (the "we are looking for your photos"
- * state of "Mes photos" after a selfie). Read from this process's queue; false after a restart,
- * which is truthful: a restart ended the run.
+ * What follows a selfie, as ONE unit the status can see: the coalesced re-match, then `afterwards`
+ * (the reference selection and its possible second re-match, which bypasses the queue). The member
+ * is "in follow-up" from this call until the last step ends, success or failure. Never rejects
+ * past `onError`.
+ */
+export async function scheduleEnrolmentFollowUp(
+  engine: FaceEngine,
+  userId: string,
+  afterwards: () => Promise<unknown>,
+  onError: (e: unknown) => void
+): Promise<void> {
+  followUps.add(userId);
+  try {
+    await scheduleRematch(engine, userId);
+    await afterwards();
+  } catch (e) {
+    onError(e);
+  } finally {
+    followUps.delete(userId);
+  }
+}
+
+/**
+ * Whether in-memory work for the member is queued or running: a re-match, or an enrolment
+ * follow-up still owed. The state is this process's memory, so a restart (which also ends the work)
+ * reads `false`: the durable `face_rematch_pending` row, which the status route also reads, covers
+ * the selection's second re-match across a restart; the enrolment's own first re-match is not
+ * durable, so after a restart the verdict may come before it was run (documented in the wiki).
  */
 export function isRematching(userId: string): boolean {
-  return rematches.isBusy(userId);
+  return rematches.isBusy(userId) || followUps.has(userId);
 }
 
 /** Whether a confirmed face may become a reference (face-reference-selection.ts, re-exported). */

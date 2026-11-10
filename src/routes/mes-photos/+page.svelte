@@ -36,7 +36,9 @@
    * waits with them until the server says its re-match is over (face-matching-wait.ts). Read from
    * the URL, so a client-side navigation to this page without the parameter drops the panel.
    */
-  let waitingForMatch = $derived(isViewingOwnPhotos && page.url.searchParams.get('matching') === '1');
+  let waitingForMatch = $derived(
+    isViewingOwnPhotos && page.url.searchParams.get('matching') === '1'
+  );
   /**
    * How many photos wait for the viewer's yes or no (their own view only). Read from the layout,
    * the one number the menu's badge shows too, which the confirmation screen refreshes after each

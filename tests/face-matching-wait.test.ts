@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { isEnrolmentStatus, waitOutcome } from '#lib/face-matching-wait.ts';
+import {
+  POLL_CAP_MS,
+  POLL_FIRST_MS,
+  backoffDelay,
+  isEnrolmentStatus,
+  statusVerdict,
+  waitOutcome,
+} from '#lib/face-matching-wait.ts';
 
 describe('waitOutcome', () => {
   it('waits while the server says the re-match is queued or running, whatever the counts', () => {
@@ -26,5 +33,23 @@ describe('isEnrolmentStatus', () => {
     expect(isEnrolmentStatus({ success: true, enrolled: true })).toBe(false);
     expect(isEnrolmentStatus(null)).toBe(false);
     expect(isEnrolmentStatus('x')).toBe(false);
+  });
+});
+
+describe('statusVerdict', () => {
+  it('stops on an answer that asking again cannot change, retries the rest', () => {
+    for (const status of [401, 403, 503]) expect(statusVerdict(status)).toBe('stop');
+    for (const status of [500, 502, 504, 429, 404, 200])
+      expect(statusVerdict(status)).toBe('retry');
+  });
+});
+
+describe('backoffDelay', () => {
+  it('doubles from the first delay up to the cap and never beyond', () => {
+    expect(backoffDelay(POLL_FIRST_MS)).toBe(4000);
+    expect(backoffDelay(4000)).toBe(8000);
+    let d = POLL_FIRST_MS;
+    for (let i = 0; i < 10; i++) d = backoffDelay(d);
+    expect(d).toBe(POLL_CAP_MS);
   });
 });

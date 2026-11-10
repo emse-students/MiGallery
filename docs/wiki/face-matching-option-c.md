@@ -979,15 +979,31 @@ picks an anchor; only a new enrolment replaces it (`enrolMember`).
 
 After a successful enrolment the settings page goes to `/mes-photos?matching=1`, where `FaceMatchingWait`
 polls `GET /api/users/me/face/enrolment` until it reads `matching: false` (`face-matching-wait.ts`
-turns an answer into waiting / to check / found / none). `matching` is `CoalescingQueue.isBusy`: a
-re-match covering the member is queued OR running. The state is this process's memory, so after a
-server restart it reads `false`, which is truthful: the restart ended the run. The enrolment POST
-queues the re-match before it answers, so the first read already says `true`. The end of the wait is
-the server's answer, never a clock; the 2 s interval only paces the display, and a failed read (or an
-answer of the wrong shape) is retried, never taken for "done". `photos` and `toConfirm` are
-`faceStatus`'s counts, the member's own. The outcomes: faces to check give a button to the
-confirmation flow, photos with nothing to check are shown (the grid reloads), nothing found says that
-new photos are analysed as they arrive.
+turns an answer into waiting / to check / found / none). The panel is derived from the URL, so a
+client-side navigation without the parameter drops it.
+
+`matching` is true while ANY of these holds: the coalesced re-match is queued or running
+(`CoalescingQueue.isBusy`); the enrolment follow-up is in flight (`scheduleEnrolmentFollowUp`: the
+re-match, then the reference selection with its Immich read and its possible SECOND re-match, which
+bypasses the queue; an in-memory set, cleared in a `finally`); or a durable `face_rematch_pending`
+row exists for the member (the selection wrote it, its re-match has not cleared it). The POST
+queues the follow-up before it answers, so the first read already says `true`.
+
+**After a restart** the in-memory parts read `false`, which is truthful (the run is gone), but the
+verdict may be premature: the durable row covers the selection's re-match, NOT the enrolment's own
+first re-match, which is not durable. Making it durable through `face_rematch_pending` was not
+done: the row is cleared by the selection's re-match and picked up by the tick, so a row written at
+enrolment would keep the panel waiting for the tick, not for the run. The member then sees "nothing
+yet" or fewer photos, and the new photos still arrive as the store is analysed.
+
+The end of the wait is the server's answer, never a clock. The display asks every 2 s while the
+server answers; a transport failure or an unusable answer is retried with a doubling delay (2 s up
+to 30 s) and is never taken for "done"; 401/403/503 are ANSWERS asking again cannot change, so the
+panel stops with a message. An answer that arrives after the panel was left is ignored. Outcomes:
+faces to check give a button to the confirmation flow (the title does not say "0 photos found" when
+only faces were found), photos with nothing to check are shown (the grid reloads, WITH the member's
+name and portrait: `loadMember` clears a profile it is not given), nothing found says that new
+photos are analysed as they arrive.
 
 ### The decided numbers
 

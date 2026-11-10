@@ -15,6 +15,16 @@ import { FACE_EMBEDDING_DIM, FACE_MODEL } from '#lib/face-embedding.ts';
 const state = vi.hoisted(() => ({
   user: null as null | { id_user: string; role: string },
   impersonating: false,
+  /** What the faked selection phase waits for (the real one reads Immich). */
+  upgradeGate: Promise.resolve() as Promise<void>,
+}));
+
+vi.mock('#lib/server/face-reference-upgrade.ts', async (importActual) => ({
+  ...(await importActual<typeof import('#lib/server/face-reference-upgrade.ts')>()),
+  upgradeMemberReferences: async () => {
+    await state.upgradeGate;
+    return 'already';
+  },
 }));
 
 vi.mock('#lib/server/env.ts', () => ({
@@ -287,6 +297,32 @@ describe('GET /api/users/me/face/enrolment', () => {
     release();
     await held;
     await idle();
+    expect(((await read()).body as { matching: boolean }).matching).toBe(false);
+  });
+
+  it('stays matching through the selection that follows the re-match, and ends after it', async () => {
+    let releaseUpgrade!: () => void;
+    state.upgradeGate = new Promise<void>((r) => (releaseUpgrade = r));
+    try {
+      await enrol({ selfie: new Blob([new Uint8Array([1])]), consent: 'true' });
+      await idle(); // the re-match itself is over; the selection is still owed
+      expect(((await read()).body as { matching: boolean }).matching).toBe(true);
+      releaseUpgrade();
+      await vi.waitFor(async () =>
+        expect(((await read()).body as { matching: boolean }).matching).toBe(false)
+      );
+    } finally {
+      releaseUpgrade();
+      state.upgradeGate = Promise.resolve();
+    }
+  });
+
+  it('is matching while the durable re-match row of a selection exists', async () => {
+    db()
+      .prepare('INSERT INTO face_rematch_pending (user_id, model, since) VALUES (?, ?, 1)')
+      .run('m1', FACE_MODEL);
+    expect(((await read()).body as { matching: boolean }).matching).toBe(true);
+    db().prepare('DELETE FROM face_rematch_pending').run();
     expect(((await read()).body as { matching: boolean }).matching).toBe(false);
   });
 });

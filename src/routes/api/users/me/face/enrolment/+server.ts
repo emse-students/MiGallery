@@ -8,14 +8,17 @@ import { readFormBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
 import { faceStatus } from '#lib/server/face-photos.ts';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
-import { upgradeMemberReferences } from '#lib/server/face-reference-upgrade.ts';
+import {
+  membersPendingRematch,
+  upgradeMemberReferences,
+} from '#lib/server/face-reference-upgrade.ts';
 import {
   ENROL_LIMIT_PER_HOUR,
   enrolLimiter,
   enrolMember,
   isRematching,
   referenceCount,
-  scheduleRematch,
+  scheduleEnrolmentFollowUp,
 } from '#lib/server/face-enrolment.ts';
 import {
   FaceMlImageRefusedError,
@@ -59,7 +62,7 @@ export const GET: RequestHandler = async (event) => {
   const db = getDatabase();
   const references = referenceCount(db, userId);
   // Read the flag BEFORE the counts: a run that ends in between then only makes the counts newer.
-  const matching = isRematching(userId);
+  const matching = isRematching(userId) || membersPendingRematch(db).includes(userId);
   const { photos, toConfirm } = faceStatus(db, userId);
   log.debug('enrolment status read', { references, matching, photos, toConfirm });
   return json({ success: true, enrolled: references > 0, references, matching, photos, toConfirm });
@@ -157,12 +160,14 @@ export const POST: RequestHandler = async (event) => {
   const references = enrolMember(engine, userId, embedding);
   // The bootstrap is owed to every member under the minimum, at every enrolment (owner,
   // 2026-11-02): it runs after the re-match, in the background, and the tick retries on a failure.
-  void scheduleRematch(engine, userId)
-    .then(() => upgradeMemberReferences(engine, userId, fetch))
-    .catch((e) =>
+  void scheduleEnrolmentFollowUp(
+    engine,
+    userId,
+    () => upgradeMemberReferences(engine, userId, fetch),
+    (e) =>
       log.error('the selection after an enrolment failed; the tick retries it', {
         message: (e as Error).message,
       })
-    );
+  );
   return json({ success: true, enrolled: true, references });
 };
