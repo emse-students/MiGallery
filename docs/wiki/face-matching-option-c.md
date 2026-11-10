@@ -762,9 +762,15 @@ outlining it would need that frame's size on the API too, for a visual aid.
   engine settles has nothing left to undo.
 - **An answer names the card the member saw** (`choose(session, choice, seenKey)`): a card button
   carries the key it was rendered for, the whole-photo dialog answers with ITS face, and a choice
-  for a card that is no longer current is refused (the dialog closes, nothing is sent). Input is
-  ignored from a choice until the next card has been drawn (a frame), so a double tap answers one
-  face. The leave flush goes on the same send chain as the other answers when one is in flight.
+  for a card that is no longer current is refused (the dialog closes, nothing is sent). **A double
+  tap is NOT blocked** (owner's rule: no timed lock, a clock is never logic): the second tap lands on
+  the next card, which is a real answer; the first answer is committed and the second is the HELD
+  one, which "Annuler" takes back. That is the remedy, not a guard. There is no input lock between
+  cards for the same reason: a click arrives after the DOM update, so nothing stands in the window
+  the key check does not already close. The leave flush goes on the same send chain as the other
+  answers when one is in flight. Undoing a held answer for a face the engine already promoted or
+  released does not bring the face back: the answer is taken back and the face counts once, as the
+  engine said it.
 - **The browser's own line.** The 404 of an already-settled face shows as `Failed to load resource:
   404` in the console. It is the route's contract (404 = not yours to answer any more, the same
   answer whether the face exists or not, as the crop route), and the route has no other way to say

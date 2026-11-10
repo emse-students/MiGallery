@@ -119,18 +119,28 @@ export function canUndo(s: Session): boolean {
   return s.last !== null;
 }
 
-/** Drop the last choice and bring its card back to the front. Nothing was sent for it. */
+/**
+ * Drop the last choice and bring its card back to the front. Nothing was sent for it. A face the
+ * engine already settled meanwhile (`heldSettled`) is NOT brought back: the member's answer is
+ * taken back and the face counts once, as the engine said it.
+ */
 export function undo(s: Session): Session {
   if (!s.last) return s;
   const { item, choice } = s.last;
-  let next: Session = { ...s, queue: [item, ...s.queue], last: null };
+  const key = answerKey(item);
   if (choice === 'skip') {
-    const key = answerKey(item);
-    next = { ...next, skipped: next.skipped.filter((k) => answerKey(k) !== key) };
-  } else {
-    next = bump(next, choice, -1);
+    return {
+      ...s,
+      queue: [item, ...s.queue],
+      last: null,
+      skipped: s.skipped.filter((k) => answerKey(k) !== key),
+    };
   }
-  return next;
+  const { [key]: said, ...heldSettled } = s.heldSettled;
+  const taken = bump({ ...s, last: null, heldSettled }, choice, -1);
+  if (said === 'added') return { ...taken, added: taken.added + 1 };
+  if (said === 'setAside') return { ...taken, setAside: taken.setAside + 1 };
+  return { ...taken, queue: [item, ...taken.queue] };
 }
 
 /**

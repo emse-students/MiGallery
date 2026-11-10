@@ -132,7 +132,7 @@ describe('what the server answered to a sent verdict', () => {
 });
 
 describe('a choice for a card that is no longer the current one', () => {
-  it('is refused and changes nothing (double tap, stale dialog)', () => {
+  it('is refused and changes nothing (a stale dialog, a repeated call for the same card)', () => {
     const s0 = startSession(list);
     const once = chooseKeyed(s0, 'confirm', answerKey(f(1)));
     expect(once.accepted).toBe(true);
@@ -241,5 +241,48 @@ describe('the summary counts server outcomes', () => {
     expect(s.last).toBeNull();
     expect(s.skipped).toEqual([]);
     expect(s.added).toBe(1);
+  });
+});
+
+describe('undo of a held answer the engine already settled', () => {
+  it('does not bring the face back: it counts once, as the engine said it', () => {
+    let s = choose(startSession(list), 'confirm').session;
+    s = choose(s, 'confirm').session; // f2 held
+    s = settleSend(
+      s,
+      { item: f(1), choice: 'confirm' },
+      { kind: 'recorded', promoted: [f(2)], released: [] }
+    );
+    expect(s.heldSettled).toEqual({ [answerKey(f(2))]: 'added' });
+    s = undo(s);
+    expect(s.queue).toEqual([f(3), f(4)]);
+    expect([s.confirmed, s.added, s.setAside]).toEqual([1, 1, 0]);
+    expect(s.heldSettled).toEqual({});
+    expect(s.last).toBeNull();
+  });
+
+  it('does the same for a released one', () => {
+    let s = choose(startSession(list), 'confirm').session;
+    s = choose(s, 'reject').session;
+    s = settleSend(
+      s,
+      { item: f(1), choice: 'confirm' },
+      { kind: 'recorded', promoted: [], released: [f(2)] }
+    );
+    s = undo(s);
+    expect(s.queue).toEqual([f(3), f(4)]);
+    expect([s.rejected, s.setAside]).toEqual([0, 1]);
+  });
+});
+
+describe('a double tap', () => {
+  it('answers two cards: the first is committed, the second is the held one and can be undone', () => {
+    const first = chooseKeyed(startSession(list), 'confirm', answerKey(f(1)));
+    // The second tap lands on the NEXT card, which is now the current one: a real answer.
+    const second = chooseKeyed(first.session, 'confirm', answerKey(f(2)));
+    expect(second.send).toEqual({ item: f(1), choice: 'confirm' });
+    const back = undo(second.session);
+    expect(currentCard(back)).toEqual(f(2));
+    expect(back.confirmed).toBe(1);
   });
 });

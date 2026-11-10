@@ -176,7 +176,9 @@
     font-weight: 600;
     line-height: 1.15;
     text-align: center;
-    white-space: nowrap;
+    /* A tight label wraps onto two lines inside its padding; the row's buttons share one height. */
+    white-space: normal;
+    overflow-wrap: break-word;
   }
 
   /* At 360 px three labels and three icons do not fit one line: the labels win. */

@@ -49,8 +49,6 @@
   let inFlight = $state(0);
   let stage: HTMLDivElement | undefined = $state();
   let doneHeading: HTMLHeadingElement | undefined = $state();
-  /** Input is ignored from a choice until the next card has been drawn (no double answer). */
-  let settling = $state(false);
   /** The face whose whole photo is open (null: none). */
   let opened = $state<Suggestion | null>(null);
 
@@ -129,22 +127,20 @@
 
   /**
    * The member chose for the card they SAW (`seenKey`, carried from what was rendered or from the
-   * whole-photo dialog): a card that is no longer the current one is not answered. Input is then
-   * ignored until the next card has been drawn, so a double tap answers one face.
+   * whole-photo dialog): a card that is no longer the current one is not answered. This guards a
+   * dialog opened on a card that changed meanwhile and a repeated call for the same card. It does
+   * NOT stop a double tap from answering two cards: that is deliberate, no timed lock (never a
+   * clock as logic); the second answer is the held one and "Annuler" takes it back.
    */
   async function pick(choice: Choice, seenKey: string) {
-    if (settling) return;
     const { session: next, send, accepted } = choose(session, choice, seenKey);
     if (!accepted) {
       console.debug('[confirmer] a choice for a card that is no longer current was refused');
       return;
     }
-    settling = true;
     session = next;
     if (send) commit(send);
     await tick();
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-    settling = false;
     stage?.focus();
   }
 
@@ -212,7 +208,7 @@
       void pick('skip', seen);
     } else if (key === 'u') {
       event.preventDefault();
-      if (!settling) void takeBack();
+      void takeBack();
     } else if (key === ' ' || key === 'v') {
       event.preventDefault();
       opened = card;
@@ -291,7 +287,7 @@
         <button
           type="button"
           class="confirm-undo"
-          disabled={!canUndo(session) || settling}
+          disabled={!canUndo(session)}
           title={m.mpc_undo_title()}
           onclick={takeBack}
         >
@@ -333,7 +329,6 @@
             type="button"
             class="confirm-btn"
             tabindex="-1"
-            disabled={settling}
             onclick={() => pick('reject', answerKey(card))}
           >
             <X size={18} aria-hidden="true" />
@@ -343,7 +338,6 @@
             type="button"
             class="confirm-btn"
             tabindex="-1"
-            disabled={settling}
             onclick={() => pick('skip', answerKey(card))}
           >
             <CircleHelp size={18} aria-hidden="true" />
@@ -353,7 +347,6 @@
             type="button"
             class="confirm-btn yes"
             tabindex="-1"
-            disabled={settling}
             onclick={() => pick('confirm', answerKey(card))}
           >
             <Check size={18} aria-hidden="true" />
@@ -495,7 +488,7 @@
     gap: 0.2rem;
     min-width: 0;
     min-height: 3.25rem;
-    padding: 0.4rem 0.25rem;
+    padding: 0.4rem 0.4rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg-tertiary);
@@ -504,19 +497,10 @@
     font-weight: 600;
     line-height: 1.15;
     text-align: center;
-    white-space: nowrap;
-  }
-
-  /* At 360 px three labels and three icons do not fit one line: the labels win. */
-  @media (max-width: 26rem) {
-    .confirm-btn {
-      padding-inline: 0.15rem;
-      font-size: 0.78rem;
-    }
-
-    .confirm-btn :global(svg) {
-      display: none;
-    }
+    /* A long label ("Je ne sais pas") wraps onto two lines inside its padding; the three buttons
+       of the row stretch to one height. */
+    white-space: normal;
+    overflow-wrap: break-word;
   }
 
   .confirm-btn.yes {
