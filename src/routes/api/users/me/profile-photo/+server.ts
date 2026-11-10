@@ -23,14 +23,16 @@ const log = createLogger('profile-photo-route');
  * question (`face_matches`) - or the answer is 404 and nothing changes. The avatar is then cut
  * around that face (`GET /api/users/[username]/avatar`). Stored in `users.photos_asset_id`, which
  * a withdrawal clears, as a CHOICE (`photos_asset_source = chosen`): a default photo never
- * replaces it while it is still theirs (profile-photo-default.ts). Refused to an impersonated session: it is the member's own choice.
+ * replaces it while it is still theirs (profile-photo-default.ts). Refused to an impersonated
+ * session: it is the member's own choice.
  *
  * Choosing CONFIRMS the face the avatar is cut around (owner, 2026-11-10): a pending `auto` face
  * could be claimed by another member, which ended the choice and let a default replace it without
  * the member doing anything. A confirmed face is never claimed nor re-decided, so a chosen photo
  * now changes only by the member's act (a rejection, a withdrawal) or because Immich lost it.
- * The member saw that face in the picker (the only one who can choose). No reference is learned in this request; like any face the member
- * confirmed, it may become one at a later reference selection (face-reference-upgrade.ts).
+ * The member saw that face in the picker (the only one who can choose). No reference is learned
+ * in this request; like any face the member confirmed, it may become one at a later reference
+ * selection (face-reference-upgrade.ts).
  */
 export const PUT: RequestHandler = async (event) => {
   const auth = await requireScope(event, 'read');

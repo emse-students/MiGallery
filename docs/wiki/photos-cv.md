@@ -31,8 +31,9 @@ page, fails the request (500) rather than show photos that are not theirs.
   holds now, cut server-side from the box in `faces.db`, cached in the member's own directory
   (`data/cache/faces/members/<hash of the id>/`), `private, no-store`. 404 for any face they do
   not hold, whoever holds it; 403 to an impersonated session; an API key holds no face (401).
-- `PUT /api/users/me/profile-photo` - `{ asset_id, user_id? }`: the profile photo, among the
-  member's own photos only (404 otherwise); `user_id` is an admin's, for another member.
+- `PUT /api/users/me/profile-photo` - `{ asset_id }`: the profile photo, among the member's own
+  photos only (404 otherwise), its face confirmed; a `user_id` naming anyone else is a 403, admins
+  included (2026-11-10).
 - `GET /api/users/[username]/avatar` - cut around the member's own face in that photo; 404 when
   they chose none or the photo is no longer one of theirs.
 
