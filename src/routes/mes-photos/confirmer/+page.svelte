@@ -1,7 +1,15 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick } from 'svelte';
   import { invalidate } from '$app/navigation';
-  import { Check, X, CircleCheckBig, ArrowLeft, Maximize2 } from '@lucide/svelte';
+  import {
+    Check,
+    X,
+    CircleCheckBig,
+    ArrowLeft,
+    Maximize2,
+    CircleHelp,
+    Undo2,
+  } from '@lucide/svelte';
   import FacePhotoDialog from '#lib/components/FacePhotoDialog.svelte';
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import PageHeader from '#lib/components/PageHeader.svelte';
@@ -11,27 +19,41 @@
   import FaceCropThumb from '#lib/components/FaceCropThumb.svelte';
   import { toast } from '#lib/toast.ts';
   import { m } from '#lib/paraglide/messages.js';
+  import { answerKey, type Suggestion } from '#lib/face-confirm-list.ts';
   import {
-    answerKey,
-    removeKeys,
-    restoreAt,
-    type Suggestion,
-    type Verdict,
-  } from '#lib/face-confirm-list.ts';
+    canUndo,
+    choose,
+    clearLast,
+    currentCard,
+    isFinished,
+    pendingSend,
+    position,
+    settleSend,
+    startSession,
+    undo,
+    type Choice,
+    type Held,
+    type SendOutcome,
+    type Session,
+  } from '#lib/face-confirm-session.ts';
 
   /**
-   * The faces given to the member WITH a doubt ("is it you?"), in the server's order: NEAREST FIRST
-   * (faces v2). The server never sends a distance, the order is all the screen knows. A photo shown
-   * without a question is refused from "Mes photos" itself ("Ce n'est pas moi" on each photo).
+   * The faces given to the member WITH a doubt ("is it you?"), one card at a time, nearest first
+   * (the server never sends a distance, the order is all the screen knows). The session logic,
+   * including the held last answer behind "Annuler", is face-confirm-session.ts.
    */
-  let suggestions = $state<Suggestion[]>([]);
+  let session = $state<Session>(startSession([]));
   let loading = $state(true);
   let failed = $state(false);
-  /** The faces whose answer is on its way, so a double tap answers once. */
-  let answering = $state<string[]>([]);
-  let grid: HTMLUListElement | undefined = $state();
+  /** Answers on their way to the server: the end screen waits for them to settle. */
+  let inFlight = $state(0);
+  let stage: HTMLDivElement | undefined = $state();
   /** The face whose whole photo is open (null: none). */
   let opened = $state<Suggestion | null>(null);
+
+  let card = $derived(currentCard(session));
+  /** Over: no card left, nothing held, nothing on its way. */
+  let done = $derived(isFinished(session) && !pendingSend(session) && inFlight === 0);
 
   async function load() {
     loading = true;
@@ -44,8 +66,8 @@
         return;
       }
       const body = (await res.json()) as { suggestions?: Suggestion[] };
-      suggestions = body.suggestions ?? [];
-      console.debug('[confirmer] faces listed', { count: suggestions.length });
+      session = startSession(body.suggestions ?? []);
+      console.debug('[confirmer] faces listed', { count: session.total });
     } catch (e) {
       console.warn('[confirmer] the list could not be read', e);
       failed = true;
@@ -54,124 +76,129 @@
     }
   }
 
-  /**
-   * Send one answer through the one answer route (A5). The tile leaves the list AT ONCE; a refusal
-   * puts it back where it was. 404 means the face was answered or given to someone else
-   * meanwhile: it stays gone. A rejection may release other faces (the new negative example
-   * withholds them from the member): they leave the list too, as do the faces a confirmation
-   * makes theirs without a question (`promoted`, in "Mes photos" now). Returns whether it was
-   * recorded.
-   */
-  async function answer(item: Suggestion, verdict: Verdict): Promise<boolean> {
-    const key = answerKey(item);
-    if (answering.includes(key)) return false;
-    const index = suggestions.findIndex((s) => answerKey(s) === key);
-    if (index < 0) return false;
-    answering = [...answering, key];
-    suggestions = removeKeys(suggestions, [key]);
+  /** Send one answer through the one answer route (A5) and classify what came back. */
+  async function sendAnswer(held: Held, keepalive = false): Promise<SendOutcome> {
     try {
       const res = await fetch('/api/users/me/face/matches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ asset_id: item.asset_id, face_index: item.face_index, verdict }),
+        keepalive,
+        body: JSON.stringify({
+          asset_id: held.item.asset_id,
+          face_index: held.item.face_index,
+          verdict: held.choice,
+        }),
       });
-      if (!res.ok && res.status !== 404) {
+      if (res.status === 404) {
+        // Settled or given elsewhere meanwhile: skipped silently.
+        console.debug('[confirmer] a face was already settled', answerKey(held.item));
+        return { kind: 'gone' };
+      }
+      if (!res.ok) {
         console.warn('[confirmer] the answer was refused', res.status);
-        suggestions = restoreAt(suggestions, item, index);
-        toast.error(m.mpc_answer_error());
-        return false;
+        return { kind: 'failed' };
       }
-      // Recorded (or already settled elsewhere): the menu's badge and the "Mes photos" banner read
-      // the layout's count, so they are refreshed now, not at the next full page load.
-      void invalidate('app:face-status');
-      if (res.ok) {
-        const body = (await res.json()) as { released?: Suggestion[]; promoted?: Suggestion[] };
-        const released = (body.released ?? []).map(answerKey);
-        const promoted = (body.promoted ?? []).map(answerKey);
-        if (released.length > 0 || promoted.length > 0) {
-          suggestions = removeKeys(suggestions, [...released, ...promoted]);
-        }
-        if (promoted.length > 0) {
-          toast.info(m.mpc_promoted({ count: promoted.length }));
-        }
-        if (released.length > 0) {
-          toast.info(m.mpc_released({ count: released.length }));
-        }
-      }
-      return true;
+      const body = (await res.json().catch(() => ({}))) as {
+        released?: Suggestion[];
+        promoted?: Suggestion[];
+      };
+      return { kind: 'recorded', promoted: body.promoted ?? [], released: body.released ?? [] };
     } catch (e) {
       console.warn('[confirmer] the answer could not be sent', e);
-      suggestions = restoreAt(suggestions, item, index);
-      toast.error(m.mpc_answer_error());
-      return false;
-    } finally {
-      answering = answering.filter((k) => k !== key);
+      return { kind: 'failed' };
     }
   }
 
-  /** Answer the card at `index` from the keyboard or a button, then focus the one that follows. */
-  async function answerAt(index: number, verdict: Verdict) {
-    const item = suggestions[index];
-    if (!item) return;
-    const sent = answer(item, verdict);
+  /** Answers are sent one after the other: the engine's decisions depend on their order. */
+  let chain: Promise<void> = Promise.resolve();
+
+  /** Send a held answer and fold the server's reply in: a failure brings the card back. */
+  function commit(held: Held) {
+    inFlight += 1;
+    chain = chain.then(async () => {
+      const outcome = await sendAnswer(held);
+      session = settleSend(session, held, outcome);
+      if (outcome.kind === 'failed') toast.error(m.mpc_answer_error());
+      else void invalidate('app:face-status');
+      inFlight -= 1;
+    });
+  }
+
+  /** The member chose for the current card; the answer held before it leaves now. */
+  async function pick(choice: Choice) {
+    if (!card) return;
+    const { session: next, send } = choose(session, choice);
+    session = next;
+    if (send) commit(send);
     await tick();
-    focusCard(Math.min(index, suggestions.length - 1));
-    await sent;
+    stage?.focus();
   }
 
-  function focusCard(index: number) {
-    if (index < 0) return;
-    grid?.querySelectorAll<HTMLElement>('.confirm-card')[index]?.focus();
+  /** Bring the last card back; its answer was never sent. */
+  async function takeBack() {
+    if (!canUndo(session)) return;
+    session = undo(session);
+    await tick();
+    stage?.focus();
   }
 
-  /** The keys a focused card answers to: O/Y/Enter yes, N/Delete/Backspace no, arrows move. */
-  function onCardKey(event: KeyboardEvent, index: number) {
+  // The end of the flow: the held answer is sent, the member can no longer undo it.
+  $effect(() => {
+    if (loading || !isFinished(session)) return;
+    const held = pendingSend(session);
+    if (!held) return;
+    session = clearLast(session);
+    commit(held);
+  });
+
+  /**
+   * The page is being left: the held answer goes out now, with `keepalive` so the browser lets the
+   * request outlive the page. Its reply is not read; what the engine settles shows at the next
+   * visit.
+   */
+  function flushOnLeave() {
+    const held = pendingSend(session);
+    if (!held) return;
+    console.debug('[confirmer] leaving: sending the held answer', answerKey(held.item));
+    session = clearLast(session);
+    void sendAnswer(held, true);
+  }
+
+  /** The keys: O/Y/Enter yes, N/Delete/Backspace no, J not sure, U undo, Space/V whole photo. */
+  function onStageKey(event: KeyboardEvent) {
     if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) {
       return;
     }
     const key = event.key.toLowerCase();
     if (key === 'o' || key === 'y' || key === 'enter') {
       event.preventDefault();
-      void answerAt(index, 'confirm');
+      void pick('confirm');
     } else if (key === 'n' || key === 'delete' || key === 'backspace') {
       event.preventDefault();
-      void answerAt(index, 'reject');
+      void pick('reject');
+    } else if (key === 'j') {
+      event.preventDefault();
+      void pick('skip');
+    } else if (key === 'u') {
+      event.preventDefault();
+      void takeBack();
     } else if (key === ' ' || key === 'v') {
       event.preventDefault();
-      opened = suggestions[index] ?? null;
-    } else if (
-      key === 'arrowright' ||
-      key === 'arrowdown' ||
-      key === 'arrowleft' ||
-      key === 'arrowup'
-    ) {
-      event.preventDefault();
-      const columns = gridColumns();
-      const step =
-        key === 'arrowright'
-          ? 1
-          : key === 'arrowleft'
-            ? -1
-            : key === 'arrowdown'
-              ? columns
-              : -columns;
-      focusCard(Math.max(0, Math.min(suggestions.length - 1, index + step)));
+      opened = card;
     }
   }
 
-  /** How many cards a row of the grid holds now (arrow up/down moves by a row). */
-  function gridColumns(): number {
-    if (!grid) return 1;
-    const template = getComputedStyle(grid).gridTemplateColumns;
-    return Math.max(1, template.split(' ').filter(Boolean).length);
-  }
-
   onMount(load);
+  onDestroy(() => {
+    if (typeof window !== 'undefined') flushOnLeave();
+  });
 </script>
 
 <svelte:head>
   <title>{m.mpc_page_title()}</title>
 </svelte:head>
+
+<svelte:window onpagehide={flushOnLeave} />
 
 <div class="confirm-main">
   <BackgroundBlobs />
@@ -182,74 +209,93 @@
     <LoadingState label={m.mpc_loading()} />
   {:else if failed}
     <ErrorState title={m.mpc_load_error()} onRetry={load} />
-  {:else if suggestions.length === 0}
+  {:else if session.total === 0}
     <EmptyState icon={CircleCheckBig} title={m.mpc_empty_title()} description={m.mpc_empty_body()}>
       <a href="/mes-photos" class="btn primary">
         <ArrowLeft size={18} />
         {m.mpc_back()}
       </a>
     </EmptyState>
+  {:else if done}
+    <div class="confirm-done">
+      <CircleCheckBig size={40} aria-hidden="true" />
+      <h2>{m.mpc_done_title()}</h2>
+      <ul>
+        <li>{m.mpc_done_confirmed({ count: session.confirmed })}</li>
+        <li>{m.mpc_done_rejected({ count: session.rejected })}</li>
+        <li>{m.mpc_done_skipped({ count: session.skipped.length })}</li>
+        {#if session.added + session.setAside > 0}
+          <li>{m.mpc_done_auto({ added: session.added, setAside: session.setAside })}</li>
+        {/if}
+      </ul>
+      <a href="/mes-photos" class="btn primary">
+        <ArrowLeft size={18} />
+        {m.mpc_back()}
+      </a>
+    </div>
+  {:else if !card}
+    <LoadingState label={m.mpc_saving()} />
   {:else}
     <div class="confirm-bar" aria-live="polite">
       <p class="confirm-count">
-        {m.mpc_count({ count: suggestions.length })}
+        {m.mpc_progress({ index: position(session), total: session.total })}
       </p>
-      <p class="confirm-hint">{m.mpc_order_hint()}</p>
-      <p class="confirm-hint confirm-keys">{m.mpc_keys_hint()}</p>
+      <button
+        type="button"
+        class="confirm-undo"
+        disabled={!canUndo(session)}
+        title={m.mpc_undo_title()}
+        onclick={takeBack}
+      >
+        <Undo2 size={16} aria-hidden="true" />
+        <span>{m.mpc_undo()}</span>
+      </button>
     </div>
-    <ul class="confirm-grid" bind:this={grid}>
-      {#each suggestions as item, index (answerKey(item))}
-        <!-- The card is a keyboard stop whose keys mirror its own two buttons (which leave the tab
-             order, so a keyboard user tabs card to card); a pointer uses the buttons. -->
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
-        <li
-          class="confirm-card"
-          tabindex="0"
-          aria-label={m.mpc_card_label({ index: index + 1, total: suggestions.length })}
-          onkeydown={(e) => onCardKey(e, index)}
+    <!-- One card, a keyboard stop whose keys mirror its buttons (see onStageKey). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+    <div
+      class="confirm-stage"
+      tabindex="0"
+      role="group"
+      aria-label={m.mpc_progress({ index: position(session), total: session.total })}
+      bind:this={stage}
+      onkeydown={onStageKey}
+    >
+      <div class="confirm-face">
+        {#key answerKey(card)}
+          <FaceCropThumb
+            assetId={card.asset_id}
+            faceIndex={card.face_index}
+            alt={m.mpc_face_alt()}
+          />
+        {/key}
+        <button
+          type="button"
+          class="confirm-open"
+          tabindex="-1"
+          aria-label={m.mpc_open_photo()}
+          title={m.mpc_open_photo()}
+          onclick={() => (opened = card)}
         >
-          <div class="confirm-face">
-            <FaceCropThumb
-              assetId={item.asset_id}
-              faceIndex={item.face_index}
-              alt={m.mpc_face_alt()}
-            />
-            <button
-              type="button"
-              class="confirm-open"
-              tabindex="-1"
-              aria-label={m.mpc_open_photo()}
-              title={m.mpc_open_photo()}
-              onclick={() => (opened = item)}
-            >
-              <Maximize2 size={16} aria-hidden="true" />
-            </button>
-          </div>
-          <div class="confirm-actions">
-            <button
-              type="button"
-              class="confirm-btn"
-              tabindex="-1"
-              disabled={answering.includes(answerKey(item))}
-              onclick={() => answerAt(index, 'reject')}
-            >
-              <X size={18} aria-hidden="true" />
-              <span>{m.mpc_not_me()}</span>
-            </button>
-            <button
-              type="button"
-              class="confirm-btn yes"
-              tabindex="-1"
-              disabled={answering.includes(answerKey(item))}
-              onclick={() => answerAt(index, 'confirm')}
-            >
-              <Check size={18} aria-hidden="true" />
-              <span>{m.mpc_me()}</span>
-            </button>
-          </div>
-        </li>
-      {/each}
-    </ul>
+          <Maximize2 size={18} aria-hidden="true" />
+        </button>
+      </div>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-btn" tabindex="-1" onclick={() => pick('reject')}>
+          <X size={18} aria-hidden="true" />
+          <span>{m.mpc_not_me()}</span>
+        </button>
+        <button type="button" class="confirm-btn" tabindex="-1" onclick={() => pick('skip')}>
+          <CircleHelp size={18} aria-hidden="true" />
+          <span>{m.mpc_unsure()}</span>
+        </button>
+        <button type="button" class="confirm-btn yes" tabindex="-1" onclick={() => pick('confirm')}>
+          <Check size={18} aria-hidden="true" />
+          <span>{m.mpc_me()}</span>
+        </button>
+      </div>
+    </div>
+    <p class="confirm-hint confirm-keys">{m.mpc_keys_hint()}</p>
   {/if}
 </div>
 
@@ -257,9 +303,8 @@
   item={opened}
   onClose={() => (opened = null)}
   onAnswer={(verdict) => {
-    const item = opened;
     opened = null;
-    if (item) void answer(item, verdict);
+    void pick(verdict);
   }}
 />
 
@@ -270,18 +315,13 @@
     padding-bottom: 4rem;
   }
 
-  /* The count and how the list is ordered, kept in view while scrolling a long list. */
   .confirm-bar {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.25rem 1rem;
-    margin: 0 0 1rem;
-    padding: 0.6rem 0;
-    background: var(--bg-primary);
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 24rem;
+    margin: 0 auto 0.75rem;
   }
 
   .confirm-count {
@@ -291,10 +331,35 @@
     font-weight: 600;
   }
 
+  .confirm-undo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .confirm-undo:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  .confirm-undo:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
   .confirm-hint {
-    margin: 0;
+    margin: 0.75rem auto 0;
+    max-width: 24rem;
     color: var(--text-secondary);
     font-size: 0.8125rem;
+    text-align: center;
   }
 
   /* The keyboard hint is for a pointer that hovers; a phone answers by tapping. */
@@ -304,29 +369,19 @@
     }
   }
 
-  .confirm-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-    gap: 0.75rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .confirm-card {
+  /* One card, the face large: the portrait is what the member recognises. */
+  .confirm-stage {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    max-width: 24rem;
+    margin: 0 auto;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     background: var(--bg-secondary);
-    transition:
-      border-color 0.15s var(--ease),
-      box-shadow 0.15s var(--ease);
   }
 
-  .confirm-card:focus-visible {
+  .confirm-stage:focus-visible {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px var(--accent);
@@ -337,17 +392,16 @@
     aspect-ratio: 1;
   }
 
-  /* Opens the whole photo. Small and in the corner so the face stays the target of the eye; the
-     whole tile is not the button, a stray tap on it must never answer or open by accident. */
+  /* Opens the whole photo. Small and in the corner: a stray tap on the face never opens it. */
   .confirm-open {
     position: absolute;
-    top: 0.35rem;
-    right: 0.35rem;
+    top: 0.5rem;
+    right: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: none;
     border-radius: 999px;
     background: rgb(0 0 0 / 0.55);
@@ -358,13 +412,12 @@
     background: rgb(0 0 0 / 0.75);
   }
 
-  /* Two answers side by side. The label sits UNDER its icon and may wrap, so neither is ever
-     cut ("C'est m..." was the global .btn's nowrap in a 10rem card). */
+  /* Three answers side by side; each label sits UNDER its icon and may wrap, never cut. */
   .confirm-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.4rem;
-    padding: 0.45rem;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.6rem;
   }
 
   .confirm-btn {
@@ -374,7 +427,7 @@
     justify-content: center;
     gap: 0.2rem;
     min-width: 0;
-    min-height: 2.75rem;
+    min-height: 3.25rem;
     padding: 0.4rem 0.25rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -394,23 +447,39 @@
     color: white;
   }
 
-  .confirm-btn:hover:not(:disabled) {
+  .confirm-btn:hover {
     border-color: var(--accent);
   }
 
-  .confirm-btn.yes:hover:not(:disabled) {
+  .confirm-btn.yes:hover {
     background: var(--accent-hover);
   }
 
-  .confirm-btn:disabled {
-    opacity: 0.55;
-    cursor: default;
+  .confirm-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    max-width: 24rem;
+    margin: 2rem auto 0;
+    text-align: center;
+    color: var(--text-primary);
   }
 
-  @media (min-width: 40rem) {
-    .confirm-actions {
-      gap: 0.5rem;
-      padding: 0.55rem;
-    }
+  .confirm-done :global(svg:first-child) {
+    color: var(--accent);
+  }
+
+  .confirm-done h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .confirm-done ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
   }
 </style>

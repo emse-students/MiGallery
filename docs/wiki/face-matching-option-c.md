@@ -739,13 +739,31 @@ longer withholds lookalikes). The face is not learned as a reference. Both route
 impersonated session, like the answer route; `tests/face-not-me-routes.test.ts`.
 
 **5. The confirmation screen** (`src/routes/mes-photos/confirmer/+page.svelte`,
-`src/lib/face-confirm-list.ts`). Sorted nearest first (`pendingSuggestions` orders by distance; no
-distance reaches the client). Tiles load through the crop loader (the empty tiles' cause, above),
-with a loading state and a retry per tile. The two buttons stack an icon over a label that wraps,
-never clipped, at every width from 360 px. There is no "up to here" bulk button (the owner removed it,
-2026-11-01: unclear and pointless): each tile answers alone. Keyboard: `O`/`Y`/
-Enter confirm, `N`/Delete/Backspace reject, arrows move (the hint is hidden on touch screens). An
-answer removes its tile at once and a refused one puts it back where it was.
+`src/lib/face-confirm-session.ts`, the pure session; owner, 2026-11-10: ONE FACE AT A TIME). Sorted
+nearest first (`pendingSuggestions` orders by distance; no distance reaches the client). One card:
+the face crop large (through the crop loader), a corner button opening the WHOLE photo
+(`FacePhotoDialog`, answers from it too), and three buttons "Pas moi", "Je ne sais pas",
+"C'est moi" (icon over a wrapping label, never clipped from 360 px), a counter "3 sur 12". Keyboard
+(hint hidden on touch screens): `O`/`Y`/Enter confirm, `N`/Delete/Backspace reject, `J` not sure,
+`U` undo, Space/`V` the whole photo. The face's box is NOT outlined on the whole photo (kept the
+corner chip of the proposed face): the stored box is in pixels of the frame the detector saw, so
+outlining it would need that frame's size on the API too, for a visual aid.
+
+- **"Je ne sais pas"** writes nothing: the face is left for later, not offered again in this session
+  (it is back at the next visit). It can be undone like an answer.
+- **The faces the engine settles by itself** (`promoted`/`released` in the answer, section 2) are
+  NOT announced during the flow: they leave the queue silently and are counted for the end screen
+  ("C'est fini !": confirmed, set aside, left for later, settled automatically). A card the engine
+  already settled answers 404: dropped silently, its count taken back.
+- **UNDO, no server change.** The LAST answer is held client-side and sent only when the member
+  answers the next card, reaches the end, or leaves the page (`pagehide`, and the component's
+  destroy for an in-app navigation; both with `fetch(..., { keepalive: true })`, the reply unread).
+  "Annuler" drops the held answer and brings its card back: one level, never a timer. A server-side
+  undo would have to revert a learned reference, a renewal's deleted victim and the background
+  re-match's sticky `auto` rows: a journal and a migration for a misclick. Answers go out one after
+  the other (the engine's decisions depend on their order); a refused or unreachable send puts its
+  card back at the front with an error toast. Known limit: a phone that kills the tab without a
+  `pagehide` loses the held answer (the face simply stays to confirm at the next visit).
 
 **The migration of existing members** (`runReferenceUpgrades`, from the ingestion tick once the
 store is seeded). One member at a time, each in its own turn of the engine lock: capture dates read
@@ -826,8 +844,8 @@ screen below (a learnable face is added) is the way out that does not wait for o
 confirmation becomes a reference, the faces still waiting for the member are re-decided against
 their new references INSIDE the engine lock, as a rejection already does against its negative: the
 lookalikes of the face just confirmed become `auto` at once (`promoted` in the answer) or, if
-another member now holds them, leave (`released`). The screen drops both and says how many joined
-"Mes photos" (`mpc_promoted`): no reload, no waiting for the background re-match, which then finds
+another member now holds them, leave (`released`). The screen drops both silently and counts them for its end screen:
+no reload, no waiting for the background re-match, which then finds
 the same decisions (one `decideFace` for every path). There is no group button: the lookalikes
 move with the answer (owner, 2026-11-01: no visual grouping; the algorithm stays a nearest-member
 match, nothing clusters faces).

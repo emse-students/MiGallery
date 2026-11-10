@@ -948,28 +948,17 @@
   "mpc_not_me": "Not me",
   "mpc_answer_error": "Your answer could not be saved. Try again.",
   "mpc_order_hint": "Closest matches first.",
-  "mpc_keys_hint": "Keyboard: Y or Enter for \"It's me\", N or Delete for \"Not me\", Space to see the whole photo, arrows to move.",
-  "mpc_card_label": "Photo {index} of {total}",
-  "mpc_released": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "One more similar photo is no longer offered to you.",
-        "countPlural=*": "{count} more similar photos are no longer offered to you."
-      }
-    }
-  ],
-  "mpc_promoted": [
-    {
-      "declarations": ["input count", "local countPlural = count: plural"],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "One similar photo joined your photos.",
-        "countPlural=*": "{count} similar photos joined your photos."
-      }
-    }
-  ],
+  "mpc_unsure": "I'm not sure",
+  "mpc_undo": "Undo",
+  "mpc_undo_title": "Undo the last answer",
+  "mpc_progress": "{index} of {total}",
+  "mpc_saving": "Saving your answers…",
+  "mpc_done_title": "All done!",
+  "mpc_done_confirmed": "Confirmed: {count}",
+  "mpc_done_rejected": "Set aside: {count}",
+  "mpc_done_skipped": "Left for later: {count}",
+  "mpc_done_auto": "Settled automatically from your answers: {added} added to your photos, {setAside} set aside",
+  "mpc_keys_hint": "Keyboard: O or Enter for \"It's me\", N or Delete for \"Not me\", J for \"I'm not sure\", U to undo, Space to see the whole photo.",
   "mpc_open_photo": "See the whole photo",
   "mpc_dialog_label": "Whole photo",
   "mpc_dialog_photo_alt": "The whole photo containing the proposed face",

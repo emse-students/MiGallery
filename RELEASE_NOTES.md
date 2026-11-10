@@ -3,6 +3,7 @@
 ## Changes
 
 - Faces: choosing a profile photo confirms the member's face on it, so another member's "c'est moi" can no longer take that face and silently swap the chosen photo for a default; and only the member chooses their profile photo, an admin no longer can (they picked without seeing the face) (owner, 2026-11-10). See [face-matching-option-c](docs/wiki/face-matching-option-c.md#the-default-profile-photo-hotfix-2026-11-01).
+- Faces: the confirmation screen shows one face at a time (large portrait, whole photo on demand) with "C'est moi", "Pas moi" and "Je ne sais pas", a counter, an "Annuler" for the last answer (held until the next answer, the end or leaving the page) and a "C'est fini !" summary; faces the engine settles itself are no longer announced, only counted at the end.
 - Faces: after a selfie the member lands on "Mes photos" with a "we are looking for your photos" panel that waits until the server's re-match is over (new `matching`, `photos`, `toConfirm` on `GET /api/users/me/face/enrolment`), then offers the faces to check, shows the photos, or says nothing was found yet.
 - Faces: the whole-photo dialog of the confirmation screen is centred again (the global margin reset had removed the browser's `margin: auto` for modal dialogs; the generic modal already centred itself).
 - Faces: the confirmation screen no longer has the "Jusqu'ici" button (confirm a card and all above it); each card keeps "Pas moi" and "C'est moi", the keyboard flow is unchanged (owner, 2026-11-01).
