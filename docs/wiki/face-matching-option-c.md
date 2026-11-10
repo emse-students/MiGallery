@@ -975,6 +975,20 @@ the member `FACE_SELECTION_UNDONE` (-1): the tick never selects for them again u
 `selectVariedReferences` places the anchors (the selfie) first; renewal (`redundantVictim`) never
 picks an anchor; only a new enrolment replaces it (`enrolMember`).
 
+### The wait after a selfie (owner, 2026-11-10)
+
+After a successful enrolment the settings page goes to `/mes-photos?matching=1`, where `FaceMatchingWait`
+polls `GET /api/users/me/face/enrolment` until it reads `matching: false` (`face-matching-wait.ts`
+turns an answer into waiting / to check / found / none). `matching` is `CoalescingQueue.isBusy`: a
+re-match covering the member is queued OR running. The state is this process's memory, so after a
+server restart it reads `false`, which is truthful: the restart ended the run. The enrolment POST
+queues the re-match before it answers, so the first read already says `true`. The end of the wait is
+the server's answer, never a clock; the 2 s interval only paces the display, and a failed read (or an
+answer of the wrong shape) is retried, never taken for "done". `photos` and `toConfirm` are
+`faceStatus`'s counts, the member's own. The outcomes: faces to check give a button to the
+confirmation flow, photos with nothing to check are shown (the grid reloads), nothing found says that
+new photos are analysed as they arrive.
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                                                                                      |

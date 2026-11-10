@@ -1204,12 +1204,15 @@ describe('background re-matches, coalesced per member (A5)', () => {
     const promises = Array.from({ length: 5 }, () => h.queue.request('alice', h.run('alice')));
     expect(new Set(promises).size).toBe(1);
     expect(h.queue.isQueued('alice')).toBe(true);
+    expect(h.queue.isBusy('alice')).toBe(true);
+    expect(h.queue.isBusy('bob')).toBe(false);
     await Promise.resolve();
     await new Promise((r) => setImmediate(r));
     h.finish();
     await promises[0];
     expect(h.runs).toEqual(['alice']);
     expect(h.queue.isQueued('alice')).toBe(false);
+    expect(h.queue.isBusy('alice')).toBe(false);
   });
 
   it('runs exactly once more for requests arriving while a run is in progress', async () => {
@@ -1218,6 +1221,7 @@ describe('background re-matches, coalesced per member (A5)', () => {
     // Wait until the run has started (it is holding the engine).
     while (h.runs.length === 0) await new Promise((r) => setImmediate(r));
     expect(h.queue.isQueued('alice')).toBe(false);
+    expect(h.queue.isBusy('alice')).toBe(true);
     const during = Array.from({ length: 4 }, () => h.queue.request('alice', h.run('alice')));
     expect(new Set(during).size).toBe(1);
     h.finish();

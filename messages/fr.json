@@ -931,6 +931,33 @@
       }
     }
   ],
+  "mpw_title": "On cherche vos photos…",
+  "mpw_hint": "Cela peut prendre un moment. Restez ici : la page se met à jour toute seule.",
+  "mpw_found": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo trouvée.",
+        "countPlural=*": "{count} photos trouvées."
+      }
+    }
+  ],
+  "mpw_to_check": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} visage à vérifier avant de les ajouter à vos photos.",
+        "countPlural=*": "{count} visages à vérifier avant de les ajouter à vos photos."
+      }
+    }
+  ],
+  "mpw_check_cta": "Vérifier maintenant",
+  "mpw_show": "Elles apparaissent ci-dessous.",
+  "mpw_none_title": "Rien trouvé pour le moment",
+  "mpw_none_body": "Les nouvelles photos sont analysées au fil de l'eau : revenez plus tard.",
+  "mpw_status_error": "L'état de la recherche n'a pas pu être lu. Nouvel essai en cours…",
   "mpc_face_alt": "Visage à confirmer",
   "mpc_me": "C'est moi",
   "mpc_not_me": "Pas moi",

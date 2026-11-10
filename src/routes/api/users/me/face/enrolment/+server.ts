@@ -6,12 +6,14 @@ import { isImpersonating } from '#lib/server/auth.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { readFormBody } from '#lib/server/route-errors.ts';
 import { m } from '#lib/paraglide/messages.js';
+import { faceStatus } from '#lib/server/face-photos.ts';
 import { defaultFaceEngine } from '#lib/server/face-engine.ts';
 import { upgradeMemberReferences } from '#lib/server/face-reference-upgrade.ts';
 import {
   ENROL_LIMIT_PER_HOUR,
   enrolLimiter,
   enrolMember,
+  isRematching,
   referenceCount,
   scheduleRematch,
 } from '#lib/server/face-enrolment.ts';
@@ -43,16 +45,24 @@ async function ownMember(event: RequestEvent): Promise<string | Response> {
 
 /**
  * GET /api/users/me/face/enrolment
- * Whether the member is enrolled, and how many references they hold. Never a reference itself.
+ * Whether the member is enrolled and how many references they hold, plus what "Mes photos" shows
+ * while a selfie's re-match runs: `matching` (a re-match covering the member is queued or
+ * running, read from this process's queue: false after a restart, which is truthful since the
+ * restart ended the run), `photos` (their visible photos) and `toConfirm` (faces waiting for
+ * their answer). The two counts are the member's own, never a distance or another member's id.
  */
 export const GET: RequestHandler = async (event) => {
   const userId = await ownMember(event);
   if (userId instanceof Response) {
     return userId;
   }
-  const references = referenceCount(getDatabase(), userId);
-  log.debug('enrolment status read', { references });
-  return json({ success: true, enrolled: references > 0, references });
+  const db = getDatabase();
+  const references = referenceCount(db, userId);
+  // Read the flag BEFORE the counts: a run that ends in between then only makes the counts newer.
+  const matching = isRematching(userId);
+  const { photos, toConfirm } = faceStatus(db, userId);
+  log.debug('enrolment status read', { references, matching, photos, toConfirm });
+  return json({ success: true, enrolled: references > 0, references, matching, photos, toConfirm });
 };
 
 /**

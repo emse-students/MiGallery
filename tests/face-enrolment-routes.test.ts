@@ -10,7 +10,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeTempDir } from './test-helpers';
-import { FACE_EMBEDDING_DIM } from '#lib/face-embedding.ts';
+import { FACE_EMBEDDING_DIM, FACE_MODEL } from '#lib/face-embedding.ts';
 
 const state = vi.hoisted(() => ({
   user: null as null | { id_user: string; role: string },
@@ -241,16 +241,53 @@ describe('POST /api/users/me/face/enrolment', () => {
 });
 
 describe('GET /api/users/me/face/enrolment', () => {
+  const read = () => call(enrolRoute.GET, { request: new Request('http://x.test/') });
+  const insertMatch = (asset: string, band: string, st: string) =>
+    db()
+      .prepare(
+        `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, runner_up, band, state, created_at)
+         VALUES (?, 0, ?, 'm1', 0.3, NULL, ?, ?, 1)`
+      )
+      .run(asset, FACE_MODEL, band, st);
+
   it('says whether the member is enrolled and how many references, never one of them', async () => {
-    const before = await call(enrolRoute.GET, { request: new Request('http://x.test/') });
+    const before = await read();
     expect(before).toEqual({
       status: 200,
-      body: { success: true, enrolled: false, references: 0 },
+      body: {
+        success: true,
+        enrolled: false,
+        references: 0,
+        matching: false,
+        photos: 0,
+        toConfirm: 0,
+      },
     });
     await enrol({ selfie: new Blob([new Uint8Array([1])]), consent: 'true' });
     await idle();
-    const after = await call(enrolRoute.GET, { request: new Request('http://x.test/') });
-    expect(after.body).toEqual({ success: true, enrolled: true, references: 1 });
+    const after = await read();
+    expect(after.body).toMatchObject({ enrolled: true, references: 1, matching: false });
+  });
+
+  it('counts the visible photos and the faces to confirm, and nothing else', async () => {
+    insertMatch('a1', 'auto', 'pending');
+    insertMatch('a2', 'suggested', 'confirmed');
+    insertMatch('a3', 'suggested', 'pending');
+    insertMatch('a4', 'suggested', 'pending');
+    insertMatch('a5', 'auto', 'rejected');
+    expect((await read()).body).toMatchObject({ photos: 2, toConfirm: 2 });
+  });
+
+  it('reports matching from the selfie until its re-match has run, and not after', async () => {
+    // Hold the engine lock so the re-match the enrolment queues cannot start yet.
+    let release!: () => void;
+    const held = engineMod.runExclusive(() => new Promise<void>((r) => (release = r)));
+    await enrol({ selfie: new Blob([new Uint8Array([1])]), consent: 'true' });
+    expect(((await read()).body as { matching: boolean }).matching).toBe(true);
+    release();
+    await held;
+    await idle();
+    expect(((await read()).body as { matching: boolean }).matching).toBe(false);
   });
 });
 

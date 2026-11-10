@@ -913,6 +913,33 @@
       }
     }
   ],
+  "mpw_title": "Looking for your photos…",
+  "mpw_hint": "This can take a moment. Stay here: the page updates by itself.",
+  "mpw_found": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo found.",
+        "countPlural=*": "{count} photos found."
+      }
+    }
+  ],
+  "mpw_to_check": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} face to check before it joins your photos.",
+        "countPlural=*": "{count} faces to check before they join your photos."
+      }
+    }
+  ],
+  "mpw_check_cta": "Check now",
+  "mpw_show": "They appear below.",
+  "mpw_none_title": "Nothing found for now",
+  "mpw_none_body": "New photos are analysed as they arrive: come back later.",
+  "mpw_status_error": "The search status could not be read. Trying again…",
   "mpc_face_alt": "Face to confirm",
   "mpc_me": "It's me",
   "mpc_not_me": "Not me",

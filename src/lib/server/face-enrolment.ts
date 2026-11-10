@@ -183,6 +183,15 @@ export function scheduleRematch(engine: FaceEngine, userId: string): Promise<voi
   return rematches.request(userId, () => rematchMember(engine, userId));
 }
 
+/**
+ * Whether a re-match for the member is queued or running (the "we are looking for your photos"
+ * state of "Mes photos" after a selfie). Read from this process's queue; false after a restart,
+ * which is truthful: a restart ended the run.
+ */
+export function isRematching(userId: string): boolean {
+  return rematches.isBusy(userId);
+}
+
 /** Whether a confirmed face may become a reference (face-reference-selection.ts, re-exported). */
 export { learnable };
 
