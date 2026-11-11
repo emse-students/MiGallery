@@ -15,16 +15,20 @@ the effective minimum.
 
 | Path                                                                         | Auth                           | Purpose                           |
 | ---------------------------------------------------------------------------- | ------------------------------ | --------------------------------- |
-| `GET/POST /api/albums`                                                       | read / write                   | List / create albums              |
-| `GET/PATCH/DELETE /api/albums/[id]`                                          | per `checkAlbumAccess` / write | Album detail and edit             |
+| `GET/POST /api/albums`                                                       | read / staff                   | List / create albums              |
+| `GET/PATCH/DELETE /api/albums/[id]`                                          | per `checkAlbumAccess` / staff | Album detail and edit             |
 | `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`                | album access                   | Album assets                      |
 | `/api/albums/[id]/asset-original/[assetId]` and `/asset-thumbnail/[assetId]` | album access                   | Single asset / thumbnail          |
-| `GET/PUT /api/albums/[id]/cover`                                             | public / write                 | Square cover, pin a cover         |
+| `GET/PUT /api/albums/[id]/cover`                                             | public / staff                 | Square cover, pin a cover         |
 | `GET /api/albums/[id]/og-cover`                                              | public                         | Wide cover (1200x630)             |
 | `GET /api/albums/[id]/og-preview`                                            | public unless private          | Social preview metadata           |
 | `/api/albums/[id]/info`, `/metadata`                                         | album access                   | Album info/metadata               |
-| `/api/albums/[id]/permissions/users`, `/tags`                                | write                          | Edit album permissions            |
-| `/api/albums/permissions/options`                                            | write                          | Options for the permission editor |
+| `/api/albums/[id]/permissions/users`, `/tags`                                | staff                          | Edit album permissions            |
+| `/api/albums/permissions/options`                                            | staff                          | Options for the permission editor |
+
+**staff** is `requireStaff` (`src/lib/server/permissions.ts`): a session holding the `admin` or
+`mitviste` role, or a key holding the `write` scope. Adding photos to an album and removing them
+(`PUT/DELETE /api/albums/[id]/assets`) and `PUT /api/albums/[id]/metadata` are staff too.
 
 ## People / CV directory
 

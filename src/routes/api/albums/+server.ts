@@ -4,7 +4,7 @@ import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { getDatabase } from '#lib/db/database.ts';
 import { logEvent } from '#lib/server/logs.ts';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireScope, requireStaff } from '#lib/server/permissions.ts';
 import { ensureError } from '#lib/ts-utils.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
@@ -94,7 +94,7 @@ export const GET: RequestHandler = async (event) => {
  * }
  */
 export const POST: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
 
   try {
     const body = (await event.request.json()) as {
