@@ -61,9 +61,8 @@ function normalizeRole(role: string | null | undefined): string {
   return role === 'admin' || role === 'mitviste' ? role : 'user';
 }
 
-/** The logged-in user for `locals.user`, or null. */
-export function getSessionUser(cookies: Cookies): SessionUser | null {
-  const session = getSession(cookies);
+/** A resolved session shaped for `locals.user`, or null. */
+export function sessionUserOf(session: ResolvedSession | null): SessionUser | null {
   if (!session) {
     return null;
   }

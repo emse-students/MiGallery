@@ -29,4 +29,8 @@ export const variables = defineEnvVars({
     'Face store sealing key, 64 hex characters (src/lib/server/face-seal.ts)'
   ),
   FACE_ML_URL: optional('Base URL of the face model service (Immich machine learning)'),
+  CANARI_HANDOFF_ISSUER: optional(
+    'The ONE Canari estate whose sign-in handoff tokens are accepted (its origin); unset: no handoff'
+  ),
+  CANARI_HANDOFF_JWKS: optional("That estate's handoff keys, <issuer>/api/auth/handoff/jwks"),
 });

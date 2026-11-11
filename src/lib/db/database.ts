@@ -173,12 +173,29 @@ END`);
   }
 }
 
+/**
+ * The sign-in handoff (2026-11) on a database made before it: `sessions` gains `via_handoff`, the
+ * mark of a session a Canari handoff opened. Additive, default 0: every existing session is an
+ * OIDC one, which is what it was.
+ */
+function markHandoffSessions(dbInstance: DatabaseInstance): void {
+  const cols = dbInstance
+    .prepare('PRAGMA table_info(sessions)')
+    .all()
+    .map((c) => (c as { name: string }).name);
+  if (!cols.includes('via_handoff')) {
+    dbInstance.exec('ALTER TABLE sessions ADD COLUMN via_handoff INTEGER NOT NULL DEFAULT 0');
+    log.info('sessions column added', { column: 'via_handoff' });
+  }
+}
+
 export function ensureSchema(dbInstance: DatabaseInstance): void {
   const schemaPath = join(process.cwd(), 'src/lib/db/schema.sql');
   const schema = readFileSync(schemaPath, 'utf-8');
   dbInstance.exec(schema);
   moveFaceEmbeddingsOut(dbInstance);
   upgradeFaceReferences(dbInstance);
+  markHandoffSessions(dbInstance);
 
   try {
     const cols = dbInstance

@@ -1028,5 +1028,11 @@
   "err_forbidden_title": "Access denied",
   "err_forbidden_desc": "You do not have access to this page.",
   "err_generic_title": "Something went wrong",
-  "err_generic_desc": "Try again in a moment; if the problem persists, tell the MiTV office."
+  "err_generic_desc": "Try again in a moment; if the problem persists, tell the MiTV office.",
+  "handoff_title": "Signing in from Canari",
+  "handoff_working": "Signing in…",
+  "handoff_as_next": "You are about to be signed in as {next}.",
+  "handoff_switch": "You are signed in as {current}. Continue as {next}?",
+  "handoff_continue": "Continue",
+  "handoff_cancel": "Cancel"
 }

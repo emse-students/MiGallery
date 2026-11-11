@@ -1,5 +1,11 @@
 import { activeOperations } from '#lib/operations.ts';
 import { navigationModalStore } from '#lib/navigation-store.ts';
+import { installStepUpRedirect } from '#lib/step-up.ts';
+
+/** A session a Canari handoff opened is sent through MiConnect when it tries to change something. */
+if (typeof window !== 'undefined') {
+  installStepUpRedirect();
+}
 
 /**
  * Intercept clicks on links to block navigation

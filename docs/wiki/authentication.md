@@ -105,6 +105,69 @@ signing an account out everywhere is one `DELETE ... WHERE id_user = ?` away.
 > `hooks.server.ts`, and `COOKIE_SECRET` no longer exists: an opaque token needs
 > no key, so there is nothing left to leak or to rotate.
 
+## Signed in from Canari (the sign-in handoff)
+
+**Canari, already signed in, opens MiGallery signed in**, instead of MiGallery asking for a MiConnect
+login the browser has long forgotten. Canari mints a 60-second ES256 token naming the user (`sub`),
+this site (`aud: migallery`) and a page (`dest`), and opens `https://gallery.mitv.fr/auth/handoff#<token>`.
+The design, the threats and the contract are Canari's
+([design note](https://github.com/emse-students/canari/blob/main/docs/wiki/backlog.d/sign-in-handoff-to-the-ecosystem-sites-and-migallery-notifications.md),
+section 8). Canari turns it on for MiGallery with a flag, only after this is live.
+
+**The landing page** (`src/routes/auth/handoff/+page.svelte`) reads the token from the FRAGMENT,
+which no browser sends to a server, removes it from the address bar at once, and posts it to the
+redemption. It is served `Cache-Control: no-store` and `Referrer-Policy: no-referrer`
+(`hooks.server.ts`). **The interstitial is ALWAYS shown** before a session opens - "Tu vas être
+connecté en tant que B", with B's photo, or "Tu es connecté en tant que A. Continuer en tant que B ?" -
+except when this browser is already signed in as B, when nothing changes hands. Annuler writes
+nothing. The photo is the SIGNED avatar URL (`avatar-signature.ts`), since the browser usually has
+no session yet: only the holder of a token naming B is shown it, and it shows B's own photo only.
+
+**The redemption**, `POST /api/auth/handoff` (`src/lib/server/handoff/redeem.ts`), in this order,
+every refusal logged `[HANDOFF] refused class=<outcome> jti=<jti or none>` and **never the token**:
+
+1. `Origin` exactly this site's own, else `403 bad_origin` (the `/api/auth/` prefix skips the
+   global CSRF hook, so the route checks it itself); JSON; a token of at most 4096 characters.
+2. Steps 1-3 of the contract, the VENDORED verifier `src/lib/server/handoff/handoff-verify.ts`
+   (byte-identical to Canari's `libs/handoff/handoff-verify.ts`, compared by Canari's
+   `tools/ecosystem-shape/shape.mjs`): ES256 only, `typ`, the ONE issuer `CANARI_HANDOFF_ISSUER`,
+   audience `migallery`, 30 s of leeway, a lifetime of at most 60 s, `dest` through
+   `safeRedirectTarget` (or `/`). The keys come from `CANARI_HANDOFF_JWKS` through jose's
+   `createRemoteJWKSet` with a 60 s cache.
+3. No `confirm: true` -> the interstitial's data, **nothing written**: the click posts the same
+   token again. A `sub` with no `users` row -> `unknown_user`, and the page goes through the ordinary
+   MiConnect login with `redirectTo=dest` (an honest first visit).
+4. **Single use from durable state**: `INSERT OR IGNORE INTO handoff_redemptions`, `jti` the
+   primary key. No row inserted -> `409 replayed`, at warn. The rows whose `exp` is past the leeway
+   are deleted first, by proof: step 2 refuses their tokens as `expired` before they reach here.
+5. **Admission (F1)**: the EXISTING row, nothing written on it - the claims are not refreshed by a
+   handoff; the next MiConnect sign-in does that.
+6. **The ordinary session, MARKED**: one `sessions` row, 7 days, the `migallery_session` cookie,
+   and `via_handoff = 1`. A session of another user in this browser is deleted first; the same
+   user's is kept as it is.
+
+**The step-up - what makes a forged handoff harmless** (`src/lib/server/step-up.ts`, `src/lib/step-up.ts`).
+Anyone with a Canari account can mint a token for THEMSELVES and carry it to a victim's browser,
+which would then browse as the attacker - and could, say, enrol their own face into the attacker's
+account. So a marked session may BROWSE and may CHANGE NOTHING: `hooks.server.ts` refuses every
+`POST`, `PUT`, `PATCH` and `DELETE` from it with `403 { code: "STEP_UP_REQUIRED" }` and the header
+`x-step-up-required: 1`, before any handler runs - DEFAULT DENY, so a new route is guarded without
+anyone remembering it. The exemptions are an explicit list, each with its reason (logout, the
+redemption itself, `change-user`, the display language, the download token). The browser
+(`hooks.client.ts`) sends a refused page through the ordinary MiConnect sign-in with the page as
+its destination; the callback deletes the marked session and opens an unmarked one, so after one
+MiConnect sign-in the user acts normally. `tests/step-up.test.ts` enumerates every state-changing
+route in `src/routes` and fails on a route the guard lets through or an exemption that names no route.
+
+**Configuration**: `CANARI_HANDOFF_ISSUER` and `CANARI_HANDOFF_JWKS`, defaults in
+`docker-compose.prod.yml` (production Canari, `https://canari.emse.fr`). Unset, the redemption
+answers `404 not_offered` and the page goes to the ordinary login.
+
+**Tests**: `tests/handoff.test.ts` - every vector of Canari's `handoff-token.cases.json` (copied to
+`tests/fixtures/`, regenerated only in Canari), the replay, a wrong `Origin`, the interstitial with
+no session and with another user's, `unknown_user`, the marked session, the token in no log line;
+`tests/step-up.test.ts` - the guard and the route enumeration.
+
 ## Roles
 
 `users.role` is one of:

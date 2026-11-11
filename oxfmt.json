@@ -29,6 +29,7 @@
     "**/cookies.txt",
     "**/.env",
     "**/.env.local",
-    "**/bun.lock"
+    "**/bun.lock",
+    "**/tests/fixtures/handoff-token.cases.json"
   ]
 }
