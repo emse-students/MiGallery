@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, invalidate } from '$app/navigation';
   import { onMount, onDestroy } from 'svelte';
   import { Lock, ArrowLeft, Camera, Eye, ChevronRight, ScanFace } from '@lucide/svelte';
   import LoadingState from '#lib/components/LoadingState.svelte';
@@ -8,10 +8,12 @@
   import BackgroundBlobs from '#lib/components/BackgroundBlobs.svelte';
   import PageHeader from '#lib/components/PageHeader.svelte';
   import PhotosGrid from '#lib/components/PhotosGrid.svelte';
+  import FaceMatchingWait from '#lib/components/FaceMatchingWait.svelte';
   import ChangePhotoModal from '#lib/components/ChangePhotoModal.svelte';
   import { PhotosState } from '#lib/photos.svelte.ts';
   import { toast } from '#lib/toast.ts';
   import { removeFromMyPhotos } from '#lib/face-not-me.ts';
+  import type { EnrolmentStatus, WaitOutcome } from '#lib/face-matching-wait.ts';
   import { m } from '#lib/paraglide/messages.js';
   import type { User } from '#lib/types/api.ts';
   import type { PageData } from './$types';
@@ -30,6 +32,14 @@
   /** Only the member chooses their own profile photo (owner, 2026-11-10). */
   let canEditProfilePhoto = $derived(isViewingOwnPhotos);
   /**
+   * Right after a selfie the settings page sends the member here with `?matching=1`: the panel
+   * waits with them until the server says its re-match is over (face-matching-wait.ts). Read from
+   * the URL, so a client-side navigation to this page without the parameter drops the panel.
+   */
+  let waitingForMatch = $derived(
+    isViewingOwnPhotos && page.url.searchParams.get('matching') === '1'
+  );
+  /**
    * How many photos wait for the viewer's yes or no (their own view only). Read from the layout,
    * the one number the menu's badge shows too, which the confirmation screen refreshes after each
    * answer: the banner is never older than the last one.
@@ -37,6 +47,25 @@
   let toConfirm = $derived(
     isViewingOwnPhotos ? (page.data.faceToConfirm ?? data.ownFace?.toConfirm ?? 0) : 0
   );
+
+  /** The name and photo version of the member shown, so every reload keeps the header. */
+  let shownProfile: { name?: string | null; version?: string | null } | undefined;
+
+  /**
+   * Load a member's photos WITH their profile: `loadMember` clears the name and portrait it is not
+   * given, which made the header disappear on a reload. A call without a profile reuses the last.
+   */
+  function loadShown(userId: string, profile?: { name?: string | null; version?: string | null }) {
+    if (profile) shownProfile = profile;
+    void photosState.loadMember(userId, shownProfile);
+  }
+
+  /** The server's re-match is over: refresh the grid and the badge, the panel keeps its verdict. */
+  function onMatchingDone(status: EnrolmentStatus, outcome: WaitOutcome) {
+    console.debug('[mes-photos] the re-match is over', outcome, status);
+    void invalidate('app:face-status');
+    if (memberId && status.photos > 0) loadShown(memberId);
+  }
 
   function openChangePhotoModal() {
     showChangePhotoModal = true;
@@ -80,7 +109,7 @@
         return;
       }
       memberId = accessData.user.id_user;
-      photosState.loadMember(accessData.user.id_user, {
+      loadShown(accessData.user.id_user, {
         name: accessData.user.name,
         version: accessData.user.photos_asset_id,
       });
@@ -109,10 +138,7 @@
       return;
     }
     memberId = user.id_user;
-    photosState.loadMember(user.id_user, {
-      name: user.name,
-      version: user.photos_asset_id,
-    });
+    loadShown(user.id_user, { name: user.name, version: user.photos_asset_id });
   });
 </script>
 
@@ -181,7 +207,11 @@
       </PageHeader>
     {/if}
 
-    {#if toConfirm > 0}
+    {#if waitingForMatch}
+      <FaceMatchingWait onDone={onMatchingDone} />
+    {/if}
+
+    {#if toConfirm > 0 && !waitingForMatch}
       <a href="/mes-photos/confirmer" class="confirm-banner">
         <span class="confirm-icon"><ScanFace size={20} /></span>
         <span class="confirm-text">{m.mp_confirm_banner({ count: toConfirm })}</span>
@@ -193,7 +223,7 @@
       <ErrorState
         title={photosState.error}
         onRetry={() => {
-          if (photosState.memberId) photosState.loadMember(photosState.memberId);
+          if (photosState.memberId) loadShown(photosState.memberId);
         }}
       />
     {/if}

@@ -117,6 +117,15 @@ export function membersPendingRematch(db: DatabaseInstance): string[] {
   ).map((r) => r.user_id);
 }
 
+/** Whether ONE member's re-match is still owed (a durable row): the per-member form of the list above. */
+export function hasPendingRematch(db: DatabaseInstance, userId: string): boolean {
+  return (
+    db
+      .prepare('SELECT 1 FROM face_rematch_pending WHERE user_id = ? AND model = ?')
+      .get(userId, FACE_MODEL) != null
+  );
+}
+
 /**
  * The member's confirmed faces and pending `auto` faces: the proven pool before distances. In the
  * BOOTSTRAP (a member under FACE_MIN_REFERENCES, whose `auto` faces are all held back as

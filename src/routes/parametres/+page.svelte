@@ -392,6 +392,8 @@
         currentUserHasFace = true;
         uploadStatus = '';
         toast.success(m.param_face_ok());
+        // The server now looks for the member's photos in the background: wait with them there.
+        await goto('/mes-photos?matching=1');
       } else {
         uploadStatus = data.message || m.face_enrol_unavailable();
       }

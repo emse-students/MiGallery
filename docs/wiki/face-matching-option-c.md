@@ -975,6 +975,36 @@ the member `FACE_SELECTION_UNDONE` (-1): the tick never selects for them again u
 `selectVariedReferences` places the anchors (the selfie) first; renewal (`redundantVictim`) never
 picks an anchor; only a new enrolment replaces it (`enrolMember`).
 
+### The wait after a selfie (owner, 2026-11-10)
+
+After a successful enrolment the settings page goes to `/mes-photos?matching=1`, where `FaceMatchingWait`
+polls `GET /api/users/me/face/enrolment` until it reads `matching: false` (`face-matching-wait.ts`
+turns an answer into waiting / to check / found / none). The panel is derived from the URL, so a
+client-side navigation without the parameter drops it.
+
+`matching` is true while ANY of these holds: the coalesced re-match is queued or running
+(`CoalescingQueue.isBusy`); the enrolment follow-up is in flight (`scheduleEnrolmentFollowUp`: the
+re-match, then the reference selection with its Immich read and its possible SECOND re-match, which
+bypasses the queue; an in-memory set, cleared in a `finally`); or a durable `face_rematch_pending`
+row exists for the member (the selection wrote it, its re-match has not cleared it). The POST
+queues the follow-up before it answers, so the first read already says `true`.
+
+**After a restart** the in-memory parts read `false`, which is truthful (the run is gone), but the
+verdict may be premature: the durable row covers the selection's re-match, NOT the enrolment's own
+first re-match, which is not durable. Making it durable through `face_rematch_pending` was not
+done: the row is cleared by the selection's re-match and picked up by the tick, so a row written at
+enrolment would keep the panel waiting for the tick, not for the run. The member then sees "nothing
+yet" or fewer photos, and the new photos still arrive as the store is analysed.
+
+The end of the wait is the server's answer, never a clock. The display asks every 2 s while the
+server answers; a transport failure or an unusable answer is retried with a doubling delay (2 s up
+to 30 s) and is never taken for "done"; 401/403 are ANSWERS asking again cannot change (503 is the proxy during a deploy: the status route never answers it, so it is retried), so the
+panel stops with a message. An answer that arrives after the panel was left is ignored. Outcomes:
+faces to check give a button to the confirmation flow (the title does not say "0 photos found" when
+only faces were found), photos with nothing to check are shown (the grid reloads, WITH the member's
+name and portrait: `loadMember` clears a profile it is not given), nothing found says that new
+photos are analysed as they arrive.
+
 ### The decided numbers
 
 | Constant                                      | Value       | Meaning                                                                                                                                      |

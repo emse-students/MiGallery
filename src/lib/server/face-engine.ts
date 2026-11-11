@@ -123,6 +123,8 @@ function queueExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
  */
 export class CoalescingQueue {
   private readonly queued = new Map<string, Promise<void>>();
+  /** Keys whose run has started and not ended: with `queued`, what {@link isBusy} reads. */
+  private readonly running = new Set<string>();
 
   /** @param name for the logs; @param onError how a run's failure is reported (never rejects). */
   constructor(
@@ -140,7 +142,13 @@ export class CoalescingQueue {
     const next = queueExclusive(async () => {
       // Started: a request from now on must queue a new run, as this one may read stale state.
       this.queued.delete(key);
-      await run();
+      this.running.add(key);
+      try {
+        await run();
+      } finally {
+        // A request that arrived during the run queued its own, which stays in `queued`.
+        this.running.delete(key);
+      }
     }).then(
       () => undefined,
       (e: unknown) => {
@@ -149,6 +157,14 @@ export class CoalescingQueue {
     );
     this.queued.set(key, next);
     return next;
+  }
+
+  /**
+   * Whether a run covering `key` is queued or running. The state is this process's memory, so a
+   * restart (which also ends the run) reads `false`: truthful, since nothing is running any more.
+   */
+  isBusy(key: string): boolean {
+    return this.queued.has(key) || this.running.has(key);
   }
 
   /** Whether a run for `key` is queued and not started (for the tests). */
