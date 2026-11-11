@@ -131,6 +131,9 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
     // removes it: never cached, and no Referer leaves it (docs/wiki/authentication.md).
     response.headers.set('Cache-Control', 'no-store');
     response.headers.set('Referrer-Policy', 'no-referrer');
+    // Never framed: a framing page could otherwise dress the interstitial's "Continuer" in its own
+    // clothes (clickjacking).
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
   } else if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
     response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
   } else if (/\/_app\//.test(pathname)) {

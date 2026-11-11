@@ -17,6 +17,7 @@ import { safeRedirectTarget } from '#lib/auth-redirect.ts';
 import { computeAvatarSignature } from '#lib/server/avatar-signature.ts';
 import { avatarSaltOf } from '#lib/server/avatar-revocation.ts';
 import { getDatabase } from '#lib/db/database.ts';
+import { inTransaction } from '#lib/db/transaction.ts';
 import { createSession, deleteSession, type ResolvedSession } from '#lib/db/sessions.ts';
 import { env } from '#lib/server/env.ts';
 import { createLogger } from '#lib/server/logger.ts';
@@ -89,7 +90,10 @@ export function handoffDestAllowed(dest: string): boolean {
 
 function refuse(status: number, outcome: string, jti: string | null): Redemption {
   const line = `[HANDOFF] refused class=${outcome} jti=${jti ?? 'none'}`;
-  if (outcome === 'replayed' || outcome === 'bad_origin') {
+  if (outcome === 'keys_unavailable') {
+    // Canari's keys could not be fetched: an outage on our side of the contract, not the token's.
+    log.error(line);
+  } else if (outcome === 'replayed' || outcome === 'bad_origin') {
     log.warn(line);
   } else {
     log.info(line);
@@ -168,7 +172,8 @@ export async function redeemHandoff(input: RedeemInput): Promise<Redemption> {
     currentDate: now,
   });
   if (verified.outcome !== 'ok') {
-    return refuse(400, verified.outcome satisfies HandoffRefusalClass, null);
+    const status = verified.outcome === 'keys_unavailable' ? 503 : 400;
+    return refuse(status, verified.outcome satisfies HandoffRefusalClass, null);
   }
   const { sub, jti, dest, exp } = verified.claims;
 
@@ -192,33 +197,39 @@ export async function redeemHandoff(input: RedeemInput): Promise<Redemption> {
     };
   }
 
-  // 5. Single use: the INSERT is the decision. The dead rows go first, by proof: a row whose
-  // `exp` is past the leeway belongs to a token step 3 refuses, so it protects nothing.
+  // 5-7 in ONE transaction: the ledger row, the old session's deletion and the new session land
+  // together or not at all - a token is never spent without a session, nor a session left half
+  // replaced.
   const nowSeconds = Math.floor(now.getTime() / 1000);
   const db = getDatabase();
-  db.prepare('DELETE FROM handoff_redemptions WHERE exp < ?').run(
-    nowSeconds - HANDOFF_LEEWAY_SECONDS
-  );
-  const inserted = db
-    .prepare(
-      'INSERT OR IGNORE INTO handoff_redemptions (jti, sub, exp, redeemed_at) VALUES (?, ?, ?, ?)'
-    )
-    .run(jti, sub, exp, nowSeconds);
-  if (inserted.changes !== 1) {
-    return refuse(409, 'replayed', jti);
-  }
+  const current = input.current;
+  return inTransaction(db, (): Redemption => {
+    // 5. Single use: the INSERT is the decision. The dead rows go first, by proof: a row whose
+    // `exp` is past the leeway belongs to a token step 3 refuses, so it protects nothing.
+    db.prepare('DELETE FROM handoff_redemptions WHERE exp < ?').run(
+      nowSeconds - HANDOFF_LEEWAY_SECONDS
+    );
+    const inserted = db
+      .prepare(
+        'INSERT OR IGNORE INTO handoff_redemptions (jti, sub, exp, redeemed_at) VALUES (?, ?, ?, ?)'
+      )
+      .run(jti, sub, exp, nowSeconds);
+    if (inserted.changes !== 1) {
+      return refuse(409, 'replayed', jti);
+    }
 
-  // 6-7. Admission (F1: the existing row, nothing written on it) and the ordinary session,
-  // MARKED. A session of another user is replaced; the same user's is kept as it is (an OIDC
-  // session stays unmarked).
-  if (sameUser) {
-    log.info(`[HANDOFF] redeemed jti=${jti} sub=${sub} session=kept`);
-    return { status: 200, body: { outcome: 'ok', dest } };
-  }
-  if (input.current) {
-    deleteSession(input.current.token);
-  }
-  const session = createSession(sub, { viaHandoff: true });
-  log.info(`[HANDOFF] redeemed jti=${jti} sub=${sub}`);
-  return { status: 200, body: { outcome: 'ok', dest }, session };
+    // 6-7. Admission (F1: the existing row, nothing written on it) and the ordinary session,
+    // MARKED. A session of another user is replaced; the same user's is kept as it is (an OIDC
+    // session stays unmarked).
+    if (sameUser) {
+      log.info(`[HANDOFF] redeemed jti=${jti} sub=${sub} session=kept`);
+      return { status: 200, body: { outcome: 'ok', dest } };
+    }
+    if (current) {
+      deleteSession(current.token);
+    }
+    const session = createSession(sub, { viaHandoff: true });
+    log.info(`[HANDOFF] redeemed jti=${jti} sub=${sub}`);
+    return { status: 200, body: { outcome: 'ok', dest }, session };
+  });
 }

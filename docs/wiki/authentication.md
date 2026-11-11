@@ -116,7 +116,8 @@ section 8). Canari turns it on for MiGallery with a flag, only after this is liv
 
 **The landing page** (`src/routes/auth/handoff/+page.svelte`) reads the token from the FRAGMENT,
 which no browser sends to a server, removes it from the address bar at once, and posts it to the
-redemption. It is served `Cache-Control: no-store` and `Referrer-Policy: no-referrer`
+redemption. It is served `Cache-Control: no-store`, `Referrer-Policy: no-referrer` and
+`Content-Security-Policy: frame-ancestors 'none'`, so no other page can frame the interstitial
 (`hooks.server.ts`). **The interstitial is ALWAYS shown** before a session opens - "Tu vas être
 connecté en tant que B", with B's photo, or "Tu es connecté en tant que A. Continuer en tant que B ?" -
 except when this browser is already signed in as B, when nothing changes hands. Annuler writes
@@ -133,12 +134,16 @@ every refusal logged `[HANDOFF] refused class=<outcome> jti=<jti or none>` and *
    `tools/ecosystem-shape/shape.mjs`): ES256 only, `typ`, the ONE issuer `CANARI_HANDOFF_ISSUER`,
    audience `migallery`, 30 s of leeway, a lifetime of at most 60 s, `dest` through
    `safeRedirectTarget` (or `/`). The keys come from `CANARI_HANDOFF_JWKS` through jose's
-   `createRemoteJWKSet` with a 60 s cache.
+   `createRemoteJWKSet` with a 60 s cache. **Keys that cannot be fetched** (Canari unreachable, a
+   timeout, a non-200) are `503 keys_unavailable`, logged at ERROR - an outage, never the token's
+   fault; the verifier decides it inside the key resolver, so nothing a token carries can be
+   classified as one.
 3. No `confirm: true` -> the interstitial's data, **nothing written**: the click posts the same
    token again. A `sub` with no `users` row -> `unknown_user`, and the page goes through the ordinary
    MiConnect login with `redirectTo=dest` (an honest first visit).
 4. **Single use from durable state**: `INSERT OR IGNORE INTO handoff_redemptions`, `jti` the
-   primary key. No row inserted -> `409 replayed`, at warn. The rows whose `exp` is past the leeway
+   primary key, in ONE transaction with step 6 (`inTransaction`), so the ledger row, the old
+   session's deletion and the new session land together or not at all. No row inserted -> `409 replayed`, at warn. The rows whose `exp` is past the leeway
    are deleted first, by proof: step 2 refuses their tokens as `expired` before they reach here.
 5. **Admission (F1)**: the EXISTING row, nothing written on it - the claims are not refreshed by a
    handoff; the next MiConnect sign-in does that.
@@ -156,8 +161,8 @@ anyone remembering it. The exemptions are an explicit list, each with its reason
 redemption itself, `change-user`, the display language, the download token). The browser
 (`hooks.client.ts`) sends a refused page through the ordinary MiConnect sign-in with the page as
 its destination; the callback deletes the marked session and opens an unmarked one, so after one
-MiConnect sign-in the user acts normally. `tests/step-up.test.ts` enumerates every state-changing
-route in `src/routes` and fails on a route the guard lets through or an exemption that names no route.
+MiConnect sign-in the user acts normally. `tests/step-up.test.ts` loads every route module in
+`src/routes` and reads the handlers it really exports and fails on a route the guard lets through or an exemption that names no route.
 
 **Configuration**: `CANARI_HANDOFF_ISSUER` and `CANARI_HANDOFF_JWKS`, defaults in
 `docker-compose.prod.yml` (production Canari, `https://canari.emse.fr`). Unset, the redemption

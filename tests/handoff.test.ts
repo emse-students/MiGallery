@@ -10,7 +10,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createLocalJWKSet, type JSONWebKeySet } from 'jose';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { createLocalJWKSet, createRemoteJWKSet, type JSONWebKeySet } from 'jose';
 import { removeTempDir } from './test-helpers';
 
 const vectors = JSON.parse(
@@ -21,6 +23,7 @@ const vectors = JSON.parse(
   jwks: JSONWebKeySet;
   cases: Array<{ name: string; token: string; now: number; expect: string; sub?: string }>;
   replay: { token: string; now: number; expect: string[] };
+  keysUnavailable: { token: string; now: number; jwksStatus: number; expect: string };
 };
 
 vi.mock('#lib/server/env.ts', () => ({
@@ -220,6 +223,47 @@ describe('the redemption', () => {
     const r = await post(valid.token, { confirm: true });
     expect(r.body).toEqual({ outcome: 'unknown_user', dest: '/mes-photos' });
     expect(sessionRows()).toEqual([]);
+  });
+
+  it('answers 503 keys_unavailable, at error, when Canari`s keys cannot be fetched (the vector)', async () => {
+    const ku = vectors.keysUnavailable;
+    const server = createServer((_req, res) => {
+      res.statusCode = ku.jwksStatus;
+      res.end('down');
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const { port } = server.address() as AddressInfo;
+    logged.length = 0;
+    try {
+      const r = await redeem.redeemHandoff({
+        origin: ORIGIN,
+        ownOrigin: ORIGIN,
+        contentType: 'application/json',
+        body: { token: ku.token, confirm: true },
+        current: null,
+        now: new Date(ku.now * 1000),
+        keys: createRemoteJWKSet(new URL(`http://127.0.0.1:${port}/jwks`)),
+      });
+      expect([r.status, r.body]).toEqual([503, { outcome: ku.expect }]);
+    } finally {
+      server.close();
+    }
+    expect(logged.some((l) => l.includes(`[HANDOFF] refused class=${ku.expect}`))).toBe(true);
+    expect(ledger()).toBe(0);
+  });
+
+  it('spends no token when the session cannot be written: the ledger row rolls back with it', async () => {
+    db().exec(
+      'DROP TABLE IF EXISTS sessions_backup; ALTER TABLE sessions RENAME TO sessions_backup;'
+    );
+    try {
+      await expect(post(valid.token, { confirm: true })).rejects.toThrow();
+      expect(ledger()).toBe(0);
+    } finally {
+      db().exec('ALTER TABLE sessions_backup RENAME TO sessions;');
+    }
+    const again = await post(valid.token, { confirm: true });
+    expect(again.body.outcome).toBe('ok');
   });
 
   it('refuses an expired token, also after the interstitial', async () => {

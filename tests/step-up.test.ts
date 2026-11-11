@@ -5,8 +5,8 @@
  * exemption names a route that exists - so a route added tomorrow is guarded without anyone
  * remembering it, and a stale exemption cannot linger.
  */
-import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { describe, it, expect, beforeAll } from 'vitest';
+import { readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { STEP_UP_EXEMPT, stepUpRequired, stepUpResponse } from '#lib/server/step-up.ts';
 import { isStepUpRefusal, STEP_UP_CODE } from '#lib/step-up.ts';
@@ -31,16 +31,22 @@ function pathOf(file: string): string {
   return `/${parts.join('/')}`;
 }
 
-/** The state-changing methods a route file exports (`export const POST`, or `export { x as POST }`). */
-function writesOf(file: string): string[] {
-  const src = readFileSync(file, 'utf8');
-  return STATE_CHANGING.filter((m) =>
-    new RegExp(`export\\s+(const|async function|function)\\s+${m}\\b|\\bas\\s+${m}\\b`).test(src)
-  );
+/**
+ * The state-changing handlers a route module REALLY exports - read from the loaded module, as
+ * SvelteKit reads it, so no spelling of an export can hide one.
+ */
+async function writesOf(file: string): Promise<string[]> {
+  const mod = (await import(/* @vite-ignore */ file)) as Record<string, unknown>;
+  return Object.keys(mod).filter((k) => STATE_CHANGING.includes(k) && typeof mod[k] === 'function');
 }
 
-const routes = serverFiles(ROUTES).map((f) => ({ path: pathOf(f), methods: writesOf(f) }));
-const writing = routes.filter((r) => r.methods.length > 0);
+let writing: Array<{ path: string; methods: string[] }> = [];
+
+beforeAll(async () => {
+  const routes = [];
+  for (const f of serverFiles(ROUTES)) routes.push({ path: pathOf(f), methods: await writesOf(f) });
+  writing = routes.filter((r) => r.methods.length > 0);
+}, 120_000);
 
 describe('the step-up guard', () => {
   it('finds the state-changing routes (the enumeration is not empty)', () => {
