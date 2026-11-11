@@ -24,9 +24,14 @@ sequence(corsAndCsrfHandler, sessionHandler)
      immutable for 2 days; HTML and non-API routes are `max-age=0,
      must-revalidate`) and the CORS headers on API responses.
 
-2. **`sessionHandler`** resolves the current user (`getSessionUser`) into
-   `event.locals.user` (or `null`) and opportunistically deletes legacy-format
-   `current_user_id` cookies (old `prenom.nom` values). It never redirects.
+2. **`sessionHandler`** resolves the session once (`getSession`, shaped by
+   `sessionUserOf`) into `event.locals.user` (or `null`) and opportunistically
+   deletes legacy-format `current_user_id` cookies (old `prenom.nom` values). It
+   never redirects. It is also where a session a Canari handoff opened is
+   refused any state-changing request until a MiConnect sign-in (the step-up,
+   `src/lib/server/step-up.ts`; [authentication](authentication.md#signed-in-from-canari-the-sign-in-handoff)).
+   The `/auth/handoff` landing page gets `Cache-Control: no-store` and
+   `Referrer-Policy: no-referrer` from the first handler.
 
 A daily backup scheduler (`startBackupScheduler`) is kicked off once at module
 load.

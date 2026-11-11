@@ -47,6 +47,12 @@ services:
       FACE_STORE_KEY: ${FACE_STORE_KEY:?FACE_STORE_KEY requis}
       # Le service de modele d Immich, joint par son nom sur le reseau dedie face-ml (ci-dessous).
       FACE_ML_URL: ${FACE_ML_URL:-http://immich-machine-learning:3003}
+      # La connexion transmise depuis Canari (docs/wiki/authentication.md) : l UNIQUE emetteur
+      # accepte - l origine du premier FRONTEND_URL de Canari en production, lue le 2026-11-11 - et
+      # ses cles publiques. Un jeton du dev de Canari est refuse (wrong_issuer). Canari n emet de
+      # jeton pour MiGallery que quand son drapeau `handoff` est allume.
+      CANARI_HANDOFF_ISSUER: ${CANARI_HANDOFF_ISSUER:-https://canari.emse.fr}
+      CANARI_HANDOFF_JWKS: ${CANARI_HANDOFF_JWKS:-https://canari.emse.fr/api/auth/handoff/jwks}
       # Aucun secret de session : le cookie ne transporte qu'un jeton opaque et la
       # table `sessions` porte tout le reste - rien a signer, donc rien a tourner.
       # Max request body accepted by adapter-bun. Nothing legitimately needs a big

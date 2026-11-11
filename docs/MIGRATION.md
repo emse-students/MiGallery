@@ -48,7 +48,11 @@ The CD generates `.env` from repo secrets (Settings -> Secrets -> Actions):
 The deploy refuses to run while any of them is missing. `OFFSITE_HOST` and `IMMICH_BACKUP_DIR`
 never reach `.env`: the deploy writes them into `<deploy-dir>/scripts/backup.env`, which both
 backup scripts read (`scripts/backup-config.sh`). Non-secret values (MICONNECT_ISSUER, ports...)
-have defaults in `docker-compose.prod.yml`, overridable if needed - among them `FACE_ML_URL`.
+have defaults in `docker-compose.prod.yml`, overridable if needed - among them `FACE_ML_URL`, and
+`CANARI_HANDOFF_ISSUER` / `CANARI_HANDOFF_JWKS`, the one Canari estate whose sign-in handoff tokens
+are accepted and its public keys ([authentication](wiki/authentication.md#signed-in-from-canari-the-sign-in-handoff)).
+After a COMPROMISE of Canari's handoff key (not an ordinary rotation), restart this container right
+after Canari's deploy, so the cached old key dies at once rather than within a minute.
 
 **The face model network.** MiGallery reaches Immich's model service, and nothing else of Immich,
 over `migallery-face-ml`: an internal Docker network holding those two containers only (owner,

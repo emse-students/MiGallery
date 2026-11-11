@@ -36,6 +36,11 @@ export interface ResolvedSession {
   realUser: UserRow;
   impersonating: boolean;
   expiresAt: number;
+  /**
+   * Opened by a Canari sign-in handoff, not by MiConnect: it may browse, and may not change
+   * anything until the user signs in through MiConnect here (`src/lib/server/step-up.ts`).
+   */
+  viaHandoff: boolean;
 }
 
 interface SessionRow {
@@ -43,6 +48,7 @@ interface SessionRow {
   id_user: string;
   impersonated_id_user: string | null;
   expires_at: number;
+  via_handoff: number;
 }
 
 function findUser(id: string): UserRow | null {
@@ -53,19 +59,26 @@ function findUser(id: string): UserRow | null {
   return row ?? null;
 }
 
-/** Open a session for a user. Returns the token to hand to the cookie. */
-export function createSession(userId: string): { token: string; expiresAt: number } {
+/**
+ * Open a session for a user. Returns the token to hand to the cookie. `viaHandoff` marks a session
+ * a Canari handoff opened - the ordinary session, same lifetime, same cookie, one column apart.
+ */
+export function createSession(
+  userId: string,
+  options: { viaHandoff?: boolean } = {}
+): { token: string; expiresAt: number } {
   const token = randomUUID();
   const createdAt = nowEpoch();
   const expiresAt = createdAt + SESSION_TTL_SECONDS;
+  const viaHandoff = options.viaHandoff === true;
 
   getDatabase()
     .prepare(
-      'INSERT INTO sessions (token, id_user, impersonated_id_user, created_at, expires_at) VALUES (?, ?, NULL, ?, ?)'
+      'INSERT INTO sessions (token, id_user, impersonated_id_user, created_at, expires_at, via_handoff) VALUES (?, ?, NULL, ?, ?, ?)'
     )
-    .run(token, userId, createdAt, expiresAt);
+    .run(token, userId, createdAt, expiresAt, viaHandoff ? 1 : 0);
 
-  log.info('session created', { userId, expiresAt });
+  log.info('session created', { userId, expiresAt, viaHandoff });
 
   return { token, expiresAt };
 }
@@ -82,7 +95,7 @@ export function resolveSession(token: string | undefined | null): ResolvedSessio
 
   const row = getDatabase()
     .prepare(
-      'SELECT token, id_user, impersonated_id_user, expires_at FROM sessions WHERE token = ? AND expires_at > ? LIMIT 1'
+      'SELECT token, id_user, impersonated_id_user, expires_at, via_handoff FROM sessions WHERE token = ? AND expires_at > ? LIMIT 1'
     )
     .get(token, nowEpoch()) as SessionRow | undefined;
 
@@ -112,6 +125,7 @@ export function resolveSession(token: string | undefined | null): ResolvedSessio
     realUser,
     impersonating: impersonated !== null,
     expiresAt: row.expires_at,
+    viaHandoff: row.via_handoff === 1,
   };
 }
 

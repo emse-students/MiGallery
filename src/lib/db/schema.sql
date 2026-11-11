@@ -112,11 +112,27 @@ CREATE TABLE IF NOT EXISTS sessions (
     impersonated_id_user TEXT,
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
+    -- 1 when the session was opened by a Canari sign-in handoff rather than by MiConnect. Such a
+    -- session may browse and may NOT change anything until the user signs in through MiConnect
+    -- in this browser (src/lib/server/step-up.ts). Added to older databases by ensureSchema.
+    via_handoff INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY(id_user) REFERENCES users(id_user) ON DELETE CASCADE,
     FOREIGN KEY(impersonated_id_user) REFERENCES users(id_user) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_id_user ON sessions(id_user);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+-- The sign-in handoff's single-use ledger (docs/wiki/authentication.md, "Signed in from Canari").
+-- `jti` is the primary key: the INSERT that adds a token's row IS the decision that it was not
+-- used before. A row whose `exp` is more than the 30 s leeway in the past is deleted at each
+-- redemption - its token is refused `expired` before it could reach the insert, so the row
+-- protects nothing (a proof, not a timer).
+CREATE TABLE IF NOT EXISTS handoff_redemptions (
+    jti TEXT PRIMARY KEY,
+    sub TEXT NOT NULL,
+    exp INTEGER NOT NULL,
+    redeemed_at INTEGER NOT NULL
+);
 
 -- API Keys: for external access (e.g. scripts, other apps)
 CREATE TABLE IF NOT EXISTS api_keys (

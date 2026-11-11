@@ -36,6 +36,8 @@ export default defineConfig({
       // `svelte-kit sync` generates this module inside .svelte-kit, which vitest does not build.
       // Aliasing it is what lets a server module be imported at all outside a SvelteKit run.
       '$app/env/private': path.resolve('./tests/mocks/app-env-private.ts'),
+      // Listed AFTER `$app/env/private`: the first alias that matches wins.
+      '$app/env': path.resolve('./tests/mocks/app-env.ts'),
     },
   },
 });

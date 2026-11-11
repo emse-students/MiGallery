@@ -1,8 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { completeOIDCFlow } from '#lib/auth.ts';
-import { setSessionCookie } from '#lib/session.ts';
-import { createSession, deleteExpiredSessions } from '#lib/db/sessions.ts';
+import { getSessionToken, setSessionCookie } from '#lib/session.ts';
+import { createSession, deleteExpiredSessions, deleteSession } from '#lib/db/sessions.ts';
 import { RETURN_COOKIE_NAME, safeRedirectTarget } from '#lib/auth-redirect.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
@@ -59,6 +59,13 @@ export const GET: RequestHandler = async ({ cookies, url }) => {
     // Open a server-side session and hand the browser its token. Login is the
     // one moment we are already writing to `sessions`, so purge the dead rows here.
     deleteExpiredSessions();
+    // The session this browser held is replaced, so its row goes - in particular a session a
+    // Canari handoff opened (`via_handoff`): signing in through MiConnect is the step-up that
+    // lifts its mark, and the new row carries none.
+    const previous = getSessionToken(cookies);
+    if (previous) {
+      deleteSession(previous);
+    }
     const { token, expiresAt } = createSession(result.dbUser.id_user);
     setSessionCookie(cookies, token, expiresAt);
 

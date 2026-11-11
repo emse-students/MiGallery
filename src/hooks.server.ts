@@ -2,10 +2,13 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { isRedirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit/hooks';
 import {
-  getSessionUser,
+  getSession,
   LEGACY_IMPERSONATION_COOKIES,
   LEGACY_SESSION_COOKIE_NAME,
+  sessionUserOf,
 } from '#lib/session.ts';
+import { stepUpRequired, stepUpResponse } from '#lib/server/step-up.ts';
+import { createLogger } from '#lib/server/logger.ts';
 import { startBackupScheduler } from '#lib/server/backup.ts';
 import { startFaceErasureWorker } from '#lib/server/face-erasure.ts';
 import { startFaceIngestWorker } from '#lib/server/face-ingest.ts';
@@ -28,6 +31,11 @@ startFaceIngestWorker();
 
 // Keep the audit log to its retention (90 days)
 startLogRetention();
+
+/** The Canari sign-in handoff's landing page (`src/routes/auth/handoff`). */
+const HANDOFF_LANDING_PATH = '/auth/handoff';
+
+const stepUpLog = createLogger('step-up');
 
 /**
  * List of allowed domains for CORS.
@@ -118,7 +126,15 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
 
   const response = await resolve(event);
 
-  if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
+  if (pathname === HANDOFF_LANDING_PATH) {
+    // The Canari handoff's landing page holds a sign-in token in its fragment until its script
+    // removes it: never cached, and no Referer leaves it (docs/wiki/authentication.md).
+    response.headers.set('Cache-Control', 'no-store');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    // Never framed: a framing page could otherwise dress the interstitial's "Continuer" in its own
+    // clothes (clickjacking).
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+  } else if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
     response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
   } else if (/\/_app\//.test(pathname)) {
     response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
@@ -151,8 +167,19 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
  * forgeable credential. They are cleared on sight rather than left to expire.
  */
 const sessionHandler: Handle = async ({ event, resolve }) => {
-  const user = getSessionUser(event.cookies);
+  const session = getSession(event.cookies);
+  const user = sessionUserOf(session);
   event.locals.user = user ?? null;
+
+  // A session a Canari handoff opened may browse and may change nothing until the user signs in
+  // through MiConnect here (`#lib/server/step-up.ts`): refused before any handler runs.
+  if (stepUpRequired(event.request.method, event.url.pathname, session?.viaHandoff === true)) {
+    stepUpLog.info('refused: a handoff session needs a MiConnect sign-in to change anything', {
+      method: event.request.method,
+      path: event.url.pathname,
+    });
+    return stepUpResponse();
+  }
 
   // Seed the Paraglide locale cookie from the user's saved preference the first
   // time they land in a browser that has no cookie yet (e.g. a new device). This
