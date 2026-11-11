@@ -1,13 +1,13 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '#lib/db/database.ts';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
 import { getDefaultPromos } from '#lib/promo-utils.ts';
 
 const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FSSS', 'Autre'];
 
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
 
   const db = getDatabase();
 

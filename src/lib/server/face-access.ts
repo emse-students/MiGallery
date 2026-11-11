@@ -21,6 +21,7 @@ import { error, type RequestEvent } from '@sveltejs/kit';
 import { getDatabase } from '#lib/db/database.ts';
 import { requireScope, type AuthResult } from '#lib/server/permissions.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { isStaffRole } from '#lib/roles.ts';
 import { normalisePersonId } from '#lib/server/person-id.ts';
 import { canonicalProxiedPath } from '#lib/server/immich-proxy-allowlist.ts';
 
@@ -83,7 +84,7 @@ export async function requireMemberPhotosAccess(
  * {@link assertMemberPhotosAccess} instead.
  */
 export function assertPhotoCvManager(auth: AuthResult, what: string): void {
-  if (auth.viaApiKey || auth.user?.role === 'admin' || auth.user?.role === 'mitviste') {
+  if (auth.viaApiKey || isStaffRole(auth.user?.role)) {
     return;
   }
   refuse(auth, `photocv-album ${what}`);

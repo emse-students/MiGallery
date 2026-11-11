@@ -1,7 +1,7 @@
 import { json, error as svelteError } from '@sveltejs/kit';
 import type { RequestHandler } from '@sveltejs/kit';
 import { getDatabase } from '#lib/db/database.ts';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
 import { ensureError } from '#lib/ts-utils.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
@@ -17,7 +17,7 @@ const log = createLogger('albums-id-permissions-tags');
  * }
  */
 export const POST: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
 
   const albumId = event.params.id;
   if (!albumId) {

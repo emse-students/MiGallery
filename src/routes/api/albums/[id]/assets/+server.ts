@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 
 import type { RequestHandler } from './$types';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
 import { addAlbumAssets, removeAlbumAssets } from '#lib/server/immich-album-assets.ts';
 
 /** Both callers in the app send `{ ids }`; anything else is an empty add. */
@@ -18,7 +18,7 @@ async function readIds(request: Request): Promise<string[]> {
  * Body: { ids: string[] }
  */
 export const PUT: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
   const ids = await readIds(event.request);
   return json(await addAlbumAssets(event.fetch, event.params.id, ids));
 };
@@ -30,7 +30,7 @@ export const PUT: RequestHandler = async (event) => {
  * Body: { ids: string[] }
  */
 export const DELETE: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
   const ids = await readIds(event.request);
   return json(await removeAlbumAssets(event.fetch, event.params.id, ids));
 };

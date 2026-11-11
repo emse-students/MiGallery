@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 
 import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -21,7 +21,7 @@ const log = createLogger('albums-id-metadata');
  * }
  */
 export const PUT: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
   try {
     const { id } = event.params;
     if (!id) {

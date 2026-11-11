@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { requireScope } from '#lib/server/permissions.ts';
+import { assertProxiedDeleteAllowed } from '#lib/server/immich-proxy-allowlist.ts';
 import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
@@ -41,8 +42,13 @@ export const GET: RequestHandler = async (event) => {
 };
 
 export const DELETE: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  const auth = await requireScope(event, 'write');
   const id = event.params.id;
+  // A key holding `write` deletes, as before. A SESSION follows the one rule the proxy applies to a
+  // deletion: staff, or the member who uploaded the photo.
+  if (!auth.viaApiKey) {
+    assertProxiedDeleteAllowed(auth, { ids: [id] });
+  }
   if (!IMMICH_BASE_URL) {
     throw error(500, 'IMMICH_BASE_URL not configured');
   }

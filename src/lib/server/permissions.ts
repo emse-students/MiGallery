@@ -16,6 +16,10 @@ import { getCurrentUser, ensureAdmin } from '#lib/server/auth.ts';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { UserRow } from '#lib/types/api.ts';
 import { logEvent } from '#lib/server/logs.ts';
+import { createLogger } from '#lib/server/logger.ts';
+import { isStaffRole } from '#lib/roles.ts';
+
+const log = createLogger('permissions');
 
 export type Scope = 'public' | 'read' | 'write' | 'admin';
 
@@ -142,6 +146,28 @@ export async function requireScope(
     grantedScope: requiredScope,
     viaApiKey: false,
   };
+}
+
+/**
+ * Authorises a change to the albums themselves - creating, editing or deleting one, its photos,
+ * its cover, its permissions. That is the gallery staff's work: a session must hold the `admin` or
+ * `mitviste` role (the roles the pages show these controls to), and a key must hold the `write`
+ * scope. `requireScope(event, 'write')` alone answers "is this a signed-in member", which is the
+ * right question for a member's OWN data (favourites, their uploads) and not for an album.
+ *
+ * @throws 401 with no session and no key, 403 for a member who is not staff or a key without `write`
+ */
+export async function requireStaff(event: RequestEvent): Promise<AuthResult> {
+  const auth = await requireScope(event, 'write');
+  if (auth.viaApiKey || isStaffRole(auth.user?.role)) {
+    return auth;
+  }
+  log.warn('album change refused: not staff', {
+    viewer: auth.user?.id_user ?? null,
+    method: event.request.method,
+    path: event.url.pathname,
+  });
+  throw error(403, 'Staff role required');
 }
 
 /**

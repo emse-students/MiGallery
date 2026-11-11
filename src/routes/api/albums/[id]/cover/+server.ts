@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { getDatabase } from '#lib/db/database.ts';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
 import { getCoverImage, resolveCover, storeCover } from '#lib/server/album-cover.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
@@ -94,7 +94,7 @@ export const PUT: RequestHandler = async (event) => {
   const { params, request, fetch } = event;
   const albumId = params.id;
 
-  await requireScope(event, 'write');
+  await requireStaff(event);
 
   if (!albumId) {
     throw error(400, 'Missing album ID');

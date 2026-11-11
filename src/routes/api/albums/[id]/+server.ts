@@ -4,7 +4,7 @@ import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { getDatabase } from '#lib/db/database.ts';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireScope, requireStaff } from '#lib/server/permissions.ts';
 import { logEvent } from '#lib/server/logs.ts';
 import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 import { deleteOrphanedAlbumAssets } from '#lib/server/immich-album-delete.ts';
@@ -94,7 +94,7 @@ export const GET: RequestHandler = async (event) => {
  * 2. Attempts to delete the album and its unshared assets from Immich (non-critical)
  */
 export const DELETE: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
   try {
     const { id } = event.params;
     const { fetch } = event;
@@ -225,7 +225,7 @@ export const DELETE: RequestHandler = async (event) => {
  * }
  */
 export const PATCH: RequestHandler = async (event) => {
-  await requireScope(event, 'write');
+  await requireStaff(event);
   try {
     const { id } = event.params;
     const body = (await event.request.json()) as {

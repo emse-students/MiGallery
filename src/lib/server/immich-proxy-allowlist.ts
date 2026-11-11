@@ -16,6 +16,7 @@
 import { error } from '@sveltejs/kit';
 import { createLogger } from '#lib/server/logger.ts';
 import type { AuthResult } from '#lib/server/permissions.ts';
+import { isStaffRole } from '#lib/roles.ts';
 import { uploadedAllOf } from '#lib/server/asset-uploads.ts';
 
 const log = createLogger('immich-proxy-allowlist');
@@ -114,10 +115,7 @@ export function assertProxiedDeleteAllowed(auth: AuthResult, body: unknown): voi
     throw error(400, 'ids required');
   }
   const role = auth.user?.role;
-  if (
-    (auth.viaApiKey && auth.grantedScope === 'admin') ||
-    (!auth.viaApiKey && (role === 'admin' || role === 'mitviste'))
-  ) {
+  if ((auth.viaApiKey && auth.grantedScope === 'admin') || (!auth.viaApiKey && isStaffRole(role))) {
     return;
   }
   if (auth.user && uploadedAllOf(ids as string[], auth.user.id_user)) {
