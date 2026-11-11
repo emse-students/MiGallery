@@ -947,26 +947,44 @@
   "mpc_me": "It's me",
   "mpc_not_me": "Not me",
   "mpc_answer_error": "Your answer could not be saved. Try again.",
-  "mpc_order_hint": "Closest matches first.",
-  "mpc_keys_hint": "Keyboard: Y or Enter for \"It's me\", N or Delete for \"Not me\", Space to see the whole photo, arrows to move.",
-  "mpc_card_label": "Photo {index} of {total}",
-  "mpc_released": [
+  "mpc_unsure": "I'm not sure",
+  "mpc_undo": "Undo",
+  "mpc_undo_title": "Undo the last answer",
+  "mpc_progress": "{index} of {total}",
+  "mpc_saving": "Saving your answers…",
+  "mpc_done_title": "All done!",
+  "mpc_done_confirmed": "Confirmed: {count}",
+  "mpc_done_rejected": "Set aside: {count}",
+  "mpc_done_skipped": "Left for later: {count}",
+  "mpc_keys_hint": "Keyboard: O or Enter for \"It's me\", N or Delete for \"Not me\", J for \"I'm not sure\", U to undo, Space to see the whole photo.",
+  "mpc_done_auto_title": "Settled automatically from your answers:",
+  "mpc_done_added": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "One more similar photo is no longer offered to you.",
-        "countPlural=*": "{count} more similar photos are no longer offered to you."
+        "countPlural=one": "{count} added to your photos",
+        "countPlural=*": "{count} added to your photos"
       }
     }
   ],
-  "mpc_promoted": [
+  "mpc_done_set_aside": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "One similar photo joined your photos.",
-        "countPlural=*": "{count} similar photos joined your photos."
+        "countPlural=one": "{count} set aside",
+        "countPlural=*": "{count} set aside"
+      }
+    }
+  ],
+  "mpc_done_settled": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} already settled elsewhere",
+        "countPlural=*": "{count} already settled elsewhere"
       }
     }
   ],

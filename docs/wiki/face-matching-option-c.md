@@ -739,13 +739,51 @@ longer withholds lookalikes). The face is not learned as a reference. Both route
 impersonated session, like the answer route; `tests/face-not-me-routes.test.ts`.
 
 **5. The confirmation screen** (`src/routes/mes-photos/confirmer/+page.svelte`,
-`src/lib/face-confirm-list.ts`). Sorted nearest first (`pendingSuggestions` orders by distance; no
-distance reaches the client). Tiles load through the crop loader (the empty tiles' cause, above),
-with a loading state and a retry per tile. The two buttons stack an icon over a label that wraps,
-never clipped, at every width from 360 px. There is no "up to here" bulk button (the owner removed it,
-2026-11-01: unclear and pointless): each tile answers alone. Keyboard: `O`/`Y`/
-Enter confirm, `N`/Delete/Backspace reject, arrows move (the hint is hidden on touch screens). An
-answer removes its tile at once and a refused one puts it back where it was.
+`src/lib/face-confirm-session.ts`, the pure session; owner, 2026-11-10: ONE FACE AT A TIME). Sorted
+nearest first (`pendingSuggestions` orders by distance; no distance reaches the client). One card:
+the face crop large (through the crop loader), a corner button opening the WHOLE photo
+(`FacePhotoDialog`, answers from it too), and three buttons "Pas moi", "Je ne sais pas",
+"C'est moi" (icon over a wrapping label, never clipped from 360 px), a counter "3 sur 12". Keyboard
+(hint hidden on touch screens): `O`/`Y`/Enter confirm, `N`/Delete/Backspace reject, `J` not sure,
+`U` undo, Space/`V` the whole photo. The face's box is NOT outlined on the whole photo (kept the
+corner chip of the proposed face): the stored box is in pixels of the frame the detector saw, so
+outlining it would need that frame's size on the API too, for a visual aid.
+
+- **"Je ne sais pas"** writes nothing: the face is left for later, not offered again in this session
+  (it is back at the next visit). It can be undone like an answer.
+- **The faces the engine settles by itself** (`promoted`/`released` in the answer, section 2) are
+  NOT announced during the flow: they leave the queue silently and are counted for the end screen
+  ("C'est fini !": confirmed, set aside, left for later, settled automatically). The summary counts
+  SERVER outcomes and adds up to the list's size: a face whose own answer is HELD when the engine
+  names it stays held (its answer still applies and counts as the member's; it is not counted as
+  added); if that send then answers 404 it counts once, as the engine said it (`heldSettled`). A
+  card the engine already settled answers 404: dropped silently, its answer's count taken back and
+  counted once as "already settled elsewhere" when the engine did not say it. A held skip the
+  engine settles has nothing left to undo.
+- **An answer names the card the member saw** (`choose(session, choice, seenKey)`): a card button
+  carries the key it was rendered for, the whole-photo dialog answers with ITS face, and a choice
+  for a card that is no longer current is refused (the dialog closes, nothing is sent). **A double
+  tap is NOT blocked** (owner's rule: no timed lock, a clock is never logic): the second tap lands on
+  the next card, which is a real answer; the first answer is committed and the second is the HELD
+  one, which "Annuler" takes back. That is the remedy, not a guard. There is no input lock between
+  cards for the same reason: a click arrives after the DOM update, so nothing stands in the window
+  the key check does not already close. The leave flush goes on the same send chain as the other
+  answers when one is in flight. Undoing a held answer for a face the engine already promoted or
+  released does not bring the face back: the answer is taken back and the face counts once, as the
+  engine said it.
+- **The browser's own line.** The 404 of an already-settled face shows as `Failed to load resource:
+  404` in the console. It is the route's contract (404 = not yours to answer any more, the same
+  answer whether the face exists or not, as the crop route), and the route has no other way to say
+  "already settled": it was left unchanged, the line is the browser's, not the app's.
+- **UNDO, no server change.** The LAST answer is held client-side and sent only when the member
+  answers the next card, reaches the end, or leaves the page (`pagehide`, and the component's
+  destroy for an in-app navigation; both with `fetch(..., { keepalive: true })`, the reply unread).
+  "Annuler" drops the held answer and brings its card back: one level, never a timer. A server-side
+  undo would have to revert a learned reference, a renewal's deleted victim and the background
+  re-match's sticky `auto` rows: a journal and a migration for a misclick. Answers go out one after
+  the other (the engine's decisions depend on their order); a refused or unreachable send puts its
+  card back at the front with an error toast. Known limit: a phone that kills the tab without a
+  `pagehide` loses the held answer (the face simply stays to confirm at the next visit).
 
 **The migration of existing members** (`runReferenceUpgrades`, from the ingestion tick once the
 store is seeded). One member at a time, each in its own turn of the engine lock: capture dates read
@@ -826,8 +864,8 @@ screen below (a learnable face is added) is the way out that does not wait for o
 confirmation becomes a reference, the faces still waiting for the member are re-decided against
 their new references INSIDE the engine lock, as a rejection already does against its negative: the
 lookalikes of the face just confirmed become `auto` at once (`promoted` in the answer) or, if
-another member now holds them, leave (`released`). The screen drops both and says how many joined
-"Mes photos" (`mpc_promoted`): no reload, no waiting for the background re-match, which then finds
+another member now holds them, leave (`released`). The screen drops both silently and counts them for its end screen:
+no reload, no waiting for the background re-match, which then finds
 the same decisions (one `decideFace` for every path). There is no group button: the lookalikes
 move with the answer (owner, 2026-11-01: no visual grouping; the algorithm stays a nearest-member
 match, nothing clusters faces).
