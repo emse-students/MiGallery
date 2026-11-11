@@ -1,7 +1,7 @@
 /**
  * Changing an album is the gallery staff's work (`requireStaff`, `#lib/server/permissions.ts`).
  * Pinned against the REAL route tree, as the step-up test is: every state-changing handler under
- * `/api/albums` answers 403 to a signed-in member who is neither `admin` nor `mitviste`, so a
+ * `/api/albums` and `/api/people` answers 403 to a signed-in member who is neither `admin` nor `mitviste`, so a
  * route added tomorrow is covered without anyone remembering it. The handlers are called with the
  * session helper scripted; a refusal comes before any database or Immich call.
  */
@@ -26,17 +26,24 @@ const STATE_CHANGING = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
 type Handler = (event: RequestEvent) => Promise<Response>;
 
-/** Every route module under /api/albums, loaded as the application loads them. */
-const ALBUM_ROUTES = import.meta.glob<Record<string, unknown>>(
-  '../src/routes/api/albums/**/+server.ts'
-);
+/** An id of the shape the routes expect; no handler is meant to look it up. */
+const SAMPLE_ID = '00000000-0000-4000-8000-000000000000';
+
+/**
+ * Every route module that writes an album, loaded as the application loads them: the albums
+ * themselves, and the PhotoCV album behind `/api/people`.
+ */
+const ALBUM_ROUTES = import.meta.glob<Record<string, unknown>>([
+  '../src/routes/api/albums/**/+server.ts',
+  '../src/routes/api/people/**/+server.ts',
+]);
 
 /** The URL path a route file answers, with each parameter given a sample value. */
 function pathOf(file: string): string {
   return file
     .replace('../src/routes', '')
     .replace('/+server.ts', '')
-    .replace(/[[^]]+]/g, 'sample');
+    .replace(/\[[^\]]+\]/g, 'sample');
 }
 
 /** A request as the handler receives it, with a JSON body no handler is meant to reach. */
@@ -48,7 +55,7 @@ function eventFor(method: string, path: string): RequestEvent {
       ...(method === 'GET' ? {} : { body: '{}', headers: { 'content-type': 'application/json' } }),
     }),
     url,
-    params: { id: 'sample' },
+    params: { id: SAMPLE_ID, albumId: SAMPLE_ID },
     locals: {},
     cookies: { get: () => undefined },
     fetch: () => Promise.reject(new Error('the handler went past its guard')),
@@ -97,7 +104,9 @@ beforeAll(async () => {
 
 describe('album changes are staff work', () => {
   it('finds the album routes that change state (the enumeration is not empty)', () => {
-    expect(handlers.length).toBeGreaterThanOrEqual(10);
+    expect(handlers.length).toBeGreaterThanOrEqual(15);
+    // The paths are real ones: a parameter is spelled `sample`, never left in brackets.
+    expect(handlers.filter((h) => h.path.includes('['))).toEqual([]);
   });
 
   it('answers 403 to a signed-in member who is not staff, on every one of them', async () => {

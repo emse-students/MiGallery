@@ -13,28 +13,29 @@ the effective minimum.
 
 ## Albums
 
-| Path                                                                         | Auth                           | Purpose                           |
-| ---------------------------------------------------------------------------- | ------------------------------ | --------------------------------- |
-| `GET/POST /api/albums`                                                       | read / staff                   | List / create albums              |
-| `GET/PATCH/DELETE /api/albums/[id]`                                          | per `checkAlbumAccess` / staff | Album detail and edit             |
-| `/api/albums/[id]/assets`, `/assets-simple`, `/assets-stream`                | album access                   | Album assets                      |
-| `/api/albums/[id]/asset-original/[assetId]` and `/asset-thumbnail/[assetId]` | album access                   | Single asset / thumbnail          |
-| `GET/PUT /api/albums/[id]/cover`                                             | public / staff                 | Square cover, pin a cover         |
-| `GET /api/albums/[id]/og-cover`                                              | public                         | Wide cover (1200x630)             |
-| `GET /api/albums/[id]/og-preview`                                            | public unless private          | Social preview metadata           |
-| `/api/albums/[id]/info`, `/metadata`                                         | album access                   | Album info/metadata               |
-| `/api/albums/[id]/permissions/users`, `/tags`                                | staff                          | Edit album permissions            |
-| `/api/albums/permissions/options`                                            | staff                          | Options for the permission editor |
+| Path                                                                         | Auth                           | Purpose                             |
+| ---------------------------------------------------------------------------- | ------------------------------ | ----------------------------------- |
+| `GET/POST /api/albums`                                                       | read / staff                   | List / create albums                |
+| `GET/PATCH/DELETE /api/albums/[id]`                                          | per `checkAlbumAccess` / staff | Album detail and edit               |
+| `PUT/DELETE /api/albums/[id]/assets`                                         | staff                          | Add photos to an album, remove them |
+| `/api/albums/[id]/assets-simple`, `/assets-stream`                           | album access                   | Album assets                        |
+| `/api/albums/[id]/asset-original/[assetId]` and `/asset-thumbnail/[assetId]` | album access                   | Single asset / thumbnail            |
+| `GET/PUT /api/albums/[id]/cover`                                             | public / staff                 | Square cover, pin a cover           |
+| `GET /api/albums/[id]/og-cover`                                              | public                         | Wide cover (1200x630)               |
+| `GET /api/albums/[id]/og-preview`                                            | public unless private          | Social preview metadata             |
+| `GET /api/albums/[id]/info`                                                  | album access                   | Album info                          |
+| `PUT /api/albums/[id]/metadata`                                              | staff                          | Album metadata                      |
+| `/api/albums/[id]/permissions/users`, `/tags`                                | staff                          | Edit album permissions              |
+| `/api/albums/permissions/options`                                            | staff                          | Options for the permission editor   |
 
 **staff** is `requireStaff` (`src/lib/server/permissions.ts`): a session holding the `admin` or
-`mitviste` role, or a key holding the `write` scope. Adding photos to an album and removing them
-(`PUT/DELETE /api/albums/[id]/assets`) and `PUT /api/albums/[id]/metadata` are staff too.
+`mitviste` role, or a key holding the `write` scope.
 
 ## People / CV directory
 
 | Path                                                                                             | Auth                           | Purpose                                                                                                                       |
 | ------------------------------------------------------------------------------------------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `/api/people`, `/api/people/album/*`                                                             | session                        | CV albums                                                                                                                     |
+| `/api/people`, `/api/people/album/*`                                                             | admin, mitviste or a key       | CV albums                                                                                                                     |
 | `/api/users/[userId]/photos-stream`                                                              | session + consent              | A member's face-matched photos (A6)                                                                                           |
 | `/api/users/me/face/matches`, `/face/crops/[assetId]/[faceIndex]`, `/api/users/me/profile-photo` | the member                     | Faces to confirm, their pictures, the profile photo (A6)                                                                      |
 | `/api/users/me/face/enrolment` (GET, POST)                                                       | the member, never impersonated | GET: `enrolled`, `references`, and for the post-selfie wait `matching`, `photos`, `toConfirm` (counts only). POST: the selfie |
