@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 
 import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
-import { requireAlbumAccess } from '#lib/server/album-asset-access.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -12,8 +12,9 @@ export const GET: RequestHandler = async (event) => {
   if (!id) {
     return json({ error: 'Missing album ID' }, { status: 400 });
   }
+  // The grant lists of an album are the staff's to read: the album editor is their only reader.
   // Before the try: a refusal keeps its own status, never the 500 of the catch below.
-  await requireAlbumAccess(event, id);
+  await requireStaff(event);
   try {
     const db = getDatabase();
 

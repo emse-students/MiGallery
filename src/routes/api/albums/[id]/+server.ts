@@ -5,7 +5,7 @@ import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { getDatabase } from '#lib/db/database.ts';
 import { requireStaff } from '#lib/server/permissions.ts';
-import { requireAlbumAccess } from '#lib/server/album-asset-access.ts';
+import { requireViewerOfAlbum } from '#lib/server/album-asset-access.ts';
 import { assertImmichId } from '#lib/server/immich-id.ts';
 import { logEvent } from '#lib/server/logs.ts';
 import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
@@ -58,7 +58,8 @@ export const GET: RequestHandler = async (event) => {
   const { id } = event.params;
   try {
     assertImmichId(id, 'album');
-    await requireAlbumAccess(event, id);
+    // Immich's own record of the album: a signed-in read, on a shared link too.
+    await requireViewerOfAlbum(event, id);
     const { fetch } = event;
 
     const res = await fetch(`${requireImmichBaseUrl()}/api/albums/${id}`, {

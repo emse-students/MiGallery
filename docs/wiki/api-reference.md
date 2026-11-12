@@ -28,11 +28,15 @@ the effective minimum.
 | `/api/albums/[id]/permissions/users`, `/tags`                                | staff                          | Edit album permissions              |
 | `/api/albums/permissions/options`                                            | staff                          | Options for the permission editor   |
 
-**album access** is `requireAlbumAccess` / `requireAlbumAssetAccess` (`src/lib/server/album-asset-access.ts`): an `unlisted` album
-answers without a session; otherwise a key, or a session `checkAlbumAccess` lets in - 403 when it does not,
-404 for an album the gallery does not know. One photo must also be in the album named (staff and keys
-excepted), and is answered 503 when Immich does not say. `GET /api/albums` lists, for a member, the albums
-the albums page lists for them. An album or asset id that is not an Immich id is a 400.
+**album access** is `requireAlbumAccess` / `requireAlbumAssetAccess` (`src/lib/server/album-asset-access.ts`): a key, or a
+session `checkAlbumAccess` lets in - 403 when it does not, 404 for an album the gallery does not know.
+An `unlisted` album opens its photo lists (`assets-stream`, `assets-simple`) and its photos without a
+session, and nothing else: Immich's record of the album (`GET /api/albums/[id]`) always asks for a
+session, and the grant lists (`GET /api/albums/[id]/info`) are the staff's. One photo must also be in
+the album named (staff and keys excepted), and is answered 503 when Immich does not say - written
+once per album and window, a failed request not repeated within it. `GET /api/albums` lists, for a
+member, the albums the albums page lists for them. An album or asset id that is not an Immich id is
+a 400. The generic proxy forwards no album record.
 
 **staff** is `requireStaff` (`src/lib/server/permissions.ts`): a session holding the `admin` or
 `mitviste` role, or a key holding the `write` scope.

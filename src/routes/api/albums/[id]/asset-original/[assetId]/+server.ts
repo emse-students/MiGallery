@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { requireAlbumAssetAccess } from '#lib/server/album-asset-access.ts';
+import { assertImmichId } from '#lib/server/immich-id.ts';
 import { error } from '@sveltejs/kit';
 import { ensureError } from '#lib/ts-utils.ts';
 
@@ -12,8 +13,8 @@ const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 export const GET: RequestHandler = async (event) => {
   try {
-    const albumId = event.params.id;
-    const assetId = event.params.assetId;
+    const albumId = assertImmichId(event.params.id, 'album');
+    const assetId = assertImmichId(event.params.assetId, 'asset');
     const { fetch } = event;
 
     if (!IMMICH_BASE_URL) {

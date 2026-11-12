@@ -12,10 +12,51 @@ const log = createLogger('album-asset-access');
 const MEMBERSHIP_TTL_MS = 60_000;
 const MEMBERSHIP_MAX_ALBUMS = 50;
 const membershipCache = new Map<string, { ids: Set<string>; expires: number }>();
+/**
+ * How long "Immich did not say" is kept for an album. Short, so a recovered Immich serves again
+ * within seconds; long enough that a grid of photos asks Immich once, not once per tile.
+ */
+const UNKNOWN_TTL_MS = 10_000;
+/** The albums Immich FAILED to answer for, and until when it is not asked again. */
+const unknownUntil = new Map<string, number>();
+/** The albums whose "Immich did not say" line is written, and until when it is not written again. */
+const unknownLogged = new Map<string, number>();
+
+/** `map.set`, dropping the oldest entry once the map holds {@link MEMBERSHIP_MAX_ALBUMS}. */
+function setBounded<V>(map: Map<string, V>, key: string, value: V): void {
+  if (map.size >= MEMBERSHIP_MAX_ALBUMS && !map.has(key)) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) {
+      map.delete(oldest);
+    }
+  }
+  map.set(key, value);
+}
+
+/**
+ * Immich did not say what `albumId` holds. ONE line per album and window, however many photos of
+ * it are asked. A request that FAILED is also not repeated within the window: every photo asked
+ * meanwhile is answered from here. An answer that came back EMPTY is asked again by the next
+ * request - it is how a transient search fallback looks, and the very next answer may be whole.
+ */
+function rememberUnknown(albumId: string, why: unknown, failed: boolean): 'unknown' {
+  const now = Date.now();
+  if (failed) {
+    setBounded(unknownUntil, albumId, now + UNKNOWN_TTL_MS);
+  }
+  const logged = unknownLogged.get(albumId);
+  if (logged === undefined || now >= logged) {
+    setBounded(unknownLogged, albumId, now + UNKNOWN_TTL_MS);
+    log.error(`Immich did not say what album ${albumId} holds; its photos are not served`, why);
+  }
+  return 'unknown';
+}
 
 /** Test hook: forget every cached album membership. */
 export function clearAlbumMembershipCache(): void {
   membershipCache.clear();
+  unknownUntil.clear();
+  unknownLogged.clear();
 }
 
 /** The local DB's visibility for an album, or undefined when the album is unknown. */
@@ -47,6 +88,10 @@ async function albumMembership(
   if (cached && Date.now() < cached.expires) {
     return cached.ids.has(assetId) ? 'member' : 'absent';
   }
+  const unknown = unknownUntil.get(albumId);
+  if (unknown !== undefined && Date.now() < unknown) {
+    return 'unknown';
+  }
   try {
     const assets = await fetchAlbumAssets(
       event.fetch,
@@ -54,28 +99,23 @@ async function albumMembership(
       env.IMMICH_API_KEY ?? '',
       albumId
     );
-    if (membershipCache.size >= MEMBERSHIP_MAX_ALBUMS && !membershipCache.has(albumId)) {
-      const oldest = membershipCache.keys().next().value;
-      if (oldest !== undefined) {
-        membershipCache.delete(oldest);
-      }
-    }
     const ids = new Set(assets.map((a) => a.id));
-    // An empty list is how a failed Immich search fallback looks: never cache it, or one hiccup
-    // would lock legitimate viewers of the link out for the whole TTL.
+    // An empty list is how a failed Immich search fallback looks: it is never kept as the album's
+    // content, or one hiccup would lock legitimate viewers of the link out for the whole TTL.
     if (ids.size === 0) {
-      return 'unknown';
+      return rememberUnknown(albumId, 'an empty list', false);
     }
-    membershipCache.set(albumId, { ids, expires: Date.now() + MEMBERSHIP_TTL_MS });
+    unknownUntil.delete(albumId);
+    setBounded(membershipCache, albumId, { ids, expires: Date.now() + MEMBERSHIP_TTL_MS });
     return ids.has(assetId) ? 'member' : 'absent';
   } catch (e) {
-    log.error(`membership check failed album=${albumId}`, e);
-    return 'unknown';
+    return rememberUnknown(albumId, e, true);
   }
 }
 
 /**
- * The signed-in half of the rule, shared by the two guards below. A key is a machine credential and
+ * The signed-in half of the rule, shared by the two guards below and applied alone to an album's
+ * Immich record, which a shared link does not open. A key is a machine credential and
  * reads any album, as before. A session reads the albums `checkAlbumAccess` gives it - the rule the
  * album pages apply: staff, a grant by name, a formation and promo pair, or an `authenticated`
  * album.
@@ -83,7 +123,7 @@ async function albumMembership(
  * @returns true when the caller reads every photo whatever the album (a key, or staff)
  * @throws 401 with no session and no key, 404 for an album the gallery does not know, 403 otherwise
  */
-async function requireViewerOfAlbum(event: RequestEvent, albumId: string): Promise<boolean> {
+export async function requireViewerOfAlbum(event: RequestEvent, albumId: string): Promise<boolean> {
   const auth = await requireScope(event, 'read');
   if (auth.viaApiKey) {
     return true;
@@ -130,7 +170,7 @@ export async function requireAlbumAssetAccess(
     return;
   }
   if (membership === 'unknown') {
-    log.error('album photo not served: Immich did not say whether it is in the album', { albumId });
+    // Logged once per album and window where it was learned (rememberUnknown), not per photo.
     throw error(503, 'Album contents unavailable');
   }
   log.warn('album photo refused: not in the album', { albumId, assetId });

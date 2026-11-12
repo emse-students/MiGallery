@@ -46,8 +46,6 @@ export const PROXY_ALLOWLIST: readonly ProxyRule[] = [
   // delete what is decided by the proxy: assertProxiedDeleteAllowed).
   { methods: ['POST', 'DELETE'], path: /^assets$/ },
   { methods: ['GET'], path: /^assets$/, query: (q) => q.has('chunk-status') },
-  // An album's own record (src/lib/immich/albums.ts).
-  { methods: ['GET', 'HEAD'], path: new RegExp(`^albums/${UUID}$`) },
   // The admin trash page.
   { methods: ['GET'], path: /^timeline\/buckets?$/, admin: true },
   { methods: ['POST'], path: /^trash\/restore\/assets$/, admin: true },

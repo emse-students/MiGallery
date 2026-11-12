@@ -50,6 +50,9 @@ export const GET: RequestHandler = async (event) => {
     });
   } catch (e: unknown) {
     log.error(`Error in /api/albums/${event.params.id}/assets-simple GET:`, e);
+    if (e && typeof e === 'object' && 'status' in e) {
+      throw e;
+    }
     const errorMessage = e instanceof Error ? e.message : 'Internal server error';
     throw svelteError(500, `Internal server error: ${errorMessage}`);
   }
