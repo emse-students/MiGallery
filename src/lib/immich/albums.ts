@@ -1,23 +1,3 @@
-import type { ImmichAlbum } from '#lib/types/api.ts';
-
-export async function getAlbum(immichId: string | null): Promise<{
-  albumName: string | null;
-  assets: Array<{ id: string }>;
-}> {
-  if (!immichId) {
-    throw new Error('No album id');
-  }
-  const res = await fetch(`/api/immich/albums/${immichId}`);
-  if (!res.ok) {
-    throw new Error(await res.text().catch(() => res.statusText));
-  }
-  const data = (await res.json()) as ImmichAlbum;
-  const albumName = data?.albumName || null;
-  const list: Array<{ id: string }> = Array.isArray(data?.assets) ? data.assets : [];
-  const assets = list.filter((a) => !!a.id);
-  return { albumName, assets };
-}
-
 /**
  * Pin an asset as the album cover. Goes through our own endpoint, not the
  * media backend directly, so the choice is persisted locally and the image of

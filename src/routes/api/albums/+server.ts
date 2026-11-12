@@ -6,6 +6,8 @@ import { getDatabase } from '#lib/db/database.ts';
 import { logEvent } from '#lib/server/logs.ts';
 import { requireScope, requireStaff } from '#lib/server/permissions.ts';
 import { ensureError } from '#lib/ts-utils.ts';
+import { checkAlbumAccess } from '#lib/albums.ts';
+import { isStaffRole } from '#lib/roles.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 import { logRouteFailure } from '#lib/server/route-errors.ts';
@@ -48,7 +50,9 @@ function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
  * Only albums registered in MiGallery are returned
  */
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read');
+  const auth = await requireScope(event, 'read');
+  // A key and the staff see every album; a member sees the ones the albums page lists for them.
+  const all = auth.viaApiKey || isStaffRole(auth.user?.role);
 
   try {
     const db = getDatabase();
@@ -56,7 +60,11 @@ export const GET: RequestHandler = async (event) => {
       .prepare("SELECT * FROM albums WHERE name != 'PhotoCV' ORDER BY date DESC, name ASC")
       .all() as AlbumRow[];
 
-    const formattedAlbums = albums.map((album) => ({
+    const listed = all
+      ? albums
+      : albums.filter((album) => album.visible && checkAlbumAccess(auth.user, album));
+
+    const formattedAlbums = listed.map((album) => ({
       id: album.id,
       albumName: album.name,
       description: album.location || '',

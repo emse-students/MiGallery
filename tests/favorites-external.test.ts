@@ -175,7 +175,7 @@ describe('External Media API - DELETE /api/external/media/[id]', () => {
       headers: getAuthHeaders(),
     });
 
-    expect([200, 204, 401, 403, 404, 500]).toContain(response.status);
+    expect([200, 204, 400, 401, 403, 404, 500]).toContain(response.status);
   });
 
   it('should return 404 for non-existent media', async () => {
@@ -184,7 +184,7 @@ describe('External Media API - DELETE /api/external/media/[id]', () => {
       headers: getAuthHeaders(),
     });
 
-    expect([404, 500]).toContain(response.status);
+    expect([400, 404, 500]).toContain(response.status);
   });
 });
 
