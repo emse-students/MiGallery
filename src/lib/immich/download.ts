@@ -19,12 +19,12 @@ export function archiveCount(count: number, batchSize = DOWNLOAD_BATCH_SIZE): nu
 async function fetchAndSave(
   assetIds: string[],
   filename: string,
-  opts?: { signal?: AbortSignal }
+  opts?: { signal?: AbortSignal; albumId?: string }
 ): Promise<void> {
   const res = await fetch('/api/download', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ assetIds, filename }),
+    body: JSON.stringify({ assetIds, filename, albumId: opts?.albumId }),
     signal: opts?.signal,
   });
 
@@ -59,6 +59,8 @@ export async function downloadInBatches(
     onProgress?: (overallProgress: number, batchIndex: number, batchCount: number) => void;
     signal?: AbortSignal;
     batchSize?: number;
+    /** The album the photos are downloaded from, when there is one: they are read as its photos. */
+    albumId?: string;
   }
 ): Promise<void> {
   if (!Array.isArray(assetIds) || assetIds.length === 0) {
@@ -82,7 +84,7 @@ export async function downloadInBatches(
       const filename = multi ? `${albumName}-${i + 1}` : albumName;
       opts?.onProgress?.(i / batches.length, i, batches.length);
 
-      await fetchAndSave(batches[i], filename, { signal: opts?.signal });
+      await fetchAndSave(batches[i], filename, { signal: opts?.signal, albumId: opts?.albumId });
 
       // Progress advances as soon as the token is obtained and download is initiated
       opts?.onProgress?.((i + 1) / batches.length, i, batches.length);

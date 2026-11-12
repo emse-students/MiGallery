@@ -72,6 +72,13 @@ beforeAll(async () => {
   imported.run('m1', OWN, JSON.stringify({ duplicate: false }));
   // m1 "uploaded" a copy of someone else's photo: Immich answered with the existing id.
   imported.run('m1', DUP, JSON.stringify({ duplicate: true }));
+  // A face of VICTIM is m1's: the photo is one m1 reads (asset-access.ts), and still not one m1
+  // uploaded, so not one m1 deletes.
+  const { FACE_MODEL } = await import('#lib/face-embedding.ts');
+  db.prepare(
+    `INSERT INTO face_matches (asset_id, face_index, model, user_id, distance, band, state, created_at)
+      VALUES (?, 0, ?, 'm1', 0.1, 'auto', 'pending', 0)`
+  ).run(VICTIM, FACE_MODEL);
   vi.stubGlobal('fetch', async (url: string) => {
     asked.push(String(url));
     return answer(String(url));

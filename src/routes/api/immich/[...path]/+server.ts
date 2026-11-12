@@ -8,8 +8,10 @@ import {
   assertProxiedDeleteAllowed,
   canonicalProxiedPath,
   findProxyRule,
+  proxiedAssetId,
   publicAssetId,
 } from '#lib/server/immich-proxy-allowlist.ts';
+import { requireAssetRead } from '#lib/server/asset-access.ts';
 import {
   assertNoProxiedFaceCall,
   classifyProxiedBody,
@@ -675,6 +677,14 @@ const handle: RequestHandler = async function (event) {
   }
   if (rule.admin) {
     await requireScope(event, 'admin');
+  }
+  // A read that names one photo follows that photo's own rule (asset-access.ts). `auth` is null
+  // only for the two keyless ways in above, which were judged there.
+  if (auth && ['GET', 'HEAD'].includes(request.method)) {
+    const readAsset = proxiedAssetId(clean);
+    if (readAsset) {
+      await requireAssetRead(event, auth, readAsset);
+    }
   }
 
   // Person and face calls (people, faces, a search naming or listing people) are refused for

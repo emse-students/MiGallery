@@ -124,6 +124,7 @@
           photosState.downloadProgress = p;
         },
         signal: controller.signal,
+        albumId: page.params.id,
       });
       toast.success(m.albumd_download_done());
     } catch (e: unknown) {

@@ -100,6 +100,13 @@ export function publicAssetId(clean: string): string | null {
   return PUBLIC_ASSET.exec(clean)?.[1] ?? null;
 }
 
+const ONE_ASSET = new RegExp(`^assets/(${UUID})(?:/(?:thumbnail|original|video/playback))?$`);
+
+/** The asset id of a canonical path that reads ONE asset - its record, picture, file or video. */
+export function proxiedAssetId(clean: string): string | null {
+  return ONE_ASSET.exec(clean)?.[1] ?? null;
+}
+
 /**
  * Throws unless `auth` may delete every asset of the `DELETE assets` body `body` (`{ ids: [...] }`):
  * an admin or mitviste session, an admin API key, or a member deleting only assets they uploaded
