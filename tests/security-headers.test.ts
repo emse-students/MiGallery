@@ -117,6 +117,15 @@ describe('the content security policy', () => {
     expect(hashes).toEqual(['sha256-+dZ6udsWxNVoGfScAq7t5IIF5UJb4F6RhjbN6oe1p4w=']);
     expect(CSP.reportOnly['script-src'].length).toBeGreaterThan(1);
   });
+
+  it('finds an inline script whatever its casing, attributes and closing tag, and skips one with a src', () => {
+    const one = 'sha256-+dZ6udsWxNVoGfScAq7t5IIF5UJb4F6RhjbN6oe1p4w=';
+
+    expect(appHtmlScriptHashes('<SCRIPT type="module">var a = 1;</Script >')).toEqual([one]);
+    expect(appHtmlScriptHashes('<script src="/a.js"></script><script>var a = 1;</script>')).toEqual(
+      [one]
+    );
+  });
 });
 
 describe('on the running server', () => {

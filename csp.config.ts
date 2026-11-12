@@ -22,10 +22,14 @@ export const CSP_REPORT_PATH = '/api/csp-report';
  * so they are read from the file here and cannot drift from it.
  */
 export function appHtmlScriptHashes(html: string): `sha256-${string}`[] {
-  return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-    (match): `sha256-${string}` =>
-      `sha256-${createHash('sha256').update(match[1]).digest('base64')}`
-  );
+  // Any casing, any attribute, any spacing of the closing tag: a script this missed would simply
+  // not be listed. One with a `src` has no body to hash and is covered by its origin.
+  return [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script[^>]*>/gi)]
+    .filter((match) => match[1].trim() !== '')
+    .map(
+      (match): `sha256-${string}` =>
+        `sha256-${createHash('sha256').update(match[1]).digest('base64')}`
+    );
 }
 
 const templateScripts = appHtmlScriptHashes(
