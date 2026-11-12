@@ -91,12 +91,14 @@ afterAll(() => {
   removeTempDir(dbDir);
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  // What Immich said about a photo's albums is kept a minute: each test asks afresh.
+  (await import('#lib/server/asset-access.ts')).clearAssetAccessCache();
   asked = [];
   answer = (url) =>
-    // The public check reads the asset's albums: only PUBLIC is in the unlisted album.
-    url.endsWith(`/api/assets/${PUBLIC}`)
-      ? Response.json({ id: PUBLIC, albums: [{ id: 'alb' }] })
+    // The public check asks Immich which albums hold the photo: only PUBLIC is in the unlisted one.
+    url.includes('/api/albums?assetId=')
+      ? Response.json(url.endsWith(PUBLIC) ? [{ id: 'alb' }] : [])
       : Response.json({});
   state.auth = member('m1');
 });
@@ -118,10 +120,10 @@ async function send(method: string, path: string, body?: unknown, query = '') {
 }
 
 /**
- * The Immich URLs asked, other than the public check's own read of an asset's detail (which the
- * proxy makes to decide, and never hands over).
+ * The Immich URLs asked, other than the public check's own question (which albums hold a photo),
+ * which the proxy asks to decide and never hands over.
  */
-const forwarded = () => asked.filter((u) => !/\/api\/assets\/[0-9a-f-]{36}$/.test(u));
+const forwarded = () => asked.filter((u) => !u.includes('/api/albums?assetId='));
 
 describe('an anonymous request', () => {
   beforeEach(() => {
@@ -143,6 +145,21 @@ describe('an anonymous request', () => {
       const res = await send('GET', path);
       expect(res.status, path).not.toBe(200);
     }
+    expect(forwarded()).toEqual([]);
+  });
+
+  it('is not let in by a Referer naming a shared album the photo is not in', async () => {
+    const path = `assets/${VICTIM}/thumbnail`;
+    const url = new URL(`http://x.test/api/immich/${path}`);
+    const request = new Request(url, { headers: { referer: 'http://x.test/albums/alb' } });
+    const res = await proxy.GET({ request, url, params: { path }, fetch } as never);
+    expect(res.status).toBe(403);
+    expect(forwarded()).toEqual([]);
+  });
+
+  it('is answered 503, not served, when Immich does not say which albums hold the photo', async () => {
+    answer = () => new Response('down', { status: 500 });
+    expect((await send('GET', `assets/${PUBLIC}/thumbnail`)).status).toBe(503);
     expect(forwarded()).toEqual([]);
   });
 

@@ -11,7 +11,7 @@ import {
   proxiedAssetId,
   publicAssetId,
 } from '#lib/server/immich-proxy-allowlist.ts';
-import { requireAssetRead } from '#lib/server/asset-access.ts';
+import { isSharedLinkPhoto, requireAssetRead } from '#lib/server/asset-access.ts';
 import {
   assertNoProxiedFaceCall,
   classifyProxiedBody,
@@ -19,7 +19,6 @@ import {
   FaceFieldsTooDeepError,
 } from '#lib/server/face-access.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
-import { getDatabase } from '#lib/db/database.ts';
 
 const log = createLogger('immich-proxy');
 
@@ -34,7 +33,7 @@ const baseUrlFromEnv = env.IMMICH_BASE_URL;
 const apiKey = env.IMMICH_API_KEY ?? '';
 
 import type { RequestEvent } from '@sveltejs/kit';
-import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
+import { fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 /**
  * Cleans a header value to ensure it contains only Latin-1 characters.
@@ -58,8 +57,6 @@ interface ImmichAlbumResponse {
 
 interface ImmichAssetResponse {
   id: string;
-  albums?: ImmichAlbumResponse[];
-  albumId?: string;
   // Upload responses only: 'created' | 'replaced' | 'duplicate'.
   status?: string;
   [key: string]: unknown;
@@ -67,151 +64,6 @@ interface ImmichAssetResponse {
 
 interface BulkDeleteRequest {
   ids: string[];
-}
-
-/**
- * Tiny TTL memo used ONLY by the public (unauthenticated) asset-access checks
- * below. Browsing a public shared album calls checkPublicAssetAccess once per
- * image; without this, every image would re-fetch the same asset/album metadata
- * from Immich. Scope is deliberately narrow: JSON metadata only, no stats, no
- * cross-request invalidation. Entries are short-lived and self-expire.
- */
-const PUBLIC_META_TTL = 60_000; // 1 minute
-const PUBLIC_META_MAX = 200;
-const publicMetaStore = new Map<string, { data: unknown; expires: number }>();
-
-const publicMetaCache = {
-  get(key: string): unknown {
-    const entry = publicMetaStore.get(key);
-    if (!entry) {
-      return null;
-    }
-    if (Date.now() > entry.expires) {
-      publicMetaStore.delete(key);
-      return null;
-    }
-    return entry.data;
-  },
-  set(key: string, data: unknown): void {
-    if (publicMetaStore.size >= PUBLIC_META_MAX && !publicMetaStore.has(key)) {
-      // Map preserves insertion order: drop the oldest entry to cap growth.
-      const oldest = publicMetaStore.keys().next().value;
-      if (oldest !== undefined) {
-        publicMetaStore.delete(oldest);
-      }
-    }
-    publicMetaStore.set(key, { data, expires: Date.now() + PUBLIC_META_TTL });
-  },
-};
-
-/**
- * Checks if an asset belongs to an "unlisted" album (public via link).
- * If so, access is allowed even without authentication.
- */
-async function checkPublicAssetAccess(
-  assetId: string,
-  baseUrl: string,
-  apiKey: string,
-  referer?: string | null
-): Promise<boolean> {
-  if (!baseUrl || !apiKey) {
-    log.warn('public check: missing baseUrl or apiKey');
-    return false;
-  }
-
-  const assetUrl = `${baseUrl.replace(/\/$/, '')}/api/assets/${assetId}`;
-
-  let assetData = publicMetaCache.get(assetUrl) as ImmichAssetResponse | null;
-
-  if (assetData && (!assetData.albums || !Array.isArray(assetData.albums))) {
-    assetData = null; // stale/partial entry, force a refresh
-  }
-
-  if (!assetData) {
-    try {
-      const res = await fetch(assetUrl, {
-        signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-        headers: { 'x-api-key': apiKey, accept: 'application/json' },
-      });
-      if (!res.ok) {
-        log.warn(`public check fetch failed for ${assetId}: ${res.status} ${res.statusText}`);
-        return false;
-      }
-      assetData = (await res.json()) as ImmichAssetResponse;
-      publicMetaCache.set(assetUrl, assetData);
-    } catch (e) {
-      log.error('error fetching asset details for public check', e);
-      return false;
-    }
-  }
-
-  const albums = (assetData?.albums as ImmichAlbumResponse[]) || [];
-
-  if (assetData.albumId && !albums.find((a) => a.id === assetData?.albumId)) {
-    albums.push({ id: String(assetData.albumId) });
-  }
-
-  if ((!Array.isArray(albums) || albums.length === 0) && referer) {
-    const match = referer.match(/\/albums\/([a-f0-9-]{36})/);
-    if (match) {
-      const albumId = match[1];
-      const albumUrl = `${baseUrl.replace(/\/$/, '')}/api/albums/${albumId}`;
-
-      let albumData = publicMetaCache.get(albumUrl) as ImmichAlbumResponse | null;
-      if (!albumData) {
-        try {
-          const res = await fetch(albumUrl, {
-            signal: AbortSignal.timeout(OUTBOUND_BUDGET_MS),
-            headers: { 'x-api-key': apiKey, accept: 'application/json' },
-          });
-          if (res.ok) {
-            albumData = (await res.json()) as ImmichAlbumResponse;
-            publicMetaCache.set(albumUrl, albumData);
-          }
-        } catch (e) {
-          log.error('error fetching album details for referer check', e);
-        }
-      }
-
-      const assets = albumData?.assets;
-      if (Array.isArray(assets)) {
-        if (assets.some((a) => a.id === assetId)) {
-          albums.push({ id: albumId });
-        }
-      }
-    }
-  }
-
-  if (!Array.isArray(albums) || albums.length === 0) {
-    log.debug(`public check: asset ${assetId} has no albums linked in Immich response`);
-    return false;
-  }
-
-  try {
-    const db = getDatabase();
-    const albumIds = albums.map((a) => a.id).filter((id) => !!id);
-    if (albumIds.length === 0) {
-      return false;
-    }
-
-    const placeholders = albumIds.map(() => '?').join(',');
-
-    const stmt = db.prepare(
-      `SELECT id FROM albums WHERE id IN (${placeholders}) AND visibility = 'unlisted' LIMIT 1`
-    );
-    const result = stmt.get(...albumIds) as { id: string } | undefined;
-
-    if (!result) {
-      log.debug(
-        `public check: asset ${assetId} belongs to albums [${albumIds.join(', ')}] but none are unlisted in local DB`
-      );
-    }
-
-    return !!result;
-  } catch (e) {
-    log.error('error checking album visibility in DB', e);
-    return false;
-  }
 }
 
 // Must match CHUNK_SIZE in src/lib/album-operations.ts: used only to sanity-check
@@ -629,12 +481,14 @@ const handle: RequestHandler = async function (event) {
         const assetId = publicAssetId(clean);
 
         if (assetId) {
-          const isPublic = await checkPublicAssetAccess(
-            assetId,
-            baseUrlFromEnv || '',
-            apiKey,
-            request.headers.get('referer')
-          );
+          // A shared link's photo: Immich names the albums holding it (asset-access.ts).
+          const isPublic = await isSharedLinkPhoto(event.fetch, assetId);
+          if (isPublic === null) {
+            return new Response(JSON.stringify({ error: 'Photo access could not be checked' }), {
+              status: 503,
+              headers: { 'content-type': 'application/json' },
+            });
+          }
           if (isPublic) {
             void 0;
           } else {

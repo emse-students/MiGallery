@@ -139,6 +139,26 @@ async function albumsHolding(fetchFn: typeof fetch, assetId: string): Promise<st
 }
 
 /**
+ * Whether `assetId` is a photo of a shared link: Immich lists it in an album the gallery holds as
+ * `unlisted`. The album is named by Immich and by nothing the request carries. Null when Immich
+ * did not say.
+ */
+export async function isSharedLinkPhoto(
+  fetchFn: typeof fetch,
+  assetId: string
+): Promise<boolean | null> {
+  const albumIds = await albumsHolding(fetchFn, assetId.toLowerCase());
+  if (albumIds === null) {
+    return null;
+  }
+  const shared = albumIds.some(
+    (albumId) => getAlbumById(albumId)?.visibility?.toLowerCase() === 'unlisted'
+  );
+  log.debug('shared-link read judged', { shared, albums: albumIds.length });
+  return shared;
+}
+
+/**
  * Counts a refusal towards the viewer's one line of the window ({@link flushAssetRefusals}): a
  * grid of refused tiles is one line with its count, not a line per tile. The timer only decides
  * WHEN that line is written; no decision reads it.
