@@ -81,8 +81,20 @@ option adds the hash of each inline script it writes; the template's own theme s
   always 204, open to a handoff session in the step-up exemptions), and `noteCspReport` logs it
   through the `csp` logger as `would block: directive=... blocked=... page=... source=...` - once
   per distinct violation, then at its 10th, 100th... occurrence with the count; URLs lose their
-  query and fragment. When a release's log is quiet, the observed directives move to
-  `directives`.
+  query and fragment, and every control character and white space, so a reported value stays one
+  field of one line. Every line the route writes passes `logCspLine`, which writes at most
+  `CSP_REPORT_LINES_PER_HOUR` (200) in a clock hour, then one line saying the bound was passed,
+  then nothing until the next hour. When a release's log is quiet, the observed directives move
+  to `directives`.
+
+Two things to know when reading that log and the headers:
+
+- an SSR page is served `max-age=0, must-revalidate`, and after a revalidation it can reach the
+  browser as an old body with a new header, so the nonces differ and report-only logs false
+  `would block` lines for the page's own scripts. Reconcile that before `script-src` moves to
+  enforced;
+- the front's nginx `add_header` writes `X-Frame-Options` and `X-Content-Type-Options` too, so an
+  answer can carry each twice with the same value. That is harmless.
 
 Pinned by `tests/security-headers.test.ts` (unit tests, plus the headers read from the running
 test server).

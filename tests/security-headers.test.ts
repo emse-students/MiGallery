@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   applySecurityHeaders,
+  CSP_REPORT_LINES_PER_HOUR,
   CSP_REPORT_MAX_BYTES,
   forgetCspReports,
+  logCspLine,
   noteCspReport,
   SECURITY_HEADERS,
 } from '#lib/server/security-headers.ts';
@@ -97,6 +99,67 @@ describe('a violation report', () => {
 
   it.each(['not json', '{}', '[]', 'null', '{"csp-report":"text"}'])('drops %p', (raw) => {
     expect(noteCspReport(raw)).toBeNull();
+  });
+
+  /** U+2028, which ends a line as a newline does; named by its code so no tool rewrites it. */
+  const LINE_SEPARATOR = String.fromCharCode(0x2028);
+
+  it('writes no control character and no white space of a reported value', () => {
+    const line = noteCspReport(
+      report(
+        `https://cdn.example/a.js\r\n2026-11-12 [SECURITY] forged\u0000\u001b[31m${LINE_SEPARATOR} line`
+      )
+    );
+
+    expect(line).toContain(
+      'blocked=https://cdn.example/a.js2026-11-12[SECURITY]forged[31mline page='
+    );
+    expect(line).not.toMatch(/\p{Cc}/u);
+    expect(line).not.toContain(LINE_SEPARATOR);
+    expect(line?.split(' ')).toHaveLength(8);
+  });
+
+  it('names a value made only of control characters as absent', () => {
+    expect(noteCspReport(report('\n\r\t'))).toContain('blocked=- page=');
+  });
+});
+
+describe('the lines a report may write', () => {
+  beforeEach(() => forgetCspReports());
+
+  const HOUR = 3_600_000;
+  const distinct = (n: number) =>
+    JSON.stringify({
+      'csp-report': { 'effective-directive': 'img-src', 'blocked-uri': `https://x.example/${n}` },
+    });
+
+  it('stop at the hourly bound, whatever is sent, and the bound is said once', () => {
+    const at = 7 * HOUR + 5;
+
+    const written = Array.from({ length: CSP_REPORT_LINES_PER_HOUR + 400 }, (_, n) =>
+      logCspLine(`line ${n}`, at)
+    ).filter(Boolean);
+
+    expect(written).toHaveLength(CSP_REPORT_LINES_PER_HOUR + 1);
+    expect(written.at(-2)).toBe(`line ${CSP_REPORT_LINES_PER_HOUR - 1}`);
+    expect(written.at(-1)).toContain('report lines this hour');
+  });
+
+  it('count every kind of line: a violation, an unreadable report, a dropped one', () => {
+    const at = 7 * HOUR;
+    for (let n = 1; n < CSP_REPORT_LINES_PER_HOUR; n++) noteCspReport(distinct(n), at);
+
+    expect(noteCspReport('not json', at)).toBeNull();
+    expect(noteCspReport(distinct(0), at)).toBeNull();
+    expect(logCspLine('a report of 9000 bytes was dropped unread', at)).toBeNull();
+  });
+
+  it('start again in the next clock hour', () => {
+    const at = 7 * HOUR;
+    for (let n = 0; n <= CSP_REPORT_LINES_PER_HOUR; n++) noteCspReport(distinct(n), at);
+
+    expect(noteCspReport(distinct(-1), at + HOUR - 1)).toBeNull();
+    expect(noteCspReport(distinct(-2), at + HOUR)).toContain('(occurrence #1)');
   });
 });
 
