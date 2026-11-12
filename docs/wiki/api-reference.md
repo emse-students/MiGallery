@@ -43,9 +43,10 @@ alone - `GET /api/immich/assets/{id}` and its picture, file and video, `GET /api
 `POST /api/download`: a key or the staff; otherwise a face of the photo that is the member's own (shown,
 or waiting for their answer), a face shown as a member's who authorised them, or an album they may open.
 The face rules are read from the database on every request. Which albums hold a photo is asked of
-Immich and kept a minute per photo; 503 when Immich does not say, 403 otherwise, one line per viewer and
-photo per minute. A download names at most 200 photos, each judged when the token is minted (as the
-album's photos when `albumId` is given); the token carries those ids and the redemption takes nothing else.
+Immich and kept a minute per photo; 503 when Immich does not say, 403 otherwise - one line per viewer
+per minute, with the count and the first photos. A download names at most 200 photos, each judged when
+the token is minted (as the album's photos when `albumId` is given); the token carries those ids, the
+redemption takes nothing else, and only the caller who minted it redeems it.
 
 **staff** is `requireStaff` (`src/lib/server/permissions.ts`): a session holding the `admin` or
 `mitviste` role, or a key holding the `write` scope.

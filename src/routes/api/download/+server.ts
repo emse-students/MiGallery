@@ -14,7 +14,7 @@ const log = createLogger('download');
  * POST /api/download - mints a one-time token for an archive of the photos named.
  *
  * Every id is judged HERE, as the caller, and the token records exactly the ids that passed: the
- * redemption (`GET /api/download/[token]`) takes nothing but the token. With `albumId` the photos
+ * redemption (`GET /api/download/[token]`) takes nothing but the token, from the same caller. With `albumId` the photos
  * are read as that album's (one membership read for the whole batch); without it each follows the
  * rule of a photo asked for by its id (asset-access.ts).
  */
@@ -53,7 +53,7 @@ export const POST: RequestHandler = async (event) => {
   }
 
   const filename = typeof body?.filename === 'string' && body.filename ? body.filename : 'album';
-  const token = createDownloadToken(ids, filename);
+  const token = createDownloadToken(ids, filename, auth.user?.id_user ?? null);
   log.info('download token minted', { count: ids.length, album: albumId !== undefined });
   return json({ token });
 };

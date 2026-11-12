@@ -27,21 +27,46 @@ import { assertImmichId } from '#lib/server/immich-id.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 import type { AuthResult } from '#lib/server/permissions.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { registerShutdown } from '#lib/server/shutdown.ts';
 
 const log = createLogger('asset-access');
 
-/** How long Immich's answer on one photo's albums is kept, and a refusal is not logged again. */
+/** How long Immich's answer on one photo's albums is kept, and the window of one refusal line. */
 const WINDOW_MS = 60_000;
 /** A grid asks for hundreds of photos at once; past this the oldest entry goes. */
 const MAX_ENTRIES = 2000;
 
 const albumsOfAsset = new Map<string, { ids: string[]; expires: number }>();
-const loggedRefusals = new Map<string, number>();
+/** How many photo ids one refusal line names. */
+const REFUSAL_SAMPLE = 5;
+/** The refusals of each viewer that wait for their one line. */
+const pendingRefusals = new Map<string, { count: number; sample: string[] }>();
+let refusalFlush: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Writes the ONE line each viewer's refusals of the window get - how many, and the first few
+ * photos - and empties the window. Run by the window's timer and at shutdown; a test calls it.
+ */
+export function flushAssetRefusals(): void {
+  if (refusalFlush !== null) {
+    clearTimeout(refusalFlush);
+    refusalFlush = null;
+  }
+  for (const [viewer, { count, sample }] of pendingRefusals) {
+    log.warn('photo reads refused', { viewer, count, firstAssetIds: sample });
+  }
+  pendingRefusals.clear();
+}
+registerShutdown('photo refusal log', flushAssetRefusals);
 
 /** Test hook: forget what Immich said and which refusals were logged. */
 export function clearAssetAccessCache(): void {
   albumsOfAsset.clear();
-  loggedRefusals.clear();
+  pendingRefusals.clear();
+  if (refusalFlush !== null) {
+    clearTimeout(refusalFlush);
+    refusalFlush = null;
+  }
 }
 
 /** `map.set`, dropping the oldest entry once the map holds {@link MAX_ENTRIES}. */
@@ -113,15 +138,25 @@ async function albumsHolding(fetchFn: typeof fetch, assetId: string): Promise<st
   }
 }
 
-/** One warn line per viewer and photo per {@link WINDOW_MS}: a grid of refusals is one line each. */
+/**
+ * Counts a refusal towards the viewer's one line of the window ({@link flushAssetRefusals}): a
+ * grid of refused tiles is one line with its count, not a line per tile. The timer only decides
+ * WHEN that line is written; no decision reads it.
+ */
 function logRefusal(viewerId: string, assetId: string): void {
-  const key = `${viewerId}|${assetId}`;
-  const until = loggedRefusals.get(key);
-  if (until !== undefined && Date.now() < until) {
-    return;
+  const pending = pendingRefusals.get(viewerId);
+  if (pending) {
+    pending.count++;
+    if (pending.sample.length < REFUSAL_SAMPLE && !pending.sample.includes(assetId)) {
+      pending.sample.push(assetId);
+    }
+  } else {
+    setBounded(pendingRefusals, viewerId, { count: 1, sample: [assetId] });
   }
-  setBounded(loggedRefusals, key, Date.now() + WINDOW_MS);
-  log.warn('photo read refused', { viewer: viewerId, assetId });
+  if (refusalFlush === null) {
+    refusalFlush = setTimeout(flushAssetRefusals, WINDOW_MS);
+    refusalFlush.unref?.();
+  }
 }
 
 /**

@@ -14,6 +14,12 @@ import { removeTempDir } from './test-helpers';
 
 type Viewer = { id_user: string; role: string; formation?: string; promo?: number };
 
+// The refusal line is a warn, which the logger drops under test unless told otherwise; the level
+// is read when the logger loads, so it is set before anything imports it.
+vi.hoisted(() => {
+  process.env.LOG_LEVEL = 'warn';
+});
+
 const state = vi.hoisted(() => ({
   user: null as null | { id_user: string; role: string; formation?: string; promo?: number },
 }));
@@ -260,6 +266,32 @@ describe('a photo read by its id, by a member', () => {
   });
 });
 
+describe('a grid of refused photos', () => {
+  it('writes one line for the viewer, with its count and the first photos', async () => {
+    const lines = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      for (let n = 0; n < 40; n++) {
+        const path = `assets/${id(500 + n)}/thumbnail`;
+        const event = eventFor(`/api/immich/${path}`, { path });
+        expect(await statusOf(proxy.GET as unknown as Handler, event)).toBe(403);
+      }
+      const refused = () =>
+        lines.mock.calls.filter((call) => String(call[0]).includes('photo reads refused'));
+      // Nothing is written per tile; the window's one line comes when it closes.
+      expect(refused()).toEqual([]);
+      access.flushAssetRefusals();
+      expect(refused().length).toBe(1);
+      expect(refused()[0][1]).toEqual({
+        viewer: MEMBER.id_user,
+        count: 40,
+        firstAssetIds: [0, 1, 2, 3, 4].map((n) => id(500 + n)),
+      });
+    } finally {
+      lines.mockRestore();
+    }
+  });
+});
+
 describe('a photo read by its id, by the staff', () => {
   it('is served whatever it is, without asking Immich where it is', async () => {
     state.user = STAFF;
@@ -293,6 +325,18 @@ describe('a download', () => {
     expect(JSON.parse(archive?.body ?? '{}')).toEqual({ assetIds: [MINE, ASKED_OF_ME] });
     // One use: the same token opens nothing a second time.
     expect(await statusOf(redeem.GET as unknown as Handler, event)).toBe(404);
+  });
+
+  it('is redeemed by the member who asked for it, and by nobody else', async () => {
+    const { token } = (await (await mintFor({ assetIds: [MINE] })).json()) as { token: string };
+    const event = () => eventFor(`/api/download/${token}`, { token });
+    state.user = { id_user: 'other', role: 'user' };
+    expect(await statusOf(redeem.GET as unknown as Handler, event())).toBe(403);
+    state.user = null;
+    expect(await statusOf(redeem.GET as unknown as Handler, event())).toBe(401);
+    // Refused redemptions did not spend it: its owner still downloads.
+    state.user = MEMBER;
+    expect(await statusOf(redeem.GET as unknown as Handler, event())).toBe(200);
   });
 
   it('reads the photos as those of the album it names', async () => {

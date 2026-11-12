@@ -1,17 +1,28 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { consumeDownloadToken } from '#lib/server/download-tokens.ts';
+import { requireScope } from '#lib/server/permissions.ts';
+import { createLogger } from '#lib/server/logger.ts';
 import { env } from '#lib/server/env.ts';
 import { ensureError } from '#lib/ts-utils.ts';
 import { fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
+const log = createLogger('download-token');
 
 export const GET: RequestHandler = async (event) => {
   const { token } = event.params;
-  const data = consumeDownloadToken(token);
+  // A token is redeemed by the caller who minted it: the same member, or a key for a key's.
+  const auth = await requireScope(event, 'read');
+  const data = consumeDownloadToken(token, auth.user?.id_user ?? null);
 
+  if (data === 'other') {
+    log.warn('download token refused: it was minted by another caller', {
+      viewer: auth.user?.id_user ?? null,
+    });
+    throw error(403, 'This download belongs to another session');
+  }
   if (!data) {
     throw error(404, 'Invalid or expired download token');
   }
