@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { requireScope } from '#lib/server/permissions.ts';
 import { assertImmichId } from '#lib/server/immich-id.ts';
+import { requireAssetRead } from '#lib/server/asset-access.ts';
 import { assertProxiedDeleteAllowed } from '#lib/server/immich-proxy-allowlist.ts';
 import { OUTBOUND_BUDGET_MS, fetchWithAnswerDeadline } from '#lib/server/outbound.ts';
 
@@ -10,8 +11,9 @@ const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
 
 export const GET: RequestHandler = async (event) => {
-  await requireScope(event, 'read');
+  const auth = await requireScope(event, 'read');
   const id = assertImmichId(event.params.id, 'asset');
+  await requireAssetRead(event, auth, id);
   if (!IMMICH_BASE_URL) {
     throw error(500, 'IMMICH_BASE_URL not configured');
   }

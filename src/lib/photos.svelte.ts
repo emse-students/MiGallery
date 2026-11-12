@@ -103,6 +103,8 @@ export class PhotosState {
   #_prevImageUrl = $state<string | null>(null);
   #personName = $state<string>('');
   #memberId = $state<string>('');
+  /** The album this state shows, when it shows one: a download reads the photos as that album's. */
+  albumId: string | null = null;
   #isDownloading = $state(false);
   #downloadProgress = $state(0);
   currentDownloadController: AbortController | null = null;
@@ -520,6 +522,7 @@ export class PhotosState {
           this.downloadProgress = p;
         },
         signal: controller.signal,
+        albumId: this.albumId ?? undefined,
       });
       this.exitSelection();
     } catch (e: unknown) {
@@ -547,6 +550,7 @@ export class PhotosState {
     this.error = null;
     this.assets = [];
     this.personName = albumName || 'Album';
+    this.albumId = albumId;
 
     try {
       const qp = visibility ? `?visibility=${encodeURIComponent(visibility)}` : '';
@@ -635,29 +639,6 @@ export class PhotosState {
       console.warn('Error loading favorites:', e);
       // eslint-disable-next-line svelte/prefer-svelte-reactivity
       return new Set();
-    }
-  }
-
-  /**
-   * Loads the user's favorites and updates the assets
-   */
-  async loadFavorites(): Promise<void> {
-    try {
-      const res = await fetch('/api/favorites');
-      if (!res.ok) {
-        return;
-      }
-
-      const data = (await res.json()) as { favorites: string[] };
-      // eslint-disable-next-line svelte/prefer-svelte-reactivity
-      const favoriteSet = new Set(data.favorites);
-
-      this.assets = this.assets.map((a) => ({
-        ...a,
-        isFavorite: favoriteSet.has(a.id),
-      }));
-    } catch (e: unknown) {
-      console.warn('Error loading favorites:', e);
     }
   }
 
