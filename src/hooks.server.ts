@@ -136,7 +136,7 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
     // clothes (clickjacking).
     response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
   } else {
-    const policy = cacheControlFor(pathname, response.headers.get('content-type'));
+    const policy = cacheControlFor(pathname, response.status);
     if (policy) response.headers.set('Cache-Control', policy);
   }
 
