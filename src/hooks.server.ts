@@ -18,6 +18,7 @@ import { startLogRetention } from '#lib/server/logs.ts';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
+import { cacheControlFor } from '#lib/server/cache-policy.ts';
 
 // adapter-bun drains on SIGTERM but never exits: this listener stops the timers below and exits
 installShutdownListener();
@@ -134,14 +135,6 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
     // Never framed: a framing page could otherwise dress the interstitial's "Continuer" in its own
     // clothes (clickjacking).
     response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
-  } else if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
-    response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
-  } else if (/\/_app\//.test(pathname)) {
-    response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
-  } else if (pathname === '/' || pathname.endsWith('.html')) {
-    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
-  } else if (!pathname.startsWith('/api/')) {
-    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
   }
 
   if (isApiExternalRoute || pathname.startsWith('/api/')) {
@@ -250,6 +243,14 @@ const robotsHandler: Handle = async ({ event, resolve }) => {
   }
   if (!isIndexable(event.url.pathname)) {
     response.headers.set('X-Robots-Tag', NOINDEX_HEADER);
+  }
+  // The cache policy is written HERE, in the outermost handler, so that an answer an inner handler
+  // returned without resolving (a refused cross-site request, a preflight) and a thrown redirect
+  // carry it too. The handoff landing page keeps the stricter value its handler set.
+  const { pathname } = event.url;
+  if (pathname !== HANDOFF_LANDING_PATH || !response.headers.has('Cache-Control')) {
+    const policy = cacheControlFor(pathname, response.status);
+    if (policy) response.headers.set('Cache-Control', policy);
   }
   return response;
 };

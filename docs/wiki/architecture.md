@@ -13,16 +13,16 @@ with `sequence(...)`:
 sequence(corsAndCsrfHandler, sessionHandler)
 ```
 
-1. **`corsAndCsrfHandler`** owns cross-origin and CSRF policy, because SvelteKit's
-   native CSRF check is disabled in `svelte.config.js`:
+1. **`corsAndCsrfHandler`** owns cross-origin and CSRF policy for every content type. SvelteKit's
+   native check stays on for FORM content types with a list of trusted origins (`csrf` in
+   `vite.config.ts`); it answers before any handler runs, so its 403 carries no header a hook
+   writes:
    - Answers `OPTIONS` preflights with the CORS headers.
    - For mutating methods (`POST/PUT/DELETE/PATCH`) it verifies the `Origin`
      against an allow-list (`ALLOWED_ORIGINS`), unless the path is CSRF-exempt.
      Exempt prefixes (`CSRF_EXEMPT_PATHS`): `/api/external/` and `/api/auth/` -
      these authenticate by `x-api-key`, not cookies, so CSRF does not apply.
-   - Sets `Cache-Control` per asset type (hashed `/_app/` and images are
-     immutable for 2 days; HTML and non-API routes are `max-age=0,
-     must-revalidate`) and the CORS headers on API responses.
+   - Sets the CORS headers on API responses.
 
 2. **`sessionHandler`** resolves the session once (`getSession`, shaped by
    `sessionUserOf`) into `event.locals.user` (or `null`) and opportunistically
@@ -32,6 +32,22 @@ sequence(corsAndCsrfHandler, sessionHandler)
    `src/lib/server/step-up.ts`; [authentication](authentication.md#signed-in-from-canari-the-sign-in-handoff)).
    The `/auth/handoff` landing page gets `Cache-Control: no-store` and
    `Referrer-Policy: no-referrer` from the first handler.
+
+**`Cache-Control` is written by the OUTERMOST handler (`robotsHandler`)**, through
+`cacheControlFor` (`src/lib/server/cache-policy.ts`, pinned by `tests/cache-policy.test.ts`), so
+an answer an inner handler returned without resolving (the 403 of a refused cross-site request, a
+preflight) and a thrown redirect carry it too. The default is `private, no-store`: a page, the
+`__data.json` that carries its data, a redirect and an error are answers to the member who asked.
+Only an explicit list is shared, and only when it was SERVED (2xx or 304): hashed `/_app/` files
+and static images and fonts are public and immutable for 2 days, `robots.txt` and the manifest are
+`public, max-age=0, must-revalidate`. An `/api/` route keeps the policy it set itself, whatever
+its path ends with.
+
+**In production the hook does not see the files of the build.** `adapter-bun` serves `/_app/`
+and everything under `static/` from its own routes, before SvelteKit's `handle` runs, and writes
+their headers itself; the list above reaches a file only where the hook does serve it (the dev
+server, a prerendered or generated path). What the hook decides in production is everything
+else: pages, data, redirects, errors, and a path that LOOKS like a file and is not one.
 
 A daily backup scheduler (`startBackupScheduler`) is kicked off once at module
 load.
