@@ -6,11 +6,12 @@ proxy to Immich. There are no separate backend services.
 
 ## Request lifecycle
 
-Every request passes through `src/hooks.server.ts`, which composes two handles
-with `sequence(...)`:
+Every request passes through `src/hooks.server.ts`, which composes its handles
+with `sequence(...)` (`robotsHandler` is the outermost: it stamps `X-Robots-Tag` and the
+[security headers](#security-headers-and-the-content-security-policy) on every answer):
 
 ```
-sequence(corsAndCsrfHandler, sessionHandler)
+sequence(robotsHandler, paraglideHandler, corsAndCsrfHandler, sessionHandler)
 ```
 
 1. **`corsAndCsrfHandler`** owns cross-origin and CSRF policy, because SvelteKit's
@@ -40,6 +41,35 @@ There is no global auth gate in the hook: pages and API endpoints enforce access
 themselves via the permission helpers (see
 [authentication.md](authentication.md)). Unauthenticated visitors can reach
 public pages and unlisted albums; everything else is gated at the handler.
+
+## Security headers and the content security policy
+
+Every answer - a page, an API answer, a redirect - carries `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: SAMEORIGIN`. They are
+written by the outermost handler of `src/hooks.server.ts` (`robotsHandler`) through
+`applySecurityHeaders` (`src/lib/server/security-headers.ts`), which keeps a stricter value an
+inner handler already set: the `/auth/handoff` landing page keeps its `Referrer-Policy: no-referrer`
+and its `Content-Security-Policy: frame-ancestors 'none'`. `Strict-Transport-Security` is the
+front's: it belongs to whatever terminates TLS.
+
+The content security policy lives in `csp.config.ts`, read by `vite.config.ts` (SvelteKit's `csp`
+option adds the hash of each inline script it writes; the template's own theme script in
+`src/app.html` is hashed from the file by `csp.config.ts`), in two stages:
+
+- **enforced**: `frame-ancestors 'self'`;
+- **observed for one release** (`Content-Security-Policy-Report-Only`): `default-src 'self'` and
+  the directives beside it. Same-origin everywhere (photos are proxied through `/api/immich/...`),
+  plus `data:` and `blob:` for images, `blob:` for media, and Google Fonts for the web fonts
+  (`fonts.googleapis.com` styles, `fonts.gstatic.com` files). Nothing is blocked. A browser posts
+  each violation to `POST /api/csp-report` (public, stores nothing, bodies over 8 KB dropped,
+  always 204, open to a handoff session in the step-up exemptions), and `noteCspReport` logs it
+  through the `csp` logger as `would block: directive=... blocked=... page=... source=...` - once
+  per distinct violation, then at its 10th, 100th... occurrence with the count; URLs lose their
+  query and fragment. When a release's log is quiet, the observed directives move to
+  `directives`.
+
+Pinned by `tests/security-headers.test.ts` (unit tests, plus the headers read from the running
+test server).
 
 ## Logging
 

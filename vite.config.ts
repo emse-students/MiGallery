@@ -7,6 +7,7 @@ import tailwindcss from '@tailwindcss/vite';
 import browserslist from 'browserslist';
 import { browserslistToTargets } from 'lightningcss';
 import pkg from './package.json' with { type: 'json' };
+import { CSP } from './csp.config';
 
 /** Route modules that exist only under `vite dev` and in the `--mode test` build. */
 const DEV_ONLY_ROUTES = ['/src/routes/dev/login-as/+server.ts'];
@@ -60,6 +61,9 @@ export default defineConfig({
       // `:global(...)` was reported as an unknown pseudo-class on every dev start. Svelte's
       // compiled CSS still goes through vite's lightningcss afterwards, targets included.
       preprocess: vitePreprocess({ script: true, style: false }),
+      // Enforced: no framing by another site. Observed for one release: everything else
+      // (csp.config.ts, docs/wiki/architecture.md).
+      csp: CSP,
       prerender: {
         handleHttpError: 'warn',
       },
