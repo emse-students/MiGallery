@@ -42,15 +42,62 @@ const MAX_REMEMBERED = 500;
 
 const seen = new Map<string, number>();
 
-/** Forget every violation counted so far (tests). */
+/** Report lines written in one clock hour; a page that breaks the policy says a handful. */
+export const CSP_REPORT_LINES_PER_HOUR = 200;
+
+const HOUR_MS = 3_600_000;
+
+let lineHour = -1;
+let linesThisHour = 0;
+
+/** Forget every violation and every line counted so far (tests). */
 export function forgetCspReports(): void {
   seen.clear();
+  lineHour = -1;
+  linesThisHour = 0;
 }
 
-/** A URL reduced to what names the resource: no query, no fragment, bounded. */
+/**
+ * Writes one line about a report, unless this clock hour already wrote
+ * {@link CSP_REPORT_LINES_PER_HOUR}: the route is public, so what it may write is bounded whatever
+ * is sent to it. The line that passes the bound is replaced by ONE line saying so, and the rest of
+ * the hour writes nothing. The hour is the only thing read from the clock.
+ *
+ * @returns what was written: `line`, the one line that says the bound was passed, or `null`
+ */
+export function logCspLine(line: string, now: number = Date.now()): string | null {
+  const hour = Math.floor(now / HOUR_MS);
+  if (hour !== lineHour) {
+    lineHour = hour;
+    linesThisHour = 0;
+  }
+  linesThisHour += 1;
+  if (linesThisHour <= CSP_REPORT_LINES_PER_HOUR) {
+    log.warn(line);
+    return line;
+  }
+  if (linesThisHour > CSP_REPORT_LINES_PER_HOUR + 1) {
+    return null;
+  }
+  const bound = `more than ${CSP_REPORT_LINES_PER_HOUR} report lines this hour: nothing more is written until the next`;
+  log.warn(bound);
+  return bound;
+}
+
+/**
+ * A URL reduced to what names the resource: no query, no fragment, bounded - and no control
+ * character or white space, so a value never ends the log line it is written in nor reads as a
+ * second field of it.
+ */
 function bare(value: unknown): string {
-  if (typeof value !== 'string' || value === '') return '-';
-  return value.split(/[?#]/)[0].slice(0, 200);
+  if (typeof value !== 'string') {
+    return '-';
+  }
+  const named = value
+    .split(/[?#]/)[0]
+    .replace(/[\p{Cc}\s]/gu, '')
+    .slice(0, 200);
+  return named === '' ? '-' : named;
 }
 
 /**
@@ -61,14 +108,15 @@ function bare(value: unknown): string {
  * Both report shapes are read: the `report-uri` one (`{"csp-report": {...}}`) and the Reporting
  * API one (`[{"type":"csp-violation","body":{...}}]`).
  *
- * @returns the line that was logged, or `null` when nothing was (unreadable, or already said)
+ * @returns the line that was logged, or `null` when nothing was (unreadable, already said, or
+ *   past the hour's bound)
  */
-export function noteCspReport(raw: string): string | null {
+export function noteCspReport(raw: string, now: number = Date.now()): string | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    log.warn('a report that is not JSON was dropped');
+    logCspLine('a report that is not JSON was dropped', now);
     return null;
   }
   const first = Array.isArray(parsed) ? parsed[0] : parsed;
@@ -76,7 +124,7 @@ export function noteCspReport(raw: string): string | null {
     (first as Record<string, unknown> | null)?.['csp-report'] ??
     (first as Record<string, unknown> | null)?.body;
   if (!body || typeof body !== 'object') {
-    log.warn('a report with no violation in it was dropped');
+    logCspLine('a report with no violation in it was dropped', now);
     return null;
   }
   const report = body as Record<string, unknown>;
@@ -94,6 +142,5 @@ export function noteCspReport(raw: string): string | null {
   if (count !== 1 && !/^10*$/.test(String(count))) return null;
 
   const line = `would block: directive=${directive} blocked=${blocked} page=${page} source=${source} (occurrence #${count})`;
-  log.warn(line);
-  return line;
+  return logCspLine(line, now) === line ? line : null;
 }
