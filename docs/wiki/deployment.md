@@ -98,6 +98,13 @@ they can be tested without a run - and they are, on both sides of every gate:
    did exactly that, and a second run is a second opinion about the same tree, the one that ships.
    **An absent check is refused too**: that is not a failure, it means nothing ever asked.
 
+**A value reaches a workflow script through `env:`, never written into its text.** A `${{ }}`
+expression inside a `run:` is substituted before the shell reads the script, so its value is read
+as code; passed through `env:` it is data, and the script reads the variable. A tag name, an
+event name, a login and a token all travel that way.
+`.github/scripts/tests/workflow-expressions.test.sh` reads every workflow in CI and fails on an
+expression found in a script; it first plants two in a sample, so its silence means something.
+
 Only then does it call `deploy.yml` - which is `cd.yml`'s two jobs, now a **library with no trigger
 of its own**. The image carries a `v<version>` tag alongside `latest`, so a running container is
 traceable to a release rather than to a commit nobody remembers publishing. A second job packages
