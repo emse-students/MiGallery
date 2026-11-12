@@ -135,9 +135,6 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
     // Never framed: a framing page could otherwise dress the interstitial's "Continuer" in its own
     // clothes (clickjacking).
     response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
-  } else {
-    const policy = cacheControlFor(pathname, response.status);
-    if (policy) response.headers.set('Cache-Control', policy);
   }
 
   if (isApiExternalRoute || pathname.startsWith('/api/')) {
@@ -246,6 +243,14 @@ const robotsHandler: Handle = async ({ event, resolve }) => {
   }
   if (!isIndexable(event.url.pathname)) {
     response.headers.set('X-Robots-Tag', NOINDEX_HEADER);
+  }
+  // The cache policy is written HERE, in the outermost handler, so that an answer an inner handler
+  // returned without resolving (a refused cross-site request, a preflight) and a thrown redirect
+  // carry it too. The handoff landing page keeps the stricter value its handler set.
+  const { pathname } = event.url;
+  if (pathname !== HANDOFF_LANDING_PATH || !response.headers.has('Cache-Control')) {
+    const policy = cacheControlFor(pathname, response.status);
+    if (policy) response.headers.set('Cache-Control', policy);
   }
   return response;
 };

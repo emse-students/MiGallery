@@ -97,6 +97,18 @@ describe('the server applies it', () => {
     expect(missing.headers.get('cache-control')).toBe(PRIVATE);
   });
 
+  it('a cross-site request the hook refuses comes back private and not stored', async () => {
+    const refused = await fetch(`${API_BASE_URL}/`, {
+      method: 'POST',
+      headers: { origin: 'https://elsewhere.example', 'content-type': 'application/json' },
+      body: '{}',
+      redirect: 'manual',
+    });
+
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get('cache-control')).toBe('private, no-store');
+  });
+
   it('an API answer is not relabelled by the hook', async () => {
     const health = await fetch(`${API_BASE_URL}/api/health`);
 
