@@ -3,6 +3,7 @@ import { env } from '#lib/server/env.ts';
 import { restoreAssetsFromTrash } from '#lib/server/immich-trash.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
+import { assertImmichId } from '#lib/server/immich-id.ts';
 
 const log = createLogger('immich-album-assets');
 
@@ -41,6 +42,8 @@ async function mutateAlbumAssets(
   if (!Array.isArray(ids) || ids.length === 0) {
     throw error(400, 'ids required');
   }
+
+  assertImmichId(albumId, 'album');
 
   const verb = method === 'PUT' ? 'add' : 'remove';
 

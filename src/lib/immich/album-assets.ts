@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { OUTBOUND_BUDGET_MS, immichCall } from '#lib/server/outbound.ts';
 import { createLogger } from '#lib/server/logger.ts';
+import { assertImmichId } from '#lib/server/immich-id.ts';
 
 const log = createLogger('album-assets');
 const IMMICH_BASE_URL = (typeof process !== 'undefined' && process.env?.IMMICH_BASE_URL) || '';
@@ -29,6 +30,7 @@ export async function fetchAlbumAssets(
   if (!baseUrl || !albumId) {
     return [];
   }
+  assertImmichId(albumId, 'album');
 
   // The body is read INSIDE the call: the deadline also covers it, and a timeout there must be a 504.
   const album = await immichCall(log, 'GET /api/albums/{id}', async () => {

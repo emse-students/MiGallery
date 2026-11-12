@@ -28,6 +28,9 @@ import { withSystemAlbum } from '../src/lib/immich/system-albums';
 import { immichCall } from '../src/lib/server/outbound';
 import { photosFailureMessage } from '../src/lib/photos-failure';
 
+/** An album id of the shape Immich issues: only such an id reaches an Immich URL. */
+const ALBUM = '00000000-0000-4000-8000-000000000001';
+
 const timeout = () => new DOMException('The operation timed out.', 'TimeoutError');
 const json = (b: unknown) =>
   new Response(JSON.stringify(b), { headers: { 'content-type': 'application/json' } });
@@ -78,20 +81,20 @@ describe('album reads', () => {
   it('a 404 is a typed 404, a timeout a 504, a refused member page a 502 (never a truncation)', async () => {
     const notFound = vi.fn(async () => new Response('', { status: 404 }));
     expect(
-      (await fetchAlbumAssets(notFound as never, 'http://i', 'k', 'x').catch((e) => e)).status
+      (await fetchAlbumAssets(notFound as never, 'http://i', 'k', ALBUM).catch((e) => e)).status
     ).toBe(404);
     const slow = vi.fn(async () => {
       throw timeout();
     });
     expect(
-      (await fetchAlbumAssets(slow as never, 'http://i', 'k', 'x').catch((e) => e)).status
+      (await fetchAlbumAssets(slow as never, 'http://i', 'k', ALBUM).catch((e) => e)).status
     ).toBe(504);
     let n = 0;
     const refusing = vi.fn(async () =>
       n++ === 0 ? json({ id: 'x' }) : new Response('', { status: 500 })
     );
     expect(
-      (await fetchAlbumAssets(refusing as never, 'http://i', 'k', 'x').catch((e) => e)).status
+      (await fetchAlbumAssets(refusing as never, 'http://i', 'k', ALBUM).catch((e) => e)).status
     ).toBe(502);
   });
 });
@@ -123,9 +126,13 @@ describe('a stored id that Immich no longer honours', () => {
     const renamed = vi.fn(async () =>
       json({ id: 'x', albumName: 'Holidays', assets: [{ id: 'a' }] })
     );
-    const failure = await fetchAlbumAssets(renamed as never, 'http://i', 'k', 'x', 'PhotoCV').catch(
-      (e) => e
-    );
+    const failure = await fetchAlbumAssets(
+      renamed as never,
+      'http://i',
+      'k',
+      ALBUM,
+      'PhotoCV'
+    ).catch((e) => e);
     expect(failure.status).toBe(404);
   });
 });
@@ -142,7 +149,9 @@ describe('the body is under the deadline too', () => {
           },
         }) as unknown as Response
     );
-    const failure = await fetchAlbumAssets(slowBody as never, 'http://i', 'k', 'x').catch((e) => e);
+    const failure = await fetchAlbumAssets(slowBody as never, 'http://i', 'k', ALBUM).catch(
+      (e) => e
+    );
     expect(failure.status).toBe(504);
   });
 });

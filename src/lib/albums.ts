@@ -1,5 +1,16 @@
 import { getDatabase } from '#lib/db/database.ts';
-import type { User, AlbumRow } from '#lib/types/api.ts';
+import type { AlbumRow } from '#lib/types/api.ts';
+
+/**
+ * The part of a viewer the album rule reads. A session user and a database row both carry it, so
+ * the pages and the API routes ask the one rule with what they hold.
+ */
+export interface AlbumViewer {
+  id_user: string;
+  role?: string | null;
+  formation?: string | null;
+  promo?: number | null;
+}
 
 /**
  * Check whether a given user can access an album row from our local albums table.
@@ -12,7 +23,7 @@ import type { User, AlbumRow } from '#lib/types/api.ts';
  * - visibility 'unlisted' => only users with explicit permission/criteria or mitviste/admin
  * - visibility 'private' => only users with explicit permission/criteria or mitviste/admin
  */
-export function checkAlbumAccess(user: User | null | undefined, album: AlbumRow): boolean {
+export function checkAlbumAccess(user: AlbumViewer | null | undefined, album: AlbumRow): boolean {
   const vis = (album.visibility || 'authenticated').toLowerCase();
   if (vis === 'unlisted') {
     return true;

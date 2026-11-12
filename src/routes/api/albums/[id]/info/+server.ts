@@ -2,19 +2,19 @@ import { json } from '@sveltejs/kit';
 
 import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireAlbumAccess } from '#lib/server/album-asset-access.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-info');
 export const GET: RequestHandler = async (event) => {
+  const { id } = event.params;
+  if (!id) {
+    return json({ error: 'Missing album ID' }, { status: 400 });
+  }
+  // Before the try: a refusal keeps its own status, never the 500 of the catch below.
+  await requireAlbumAccess(event, id);
   try {
-    await requireScope(event, 'read');
-    const { id } = event.params;
-    if (!id) {
-      return json({ error: 'Missing album ID' }, { status: 400 });
-    }
-
     const db = getDatabase();
 
     const albumRow = db

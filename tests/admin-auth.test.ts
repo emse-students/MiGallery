@@ -464,7 +464,7 @@ describe('API Error Handling', () => {
   it('should return errors in JSON format', async () => {
     const response = await fetch(`${API_BASE_URL}/api/albums/inexistant-id`);
 
-    expect([404, 401, 500]).toContain(response.status);
+    expect([400, 404, 401, 500]).toContain(response.status);
 
     const contentType = response.headers.get('content-type');
     if (contentType) {

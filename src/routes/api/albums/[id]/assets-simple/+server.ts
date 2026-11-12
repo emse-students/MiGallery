@@ -6,7 +6,7 @@ import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 
 const IMMICH_BASE_URL = env.IMMICH_BASE_URL;
 const IMMICH_API_KEY = env.IMMICH_API_KEY ?? '';
-import { requireScope } from '#lib/server/permissions.ts';
+import { requireAlbumAccess } from '#lib/server/album-asset-access.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -17,9 +17,10 @@ const log = createLogger('albums-id-assets-simple');
  * Avoids Proxy issues with Svelte 5
  */
 export const GET: RequestHandler = async (event) => {
+  // Before the try: a refusal keeps its own status, never the 500 of the catch below.
+  const { id } = event.params;
+  await requireAlbumAccess(event, id);
   try {
-    await requireScope(event, 'read');
-    const { id } = event.params;
     const { fetch } = event;
 
     if (!IMMICH_BASE_URL) {

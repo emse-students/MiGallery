@@ -4,7 +4,9 @@ import { ensureError } from '#lib/ts-utils.ts';
 import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { getDatabase } from '#lib/db/database.ts';
-import { requireScope, requireStaff } from '#lib/server/permissions.ts';
+import { requireStaff } from '#lib/server/permissions.ts';
+import { requireAlbumAccess } from '#lib/server/album-asset-access.ts';
+import { assertImmichId } from '#lib/server/immich-id.ts';
 import { logEvent } from '#lib/server/logs.ts';
 import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 import { deleteOrphanedAlbumAssets } from '#lib/server/immich-album-delete.ts';
@@ -55,7 +57,8 @@ function extractPromoYearsFromLegacyTags(tags: string[]): number[] {
 export const GET: RequestHandler = async (event) => {
   const { id } = event.params;
   try {
-    await requireScope(event, 'read');
+    assertImmichId(id, 'album');
+    await requireAlbumAccess(event, id);
     const { fetch } = event;
 
     const res = await fetch(`${requireImmichBaseUrl()}/api/albums/${id}`, {
@@ -95,6 +98,7 @@ export const GET: RequestHandler = async (event) => {
  */
 export const DELETE: RequestHandler = async (event) => {
   await requireStaff(event);
+  assertImmichId(event.params.id, 'album');
   try {
     const { id } = event.params;
     const { fetch } = event;
