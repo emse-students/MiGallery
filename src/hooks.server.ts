@@ -18,6 +18,7 @@ import { startLogRetention } from '#lib/server/logs.ts';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
+import { applySecurityHeaders } from '#lib/server/security-headers.ts';
 import { cacheControlFor } from '#lib/server/cache-policy.ts';
 
 // adapter-bun drains on SIGTERM but never exits: this listener stops the timers below and exits
@@ -244,6 +245,10 @@ const robotsHandler: Handle = async ({ event, resolve }) => {
   if (!isIndexable(event.url.pathname)) {
     response.headers.set('X-Robots-Tag', NOINDEX_HEADER);
   }
+  // This handler is the outermost one, and a redirect was just made a response: every answer
+  // passes here, so this is where the site-wide headers are written. A value an inner handler
+  // already set (the handoff landing page's `no-referrer`) is kept.
+  applySecurityHeaders(response.headers);
   // The cache policy is written HERE, in the outermost handler, so that an answer an inner handler
   // returned without resolving (a refused cross-site request, a preflight) and a thrown redirect
   // carry it too. The handoff landing page keeps the stricter value its handler set.

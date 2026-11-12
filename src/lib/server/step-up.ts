@@ -31,6 +31,7 @@ export const STEP_UP_EXEMPT: ReadonlyMap<string, string> = new Map([
     'impersonation of the session it is called on, judged on its REAL account (an admin); the writes made while impersonating are guarded like any other',
   ],
   ['/api/users/me/locale', "the display language, a preference of this browser's reader"],
+  ['/api/csp-report', 'a browser reports a policy violation: nothing is stored, only logged'],
   ['/api/download', 'a read: mints a download token for photos the session may already see'],
 ]);
 
