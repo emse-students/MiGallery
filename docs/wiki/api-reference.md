@@ -47,6 +47,9 @@ Immich and kept a minute per photo; 503 when Immich does not say, 403 otherwise 
 per minute, with the count and the first photos. A download names at most 200 photos, each judged when
 the token is minted (as the album's photos when `albumId` is given); the token carries those ids, the
 redemption takes nothing else, and only the caller who minted it redeems it.
+Without a session, the proxy serves the picture, file or video of a photo that Immich lists in an
+`unlisted` album (`isSharedLinkPhoto`, the same Immich read): 403 when it is in none, 503 when Immich
+does not say. Nothing the request carries names the album.
 
 **staff** is `requireStaff` (`src/lib/server/permissions.ts`): a session holding the `admin` or
 `mitviste` role, or a key holding the `write` scope.
