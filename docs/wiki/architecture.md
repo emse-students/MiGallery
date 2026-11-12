@@ -20,9 +20,12 @@ sequence(corsAndCsrfHandler, sessionHandler)
      against an allow-list (`ALLOWED_ORIGINS`), unless the path is CSRF-exempt.
      Exempt prefixes (`CSRF_EXEMPT_PATHS`): `/api/external/` and `/api/auth/` -
      these authenticate by `x-api-key`, not cookies, so CSRF does not apply.
-   - Sets `Cache-Control` per asset type (hashed `/_app/` and images are
-     immutable for 2 days; HTML and non-API routes are `max-age=0,
-     must-revalidate`) and the CORS headers on API responses.
+   - Sets `Cache-Control` through `cacheControlFor` (`src/lib/server/cache-policy.ts`, pinned by
+     `tests/cache-policy.test.ts`): hashed `/_app/` files and static images and fonts are public
+     and immutable for 2 days; an HTML document is `private, no-store`, because a page is rendered
+     for the member who asked for it; an `/api/` route keeps the policy it set itself, whatever
+     its path ends with; any other file (`robots.txt`, the manifest) is `public, max-age=0,
+     must-revalidate`. It also sets the CORS headers on API responses.
 
 2. **`sessionHandler`** resolves the session once (`getSession`, shaped by
    `sessionUserOf`) into `event.locals.user` (or `null`) and opportunistically

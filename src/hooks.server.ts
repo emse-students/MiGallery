@@ -18,6 +18,7 @@ import { startLogRetention } from '#lib/server/logs.ts';
 import { paraglideMiddleware } from '#lib/paraglide/server.js';
 import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js';
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
+import { cacheControlFor } from '#lib/server/cache-policy.ts';
 
 // adapter-bun drains on SIGTERM but never exits: this listener stops the timers below and exits
 installShutdownListener();
@@ -134,14 +135,9 @@ const corsAndCsrfHandler: Handle = async ({ event, resolve }) => {
     // Never framed: a framing page could otherwise dress the interstitial's "Continuer" in its own
     // clothes (clickjacking).
     response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
-  } else if (/\.(png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot)$/i.test(pathname)) {
-    response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
-  } else if (/\/_app\//.test(pathname)) {
-    response.headers.set('Cache-Control', 'public, max-age=172800, immutable');
-  } else if (pathname === '/' || pathname.endsWith('.html')) {
-    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
-  } else if (!pathname.startsWith('/api/')) {
-    response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate');
+  } else {
+    const policy = cacheControlFor(pathname, response.headers.get('content-type'));
+    if (policy) response.headers.set('Cache-Control', policy);
   }
 
   if (isApiExternalRoute || pathname.startsWith('/api/')) {
