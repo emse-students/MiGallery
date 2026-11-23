@@ -6,7 +6,7 @@
       "name": "migallery",
       "dependencies": {
         "@lucide/svelte": "^1.76.0",
-        "@zumer/snapdom": "^3.7.4",
+        "@zumer/snapdom": "^3.8.1",
         "form-data": "^4.0.6",
         "jose": "6.2.18",
         "jspdf": "^4.2.1",
@@ -425,7 +425,7 @@
 
     "@vitest/spy": ["@vitest/spy@5.1.0", "", {}, "sha512-2DPO5OMHWKrBngC+fCmTQqemNF0gidRhp3lxbBmRhW+M1XJrfgPpqNqWVevXtn2f2ufD5ZaR1B6B641aAlcX5A=="],
 
-    "@zumer/snapdom": ["@zumer/snapdom@3.7.4", "", {}, "sha512-HAFoNlMltC/JirFGy0w5VJuqCDT6rQXuQuzcGcBVR8Hi3RXgaQpHmptpv06WMB1aUUs8SAX9crjeQPF3TSKttg=="],
+    "@zumer/snapdom": ["@zumer/snapdom@3.8.1", "", {}, "sha512-3GJUDSv0mpSKPE0Ta5MSOPXlARYRo9zUMhmq/BLZVAUEg2UgFEk6z0mkDBIlmXcvJR28FIiMmn+RhDsoMiabJA=="],
 
     "acorn": ["acorn@8.18.0", "", { "bin": { "acorn": "bin/acorn" } }, "sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ=="],
 
