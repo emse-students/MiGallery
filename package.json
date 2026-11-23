@@ -66,10 +66,10 @@
     "@lucide/svelte": "^1.72.0",
     "@zumer/snapdom": "^3.7.4",
     "form-data": "^4.0.6",
-    "jose": "6.2.17",
+    "jose": "6.2.18",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
-    "marked": "^18.2.0",
+    "marked": "^18.2.1",
     "sharp": "^0.35.5"
   },
   "devDependencies": {
