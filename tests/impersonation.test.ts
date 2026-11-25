@@ -54,15 +54,17 @@ function setSession(on: string, impersonating: string | null, viaHandoff = false
   );
 }
 
-/** The request this site's own page sends; `headers` override or (set to '') drop a header. */
-function changeUser(userId: string | null, headers: Record<string, string> = {}) {
-  const all: Record<string, string> = {
+/** The request this site's own page sends; `headers` override a header, or drop it with `null`. */
+function changeUser(userId: string | null, headers: Record<string, string | null> = {}) {
+  const merged: Record<string, string | null> = {
     'Content-Type': 'application/json',
     Cookie: cookie,
     Origin: SELF,
     ...headers,
   };
-  for (const k of Object.keys(all)) if (all[k] === '') delete all[k];
+  // `null` leaves the header out of the request entirely.
+  const all: Record<string, string> = {};
+  for (const [k, v] of Object.entries(merged)) if (v !== null) all[k] = v;
   return fetch(`${BASE}/api/change-user`, {
     method: 'POST',
     redirect: 'manual',
@@ -144,6 +146,7 @@ describe('/api/change-user', () => {
   });
 
   it('refuses a request with no Origin, and one not declared JSON', async () => {
+    expect((await changeUser(TARGET, { Origin: null })).status).toBe(403);
     expect((await changeUser(TARGET, { Origin: '' })).status).toBe(403);
     expect((await changeUser(TARGET, { 'Content-Type': 'text/plain' })).status).toBe(403);
     expect(impersonated()).toBeNull();
@@ -155,7 +158,7 @@ describe('/api/change-user', () => {
     expect(impersonated(member.token)).toBeNull();
   });
 
-  it('refuses any API key, even an admin one beside a non-admin session', async () => {
+  it('refuses any API key, even an admin one beside the admin session it belongs with', async () => {
     const res = await fetch(`${BASE}/api/admin/api-keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: SELF },
@@ -163,10 +166,12 @@ describe('/api/change-user', () => {
     });
     const key = (await res.json()) as { id: number; rawKey: string };
     created.keys.push(key.id);
-    const member = accountWithSession('user');
-    const refused = await changeUser(TARGET, { Cookie: member.cookie, 'x-api-key': key.rawKey });
+    // Everything else here would be allowed (the admin's own session, its origin, JSON): only
+    // the key is refused, and the body names that refusal.
+    const refused = await changeUser(TARGET, { 'x-api-key': key.rawKey });
     expect(refused.status).toBe(403);
-    expect(impersonated(member.token)).toBeNull();
+    expect(((await refused.json()) as { error: string }).error).toBe('Session only');
+    expect(impersonated()).toBeNull();
   });
 
   it('refuses a second start while impersonating: switching goes through a stop', async () => {
