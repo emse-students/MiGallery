@@ -7,6 +7,7 @@
  * anonymous.
  */
 import { getSession } from '#lib/session.ts';
+import { isAdminRole } from '#lib/roles.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { loginBounceTarget } from '#lib/auth-redirect.ts';
 import type { ResolvedSession } from '#lib/db/sessions.ts';
@@ -54,7 +55,7 @@ export function isImpersonating(context: AuthContext): boolean {
 }
 
 function isAdmin(user: UserRow | null): boolean {
-  return (user?.role || 'user') === 'admin';
+  return isAdminRole(user?.role);
 }
 
 /**

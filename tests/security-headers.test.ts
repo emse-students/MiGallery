@@ -240,7 +240,7 @@ describe('on the running server', () => {
   it('a report is answered 204 with no session, in either shape', async () => {
     const legacy = await fetch(`${API_BASE_URL}${CSP_REPORT_PATH}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/csp-report', origin: API_BASE_URL },
+      headers: { 'content-type': 'application/csp-report', origin: TEST_CONFIG.SELF_ORIGIN },
       body: JSON.stringify({ 'csp-report': { 'effective-directive': 'img-src' } }),
     });
     const modern = await fetch(`${API_BASE_URL}${CSP_REPORT_PATH}`, {

@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { getDatabase } from '#lib/db/database.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import type { UserRow } from '#lib/types/api.ts';
+import { isAdminRole } from '#lib/roles.ts';
 
 const log = createLogger('sessions');
 
@@ -113,10 +114,19 @@ export function resolveSession(token: string | undefined | null): ResolvedSessio
     return null;
   }
 
-  const impersonated = row.impersonated_id_user ? findUser(row.impersonated_id_user) : null;
+  let impersonated = row.impersonated_id_user ? findUser(row.impersonated_id_user) : null;
   if (row.impersonated_id_user && !impersonated) {
     log.warn('session impersonates an unknown user, clearing it', { id: row.impersonated_id_user });
     setSessionImpersonation(row.token, null);
+  }
+  // An impersonation is an admin's right, held for as long as the REAL account is an admin: once it
+  // is demoted, the session falls back to that account on its very next request.
+  if (impersonated && !isAdminRole(realUser.role)) {
+    log.warn('session impersonates while its real account is no longer an admin, clearing it', {
+      id: realUser.id_user,
+    });
+    setSessionImpersonation(row.token, null);
+    impersonated = null;
   }
 
   return {

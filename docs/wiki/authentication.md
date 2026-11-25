@@ -214,8 +214,19 @@ Presented via the `x-api-key` (or `X-API-KEY`) header. Usage is audit-logged.
 ## Impersonation
 
 Admins can act as another user. `/admin/login-as?u=<id>` is a confirmation page that READS only;
-its button sends `POST /api/change-user`, the one write, behind the Origin check and the step-up
-like any change (`tests/impersonation.test.ts`). Stopping is the same POST with `userId: null`,
+its button sends `POST /api/change-user`, the one write (`tests/impersonation.test.ts`). That
+route is stricter than the global Origin check (docs/wiki/architecture.md), and refuses with 403,
+before reading the body:
+
+- any request carrying `x-api-key`, whatever else it carries: impersonation exists only on a
+  session, and a key's scope never stands in for the session's account;
+- an `Origin` that is not EXACTLY this site's own (`url.origin`) - a MISSING `Origin` is
+  refused, and the partner origins the global check admits are refused too;
+- a `Content-Type` that is not `application/json`.
+
+A start is then authorised on the session's REAL account being an admin (not on a scope, not on
+the effective user), and refused with 409 while an impersonation already runs: a switch goes
+through a stop. The step-up applies as to any change. Stopping is the same POST with `userId: null`,
 sent by the banner the root layout shows on every page while `session.impersonating` (the old
 `GET /admin/stop-impersonating` is gone). A GET never starts or stops an impersonation: any link
 only shows a page. A handoff session that impersonates is never trapped: its stop asks for the
@@ -228,5 +239,7 @@ stays exempt from the step-up. It writes `impersonated_id_user` **on the caller'
   (`canStopImpersonating`), which the client cannot influence - the previous
   design had to guess this from a second signed cookie;
 - an impersonation cannot outlive the session that authorised it, so logging out
-  ends it; and
+  ends it;
+- nor the real account's admin role: `resolveSession` clears the column (at warn) on the first
+  request after a demotion, and the session falls back to the real account; and
 - the audit log (`logEvent`) records the REAL account, because that is who acted.

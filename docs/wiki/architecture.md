@@ -20,7 +20,11 @@ sequence(robotsHandler, paraglideHandler, corsAndCsrfHandler, sessionHandler)
    writes:
    - Answers `OPTIONS` preflights with the CORS headers.
    - For mutating methods (`POST/PUT/DELETE/PATCH`) it verifies the `Origin`
-     against an allow-list (`ALLOWED_ORIGINS`), unless the path is CSRF-exempt.
+     against an allow-list (`ALLOWED_ORIGINS`), unless the path is CSRF-exempt. A request with
+     NO `Origin` passes this check. The list is the partner sites (Portail-etu, both Canari
+     names) and this site's own public name; the localhost dev ports are added in a dev server only
+     (`dev` from `$app/env`), never in a build. A route may be stricter on its own:
+     `/api/change-user` is (docs/wiki/authentication.md, "Impersonation").
      Exempt prefixes (`CSRF_EXEMPT_PATHS`): `/api/external/` and `/api/auth/` -
      these authenticate by `x-api-key`, not cookies, so CSRF does not apply.
    - Sets the CORS headers on API responses.

@@ -189,10 +189,10 @@ node ./scripts/test-api.cjs
 - ✅ `GET /api/external/media/:id` - Media details
 - ✅ `DELETE /api/external/media/:id` - Media deletion
 - ✅ `POST /api/db` - SQL operations (admin)
-- ✅ `POST /api/change-user` - User switching
 
 ### ✅ Admin & Auth (12+ endpoints)
 
+- ✅ `POST /api/change-user` - Impersonation (`impersonation.test.ts`)
 - ✅ `GET /api/admin/api-keys` - API key list (admin)
 - ✅ `POST /api/admin/api-keys` - API key creation (admin)
 - ✅ `DELETE /api/admin/api-keys/:id` - Key deletion (admin)

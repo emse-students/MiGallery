@@ -1,21 +1,41 @@
 /**
  * Admin impersonation is a POST (docs/wiki/authentication.md, "Impersonation"), against the test
  * server: opening `/admin/login-as?u=<id>` only shows a confirmation, the write is
- * `POST /api/change-user`, and that write is refused cross-site and to a session a Canari handoff
- * opened. Stopping is the same POST with `userId: null`, offered by a banner on every page; there
- * is no GET for it either. Every assertion reads the session row itself, so "nothing was written" is a fact, not
- * an inference from a status code.
+ * `POST /api/change-user`, a session-only action taken from this site's own pages and judged on
+ * the session's REAL account, refused to a session a Canari handoff opened. Stopping is the same
+ * POST with `userId: null`, offered by a banner on every page; there is no GET for it either. Every
+ * assertion reads the session row itself, so "nothing was written" is a fact, not an inference
+ * from a status code.
  */
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { STEP_UP_HEADER } from '#lib/step-up.ts';
 import { TEST_CONFIG, loginAsTestAdmin, openTestDatabase, type TestDatabase } from './test-helpers';
 
 const BASE = TEST_CONFIG.API_BASE_URL;
+/** The `Origin` the server's own pages send. */
+const SELF = TEST_CONFIG.SELF_ORIGIN;
 const TARGET = 'impersonation-test-target';
 
 let cookie: string;
 let token: string;
 let db: TestDatabase;
+/** Accounts, sessions and keys this suite created, deleted in `afterAll`. */
+const created = { users: [] as string[], tokens: [] as string[], keys: [] as number[] };
+
+/** A fresh account of the given role with a live session row, written directly. */
+function accountWithSession(role: 'admin' | 'user'): { id: string; token: string; cookie: string } {
+  const id = `impersonation-test-${role}-${randomUUID()}`;
+  const sessionToken = randomUUID();
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare('INSERT INTO users (id_user, name, role) VALUES (?, ?, ?)').run(id, id, role);
+  db.prepare(
+    'INSERT INTO sessions (token, id_user, impersonated_id_user, created_at, expires_at, via_handoff) VALUES (?, ?, NULL, ?, ?, 0)'
+  ).run(sessionToken, id, now, now + 3600);
+  created.users.push(id);
+  created.tokens.push(sessionToken);
+  return { id, token: sessionToken, cookie: `migallery_session=${sessionToken}` };
+}
 
 /** The impersonation recorded on a session row (this suite's own by default). */
 function impersonated(on = token): string | null {
@@ -34,11 +54,19 @@ function setSession(on: string, impersonating: string | null, viaHandoff = false
   );
 }
 
+/** The request this site's own page sends; `headers` override or (set to '') drop a header. */
 function changeUser(userId: string | null, headers: Record<string, string> = {}) {
+  const all: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Cookie: cookie,
+    Origin: SELF,
+    ...headers,
+  };
+  for (const k of Object.keys(all)) if (all[k] === '') delete all[k];
   return fetch(`${BASE}/api/change-user`, {
     method: 'POST',
     redirect: 'manual',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: BASE, ...headers },
+    headers: all,
     body: JSON.stringify({ userId }),
   });
 }
@@ -64,6 +92,9 @@ afterEach(() => {
 afterAll(() => {
   if (!db) return; // beforeAll already failed, and said why
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  for (const t of created.tokens) db.prepare('DELETE FROM sessions WHERE token = ?').run(t);
+  for (const u of created.users) db.prepare('DELETE FROM users WHERE id_user = ?').run(u);
+  for (const k of created.keys) db.prepare('DELETE FROM api_keys WHERE id = ?').run(k);
   db.prepare('DELETE FROM users WHERE id_user = ?').run(TARGET);
   db.close(true);
 });
@@ -112,6 +143,38 @@ describe('/api/change-user', () => {
     expect(impersonated()).toBeNull();
   });
 
+  it('refuses a request with no Origin, and one not declared JSON', async () => {
+    expect((await changeUser(TARGET, { Origin: '' })).status).toBe(403);
+    expect((await changeUser(TARGET, { 'Content-Type': 'text/plain' })).status).toBe(403);
+    expect(impersonated()).toBeNull();
+  });
+
+  it('refuses a plain non-admin session', async () => {
+    const member = accountWithSession('user');
+    expect((await changeUser(TARGET, { Cookie: member.cookie })).status).toBe(403);
+    expect(impersonated(member.token)).toBeNull();
+  });
+
+  it('refuses any API key, even an admin one beside a non-admin session', async () => {
+    const res = await fetch(`${BASE}/api/admin/api-keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: SELF },
+      body: JSON.stringify({ label: 'impersonation-test', scopes: ['admin'] }),
+    });
+    const key = (await res.json()) as { id: number; rawKey: string };
+    created.keys.push(key.id);
+    const member = accountWithSession('user');
+    const refused = await changeUser(TARGET, { Cookie: member.cookie, 'x-api-key': key.rawKey });
+    expect(refused.status).toBe(403);
+    expect(impersonated(member.token)).toBeNull();
+  });
+
+  it('refuses a second start while impersonating: switching goes through a stop', async () => {
+    setSession(token, TARGET);
+    expect((await changeUser(TARGET)).status).toBe(409);
+    expect(impersonated()).toBe(TARGET);
+  });
+
   it('asks a session a Canari handoff opened for a MiConnect sign-in first', async () => {
     db.prepare('UPDATE sessions SET via_handoff = 1 WHERE token = ?').run(token);
     const res = await changeUser(TARGET);
@@ -136,7 +199,7 @@ describe('stopping an impersonation', () => {
       redirect: 'manual',
       headers: { Cookie: cookie },
     });
-    expect(res.status).not.toBe(200);
+    expect(res.status).toBe(404);
     expect(impersonated()).toBe(TARGET);
   });
 
@@ -157,7 +220,7 @@ describe('stopping an impersonation', () => {
     const other = await loginAsTestAdmin();
     const otherToken = other.slice(other.indexOf('=') + 1);
     setSession(otherToken, TARGET, true);
-    const headers = { 'Content-Type': 'application/json', Cookie: other, Origin: BASE };
+    const headers = { 'Content-Type': 'application/json', Cookie: other, Origin: SELF };
 
     // The stop is a change, so it asks for the MiConnect sign-in, whose callback replaces the
     // session with an unmarked one that impersonates nobody (api/auth/callback).
@@ -178,5 +241,21 @@ describe('stopping an impersonation', () => {
     });
     expect(out.status).toBe(302);
     expect(db.prepare('SELECT 1 FROM sessions WHERE token = ?').get(otherToken)).toBeNull();
+  });
+});
+
+describe('an impersonation outlives no admin right', () => {
+  it('ends when the real account is demoted: the session falls back to that account', async () => {
+    const admin = accountWithSession('admin');
+    setSession(admin.token, TARGET);
+    const me = async () => {
+      const res = await fetch(`${BASE}/api/users/me`, { headers: { Cookie: admin.cookie } });
+      return ((await res.json()) as { user: { id_user: string } }).user.id_user;
+    };
+    expect(await me()).toBe(TARGET);
+
+    db.prepare("UPDATE users SET role = 'user' WHERE id_user = ?").run(admin.id);
+    expect(await me()).toBe(admin.id);
+    expect(impersonated(admin.token)).toBeNull();
   });
 });
