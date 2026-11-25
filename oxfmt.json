@@ -17,6 +17,8 @@
   "sortTailwindcss": true,
   "ignorePatterns": [
     "**/node_modules/**",
+    "**/src/lib/leaveInAppBrowser/**",
+    "**/tests/fixtures/leave-in-app-browser.fixtures.json",
     "**/build/**",
     "**/dist/**",
     "**/.svelte-kit/**",

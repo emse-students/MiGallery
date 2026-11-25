@@ -21,6 +21,7 @@ import { cookieName as LOCALE_COOKIE, isLocale } from '#lib/paraglide/runtime.js
 import { isIndexable, NOINDEX_HEADER } from '#lib/seo.ts';
 import { applySecurityHeaders } from '#lib/server/security-headers.ts';
 import { cacheControlFor } from '#lib/server/cache-policy.ts';
+import { leaveInAppBrowserHandler } from '#lib/server/leaveInAppBrowser.ts';
 
 // adapter-bun drains on SIGTERM but never exits: this listener stops the timers below and exits
 installShutdownListener();
@@ -259,4 +260,10 @@ const robotsHandler: Handle = async ({ event, resolve }) => {
   return response;
 };
 
-export const handle = sequence(robotsHandler, paraglideHandler, corsAndCsrfHandler, sessionHandler);
+export const handle = sequence(
+  leaveInAppBrowserHandler,
+  robotsHandler,
+  paraglideHandler,
+  corsAndCsrfHandler,
+  sessionHandler
+);
