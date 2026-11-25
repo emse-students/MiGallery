@@ -24,6 +24,8 @@ declare global {
           role?: 'admin' | 'mitviste' | 'user';
           promo?: number | null;
         } | null;
+        /** An admin is acting as `user`: the layout shows the banner that stops it. */
+        impersonating?: boolean;
       } | null;
       /**
        * The faces waiting for the member's answer (the badge on "Mes photos" and its banner).

@@ -53,7 +53,10 @@ export const load: LayoutServerLoad = (event) => {
     event.depends('app:face-status');
     const face = faceStatus(getDatabase(), session.user.id_user);
     return {
-      session: { user: toSessionUser(session.user, face.enrolled) },
+      session: {
+        user: toSessionUser(session.user, face.enrolled),
+        impersonating: session.impersonating,
+      },
       faceToConfirm: face.toConfirm,
       firstPaint,
     };

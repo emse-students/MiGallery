@@ -16,6 +16,7 @@
   import { siteSeo, type SeoMeta } from '#lib/seo.ts';
   import { m } from '#lib/paraglide/messages.js';
   import { loginUrlWithRedirect, REDIRECT_PARAM } from '#lib/auth-redirect.ts';
+  import { toast } from '#lib/toast.ts';
   import '../app.css';
 
   let u = $derived(page.data?.session?.user as User);
@@ -26,6 +27,7 @@
   // the document: two of any of these tags is an unfurler picking one at random.
   let seo = $derived((page.data as { seo?: SeoMeta }).seo ?? siteSeo());
   let isAuthenticated = $derived(!!u);
+  let impersonating = $derived(page.data?.session?.impersonating === true);
   let isHomePage = $derived(page.url.pathname === '/');
   /**
    * An album page draws its own full-bleed cover hero on a phone, with floating back and menu
@@ -55,17 +57,33 @@
     navigationModalStore.set(null);
   }
 
-  async function handleSignOut() {
+  /**
+   * End an impersonation: the same POST /api/change-user that started it, with `userId: null`,
+   * judged on the session's REAL account. A full navigation afterwards, so every layout reloads as
+   * the admin. There is no GET for this: a link must never change the session.
+   */
+  async function stopImpersonating() {
     try {
-      await fetch('/api/change-user', {
+      const res = await fetch('/api/change-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: null }),
       });
+      if (!res.ok) {
+        console.warn('[impersonation] stop refused', res.status);
+        toast.error(m.impersonation_stop_error());
+        return;
+      }
+      window.location.href = '/admin';
     } catch (e: unknown) {
-      console.warn('Failed to clear user cookie:', e);
+      console.warn('[impersonation] stop failed', e);
+      toast.error(m.impersonation_stop_error());
     }
+  }
 
+  async function handleSignOut() {
+    // Logout deletes the session row, and an impersonation is a column of that row: nothing to
+    // stop first (a separate stop call would be a change a handoff session is refused).
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
@@ -154,6 +172,12 @@
 <!-- The shell steps aside for the sidebar (> 768 px, signed in); `main` keeps its own centring. -->
 <div class="app-shell" class:has-sidenav={isAuthenticated}>
   <main>
+    {#if impersonating && u}
+      <div class="impersonation-banner" role="status">
+        <span>{m.impersonation_banner({ name: u.name })}</span>
+        <button type="button" onclick={() => stopImpersonating()}>{m.impersonation_stop()}</button>
+      </div>
+    {/if}
     {@render children()}
   </main>
 </div>
@@ -179,4 +203,29 @@
 </Modal>
 
 <style>
+  /* Every page, while an admin acts as someone: the way back is on the page they are looking at. */
+  .impersonation-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.5rem 1rem;
+    margin: 0.5rem;
+    border: 2px solid var(--warning);
+    border-radius: var(--radius-xs);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .impersonation-banner button {
+    padding: 0.25rem 0.75rem;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
 </style>

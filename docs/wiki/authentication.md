@@ -158,7 +158,8 @@ account. So a marked session may BROWSE and may CHANGE NOTHING: `hooks.server.ts
 `POST`, `PUT`, `PATCH` and `DELETE` from it with `403 { code: "STEP_UP_REQUIRED" }` and the header
 `x-step-up-required: 1`, before any handler runs - DEFAULT DENY, so a new route is guarded without
 anyone remembering it. The exemptions are an explicit list, each with its reason (logout, the
-redemption itself, `change-user`, the display language, the download token). The browser
+redemption itself, the display language, the download token; NOT `change-user`, so starting an
+impersonation needs the MiConnect sign-in too). The browser
 (`hooks.client.ts`) sends a refused page through the ordinary MiConnect sign-in with the page as
 its destination; the callback deletes the marked session and opens an unmarked one, so after one
 MiConnect sign-in the user acts normally. `tests/step-up.test.ts` loads every route module in
@@ -212,9 +213,29 @@ Presented via the `x-api-key` (or `X-API-KEY`) header. Usage is audit-logged.
 
 ## Impersonation
 
-Admins can act as another user (`/admin/login-as?u=<id>`, the `change-user`
-endpoint, the admin UI). It writes `impersonated_id_user` **on the caller's own
-session row**, so:
+Admins can act as another user. `/admin/login-as?u=<id>` is a confirmation page that READS only;
+its button sends `POST /api/change-user`, the one write (`tests/impersonation.test.ts`). That
+route is stricter than the global Origin check (docs/wiki/architecture.md), and refuses with 403,
+before reading the body:
+
+- any request carrying `x-api-key`, whatever else it carries: impersonation exists only on a
+  session, and a key's scope never stands in for the session's account;
+- an `Origin` that is not EXACTLY this site's own (`url.origin`) - a MISSING `Origin` is
+  refused, and the partner origins the global check admits are refused too;
+- a `Content-Type` that is not `application/json`.
+
+A start is then authorised on the session's REAL account being an admin (not on a scope, not on
+the effective user), and refused with 409 while an impersonation already runs: a switch goes
+through a stop. **Decision (2026-11-25, security review of the POST change):** the 409 is kept.
+Before it, a switch was allowed whenever the impersonated account was itself an admin, so the
+authorisation of the second start rested on the account being acted as; now every start is judged
+on the admin's own account. Reversible: dropping the `session.impersonating` refusal in
+`src/routes/api/change-user/+server.ts` restores the switch. The step-up applies as to any change. Stopping is the same POST with `userId: null`,
+sent by the banner the root layout shows on every page while `session.impersonating` (the old
+`GET /admin/stop-impersonating` is gone). A GET never starts or stops an impersonation: any link
+only shows a page. A handoff session that impersonates is never trapped: its stop asks for the
+MiConnect sign-in, whose callback replaces the session with one impersonating nobody, and logout
+stays exempt from the step-up. It writes `impersonated_id_user` **on the caller's own session row**, so:
 
 - the whole app behaves as that user, admin rights included - `ensureAdmin`
   judges the effective user, so impersonating a non-admin genuinely drops them;
@@ -222,5 +243,7 @@ session row**, so:
   (`canStopImpersonating`), which the client cannot influence - the previous
   design had to guess this from a second signed cookie;
 - an impersonation cannot outlive the session that authorised it, so logging out
-  ends it; and
+  ends it;
+- nor the real account's admin role: `resolveSession` clears the column (at warn) on the first
+  request after a demotion, and the session falls back to the real account; and
 - the audit log (`logEvent`) records the REAL account, because that is who acted.

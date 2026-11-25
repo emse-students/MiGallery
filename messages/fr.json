@@ -1052,5 +1052,14 @@
   "handoff_as_next": "Tu vas être connecté en tant que {next}.",
   "handoff_switch": "Tu es connecté en tant que {current}. Continuer en tant que {next} ?",
   "handoff_continue": "Continuer",
-  "handoff_cancel": "Annuler"
+  "handoff_cancel": "Annuler",
+  "login_as_page_title": "Agir en tant que - MiGallery",
+  "login_as_title": "Agir en tant que",
+  "login_as_confirm_text": "Agir en tant que {name} ({id}) ? Tout le site te montrera ce que voit ce compte, jusqu'à ce que tu arrêtes.",
+  "login_as_confirm": "Agir en tant que ce compte",
+  "login_as_cancel": "Annuler",
+  "login_as_error": "Impossible d'agir en tant que ce compte.",
+  "impersonation_banner": "Tu agis en tant que {name}.",
+  "impersonation_stop": "Arrêter d'agir en tant que ce compte",
+  "impersonation_stop_error": "Impossible d'arrêter : réessaie, ou déconnecte-toi."
 }

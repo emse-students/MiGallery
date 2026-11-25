@@ -1,4 +1,5 @@
 import { sequence } from '@sveltejs/kit/hooks';
+import { dev } from '$app/env';
 import { isRedirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit/hooks';
 import {
@@ -40,8 +41,9 @@ const HANDOFF_LANDING_PATH = '/auth/handoff';
 const stepUpLog = createLogger('step-up');
 
 /**
- * List of allowed domains for CORS.
- * '*' allows all origins (for public APIs with x-api-key).
+ * The origins allowed cross-origin (CORS on `/api/*`, and past the Origin check below).
+ * '*' allows all origins (for public APIs with x-api-key). The localhost ports are the dev servers
+ * of this app and its neighbours, so they exist in a dev server only, never in a built one.
  */
 const ALLOWED_ORIGINS = [
   'https://portail-etu.emse.fr',
@@ -51,10 +53,7 @@ const ALLOWED_ORIGINS = [
   // which cannot be told to use the new one.
   'https://canari.emse.fr',
   'https://canari-emse.fr',
-  'https://canari.emse.fr',
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3000',
+  ...(dev ? ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'] : []),
 ];
 
 /**

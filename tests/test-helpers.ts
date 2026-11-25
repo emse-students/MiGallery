@@ -4,8 +4,16 @@
 
 import { rmSync } from 'node:fs';
 
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
+
 export const TEST_CONFIG = {
-  API_BASE_URL: process.env.API_BASE_URL || 'http://localhost:3000',
+  API_BASE_URL,
+  /**
+   * The test server's OWN origin, as it sees itself: adapter-bun derives it from the Host header
+   * and assumes https (docs/wiki/deployment.md), so it is `https://localhost:<port>` although the
+   * suite talks plain http. The `Origin` a same-origin page of the server would send.
+   */
+  SELF_ORIGIN: `https://${new URL(API_BASE_URL).host}`,
   DEFAULT_TIMEOUT: 10000,
   LONG_TIMEOUT: 30000,
   IMMICH_TIMEOUT: 15000,
@@ -255,13 +263,18 @@ export async function openTestDatabase(
     return null;
   }
 
-  type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => TestDatabase;
+  type DatabaseConstructor = new (
+    path: string,
+    options: { readonly: true } | { readwrite: true }
+  ) => TestDatabase;
 
   const { Database } = (await import('bun:sqlite')) as unknown as {
     Database: DatabaseConstructor;
   };
 
-  return new Database(DB_PATH, options);
+  // bun:sqlite reads an options object as open FLAGS: `{}` sets none and the open fails with
+  // "bad parameter or other API misuse", so the writable open names its flag.
+  return new Database(DB_PATH, options.readonly ? { readonly: true } : { readwrite: true });
 }
 
 /**

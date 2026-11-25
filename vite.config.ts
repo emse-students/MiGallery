@@ -37,7 +37,13 @@ function devOnlyRoutes(): Plugin {
   };
 }
 
-export default defineConfig({
+/**
+ * The localhost dev ports, trusted only by a dev server (`vite dev`), never by a build - the
+ * same rule as `ALLOWED_ORIGINS` in `src/hooks.server.ts`, which reads `dev` from `$app/env`.
+ */
+const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
+
+export default defineConfig(({ command }) => ({
   plugins: [
     devOnlyRoutes(),
     // Paraglide compiles the message runtime into src/lib/paraglide before
@@ -78,9 +84,7 @@ export default defineConfig({
         trustedOrigins: [
           'https://portail-etu.emse.fr',
           'https://gallery.mitv.fr',
-          'http://localhost:5173',
-          'http://localhost:3000',
-          'http://localhost:5174',
+          ...(command === 'serve' ? DEV_ORIGINS : []),
         ],
       },
       version: {
@@ -112,4 +116,4 @@ export default defineConfig({
     port: 5173,
     allowedHosts: ['gallery.mitv.fr'],
   },
-});
+}));
