@@ -1040,5 +1040,8 @@
   "login_as_confirm_text": "Act as {name} ({id})? The whole site will show you what this account sees, until you stop.",
   "login_as_confirm": "Act as this account",
   "login_as_cancel": "Cancel",
-  "login_as_error": "Could not act as this account."
+  "login_as_error": "Could not act as this account.",
+  "impersonation_banner": "You are acting as {name}.",
+  "impersonation_stop": "Stop acting as this account",
+  "impersonation_stop_error": "Could not stop: try again, or sign out."
 }

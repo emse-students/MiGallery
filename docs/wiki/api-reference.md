@@ -75,7 +75,7 @@ does not say. Nothing the request carries names the album.
 | `/api/users/[userId]/photo-access`                          | admin / self    | A user's grants                                                                                                              |
 | `/api/users/[username]/avatar`                              | read, or `?sig` | User avatar (used by Sky, Canari); `?sig=` is the keyless URL MiConnect gives MinoWiki and Archives - see below              |
 | `/api/users/avatar-presence?ids=a,b`                        | read            | Which of up to 100 users have a photo, in one query (`{ withPhoto }`) - Canari asks it instead of collecting 404s; see below |
-| `POST /api/change-user`                                     | admin           | Impersonation, on the caller's session row (`/admin/login-as` is its confirmation page)                                      |
+| `POST /api/change-user`                                     | admin           | Impersonation, on the caller's session row (`/admin/login-as` confirms; `userId: null` stops)                                |
 
 ## Favorites and download
 

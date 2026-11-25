@@ -2,7 +2,8 @@
  * Admin impersonation is a POST (docs/wiki/authentication.md, "Impersonation"), against the test
  * server: opening `/admin/login-as?u=<id>` only shows a confirmation, the write is
  * `POST /api/change-user`, and that write is refused cross-site and to a session a Canari handoff
- * opened. Every assertion reads the session row itself, so "nothing was written" is a fact, not
+ * opened. Stopping is the same POST with `userId: null`, offered by a banner on every page; there
+ * is no GET for it either. Every assertion reads the session row itself, so "nothing was written" is a fact, not
  * an inference from a status code.
  */
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
@@ -16,12 +17,21 @@ let cookie: string;
 let token: string;
 let db: TestDatabase;
 
-/** The impersonation recorded on this suite's own session row. */
-function impersonated(): string | null {
+/** The impersonation recorded on a session row (this suite's own by default). */
+function impersonated(on = token): string | null {
   const row = db
     .prepare('SELECT impersonated_id_user AS id FROM sessions WHERE token = ?')
-    .get(token) as { id: string | null } | null;
+    .get(on) as { id: string | null } | null;
   return row?.id ?? null;
+}
+
+/** Put a session in the state under test directly, so only the request under test writes. */
+function setSession(on: string, impersonating: string | null, viaHandoff = false) {
+  db.prepare('UPDATE sessions SET impersonated_id_user = ?, via_handoff = ? WHERE token = ?').run(
+    impersonating,
+    viaHandoff ? 1 : 0,
+    on
+  );
 }
 
 function changeUser(userId: string | null, headers: Record<string, string> = {}) {
@@ -108,5 +118,65 @@ describe('/api/change-user', () => {
     expect(res.status).toBe(403);
     expect(res.headers.get(STEP_UP_HEADER)).toBe('1');
     expect(impersonated()).toBeNull();
+  });
+});
+
+describe('stopping an impersonation', () => {
+  it('is offered by a banner on every page while impersonating, and only then', async () => {
+    const page = () =>
+      fetch(`${BASE}/albums`, { headers: { Cookie: cookie } }).then((r) => r.text());
+    expect(await page()).not.toContain('impersonation-banner');
+    setSession(token, TARGET);
+    expect(await page()).toContain('impersonation-banner');
+  });
+
+  it('has no GET: the old /admin/stop-impersonating URL writes nothing', async () => {
+    setSession(token, TARGET);
+    const res = await fetch(`${BASE}/admin/stop-impersonating`, {
+      redirect: 'manual',
+      headers: { Cookie: cookie },
+    });
+    expect(res.status).not.toBe(200);
+    expect(impersonated()).toBe(TARGET);
+  });
+
+  it('stops on a same-origin POST, judged on the real admin behind the impersonated account', async () => {
+    setSession(token, TARGET);
+    expect((await changeUser(null)).status).toBe(200);
+    expect(impersonated()).toBeNull();
+  });
+
+  it('refuses a cross-site stop', async () => {
+    setSession(token, TARGET);
+    expect((await changeUser(null, { Origin: 'https://evil.example' })).status).toBe(403);
+    expect(impersonated()).toBe(TARGET);
+  });
+
+  it('does not trap a handoff session: the step-up or logout each end it', async () => {
+    // A marked session that impersonates (one started before change-user lost its exemption).
+    const other = await loginAsTestAdmin();
+    const otherToken = other.slice(other.indexOf('=') + 1);
+    setSession(otherToken, TARGET, true);
+    const headers = { 'Content-Type': 'application/json', Cookie: other, Origin: BASE };
+
+    // The stop is a change, so it asks for the MiConnect sign-in, whose callback replaces the
+    // session with an unmarked one that impersonates nobody (api/auth/callback).
+    const stop = await fetch(`${BASE}/api/change-user`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers,
+      body: JSON.stringify({ userId: null }),
+    });
+    expect(stop.status).toBe(403);
+    expect(stop.headers.get(STEP_UP_HEADER)).toBe('1');
+
+    // Logout stays exempt from the step-up, and deleting the row ends the impersonation with it.
+    const out = await fetch(`${BASE}/api/auth/logout`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers,
+    });
+    expect(out.status).toBe(302);
+    expect(db.prepare('SELECT 1 FROM sessions WHERE token = ?').get(otherToken)).toBeNull();
   });
 });

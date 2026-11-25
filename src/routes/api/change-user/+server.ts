@@ -27,7 +27,7 @@ export const POST: RequestHandler = async (event) => {
     }
 
     // Stopping is judged on the REAL account, which is still the admin that
-    // started the impersonation - see /admin/stop-impersonating.
+    // started the impersonation, never on the account it acts as (the layout's banner sends this).
     if (userId === null || userId === undefined) {
       if (!canStopImpersonating({ locals, cookies })) {
         return json({ success: false, error: 'Forbidden' }, { status: 403 });

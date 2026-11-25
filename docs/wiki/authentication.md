@@ -215,8 +215,12 @@ Presented via the `x-api-key` (or `X-API-KEY`) header. Usage is audit-logged.
 
 Admins can act as another user. `/admin/login-as?u=<id>` is a confirmation page that READS only;
 its button sends `POST /api/change-user`, the one write, behind the Origin check and the step-up
-like any change (`tests/impersonation.test.ts`). A GET never starts an impersonation: any link to
-the page only shows it. It writes `impersonated_id_user` **on the caller's own session row**, so:
+like any change (`tests/impersonation.test.ts`). Stopping is the same POST with `userId: null`,
+sent by the banner the root layout shows on every page while `session.impersonating` (the old
+`GET /admin/stop-impersonating` is gone). A GET never starts or stops an impersonation: any link
+only shows a page. A handoff session that impersonates is never trapped: its stop asks for the
+MiConnect sign-in, whose callback replaces the session with one impersonating nobody, and logout
+stays exempt from the step-up. It writes `impersonated_id_user` **on the caller's own session row**, so:
 
 - the whole app behaves as that user, admin rights included - `ensureAdmin`
   judges the effective user, so impersonating a non-admin genuinely drops them;
