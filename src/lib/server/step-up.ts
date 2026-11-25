@@ -26,10 +26,9 @@ const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 export const STEP_UP_EXEMPT: ReadonlyMap<string, string> = new Map([
   ['/api/auth/logout', 'ends the session - the way out must always be open'],
   ['/api/auth/handoff', 'the redemption itself, which replaces the session it finds'],
-  [
-    '/api/change-user',
-    'impersonation of the session it is called on, judged on its REAL account (an admin); the writes made while impersonating are guarded like any other',
-  ],
+  // NOT `/api/change-user`: starting an impersonation hands the session another account's view,
+  // so a handoff session must sign in through MiConnect first. The MiConnect callback opens an
+  // unmarked session, so a marked one cannot start an impersonation; logout ends any.
   ['/api/users/me/locale', "the display language, a preference of this browser's reader"],
   ['/api/csp-report', 'a browser reports a policy violation: nothing is stored, only logged'],
   ['/api/download', 'a read: mints a download token for photos the session may already see'],

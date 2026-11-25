@@ -1034,5 +1034,11 @@
   "handoff_as_next": "You are about to be signed in as {next}.",
   "handoff_switch": "You are signed in as {current}. Continue as {next}?",
   "handoff_continue": "Continue",
-  "handoff_cancel": "Cancel"
+  "handoff_cancel": "Cancel",
+  "login_as_page_title": "Act as - MiGallery",
+  "login_as_title": "Act as",
+  "login_as_confirm_text": "Act as {name} ({id})? The whole site will show you what this account sees, until you stop.",
+  "login_as_confirm": "Act as this account",
+  "login_as_cancel": "Cancel",
+  "login_as_error": "Could not act as this account."
 }

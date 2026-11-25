@@ -255,13 +255,18 @@ export async function openTestDatabase(
     return null;
   }
 
-  type DatabaseConstructor = new (path: string, options?: { readonly?: boolean }) => TestDatabase;
+  type DatabaseConstructor = new (
+    path: string,
+    options: { readonly: true } | { readwrite: true }
+  ) => TestDatabase;
 
   const { Database } = (await import('bun:sqlite')) as unknown as {
     Database: DatabaseConstructor;
   };
 
-  return new Database(DB_PATH, options);
+  // bun:sqlite reads an options object as open FLAGS: `{}` sets none and the open fails with
+  // "bad parameter or other API misuse", so the writable open names its flag.
+  return new Database(DB_PATH, options.readonly ? { readonly: true } : { readwrite: true });
 }
 
 /**

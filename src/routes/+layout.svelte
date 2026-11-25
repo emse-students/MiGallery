@@ -56,16 +56,8 @@
   }
 
   async function handleSignOut() {
-    try {
-      await fetch('/api/change-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: null }),
-      });
-    } catch (e: unknown) {
-      console.warn('Failed to clear user cookie:', e);
-    }
-
+    // Logout deletes the session row, and an impersonation is a column of that row: nothing to
+    // stop first (a separate stop call would be a change a handoff session is refused).
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',

@@ -158,7 +158,8 @@ account. So a marked session may BROWSE and may CHANGE NOTHING: `hooks.server.ts
 `POST`, `PUT`, `PATCH` and `DELETE` from it with `403 { code: "STEP_UP_REQUIRED" }` and the header
 `x-step-up-required: 1`, before any handler runs - DEFAULT DENY, so a new route is guarded without
 anyone remembering it. The exemptions are an explicit list, each with its reason (logout, the
-redemption itself, `change-user`, the display language, the download token). The browser
+redemption itself, the display language, the download token; NOT `change-user`, so starting an
+impersonation needs the MiConnect sign-in too). The browser
 (`hooks.client.ts`) sends a refused page through the ordinary MiConnect sign-in with the page as
 its destination; the callback deletes the marked session and opens an unmarked one, so after one
 MiConnect sign-in the user acts normally. `tests/step-up.test.ts` loads every route module in
@@ -212,9 +213,10 @@ Presented via the `x-api-key` (or `X-API-KEY`) header. Usage is audit-logged.
 
 ## Impersonation
 
-Admins can act as another user (`/admin/login-as?u=<id>`, the `change-user`
-endpoint, the admin UI). It writes `impersonated_id_user` **on the caller's own
-session row**, so:
+Admins can act as another user. `/admin/login-as?u=<id>` is a confirmation page that READS only;
+its button sends `POST /api/change-user`, the one write, behind the Origin check and the step-up
+like any change (`tests/impersonation.test.ts`). A GET never starts an impersonation: any link to
+the page only shows it. It writes `impersonated_id_user` **on the caller's own session row**, so:
 
 - the whole app behaves as that user, admin rights included - `ensureAdmin`
   judges the effective user, so impersonating a non-admin genuinely drops them;

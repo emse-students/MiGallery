@@ -76,6 +76,8 @@ describe('the step-up guard', () => {
       '/api/albums/sample/permissions/users',
       '/api/favorites',
       '/api/users/me/profile-photo',
+      // Impersonation hands the session another account's view: never exempt.
+      '/api/change-user',
     ]) {
       expect([p, stepUpRequired('POST', p, true)]).toEqual([p, true]);
     }
