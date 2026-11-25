@@ -16,7 +16,7 @@ sequence(robotsHandler, paraglideHandler, corsAndCsrfHandler, sessionHandler)
 
 1. **`corsAndCsrfHandler`** owns cross-origin and CSRF policy for every content type. SvelteKit's
    native check stays on for FORM content types with a list of trusted origins (`csrf` in
-   `vite.config.ts`); it answers before any handler runs, so its 403 carries no header a hook
+   `vite.config.ts`), its localhost ports under `vite dev` only; it answers before any handler runs, so its 403 carries no header a hook
    writes:
    - Answers `OPTIONS` preflights with the CORS headers.
    - For mutating methods (`POST/PUT/DELETE/PATCH`) it verifies the `Origin`

@@ -226,7 +226,11 @@ before reading the body:
 
 A start is then authorised on the session's REAL account being an admin (not on a scope, not on
 the effective user), and refused with 409 while an impersonation already runs: a switch goes
-through a stop. The step-up applies as to any change. Stopping is the same POST with `userId: null`,
+through a stop. **Decision (2026-11-25, security review of the POST change):** the 409 is kept.
+Before it, a switch was allowed whenever the impersonated account was itself an admin, so the
+authorisation of the second start rested on the account being acted as; now every start is judged
+on the admin's own account. Reversible: dropping the `session.impersonating` refusal in
+`src/routes/api/change-user/+server.ts` restores the switch. The step-up applies as to any change. Stopping is the same POST with `userId: null`,
 sent by the banner the root layout shows on every page while `session.impersonating` (the old
 `GET /admin/stop-impersonating` is gone). A GET never starts or stops an impersonation: any link
 only shows a page. A handoff session that impersonates is never trapped: its stop asks for the
