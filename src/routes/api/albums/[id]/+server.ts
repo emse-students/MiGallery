@@ -8,6 +8,7 @@ import { requireStaff } from '#lib/server/permissions.ts';
 import { requireViewerOfAlbum } from '#lib/server/album-asset-access.ts';
 import { assertImmichId } from '#lib/server/immich-id.ts';
 import { logEvent } from '#lib/server/logs.ts';
+import { albumChangeDetails, readAlbumAuditState } from '#lib/server/audit-changes.ts';
 import { fetchAlbumAssets } from '#lib/immich/album-assets.ts';
 import { deleteOrphanedAlbumAssets } from '#lib/server/immich-album-delete.ts';
 import { getStoredCover, pruneAlbumCovers } from '#lib/server/album-cover.ts';
@@ -110,6 +111,7 @@ export const DELETE: RequestHandler = async (event) => {
     let immichAssetsDeleted = 0;
     let immichAssetsSkipped = 0;
     let immichAssetVerificationFailures = 0;
+    let albumName: string | null = null;
 
     if (IMMICH_BASE_URL && id) {
       try {
@@ -126,6 +128,13 @@ export const DELETE: RequestHandler = async (event) => {
       // Read the cover before the row is gone: it is what tells us which
       // cached image just lost its last reference.
       const cover = id ? getStoredCover(id) : null;
+      // The name too: once the row is gone the audit row is the only place left that says it.
+      albumName =
+        (
+          db.prepare('SELECT name FROM albums WHERE id = ?').get(id) as
+            | { name?: string }
+            | undefined
+        )?.name ?? null;
       db.prepare('DELETE FROM albums WHERE id = ?').run(id);
       db.prepare('DELETE FROM album_permissions WHERE album_id = ?').run(id);
       if (id) {
@@ -181,6 +190,7 @@ export const DELETE: RequestHandler = async (event) => {
 
     try {
       await logEvent(event, 'delete', 'album', event.params.id, {
+        name: albumName,
         immichDeleted: immichDeleteSuccess,
         immichError: immichDeleteError,
         immichAssetsDeleted,
@@ -249,8 +259,9 @@ export const PATCH: RequestHandler = async (event) => {
 
     const db = getDatabase();
 
-    const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id);
-    if (!existing) {
+    // Read BEFORE the write: the audit row says what each field was, not only what it became.
+    const before = readAlbumAuditState(db, id);
+    if (!before) {
       throw error(404, 'Album not found in the local database');
     }
 
@@ -394,7 +405,11 @@ export const PATCH: RequestHandler = async (event) => {
       .get(id);
 
     try {
-      await logEvent(event, 'update', 'album', id, { name, date, location, visibility, visible });
+      const after = readAlbumAuditState(db, id);
+      const details = after ? albumChangeDetails(before, after) : null;
+      if (details) {
+        await logEvent(event, 'update', 'album', id, details);
+      }
     } catch (logErr) {
       log.warn('logEvent failed (albums PATCH):', logErr);
     }

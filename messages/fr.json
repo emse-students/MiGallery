@@ -595,8 +595,8 @@
   "metr_load_error": "Erreur de chargement : {error}",
   "metr_loading": "Chargement des métriques…",
   "metr_updated": "Dernière mise à jour :",
-  "logs_page_title": "Logs Admin - MiGallery",
-  "logs_title": "Logs Système",
+  "logs_page_title": "Journal d'activité - MiGallery",
+  "logs_title": "Journal d'activité",
   "logs_subtitle": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -607,20 +607,134 @@
       }
     }
   ],
-  "logs_search_ph": "Rechercher (acteur, cible, détails)…",
-  "logs_all_types": "Tous les types",
+  "logs_search_ph": "Rechercher une personne, un album, un fichier…",
+  "logs_all_actors": "Tout le monde",
+  "logs_cat_all": "Toutes les actions",
+  "logs_cat_uploads": "Imports",
+  "logs_cat_deletions": "Suppressions",
+  "logs_cat_albums": "Albums",
+  "logs_cat_covers": "Couvertures",
+  "logs_cat_users": "Comptes",
+  "logs_cat_api": "Clés API",
   "logs_reset": "Réinitialiser",
-  "logs_col_date": "Date",
-  "logs_col_actor": "Acteur",
-  "logs_col_action": "Action",
-  "logs_col_target": "Cible",
-  "logs_col_details": "Détails",
   "logs_system": "Système",
-  "logs_empty_title": "Aucun événement",
-  "logs_empty_desc": "Aucun événement ne correspond aux filtres.",
-  "logs_pager": "Page {page} / {total}",
-  "logs_prev_page": "Page précédente",
-  "logs_next_page": "Page suivante",
+  "logs_api_key": "Clé API {key}",
+  "logs_today": "Aujourd'hui",
+  "logs_yesterday": "Hier",
+  "logs_empty_title": "Aucune activité",
+  "logs_empty_desc": "Rien ne correspond à ces filtres.",
+  "logs_older": "Plus anciens",
+  "logs_newest": "Revenir au plus récent",
+  "logs_upload": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "a importé {count} photo",
+        "countPlural=*": "a importé {count} photos"
+      }
+    }
+  ],
+  "logs_upload_none": "a ajouté des photos déjà présentes",
+  "logs_into": "dans",
+  "logs_duplicates": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} déjà présente",
+        "countPlural=*": "{count} déjà présentes"
+      }
+    }
+  ],
+  "logs_added_to": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "a ajouté {count} photo à",
+        "countPlural=*": "a ajouté {count} photos à"
+      }
+    }
+  ],
+  "logs_assets_deleted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "a supprimé {count} photo",
+        "countPlural=*": "a supprimé {count} photos"
+      }
+    }
+  ],
+  "logs_assets_removed": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "a retiré {count} photo de",
+        "countPlural=*": "a retiré {count} photos de"
+      }
+    }
+  ],
+  "logs_album_created": "a créé l'album",
+  "logs_album_updated": "a modifié l'album",
+  "logs_album_cover": "a changé la couverture de",
+  "logs_album_deleted": "a supprimé l'album",
+  "logs_album_deleted_assets": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo supprimée avec",
+        "countPlural=*": "{count} photos supprimées avec"
+      }
+    }
+  ],
+  "logs_album_unknown": "album inconnu",
+  "logs_user_created": "a créé le compte de",
+  "logs_user_updated": "a modifié le compte de",
+  "logs_user_deleted": "a supprimé un compte",
+  "logs_api_usage": "a appelé",
+  "logs_field_name": "Nom",
+  "logs_field_date": "Date",
+  "logs_field_location": "Lieu",
+  "logs_field_visibility": "Visibilité",
+  "logs_field_visible": "Visible dans la liste",
+  "logs_field_first_name": "Prénom",
+  "logs_field_last_name": "Nom de famille",
+  "logs_field_role": "Rôle",
+  "logs_field_promo": "Promo",
+  "logs_field_formation": "Formation",
+  "logs_empty_value": "(vide)",
+  "logs_yes": "oui",
+  "logs_no": "non",
+  "logs_access_added": "Accès ajouté : {grant}",
+  "logs_access_removed": "Accès retiré : {grant}",
+  "logs_access_user": "Membre",
+  "logs_access_promo": "Promo",
+  "logs_access_formation": "Formation",
+  "logs_access_tag": "Tag",
+  "logs_face_link_changed": "Lien vers son visage modifié",
+  "logs_legacy_state": "Entrée ancienne : seul le nouvel état a été enregistré",
+  "logs_no_details": "Aucun détail enregistré",
+  "logs_cover_before": "Avant",
+  "logs_cover_after": "Après",
+  "logs_files": "Fichiers",
+  "logs_photos": "Photos",
+  "logs_ip": "Adresse IP : {ip}",
+  "logs_raw": "Données brutes",
+  "logs_details": "Détails",
+  "logs_rows": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} ligne du journal",
+        "countPlural=*": "{count} lignes du journal"
+      }
+    }
+  ],
   "usr_page_title": "Admin - Utilisateurs",
   "usr_role_user": "Utilisateur",
   "usr_role_mitviste": "MiTViste",

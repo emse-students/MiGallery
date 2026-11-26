@@ -70,7 +70,9 @@ signed-in user.
   `data/cache/covers/<assetId>.webp` (append `?v=<assetId>` for an immutable
   URL); `/og-cover` serves the wide 1200x630 variant for link unfurling and
   `/og-preview` returns both URLs as JSON. `PUT /api/albums/[id]/cover` pins a
-  new cover.
+  new cover (staff) and writes an `update album` audit row with `action:
+  set_cover`, `from` and `to` - before 2026-11-26 it wrote none, so earlier cover
+  changes cannot be attributed ([data-model](data-model.md#logs)).
   Both image endpoints are public for every album, whatever its visibility:
   external sites embed them from an `<img>` tag, which carries no key. Only the
   cover is exposed that way - `/og-preview` still refuses private albums and the

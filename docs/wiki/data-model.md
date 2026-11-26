@@ -63,6 +63,37 @@ the CV directory: `owner_id` lets `authorized_id` view their face-linked photos
 audit trail (uploads, deletes, logins, API-key usage), written by
 `logEvent` (`src/lib/server/logs.ts`) and browsable under `/admin/logs`.
 
+**What a row records.** `actor` is the acting account's `id_user` (the real admin
+while impersonating). A write that EDITS something records what changed, not the
+new state: `details.changes` is `{ field: [from, to] }` for the fields that moved
+(`src/lib/server/audit-changes.ts`), and an album edit adds `access: { added,
+removed }` for its `album_permissions`; a save that changed nothing writes no row.
+The rows by action:
+
+| Row                                                    | `details`                                                                         |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `import asset`                                         | `originalName` (the `x-original-name` header both upload paths send), `duplicate` |
+| `update album`, `action: add_assets` / `remove_assets` | `count`, `assetIds` - what Immich actually added or removed                       |
+| `update album`, `action: set_cover`                    | `from`, `to` - the cover asset replaced and the new one                           |
+| `update album` (edit)                                  | `changes`, `access`                                                               |
+| `create album` / `delete album`                        | `name` (kept on delete: the row outlives the album)                               |
+| `update user`                                          | `changes`, `faceLinkChanged` (the face link is never copied into the log)         |
+| `delete asset`                                         | `count`, `ids` (`target_id` is `bulk`)                                            |
+
+Rows written before 2026-11-26 hold the new state only (`{ name, date, ... }`);
+the page shows them as such. **A cover change wrote no row before that date**, so
+who changed a cover earlier cannot be read back from this table.
+
+**The page is a feed, not the table** (`src/lib/audit-feed.ts`, pure, pinned by
+`tests/audit-feed.test.ts`). Rows fold into entries: an upload (one `import` and
+one `add_assets` row per photo) reads as one entry naming its album; consecutive
+deletions of one actor are summed. Only CONSECUTIVE rows of the same actor and
+the same kind fold, and a pause over 10 minutes starts a new entry - a
+presentation rule; nothing stored changes. Names come from `users` and `albums`
+at read time (a deleted album from its `create`/`delete` row). A page reads 2000
+rows and pages by row id (`?before=`), the last entry deferred to the next page
+when it may continue past the window.
+
 **Retention: 90 days.** `purgeOldLogs` deletes older rows; `startLogRetention`
 (`hooks.server.ts`) runs it a minute after start, then daily, in-process like the
 backup scheduler. Each row's own `timestamp` decides, so a missed day only makes
