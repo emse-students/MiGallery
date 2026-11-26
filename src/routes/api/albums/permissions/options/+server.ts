@@ -4,7 +4,7 @@ import { getDatabase } from '#lib/db/database.ts';
 import { requireStaff } from '#lib/server/permissions.ts';
 import { getDefaultPromos } from '#lib/promo-utils.ts';
 
-const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FSSS', 'Autre'];
+const DEFAULT_FORMATIONS = ['ICM', 'ISMIN', 'FISA', 'Autre'];
 
 export const GET: RequestHandler = async (event) => {
   await requireStaff(event);

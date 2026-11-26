@@ -18,7 +18,7 @@ One unified table, `album_permissions(album_id, kind, value)`, grants access to
 an album, in addition to its visibility. `kind` selects the dimension:
 
 - `user` - specific users (`value` = `id_user`).
-- `formation` - by formation (ICM, ISMIN, FSSS, Master, …).
+- `formation` - by formation (ICM, ISMIN, FISA, Master, …).
 - `promo` - by graduation year (`value` = promo year, stored as text).
 - `tag` - free-form tags (e.g. "Promo 2024") for labeling.
 
