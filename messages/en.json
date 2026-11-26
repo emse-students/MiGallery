@@ -586,32 +586,146 @@
   "metr_load_error": "Loading error: {error}",
   "metr_loading": "Loading metrics…",
   "metr_updated": "Last updated:",
-  "logs_page_title": "Logs Admin - MiGallery",
-  "logs_title": "System logs",
+  "logs_page_title": "Activity log - MiGallery",
+  "logs_title": "Activity log",
   "logs_subtitle": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
       "selectors": ["countPlural"],
       "match": {
-        "countPlural=one": "{count} event recorded",
-        "countPlural=*": "{count} events recorded"
+        "countPlural=one": "{count} recorded event",
+        "countPlural=*": "{count} recorded events"
       }
     }
   ],
-  "logs_search_ph": "Search (actor, target, details)…",
-  "logs_all_types": "All types",
+  "logs_search_ph": "Search a person, an album, a file…",
+  "logs_all_actors": "Everyone",
+  "logs_cat_all": "All actions",
+  "logs_cat_uploads": "Uploads",
+  "logs_cat_deletions": "Deletions",
+  "logs_cat_albums": "Albums",
+  "logs_cat_covers": "Covers",
+  "logs_cat_users": "Accounts",
+  "logs_cat_api": "API keys",
   "logs_reset": "Reset",
-  "logs_col_date": "Date",
-  "logs_col_actor": "Actor",
-  "logs_col_action": "Action",
-  "logs_col_target": "Target",
-  "logs_col_details": "Details",
   "logs_system": "System",
-  "logs_empty_title": "No event",
-  "logs_empty_desc": "No event matches the filters.",
-  "logs_pager": "Page {page} / {total}",
-  "logs_prev_page": "Previous page",
-  "logs_next_page": "Next page",
+  "logs_api_key": "API key {key}",
+  "logs_today": "Today",
+  "logs_yesterday": "Yesterday",
+  "logs_empty_title": "No activity",
+  "logs_empty_desc": "Nothing matches these filters.",
+  "logs_older": "Older",
+  "logs_newest": "Back to the latest",
+  "logs_upload": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "uploaded {count} photo",
+        "countPlural=*": "uploaded {count} photos"
+      }
+    }
+  ],
+  "logs_upload_none": "added photos that were already there",
+  "logs_into": "into",
+  "logs_duplicates": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} already there",
+        "countPlural=*": "{count} already there"
+      }
+    }
+  ],
+  "logs_added_to": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "added {count} photo to",
+        "countPlural=*": "added {count} photos to"
+      }
+    }
+  ],
+  "logs_assets_deleted": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "deleted {count} photo",
+        "countPlural=*": "deleted {count} photos"
+      }
+    }
+  ],
+  "logs_assets_removed": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "removed {count} photo from",
+        "countPlural=*": "removed {count} photos from"
+      }
+    }
+  ],
+  "logs_album_created": "created the album",
+  "logs_album_updated": "edited the album",
+  "logs_album_cover": "changed the cover of",
+  "logs_album_deleted": "deleted the album",
+  "logs_album_deleted_assets": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} photo deleted with",
+        "countPlural=*": "{count} photos deleted with"
+      }
+    }
+  ],
+  "logs_album_unknown": "unknown album",
+  "logs_user_created": "created the account of",
+  "logs_user_updated": "edited the account of",
+  "logs_user_deleted": "deleted an account",
+  "logs_api_usage": "called",
+  "logs_field_name": "Name",
+  "logs_field_date": "Date",
+  "logs_field_location": "Place",
+  "logs_field_visibility": "Visibility",
+  "logs_field_visible": "Shown in the list",
+  "logs_field_first_name": "First name",
+  "logs_field_last_name": "Last name",
+  "logs_field_role": "Role",
+  "logs_field_promo": "Class year",
+  "logs_field_formation": "Programme",
+  "logs_empty_value": "(empty)",
+  "logs_yes": "yes",
+  "logs_no": "no",
+  "logs_access_added": "Access granted: {grant}",
+  "logs_access_removed": "Access removed: {grant}",
+  "logs_access_user": "Member",
+  "logs_access_promo": "Class year",
+  "logs_access_formation": "Programme",
+  "logs_access_tag": "Tag",
+  "logs_face_link_changed": "Link to their face changed",
+  "logs_legacy_state": "Older entry: only the new state was recorded",
+  "logs_no_details": "No details recorded",
+  "logs_cover_before": "Before",
+  "logs_cover_after": "After",
+  "logs_files": "Files",
+  "logs_photos": "Photos",
+  "logs_ip": "IP address: {ip}",
+  "logs_raw": "Raw data",
+  "logs_details": "Details",
+  "logs_rows": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} log line",
+        "countPlural=*": "{count} log lines"
+      }
+    }
+  ],
   "usr_page_title": "Admin - Users",
   "usr_role_user": "User",
   "usr_role_mitviste": "MiTViste",

@@ -3,6 +3,8 @@ import { json } from '@sveltejs/kit';
 import { getDatabase } from '#lib/db/database.ts';
 import type { RequestHandler } from '@sveltejs/kit';
 import { requireStaff } from '#lib/server/permissions.ts';
+import { logEvent } from '#lib/server/logs.ts';
+import { albumChangeDetails, readAlbumAuditState } from '#lib/server/audit-changes.ts';
 
 import { createLogger } from '#lib/server/logger.ts';
 
@@ -46,8 +48,8 @@ export const PUT: RequestHandler = async (event) => {
 
     const db = getDatabase();
 
-    const existing = db.prepare('SELECT id FROM albums WHERE id = ?').get(id);
-    if (!existing) {
+    const before = readAlbumAuditState(db, id);
+    if (!before) {
       return json({ error: 'Album not found' }, { status: 404 });
     }
 
@@ -63,6 +65,12 @@ export const PUT: RequestHandler = async (event) => {
     const updated = db
       .prepare('SELECT id, name, date, location, visibility, visible FROM albums WHERE id = ?')
       .get(id);
+
+    const after = readAlbumAuditState(db, id);
+    const details = after ? albumChangeDetails(before, after) : null;
+    if (details) {
+      logEvent(event, 'update', 'album', id, details);
+    }
 
     return json({
       success: true,

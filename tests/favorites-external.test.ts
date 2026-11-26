@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { setupTestAuth, teardownTestAuth, globalTestContext, TEST_CONFIG } from './test-helpers';
+import { setupTestAuth, teardownTestAuth, globalTestContext } from './test-helpers';
 
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const testAssetId = 'test-asset-123';

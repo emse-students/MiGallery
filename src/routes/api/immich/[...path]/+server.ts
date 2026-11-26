@@ -274,15 +274,7 @@ async function handleChunkedUpload(
       );
     }
 
-    let originalName = request.headers.get('x-original-name') || `upload-${fileId}.bin`;
-    try {
-      // The client encodes the name in URI to support non-ASCII characters (e.g., special apostrophes)
-      originalName = decodeURIComponent(originalName);
-    } catch {
-      /* ignore decoding errors, use raw */
-    }
-    // Sanitize filename to prevent breaking Content-Disposition
-    originalName = originalName.replace(/["\r\n]/g, '_');
+    const originalName = readOriginalName(request, `upload-${fileId}.bin`);
 
     // compute checksum (sha256) of the complete file
     // Refactor to use stream not to buffer anything?
@@ -1059,6 +1051,21 @@ async function finishImmichUpload(
 }
 
 /**
+ * The uploaded file's name, from the `x-original-name` header both upload paths send (URI-encoded,
+ * so a non-ASCII name survives), or `fallback`. It names the file in Immich's Content-Disposition
+ * and in the `import` audit row, so quotes and line breaks are replaced.
+ */
+function readOriginalName(request: Request, fallback: string): string {
+  let name = request.headers.get('x-original-name') || fallback;
+  try {
+    name = decodeURIComponent(name);
+  } catch {
+    // A malformed escape: the raw header is still a usable name.
+  }
+  return name.replace(/["\r\n]/g, '_').slice(0, 255);
+}
+
+/**
  * Handle a small "simple" upload: the client sends the whole multipart envelope
  * in one request. We buffer it and replay it to Immich with a plain http.request.
  * The content-type (with its multipart boundary) is forwarded verbatim, so Immich
@@ -1128,7 +1135,12 @@ async function handleSimpleUpload(event: RequestEvent, baseUrl: string): Promise
       req.end(buf);
     });
 
-    return await finishImmichUpload(event, response, 'simple-upload', () => {});
+    return await finishImmichUpload(
+      event,
+      response,
+      readOriginalName(request, 'simple-upload'),
+      () => {}
+    );
   } catch (err: unknown) {
     const _err = ensureError(err);
     log.error('simple upload failed', _err);

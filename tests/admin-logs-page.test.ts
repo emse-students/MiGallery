@@ -31,8 +31,21 @@ afterAll(() => {
   removeTempDir(dbDir);
 });
 
+type LoadResult = {
+  entries: { id: number; kind: string; actor: string | null }[];
+  people: Record<string, { name: string; role: string | null }>;
+  albums: Record<string, string>;
+};
+
+const loadAt = async (query = '') =>
+  (await load({
+    locals: {},
+    cookies: {},
+    url: new URL(`http://localhost/admin/logs${query}`),
+  } as never)) as unknown as LoadResult;
+
 describe('admin logs page', () => {
-  it('returns a distinct id per row when several rows share a timestamp', async () => {
+  it('returns a distinct id per entry when several rows share a timestamp', async () => {
     const db = database.getDatabase();
     const add = db.prepare(
       "INSERT INTO logs (timestamp, event_type, details) VALUES ('2026-01-01 10:00:00', 'login', ?)"
@@ -41,19 +54,34 @@ describe('admin logs page', () => {
     add.run('b');
     add.run('c');
 
-    const result = (await load({
-      locals: {},
-      cookies: {},
-      url: new URL('http://localhost/admin/logs'),
-    } as never)) as { logs: { id: number; timestamp: string }[] };
+    const result = await loadAt();
 
-    expect(new Set(result.logs.map((l) => l.timestamp)).size).toBe(1);
-    expect(new Set(result.logs.map((l) => l.id)).size).toBe(result.logs.length);
+    expect(result.entries.length).toBe(3);
+    expect(new Set(result.entries.map((e) => e.id)).size).toBe(result.entries.length);
   });
 
-  it('keys the row loop on the id, never the timestamp', () => {
+  it('keys the entry loop on the id, never the timestamp', () => {
     const source = readFileSync(join(__dirname, '../src/routes/admin/logs/+page.svelte'), 'utf8');
-    expect(source).toContain('{#each logs as log (log.id)}');
-    expect(source).not.toContain('log (log.timestamp)');
+    expect(source).toContain('{#each day.entries as entry (entry.id)}');
+    expect(source).not.toMatch(/\{#each [^}]*\((entry|log)\.(timestamp|start|end)\)\}/);
+  });
+
+  it('names the actor and the album, and the covers filter keeps only cover changes', async () => {
+    const db = database.getDatabase();
+    db.prepare(
+      "INSERT INTO users (id_user, name, first_name, last_name, role) VALUES ('u-cover', 'vk', 'Victor', 'K', 'mitviste')"
+    ).run();
+    db.prepare("INSERT INTO albums (id, name) VALUES ('alb-cover', 'Perm Nauti')").run();
+    const add = db.prepare(
+      "INSERT INTO logs (timestamp, actor, event_type, target_type, target_id, details) VALUES ('2026-11-26 10:41:48', 'u-cover', 'update', 'album', 'alb-cover', ?)"
+    );
+    add.run(JSON.stringify({ action: 'set_cover', from: 'old', to: 'new' }));
+    add.run(JSON.stringify({ changes: { name: ['Nauti', 'Perm Nauti'] } }));
+
+    const result = await loadAt('?category=covers');
+
+    expect(result.entries.map((e) => e.kind)).toEqual(['album_cover']);
+    expect(result.people['u-cover']).toEqual({ name: 'Victor K', role: 'mitviste' });
+    expect(result.albums['alb-cover']).toBe('Perm Nauti');
   });
 });

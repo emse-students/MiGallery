@@ -3,7 +3,13 @@ import type { RequestHandler } from './$types';
 import { env } from '#lib/server/env.ts';
 import { getDatabase } from '#lib/db/database.ts';
 import { requireStaff } from '#lib/server/permissions.ts';
-import { getCoverImage, resolveCover, storeCover } from '#lib/server/album-cover.ts';
+import {
+  getCoverImage,
+  getStoredCover,
+  resolveCover,
+  storeCover,
+} from '#lib/server/album-cover.ts';
+import { logEvent } from '#lib/server/logs.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { OUTBOUND_BUDGET_MS } from '#lib/server/outbound.ts';
 
@@ -134,7 +140,17 @@ export const PUT: RequestHandler = async (event) => {
       } | null
     )?.assets?.find((a) => a.id === assetId)?.type || 'IMAGE';
 
+  // Which cover this one replaces, read before it is overwritten: a cover change used to leave no
+  // trace at all, so a member asking who changed the covers could not be answered.
+  const previous = getStoredCover(albumId);
   storeCover(albumId, { assetId, type });
+  if (previous?.assetId !== assetId) {
+    logEvent(event, 'update', 'album', albumId, {
+      action: 'set_cover',
+      from: previous?.assetId ?? null,
+      to: assetId,
+    });
+  }
 
   return json({ success: true, assetId });
 };

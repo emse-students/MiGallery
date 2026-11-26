@@ -5,6 +5,7 @@ import { getDatabase } from '#lib/db/database.ts';
 import { requireScope } from '#lib/server/permissions.ts';
 import { isImpersonating } from '#lib/server/auth.ts';
 import { logEvent } from '#lib/server/logs.ts';
+import { fieldChanges } from '#lib/server/audit-changes.ts';
 import {
   deleteUserAccount,
   DELETED_ID,
@@ -18,6 +19,25 @@ import { assertAnotherAdminRemains, LastAdminError } from '#lib/server/admin-flo
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('users-id');
+
+/** The columns of a member an admin edits, as an audit row compares them. */
+interface UserAuditState {
+  name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+  promo: number | null;
+  formation: string | null;
+  photos_id: string | null;
+}
+const USER_AUDIT_FIELDS = [
+  'name',
+  'first_name',
+  'last_name',
+  'role',
+  'promo',
+  'formation',
+] as const;
 
 export const GET: RequestHandler = async (event) => {
   await requireScope(event, 'admin');
@@ -100,6 +120,12 @@ export const PUT: RequestHandler = async (event) => {
     }
 
     const db = getDatabase();
+    // Read BEFORE the write, for the audit row's "from" side.
+    const before = db
+      .prepare(
+        'SELECT name, first_name, last_name, role, promo, formation, photos_id FROM users WHERE id_user = ?'
+      )
+      .get(targetId) as UserAuditState | undefined;
     // The other columns and the link move in ONE transaction. The link goes through
     // applyFaceLink (face-link.ts): a changed or cleared person drops the old person's grants,
     // closes its consent, clears the profile pointer and journals the Immich clearing.
@@ -149,13 +175,22 @@ export const PUT: RequestHandler = async (event) => {
       )
       .get(targetId);
     try {
-      await logEvent(event, 'update', 'user', targetId, {
-        name,
-        first_name,
-        last_name,
-        role,
-        promo,
-      });
+      const after = updated as UserAuditState | undefined;
+      if (before && after) {
+        const changes = fieldChanges(before, after, USER_AUDIT_FIELDS);
+        // The face link is reported as moved, never by its value: the audit log is no place
+        // to copy a biometric identifier into.
+        const faceLinkChanged = (before.photos_id ?? null) !== (after.photos_id ?? null);
+        if (Object.keys(changes).length > 0 || faceLinkChanged) {
+          await logEvent(
+            event,
+            'update',
+            'user',
+            targetId,
+            faceLinkChanged ? { changes, faceLinkChanged } : { changes }
+          );
+        }
+      }
     } catch (logErr) {
       log.warn('logEvent failed (users PUT):', logErr);
     }

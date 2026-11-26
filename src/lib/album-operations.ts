@@ -76,6 +76,8 @@ async function uploadFileSimple(file: File, signal?: AbortSignal): Promise<Respo
 
   return await fetch('/api/immich/assets', {
     method: 'POST',
+    // The name the admin activity feed shows for this import; the chunked path sends the same.
+    headers: { 'x-original-name': encodeURIComponent(file.name) },
     body: formData,
     signal,
   });
