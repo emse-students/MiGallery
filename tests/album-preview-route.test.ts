@@ -106,7 +106,11 @@ describe('the album preview', () => {
   });
 
   it('answers 404 to a key for an album the gallery does not know, 400 for a non-id', async () => {
-    expect((await answerOf(eventFor(UNKNOWN, readKey))).status).toBe(404);
+    // The code, not the message, is what tells a caller the album is unknown and the route is not.
+    expect(await answerOf(eventFor(UNKNOWN, readKey))).toEqual({
+      status: 404,
+      body: { code: 'album_not_found', message: 'Album not found' },
+    });
     expect((await answerOf(eventFor('..%2Fusers', readKey))).status).toBe(400);
   });
 });

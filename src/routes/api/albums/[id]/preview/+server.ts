@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDatabase } from '#lib/db/database.ts';
 import { assertImmichId } from '#lib/server/immich-id.ts';
@@ -6,6 +6,9 @@ import { requireViewerOfAlbum } from '#lib/server/album-asset-access.ts';
 import { createLogger } from '#lib/server/logger.ts';
 
 const log = createLogger('albums-id-preview');
+
+/** The `code` of the 404 this route answers for an album the gallery does not know. */
+const ALBUM_NOT_FOUND = 'album_not_found';
 
 /** What a link-preview card says about an album, and nothing more. */
 export interface AlbumPreview {
@@ -30,7 +33,7 @@ export interface AlbumPreview {
  *
  * @returns 200 with {@link AlbumPreview}; 400 for an id that is not an Immich id; 401 without a key
  *   or session; 403 for a key without a read scope or a member who may not open the album; 404 for
- *   an album the gallery does not know.
+ *   an album the gallery does not know, carrying `code: 'album_not_found'`.
  */
 export const GET: RequestHandler = async (event) => {
   const id = assertImmichId(event.params.id, 'album');
@@ -44,8 +47,10 @@ export const GET: RequestHandler = async (event) => {
 
   if (!row) {
     // Reached by a key only: a session is answered 404 by `requireViewerOfAlbum` already.
+    // The `code` is what tells a caller THIS route answered "no such album" from a 404 meaning
+    // "no such route" (a MiGallery older than this file): Canari reads it, never the message.
     log.debug('album preview: unknown album', { albumId: id });
-    throw error(404, 'Album not found');
+    return json({ code: ALBUM_NOT_FOUND, message: 'Album not found' }, { status: 404 });
   }
 
   const preview: AlbumPreview = {

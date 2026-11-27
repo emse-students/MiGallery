@@ -36,7 +36,9 @@ session, and nothing else: Immich's record of the album (`GET /api/albums/[id]`)
 session, and the grant lists (`GET /api/albums/[id]/info`) are the staff's. **album read**
 (`GET /api/albums/[id]/preview`) is `requireViewerOfAlbum`: a key with the `read` scope, or a session that may
 open the album; it answers the four fields a link card needs (name, date, location, visibility) for every
-visibility, private included, and never a grant list - it is what Canari's link-preview service reads. One photo must also be in
+visibility, private included, and never a grant list - it is what Canari's link-preview service reads. Its
+404 for an unknown album carries `code: 'album_not_found'`, which tells a caller that answer from the 404 of a
+MiGallery that has no such route. One photo must also be in
 the album named (staff and keys excepted), and is answered 503 when Immich does not say - written
 once per album and window, a failed request not repeated within it. `GET /api/albums` lists, for a
 member, the albums the albums page lists for them. An album or asset id that is not an Immich id is
