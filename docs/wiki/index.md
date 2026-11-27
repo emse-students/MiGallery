@@ -49,6 +49,7 @@ the page is a bug.
 | [photo-grid.md](photo-grid.md)                         | The photo grid: justified rows, the tile size each DPR needs, virtualisation, select-a-day      |
 | [ui-redesign.md](ui-redesign.md)                       | The Google Photos-shaped redesign: the 2026-09-25 audit, its work list and the decisions owed   |
 | [jpegli-recompression.md](jpegli-recompression.md)     | The in-place JPEGLI q80 swap on the Immich host: marker, guard rails, results, the 901 refusals |
+| [alumni-merge.md](alumni-merge.md)                     | Canari's Alumni merge call: an Alumni duplicate account moved onto the real one, then erased    |
 | [data-model.md](data-model.md)                         | The local SQLite schema                                                                         |
 | [api-reference.md](api-reference.md)                   | Endpoint groups, auth and shape                                                                 |
 | [deployment.md](deployment.md)                         | Docker, CD, secrets, backups                                                                    |

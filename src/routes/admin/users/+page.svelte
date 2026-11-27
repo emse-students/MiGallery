@@ -17,6 +17,7 @@
   import Modal from '#lib/components/Modal.svelte';
   import Spinner from '#lib/components/Spinner.svelte';
   import { fuzzySearch } from '#lib/fuzzy.ts';
+  import { homonymIdHints } from '#lib/admin-homonyms.ts';
   import { toast } from '#lib/toast.ts';
   import { showConfirm } from '#lib/confirm.ts';
   import { exportTrombinoscope, mapWithConcurrency, sortMembers } from '#lib/trombi-pdf.ts';
@@ -77,6 +78,9 @@
         .join(' ')
     )
   );
+
+  // Two shown rows identical in name, promo and formation carry their id's first characters (D56).
+  const homonymHints = $derived(homonymIdHints(filtered));
 
   // --- PDF export ---
   let showPdfModal = $state(false);
@@ -375,6 +379,10 @@
               <div class="identity-meta-line">
                 {#if user.promo}<span class="badge promo-tag">{user.promo}</span>{/if}
                 {#if user.formation}<span class="txt-formation">{user.formation}</span>{/if}
+                {#if homonymHints.get(user.id_user)}<span
+                    class="txt-homonym-id"
+                    title={m.usr_homonym_id_title()}>{homonymHints.get(user.id_user)}</span
+                  >{/if}
               </div>
             </div>
           </div>
@@ -772,6 +780,11 @@
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
+  }
+
+  .txt-homonym-id {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
   }
 
   .txt-formation {

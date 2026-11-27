@@ -93,6 +93,12 @@ does not say. Nothing the request carries names the album.
 | `GET /api/auth/callback` | public | OIDC return, set session |
 | `GET /api/auth/logout`   | public | Clear session            |
 
+## Internal (Canari, signed token)
+
+| Path                              | Auth                        | Purpose                                                                                                  |
+| --------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `POST /api/internal/alumni-merge` | `Bearer` `canari-merge+jwt` | Move an Alumni duplicate's account onto the real one, then erase it ([alumni-merge.md](alumni-merge.md)) |
+
 ## External (API key)
 
 | Path                       | Auth        | Purpose                                                            |

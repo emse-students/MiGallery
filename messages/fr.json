@@ -752,6 +752,7 @@
   ],
   "usr_search_ph": "Rechercher un membre…",
   "usr_you": "vous",
+  "usr_homonym_id_title": "Début de l'identifiant : deux comptes portent le même nom, la même promo et la même formation",
   "usr_no_self_role": "Vous ne pouvez pas modifier votre propre rôle",
   "usr_change_role": "Changer le rôle",
   "usr_no_self_delete": "Vous ne pouvez pas vous supprimer",
