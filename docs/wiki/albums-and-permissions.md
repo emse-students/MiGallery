@@ -77,6 +77,12 @@ signed-in user.
   external sites embed them from an `<img>` tag, which carries no key. Only the
   cover is exposed that way - `/og-preview` still refuses private albums and the
   album's contents stay gated by `checkAlbumAccess`.
+  A link-preview card for ANY album, private included, is
+  `GET /api/albums/[id]/preview`: name, date, location and visibility, read with a
+  `read`-scoped key (Canari's link-preview service holds one) or a session that may open
+  the album. It was added on 2026-11-27 because Canari read `/info`, which returns the
+  grant lists too and became the staff's in v2.23.1: Canari's read key got a 403 and every
+  album link there lost its card. A card needs no grant list, so it gets none.
   A cached image is deleted only once nothing points at it any more - the cover
   changed, or the album was deleted. Files are named after the ASSET, so two
   albums sharing a cover share one file. `POST /api/admin/covers-prune` (admin)
