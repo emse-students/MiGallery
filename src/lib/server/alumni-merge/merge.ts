@@ -36,7 +36,7 @@ import {
 } from '#lib/server/face-erasure.ts';
 import { faceStoreKey } from '#lib/server/face-store.ts';
 import { negativeContext, referenceContext, seal, unseal } from '#lib/server/face-seal.ts';
-import type { AlumniMergeMode } from '#lib/server/alumni-merge/merge-token.ts';
+import type { AlumniMergeClaims } from '#lib/server/handoff/alumni-merge-verify.ts';
 
 const log = createLogger('alumni-merge');
 
@@ -96,14 +96,11 @@ export const ALUMNI_MERGE_TABLES = {
   face_matches: 'moved with the face link, else erased',
 } as const;
 
-/** What a merge call asks. */
-export interface AlumniMergeRequest {
-  dup: string;
-  target: string;
-  mode: AlumniMergeMode;
-  /** The job id, for the log lines only. */
-  jti: string;
-}
+/** What a merge call asks: the vendored verifier's claims (a transfer names its target, an erase never does). */
+export type AlumniMergeRequest = AlumniMergeClaims;
+
+/** A transfer call. */
+type TransferRequest = Extract<AlumniMergeRequest, { mode: 'transfer' }>;
 
 interface UserSnapshot {
   name: string;
@@ -244,7 +241,7 @@ function readUser(db: Db, userId: string): UserSnapshot | null {
 /** The transfer's writes, inside the transaction. Returns what to finish after the commit. */
 function transfer(
   db: Db,
-  req: AlumniMergeRequest,
+  req: TransferRequest,
   dupRow: UserSnapshot,
   tag: string
 ): LocalErasure | null {
@@ -320,7 +317,7 @@ function transfer(
  * {@link FaceKeyUnavailableError} (503), writing nothing; a database fault throws as it is.
  */
 export function mergeAlumniDuplicate(db: Db, req: AlumniMergeRequest): AlumniMergeOutcome {
-  const tag = `[ALUMNI_MERGE] jti=${req.jti} dup=${subjectPrefix(req.dup)} target=${subjectPrefix(req.target)} mode=${req.mode}`;
+  const tag = `[ALUMNI_MERGE] jti=${req.jti} dup=${subjectPrefix(req.dup)} target=${req.mode === 'transfer' ? subjectPrefix(req.target) : 'none'} mode=${req.mode}`;
   log.info(`${tag} received`);
   if (req.mode === 'transfer' && req.dup === req.target) {
     log.error(`${tag} refused: the duplicate and the target are one subject`);

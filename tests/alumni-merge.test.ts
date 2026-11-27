@@ -403,7 +403,7 @@ describe('the erase-only mode', () => {
     addUser(DUP);
     enrol(DUP, 'bbbbbbbb-0000-4000-8000-000000000001');
     db().prepare("INSERT INTO user_favorites (user_id, asset_id) VALUES (?, 'fav-1')").run(DUP);
-    const r = await call({ dup: DUP, target: TARGET, jti: 'job-2', mode: 'erase' });
+    const r = await call({ dup: DUP, jti: 'job-2', mode: 'erase' });
     expect(r).toEqual({ status: 200, body: { outcome: 'erased' } });
     expect(userRow(DUP)).toBeNull();
     expect(userRow(TARGET)).toBeNull();
@@ -412,9 +412,16 @@ describe('the erase-only mode', () => {
       expect(count(table, '1 = 1'), table).toBe(0);
     }
     expect(count('face_erasures', '1 = 1')).toBe(1);
-    expect((await call({ dup: DUP, target: TARGET, jti: 'job-2', mode: 'erase' })).body).toEqual({
+    expect((await call({ dup: DUP, jti: 'job-2', mode: 'erase' })).body).toEqual({
       outcome: 'absent',
     });
+  });
+
+  it('an erase token naming a target is refused (Canari blanks it with the person)', async () => {
+    addUser(DUP);
+    const r = await call({ dup: DUP, target: TARGET, jti: 'job-5', mode: 'erase' });
+    expect(r).toEqual({ status: 401, body: { outcome: 'invalid' } });
+    expect(userRow(DUP)).not.toBeNull();
   });
 
   it('an unknown mode is refused', async () => {
@@ -526,7 +533,7 @@ describe('the token', () => {
         throw new Error('ECONNREFUSED');
       },
     });
-    expect(r).toEqual({ status: 503, body: { code: 'KEYS_UNAVAILABLE' } });
+    expect(r).toEqual({ status: 503, body: { outcome: 'keys_unavailable' } });
     untouched();
   });
 

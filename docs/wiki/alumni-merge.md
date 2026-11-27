@@ -17,12 +17,16 @@ answers.
   issuer as the [sign-in handoff](authentication.md#signed-in-from-canari-the-sign-in-handoff)
   (`CANARI_HANDOFF_ISSUER`, `CANARI_HANDOFF_JWKS`): no new secret. Audience `migallery`, lifetime at
   most 60 s, 30 s of skew. Its own `typ` means a handoff token is never accepted here, nor the
-  reverse. The verifier is `src/lib/server/alumni-merge/merge-token.ts`, the same as Sky's - NOT
-  vendored yet: a shared one will land in Canari's `libs/handoff/` and replace it.
-- **Claims**: `dup` (the duplicate's subject), `target` (the real account's), `jti` (Canari's job
-  id, logged), and an OPTIONAL `mode`: absent or `transfer` is the merge, `erase` erases the
-  duplicate and moves nothing (the target was erased in the meantime). The mode is a signed claim,
-  not a body field, so that nobody holding a token can turn a transfer into an erasure. The body is
+  reverse. The verifier is `src/lib/server/handoff/alumni-merge-verify.ts`, VENDORED
+  BYTE-IDENTICALLY from Canari's `libs/handoff/alumni-merge-verify.ts` beside `handoff-verify.ts`
+  (whose leeway and lifetime it imports), like the handoff verifier: edit it in Canari, then copy
+  it; Canari's `tools/ecosystem-shape/shape.mjs` compares the copies. It is excluded from `oxfmt`
+  (`oxfmt.json`) so the formatter never makes it drift.
+- **Claims**: `dup` (the duplicate's subject), `jti` (Canari's job id, logged), and `mode`:
+  absent or `transfer` is the merge and REQUIRES `target` (the real account's subject); `erase`
+  erases the duplicate and moves nothing (the target was erased in Canari in the meantime), and its
+  token carries NO `target` - one that does is refused `invalid`. The mode is a signed claim, not a
+  body field, so that nobody holding a token can turn a transfer into an erasure. The body is
   ignored.
 - **Answers**:
 
@@ -35,11 +39,11 @@ answers.
 | 409    | `{ code: 'ALUMNI_MERGE_SAME_SUBJECT' }`       | `dup` equals `target`                                                                                      | blocked                |
 | 409    | `{ code: 'ALUMNI_MERGE_FACE_UNREADABLE' }`    | a sealed face row of the duplicate does not open                                                           | blocked                |
 | 503    | `{ code: 'FACE_STORE_KEY_UNAVAILABLE' }`      | the duplicate holds templates and `FACE_STORE_KEY` is unusable                                             | retried                |
-| 503    | `{ code: 'KEYS_UNAVAILABLE' }`                | Canari's JWKS could not be fetched                                                                         | retried                |
+| 503    | `{ outcome: 'keys_unavailable' }`             | Canari's JWKS could not be fetched                                                                         | retried                |
 | 401    | `{ outcome: <class> }`                        | the token is refused (`invalid`, `wrong_issuer`, `wrong_audience`, `expired`, `not_yet_valid`, `too_long`) | retried                |
 | 503    | `{ outcome: 'not_configured' }`               | this deployment trusts no Canari issuer                                                                    | retried                |
 
-A refusal writes nothing. Every 409 and 503 is a state the network cannot change by itself.
+A refusal writes nothing. Every 409 is a state no retry changes (Canari blocks the job); every 503 is retried.
 
 ## What moves, in ONE transaction
 

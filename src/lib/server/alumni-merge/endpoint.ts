@@ -6,8 +6,10 @@
  * - 200 `{ outcome }`: `transferred`, `erased` (erase-only mode) or `absent` (no duplicate here:
  *   never signed in, or already done - a retry after a lost answer lands here).
  * - 409 `{ code }`: a typed refusal on this site's state; Canari blocks the job, a human looks.
- * - 401 `{ outcome }`: the token is refused (its class); 503 `{ outcome: 'not_configured' }`
- *   when this deployment trusts no Canari issuer; 503 `{ code }` when Canari's keys or the face key cannot be obtained - both retried.
+ * - 401 `{ outcome }`: the token is refused (its class, from the vendored
+ *   `handoff/alumni-merge-verify.ts`); 503 `{ outcome: 'not_configured' }` when this deployment
+ *   trusts no Canari issuer; 503 `{ outcome: 'keys_unavailable' }` when Canari's keys cannot be
+ *   fetched; 503 `{ code: 'FACE_STORE_KEY_UNAVAILABLE' }` when the face key cannot - all retried.
  *
  * Every line names the job id and 8-character subject prefixes, never a token, a name or a
  * face datum.
@@ -17,10 +19,7 @@ import { getDatabase } from '#lib/db/database.ts';
 import { createLogger } from '#lib/server/logger.ts';
 import { env } from '#lib/server/env.ts';
 import { HANDOFF_AUDIENCE, handoffTrust } from '#lib/server/handoff/redeem.ts';
-import {
-  ALUMNI_MERGE_TOKEN_MAX_LENGTH,
-  verifyAlumniMergeCall,
-} from '#lib/server/alumni-merge/merge-token.ts';
+import { verifyAlumniMergeCall } from '#lib/server/handoff/alumni-merge-verify.ts';
 import {
   AlumniMergeRefusal,
   FaceKeyUnavailableError,
@@ -28,6 +27,9 @@ import {
 } from '#lib/server/alumni-merge/merge.ts';
 
 const log = createLogger('alumni-merge');
+
+/** The longest token the `Authorization` header may carry. */
+const ALUMNI_MERGE_TOKEN_MAX_LENGTH = 4096;
 
 /** What the endpoint answers. */
 export interface AlumniMergeAnswer {
@@ -75,7 +77,7 @@ export async function handleAlumniMergeCall(
       log.error(
         '[ALUMNI_MERGE] refused class=keys_unavailable: Canari`s keys could not be fetched'
       );
-      return { status: 503, body: { code: 'KEYS_UNAVAILABLE' } };
+      return { status: 503, body: { outcome: 'keys_unavailable' } };
     }
     log.warn(`[ALUMNI_MERGE] refused class=${verified.outcome}`);
     return { status: 401, body: { outcome: verified.outcome } };
