@@ -97,7 +97,7 @@ async function token(
 }
 
 async function call(
-  claims: Record<string, unknown> = { dup: DUP, target: TARGET, jti: 'job-1' },
+  claims: Record<string, unknown> = { mode: 'transfer', dup: DUP, target: TARGET, jti: 'job-1' },
   opts: Parameters<typeof token>[1] = {}
 ) {
   return endpoint.handleAlumniMergeCall({
@@ -444,7 +444,7 @@ describe('the refusals on this site`s state write nothing', () => {
 
   it('one subject on both sides is refused', async () => {
     addUser(DUP);
-    const r = await call({ dup: DUP, target: DUP, jti: 'job-4' });
+    const r = await call({ mode: 'transfer', dup: DUP, target: DUP, jti: 'job-4' });
     expect(r).toEqual({ status: 409, body: { code: 'ALUMNI_MERGE_SAME_SUBJECT' } });
     expect(userRow(DUP)).not.toBeNull();
   });
@@ -509,7 +509,7 @@ describe('the token', () => {
 
   it('a token signed by another key is refused', async () => {
     const other = await generateKeyPair('ES256');
-    const forged = await new SignJWT({ dup: DUP, target: TARGET, jti: 'x' })
+    const forged = await new SignJWT({ mode: 'transfer', dup: DUP, target: TARGET, jti: 'x' })
       .setProtectedHeader({ alg: 'ES256', typ: 'canari-merge+jwt', kid: 'k1' })
       .setIssuer(ISSUER)
       .setAudience('migallery')
@@ -522,13 +522,19 @@ describe('the token', () => {
   });
 
   it('a claim missing is refused', async () => {
-    expect((await call({ dup: DUP, jti: 'x' })).status).toBe(401);
+    expect((await call({ mode: 'transfer', dup: DUP, jti: 'x' })).status).toBe(401);
+    untouched();
+  });
+
+  it('a token without `mode` is refused (it has no default)', async () => {
+    const r = await call({ dup: DUP, target: TARGET, jti: 'x' });
+    expect(r).toEqual({ status: 401, body: { outcome: 'invalid' } });
     untouched();
   });
 
   it('keys that cannot be fetched answer 503', async () => {
     const r = await endpoint.handleAlumniMergeCall({
-      authorization: `Bearer ${await token({ dup: DUP, target: TARGET, jti: 'x' })}`,
+      authorization: `Bearer ${await token({ mode: 'transfer', dup: DUP, target: TARGET, jti: 'x' })}`,
       keys: async () => {
         throw new Error('ECONNREFUSED');
       },
@@ -542,7 +548,7 @@ describe('the token', () => {
     delete envModule.env.CANARI_HANDOFF_ISSUER;
     try {
       const r = await endpoint.handleAlumniMergeCall({
-        authorization: `Bearer ${await token({ dup: DUP, target: TARGET, jti: 'x' })}`,
+        authorization: `Bearer ${await token({ mode: 'transfer', dup: DUP, target: TARGET, jti: 'x' })}`,
       });
       expect(r).toEqual({ status: 503, body: { outcome: 'not_configured' } });
     } finally {
@@ -556,7 +562,7 @@ describe('what the logs carry', () => {
   it('no full subject, no name, no token - prefixes and counts only', async () => {
     addUser(DUP);
     enrol(DUP, 'bbbbbbbb-0000-4000-8000-000000000001');
-    const t = await token({ dup: DUP, target: TARGET, jti: 'job-log' });
+    const t = await token({ mode: 'transfer', dup: DUP, target: TARGET, jti: 'job-log' });
     await endpoint.handleAlumniMergeCall({ authorization: `Bearer ${t}`, keys });
     const all = logged.join('\n');
     expect(all).toContain(DUP.slice(0, 8));

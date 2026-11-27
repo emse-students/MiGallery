@@ -22,8 +22,8 @@ answers.
   (whose leeway and lifetime it imports), like the handoff verifier: edit it in Canari, then copy
   it; Canari's `tools/ecosystem-shape/shape.mjs` compares the copies. It is excluded from `oxfmt`
   (`oxfmt.json`) so the formatter never makes it drift.
-- **Claims**: `dup` (the duplicate's subject), `jti` (Canari's job id, logged), and `mode`:
-  absent or `transfer` is the merge and REQUIRES `target` (the real account's subject); `erase`
+- **Claims**: `dup` (the duplicate's subject), `jti` (Canari's job id, logged), and `mode`, REQUIRED (a token without one is refused `invalid`):
+  `transfer` is the merge and REQUIRES `target` (the real account's subject); `erase`
   erases the duplicate and moves nothing (the target was erased in Canari in the meantime), and its
   token carries NO `target` - one that does is refused `invalid`. The mode is a signed claim, not a
   body field, so that nobody holding a token can turn a transfer into an erasure. The body is
