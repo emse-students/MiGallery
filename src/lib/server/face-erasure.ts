@@ -239,31 +239,40 @@ export function anonymiseUserInLogs(db: Db, userId: string, personId: string | n
  * is the last administrator (admin-floor.ts).
  */
 export function deleteUserAccount(db: Db, userId: string): boolean {
-  const result = inTransaction(db, () => {
-    const row = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
-      photos_id: string | null;
-    } | null;
-    if (!row) {
-      return null;
-    }
-    // Throws LastAdminError, which rolls the whole deletion back (admin-floor.ts).
-    assertAnotherAdminRemains(db, userId);
-    const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
-    anonymiseUserInLogs(db, userId, normalisePersonId(row.photos_id));
-    // A recreated account of the same id must not re-validate the signed avatar URLs issued for
-    // this one. The id stays in avatar_revocations as a tombstone (no personal data).
-    rotateAvatarSalt(db, userId);
-    // Per-user album grants name the member and carry no foreign key, so they do not cascade.
-    db.prepare("DELETE FROM album_permissions WHERE kind = 'user' AND value = ?").run(userId);
-    db.prepare('DELETE FROM users WHERE id_user = ?').run(userId);
-    return { erasure };
-  });
-  if (!result) {
+  const erasure = inTransaction(db, () => deleteUserAccountRows(db, userId));
+  if (!erasure) {
     return false;
   }
-  finishLocalErasure(result.erasure);
-  log.info('account deleted', { erasureJournaled: result.erasure.erasure !== null });
+  finishLocalErasure(erasure);
+  log.info('account deleted', { erasureJournaled: erasure.erasure !== null });
   return true;
+}
+
+/**
+ * The rows of {@link deleteUserAccount}, INSIDE the caller's transaction, for a caller that must
+ * delete the account in the same transaction as other writes (the Alumni merge moves what the
+ * account owns, then deletes it: `alumni-merge.ts`). Returns null when there is no such account,
+ * else what the caller passes to {@link finishLocalErasure} AFTER its commit. Throws
+ * LastAdminError when it is the last administrator, which rolls the caller's transaction back.
+ */
+export function deleteUserAccountRows(db: Db, userId: string): LocalErasure | null {
+  const row = db.prepare('SELECT photos_id FROM users WHERE id_user = ?').get(userId) as {
+    photos_id: string | null;
+  } | null;
+  if (!row) {
+    return null;
+  }
+  // Throws LastAdminError, which rolls the whole deletion back (admin-floor.ts).
+  assertAnotherAdminRemains(db, userId);
+  const erasure = eraseLocalFaceData(db, userId, 'account_deletion');
+  anonymiseUserInLogs(db, userId, normalisePersonId(row.photos_id));
+  // A recreated account of the same id must not re-validate the signed avatar URLs issued for
+  // this one. The id stays in avatar_revocations as a tombstone (no personal data).
+  rotateAvatarSalt(db, userId);
+  // Per-user album grants name the member and carry no foreign key, so they do not cascade.
+  db.prepare("DELETE FROM album_permissions WHERE kind = 'user' AND value = ?").run(userId);
+  db.prepare('DELETE FROM users WHERE id_user = ?').run(userId);
+  return erasure;
 }
 
 function immich(): { base: string; key: string } {

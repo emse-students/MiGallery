@@ -743,6 +743,7 @@
   ],
   "usr_search_ph": "Search a member…",
   "usr_you": "you",
+  "usr_homonym_id_title": "Start of the id: two accounts share this name, promo and formation",
   "usr_no_self_role": "You cannot change your own role",
   "usr_change_role": "Change role",
   "usr_no_self_delete": "You cannot delete yourself",
